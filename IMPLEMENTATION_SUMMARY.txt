@@ -1,0 +1,16 @@
+All modules are syntactically correct and loadable. The application structure is ready.
+
+Next steps for the user:
+1. Install FFmpeg and ensure it is in your PATH.
+2. Install whisper.cpp binary (from https://github.com/ggerganov/whisper.cpp) and ensure 'whisper-cli' is in your PATH.
+3. Run 'npm start' to launch the Electron application.
+4. In the app, set the SRT URI (e.g., srt://0.0.0.0:8080?mode=listener) and language settings.
+5. Click 'Start Stream' to begin processing.
+6. The output URL will be displayed; open it in a browser to view the processed stream.
+
+Note:
+- The first run will download translation models (several hundred MB) for offline translation.
+- For real-time processing, ensure you have a sufficiently powerful CPU.
+- The TTS module uses platform-specific TTS (say on macOS, PowerShell on Windows, espeak on Linux). For better quality, consider replacing it with a TTS model.
+- The translation module uses the Xenova/nllb-200-distilled-600M model, which is multilingual but large.
+- To use online APIs for any module, you would need to extend the module configurations and implement the online logic.

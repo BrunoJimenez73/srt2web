@@ -1,0 +1,8 @@
+node_modules/
+.npm
+.env
+*.log
+.DS_Store
+server.pid
+nul
+*.pid

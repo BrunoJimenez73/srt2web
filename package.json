@@ -1,0 +1,25 @@
+{
+  "name": "srt-to-web",
+  "version": "1.0.0",
+  "description": "Convert SRT/RTMP streams to HLS for web playback",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "help": "node index.js --help"
+  },
+  "keywords": [
+    "srt",
+    "rtmp",
+    "hls",
+    "streaming",
+    "obs"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@xenova/transformers": "^2.17.2",
+    "ffmpeg-static": "^5.3.0",
+    "obs-websocket-js": "^5.0.8",
+    "whisper-node": "^1.1.1"
+  }
+}
