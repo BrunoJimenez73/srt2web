@@ -24,8 +24,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from core.config_manager import ConfigManager
 from core.pipeline import Pipeline
 from core.ffmpeg_utils import find_ffmpeg, ensure_ffmpeg
-from modules.srt_ingest import SRTIngest
-from modules.video_muxer import VideoMuxer
+from core.io_factory import InputFactory, OutputFactory, auto_discover
 from modules.audio_extractor import AudioExtractor
 from modules.transcriber import Transcriber
 from modules.translator import Translator
@@ -49,7 +48,6 @@ def _cleanup_orphan_processes():
 
     try:
         if platform.system() == "Windows":
-            # Kill any FFmpeg processes that might be hanging
             subprocess.run(
                 ["taskkill", "/F", "/IM", "ffmpeg.exe"],
                 capture_output=True,
@@ -71,12 +69,9 @@ def _shutdown():
     if _app_context:
         try:
             pipeline = _app_context.get("pipeline")
-            srt_ingest = _app_context.get("srt_ingest")
 
             if pipeline:
                 pipeline.stop()
-            if srt_ingest:
-                srt_ingest.stop()
 
             logger.info("Pipeline shutdown complete")
         except Exception as e:
@@ -127,14 +122,41 @@ def setup_logging():
     logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 
 
-def build_pipeline(config: ConfigManager, output_dir: str) -> tuple:
+def build_pipeline(config: ConfigManager, output_dir: str):
     """
-    Build the processing pipeline with all modules.
-    Returns (pipeline, srt_ingest).
-    """
-    pipeline = Pipeline()
+    Build the processing pipeline with modular input/output.
 
-    # Phase 2 Modules (Execution Order Matters!)
+    Returns (pipeline, input_source).
+    """
+    # Auto-discover available inputs and outputs
+    auto_discover()
+
+    # Get input configuration
+    input_config = config.get_section("input")
+    input_type = input_config.get("type", "srt")
+    type_config = input_config.get(input_type, {})
+    type_config["chunk_duration_sec"] = config.get("pipeline.chunk_duration_sec", 15)
+
+    # Create input source
+    logger = logging.getLogger("srt2web.main")
+    logger.info(f"Creating input source: {input_type}")
+    input_source = InputFactory.create(input_type, type_config)
+    input_source.set_output_dir(output_dir)
+
+    # Get output configuration
+    output_config = config.get_section("output")
+    output_type = output_config.get("type", "web")
+    type_config = output_config.get(output_type, {})
+
+    # Create output sink
+    logger.info(f"Creating output sink: {output_type}")
+    output_sink = OutputFactory.create(output_type, type_config)
+    output_sink.set_output_dir(output_dir)
+
+    # Create pipeline with input/output
+    pipeline = Pipeline(input_source, output_sink)
+
+    # Register processing modules (Execution Order Matters!)
 
     # 1. Extract audio from the video chunk
     audio_extractor_config = config.get_module_config("audio_extractor")
@@ -168,18 +190,9 @@ def build_pipeline(config: ConfigManager, output_dir: str) -> tuple:
     audio_mixer = AudioMixer(config=mixer_config, output_dir=output_dir)
     pipeline.register_module(audio_mixer)
 
-    # 7. Mux video (and audio/subs) into HLS
-    # VideoMuxer automatically picks up mixed_audio_path if it exists
-    muxer_config = config.get_module_config("video_muxer")
-    video_muxer = VideoMuxer(config=muxer_config, output_dir=output_dir)
-    pipeline.register_module(video_muxer)
+    # Note: Output is now handled by the OutputSink, not a module
 
-    # SRT Ingest (not in pipeline - it's the data source)
-    srt_config = config.get_section("srt")
-    srt_config["chunk_duration_sec"] = config.get("pipeline.chunk_duration_sec", 4)
-    srt_ingest = SRTIngest(config=srt_config, output_dir=output_dir)
-
-    return pipeline, srt_ingest
+    return pipeline, input_source
 
 
 def main():
@@ -190,7 +203,7 @@ def main():
     print()
     print("  +====================================+")
     print("  |      SRT2Web - Stream Processor   |")
-    print("  |         v0.3.0 - Phase 3           |")
+    print("  |         v0.4.0 - Modular          |")
     print("  +====================================+")
     print()
 
@@ -200,7 +213,7 @@ def main():
     logger.info("Configuration loaded")
 
     # Ensure output directory exists
-    output_dir = config.get("output.directory", "./output")
+    output_dir = config.get("output_dir.directory", "./output")
     if not os.path.isabs(output_dir):
         output_dir = str(PROJECT_ROOT / output_dir)
     os.makedirs(output_dir, exist_ok=True)
@@ -214,14 +227,14 @@ def main():
         logger.warning("FFmpeg not found. Will attempt download on first use.")
 
     # Build pipeline
-    pipeline, srt_ingest = build_pipeline(config, output_dir)
+    pipeline, input_source = build_pipeline(config, output_dir)
 
     # Create shared context
     global _app_context
     app_context = {
         "config": config,
         "pipeline": pipeline,
-        "srt_ingest": srt_ingest,
+        "input_source": input_source,
         "log_broadcast": log_broadcaster.broadcast,
     }
     _app_context = app_context
@@ -234,7 +247,7 @@ def main():
 
     # Server configuration
     host = config.get("server.host", "0.0.0.0")
-    port = config.get("server.port", 8080)
+    port = config.get("server.port", 9999)
 
     # Open browser after a short delay
     def open_browser():
@@ -257,11 +270,14 @@ def main():
     signal.signal(signal.SIGINT, handle_exit)
     signal.signal(signal.SIGTERM, handle_exit)
 
+    # Get connection info for logging
+    input_info = input_source.get_connection_info()
+    input_url = input_info.get("url", f"port {input_info.get('port', 'N/A')}")
+
     # Start server
-    srt_port = config.get("srt.listen_port", 9000)
     logger.info(f"Dashboard: http://localhost:{port}")
-    logger.info(f"SRT Port:  {srt_port}")
-    logger.info(f"Stream:    http://localhost:{port}/hls/stream.m3u8")
+    logger.info(f"Input:    {input_info.get('type', 'unknown').upper()} ({input_url})")
+    logger.info(f"Stream:   http://localhost:{port}/hls/stream.m3u8")
     print()
 
     uvicorn.run(

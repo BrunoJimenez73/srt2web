@@ -1,181 +1,1271 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="SRT2Web — Modular SRT Stream Processor Dashboard">
-    <title>SRT2Web — Dashboard</title>
+    <title>SRT2Web — Dashboard v0.4</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        :root {
+            --bg-deep: #0a0a0f;
+            --bg-surface: #12121a;
+            --bg-card: #1a1a24;
+            --bg-card-hover: #222230;
+            --border-dim: rgba(255,255,255,0.08);
+            --border-accent: rgba(99,102,241,0.3);
+            --text-pure: #fff;
+            --text-prime: #e4e4e8;
+            --text-sec: #8888a0;
+            --text-dim: #555570;
+            --accent: #6366f1;
+            --accent-hover: #7c7ff7;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --radius-lg: 12px;
+            --radius-md: 8px;
+            --radius-sm: 6px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-prime);
+            min-height: 100vh;
+            font-size: 13px;
+        }
+
+        .dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-dim);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo svg { width: 32px; height: 32px; }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .version-badge {
+            background: var(--bg-card);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            color: var(--text-sec);
+            border: 1px solid var(--border-dim);
+        }
+
+        /* Status Card - Compact */
+        .status-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .status-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--text-dim);
+        }
+
+        .status-dot.running {
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-text {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-start, .btn-stop {
+            padding: 8px 20px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, var(--success), #059669);
+            color: white;
+        }
+
+        .btn-start:hover { transform: translateY(-1px); }
+
+        .btn-start:disabled {
+            background: var(--bg-card-hover);
+            color: var(--text-dim);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, var(--error), #dc2626);
+            color: white;
+        }
+
+        .btn-stop:disabled {
+            background: var(--bg-card-hover);
+            color: var(--text-dim);
+            cursor: not-allowed;
+        }
+
+        /* Process Grid */
+        .process-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .process-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-md);
+            padding: 12px;
+        }
+
+        .process-card.disabled {
+            opacity: 0.5;
+        }
+
+        .process-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .process-icon {
+            font-size: 16px;
+        }
+
+        .process-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-sec);
+        }
+
+        /* Toggle */
+        .toggle-switch {
+            position: relative;
+            width: 36px;
+            height: 20px;
+        }
+
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background: var(--bg-surface);
+            border-radius: 20px;
+            transition: 0.3s;
+            border: 1px solid var(--border-dim);
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 2px;
+            bottom: 2px;
+            background: var(--text-dim);
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(16px);
+            background: white;
+        }
+
+        /* Form */
+        .form-group { margin-bottom: 8px; }
+
+        .form-label {
+            display: block;
+            font-size: 10px;
+            color: var(--text-sec);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-select, .form-input {
+            width: 100%;
+            padding: 6px 8px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-sm);
+            color: var(--text-prime);
+            font-size: 12px;
+            font-family: inherit;
+        }
+
+        .form-select:focus, .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .pending-badge {
+            font-size: 9px;
+            color: var(--text-dim);
+            margin-left: 4px;
+        }
+
+        /* Bottom Row */
+        .bottom-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 200px;
+            gap: 12px;
+        }
+
+        /* Connection */
+        .connection-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-md);
+            padding: 10px;
+        }
+
+        .connection-label {
+            font-size: 10px;
+            color: var(--text-sec);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .connection-url {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--accent);
+            background: var(--bg-surface);
+            padding: 6px 8px;
+            border-radius: var(--radius-sm);
+            word-break: break-all;
+        }
+
+        .btn-copy {
+            background: transparent;
+            border: none;
+            color: var(--text-sec);
+            cursor: pointer;
+            font-size: 10px;
+        }
+
+        .btn-copy:hover { color: var(--text-prime); }
+
+        /* Logs - Compact */
+        .logs-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-md);
+            max-height: 150px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border-dim);
+            flex-shrink: 0;
+        }
+
+        .logs-title {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-sec);
+        }
+
+        .btn-clear {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 10px;
+        }
+
+        .logs-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 6px 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+        }
+
+        .log-entry {
+            padding: 2px 0;
+            display: flex;
+            gap: 8px;
+        }
+
+        .log-time { color: var(--text-dim); flex-shrink: 0; }
+        .log-level { flex-shrink: 0; width: 40px; }
+        .log-level.info { color: var(--text-sec); }
+        .log-level.warn { color: var(--warning); }
+        .log-level.error { color: var(--error); }
+        .log-message { color: var(--text-prime); }
+
+        /* Preview - Minimal */
+        .preview-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-md);
+            padding: 10px;
+        }
+
+        .preview-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 20px;
+            background: var(--bg-surface);
+            border-radius: var(--radius-sm);
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .preview-link:hover {
+            background: var(--bg-card-hover);
+        }
+
+        /* Advanced Section - Inline */
+        .advanced-section {
+            margin-top: 16px;
+        }
+
+        .advanced-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-md) var(--radius-md) 0 0;
+            cursor: pointer;
+        }
+
+        .advanced-header:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .advanced-title {
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .advanced-toggle-icon {
+            transition: transform 0.3s;
+        }
+
+        .advanced-section.expanded .advanced-toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .advanced-body {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-top: none;
+            border-radius: 0 0 var(--radius-md) var(--radius-md);
+            padding: 12px;
+            display: none;
+        }
+
+        .advanced-section.expanded .advanced-body {
+            display: block;
+        }
+
+        /* Modules Grid */
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .module-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-sm);
+            padding: 10px;
+        }
+
+        .module-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .module-name {
+            font-size: 11px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .module-settings {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .module-settings .form-group {
+            margin-bottom: 0;
+        }
+
+        .module-settings .form-label {
+            font-size: 9px;
+        }
+
+        .module-settings .form-select,
+        .module-settings .form-input {
+            padding: 4px 6px;
+            font-size: 11px;
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            bottom: 16px;
+            right: 16px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .toast {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            animation: slideIn 0.3s ease;
+            font-size: 12px;
+        }
+
+        .toast.success { border-color: var(--success); }
+        .toast.error { border-color: var(--error); }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @media (max-width: 900px) {
+            .process-grid { grid-template-columns: repeat(2, 1fr); }
+            .bottom-row { grid-template-columns: 1fr; }
+            .modules-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
 </head>
 <body>
-    <!-- Main Dashboard Layout -->
-    <div class="dashboard-container">
-        <!-- Sidebar Navigation -->
-        <aside class="sidebar">
-            <div class="sidebar-top">
-                <div class="logo">
-                    <svg width="32" height="32" viewBox="0 0 28 28" fill="none">
-                        <circle cx="14" cy="14" r="13" stroke="url(#logoGrad)" stroke-width="2"/>
-                        <path d="M9 10L14 7L19 10V18L14 21L9 18V10Z" fill="url(#logoGrad)" opacity="0.3"/>
-                        <path d="M14 7V21M9 10L19 18M19 10L9 18" stroke="url(#logoGrad)" stroke-width="1.5"/>
-                        <defs>
-                            <linearGradient id="logoGrad" x1="0" y1="0" x2="28" y2="28">
-                                <stop stop-color="#6366f1"/>
-                                <stop offset="1" stop-color="#a855f7"/>
-                            </linearGradient>
-                        </defs>
-                    </svg>
-                    <div class="logo-info">
-                        <span class="logo-text">SRT2Web</span>
-                        <span class="version-badge">Ph-3</span>
-                    </div>
-                </div>
-                
-                <nav class="nav-menu">
-                    <div class="nav-section-title">ENGINE STATUS</div>
-                    <div class="status-summary" id="pipeline-status-indicator">
-                        <div class="status-indicator-ring">
-                            <span class="status-dot idle"></span>
-                        </div>
-                        <div class="status-info">
-                            <span class="status-label">Current State</span>
-                            <span class="status-text" id="pipeline-status-text">Idle</span>
-                        </div>
-                    </div>
+    <div class="dashboard">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <svg viewBox="0 0 40 40" fill="none">
+                    <circle cx="20" cy="20" r="18" stroke="url(#grad)" stroke-width="2"/>
+                    <path d="M12 14L20 10L28 14V26L20 30L12 26V14Z" fill="url(#grad)" opacity="0.3"/>
+                    <defs>
+                        <linearGradient id="grad" x1="0" y1="0" x2="40" y2="40">
+                            <stop stop-color="#6366f1"/><stop offset="1" stop-color="#a855f7"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <span class="logo-text">SRT2Web</span>
+                <span class="version-badge">v0.4</span>
+            </div>
+        </header>
 
-                    <div class="nav-section-title" style="margin-top:24px;">ACTIONS</div>
-                    <div class="nav-actions">
-                        <button class="btn btn-primary btn-glow btn-block" id="btn-start" onclick="startPipeline()">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                            Deploy Pipeline
-                        </button>
-                        <button class="btn btn-danger btn-block" id="btn-stop" onclick="stopPipeline()" disabled>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
-                            Shut Down
-                        </button>
-                    </div>
-                </nav>
+        <!-- Status -->
+        <section class="status-card">
+            <div class="status-left">
+                <div class="status-dot" id="status-dot"></div>
+                <span class="status-text" id="status-text">APAGADO</span>
+            </div>
+            <div class="status-actions">
+                <button class="btn-start" id="btn-start" onclick="startPipeline()">▶ Iniciar</button>
+                <button class="btn-stop" id="btn-stop" onclick="stopPipeline()" disabled>⏹ Detener</button>
+            </div>
+        </section>
+
+        <!-- Process Grid -->
+        <section class="process-grid">
+            <!-- INPUT -->
+            <div class="process-card" id="card-input">
+                <div class="process-header">
+                    <span class="process-title">📥 INPUT</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-select" id="input-type" onchange="updateInputFields()">
+                        <option value="srt">SRT</option>
+                        <option value="file">Archivo</option>
+                        <option value="rtmp" disabled>RTMP <span class="pending-badge">⏳</span></option>
+                        <option value="audio" disabled>Audio <span class="pending-badge">⏳</span></option>
+                    </select>
+                </div>
+                <div class="form-group" id="input-port-group">
+                    <label class="form-label">Puerto</label>
+                    <input type="number" class="form-input" id="input-port" value="9000">
+                </div>
+                <div class="form-group" id="input-latency-group">
+                    <label class="form-label">Latencia (ms)</label>
+                    <input type="number" class="form-input" id="input-latency" value="1000">
+                </div>
+                <div class="form-group" id="input-file-group" style="display:none;">
+                    <label class="form-label">Archivo</label>
+                    <input type="text" class="form-input" id="input-file-path" placeholder="./video.mp4">
+                </div>
             </div>
 
-            <div class="sidebar-footer">
-                <div class="srt-endpoint">
-                    <span class="label">ENTRY POINT (SRT)</span>
-                    <div class="srt-copy-box">
-                        <code id="srt-url">srt://...</code>
-                        <button class="copy-btn" onclick="copySrtUrl()" title="Copy URL">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                        </button>
+            <!-- DOBLAR -->
+            <div class="process-card" id="card-dub">
+                <div class="process-header">
+                    <span class="process-title">🗣 DOBLAR</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="dub-enabled" onchange="toggleDub()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div id="dub-settings">
+                    <div class="form-group">
+                        <label class="form-label">Voz</label>
+                        <select class="form-select" id="dub-voice">
+                            <option value="es-ES-AlvaroNeural">ES - Álvaro</option>
+                            <option value="es-ES-ElviraNeural">ES - Elvira</option>
+                            <option value="en-US-AriaNeural">EN - Aria</option>
+                            <option value="en-US-GuyNeural">EN - Guy</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Velocidad</label>
+                        <input type="number" class="form-input" id="dub-speed" value="1.0" step="0.1" min="0.5" max="2.0">
                     </div>
                 </div>
             </div>
-        </aside>
 
-        <!-- Main Content Area -->
-        <main class="main-stage">
-            <header class="stage-header">
-                <div>
-                    <h1>Processing Engine</h1>
-                    <p>Configure and monitor your real-time processing chain.</p>
+            <!-- SUBTITULAR -->
+            <div class="process-card" id="card-subtitle">
+                <div class="process-header">
+                    <span class="process-title">📝 SUBTITULAR</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="subtitle-enabled" checked onchange="toggleSubtitle()">
+                        <span class="toggle-slider"></span>
+                    </label>
                 </div>
-                <div class="header-utility">
-                     <span class="live-clock" id="live-clock">--:--:--</span>
-                </div>
-            </header>
-
-            <section class="modules-container">
-                <div class="module-cards-grid" id="module-list">
-                    <!-- Populated by JS -->
-                </div>
-            </section>
-        </main>
-
-        <!-- Rightshelf (Preview & Logs) -->
-        <aside class="right-shelf">
-            <!-- Mini Preview Card -->
-            <section class="shelf-card preview-shelf">
-                <div class="shelf-header">
-                    <h3>Output Preview</h3>
-                    <div class="shelf-actions">
-                        <a href="/player" target="_blank" class="icon-btn-sm" title="Open Full Player">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
-                        </a>
+                <div id="subtitle-settings">
+                    <div class="form-group">
+                        <label class="form-label">Origen</label>
+                        <select class="form-select" id="subtitle-source">
+                            <option value="auto">Auto</option>
+                            <option value="en">Inglés</option>
+                            <option value="es">Español</option>
+                            <option value="fr">Francés</option>
+                            <option value="de">Alemán</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Destino</label>
+                        <select class="form-select" id="subtitle-target">
+                            <option value="es">Español</option>
+                            <option value="en">Inglés</option>
+                            <option value="fr">Francés</option>
+                            <option value="de">Alemán</option>
+                        </select>
                     </div>
                 </div>
-                <div class="preview-viewport" id="video-container">
-                    <video id="video-player" muted playsinline></video>
-                    <div class="preview-overlay" id="video-overlay">
-                        <div class="pulse-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </div>
+
+            <!-- OUTPUT -->
+            <div class="process-card" id="card-output">
+                <div class="process-header">
+                    <span class="process-title">📤 OUTPUT</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-select" id="output-type">
+                        <option value="web">Web (HLS)</option>
+                        <option value="srt" disabled>SRT <span class="pending-badge">⏳</span></option>
+                        <option value="rtmp" disabled>RTMP <span class="pending-badge">⏳</span></option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Segmento (s)</label>
+                    <input type="number" class="form-input" id="output-segment" value="15">
+                </div>
+            </div>
+        </section>
+
+        <!-- Bottom Row: Connection + Logs + Preview -->
+        <section class="bottom-row">
+            <!-- Connection -->
+            <div class="connection-card">
+                <div class="connection-label">
+                    📡 SRT
+                    <button class="btn-copy" onclick="copyToClipboard('url-srt')">📋</button>
+                </div>
+                <div class="connection-url" id="url-srt">srt://192.168.1.100:9000?mode=caller&latency=1000000</div>
+                <div class="connection-label" style="margin-top:8px;">
+                    🌐 Web
+                    <button class="btn-copy" onclick="copyToClipboard('url-web')">📋</button>
+                </div>
+                <div class="connection-url" id="url-web">localhost:9999/hls/stream.m3u8</div>
+            </div>
+
+            <!-- Logs -->
+            <div class="logs-card">
+                <div class="logs-header">
+                    <span class="logs-title">📜 LOGS</span>
+                    <button class="btn-clear" onclick="clearLogs()">Limpiar</button>
+                </div>
+                <div class="logs-content" id="logs-content">
+                    <div class="log-entry">
+                        <span class="log-time">--:--:--</span>
+                        <span class="log-level info">INFO</span>
+                        <span class="log-message">Conectando...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview Link -->
+            <div class="preview-card">
+                <div class="connection-label" style="margin-bottom:8px;">🎬 PREVIEW</div>
+                <a href="/player" target="_blank" class="preview-link">
+                    ↗ Abrir en navegador
+                </a>
+            </div>
+        </section>
+
+        <!-- Advanced Section - Inline -->
+        <section class="advanced-section" id="advanced-section">
+            <div class="advanced-header" onclick="toggleAdvanced()">
+                <span class="advanced-title">⚙️ CONFIGURACIÓN AVANZADA</span>
+                <span class="advanced-toggle-icon">▼</span>
+            </div>
+            <div class="advanced-body">
+                <div class="modules-grid">
+                    <!-- Transcription -->
+                    <div class="module-card">
+                        <div class="module-header">
+                            <span class="module-name">🎙 Whisper</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="adv-whisper-enabled" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
                         </div>
-                        <button class="btn btn-ghost btn-xs" onclick="streamPlayer.requestPreview()" id="btn-internal-preview">Monitor</button>
-                    </div>
-                    <span class="live-status-tag" id="live-badge" style="display:none;">LIVE</span>
-                </div>
-                <div class="preview-strip">
-                    <button class="btn btn-xs btn-outline" onclick="streamPlayer.stopWatching()" id="btn-stop-preview" style="display:none;">Close Preview</button>
-                </div>
-            </section>
-
-            <!-- Global Settings Card -->
-            <section class="shelf-card">
-                <div class="shelf-header">
-                    <h3>SRT Settings</h3>
-                </div>
-                <div class="shelf-body">
-                    <div class="shelf-form">
-                        <div class="input-grid-2">
-                            <div class="input-group">
-                                <label>Port</label>
-                                <input type="number" id="srt-port" value="9000">
+                        <div class="module-settings">
+                            <div class="form-group">
+                                <label class="form-label">Modelo</label>
+                                <select class="form-select" id="adv-model">
+                                    <option value="tiny">tiny</option>
+                                    <option value="small">small</option>
+                                    <option value="medium">medium</option>
+                                    <option value="large-v2">large-v2</option>
+                                </select>
                             </div>
-                            <div class="input-group">
-                                <label>Mode</label>
-                                <select id="srt-mode">
-                                    <option value="listener">Listener</option>
-                                    <option value="caller">Caller</option>
+                            <div class="form-group">
+                                <label class="form-label">Idioma</label>
+                                <select class="form-select" id="adv-lang">
+                                    <option value="auto">Auto</option>
+                                    <option value="es">ES</option>
+                                    <option value="en">EN</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Device</label>
+                                <select class="form-select" id="adv-device">
+                                    <option value="auto">Auto</option>
+                                    <option value="cuda">GPU</option>
+                                    <option value="cpu">CPU</option>
                                 </select>
                             </div>
                         </div>
-                        <div class="input-grid-2">
-                            <div class="input-group">
-                                <label>Latency (ms)</label>
-                                <input type="number" id="srt-latency" value="400">
+                    </div>
+
+                    <!-- Translator -->
+                    <div class="module-card">
+                        <div class="module-header">
+                            <span class="module-name">🌐 Translator</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="adv-translator-enabled" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="module-settings">
+                            <div class="form-group">
+                                <label class="form-label">Origen</label>
+                                <select class="form-select" id="adv-source">
+                                    <option value="en">EN</option>
+                                    <option value="es">ES</option>
+                                    <option value="fr">FR</option>
+                                </select>
                             </div>
-                            <div class="input-group">
-                                <label>Chunk (s)</label>
-                                <input type="number" id="chunk-duration" value="4">
+                            <div class="form-group">
+                                <label class="form-label">Destino</label>
+                                <select class="form-select" id="adv-target">
+                                    <option value="es">ES</option>
+                                    <option value="en">EN</option>
+                                    <option value="fr">FR</option>
+                                </select>
                             </div>
                         </div>
-                        <button class="btn btn-secondary btn-block btn-sm" onclick="saveConfig()">Apply SRT Changes</button>
+                    </div>
+
+                    <!-- Subtitle Generator -->
+                    <div class="module-card">
+                        <div class="module-header">
+                            <span class="module-name">📝 Subtitles</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="adv-subs-enabled" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="module-settings">
+                            <div class="form-group">
+                                <label class="form-label">Formato</label>
+                                <select class="form-select" id="adv-subs-format">
+                                    <option value="srt">SRT</option>
+                                    <option value="webvtt">WebVTT</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Usar trad.</label>
+                                <select class="form-select" id="adv-subs-translated">
+                                    <option value="true">Sí</option>
+                                    <option value="false">No</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TTS -->
+                    <div class="module-card">
+                        <div class="module-header">
+                            <span class="module-name">🔊 TTS</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="adv-tts-enabled">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="module-settings">
+                            <div class="form-group">
+                                <label class="form-label">Voz</label>
+                                <select class="form-select" id="adv-tts-voice">
+                                    <option value="es-ES-AlvaroNeural">ES - Álvaro</option>
+                                    <option value="es-ES-ElviraNeural">ES - Elvira</option>
+                                    <option value="en-US-AriaNeural">EN - Aria</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Velocidad</label>
+                                <input type="number" class="form-input" id="adv-tts-speed" value="1.0" step="0.1" min="0.5" max="2.0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Audio Mixer -->
+                    <div class="module-card">
+                        <div class="module-header">
+                            <span class="module-name">🎛 Mixer</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="adv-mixer-enabled">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="module-settings">
+                            <div class="form-group">
+                                <label class="form-label">Vol Orig</label>
+                                <input type="number" class="form-input" id="adv-vol-orig" value="0.4" step="0.1" min="0" max="2">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Vol Dub</label>
+                                <input type="number" class="form-input" id="adv-vol-dub" value="1.8" step="0.1" min="0" max="2">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Video Muxer -->
+                    <div class="module-card">
+                        <div class="module-header">
+                            <span class="module-name">📦 HLS Muxer</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="adv-muxer-enabled" checked disabled>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="module-settings">
+                            <div class="form-group">
+                                <label class="form-label">Segmento</label>
+                                <input type="number" class="form-input" id="adv-seg" value="15">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Lista</label>
+                                <input type="number" class="form-input" id="adv-list" value="6">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Offset audio</label>
+                                <input type="number" class="form-input" id="adv-offset" value="0">
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </section>
 
-            <!-- Logging Shelf -->
-            <section class="shelf-card logs-shelf">
-                <div class="shelf-header">
-                    <h3>Engine Events</h3>
-                    <button class="icon-btn-sm" onclick="clearLogs()" title="Clear">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-                    </button>
-                </div>
-                <div class="log-viewport" id="log-output">
-                    <!-- Logs -->
-                </div>
-            </section>
-        </aside>
+                <button class="btn-start" style="margin-top:12px;width:100%;" onclick="saveConfig()">💾 Guardar Configuración</button>
+            </div>
+        </section>
     </div>
 
-    <!-- Toast notifications -->
+    <!-- Toast -->
     <div class="toast-container" id="toast-container"></div>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
-    <script src="/js/ws.js"></script>
-    <script src="/js/player.js"></script>
-    <script src="/js/app.js"></script>
+    <!-- WebSocket -->
+    <script>
+        // ── State ──
+        let ws = null;
+        let config = {};
+        let statusPollInterval = null;
+
+        // ── API Helper ──
+        async function apiCall(method, path, body = null) {
+            const opts = { method, headers: { 'Content-Type': 'application/json' } };
+            if (body) opts.body = JSON.stringify(body);
+            const resp = await fetch(`/api${path}`, opts);
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+                throw new Error(err.detail || err.message || 'API error');
+            }
+            return resp.json();
+        }
+
+        // ── Initialize ──
+        document.addEventListener('DOMContentLoaded', async () => {
+            addLog('info', 'Inicializando...');
+            
+            try {
+                // Load config
+                config = await apiCall('GET', '/config');
+                applyConfigToUI();
+                
+                // Load status
+                const status = await apiCall('GET', '/status');
+                updatePipelineUI(status.state);
+                
+                // Update URLs
+                updateUrls();
+                
+                // Connect WebSocket
+                connectWebSocket();
+                
+                // Poll status
+                statusPollInterval = setInterval(loadStatus, 3000);
+                
+                addLog('info', 'Conectado');
+            } catch (e) {
+                addLog('error', 'Error: ' + e.message);
+            }
+            
+            toggleDub();
+            toggleSubtitle();
+        });
+
+        // ── WebSocket ──
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+            
+            ws.onopen = () => {
+                addLog('info', 'WebSocket conectado');
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'log') {
+                        addLog(data.level, data.message);
+                    }
+                } catch (e) {}
+            };
+            
+            ws.onclose = () => {
+                addLog('warn', 'WebSocket desconectado, reconectando...');
+                setTimeout(connectWebSocket, 3000);
+            };
+            
+            ws.onerror = () => {
+                addLog('error', 'Error WebSocket');
+            };
+        }
+
+        // ── Load Status ──
+        async function loadStatus() {
+            try {
+                const status = await apiCall('GET', '/status');
+                updatePipelineUI(status.state);
+                
+                // Update connection URLs if available
+                if (status.input_info) {
+                    document.getElementById('url-srt').textContent = status.input_info.url || 'No disponible';
+                }
+            } catch (e) {}
+        }
+
+        // ── Apply Config to UI ──
+        function applyConfigToUI() {
+            // Input
+            if (config.input) {
+                document.getElementById('input-type').value = config.input.type || 'srt';
+                if (config.input.srt) {
+                    document.getElementById('input-port').value = config.input.srt.listen_port || 9000;
+                    document.getElementById('input-latency').value = config.input.srt.latency_ms || 1000;
+                }
+                if (config.input.file) {
+                    document.getElementById('input-file-path').value = config.input.file.path || '';
+                }
+            }
+            
+            // Output
+            if (config.output) {
+                document.getElementById('output-type').value = config.output.type || 'web';
+                if (config.output.web) {
+                    document.getElementById('output-segment').value = config.output.web.segment_duration || 15;
+                }
+            }
+            
+            // Modules
+            const modules = config.modules || {};
+            
+            // Subtitles (translator + subtitle_generator)
+            if (modules.translator && modules.translator.enabled) {
+                document.getElementById('subtitle-enabled').checked = true;
+                document.getElementById('adv-translator-enabled').checked = true;
+                document.getElementById('adv-source').value = modules.translator.source_lang || 'en';
+                document.getElementById('adv-target').value = modules.translator.target_lang || 'es';
+            }
+            if (modules.subtitle_generator && modules.subtitle_generator.enabled) {
+                document.getElementById('adv-subs-enabled').checked = true;
+                document.getElementById('adv-subs-format').value = modules.subtitle_generator.format || 'srt';
+                document.getElementById('adv-subs-translated').value = String(modules.subtitle_generator.use_translated || true);
+            }
+            
+            // Dub (TTS + Mixer)
+            if (modules.tts_engine && modules.tts_engine.enabled) {
+                document.getElementById('dub-enabled').checked = true;
+                document.getElementById('adv-tts-enabled').checked = true;
+                document.getElementById('dub-voice').value = modules.tts_engine.voice || 'es-ES-AlvaroNeural';
+                document.getElementById('dub-speed').value = modules.tts_engine.speed || 1.0;
+                document.getElementById('adv-tts-voice').value = modules.tts_engine.voice || 'es-ES-AlvaroNeural';
+                document.getElementById('adv-tts-speed').value = modules.tts_engine.speed || 1.0;
+            }
+            if (modules.audio_mixer && modules.audio_mixer.enabled) {
+                document.getElementById('adv-mixer-enabled').checked = true;
+                document.getElementById('adv-vol-orig').value = modules.audio_mixer.original_volume || 0.4;
+                document.getElementById('adv-vol-dub').value = modules.audio_mixer.dubbed_volume || 1.8;
+            }
+            
+            // Advanced - Whisper
+            if (modules.transcriber) {
+                document.getElementById('adv-whisper-enabled').checked = modules.transcriber.enabled;
+                document.getElementById('adv-model').value = modules.transcriber.model || 'tiny';
+                document.getElementById('adv-lang').value = modules.transcriber.language || 'auto';
+                document.getElementById('adv-device').value = modules.transcriber.device || 'auto';
+            }
+            
+            // Advanced - HLS
+            if (modules.video_muxer) {
+                document.getElementById('adv-seg').value = modules.video_muxer.hls_segment_duration || 15;
+                document.getElementById('adv-list').value = modules.video_muxer.hls_list_size || 6;
+                document.getElementById('adv-offset').value = modules.video_muxer.audio_offset_ms || 0;
+            }
+            
+            updateInputFields();
+        }
+
+        // ── Update URLs ──
+        function updateUrls() {
+            const port = document.getElementById('input-port').value || 9000;
+            const latency = document.getElementById('input-latency').value || 1000;
+            document.getElementById('url-srt').textContent = `srt://192.168.1.100:${port}?mode=caller&latency=${latency * 1000}`;
+            document.getElementById('url-web').textContent = `localhost:9999/hls/stream.m3u8`;
+        }
+
+        // ── Pipeline Controls ──
+        async function startPipeline() {
+            const btn = document.getElementById('btn-start');
+            btn.disabled = true;
+            
+            try {
+                // Save config first
+                await saveConfig(true);
+                
+                const result = await apiCall('POST', '/start');
+                addLog('info', 'Pipeline iniciado');
+                showToast('Pipeline iniciado', 'success');
+                updatePipelineUI('running');
+            } catch (e) {
+                addLog('error', 'Error: ' + e.message);
+                showToast('Error: ' + e.message, 'error');
+                btn.disabled = false;
+            }
+        }
+
+        async function stopPipeline() {
+            try {
+                await apiCall('POST', '/stop');
+                addLog('info', 'Pipeline detenido');
+                showToast('Pipeline detenido', 'info');
+                updatePipelineUI('idle');
+            } catch (e) {
+                addLog('error', 'Error: ' + e.message);
+                showToast('Error: ' + e.message, 'error');
+            }
+        }
+
+        function updatePipelineUI(state) {
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+            const btnStart = document.getElementById('btn-start');
+            const btnStop = document.getElementById('btn-stop');
+            
+            dot.classList.toggle('running', state === 'running');
+            text.textContent = state === 'running' ? 'ACTIVO' : 'APAGADO';
+            
+            btnStart.disabled = state === 'running';
+            btnStop.disabled = state !== 'running';
+        }
+
+        // ── Save Config ──
+        async function saveConfig(silent = false) {
+            const update = {
+                input: {
+                    type: document.getElementById('input-type').value,
+                    srt: {
+                        listen_port: parseInt(document.getElementById('input-port').value),
+                        latency_ms: parseInt(document.getElementById('input-latency').value),
+                        mode: 'listener'
+                    },
+                    file: {
+                        path: document.getElementById('input-file-path').value,
+                        loop: false,
+                        speed: 1.0
+                    }
+                },
+                output: {
+                    type: document.getElementById('output-type').value,
+                    web: {
+                        segment_duration: parseInt(document.getElementById('output-segment').value),
+                        list_size: 6
+                    }
+                },
+                modules: {
+                    transcriber: {
+                        enabled: document.getElementById('adv-whisper-enabled').checked,
+                        model: document.getElementById('adv-model').value,
+                        language: document.getElementById('adv-lang').value,
+                        device: document.getElementById('adv-device').value
+                    },
+                    translator: {
+                        enabled: document.getElementById('adv-translator-enabled').checked,
+                        source_lang: document.getElementById('adv-source').value,
+                        target_lang: document.getElementById('adv-target').value
+                    },
+                    subtitle_generator: {
+                        enabled: document.getElementById('adv-subs-enabled').checked,
+                        format: document.getElementById('adv-subs-format').value,
+                        use_translated: document.getElementById('adv-subs-translated').value === 'true'
+                    },
+                    tts_engine: {
+                        enabled: document.getElementById('adv-tts-enabled').checked,
+                        voice: document.getElementById('adv-tts-voice').value,
+                        speed: parseFloat(document.getElementById('adv-tts-speed').value)
+                    },
+                    audio_mixer: {
+                        enabled: document.getElementById('adv-mixer-enabled').checked,
+                        original_volume: parseFloat(document.getElementById('adv-vol-orig').value),
+                        dubbed_volume: parseFloat(document.getElementById('adv-vol-dub').value)
+                    },
+                    video_muxer: {
+                        enabled: true,
+                        hls_segment_duration: parseInt(document.getElementById('adv-seg').value),
+                        hls_list_size: parseInt(document.getElementById('adv-list').value),
+                        audio_offset_ms: parseInt(document.getElementById('adv-offset').value)
+                    }
+                }
+            };
+            
+            // Sync main toggles to modules
+            update.modules.subtitle_generator.enabled = update.modules.subtitle_generator.enabled || update.modules.translator.enabled;
+            update.modules.tts_engine.enabled = update.modules.tts_engine.enabled || update.modules.audio_mixer.enabled;
+            
+            try {
+                const result = await apiCall('PUT', '/config', { config: update });
+                config = result.config;
+                updateUrls();
+                if (!silent) {
+                    addLog('info', 'Configuración guardada');
+                    showToast('Configuración guardada', 'success');
+                }
+            } catch (e) {
+                if (!silent) {
+                    addLog('error', 'Error guardando: ' + e.message);
+                    showToast('Error: ' + e.message, 'error');
+                }
+                throw e;
+            }
+        }
+
+        // ── Toggle Functions ──
+        function toggleAdvanced() {
+            document.getElementById('advanced-section').classList.toggle('expanded');
+        }
+
+        function updateInputFields() {
+            const type = document.getElementById('input-type').value;
+            document.getElementById('input-port-group').style.display = (type === 'srt') ? 'block' : 'none';
+            document.getElementById('input-latency-group').style.display = (type === 'srt') ? 'block' : 'none';
+            document.getElementById('input-file-group').style.display = (type === 'file') ? 'block' : 'none';
+            updateUrls();
+        }
+
+        function toggleDub() {
+            const enabled = document.getElementById('dub-enabled').checked;
+            document.getElementById('card-dub').classList.toggle('disabled', !enabled);
+            document.getElementById('dub-settings').style.opacity = enabled ? '1' : '0.5';
+            
+            // Sync with advanced
+            document.getElementById('adv-tts-enabled').checked = enabled;
+            document.getElementById('adv-mixer-enabled').checked = enabled;
+        }
+
+        function toggleSubtitle() {
+            const enabled = document.getElementById('subtitle-enabled').checked;
+            document.getElementById('card-subtitle').classList.toggle('disabled', !enabled);
+            document.getElementById('subtitle-settings').style.opacity = enabled ? '1' : '0.5';
+            
+            // Sync with advanced
+            document.getElementById('adv-translator-enabled').checked = enabled;
+            document.getElementById('adv-subs-enabled').checked = enabled;
+        }
+
+        // ── Logs ──
+        function addLog(level, message) {
+            const container = document.getElementById('logs-content');
+            const time = new Date().toLocaleTimeString('es', { hour12: false });
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="log-time">${time}</span><span class="log-level ${level}">${level.toUpperCase()}</span><span class="log-message">${message}</span>`;
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+            
+            // Keep max 100 entries
+            while (container.children.length > 100) {
+                container.removeChild(container.firstChild);
+            }
+        }
+
+        function clearLogs() {
+            document.getElementById('logs-content').innerHTML = '<div class="log-entry"><span class="log-time">--:--:--</span><span class="log-level info">INFO</span><span class="log-message">Limpiado...</span></div>';
+        }
+
+        // ── Copy ──
+        function copyToClipboard(id) {
+            navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => showToast('Copiado', 'success'));
+        }
+
+        // ── Toast ──
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // ── Event Listeners ──
+        document.getElementById('input-port').addEventListener('input', updateUrls);
+        document.getElementById('input-latency').addEventListener('input', updateUrls);
+    </script>
 </body>
 </html>

@@ -24,7 +24,7 @@ logger = logging.getLogger("srt2web.module.srt_ingest")
 class SRTIngest(BaseModule):
     """
     Receives an SRT stream and produces segmented MPEG-TS chunks.
-    
+
     This module runs FFmpeg as a subprocess that listens for (or connects to)
     an SRT stream, and writes fixed-duration segments to the output directory.
     """
@@ -36,7 +36,7 @@ class SRTIngest(BaseModule):
         self._output_dir = output_dir
         self._chunks_dir = ""
         self._last_chunk_index = -1
-        
+
         # SRT config
         self._srt_port = 9000
         self._srt_mode = "listener"
@@ -51,7 +51,9 @@ class SRTIngest(BaseModule):
         self._srt_port = config.get("listen_port", self._srt_port)
         self._srt_mode = config.get("mode", self._srt_mode)
         self._srt_latency_ms = config.get("latency_ms", self._srt_latency_ms)
-        self._srt_caller_address = config.get("caller_address", self._srt_caller_address)
+        self._srt_caller_address = config.get(
+            "caller_address", self._srt_caller_address
+        )
         self._chunk_duration = config.get("chunk_duration_sec", self._chunk_duration)
         self.enabled = True  # Always enabled — it's the input
 
@@ -59,9 +61,9 @@ class SRTIngest(BaseModule):
         """Start FFmpeg SRT receiver."""
         # Ensure any old process is dead first
         self.stop()
-        time.sleep(0.5) # Give the OS a moment to release the port
-        
-        self._last_chunk_index = -1 # CRITICAL: Reset index on start!
+        time.sleep(0.5)  # Give the OS a moment to release the port
+
+        self._last_chunk_index = -1  # CRITICAL: Reset index on start!
         self._state = ModuleState.STARTING
 
         # Ensure FFmpeg is available
@@ -87,24 +89,35 @@ class SRTIngest(BaseModule):
             )
         else:
             srt_url = (
-                f"srt://0.0.0.0:{self._srt_port}"
-                f"?mode=listener&latency={latency_us}"
+                f"srt://0.0.0.0:{self._srt_port}?mode=listener&latency={latency_us}"
             )
 
         # Build FFmpeg command for segmented output
         chunk_pattern = os.path.join(self._chunks_dir, "chunk_%06d.ts")
-        
+
         cmd = [
             self._ffmpeg_path,
             "-y",
-            "-i", srt_url,
-            "-c", "copy",
-            "-f", "segment",
-            "-segment_time", str(self._chunk_duration),
-            "-segment_format", "mpegts",
-            "-reset_timestamps", "1",
-            "-strftime", "0",
-            "-max_muxing_queue_size", "1024",  # Prevent muxing queue overflow
+            "-i",
+            srt_url,
+            "-c",
+            "copy",
+            "-f",
+            "segment",
+            "-segment_time",
+            str(self._chunk_duration),
+            "-segment_format",
+            "mpegts",
+            "-reset_timestamps",
+            "1",
+            "-strftime",
+            "0",
+            "-max_muxing_queue_size",
+            "1024",
+            "-fflags",
+            "+genpts+discardcorrupt",
+            "-flush_packets",
+            "1",
             chunk_pattern,
         ]
 
@@ -143,11 +156,11 @@ class SRTIngest(BaseModule):
                     subprocess.run(
                         ["taskkill", "/F", "/T", "/PID", str(self._ffmpeg_proc.pid)],
                         capture_output=True,
-                        creationflags=subprocess.CREATE_NO_WINDOW
+                        creationflags=subprocess.CREATE_NO_WINDOW,
                     )
                 else:
                     self._ffmpeg_proc.terminate()
-                
+
                 self._ffmpeg_proc.wait(timeout=2)
             except Exception as e:
                 try:
@@ -170,7 +183,7 @@ class SRTIngest(BaseModule):
     def get_next_chunk(self) -> Optional[PipelineData]:
         """
         Check for new chunk files and return the next one as PipelineData.
-        
+
         Returns None if no new chunk is available.
         """
         if not self._chunks_dir:
@@ -178,7 +191,7 @@ class SRTIngest(BaseModule):
 
         # Find all chunk files
         chunks = sorted(glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")))
-        
+
         if not chunks:
             return None
 
@@ -191,7 +204,7 @@ class SRTIngest(BaseModule):
 
         # Find next unprocessed chunk
         next_index = self._last_chunk_index + 1
-        
+
         # Parse index from filename (chunk_000000.ts → 0)
         processable = []
         for chunk_path in chunks[:-1]:  # Exclude last (in-progress)
@@ -212,6 +225,7 @@ class SRTIngest(BaseModule):
         self._last_chunk_index = idx
 
         from core.ffmpeg_utils import get_video_duration
+
         actual_duration = get_video_duration(chunk_path) or self._chunk_duration
 
         logger.info(f"New chunk available: {chunk_path}")
@@ -259,7 +273,4 @@ class SRTIngest(BaseModule):
     def get_srt_url(self) -> str:
         """Get the SRT URL that OBS/VMix should connect to."""
         latency_us = self._srt_latency_ms * 1000
-        return (
-            f"srt://127.0.0.1:{self._srt_port}"
-            f"?mode=caller&latency={latency_us}"
-        )
+        return f"srt://127.0.0.1:{self._srt_port}?mode=caller&latency={latency_us}"

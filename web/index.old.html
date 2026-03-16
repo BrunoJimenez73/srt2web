@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SRT2Web — Modular SRT Stream Processor Dashboard">
+    <title>SRT2Web — Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <!-- Main Dashboard Layout -->
+    <div class="dashboard-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-top">
+                <div class="logo">
+                    <svg width="32" height="32" viewBox="0 0 28 28" fill="none">
+                        <circle cx="14" cy="14" r="13" stroke="url(#logoGrad)" stroke-width="2"/>
+                        <path d="M9 10L14 7L19 10V18L14 21L9 18V10Z" fill="url(#logoGrad)" opacity="0.3"/>
+                        <path d="M14 7V21M9 10L19 18M19 10L9 18" stroke="url(#logoGrad)" stroke-width="1.5"/>
+                        <defs>
+                            <linearGradient id="logoGrad" x1="0" y1="0" x2="28" y2="28">
+                                <stop stop-color="#6366f1"/>
+                                <stop offset="1" stop-color="#a855f7"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <div class="logo-info">
+                        <span class="logo-text">SRT2Web</span>
+                        <span class="version-badge">Ph-3</span>
+                    </div>
+                </div>
+                
+                <nav class="nav-menu">
+                    <div class="nav-section-title">ENGINE STATUS</div>
+                    <div class="status-summary" id="pipeline-status-indicator">
+                        <div class="status-indicator-ring">
+                            <span class="status-dot idle"></span>
+                        </div>
+                        <div class="status-info">
+                            <span class="status-label">Current State</span>
+                            <span class="status-text" id="pipeline-status-text">Idle</span>
+                        </div>
+                    </div>
+
+                    <div class="nav-section-title" style="margin-top:24px;">ACTIONS</div>
+                    <div class="nav-actions">
+                        <button class="btn btn-primary btn-glow btn-block" id="btn-start" onclick="startPipeline()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            Deploy Pipeline
+                        </button>
+                        <button class="btn btn-danger btn-block" id="btn-stop" onclick="stopPipeline()" disabled>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+                            Shut Down
+                        </button>
+                    </div>
+                </nav>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="srt-endpoint">
+                    <span class="label">ENTRY POINT (SRT)</span>
+                    <div class="srt-copy-box">
+                        <code id="srt-url">srt://...</code>
+                        <button class="copy-btn" onclick="copySrtUrl()" title="Copy URL">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-stage">
+            <header class="stage-header">
+                <div>
+                    <h1>Processing Engine</h1>
+                    <p>Configure and monitor your real-time processing chain.</p>
+                </div>
+                <div class="header-utility">
+                     <span class="live-clock" id="live-clock">--:--:--</span>
+                </div>
+            </header>
+
+            <section class="modules-container">
+                <div class="module-cards-grid" id="module-list">
+                    <!-- Populated by JS -->
+                </div>
+            </section>
+        </main>
+
+        <!-- Rightshelf (Preview & Logs) -->
+        <aside class="right-shelf">
+            <!-- Mini Preview Card -->
+            <section class="shelf-card preview-shelf">
+                <div class="shelf-header">
+                    <h3>Output Preview</h3>
+                    <div class="shelf-actions">
+                        <a href="/player" target="_blank" class="icon-btn-sm" title="Open Full Player">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+                        </a>
+                    </div>
+                </div>
+                <div class="preview-viewport" id="video-container">
+                    <video id="video-player" muted playsinline></video>
+                    <div class="preview-overlay" id="video-overlay">
+                        <div class="pulse-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        </div>
+                        <button class="btn btn-ghost btn-xs" onclick="streamPlayer.requestPreview()" id="btn-internal-preview">Monitor</button>
+                    </div>
+                    <span class="live-status-tag" id="live-badge" style="display:none;">LIVE</span>
+                </div>
+                <div class="preview-strip">
+                    <button class="btn btn-xs btn-outline" onclick="streamPlayer.stopWatching()" id="btn-stop-preview" style="display:none;">Close Preview</button>
+                </div>
+            </section>
+
+            <!-- Global Settings Card -->
+            <section class="shelf-card">
+                <div class="shelf-header">
+                    <h3>SRT Settings</h3>
+                </div>
+                <div class="shelf-body">
+                    <div class="shelf-form">
+                        <div class="input-grid-2">
+                            <div class="input-group">
+                                <label>Port</label>
+                                <input type="number" id="srt-port" value="9000">
+                            </div>
+                            <div class="input-group">
+                                <label>Mode</label>
+                                <select id="srt-mode">
+                                    <option value="listener">Listener</option>
+                                    <option value="caller">Caller</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="input-grid-2">
+                            <div class="input-group">
+                                <label>Latency (ms)</label>
+                                <input type="number" id="srt-latency" value="400">
+                            </div>
+                            <div class="input-group">
+                                <label>Chunk (s)</label>
+                                <input type="number" id="chunk-duration" value="4">
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary btn-block btn-sm" onclick="saveConfig()">Apply SRT Changes</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Logging Shelf -->
+            <section class="shelf-card logs-shelf">
+                <div class="shelf-header">
+                    <h3>Engine Events</h3>
+                    <button class="icon-btn-sm" onclick="clearLogs()" title="Clear">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                    </button>
+                </div>
+                <div class="log-viewport" id="log-output">
+                    <!-- Logs -->
+                </div>
+            </section>
+        </aside>
+    </div>
+
+    <!-- Toast notifications -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+    <script src="/js/ws.js"></script>
+    <script src="/js/player.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>

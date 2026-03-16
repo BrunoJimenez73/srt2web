@@ -23,27 +23,43 @@ DEFAULT_CONFIG = {
         "cors_origins": ["http://localhost:*", "http://127.0.0.1:*"],
         "auth_token": "",
     },
-    "srt": {
-        "listen_port": 9000,
-        "mode": "listener",
-        "latency_ms": 400,
-        "caller_address": "",
+    "input": {
+        "type": "srt",
+        "srt": {
+            "listen_port": 9000,
+            "mode": "listener",
+            "latency_ms": 1000,
+            "caller_address": "",
+        },
+        "file": {
+            "path": "",
+            "loop": False,
+            "speed": 1.0,
+        },
+    },
+    "output": {
+        "type": "web",
+        "web": {
+            "segment_duration": 15,
+            "list_size": 6,
+            "audio_offset_ms": 0,
+        },
     },
     "pipeline": {
-        "chunk_duration_sec": 4,
+        "chunk_duration_sec": 15,
     },
     "modules": {
         "audio_extractor": {"enabled": True},
         "transcriber": {
             "enabled": True,
-            "model": "small",
-            "language": "es",
+            "model": "tiny",
+            "language": "auto",
             "device": "auto",
         },
         "translator": {
             "enabled": True,
-            "source_lang": "es",
-            "target_lang": "en",
+            "source_lang": "en",
+            "target_lang": "es",
         },
         "subtitle_generator": {
             "enabled": True,
@@ -60,13 +76,8 @@ DEFAULT_CONFIG = {
             "original_volume": 0.2,
             "dubbed_volume": 1.0,
         },
-        "video_muxer": {
-            "enabled": True,
-            "hls_segment_duration": 4,
-            "hls_list_size": 10,
-        },
     },
-    "output": {
+    "output_dir": {
         "directory": "./output",
     },
 }

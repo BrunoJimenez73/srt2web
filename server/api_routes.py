@@ -25,9 +25,12 @@ VALID_MODULE_NAMES = frozenset(
         "subtitle_generator",
         "tts_engine",
         "audio_mixer",
-        "video_muxer",
     }
 )
+
+# Valid input/output types
+VALID_INPUT_TYPES = frozenset({"srt", "file", "rtmp", "audio"})
+VALID_OUTPUT_TYPES = frozenset({"web", "hls", "srt", "rtmp", "audio"})
 
 # Allowed values for specific config fields
 ALLOWED_WHISPER_MODELS = {"tiny", "small", "medium", "large-v2", "large-v3", "large"}
@@ -190,14 +193,17 @@ def create_api_router() -> APIRouter:
 
     @router.get("/status")
     async def get_status(request: Request):
-        """Get full pipeline status including all modules."""
+        """Get full pipeline status including all modules and input/output."""
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
-        srt_ingest = ctx["srt_ingest"]
+        input_source = ctx.get("input_source")
 
         status = pipeline.get_status()
-        status["srt_receiving"] = srt_ingest.is_receiving()
-        status["srt_url"] = srt_ingest.get_srt_url()
+
+        if input_source:
+            status["input_receiving"] = input_source.is_receiving()
+            status["input_info"] = input_source.get_connection_info()
+
         return status
 
     @router.post("/start")
@@ -205,7 +211,7 @@ def create_api_router() -> APIRouter:
         """Start the processing pipeline."""
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
-        srt_ingest = ctx["srt_ingest"]
+        input_source = ctx.get("input_source")
         log_broadcast = ctx.get("log_broadcast")
 
         from core.pipeline import PipelineState
@@ -213,52 +219,6 @@ def create_api_router() -> APIRouter:
         if pipeline.state == PipelineState.RUNNING:
             raise HTTPException(400, "Pipeline is already running")
 
-        # Validate configuration before starting
-        try:
-            config = ctx["config"]
-            srt_port = config.get("srt.listen_port", 9000)
-            srt_mode = config.get("srt.mode", "listener")
-
-            # Validate SRT configuration
-            if not isinstance(srt_port, int) or not (1 <= srt_port <= 65535):
-                raise HTTPException(400, f"Invalid SRT port configuration: {srt_port}")
-
-            if srt_mode not in ALLOWED_SRT_MODES:
-                raise HTTPException(400, f"Invalid SRT mode: {srt_mode}")
-
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"Configuration validation failed: {e}")
-            raise HTTPException(500, f"Configuration validation failed: {e}")
-
-        # Start the SRT ingest first
-        try:
-            srt_config = ctx["config"].get_section("srt")
-            srt_config["chunk_duration_sec"] = ctx["config"].get(
-                "pipeline.chunk_duration_sec", 4
-            )
-            srt_ingest.configure(srt_config)
-            srt_ingest.start()
-
-            # Reconfigure all pipeline modules with latest settings
-            for module in pipeline.get_modules():
-                try:
-                    mod_config = ctx["config"].get_module_config(module.name)
-                    module.configure(mod_config)
-                except Exception as e:
-                    logger.error(f"Failed to configure module {module.name}: {e}")
-                    raise HTTPException(
-                        500, f"Failed to configure module {module.name}: {e}"
-                    )
-
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"Failed to configure or start items: {e}")
-            raise HTTPException(500, f"Failed to configure or start items: {e}")
-
-        # Start the pipeline with SRT ingest as data source
         def on_log(level, message):
             if log_broadcast:
                 log_broadcast(level, message)
@@ -269,31 +229,27 @@ def create_api_router() -> APIRouter:
 
         try:
             pipeline.start(
-                data_source=srt_ingest.get_next_chunk,
                 on_log=on_log,
                 on_state_change=on_state,
             )
         except Exception as e:
             logger.error(f"Failed to start pipeline: {e}")
-            # Clean up SRT ingest if pipeline start failed
-            try:
-                srt_ingest.stop()
-            except:
-                pass
             raise HTTPException(500, f"Failed to start pipeline: {e}")
 
-        return {"status": "started", "srt_url": srt_ingest.get_srt_url()}
+        input_info = {}
+        if input_source:
+            input_info = input_source.get_connection_info()
+
+        return {"status": "started", "input": input_info}
 
     @router.post("/stop")
     async def stop_pipeline(request: Request):
         """Stop the processing pipeline."""
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
-        srt_ingest = ctx["srt_ingest"]
 
         try:
             pipeline.stop()
-            srt_ingest.stop()
         except Exception as e:
             logger.error(f"Error stopping pipeline: {e}")
             pass
@@ -305,12 +261,10 @@ def create_api_router() -> APIRouter:
         """Restart the pipeline to apply module configuration changes."""
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
-        srt_ingest = ctx["srt_ingest"]
         config = ctx["config"]
 
         try:
             pipeline.stop()
-            srt_ingest.stop()
         except Exception as e:
             logger.error(f"Error stopping pipeline: {e}")
 
@@ -325,7 +279,6 @@ def create_api_router() -> APIRouter:
         # Start pipeline again
         try:
             pipeline.start(
-                data_source=srt_ingest.get_next_chunk,
                 on_log=lambda level, msg: None,
                 on_state_change=lambda state: None,
             )
@@ -449,34 +402,45 @@ def create_api_router() -> APIRouter:
             "hot_reload": True,
         }
 
-    # ── SRT Info ──────────────────────────────────────────
+    # ── Input/Output Info ───────────────────────────────────
 
-    @router.get("/srt-info")
-    async def srt_info(request: Request):
-        """Get SRT connection information for OBS/VMix."""
+    @router.get("/input-info")
+    async def input_info(request: Request):
+        """Get input source connection information."""
         ctx = _ctx(request)
-        config = ctx["config"]
-        srt_port = config.get("srt.listen_port", 9000)
-        srt_latency = config.get("srt.latency_ms", 400)
-        srt_mode = config.get("srt.mode", "listener")
+        input_source = ctx.get("input_source")
+
+        if not input_source:
+            return {"error": "No input source configured"}
+
+        return input_source.get_connection_info()
+
+    @router.get("/output-info")
+    async def output_info(request: Request):
+        """Get output sink information."""
+        ctx = _ctx(request)
+        pipeline = ctx["pipeline"]
+
+        output_sink = pipeline.output_sink
+        if not output_sink:
+            return {"error": "No output sink configured"}
+
+        return output_sink.get_stream_info()
+
+    @router.get("/available")
+    async def get_available(request: Request):
+        """Get available input and output types."""
+        from core.io_factory import InputFactory, OutputFactory
 
         return {
-            "mode": srt_mode,
-            "port": srt_port,
-            "latency_ms": srt_latency,
-            "obs_url": f"srt://YOUR_IP:{srt_port}?mode=caller&latency={srt_latency * 1000}",
-            "vmix_url": f"srt://YOUR_IP:{srt_port}",
-            "instructions": {
-                "obs": (
-                    f"OBS → Settings → Stream → Service: Custom → "
-                    f"Server: srt://YOUR_IP:{srt_port}?mode=caller"
-                    f"&latency={srt_latency * 1000}"
-                ),
-                "vmix": (
-                    f"vMix → Add Input → Stream/SRT → "
-                    f"Hostname: YOUR_IP, Port: {srt_port}"
-                ),
-            },
+            "inputs": InputFactory.available(),
+            "outputs": OutputFactory.available(),
         }
+
+    # Legacy endpoint - redirects to input-info
+    @router.get("/srt-info")
+    async def srt_info(request: Request):
+        """Get SRT connection information (legacy - use /input-info)."""
+        return await input_info(request)
 
     return router

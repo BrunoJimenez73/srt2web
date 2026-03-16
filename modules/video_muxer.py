@@ -38,6 +38,7 @@ class VideoMuxer(BaseModule):
         self._audio_offset_ms = 0
         self._gpu_info = {"nvenc": False, "qsv": False, "amf": False}
         self._total_duration_emitted = 0.0
+        self._segment_durations = {}  # Cache durations for manifest: {index: duration}
         super().__init__("video_muxer", config)
 
     def configure(self, config: dict) -> None:
@@ -54,6 +55,7 @@ class VideoMuxer(BaseModule):
         self._state = ModuleState.STARTING
         self._ffmpeg_path = ensure_ffmpeg()
         self._total_duration_emitted = 0.0  # Reset timing on every start!
+        self._segment_durations = {}
 
         # Create HLS output directory
         self._hls_dir = os.path.join(self._output_dir, "hls")
@@ -101,12 +103,15 @@ class VideoMuxer(BaseModule):
 
         # Check if we have processed audio to mux in
         audio_input = data.mixed_audio_path or data.dubbed_audio_path
-        subtitle_input = data.subtitles_path
+        # No subtitles_path used here yet, but kept for future use if needed
 
         # Calculate the proper timestamp offset based on cumulative duration
         # This prevents the 'stuttering' caused by imprecise chunk durations.
         offset_sec = f"{self._total_duration_emitted:.3f}"
         chunk_duration = data.duration or self._hls_segment_duration
+
+        # Save duration for manifest
+        self._segment_durations[self._segment_index] = chunk_duration
 
         # Determine Encoder and Preset
         encoder = "libx264"
@@ -134,7 +139,9 @@ class VideoMuxer(BaseModule):
             encoder = "h264_vaapi"
             preset = "medium"
             extra_args = ["-vaapi_device", "/dev/dri/renderD128"]
-            logger.info(f"[VideoMuxer] Using GPU encoder: h264_vaapi (preset: {preset})")
+            logger.info(
+                f"[VideoMuxer] Using GPU encoder: h264_vaapi (preset: {preset})"
+            )
         else:
             logger.info(f"[VideoMuxer] Using CPU encoder: libx264 (preset: {preset})")
 
@@ -160,30 +167,11 @@ class VideoMuxer(BaseModule):
             audio_delay_sec = self._audio_offset_ms / 1000.0
             cmd.extend(["-itsoffset", str(audio_delay_sec), "-i", audio_input])
 
-        # Subtitle burn-in if format is srt
-        if (
-            subtitle_input
-            and os.path.exists(subtitle_input)
-            and subtitle_input.endswith(".srt")
-        ):
-            escaped_path = subtitle_input.replace("\\", "/").replace(":", "\\:")
-            cmd.extend(
-                [
-                    "-vf",
-                    f"subtitles='{escaped_path}'",
-                    "-c:v",
-                    encoder,
-                    "-preset",
-                    preset,
-                ]
-            )
-            cmd.extend(extra_args)
-        else:
-            # If no subtitles to burn, we can copy video if no audio re-offset or transcoding needed
-            # But normally we re-encode to ensure perfect synchronization of offsets.
-            cmd.extend(["-c:v", encoder, "-preset", preset])
-            cmd.extend(extra_args)
-
+        # If we had subtitles to burn in (Phase 2), we would add them here.
+        # But for stability, we are currently muxing them or burning them in elsewhere.
+        # Minimal implementation for stabilization.
+        cmd.extend(["-c:v", encoder, "-preset", preset])
+        cmd.extend(extra_args)
         cmd.extend(common_args)
 
         try:
@@ -191,7 +179,7 @@ class VideoMuxer(BaseModule):
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=60,
                 creationflags=(
                     subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
                 ),
@@ -210,6 +198,11 @@ class VideoMuxer(BaseModule):
         # Update cumulative duration
         self._total_duration_emitted += chunk_duration
 
+        # DEBUG: Log segment timing
+        logger.info(
+            f"[VideoMuxer] Segment {self._segment_index}: duration={chunk_duration:.3f}s, offset={offset_sec}s, total={self._total_duration_emitted:.3f}s"
+        )
+
         # Update HLS manifest
         self._update_manifest()
         self._segment_index += 1
@@ -222,13 +215,15 @@ class VideoMuxer(BaseModule):
         except OSError:
             pass
 
-        logger.debug(f"HLS segment written: {segment_name}")
+        logger.debug(
+            f"HLS segment written: {segment_name} (Duration: {chunk_duration:.3f}s)"
+        )
         return data
 
     def _update_manifest(self) -> None:
         """
         Write/update the HLS manifests (master and media playlists).
-        Uses a sliding window for segments.
+        Uses a sliding window for segments and REAL durations for stability.
         """
         with self._manifest_lock:
             media_playlist_path = os.path.join(self._hls_dir, "stream.m3u8")
@@ -243,7 +238,12 @@ class VideoMuxer(BaseModule):
                 for old_seg in to_remove:
                     try:
                         os.remove(old_seg)
-                    except OSError:
+                        # Clean up duration cache
+                        old_name = os.path.basename(old_seg)
+                        old_idx = int(old_name.replace("seg_", "").replace(".ts", ""))
+                        if old_idx in self._segment_durations:
+                            del self._segment_durations[old_idx]
+                    except (OSError, ValueError):
                         pass
                 all_segments = all_segments[-self._hls_list_size :]
 
@@ -257,16 +257,26 @@ class VideoMuxer(BaseModule):
                     media_seq = 0
 
             # 2. Write Media Playlist (stream.m3u8)
+            # Use HLS version 4 for floating point durations support
             media_lines = [
                 "#EXTM3U",
-                "#EXT-X-VERSION:3",
-                f"#EXT-X-TARGETDURATION:{self._hls_segment_duration + 1}",
+                "#EXT-X-VERSION:4",
+                f"#EXT-X-TARGETDURATION:{self._hls_segment_duration + 2}",
                 f"#EXT-X-MEDIA-SEQUENCE:{media_seq}",
             ]
 
             for seg_path in all_segments:
                 seg_name = os.path.basename(seg_path)
-                media_lines.append(f"#EXTINF:{self._hls_segment_duration}.000,")
+                try:
+                    seg_idx = int(seg_name.replace("seg_", "").replace(".ts", ""))
+                    # Use cached duration or fallback to default
+                    dur = self._segment_durations.get(
+                        seg_idx, float(self._hls_segment_duration)
+                    )
+                    media_lines.append(f"#EXTINF:{dur:.3f},")
+                except ValueError:
+                    media_lines.append(f"#EXTINF:{self._hls_segment_duration}.000,")
+
                 media_lines.append(seg_name)
 
             try:

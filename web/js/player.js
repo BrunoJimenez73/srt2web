@@ -68,24 +68,24 @@ class StreamPlayer {
         if (Hls.isSupported()) {
             this.hls = new Hls({
                 enableWorker: true,
-                lowLatencyMode: true,  // Enable LL-HLS for lower latency
-                backBufferLength: 90,  // Keep more buffer for stability
-                liveSyncDurationCount: 3,  // Faster sync
-                liveMaxLatencyDurationCount: 6,  // Lower max latency
+                lowLatencyMode: false,
+                backBufferLength: 90,
+                liveSyncDurationCount: 8,
+                liveMaxLatencyDurationCount: 15,
                 liveDurationInfinity: true,
                 manifestLoadingMaxRetry: 60,
                 manifestLoadingRetryDelay: 1000,
                 levelLoadingMaxRetry: 30,
-                maxBufferLength: 60,  // Reduced buffer for lower latency
-                maxMaxBufferLength: 90,
-                maxBufferSize: 7 * 1000 * 1000,  // 7MB max buffer
-                maxBufferHole: 0.5,  // Smaller holes
-                highBufferWatchdogPeriod: 3,  // Watchdog for high buffer
-                nudgeOffset: 0.1,  // Small nudge for sync
-                nudgeMaxRetry: 3,  // Retry nudge
-                maxFragLookUpTolerance: 0.25,  // Tolerance for fragment lookup
-                maxStarvationDelay: 20000,  // Max delay before starvation
-                maxLoadingDelay: 20000,  // Max loading delay
+                maxBufferLength: 60,
+                maxMaxBufferLength: 120,
+                maxBufferSize: 100 * 1000 * 1000,
+                maxBufferHole: 0.1,
+                highBufferWatchdogPeriod: 5,
+                nudgeOffset: 0.1,
+                nudgeMaxRetry: 5,
+                maxFragLookUpTolerance: 0.2,
+                maxStarvationDelay: 15000,
+                maxLoadingDelay: 15000,
             });
 
             this.hls.loadSource(this.streamUrl);
