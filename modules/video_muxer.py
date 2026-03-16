@@ -23,7 +23,7 @@ logger = logging.getLogger("srt2web.module.video_muxer")
 class VideoMuxer(BaseModule):
     """
     Muxes video + audio + subtitles into HLS format.
-    
+
     In Phase 1 (passthrough mode), simply repackages the input
     MPEG-TS chunks into HLS segments with a rolling m3u8 manifest.
     """
@@ -45,7 +45,7 @@ class VideoMuxer(BaseModule):
         self._hls_segment_duration = config.get(
             "hls_segment_duration", self._hls_segment_duration
         )
-        self._hls_list_size = 30 # Increased for stability
+        self._hls_list_size = 30  # Increased for stability
         self._audio_offset_ms = config.get("audio_offset_ms", self._audio_offset_ms)
         logger.info(f"VideoMuxer reconfigured: Audio Offset: {self._audio_offset_ms}ms")
 
@@ -53,13 +53,14 @@ class VideoMuxer(BaseModule):
         """Initialize HLS output directory."""
         self._state = ModuleState.STARTING
         self._ffmpeg_path = ensure_ffmpeg()
-        self._total_duration_emitted = 0.0 # Reset timing on every start!
+        self._total_duration_emitted = 0.0  # Reset timing on every start!
 
         # Create HLS output directory
         self._hls_dir = os.path.join(self._output_dir, "hls")
         os.makedirs(self._hls_dir, exist_ok=True)
 
         from core.ffmpeg_utils import check_gpu_support
+
         self._gpu_info = check_gpu_support(self._ffmpeg_path)
         logger.info(f"Hardware Acceleration Check: {self._gpu_info}")
 
@@ -77,7 +78,9 @@ class VideoMuxer(BaseModule):
 
         self._segment_index = 0
         self._state = ModuleState.RUNNING
-        logger.info(f"VideoMuxer ready. Audio Offset: {self._audio_offset_ms}ms, HLS output at: {self._hls_dir}")
+        logger.info(
+            f"VideoMuxer ready. Audio Offset: {self._audio_offset_ms}ms, HLS output at: {self._hls_dir}"
+        )
 
     def stop(self) -> None:
         """Cleanup."""
@@ -112,22 +115,35 @@ class VideoMuxer(BaseModule):
 
         if self._gpu_info["nvenc"]:
             encoder = "h264_nvenc"
-            preset = "p1" # Fastest NVENC preset
+            preset = "p1"  # Fastest NVENC preset
             extra_args = ["-delay", "0", "-zerolatency", "1"]
+            logger.info(
+                f"[VideoMuxer] Using GPU encoder: h264_nvenc (preset: {preset})"
+            )
         elif self._gpu_info["amf"]:
             encoder = "h264_amf"
             preset = "speed"
+            logger.info(f"[VideoMuxer] Using GPU encoder: h264_amf (preset: {preset})")
         elif self._gpu_info["qsv"]:
             encoder = "h264_qsv"
             preset = "veryfast"
+            logger.info(f"[VideoMuxer] Using GPU encoder: h264_qsv (preset: {preset})")
+        else:
+            logger.info(f"[VideoMuxer] Using CPU encoder: libx264 (preset: {preset})")
 
         common_args = [
-            "-map", "0:v:0",
-            "-map", "1:a:0" if audio_input else "0:a:0",
-            "-c:a", "aac",
-            "-b:a", "128k",
-            "-output_ts_offset", offset_sec,
-            "-f", "mpegts",
+            "-map",
+            "0:v:0",
+            "-map",
+            "1:a:0" if audio_input else "0:a:0",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            "-output_ts_offset",
+            offset_sec,
+            "-f",
+            "mpegts",
             segment_path,
         ]
 
@@ -136,18 +152,31 @@ class VideoMuxer(BaseModule):
         if audio_input and os.path.exists(audio_input):
             audio_delay_sec = self._audio_offset_ms / 1000.0
             cmd.extend(["-itsoffset", str(audio_delay_sec), "-i", audio_input])
-        
+
         # Subtitle burn-in if format is srt
-        if subtitle_input and os.path.exists(subtitle_input) and subtitle_input.endswith(".srt"):
+        if (
+            subtitle_input
+            and os.path.exists(subtitle_input)
+            and subtitle_input.endswith(".srt")
+        ):
             escaped_path = subtitle_input.replace("\\", "/").replace(":", "\\:")
-            cmd.extend(["-vf", f"subtitles='{escaped_path}'", "-c:v", encoder, "-preset", preset])
+            cmd.extend(
+                [
+                    "-vf",
+                    f"subtitles='{escaped_path}'",
+                    "-c:v",
+                    encoder,
+                    "-preset",
+                    preset,
+                ]
+            )
             cmd.extend(extra_args)
         else:
             # If no subtitles to burn, we can copy video if no audio re-offset or transcoding needed
             # But normally we re-encode to ensure perfect synchronization of offsets.
             cmd.extend(["-c:v", encoder, "-preset", preset])
             cmd.extend(extra_args)
-        
+
         cmd.extend(common_args)
 
         try:
@@ -179,7 +208,7 @@ class VideoMuxer(BaseModule):
         self._segment_index += 1
 
         data.output_hls_path = os.path.join(self._hls_dir, "master.m3u8")
-        
+
         # Clean up old input chunk to save disk space
         try:
             os.remove(input_path)
@@ -243,18 +272,24 @@ class VideoMuxer(BaseModule):
             # This is where we properly link subtitles for HLS.js
             subs_vtt_path = os.path.join(self._hls_dir, "subs.vtt")
             subs_exist = os.path.exists(subs_vtt_path)
-            
+
             master_lines = [
                 "#EXTM3U",
                 "#EXT-X-VERSION:4",
             ]
-            
+
             if subs_exist:
-                master_lines.append('#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="Spanish",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="es",URI="subs.vtt"')
-                master_lines.append('#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"')
+                master_lines.append(
+                    '#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="Spanish",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="es",URI="subs.vtt"'
+                )
+                master_lines.append(
+                    '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"'
+                )
             else:
-                master_lines.append('#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2"')
-            
+                master_lines.append(
+                    '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2"'
+                )
+
             master_lines.append("stream.m3u8")
 
             try:

@@ -1,5 +1,5 @@
 """
-SRT2Web — Modular SRT Stream Processor
+SRT2Web - Modular SRT Stream Processor
 
 Entry point: starts the FastAPI server, initializes the pipeline,
 and opens the browser to the dashboard.
@@ -174,7 +174,7 @@ def build_pipeline(config: ConfigManager, output_dir: str) -> tuple:
     video_muxer = VideoMuxer(config=muxer_config, output_dir=output_dir)
     pipeline.register_module(video_muxer)
 
-    # SRT Ingest (not in pipeline — it's the data source)
+    # SRT Ingest (not in pipeline - it's the data source)
     srt_config = config.get_section("srt")
     srt_config["chunk_duration_sec"] = config.get("pipeline.chunk_duration_sec", 4)
     srt_ingest = SRTIngest(config=srt_config, output_dir=output_dir)
@@ -188,10 +188,10 @@ def main():
     logger = logging.getLogger("srt2web.main")
 
     print()
-    print("  ╔══════════════════════════════════════╗")
-    print("  ║      SRT2Web — Stream Processor      ║")
-    print("  ║         v0.3.0 · Phase 3             ║")
-    print("  ╚══════════════════════════════════════╝")
+    print("  +====================================+")
+    print("  |      SRT2Web - Stream Processor   |")
+    print("  |         v0.3.0 - Phase 3           |")
+    print("  +====================================+")
     print()
 
     # Load configuration

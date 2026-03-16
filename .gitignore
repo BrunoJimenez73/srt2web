@@ -53,3 +53,6 @@ output/
 # Config with secrets
 config.yaml
 !config.yaml.example
+
+# External projects
+Software-planning-mcp/

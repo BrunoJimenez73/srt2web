@@ -7,7 +7,9 @@ and module management.
 
 import re
 import logging
-from typing import Optional, Any
+import traceback
+from typing import Optional, Any, Dict, List
+from datetime import datetime
 
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel, field_validator
@@ -36,28 +38,50 @@ ALLOWED_SRT_MODES = {"listener", "caller"}
 
 def sanitize_module_name(name: str) -> str:
     """Validate and sanitize module name to prevent injection."""
+    if not name or not isinstance(name, str):
+        raise HTTPException(400, "Module name is required and must be a string")
+
     if not re.match(r"^[a-z_]+$", name):
-        raise HTTPException(400, f"Invalid module name: {name}")
+        raise HTTPException(
+            400,
+            f"Invalid module name format: '{name}'. Only lowercase letters and underscores are allowed.",
+        )
+
     if name not in VALID_MODULE_NAMES:
-        raise HTTPException(400, f"Unknown module: {name}")
+        raise HTTPException(
+            400,
+            f"Unknown module: '{name}'. Valid modules are: {', '.join(sorted(VALID_MODULE_NAMES))}",
+        )
+
     return name
 
 
 def validate_config_value(key: str, value: Any) -> Any:
-    """Validate specific configuration values."""
+    """Validate specific configuration values with detailed error messages."""
     key_lower = key.lower()
 
     if "port" in key_lower:
-        if not isinstance(value, int) or not (1 <= value <= 65535):
-            raise HTTPException(400, f"Invalid port value: {value}")
+        if not isinstance(value, int):
+            raise HTTPException(
+                400, f"Port must be an integer, got {type(value).__name__}: {value}"
+            )
+        if not (1 <= value <= 65535):
+            raise HTTPException(400, f"Port must be between 1 and 65535, got: {value}")
 
     if "latency" in key_lower:
-        if not isinstance(value, (int, float)) or value < 0:
-            raise HTTPException(400, f"Invalid latency value: {value}")
+        if not isinstance(value, (int, float)):
+            raise HTTPException(
+                400, f"Latency must be a number, got {type(value).__name__}: {value}"
+            )
+        if value < 0:
+            raise HTTPException(400, f"Latency cannot be negative, got: {value}")
 
     if key == "transcriber.model":
         if value not in ALLOWED_WHISPER_MODELS:
-            raise HTTPException(400, f"Invalid Whisper model: {value}")
+            raise HTTPException(
+                400,
+                f"Invalid Whisper model: '{value}'. Valid models are: {', '.join(sorted(ALLOWED_WHISPER_MODELS))}",
+            )
 
     if key in (
         "transcriber.language",
@@ -65,25 +89,65 @@ def validate_config_value(key: str, value: Any) -> Any:
         "translator.target_lang",
     ):
         if value not in ALLOWED_LANGUAGES:
-            raise HTTPException(400, f"Invalid language: {value}")
+            raise HTTPException(
+                400,
+                f"Invalid language: '{value}'. Valid languages are: {', '.join(sorted(ALLOWED_LANGUAGES))}",
+            )
 
     if key == "transcriber.device":
         if value not in ALLOWED_DEVICES:
-            raise HTTPException(400, f"Invalid device: {value}")
+            raise HTTPException(
+                400,
+                f"Invalid device: '{value}'. Valid devices are: {', '.join(sorted(ALLOWED_DEVICES))}",
+            )
 
     if key == "srt.mode":
         if value not in ALLOWED_SRT_MODES:
-            raise HTTPException(400, f"Invalid SRT mode: {value}")
+            raise HTTPException(
+                400,
+                f"Invalid SRT mode: '{value}'. Valid modes are: {', '.join(sorted(ALLOWED_SRT_MODES))}",
+            )
 
     if "volume" in key_lower:
-        if not isinstance(value, (int, float)) or not (0 <= value <= 2.0):
-            raise HTTPException(400, f"Invalid volume value: {value}")
+        if not isinstance(value, (int, float)):
+            raise HTTPException(
+                400, f"Volume must be a number, got {type(value).__name__}: {value}"
+            )
+        if not (0 <= value <= 2.0):
+            raise HTTPException(
+                400, f"Volume must be between 0.0 and 2.0, got: {value}"
+            )
 
     if "speed" in key_lower:
-        if not isinstance(value, (int, float)) or not (0.5 <= value <= 2.0):
-            raise HTTPException(400, f"Invalid speed value: {value}")
+        if not isinstance(value, (int, float)):
+            raise HTTPException(
+                400, f"Speed must be a number, got {type(value).__name__}: {value}"
+            )
+        if not (0.5 <= value <= 2.0):
+            raise HTTPException(400, f"Speed must be between 0.5 and 2.0, got: {value}")
 
     return value
+
+
+class ErrorResponse(BaseModel):
+    """Standardized error response format."""
+
+    error: str
+    message: str
+    timestamp: str
+    details: Optional[Dict[str, Any]] = None
+
+
+def create_error_response(
+    message: str, details: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """Create a standardized error response."""
+    return {
+        "error": "validation_error",
+        "message": message,
+        "timestamp": datetime.now().isoformat(),
+        "details": details,
+    }
 
 
 class ConfigUpdate(BaseModel):
@@ -149,6 +213,25 @@ def create_api_router() -> APIRouter:
         if pipeline.state == PipelineState.RUNNING:
             raise HTTPException(400, "Pipeline is already running")
 
+        # Validate configuration before starting
+        try:
+            config = ctx["config"]
+            srt_port = config.get("srt.listen_port", 9000)
+            srt_mode = config.get("srt.mode", "listener")
+
+            # Validate SRT configuration
+            if not isinstance(srt_port, int) or not (1 <= srt_port <= 65535):
+                raise HTTPException(400, f"Invalid SRT port configuration: {srt_port}")
+
+            if srt_mode not in ALLOWED_SRT_MODES:
+                raise HTTPException(400, f"Invalid SRT mode: {srt_mode}")
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Configuration validation failed: {e}")
+            raise HTTPException(500, f"Configuration validation failed: {e}")
+
         # Start the SRT ingest first
         try:
             srt_config = ctx["config"].get_section("srt")
@@ -160,10 +243,19 @@ def create_api_router() -> APIRouter:
 
             # Reconfigure all pipeline modules with latest settings
             for module in pipeline.get_modules():
-                mod_config = ctx["config"].get_module_config(module.name)
-                module.configure(mod_config)
+                try:
+                    mod_config = ctx["config"].get_module_config(module.name)
+                    module.configure(mod_config)
+                except Exception as e:
+                    logger.error(f"Failed to configure module {module.name}: {e}")
+                    raise HTTPException(
+                        500, f"Failed to configure module {module.name}: {e}"
+                    )
 
+        except HTTPException:
+            raise
         except Exception as e:
+            logger.error(f"Failed to configure or start items: {e}")
             raise HTTPException(500, f"Failed to configure or start items: {e}")
 
         # Start the pipeline with SRT ingest as data source
@@ -175,11 +267,20 @@ def create_api_router() -> APIRouter:
             if log_broadcast:
                 log_broadcast("info", f"Pipeline state changed: {state}")
 
-        pipeline.start(
-            data_source=srt_ingest.get_next_chunk,
-            on_log=on_log,
-            on_state_change=on_state,
-        )
+        try:
+            pipeline.start(
+                data_source=srt_ingest.get_next_chunk,
+                on_log=on_log,
+                on_state_change=on_state,
+            )
+        except Exception as e:
+            logger.error(f"Failed to start pipeline: {e}")
+            # Clean up SRT ingest if pipeline start failed
+            try:
+                srt_ingest.stop()
+            except:
+                pass
+            raise HTTPException(500, f"Failed to start pipeline: {e}")
 
         return {"status": "started", "srt_url": srt_ingest.get_srt_url()}
 
@@ -190,10 +291,49 @@ def create_api_router() -> APIRouter:
         pipeline = ctx["pipeline"]
         srt_ingest = ctx["srt_ingest"]
 
-        pipeline.stop()
-        srt_ingest.stop()
+        try:
+            pipeline.stop()
+            srt_ingest.stop()
+        except Exception as e:
+            logger.error(f"Error stopping pipeline: {e}")
+            pass
 
         return {"status": "stopped"}
+
+    @router.post("/restart")
+    async def restart_pipeline(request: Request):
+        """Restart the pipeline to apply module configuration changes."""
+        ctx = _ctx(request)
+        pipeline = ctx["pipeline"]
+        srt_ingest = ctx["srt_ingest"]
+        config = ctx["config"]
+
+        try:
+            pipeline.stop()
+            srt_ingest.stop()
+        except Exception as e:
+            logger.error(f"Error stopping pipeline: {e}")
+
+        # Small delay to ensure clean shutdown
+        import asyncio
+
+        await asyncio.sleep(0.5)
+
+        # Reconfigure all modules
+        pipeline.reconfigure(config)
+
+        # Start pipeline again
+        try:
+            pipeline.start(
+                data_source=srt_ingest.get_next_chunk,
+                on_log=lambda level, msg: None,
+                on_state_change=lambda state: None,
+            )
+        except Exception as e:
+            logger.error(f"Failed to restart pipeline: {e}")
+            raise HTTPException(500, f"Failed to restart pipeline: {e}")
+
+        return {"status": "restarted"}
 
     # ── Configuration ─────────────────────────────────────
 
@@ -227,14 +367,31 @@ def create_api_router() -> APIRouter:
         pipeline = ctx["pipeline"]
         return {"modules": [m.get_status().to_dict() for m in pipeline.get_modules()]}
 
+    @router.get("/modules/{module_name}/debug")
+    async def debug_module(request: Request, module_name: str):
+        """Debug endpoint to see raw module state."""
+        safe_module_name = sanitize_module_name(module_name)
+        ctx = _ctx(request)
+        pipeline = ctx["pipeline"]
+        module = pipeline.get_module(safe_module_name)
+        if not module:
+            raise HTTPException(404, f"Module '{safe_module_name}' not found")
+        return {
+            "name": module.name,
+            "enabled": module.enabled,
+            "_state": str(module._state),
+            "state_property": str(module.state),
+        }
+
     @router.put("/modules/{module_name}/toggle")
     async def toggle_module(
         request: Request,
         module_name: str,
         body: ModuleToggle,
     ):
-        """Enable or disable a module."""
-        # Sanitize module name to prevent injection
+        """Enable or disable a module with hot reload."""
+        from core.module_base import ModuleState
+
         safe_module_name = sanitize_module_name(module_name)
 
         ctx = _ctx(request)
@@ -245,17 +402,51 @@ def create_api_router() -> APIRouter:
         if not module:
             raise HTTPException(404, f"Module '{safe_module_name}' not found")
 
+        was_enabled = module.enabled
         module.enabled = body.enabled
         config.set_module_enabled(safe_module_name, body.enabled)
         config.save()
 
-        # Also reconfigure the module itself
-        pipeline.reconfigure(config)
+        # Hot reload: start or stop the module if pipeline is running
+        if pipeline.state.value == "running":
+            try:
+                if body.enabled and not was_enabled:
+                    # Module was disabled, now enabled - start it
+                    mod_config = config.get_module_config(safe_module_name)
+                    module.configure(mod_config)
+                    module.start()
+                    module._state = ModuleState.RUNNING
+                    logger.info(f"Hot-started module: {safe_module_name}")
+                    # Force re-read of enabled state in next iteration
+                    pipeline._chunk_index += 0
+                elif not body.enabled and was_enabled:
+                    # Module was enabled, now disabled - stop it
+                    module.stop()
+                    module._state = ModuleState.DISABLED
+                    logger.info(f"Hot-stopped module: {safe_module_name}")
+                else:
+                    # Just reconfigure
+                    pipeline.reconfigure(config)
+            except Exception as e:
+                import traceback
+
+                err_msg = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
+                logger.error(f"Error in hot-reload for {safe_module_name}: {err_msg}")
+                return {
+                    "module": safe_module_name,
+                    "enabled": body.enabled,
+                    "status": module.get_status().to_dict(),
+                    "warning": f"Hot reload failed: {str(e)}",
+                    "error": err_msg,
+                }
+        else:
+            pipeline.reconfigure(config)
 
         return {
             "module": safe_module_name,
             "enabled": body.enabled,
             "status": module.get_status().to_dict(),
+            "hot_reload": True,
         }
 
     # ── SRT Info ──────────────────────────────────────────

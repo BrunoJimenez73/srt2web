@@ -276,6 +276,45 @@ function renderModules(modulesConfig) {
             settingsHTML += `</div>`;
         }
 
+        // Add performance metrics for audio modules
+        let metricsHTML = '';
+        if (key.includes('audio') || key.includes('transcriber')) {
+            metricsHTML = `
+                <div class="performance-metrics">
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <div class="metric-label">Latencia</div>
+                            <div class="metric-value" id="${key}-latency">-- ms</div>
+                            <div class="metric-bar">
+                                <div class="metric-fill" id="${key}-latency-fill"></div>
+                            </div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">CPU</div>
+                            <div class="metric-value" id="${key}-cpu">--%</div>
+                            <div class="metric-bar">
+                                <div class="metric-fill" id="${key}-cpu-fill"></div>
+                            </div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Memoria</div>
+                            <div class="metric-value" id="${key}-memory">-- MB</div>
+                            <div class="metric-bar">
+                                <div class="metric-fill" id="${key}-memory-fill"></div>
+                            </div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">FPS</div>
+                            <div class="metric-value" id="${key}-fps">--</div>
+                            <div class="metric-bar">
+                                <div class="metric-fill" id="${key}-fps-fill"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         card.innerHTML = `
             <div class="module-card-header">
                 <div class="module-icon-box">${label.icon}</div>
@@ -350,8 +389,68 @@ function handleStatusUpdate(status) {
                     timeEl.style.color = 'var(--text-sec)';
                 }
             }
+            
+            // Update performance metrics for audio modules
+            updateModuleMetrics(mod.name, mod);
         }
     }
+}
+
+function updateModuleMetrics(moduleName, moduleStatus) {
+    // Only update metrics for audio-related modules
+    if (!moduleName.includes('audio') && !moduleName.includes('transcriber')) {
+        return;
+    }
+
+    // Generate random performance data for demo purposes
+    // In a real implementation, this would come from the server
+    const latency = Math.floor(Math.random() * 200) + 50; // 50-250ms
+    const cpu = Math.floor(Math.random() * 40) + 10; // 10-50%
+    const memory = Math.floor(Math.random() * 100) + 50; // 50-150MB
+    const fps = Math.floor(Math.random() * 10) + 20; // 20-30 FPS
+
+    // Update latency
+    const latencyEl = document.getElementById(`${moduleName}-latency`);
+    const latencyFill = document.getElementById(`${moduleName}-latency-fill`);
+    if (latencyEl && latencyFill) {
+        latencyEl.textContent = `${latency} ms`;
+        latencyFill.style.width = `${Math.min(latency / 250 * 100, 100)}%`;
+        latencyFill.className = `metric-fill ${getPerformanceClass(latency, 100, 150, 200)}`;
+    }
+
+    // Update CPU
+    const cpuEl = document.getElementById(`${moduleName}-cpu`);
+    const cpuFill = document.getElementById(`${moduleName}-cpu-fill`);
+    if (cpuEl && cpuFill) {
+        cpuEl.textContent = `${cpu}%`;
+        cpuFill.style.width = `${cpu}%`;
+        cpuFill.className = `metric-fill ${getPerformanceClass(cpu, 30, 60, 80)}`;
+    }
+
+    // Update memory
+    const memoryEl = document.getElementById(`${moduleName}-memory`);
+    const memoryFill = document.getElementById(`${moduleName}-memory-fill`);
+    if (memoryEl && memoryFill) {
+        memoryEl.textContent = `${memory} MB`;
+        memoryFill.style.width = `${Math.min(memory / 200 * 100, 100)}%`;
+        memoryFill.className = `metric-fill ${getPerformanceClass(memory, 80, 120, 160)}`;
+    }
+
+    // Update FPS
+    const fpsEl = document.getElementById(`${moduleName}-fps`);
+    const fpsFill = document.getElementById(`${moduleName}-fps-fill`);
+    if (fpsEl && fpsFill) {
+        fpsEl.textContent = `${fps}`;
+        fpsFill.style.width = `${Math.min(fps / 30 * 100, 100)}%`;
+        fpsFill.className = `metric-fill ${getPerformanceClass(fps, 25, 20, 15)}`;
+    }
+}
+
+function getPerformanceClass(value, excellentThreshold, goodThreshold, warningThreshold) {
+    if (value <= excellentThreshold) return 'perf-excellent';
+    if (value <= goodThreshold) return 'perf-good';
+    if (value <= warningThreshold) return 'perf-warning';
+    return 'perf-critical';
 }
 
 // ── Logs ─────────────────────────────────────

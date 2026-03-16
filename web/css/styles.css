@@ -2,6 +2,8 @@
    SRT2Web — Premium Pro Dashboard (v0.4.0)
    ────────────────────────────────────────── */
 
+.hidden { display: none !important; }
+
 :root {
     /* Core Universe */
     --bg-deep: #050508;
@@ -29,6 +31,14 @@
     --error: #ef4444;
     --warning: #f59e0b;
     --danger: #dc2626;
+    --info: #3b82f6;
+    --muted: #6b7280;
+
+    /* Performance Indicators */
+    --perf-excellent: #10b981;
+    --perf-good: #22c55e;
+    --perf-warning: #f59e0b;
+    --perf-critical: #ef4444;
 
     /* Metrics */
     --radius-lg: 16px;
@@ -463,6 +473,59 @@ body {
 }
 input:checked + .slider { background: var(--accent); }
 input:checked + .slider::before { transform: translateX(16px); }
+
+/* Performance Metrics */
+.performance-metrics {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-dim);
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+.metric-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.metric-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.metric-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-prime);
+}
+
+.metric-bar {
+    height: 4px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.metric-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: all 0.3s ease;
+    border-radius: 2px;
+}
+
+.metric-fill.perf-excellent { background: var(--perf-excellent); }
+.metric-fill.perf-good { background: var(--perf-good); }
+.metric-fill.perf-warning { background: var(--perf-warning); }
+.metric-fill.perf-critical { background: var(--perf-critical); }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar { width: 6px; }

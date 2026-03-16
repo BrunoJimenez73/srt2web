@@ -68,7 +68,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const video = document.getElementById('video-player');
-            const hlsUrl = '/hls/master.m3u8';
+            const hlsUrl = '/hls/stream.m3u8'; // Directo al stream sin subtitulos para mayor estabilidad
             let hls = null;
             let checkInterval = null;
 
@@ -77,11 +77,12 @@
                     if (hls) hls.destroy();
                     
                     hls = new Hls({
-                        liveSyncDurationCount: 6, // 24 seconds delay for maximum stability
-                        liveMaxLatencyDurationCount: 12,
-                        maxBufferLength: 30,
+                        liveSyncDurationCount: 20, // 200+ seconds delay for maximum stability
+                        liveMaxLatencyDurationCount: 40,
+                        maxBufferLength: 150,
+                        maxMaxBufferLength: 200,
                         enableWorker: true,
-                        lowLatencyMode: true,
+                        lowLatencyMode: false,
                     });
 
                     hls.loadSource(hlsUrl);
@@ -92,16 +93,22 @@
                     });
 
                     hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, function(event, data) {
+                        // Only enable subtitles if they exist and are ready
                         if (data.subtitleTracks.length > 0) {
-                            hls.subtitleTrack = 0;
-                            // Ensure tracks are enabled
-                            for (let i = 0; i < video.textTracks.length; i++) {
-                                video.textTracks[i].mode = 'showing';
+                            try {
+                                hls.subtitleTrack = 0;
+                                for (let i = 0; i < video.textTracks.length; i++) {
+                                    video.textTracks[i].mode = 'showing';
+                                }
+                            } catch(e) {
+                                console.log('Subtitles not available');
                             }
                         }
                     });
 
+                    // Handle subtitle errors gracefully
                     hls.on(Hls.Events.ERROR, function (event, data) {
+                        console.log('HLS Error:', data.type, data.details);
                         if (data.fatal) {
                             switch (data.type) {
                                 case Hls.ErrorTypes.NETWORK_ERROR:
@@ -110,6 +117,14 @@
                                     break;
                                 case Hls.ErrorTypes.MEDIA_ERROR:
                                     hls.recoverMediaError();
+                                    break;
+                                case Hls.ErrorTypes.OTHER_ERROR:
+                                    // Ignore subtitle errors - they're not fatal
+                                    if (data.details.includes('subtitle')) {
+                                        console.log("Subtitle error (ignored)");
+                                        return;
+                                    }
+                                    initPlayer();
                                     break;
                                 default:
                                     initPlayer();

@@ -46,8 +46,10 @@ def create_app(app_context: dict) -> FastAPI:
     cors_origins = [
         "http://localhost:8080",
         "http://localhost:8089",
+        "http://localhost:9999",
         "http://127.0.0.1:8080",
         "http://127.0.0.1:8089",
+        "http://127.0.0.1:9999",
     ]
     if config:
         configured_origins = config.get("server.cors_origins", [])
@@ -60,7 +62,7 @@ def create_app(app_context: dict) -> FastAPI:
         if "*" in origin:
             # Convert localhost:* patterns to actual available ports
             base = origin.replace(":*", "")
-            for port in [3000, 5173, 8080, 8089, 8000]:
+            for port in [3000, 5173, 8080, 8089, 8000, 9999]:
                 allowed_origins.append(f"{base}:{port}")
         else:
             allowed_origins.append(origin)

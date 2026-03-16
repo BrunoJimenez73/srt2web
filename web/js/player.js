@@ -9,7 +9,7 @@ class StreamPlayer {
         this.overlay = document.getElementById('video-overlay');
         this.liveBadge = document.getElementById('live-badge');
         this.hls = null;
-        this.streamUrl = '/hls/master.m3u8';
+        this.streamUrl = '/hls/stream.m3u8'; // Directo sin subtitulos para mayor estabilidad
         this.checkInterval = null;
         this.playing = false;
     }
@@ -68,13 +68,15 @@ class StreamPlayer {
         if (Hls.isSupported()) {
             this.hls = new Hls({
                 enableWorker: true,
-                lowLatencyMode: true,
-                liveSyncDurationCount: 3,
-                liveMaxLatencyDurationCount: 6,
+                lowLatencyMode: false,
+                liveSyncDurationCount: 20,
+                liveMaxLatencyDurationCount: 40,
                 liveDurationInfinity: true,
-                manifestLoadingMaxRetry: 30,
-                manifestLoadingRetryDelay: 1000,
-                levelLoadingMaxRetry: 10,
+                manifestLoadingMaxRetry: 60,
+                manifestLoadingRetryDelay: 2000,
+                levelLoadingMaxRetry: 30,
+                maxBufferLength: 120,
+                maxMaxBufferLength: 180,
             });
 
             this.hls.loadSource(this.streamUrl);
@@ -94,6 +96,7 @@ class StreamPlayer {
             });
 
             this.hls.on(Hls.Events.ERROR, (event, data) => {
+                console.log('[HLS] Error:', data.type, data.details);
                 if (data.fatal) {
                     switch (data.type) {
                         case Hls.ErrorTypes.NETWORK_ERROR:
@@ -103,6 +106,16 @@ class StreamPlayer {
                         case Hls.ErrorTypes.MEDIA_ERROR:
                             console.warn('[HLS] Media error, recovering...');
                             this.hls.recoverMediaError();
+                            break;
+                        case Hls.ErrorTypes.OTHER_ERROR:
+                            // Ignore subtitle errors - they're not fatal
+                            if (data.details && data.details.includes('subtitle')) {
+                                console.log('[HLS] Subtitle error (ignored)');
+                                return;
+                            }
+                            console.error('[HLS] Fatal error:', data);
+                            this._destroyHls();
+                            this.playing = false;
                             break;
                         default:
                             console.error('[HLS] Fatal error:', data);
