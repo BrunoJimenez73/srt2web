@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TC001",
+    "title": "start_pipeline_success",
+    "description": "Test starting the processing pipeline with a valid SRT URL. Expect a 200 response with status 'started' and the provided SRT URL."
+  },
+  {
+    "id": "TC002",
+    "title": "start_pipeline_already_running",
+    "description": "Test starting the pipeline when it is already running. Expect a 400 response with message 'Pipeline already running'."
+  },
+  {
+    "id": "TC003",
+    "title": "stop_pipeline_success",
+    "description": "Test stopping the processing pipeline when it is running. Expect a 200 response with status 'stopped'."
+  },
+  {
+    "id": "TC004",
+    "title": "get_pipeline_status_running",
+    "description": "Test retrieving the pipeline status when the pipeline is running. Expect a 200 response with a status object indicating running:true and including the HLS URL."
+  },
+  {
+    "id": "TC005",
+    "title": "get_pipeline_status_stopped",
+    "description": "Test retrieving the pipeline status when the pipeline is stopped. Expect a 200 response with a status object indicating running:false."
+  },
+  {
+    "id": "TC006",
+    "title": "get_config_success",
+    "description": "Test retrieving the current pipeline configuration. Expect a 200 response with the configuration object."
+  },
+  {
+    "id": "TC007",
+    "title": "update_config_success",
+    "description": "Test updating the pipeline configuration with valid partial data (e.g., changing log_level). Expect a 200 response with status 'updated' and the updated configuration object."
+  },
+  {
+    "id": "TC008",
+    "title": "update_config_invalid_body",
+    "description": "Test updating the pipeline configuration with invalid or malformed data. Expect a 400 response with validation error messages describing the invalid fields."
+  },
+  {
+    "id": "TC009",
+    "title": "list_modules_success",
+    "description": "Test listing all processing modules and their enabled/disabled status. Expect a 200 response with a list of modules and their states."
+  },
+  {
+    "id": "TC010",
+    "title": "toggle_module_enable_disable",
+    "description": "Test enabling or disabling a specific processing module by name with a valid boolean 'enabled' value. Expect a 200 response with the updated module state."
+  }
+]

@@ -1,0 +1,107 @@
+version: "2"
+type: backend
+tech_stack:
+  - language: Python
+  - framework: FastAPI
+  - other:
+      - FFmpeg (audio/video processing)
+      - WebSockets (log streaming)
+      - SRT Protocol (stream input)
+      - HLS (HTTP Live Streaming output)
+features:
+  - name: SRT Stream Processing Pipeline
+    description: Receives SRT streams, processes them through modular pipeline, outputs HLS
+    files:
+      - core/pipeline.py
+      - core/module_base.py
+      - modules/srt_ingest.py
+      - modules/video_muxer.py
+    endpoints:
+      - method: POST
+        path: /api/start
+        description: Start the processing pipeline
+        auth_required: false
+        response_schema:
+          "200": {"status": "started", "srt_url": "string"}
+          "400": "Pipeline already running"
+          "500": "Failed to start"
+      - method: POST
+        path: /api/stop
+        description: Stop the processing pipeline
+        auth_required: false
+        response_schema:
+          "200": {"status": "stopped"}
+      - method: GET
+        path: /api/status
+        description: Get full pipeline status
+        auth_required: false
+        response_schema:
+          "200": Pipeline status object
+
+  - name: Configuration Management
+    description: Hot-reloadable configuration system
+    files:
+      - core/config_manager.py
+      - server/api_routes.py
+    endpoints:
+      - method: GET
+        path: /api/config
+        description: Get current configuration
+        auth_required: false
+      - method: PUT
+        path: /api/config
+        description: Update configuration (partial)
+        auth_required: false
+        request_schema:
+          body:
+            config: object
+        response_schema:
+          "200": {"status": "updated", "config": object}
+
+  - name: Module Management
+    description: Enable/disable processing modules at runtime
+    files:
+      - modules/*.py
+      - server/api_routes.py
+    endpoints:
+      - method: GET
+        path: /api/modules
+        description: List all modules and status
+        auth_required: false
+      - method: PUT
+        path: /api/modules/{module_name}/toggle
+        description: Enable or disable a module
+        auth_required: false
+        request_schema:
+          body:
+            enabled: boolean
+
+  - name: SRT Connection Info
+    description: Get SRT connection details for OBS/VMix
+    files:
+      - server/api_routes.py
+    endpoints:
+      - method: GET
+        path: /api/srt-info
+        description: Get SRT connection information
+        auth_required: false
+        response_schema:
+          "200": {"mode": "string", "port": number, "latency_ms": number, "obs_url": "string", "vmix_url": "string"}
+
+  - name: WebSocket Log Streaming
+    description: Real-time log streaming via WebSockets
+    files:
+      - server/ws_routes.py
+
+  - name: Processing Modules
+    description: Audio/video processing modules
+    files:
+      - modules/audio_extractor.py
+      - modules/transcriber.py
+      - modules/translator.py
+      - modules/subtitle_generator.py
+      - modules/tts_engine.py
+      - modules/audio_mixer.py
+      - modules/video_muxer.py
+
+known_limitations: []
