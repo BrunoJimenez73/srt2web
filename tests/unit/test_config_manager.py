@@ -44,15 +44,15 @@ class TestConfigManager:
         config = ConfigManager("/nonexistent/path.yaml")
 
         assert config.get("server.port") == 8080
-        assert config.get("srt.listen_port") == 9000
-        assert config.get("pipeline.chunk_duration_sec") == 4
+        assert config.get("input.srt.listen_port") == 9000
+        assert config.get("pipeline.chunk_duration_sec") == 15
 
     def test_init_with_config_file(self, config_file):
         """Test initialization with a config file."""
         config = ConfigManager(config_file)
 
         assert config.get("server.port") == 8080
-        assert config.get("srt.listen_port") == 9000
+        assert config.get("input.srt.listen_port") == 9000
 
     def test_get_with_default(self):
         """Test get method with default value."""
@@ -65,15 +65,15 @@ class TestConfigManager:
         """Test getting nested values with dot notation."""
         config = ConfigManager("/nonexistent/path.yaml")
 
-        assert config.get("srt.listen_port") == 9000
-        assert config.get("modules.transcriber.model") == "small"
+        assert config.get("input.srt.listen_port") == 9000
+        assert config.get("modules.transcriber.model") == "tiny"
 
     def test_set_dotted_key(self):
         """Test setting nested values with dot notation."""
         config = ConfigManager("/nonexistent/path.yaml")
 
-        config.set("srt.listen_port", 9999)
-        assert config.get("srt.listen_port") == 9999
+        config.set("input.srt.listen_port", 9999)
+        assert config.get("input.srt.listen_port") == 9999
 
     def test_set_creates_intermediate_dicts(self):
         """Test that set creates intermediate dicts if needed."""
@@ -88,7 +88,7 @@ class TestConfigManager:
         """Test getting entire config section."""
         config = ConfigManager("/nonexistent/path.yaml")
 
-        srt_section = config.get_section("srt")
+        srt_section = config.get_section("input.srt")
 
         assert isinstance(srt_section, dict)
         assert srt_section.get("listen_port") == 9000
@@ -101,7 +101,7 @@ class TestConfigManager:
         transcriber_config = config.get_module_config("transcriber")
 
         assert transcriber_config.get("enabled") is True
-        assert transcriber_config.get("model") == "small"
+        assert transcriber_config.get("model") == "tiny"
 
     def test_set_module_enabled(self):
         """Test enabling/disabling modules."""
@@ -119,30 +119,30 @@ class TestConfigManager:
 
         assert isinstance(result, dict)
         assert "server" in result
-        assert "srt" in result
+        assert "input" in result
         assert "modules" in result
 
     def test_update_from_dict(self):
         """Test partial update from dict."""
         config = ConfigManager("/nonexistent/path.yaml")
 
-        config.update_from_dict({"srt": {"listen_port": 8888}})
+        config.update_from_dict({"input": {"srt": {"listen_port": 8888}}})
 
-        assert config.get("srt.listen_port") == 8888
-        assert config.get("srt.mode") == "listener"  # unchanged
+        assert config.get("input.srt.listen_port") == 8888
+        assert config.get("input.srt.mode") == "listener"  # unchanged
 
     def test_save_and_reload(self, temp_dir):
         """Test saving and reloading config."""
         config_path = os.path.join(temp_dir, "save_test.yaml")
 
         config1 = ConfigManager("/nonexistent/path.yaml")
-        config1.set("srt.listen_port", 7777)
+        config1.set("input.srt.listen_port", 7777)
         config1._config_path = config_path
         config1.save()
 
         config2 = ConfigManager(config_path)
 
-        assert config2.get("srt.listen_port") == 7777
+        assert config2.get("input.srt.listen_port") == 7777
 
     def test_reload(self, config_file):
         """Test reloading config from file."""

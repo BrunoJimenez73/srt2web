@@ -219,7 +219,7 @@ class TestApiRouter:
         data = response.json()
         assert "state" in data
         assert "modules" in data
-        assert "srt_receiving" in data
+        assert "input_receiving" in data
 
     def test_get_config(self, mock_ctx):
         """Test GET /config endpoint."""
@@ -338,7 +338,7 @@ class TestApiRouter:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["srt_receiving"] is True
+        assert data["input_receiving"] is True
 
     def test_update_config_with_nested_values(self, mock_ctx):
         """Test updating nested config values."""

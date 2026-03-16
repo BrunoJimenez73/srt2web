@@ -52,40 +52,48 @@ srt2web/
 
 ## Configuración
 
-La configuración se encuentra en `config.yaml`. Los parámetros principales son:
+La configuración se encuentra en `config.yaml`. La estructura es jerárquica:
 
 - `server.host`, `server.port`: Host y puerto del servidor web
-- `srt.listen_port`, `srt.mode`: Puerto y modo SRT (listener/caller)
+- `input.srt.listen_port`, `input.srt.mode`: Puerto y modo SRT
 - `modules.transcriber.*`: Configuración de Whisper (model, language, device)
-- `modules.translator.*`: Configuración del traductor
-- `modules.tts_engine.*`: Configuración de TTS
-- `modules.audio_mixer.*`: Volumen y velocidad
+- `modules.translator.*`: Configuración del traductor (source_lang, target_lang)
+- `modules.tts_engine.*`: Configuración de TTS (voice, speed)
+- `modules.audio_mixer.*`: volúmenes (original_volume, dubbed_volume)
+- `modules.video_muxer.*`: Configuración de salida HLS
 
 ## Testing
 
 - **Framework**: pytest
+- **Unit Tests**: Cobertura exhaustiva en `tests/unit/` para todos los módulos y el core.
+- **Mocking**: Se utilizan mocks para dependencias pesadas (FFmpeg, WhisperModel, ArgosTranslate, etc.) para permitir tests rápidos y sin hardware específico.
 - **Fixtures**: Definidos en `tests/conftest.py`
 - **Markers**: `@pytest.mark.slow`, `@pytest.mark.integration`, `@pytest.mark.e2e`, `@pytest.mark.live`
 
-Ejecutar tests rápidos (excluyendo slow):
+Ejecutar todos los tests unitarios:
 ```bash
-python -m pytest -m "not slow" tests/
+python -m pytest tests/unit/ -v
+```
+
+Ejecutar tests con reporte de cobertura:
+```bash
+python -m pytest tests/unit/ --cov=modules --cov=core --cov-report=term-missing
 ```
 
 ## Módulos del Pipeline
 
-1. **SRTIngest**: Recibe flujo SRT y lo fragmenta
-2. **AudioExtractor**: Separa audio del video
-3. **Transcriber**: Transcripción con faster-whisper
-4. **Translator**: Traducción con Argos Translate
-5. **SubtitleGenerator**: Genera subtítulos VTT/SRT
-6. **TTSEngine**: Generación de voz TTS
-7. **AudioMixer**: Mezcla audio original con doblaje
-8. **VideoMuxer**: Empaquetado HLS
+1. **SRTIngest**: Recibe flujo SRT y lo fragmenta en carpetas `.ts`
+2. **AudioExtractor**: Extrae audio `.wav` de los fragmentos de video
+3. **Transcriber**: Transcripción de audio a texto con faster-whisper
+4. **Translator**: Traducción de texto entre idiomas (Argos Translate)
+5. **SubtitleGenerator**: Genera subtítulos WebVTT (rolling) y SRT (per-chunk)
+6. **TTSEngine**: Generación de audio doblado (Edge-TTS o Piper)
+7. **AudioMixer**: Mezcla audio original (con ducking) y TTS
+8. **VideoMuxer**: Empaqueta video y audio final en un stream HLS compatible con web
 
 ## Notas Importantes
 
 - El proyecto usa medición exacta de duración con ffprobe para evitar tirones en HLS
-- Soporta aceleración GPU: NVIDIA (NVENC), AMD (AMF), Intel (QSV)
-- La configuración puede cambiarse en caliente sin reiniciar el pipeline
-- En Windows, usa taskkill para limpiar procesos FFmpeg zombies
+- Soporta aceleración GPU: NVIDIA (NVENC), AMD (AMF), Intel (QSV), VAAPI
+- La configuración puede cambiarse en caliente (hot-reload) a través de la API
+- En Windows, se utiliza `taskkill /F /T` para asegurar la limpieza de procesos FFmpeg

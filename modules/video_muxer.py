@@ -36,7 +36,8 @@ class VideoMuxer(BaseModule):
         self._segment_index = 0
         self._manifest_lock = threading.Lock()
         self._audio_offset_ms = 0
-        self._gpu_info = {"nvenc": False, "qsv": False, "amf": False}
+        self._hls_list_size = 30
+        self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
         self._total_duration_emitted = 0.0
         self._segment_durations = {}  # Cache durations for manifest: {index: duration}
         super().__init__("video_muxer", config)

@@ -76,6 +76,11 @@ DEFAULT_CONFIG = {
             "original_volume": 0.2,
             "dubbed_volume": 1.0,
         },
+        "video_muxer": {
+            "enabled": True,
+            "hls_segment_duration": 4,
+            "audio_offset_ms": 0,
+        },
     },
     "output_dir": {
         "directory": "./output",
