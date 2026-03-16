@@ -116,18 +116,25 @@ class VideoMuxer(BaseModule):
         if self._gpu_info["nvenc"]:
             encoder = "h264_nvenc"
             preset = "p1"  # Fastest NVENC preset
-            extra_args = ["-delay", "0", "-zerolatency", "1"]
+            extra_args = ["-delay", "0", "-zerolatency", "1", "-rc", "vbr", "-cq", "23"]
             logger.info(
                 f"[VideoMuxer] Using GPU encoder: h264_nvenc (preset: {preset})"
             )
         elif self._gpu_info["amf"]:
             encoder = "h264_amf"
             preset = "speed"
+            extra_args = ["-usage", "lowlatency", "-quality", "speed"]
             logger.info(f"[VideoMuxer] Using GPU encoder: h264_amf (preset: {preset})")
         elif self._gpu_info["qsv"]:
             encoder = "h264_qsv"
             preset = "veryfast"
+            extra_args = ["-low_power", "1", "-async_depth", "1"]
             logger.info(f"[VideoMuxer] Using GPU encoder: h264_qsv (preset: {preset})")
+        elif self._gpu_info["vaapi"]:
+            encoder = "h264_vaapi"
+            preset = "medium"
+            extra_args = ["-vaapi_device", "/dev/dri/renderD128"]
+            logger.info(f"[VideoMuxer] Using GPU encoder: h264_vaapi (preset: {preset})")
         else:
             logger.info(f"[VideoMuxer] Using CPU encoder: libx264 (preset: {preset})")
 

@@ -103,6 +103,7 @@ class AudioMixer(BaseModule):
             "-ac", "2",                 # Output stereo
             "-ar", "44100",             # Standard audio rate
             "-c:a", "pcm_s16le",
+            "-threads", "4",            # Limit threads for efficiency
             mix_wav,
         ]
 

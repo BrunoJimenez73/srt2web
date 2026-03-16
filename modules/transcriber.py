@@ -66,11 +66,14 @@ class Transcriber(BaseModule):
             # Avoid downloading logs spam
             os.environ["CT2_VERBOSE"] = "-1"
             
+            # Optimized model loading for better performance
             self._model = WhisperModel(
                 self._model_size, 
                 device=self._device, 
                 compute_type=self._compute_type,
-                cpu_threads=4  # Prevent CPU hogging
+                cpu_threads=4,  # Prevent CPU hogging
+                download_root="./models/whisper",  # Cache models locally
+                local_files_only=False  # Allow download if not cached
             )
             
             self._state = ModuleState.RUNNING

@@ -104,6 +104,7 @@ class SRTIngest(BaseModule):
             "-segment_format", "mpegts",
             "-reset_timestamps", "1",
             "-strftime", "0",
+            "-max_muxing_queue_size", "1024",  # Prevent muxing queue overflow
             chunk_pattern,
         ]
 

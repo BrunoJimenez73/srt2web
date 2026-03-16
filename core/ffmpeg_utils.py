@@ -104,7 +104,7 @@ def get_ffmpeg_version(ffmpeg_path: str) -> Optional[str]:
 
 def check_gpu_support(ffmpeg_path: str) -> dict:
     """Check for hardware acceleration support in FFmpeg (encoders)."""
-    results = {"nvenc": False, "qsv": False, "amf": False}
+    results = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
     try:
         result = subprocess.run(
             [ffmpeg_path, "-encoders"],
@@ -113,9 +113,10 @@ def check_gpu_support(ffmpeg_path: str) -> dict:
             timeout=5,
         )
         output = result.stdout.lower()
-        results["nvenc"] = "h264_nvenc" in output
-        results["qsv"] = "h264_qsv" in output
-        results["amf"] = "h264_amf" in output
+        results["nvenc"] = "h264_nvenc" in output or "hevc_nvenc" in output
+        results["qsv"] = "h264_qsv" in output or "hevc_qsv" in output
+        results["amf"] = "h264_amf" in output or "hevc_amf" in output
+        results["vaapi"] = "h264_vaapi" in output or "hevc_vaapi" in output
     except Exception:
         pass
     return results

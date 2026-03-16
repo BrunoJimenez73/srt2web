@@ -82,6 +82,7 @@ class AudioExtractor(BaseModule):
             "-ar", "16000",             # 16kHz sample rate
             "-ac", "1",                 # Mono
             "-c:a", "pcm_s16le",        # 16-bit PCM
+            "-threads", "4",            # Limit threads for CPU efficiency
             "-f", "wav",
             output_path,
         ]

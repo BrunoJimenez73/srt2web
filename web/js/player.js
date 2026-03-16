@@ -68,15 +68,24 @@ class StreamPlayer {
         if (Hls.isSupported()) {
             this.hls = new Hls({
                 enableWorker: true,
-                lowLatencyMode: false,
-                liveSyncDurationCount: 20,
-                liveMaxLatencyDurationCount: 40,
+                lowLatencyMode: true,  // Enable LL-HLS for lower latency
+                backBufferLength: 90,  // Keep more buffer for stability
+                liveSyncDurationCount: 3,  // Faster sync
+                liveMaxLatencyDurationCount: 6,  // Lower max latency
                 liveDurationInfinity: true,
                 manifestLoadingMaxRetry: 60,
-                manifestLoadingRetryDelay: 2000,
+                manifestLoadingRetryDelay: 1000,
                 levelLoadingMaxRetry: 30,
-                maxBufferLength: 120,
-                maxMaxBufferLength: 180,
+                maxBufferLength: 60,  // Reduced buffer for lower latency
+                maxMaxBufferLength: 90,
+                maxBufferSize: 7 * 1000 * 1000,  // 7MB max buffer
+                maxBufferHole: 0.5,  // Smaller holes
+                highBufferWatchdogPeriod: 3,  // Watchdog for high buffer
+                nudgeOffset: 0.1,  // Small nudge for sync
+                nudgeMaxRetry: 3,  // Retry nudge
+                maxFragLookUpTolerance: 0.25,  // Tolerance for fragment lookup
+                maxStarvationDelay: 20000,  // Max delay before starvation
+                maxLoadingDelay: 20000,  // Max loading delay
             });
 
             this.hls.loadSource(this.streamUrl);
