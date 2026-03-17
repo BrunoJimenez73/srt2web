@@ -38,12 +38,15 @@
             color: var(--text-prime);
             min-height: 100vh;
             font-size: 13px;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         .dashboard {
             max-width: 1200px;
             margin: 0 auto;
             padding: 16px;
+            min-height: calc(100vh - 32px);
         }
 
         /* Header */
@@ -110,6 +113,22 @@
             background: var(--success);
             box-shadow: 0 0 10px var(--success);
             animation: pulse 2s infinite;
+        }
+
+        /* Module status dots - smaller */
+        .module-name .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-dim);
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+
+        .module-name .status-dot.running {
+            background: var(--success);
+            box-shadow: 0 0 6px var(--success);
         }
 
         @keyframes pulse {
@@ -533,9 +552,10 @@
         }
 
         @media (max-width: 900px) {
+            body { overflow-y: auto; }
             .process-grid { grid-template-columns: repeat(2, 1fr); }
             .bottom-row { grid-template-columns: 1fr; }
-            .modules-grid { grid-template-columns: 1fr 1fr; }
+            .modules-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -727,9 +747,9 @@
             <div class="advanced-body">
                 <div class="modules-grid">
                     <!-- Transcription -->
-                    <div class="module-card">
+                    <div class="module-card" id="mod-transcriber">
                         <div class="module-header">
-                            <span class="module-name">🎙 Whisper</span>
+                            <span class="module-name"><span class="status-dot" id="status-transcriber"></span> 🎙 Whisper</span>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="adv-whisper-enabled" checked>
                                 <span class="toggle-slider"></span>
@@ -765,9 +785,9 @@
                     </div>
 
                     <!-- Translator -->
-                    <div class="module-card">
+                    <div class="module-card" id="mod-translator">
                         <div class="module-header">
-                            <span class="module-name">🌐 Translator</span>
+                            <span class="module-name"><span class="status-dot" id="status-translator"></span> 🌐 Translator</span>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="adv-translator-enabled" checked>
                                 <span class="toggle-slider"></span>
@@ -794,9 +814,9 @@
                     </div>
 
                     <!-- Subtitle Generator -->
-                    <div class="module-card">
+                    <div class="module-card" id="mod-subtitle_generator">
                         <div class="module-header">
-                            <span class="module-name">📝 Subtitles</span>
+                            <span class="module-name"><span class="status-dot" id="status-subtitle_generator"></span> 📝 Subtitles</span>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="adv-subs-enabled" checked>
                                 <span class="toggle-slider"></span>
@@ -821,9 +841,9 @@
                     </div>
 
                     <!-- TTS -->
-                    <div class="module-card">
+                    <div class="module-card" id="mod-tts_engine">
                         <div class="module-header">
-                            <span class="module-name">🔊 TTS</span>
+                            <span class="module-name"><span class="status-dot" id="status-tts_engine"></span> 🔊 TTS</span>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="adv-tts-enabled">
                                 <span class="toggle-slider"></span>
@@ -846,9 +866,9 @@
                     </div>
 
                     <!-- Audio Mixer -->
-                    <div class="module-card">
+                    <div class="module-card" id="mod-audio_mixer">
                         <div class="module-header">
-                            <span class="module-name">🎛 Mixer</span>
+                            <span class="module-name"><span class="status-dot" id="status-audio_mixer"></span> 🎛 Mixer</span>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="adv-mixer-enabled">
                                 <span class="toggle-slider"></span>
@@ -867,9 +887,9 @@
                     </div>
 
                     <!-- Video Muxer -->
-                    <div class="module-card">
+                    <div class="module-card" id="mod-video_muxer">
                         <div class="module-header">
-                            <span class="module-name">📦 HLS Muxer</span>
+                            <span class="module-name"><span class="status-dot" id="status-video_muxer"></span> 📦 HLS Muxer</span>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="adv-muxer-enabled" checked disabled>
                                 <span class="toggle-slider"></span>
@@ -951,31 +971,58 @@
         });
 
         // ── WebSocket ──
+        let wsReconnectCount = 0;
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+            const wsUrl = `${protocol}//${window.location.host}/ws/logs`;
             
-            ws.onopen = () => {
-                addLog('info', 'WebSocket conectado');
-            };
-            
-            ws.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    if (data.type === 'log') {
-                        addLog(data.level, data.message);
+            try {
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = () => {
+                    wsReconnectCount = 0;
+                    addLog('info', 'WebSocket conectado');
+                };
+                
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'log') {
+                            addLog(data.level, data.message);
+                        } else if (data.type === 'status') {
+                            updateModuleStatus(data);
+                        }
+                    } catch (e) {}
+                };
+                
+                ws.onclose = (event) => {
+                    wsReconnectCount++;
+                    if (wsReconnectCount <= 3) {
+                        addLog('warn', 'WebSocket desconectado, reconectando...');
                     }
-                } catch (e) {}
-            };
-            
-            ws.onclose = () => {
-                addLog('warn', 'WebSocket desconectado, reconectando...');
+                    setTimeout(connectWebSocket, 2000);
+                };
+                
+                ws.onerror = () => {
+                    // Only show error on first failure
+                    if (wsReconnectCount === 0) {
+                        addLog('error', 'Error WebSocket');
+                    }
+                };
+            } catch (e) {
                 setTimeout(connectWebSocket, 3000);
-            };
-            
-            ws.onerror = () => {
-                addLog('error', 'Error WebSocket');
-            };
+            }
+        }
+        
+        // Update module status indicators
+        function updateModuleStatus(data) {
+            const modules = data.modules || [];
+            modules.forEach(mod => {
+                const statusDot = document.getElementById(`status-${mod.name}`);
+                if (statusDot) {
+                    statusDot.classList.toggle('running', mod.state === 'running');
+                }
+            });
         }
 
         // ── Load Status ──

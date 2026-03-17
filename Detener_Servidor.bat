@@ -118,6 +118,57 @@ echo - Puerto 9999: Dashboard
 echo - Puerto 9000: Stream SRT
 echo ===============================================
 echo.
+
+echo [INFO] Limpiando archivos temporales...
+echo.
+
+set OUTPUT_DIR=output
+set SCRIPT_DIR=%~dp0
+cd /d "%SCRIPT_DIR%"
+
+if exist "%OUTPUT_DIR%\chunks" (
+    echo [LIMPIAR] Eliminando chunks...
+    rmdir /s /q "%OUTPUT_DIR%\chunks" 2>nul
+    mkdir "%OUTPUT_DIR%\chunks" 2>nul
+)
+
+if exist "%OUTPUT_DIR%\temp_audio" (
+    echo [LIMPIAR] Eliminando temp_audio...
+    rmdir /s /q "%OUTPUT_DIR%\temp_audio" 2>nul
+    mkdir "%OUTPUT_DIR%\temp_audio" 2>nul
+)
+
+if exist "%OUTPUT_DIR%\temp_mix" (
+    echo [LIMPIAR] Eliminando temp_mix...
+    rmdir /s /q "%OUTPUT_DIR%\temp_mix" 2>nul
+    mkdir "%OUTPUT_DIR%\temp_mix" 2>nul
+)
+
+if exist "%OUTPUT_DIR%\temp_tts" (
+    echo [LIMPIAR] Eliminando temp_tts...
+    rmdir /s /q "%OUTPUT_DIR%\temp_tts" 2>nul
+    mkdir "%OUTPUT_DIR%\temp_tts" 2>nul
+)
+
+if exist "%OUTPUT_DIR%\hls" (
+    echo [LIMPIAR] Limpiando HLS...
+    del /q "%OUTPUT_DIR%\hls\seg_*.ts" 2>nul
+    del /q "%OUTPUT_DIR%\hls\chunk_*.srt" 2>nul
+    del /q "%OUTPUT_DIR%\hls\*.m3u8" 2>nul
+    
+    if exist "%OUTPUT_DIR%\hls\subs.vtt" (
+        echo [LIMPIAR] Limpiando subs.vtt...
+        (
+            echo WEBVTT
+            echo.
+        ) > "%OUTPUT_DIR%\hls\subs.vtt"
+    )
+)
+
+echo.
+echo [INFO] Archivos temporales limpiados.
+
+echo.
 echo [INFO] El servidor y los puertos han sido liberados.
 echo [INFO] Si algum puerto sigue ocupado, intenta reiniciar el sistema.
 echo.

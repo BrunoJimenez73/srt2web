@@ -29,7 +29,11 @@ class SubtitleGenerator(BaseModule):
         self._vtt_path = ""
         self._chunk_duration = 4
         self._lock = threading.Lock()
-        
+
+        # Track cumulative time for sync - same as VideoMuxer
+        self._cumulative_time = 0.0
+        self._last_chunk_index = -1
+
         # Keep track of recent subtitle text to avoid duplicates
         self._history = []
         self._max_history = 10
@@ -44,12 +48,12 @@ class SubtitleGenerator(BaseModule):
     def start(self) -> None:
         """Initialize subtitle files."""
         self._state = ModuleState.STARTING
-        
+
         self._subtitles_dir = os.path.join(self._output_dir, "hls")
         os.makedirs(self._subtitles_dir, exist_ok=True)
-        
+
         self._vtt_path = os.path.join(self._subtitles_dir, "subs.vtt")
-        
+
         # Reset file with WebVTT header
         with self._lock:
             try:
@@ -57,10 +61,15 @@ class SubtitleGenerator(BaseModule):
                     f.write("WEBVTT\n\n")
             except Exception as e:
                 logger.error(f"Failed to initialize VTT: {e}")
-                
+
+        # Reset cumulative time - same as VideoMuxer
+        self._cumulative_time = 0.0
+        self._last_chunk_index = -1
         self._history = []
         self._state = ModuleState.RUNNING
-        logger.info(f"SubtitleGenerator ready. Format: {self._format}, Output: {self._vtt_path}")
+        logger.info(
+            f"SubtitleGenerator ready. Format: {self._format}, Output: {self._vtt_path}"
+        )
 
     def stop(self) -> None:
         self._state = ModuleState.IDLE
@@ -71,7 +80,7 @@ class SubtitleGenerator(BaseModule):
         m = int((seconds % 3600) // 60)
         s = int(seconds % 60)
         ms = int((seconds % 1) * 1000)
-        
+
         if format_type == "srt":
             return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
         return f"{h:02d}:{m:02d}:{s:02d}.{ms:03d}"
@@ -81,27 +90,41 @@ class SubtitleGenerator(BaseModule):
         Append new text to the WebVTT file and create a per-chunk SRT for burn-in.
         """
         text = data.translated_text if self._use_translated else data.transcript
-        
+
         if not text:
             data.subtitles_path = self._vtt_path
             return data
 
-        duration = getattr(data, 'duration', None) or self._chunk_duration
+        # Get actual duration from data (from ffprobe), not assumed duration
+        duration = getattr(data, "duration", None) or self._chunk_duration
         if not duration or duration <= 0:
             duration = 4.0
-        
-        chunk_start_time = data.chunk_index * duration
-        
+
+        # Use cumulative timing - same logic as VideoMuxer
+        # Track which chunks we've already processed
+        if data.chunk_index > self._last_chunk_index:
+            # New chunk, add its duration to cumulative time
+            # Skip chunks we already processed (for resume case)
+            if self._last_chunk_index >= 0:
+                self._cumulative_time += duration
+            self._last_chunk_index = data.chunk_index
+        elif data.chunk_index < self._last_chunk_index:
+            # Resume case - recalculate from scratch
+            self._cumulative_time = data.chunk_index * duration
+            self._last_chunk_index = data.chunk_index
+
+        chunk_start_time = self._cumulative_time
+
         # Determine segments to use
         segments = []
         if self._use_translated and data.translated_segments:
             segments = data.translated_segments
         elif not self._use_translated and data.transcript_segments:
             segments = data.transcript_segments
-        
+
         if not segments and text:
             segments = [{"start": 0.0, "end": duration * 0.9, "text": text}]
-            
+
         # 1. Update rolling VTT for the HLS player (absolute timing)
         try:
             with self._lock:
@@ -109,23 +132,24 @@ class SubtitleGenerator(BaseModule):
                     for seg in segments:
                         abs_start = chunk_start_time + seg.get("start", 0)
                         abs_end = chunk_start_time + seg.get("end", duration)
-                        
+
                         start_str = self._format_timestamp(abs_start, "vtt")
                         end_str = self._format_timestamp(abs_end, "vtt")
-                        
+
                         clean_text = seg.get("text", "").replace("\n", " ").strip()
                         if clean_text:
                             f.write(f"{start_str} --> {end_str}\n")
                             f.write(f"{clean_text}\n\n")
-                            # Provide feedback in the log
                             logger.info(f"[SUB] {clean_text}")
-                            
+
             data.subtitles_path = self._vtt_path
         except Exception as e:
             logger.error(f"Error writing global VTT: {e}")
 
         # 2. Create per-chunk SRT for Video Muxer burn-in
-        chunk_srt_path = os.path.join(self._subtitles_dir, f"chunk_{data.chunk_index:06d}.srt")
+        chunk_srt_path = os.path.join(
+            self._subtitles_dir, f"chunk_{data.chunk_index:06d}.srt"
+        )
         try:
             with open(chunk_srt_path, "w", encoding="utf-8") as f:
                 for i, seg in enumerate(segments):
@@ -133,13 +157,13 @@ class SubtitleGenerator(BaseModule):
                     end_str = self._format_timestamp(seg.get("end", duration), "srt")
                     clean_text = seg.get("text", "").replace("\n", " ").strip()
                     if clean_text:
-                        f.write(f"{i+1}\n")
+                        f.write(f"{i + 1}\n")
                         f.write(f"{start_str} --> {end_str}\n")
                         f.write(f"{clean_text}\n\n")
-            
+
             if self._format == "srt":
                 data.subtitles_path = chunk_srt_path
-            
+
         except Exception as e:
             logger.error(f"Error writing chunk SRT: {e}")
 

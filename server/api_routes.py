@@ -6,8 +6,11 @@ and module management.
 """
 
 import re
+import glob
 import logging
 import traceback
+import shutil
+import os
 from typing import Optional, Any, Dict, List
 from datetime import datetime
 
@@ -244,15 +247,65 @@ def create_api_router() -> APIRouter:
 
     @router.post("/stop")
     async def stop_pipeline(request: Request):
-        """Stop the processing pipeline."""
+        """Stop the processing pipeline and clean up temporary files."""
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
+        output_dir = ctx.get("output_dir", "./output")
 
         try:
             pipeline.stop()
         except Exception as e:
             logger.error(f"Error stopping pipeline: {e}")
             pass
+
+        # Clean up temporary files
+        cleanup_dirs = [
+            os.path.join(output_dir, "chunks"),
+            os.path.join(output_dir, "temp_audio"),
+            os.path.join(output_dir, "temp_mix"),
+            os.path.join(output_dir, "temp_tts"),
+        ]
+
+        for cleanup_dir in cleanup_dirs:
+            if os.path.exists(cleanup_dir):
+                try:
+                    shutil.rmtree(cleanup_dir)
+                    os.makedirs(cleanup_dir, exist_ok=True)
+                    logger.info(f"Cleaned up: {cleanup_dir}")
+                except Exception as e:
+                    logger.warning(f"Could not clean {cleanup_dir}: {e}")
+
+        # Also clean old HLS files
+        hls_dir = os.path.join(output_dir, "hls")
+        if os.path.exists(hls_dir):
+            # Remove segment files
+            for f in glob.glob(os.path.join(hls_dir, "seg_*.ts")):
+                try:
+                    os.remove(f)
+                except:
+                    pass
+            # Remove chunk SRT files
+            for f in glob.glob(os.path.join(hls_dir, "chunk_*.srt")):
+                try:
+                    os.remove(f)
+                except:
+                    pass
+            # Remove playlist files but recreate them empty
+            for m3u8_file in ["stream.m3u8", "master.m3u8"]:
+                m3u8_path = os.path.join(hls_dir, m3u8_file)
+                try:
+                    if os.path.exists(m3u8_path):
+                        os.remove(m3u8_path)
+                except:
+                    pass
+            # Keep subs.vtt but clear old entries
+            subs_path = os.path.join(hls_dir, "subs.vtt")
+            if os.path.exists(subs_path):
+                try:
+                    with open(subs_path, "w", encoding="utf-8") as f:
+                        f.write("WEBVTT\n\n")
+                except:
+                    pass
 
         return {"status": "stopped"}
 

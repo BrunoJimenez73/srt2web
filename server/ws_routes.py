@@ -34,9 +34,7 @@ class LogBroadcaster:
         """Add a WebSocket subscriber."""
         await ws.accept()
         self._subscribers.add(ws)
-        logger.info(
-            f"WebSocket client connected. Total: {len(self._subscribers)}"
-        )
+        logger.info(f"WebSocket client connected. Total: {len(self._subscribers)}")
 
         # Send buffered messages
         for msg in self._buffer[-50:]:
@@ -48,9 +46,7 @@ class LogBroadcaster:
     def unsubscribe(self, ws: WebSocket):
         """Remove a WebSocket subscriber."""
         self._subscribers.discard(ws)
-        logger.info(
-            f"WebSocket client disconnected. Total: {len(self._subscribers)}"
-        )
+        logger.info(f"WebSocket client disconnected. Total: {len(self._subscribers)}")
 
     def broadcast(self, level: str, message: str):
         """
@@ -59,17 +55,19 @@ class LogBroadcaster:
         """
         import time
 
-        data = json.dumps({
-            "type": "log",
-            "level": level,
-            "message": message,
-            "timestamp": time.time(),
-        })
+        data = json.dumps(
+            {
+                "type": "log",
+                "level": level,
+                "message": message,
+                "timestamp": time.time(),
+            }
+        )
 
         # Buffer the message
         self._buffer.append(data)
         if len(self._buffer) > self._max_buffer:
-            self._buffer = self._buffer[-self._max_buffer:]
+            self._buffer = self._buffer[-self._max_buffer :]
 
         # Send to all subscribers
         if self._loop and self._subscribers:
@@ -90,10 +88,12 @@ class LogBroadcaster:
 
     def broadcast_status(self, status: dict):
         """Broadcast a status update to all subscribers."""
-        data = json.dumps({
-            "type": "status",
-            **status,
-        })
+        data = json.dumps(
+            {
+                "type": "status",
+                **status,
+            }
+        )
 
         if self._loop and self._subscribers:
             asyncio.run_coroutine_threadsafe(
@@ -113,8 +113,15 @@ def create_ws_router() -> APIRouter:
     async def ws_logs(websocket: WebSocket):
         """WebSocket endpoint for real-time log streaming."""
         # Set the event loop if not set
-        if log_broadcaster._loop is None:
-            log_broadcaster.set_loop(asyncio.get_event_loop())
+        try:
+            if log_broadcaster._loop is None:
+                try:
+                    loop = asyncio.get_running_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                log_broadcaster.set_loop(loop)
+        except Exception:
+            pass
 
         await log_broadcaster.subscribe(websocket)
 
@@ -126,9 +133,7 @@ def create_ws_router() -> APIRouter:
                     msg = json.loads(data)
                     # Handle client commands (e.g., request status)
                     if msg.get("type") == "ping":
-                        await websocket.send_text(
-                            json.dumps({"type": "pong"})
-                        )
+                        await websocket.send_text(json.dumps({"type": "pong"}))
                     elif msg.get("type") == "get_status":
                         ctx = websocket.app.state.ctx
                         pipeline = ctx["pipeline"]

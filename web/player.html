@@ -30,21 +30,15 @@
             object-fit: contain;
         }
 
-        /* Subtitle styling */
         ::cue {
-            background-color: transparent !important;
-            text-shadow: 
-                -2px -2px 0 #000,  
-                 2px -2px 0 #000,
-                -2px  2px 0 #000,
-                 2px  2px 0 #000,
-                 0px  4px 10px rgba(0,0,0,0.8);
+            background-color: rgba(0, 0, 0, 0.8) !important;
+            color: #fff !important;
             font-family: 'Inter', system-ui, sans-serif;
-            font-size: 1.5em;
-            font-weight: 700;
-            color: #fff;
+            font-size: 1em !important;
+            font-weight: 500;
+            padding: 4px 8px;
         }
-        
+
         .waiting-text {
             position: absolute;
             top: 50%;
@@ -54,109 +48,171 @@
             font-family: 'Inter', system-ui, sans-serif;
             text-align: center;
             pointer-events: none;
+            font-size: 18px;
+        }
+
+        .subtitle-toggle {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Inter', system-ui, sans-serif;
+            z-index: 100;
+        }
+
+        .subtitle-toggle:hover {
+            background: rgba(255,255,255,0.3);
         }
     </style>
 </head>
 <body>
 
     <div id="video-container">
-        <video id="video-player" controls autoplay playsinline></video>
+        <video id="video-player" controls autoplay playsinline crossorigin="anonymous"></video>
+        <button id="subBtn" class="subtitle-toggle" onclick="toggleSubtitles()">CC: OFF</button>
+        <div id="waiting" class="waiting-text">Esperando stream...</div>
     </div>
 
     <!-- HLS.js for handling the stream -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.1"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const video = document.getElementById('video-player');
-            const hlsUrl = '/hls/stream.m3u8'; // Directo al stream sin subtitulos para mayor estabilidad
-            let hls = null;
-            let checkInterval = null;
+        let hls = null;
+        let subtitlesEnabled = false;
+        let subtitleTrack = null;
+        const video = document.getElementById('video-player');
+        const subBtn = document.getElementById('subBtn');
+        const waiting = document.getElementById('waiting');
 
-            function initPlayer() {
-                if (Hls.isSupported()) {
-                    if (hls) hls.destroy();
-                    
-                    hls = new Hls({
-                        liveSyncDurationCount: 20, // 200+ seconds delay for maximum stability
-                        liveMaxLatencyDurationCount: 40,
-                        maxBufferLength: 150,
-                        maxMaxBufferLength: 200,
-                        enableWorker: true,
-                        lowLatencyMode: false,
-                    });
-
-                    hls.loadSource(hlsUrl);
-                    hls.attachMedia(video);
-                    
-                    hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                        video.play().catch(e => {});
-                    });
-
-                    hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, function(event, data) {
-                        // Only enable subtitles if they exist and are ready
-                        if (data.subtitleTracks.length > 0) {
-                            try {
-                                hls.subtitleTrack = 0;
-                                for (let i = 0; i < video.textTracks.length; i++) {
-                                    video.textTracks[i].mode = 'showing';
-                                }
-                            } catch(e) {
-                                console.log('Subtitles not available');
+        // Load subtitles - refresh periodically for live sync without reloading video
+        async function loadVTT() {
+            try {
+                const response = await fetch('/hls/subs.vtt?_=' + Date.now());
+                if (!response.ok) return;
+                
+                const vttContent = await response.text();
+                
+                // Check if content changed
+                if (window.lastVTTContent === vttContent) return;
+                window.lastVTTContent = vttContent;
+                
+                // Create blob URL
+                const vttBlob = new Blob([vttContent], { type: 'text/vtt' });
+                const vttUrl = URL.createObjectURL(vttBlob);
+                
+                // Remove old subtitle tracks properly
+                for (let i = video.textTracks.length - 1; i >= 0; i--) {
+                    video.textTracks[i].mode = 'hidden';
+                }
+                
+                // Find and remove track elements
+                const oldTracks = video.querySelectorAll('track');
+                oldTracks.forEach(track => {
+                    if (track.kind === 'subtitles') {
+                        track.parentNode.removeChild(track);
+                    }
+                });
+                
+                const track = document.createElement('track');
+                track.kind = 'subtitles';
+                track.label = 'Spanish';
+                track.srclang = 'es';
+                track.src = vttUrl;
+                track.default = true;
+                
+                video.appendChild(track);
+                
+                track.addEventListener('load', () => {
+                    if (subtitlesEnabled) {
+                        for (let i = 0; i < video.textTracks.length; i++) {
+                            if (video.textTracks[i].kind === 'subtitles') {
+                                video.textTracks[i].mode = 'showing';
                             }
                         }
-                    });
+                    }
+                });
+                
+            } catch(e) {
+                console.log('VTT load error:', e);
+            }
+        }
+        
+        // Refresh subtitles every 5 seconds for live sync
+        setInterval(loadVTT, 5000);
+        loadVTT(); // Load immediately
 
-                    // Handle subtitle errors gracefully
-                    hls.on(Hls.Events.ERROR, function (event, data) {
-                        console.log('HLS Error:', data.type, data.details);
-                        if (data.fatal) {
-                            switch (data.type) {
-                                case Hls.ErrorTypes.NETWORK_ERROR:
-                                    console.log("Network error, retrying...");
-                                    hls.startLoad();
-                                    break;
-                                case Hls.ErrorTypes.MEDIA_ERROR:
-                                    hls.recoverMediaError();
-                                    break;
-                                case Hls.ErrorTypes.OTHER_ERROR:
-                                    // Ignore subtitle errors - they're not fatal
-                                    if (data.details.includes('subtitle')) {
-                                        console.log("Subtitle error (ignored)");
-                                        return;
-                                    }
-                                    initPlayer();
-                                    break;
-                                default:
-                                    initPlayer();
-                                    break;
-                            }
-                        }
-                    });
-                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                    video.src = hlsUrl;
+        function toggleSubtitles() {
+            // Find the subtitle track
+            let track = null;
+            for (let i = 0; i < video.textTracks.length; i++) {
+                if (video.textTracks[i].kind === 'subtitles') {
+                    track = video.textTracks[i];
+                    break;
                 }
             }
+            
+            if (!track) return;
+            
+            subtitlesEnabled = !subtitlesEnabled;
+            track.mode = subtitlesEnabled ? 'showing' : 'hidden';
+            subBtn.textContent = subtitlesEnabled ? 'CC: ON' : 'CC: OFF';
+        }
 
-            // Continuously check if the stream exists by doing a HEAD request
-            function checkStream() {
-                fetch(hlsUrl, { method: 'HEAD' })
-                    .then(response => {
-                        if (response.ok) {
-                            // Stream is up
-                            if (!hls || !document.querySelector('video').src) {
-                                initPlayer();
-                            }
-                            clearInterval(checkInterval);
+        function initPlayer() {
+            if (Hls.isSupported()) {
+                hls = new Hls({
+                    enableWorker: true,
+                    lowLatencyMode: false,
+                    backBufferLength: 90
+                });
+
+                // Load master playlist which includes subtitle references
+                hls.loadSource('/hls/master.m3u8');
+                hls.attachMedia(video);
+
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    video.play().catch(() => {});
+                    waiting.style.display = 'none';
+                    
+                    // Enable subtitle track via HLS.js
+                    if (hls.subtitleTracks.length > 0) {
+                        hls.subtitleTrack = 0;
+                    }
+                });
+
+                hls.on(Hls.Events.ERROR, (e, data) => {
+                    console.log('HLS Error:', data.type, data.details);
+                    if (data.fatal) {
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                hls.startLoad();
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                hls.recoverMediaError();
+                                break;
                         }
-                    })
-                    .catch(() => {
-                        // Keep trying
-                    });
+                    }
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = '/hls/master.m3u8';
             }
+        }
 
-            // Start checking
-            checkInterval = setInterval(checkStream, 2000);
-            checkStream(); // Check immediately
+        // Wait for page load then init
+        document.addEventListener('DOMContentLoaded', () => {
+            loadVTT(); // Load subtitles immediately
+            initPlayer();
+            
+            // Retry init every few seconds until stream appears
+            const checkInterval = setInterval(() => {
+                if (!hls || hls.state === 'ERROR') {
+                    initPlayer();
+                }
+            }, 5000);
         });
     </script>
 </body>
