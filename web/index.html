@@ -630,15 +630,25 @@
                     </label>
                 </div>
                 <div id="dub-settings">
-                    <div class="form-group">
-                        <label class="form-label">Voz</label>
-                        <select class="form-select" id="dub-voice">
-                            <option value="es-ES-AlvaroNeural">ES - Álvaro</option>
-                            <option value="es-ES-ElviraNeural">ES - Elvira</option>
-                            <option value="en-US-AriaNeural">EN - Aria</option>
-                            <option value="en-US-GuyNeural">EN - Guy</option>
-                        </select>
-                    </div>
+                 <div class="form-group">
+                     <label class="form-label">Voz</label>
+                     <select class="form-select" id="dub-voice">
+                         <option value="es-ES-AlvaroNeural">ES - Álvaro</option>
+                         <option value="es-ES-ElviraNeural">ES - Elvira</option>
+                         <option value="en-US-AriaNeural">EN - Aria</option>
+                         <option value="en-US-GuyNeural">EN - Guy</option>
+                         <option value="fr-FR-DeniseNeural">FR - Denise</option>
+                         <option value="fr-FR-HenriNeural">FR - Henri</option>
+                         <option value="it-IT-ElsaNeural">IT - Elsa</option>
+                         <option value="it-IT-DiegoNeural">IT - Diego</option>
+                         <option value="de-DE-KatjaNeural">DE - Katja</option>
+                         <option value="de-DE-ConradNeural">DE - Conrad</option>
+                         <option value="pt-BR-FranciscaNeural">PT - Francisca</option>
+                         <option value="pt-BR-AntonioNeural">PT - Antonio</option>
+                         <option value="nl-NL-ColetteNeural">NL - Colette</option>
+                         <option value="nl-NL-FennaNeural">NL - Fenna</option>
+                     </select>
+                 </div>
                     <div class="form-group">
                         <label class="form-label">Velocidad</label>
                         <input type="number" class="form-input" id="dub-speed" value="1.0" step="0.1" min="0.5" max="2.0">
@@ -656,25 +666,29 @@
                     </label>
                 </div>
                 <div id="subtitle-settings">
-                    <div class="form-group">
-                        <label class="form-label">Origen</label>
-                        <select class="form-select" id="subtitle-source">
-                            <option value="auto">Auto</option>
-                            <option value="en">Inglés</option>
-                            <option value="es">Español</option>
-                            <option value="fr">Francés</option>
-                            <option value="de">Alemán</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Destino</label>
-                        <select class="form-select" id="subtitle-target">
-                            <option value="es">Español</option>
-                            <option value="en">Inglés</option>
-                            <option value="fr">Francés</option>
-                            <option value="de">Alemán</option>
-                        </select>
-                    </div>
+                     <div class="form-group">
+                         <label class="form-label">Origen</label>
+                         <select class="form-select" id="subtitle-source">
+                             <option value="auto">Auto (Detectar)</option>
+                             <option value="es">Español</option>
+                             <option value="en">Inglés</option>
+                             <option value="fr">Francés</option>
+                             <option value="de">Alemán</option>
+                             <option value="it">Italiano</option>
+                             <option value="pt">Portugués</option>
+                         </select>
+                     </div>
+                     <div class="form-group">
+                         <label class="form-label">Destino</label>
+                         <select class="form-select" id="subtitle-target">
+                             <option value="es">Español</option>
+                             <option value="en">Inglés</option>
+                             <option value="fr">Francés</option>
+                             <option value="de">Alemán</option>
+                             <option value="it">Italiano</option>
+                             <option value="pt">Portugués</option>
+                         </select>
+                     </div>
                 </div>
             </div>
 
@@ -765,14 +779,18 @@
                                     <option value="large-v2">large-v2</option>
                                 </select>
                             </div>
-                            <div class="form-group">
-                                <label class="form-label">Idioma</label>
-                                <select class="form-select" id="adv-lang">
-                                    <option value="auto">Auto</option>
-                                    <option value="es">ES</option>
-                                    <option value="en">EN</option>
-                                </select>
-                            </div>
+                             <div class="form-group">
+                                 <label class="form-label">Idioma</label>
+                                 <select class="form-select" id="adv-lang">
+                                     <option value="auto">Auto (Detectar)</option>
+                                     <option value="es">Español</option>
+                                     <option value="en">Inglés</option>
+                                     <option value="fr">Francés</option>
+                                     <option value="de">Alemán</option>
+                                     <option value="it">Italiano</option>
+                                     <option value="pt">Portugués</option>
+                                 </select>
+                             </div>
                             <div class="form-group">
                                 <label class="form-label">Device</label>
                                 <select class="form-select" id="adv-device">
@@ -794,22 +812,29 @@
                             </label>
                         </div>
                         <div class="module-settings">
-                            <div class="form-group">
-                                <label class="form-label">Origen</label>
-                                <select class="form-select" id="adv-source">
-                                    <option value="en">EN</option>
-                                    <option value="es">ES</option>
-                                    <option value="fr">FR</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Destino</label>
-                                <select class="form-select" id="adv-target">
-                                    <option value="es">ES</option>
-                                    <option value="en">EN</option>
-                                    <option value="fr">FR</option>
-                                </select>
-                            </div>
+                             <div class="form-group">
+                                 <label class="form-label">Origen</label>
+                                 <select class="form-select" id="adv-source">
+                                     <option value="auto">Auto (Detectar)</option>
+                                     <option value="es">Español</option>
+                                     <option value="en">Inglés</option>
+                                     <option value="fr">Francés</option>
+                                     <option value="de">Alemán</option>
+                                     <option value="it">Italiano</option>
+                                     <option value="pt">Portugués</option>
+                                 </select>
+                             </div>
+                             <div class="form-group">
+                                 <label class="form-label">Destino</label>
+                                 <select class="form-select" id="adv-target">
+                                     <option value="es">Español</option>
+                                     <option value="en">Inglés</option>
+                                     <option value="fr">Francés</option>
+                                     <option value="de">Alemán</option>
+                                     <option value="it">Italiano</option>
+                                     <option value="pt">Portugués</option>
+                                 </select>
+                             </div>
                         </div>
                     </div>
 
@@ -850,14 +875,25 @@
                             </label>
                         </div>
                         <div class="module-settings">
-                            <div class="form-group">
-                                <label class="form-label">Voz</label>
-                                <select class="form-select" id="adv-tts-voice">
-                                    <option value="es-ES-AlvaroNeural">ES - Álvaro</option>
-                                    <option value="es-ES-ElviraNeural">ES - Elvira</option>
-                                    <option value="en-US-AriaNeural">EN - Aria</option>
-                                </select>
-                            </div>
+                             <div class="form-group">
+                                 <label class="form-label">Voz</label>
+                                 <select class="form-select" id="adv-tts-voice">
+                                     <option value="es-ES-AlvaroNeural">ES - Álvaro</option>
+                                     <option value="es-ES-ElviraNeural">ES - Elvira</option>
+                                     <option value="en-US-AriaNeural">EN - Aria</option>
+                                     <option value="en-US-GuyNeural">EN - Guy</option>
+                                     <option value="fr-FR-DeniseNeural">FR - Denise</option>
+                                     <option value="fr-FR-HenriNeural">FR - Henri</option>
+                                     <option value="it-IT-ElsaNeural">IT - Elsa</option>
+                                     <option value="it-IT-DiegoNeural">IT - Diego</option>
+                                     <option value="de-DE-KatjaNeural">DE - Katja</option>
+                                     <option value="de-DE-ConradNeural">DE - Conrad</option>
+                                     <option value="pt-BR-FranciscaNeural">PT - Francisca</option>
+                                     <option value="pt-BR-AntonioNeural">PT - Antonio</option>
+                                     <option value="nl-NL-ColetteNeural">NL - Colette</option>
+                                     <option value="nl-NL-FennaNeural">NL - Fenna</option>
+                                 </select>
+                             </div>
                             <div class="form-group">
                                 <label class="form-label">Velocidad</label>
                                 <input type="number" class="form-input" id="adv-tts-speed" value="1.0" step="0.1" min="0.5" max="2.0">
