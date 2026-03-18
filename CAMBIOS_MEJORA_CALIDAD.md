@@ -132,6 +132,34 @@ Los logs muestran:
 - `Using GPU encoder: h264_nvenc (preset: p5)` - Codificación por GPU NVENC
 - `HLS output reconfigured: segment=15s, encoder_mode=auto, video_preset=slow` - Reconfiguración
 
+## Cambios en el Reproductor Web
+
+### Eliminación del Botón CC
+Se ha eliminado el botón "CC: ON/OFF" de la página del reproductor (`/player`) para una experiencia más limpia:
+
+**Antes:**
+- Botón visible en la esquina superior derecha
+- Requería interacción manual para activar subtítulos
+
+**Después:**
+- Sin botones superpuestos en el video
+- Subtítulos activados automáticamente por defecto
+- Interfaz minimalista y sin distracciones
+
+### Subtítulos Automáticos
+Los subtítulos ahora aparecen automáticamente sin necesidad de interacción:
+- `subtitlesEnabled = true` por defecto
+- Los subtítulos se muestran en cuanto la pista VTT se carga
+- Actualización periódica cada 5 segundos para sincronización en vivo
+- Prevención de fugas de memoria con `URL.revokeObjectURL`
+
+### Estabilidad del Reproductor
+Mejoras para evitar que la emisión se congele:
+- Manejo robusto de errores HLS.js (recuperación de errores de red y media)
+- Carga de worker habilitada para mejor rendimiento
+- Buffer optimizado para streaming en vivo
+- Reconexión automática en caso de errores fatales
+
 ## Notas Importantes
 
 - Los cambios de configuración se aplican inmediatamente (hot reload)
