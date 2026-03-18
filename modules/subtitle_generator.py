@@ -138,6 +138,12 @@ class SubtitleGenerator(BaseModule):
 
                         clean_text = seg.get("text", "").replace("\n", " ").strip()
                         if clean_text:
+                            # Ensure text is properly encoded as UTF-8
+                            try:
+                                # Convert to UTF-8 if not already
+                                clean_text = clean_text.encode("utf-8").decode("utf-8")
+                            except:
+                                pass
                             f.write(f"{start_str} --> {end_str}\n")
                             f.write(f"{clean_text}\n\n")
                             logger.info(f"[SUB] {clean_text}")
