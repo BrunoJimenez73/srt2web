@@ -108,6 +108,26 @@ class HLSOutput(OutputSink):
                 pass
 
         self._segment_index = 0
+
+        # Create initial master playlist with correct language
+        master_path = os.path.join(self._hls_dir, "master.m3u8")
+        try:
+            with open(master_path, "w", encoding="utf-8") as f:
+                f.write("#EXTM3U\n")
+                f.write("#EXT-X-VERSION:4\n")
+                f.write(
+                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="subs.vtt"\n'
+                )
+                f.write(
+                    '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"\n'
+                )
+                f.write("stream.m3u8\n")
+            self.logger.info(
+                f"Created initial master playlist with language: {self._subtitle_language_name}"
+            )
+        except Exception as e:
+            self.logger.error(f"Failed to create initial master playlist: {e}")
+
         self.logger.info(f"HLS output ready: {self._hls_dir}")
 
     def stop(self) -> None:
