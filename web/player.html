@@ -72,7 +72,7 @@
         let hls = null;
         let userPreference = null; // null = no user preference yet, true = enabled, false = disabled
         let subtitleTrackElement = null; // Reference to the track element
-        let subtitleLanguageName = 'Italiano'; // Default, will be updated from HLS manifest
+        let subtitleLanguageName = ''; // Will be updated from HLS manifest
         const video = document.getElementById('video-player');
         const waiting = document.getElementById('waiting');
 
@@ -99,6 +99,12 @@
                     const oldSrc = subtitleTrackElement.src;
                     subtitleTrackElement.src = vttUrl;
                     
+                    // Ensure track is in DOM
+                    if (!document.contains(subtitleTrackElement)) {
+                        video.appendChild(subtitleTrackElement);
+                        console.log('Re-appended subtitle track to video');
+                    }
+                    
                     // Revoke old blob URL if it was a blob URL
                     if (oldSrc && oldSrc.startsWith('blob:')) {
                         URL.revokeObjectURL(oldSrc);
@@ -109,12 +115,14 @@
                     // Create new track
                     subtitleTrackElement = document.createElement('track');
                     subtitleTrackElement.kind = 'subtitles';
-                    subtitleTrackElement.label = subtitleLanguageName;
-                    subtitleTrackElement.srclang = 'it'; // Default, will be updated if we get language code from HLS
+                    subtitleTrackElement.label = subtitleLanguageName || 'Spanish';
+                    subtitleTrackElement.srclang = 'es';
                     subtitleTrackElement.src = vttUrl;
                     subtitleTrackElement.default = true;
                     
+                    // Append to video
                     video.appendChild(subtitleTrackElement);
+                    console.log('Created and appended subtitle track element');
                     
                     subtitleTrackElement.addEventListener('load', () => {
                         console.log('Subtitle track loaded for the first time');
@@ -122,10 +130,10 @@
                         const shouldShow = userPreference !== null ? userPreference : true;
                         
                         if (shouldShow) {
+                            // Only set our track (first one) to showing, disable others
                             for (let i = 0; i < video.textTracks.length; i++) {
                                 if (video.textTracks[i].kind === 'subtitles') {
-                                    video.textTracks[i].mode = 'showing';
-                                    console.log('Set subtitle track to showing');
+                                    video.textTracks[i].mode = (i === 0) ? 'showing' : 'disabled';
                                 }
                             }
                         }
@@ -137,8 +145,8 @@
             }
         }
         
-        // Load subtitles every 5 seconds for live sync
-        setInterval(loadVTT, 5000);
+        // Load subtitles every 1 second for better live sync
+        setInterval(loadVTT, 1000);
         loadVTT(); // Load immediately
 
         function initPlayer() {
@@ -146,7 +154,8 @@
                 hls = new Hls({
                     enableWorker: true,
                     lowLatencyMode: false,
-                    backBufferLength: 90
+                    backBufferLength: 90,
+                    subtitlesEnabled: false
                 });
 
                 // Load master playlist which includes subtitle references
@@ -175,10 +184,38 @@
                                 subtitleTrackElement.srclang = firstTrack.lang;
                             }
                         }
+                        // Update label (display name) in the subtitle menu
+                        if (subtitleTrackElement) {
+                            subtitleTrackElement.label = subtitleLanguageName;
+                            console.log('Updated subtitle track label:', subtitleLanguageName);
+                        }
+                        
+                        // Disable HLS.js subtitle tracks to prevent duplicate entries in menu
+                        hls.subtitleTracks.forEach((track, index) => {
+                            console.log('Disabling HLS.js subtitle track:', track.name || index);
+                        });
+                        hls.subtitleTracks.length = 0; // Clear to prevent UI showing them
                     }
                     
-                    // Note: We handle subtitles manually via loadVTT() function
-                    // HLS.js subtitle tracks are ignored to avoid conflicts
+                    // Hide all HLS.js subtitle tracks from video.textTracks menu
+                    // Keep only the FIRST subtitle track (our manual one)
+                    setTimeout(() => {
+                        const trackCount = video.textTracks.length;
+                        
+                        for (let i = 0; i < trackCount; i++) {
+                            const track = video.textTracks[i];
+                            if (track.kind === 'subtitles') {
+                                // Keep the first subtitle track (our manual one)
+                                if (i === 0) {
+                                    track.mode = 'showing';
+                                    console.log('Kept manual track (first) with label:', track.label);
+                                } else {
+                                    track.mode = 'disabled';
+                                    console.log('Disabled track with label:', track.label);
+                                }
+                            }
+                        }
+                    }, 500);
                 });
 
                 hls.on(Hls.Events.ERROR, (e, data) => {
@@ -191,6 +228,23 @@
                             case Hls.ErrorTypes.MEDIA_ERROR:
                                 hls.recoverMediaError();
                                 break;
+                        }
+                    }
+                });
+                
+                // Update subtitle language info when tracks are added
+                hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (event, data) => {
+                    console.log('Subtitle tracks updated:', data);
+                    if (hls.subtitleTracks.length > 0) {
+                        const firstTrack = hls.subtitleTracks[0];
+                        if (firstTrack.name) {
+                            subtitleLanguageName = firstTrack.name;
+                            console.log('Subtitle language from tracks:', subtitleLanguageName);
+                        }
+                        // Update our manual track label
+                        if (subtitleTrackElement) {
+                            subtitleTrackElement.label = subtitleLanguageName;
+                            console.log('Updated manual track label to:', subtitleLanguageName);
                         }
                     }
                 });

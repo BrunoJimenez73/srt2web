@@ -105,6 +105,7 @@ class SubtitleGenerator(BaseModule):
         if data.chunk_index > self._last_chunk_index:
             # New chunk, add its duration to cumulative time
             # Skip chunks we already processed (for resume case)
+            # NOTE: We update cumulative_time BEFORE setting chunk_start_time to match VideoMuxer logic
             if self._last_chunk_index >= 0:
                 self._cumulative_time += duration
             self._last_chunk_index = data.chunk_index
@@ -113,7 +114,12 @@ class SubtitleGenerator(BaseModule):
             self._cumulative_time = data.chunk_index * duration
             self._last_chunk_index = data.chunk_index
 
+        # chunk_start_time is the current cumulative time (matches VideoMuxer's offset_sec)
         chunk_start_time = self._cumulative_time
+
+        logger.debug(
+            f"[SubtitleGen] chunk={data.chunk_index}, duration={duration}, chunk_start_time={chunk_start_time}"
+        )
 
         # Determine segments to use
         segments = []
