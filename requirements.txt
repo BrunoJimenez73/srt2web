@@ -1,14 +1,16 @@
 # SRT2Web - Modular SRT Stream Processor
-# Core
+# Production dependencies only (no dev/test dependencies)
+
+# Core server
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 pyyaml>=6.0
 aiofiles>=23.0
 websockets>=12.0
+
+# Utilities
 numpy>=1.24.0
 pydub>=0.25.1
 
-# Phase 2 - Processing (uncomment when needed)
-faster-whisper>=1.0.0
-argostranslate>=1.9.0
-piper-tts>=1.2.0
+# Version
+srt2web>=0.4.0

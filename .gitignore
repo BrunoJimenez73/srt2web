@@ -6,8 +6,8 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
-develop-eggs/
+build/temp/
+build/__pycache__/
 dist/
 downloads/
 eggs/
@@ -21,6 +21,18 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+# Build outputs (but keep build scripts)
+*.spec
+*.nsi
+*.exe
+*.msi
+*.dmg
+*.AppImage
+
+# Bundled binaries
+bin/ffmpeg*
+bin/ffprobe*
 
 # Virtual environments
 venv/

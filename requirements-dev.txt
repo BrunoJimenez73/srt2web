@@ -1,0 +1,21 @@
+# SRT2Web - Development dependencies
+# Install with: pip install -r requirements-dev.txt
+
+-r requirements-full.txt
+
+# Testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+
+# Code quality
+ruff>=0.1.0
+
+# Type checking
+mypy>=1.5.0
+
+# Build tools
+pyinstaller>=6.0.0
+
+# Auto-updater
+github3.py>=3.3.0
