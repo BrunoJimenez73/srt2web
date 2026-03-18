@@ -71,6 +71,7 @@
     <script>
         let hls = null;
         let userPreference = null; // null = no user preference yet, true = enabled, false = disabled
+        let subtitleTrackElement = null; // Reference to the track element
         const video = document.getElementById('video-player');
         const waiting = document.getElementById('waiting');
 
@@ -86,88 +87,48 @@
                 if (window.lastVTTContent === vttContent) return;
                 window.lastVTTContent = vttContent;
                 
-                // Check current subtitle mode before updating
-                let currentMode = 'hidden';
-                let hasSubtitles = false;
-                for (let i = 0; i < video.textTracks.length; i++) {
-                    if (video.textTracks[i].kind === 'subtitles') {
-                        currentMode = video.textTracks[i].mode;
-                        hasSubtitles = true;
-                        break;
-                    }
-                }
-                
-                // Update userPreference based on current mode (unless user has explicitly set a preference)
-                if (userPreference === null && hasSubtitles) {
-                    userPreference = currentMode === 'showing';
-                }
-                
-                // Find existing subtitle track element
-                let existingTrack = null;
-                const tracks = video.querySelectorAll('track');
-                for (const track of tracks) {
-                    if (track.kind === 'subtitles') {
-                        existingTrack = track;
-                        break;
-                    }
-                }
+                console.log('VTT content changed, updating track');
                 
                 // Create or update blob URL with explicit UTF-8 encoding
                 const vttBlob = new Blob([vttContent], { type: 'text/vtt; charset=utf-8' });
                 const vttUrl = URL.createObjectURL(vttBlob);
                 
-                if (existingTrack) {
+                if (subtitleTrackElement) {
                     // Update existing track
-                    const oldSrc = existingTrack.src;
-                    existingTrack.src = vttUrl;
+                    const oldSrc = subtitleTrackElement.src;
+                    subtitleTrackElement.src = vttUrl;
                     
                     // Revoke old blob URL if it was a blob URL
                     if (oldSrc && oldSrc.startsWith('blob:')) {
                         URL.revokeObjectURL(oldSrc);
                     }
                     
-                    // Preserve user's mode preference
-                    existingTrack.addEventListener('load', () => {
-                        // Apply user preference or current mode
-                        const shouldShow = userPreference !== null ? userPreference : 
-                                          currentMode === 'showing' ? true : true; // Default to showing
+                    console.log('Updated subtitle track with new VTT content');
+                } else {
+                    // Create new track
+                    subtitleTrackElement = document.createElement('track');
+                    subtitleTrackElement.kind = 'subtitles';
+                    subtitleTrackElement.label = 'Italiano';
+                    subtitleTrackElement.srclang = 'it';
+                    subtitleTrackElement.src = vttUrl;
+                    subtitleTrackElement.default = true;
+                    
+                    video.appendChild(subtitleTrackElement);
+                    
+                    subtitleTrackElement.addEventListener('load', () => {
+                        console.log('Subtitle track loaded for the first time');
+                        // Apply user preference if set, otherwise default to showing
+                        const shouldShow = userPreference !== null ? userPreference : true;
                         
                         if (shouldShow) {
                             for (let i = 0; i < video.textTracks.length; i++) {
                                 if (video.textTracks[i].kind === 'subtitles') {
                                     video.textTracks[i].mode = 'showing';
+                                    console.log('Set subtitle track to showing');
                                 }
                             }
                         }
-                    }, { once: true });
-                    
-                } else {
-                    // Create new track
-                    const track = document.createElement('track');
-                    track.kind = 'subtitles';
-                    track.label = 'Italiano';
-                    track.srclang = 'it';
-                    track.src = vttUrl;
-                    track.default = true;
-                    
-                    video.appendChild(track);
-                    
-                track.addEventListener('load', () => {
-                    console.log('Subtitle track loaded');
-                    // Apply user preference if set, otherwise default to showing
-                    const shouldShow = userPreference !== null ? userPreference : true;
-                    
-                    if (shouldShow) {
-                        for (let i = 0; i < video.textTracks.length; i++) {
-                            const tt = video.textTracks[i];
-                            console.log(`Track ${i}: kind=${tt.kind}, label=${tt.label}, mode=${tt.mode}`);
-                            if (tt.kind === 'subtitles') {
-                                tt.mode = 'showing';
-                                console.log('Set subtitle track to showing');
-                            }
-                        }
-                    }
-                });
+                    });
                 }
                 
             } catch(e) {
@@ -184,9 +145,7 @@
                 hls = new Hls({
                     enableWorker: true,
                     lowLatencyMode: false,
-                    backBufferLength: 90,
-                    // Enable subtitle handling
-                    enableWorker: true,
+                    backBufferLength: 90
                 });
 
                 // Load master playlist which includes subtitle references
