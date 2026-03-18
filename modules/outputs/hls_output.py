@@ -41,6 +41,10 @@ class HLSOutput(OutputSink):
         self._list_size = config.get("list_size", 6)
         self._audio_offset_ms = config.get("audio_offset_ms", 0)
 
+        # Configuración de subtítulos
+        self._subtitle_language = config.get("subtitle_language", "es")
+        self._subtitle_language_name = config.get("subtitle_language_name", "Spanish")
+
         # Configuración de encoder
         self._encoder_config = EncoderConfig(config if config else {})
 
@@ -334,7 +338,7 @@ class HLSOutput(OutputSink):
 
             if has_subs:
                 master_lines.append(
-                    '#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="Spanish",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="es",URI="subs.vtt"'
+                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="subs.vtt"'
                 )
                 master_lines.append(
                     '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"'
