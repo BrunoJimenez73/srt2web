@@ -59,17 +59,15 @@
     <div id="video-container">
         <video id="video-player" controls autoplay playsinline crossorigin="anonymous"></video>
         <div id="waiting" class="waiting-text">Esperando stream...</div>
-        <button id="subBtn" style="position: absolute; top: 10px; right: 10px; padding: 5px 10px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 3px; cursor: pointer; z-index: 1000;">CC: OFF</button>
     </div>
 
     <!-- HLS.js for handling the stream -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.1"></script>
     <script>
         let hls = null;
-        let subtitlesEnabled = false;
+        let subtitlesEnabled = true; // Enabled by default
         let subtitleTrack = null;
         const video = document.getElementById('video-player');
-        const subBtn = document.getElementById('subBtn');
         const waiting = document.getElementById('waiting');
 
         // Load subtitles - refresh periodically for live sync without reloading video
@@ -93,10 +91,14 @@
                     video.textTracks[i].mode = 'hidden';
                 }
                 
-                // Find and remove track elements
+                // Find and remove track elements and revoke old blob URLs
                 const oldTracks = video.querySelectorAll('track');
                 oldTracks.forEach(track => {
-                    if (track.kind === 'subtitles') {
+                    if (track.kind === 'subtitles' && track.src) {
+                        // Revoke the old blob URL to prevent memory leaks
+                        if (track.src.startsWith('blob:')) {
+                            URL.revokeObjectURL(track.src);
+                        }
                         track.parentNode.removeChild(track);
                     }
                 });
@@ -128,23 +130,6 @@
         // Refresh subtitles every 5 seconds for live sync
         setInterval(loadVTT, 5000);
         loadVTT(); // Load immediately
-
-        function toggleSubtitles() {
-            // Find the subtitle track
-            let track = null;
-            for (let i = 0; i < video.textTracks.length; i++) {
-                if (video.textTracks[i].kind === 'subtitles') {
-                    track = video.textTracks[i];
-                    break;
-                }
-            }
-            
-            if (!track) return;
-            
-            subtitlesEnabled = !subtitlesEnabled;
-            track.mode = subtitlesEnabled ? 'showing' : 'hidden';
-            subBtn.textContent = subtitlesEnabled ? 'CC: ON' : 'CC: OFF';
-        }
 
         function initPlayer() {
             if (Hls.isSupported()) {
@@ -190,9 +175,6 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadVTT(); // Load subtitles immediately
             initPlayer();
-            
-            // Add event listener for subtitle button
-            document.getElementById('subBtn').addEventListener('click', toggleSubtitles);
             
             // Retry init every few seconds until stream appears
             const checkInterval = setInterval(() => {
