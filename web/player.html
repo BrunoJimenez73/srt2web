@@ -34,9 +34,14 @@
             background-color: rgba(0, 0, 0, 0.8) !important;
             color: #fff !important;
             font-family: 'Inter', system-ui, sans-serif;
-            font-size: 1em !important;
+            font-size: 1.2em !important;
             font-weight: 500;
             padding: 4px 8px;
+        }
+        
+        /* Ensure text tracks are visible */
+        video::-webkit-media-text-track-display {
+            background-color: rgba(0, 0, 0, 0.8) !important;
         }
 
         .waiting-text {
@@ -70,37 +75,118 @@
         const waiting = document.getElementById('waiting');
 
         // Load subtitles - refresh periodically for live sync without reloading video
-        // Note: We now let HLS.js handle subtitles from the master playlist
-        // This function just ensures the VTT file is being updated on the server
-        async function checkVTTUpdate() {
+        async function loadVTT() {
             try {
                 const response = await fetch('/hls/subs.vtt?_=' + Date.now());
                 if (!response.ok) return;
                 
                 const vttContent = await response.text();
                 
-                // Check if content changed (just to track updates)
+                // Check if content changed
                 if (window.lastVTTContent === vttContent) return;
                 window.lastVTTContent = vttContent;
                 
-                // VTT content changed - HLS.js should handle the update automatically
-                // when it reloads the subtitle track from the master playlist
+                // Check current subtitle mode before updating
+                let currentMode = 'hidden';
+                let hasSubtitles = false;
+                for (let i = 0; i < video.textTracks.length; i++) {
+                    if (video.textTracks[i].kind === 'subtitles') {
+                        currentMode = video.textTracks[i].mode;
+                        hasSubtitles = true;
+                        break;
+                    }
+                }
+                
+                // Update userPreference based on current mode (unless user has explicitly set a preference)
+                if (userPreference === null && hasSubtitles) {
+                    userPreference = currentMode === 'showing';
+                }
+                
+                // Find existing subtitle track element
+                let existingTrack = null;
+                const tracks = video.querySelectorAll('track');
+                for (const track of tracks) {
+                    if (track.kind === 'subtitles') {
+                        existingTrack = track;
+                        break;
+                    }
+                }
+                
+                // Create or update blob URL with explicit UTF-8 encoding
+                const vttBlob = new Blob([vttContent], { type: 'text/vtt; charset=utf-8' });
+                const vttUrl = URL.createObjectURL(vttBlob);
+                
+                if (existingTrack) {
+                    // Update existing track
+                    const oldSrc = existingTrack.src;
+                    existingTrack.src = vttUrl;
+                    
+                    // Revoke old blob URL if it was a blob URL
+                    if (oldSrc && oldSrc.startsWith('blob:')) {
+                        URL.revokeObjectURL(oldSrc);
+                    }
+                    
+                    // Preserve user's mode preference
+                    existingTrack.addEventListener('load', () => {
+                        // Apply user preference or current mode
+                        const shouldShow = userPreference !== null ? userPreference : 
+                                          currentMode === 'showing' ? true : true; // Default to showing
+                        
+                        if (shouldShow) {
+                            for (let i = 0; i < video.textTracks.length; i++) {
+                                if (video.textTracks[i].kind === 'subtitles') {
+                                    video.textTracks[i].mode = 'showing';
+                                }
+                            }
+                        }
+                    }, { once: true });
+                    
+                } else {
+                    // Create new track
+                    const track = document.createElement('track');
+                    track.kind = 'subtitles';
+                    track.label = 'Italiano';
+                    track.srclang = 'it';
+                    track.src = vttUrl;
+                    track.default = true;
+                    
+                    video.appendChild(track);
+                    
+                track.addEventListener('load', () => {
+                    console.log('Subtitle track loaded');
+                    // Apply user preference if set, otherwise default to showing
+                    const shouldShow = userPreference !== null ? userPreference : true;
+                    
+                    if (shouldShow) {
+                        for (let i = 0; i < video.textTracks.length; i++) {
+                            const tt = video.textTracks[i];
+                            console.log(`Track ${i}: kind=${tt.kind}, label=${tt.label}, mode=${tt.mode}`);
+                            if (tt.kind === 'subtitles') {
+                                tt.mode = 'showing';
+                                console.log('Set subtitle track to showing');
+                            }
+                        }
+                    }
+                });
+                }
                 
             } catch(e) {
-                console.log('VTT check error:', e);
+                console.log('VTT load error:', e);
             }
         }
         
-        // Check VTT updates every 5 seconds for live sync
-        setInterval(checkVTTUpdate, 5000);
-        checkVTTUpdate(); // Check immediately
+        // Load subtitles every 5 seconds for live sync
+        setInterval(loadVTT, 5000);
+        loadVTT(); // Load immediately
 
         function initPlayer() {
             if (Hls.isSupported()) {
                 hls = new Hls({
                     enableWorker: true,
                     lowLatencyMode: false,
-                    backBufferLength: 90
+                    backBufferLength: 90,
+                    // Enable subtitle handling
+                    enableWorker: true,
                 });
 
                 // Load master playlist which includes subtitle references
@@ -111,23 +197,10 @@
                     video.play().catch(() => {});
                     waiting.style.display = 'none';
                     
-                    // Enable subtitle track via HLS.js
-                    if (hls.subtitleTracks.length > 0) {
-                        hls.subtitleTrack = 0;
-                        
-                        // Apply user preference if set
-                        setTimeout(() => {
-                            if (userPreference !== null && !userPreference) {
-                                // User wants subtitles disabled
-                                for (let i = 0; i < video.textTracks.length; i++) {
-                                    if (video.textTracks[i].kind === 'subtitles') {
-                                        video.textTracks[i].mode = 'hidden';
-                                        break;
-                                    }
-                                }
-                            }
-                        }, 1000);
-                    }
+                    console.log('Manifest parsed. Subtitle tracks:', hls.subtitleTracks);
+                    
+                    // Note: We handle subtitles manually via loadVTT() function
+                    // HLS.js subtitle tracks are ignored to avoid conflicts
                 });
 
                 hls.on(Hls.Events.ERROR, (e, data) => {
@@ -143,6 +216,20 @@
                         }
                     }
                 });
+                
+                // Debug subtitle track events
+                hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (event, data) => {
+                    console.log('Subtitle tracks updated:', data);
+                });
+                
+                hls.on(Hls.Events.SUBTITLE_TRACK_SWITCH, (event, data) => {
+                    console.log('Subtitle track switched:', data);
+                });
+                
+                hls.on(Hls.Events.SUBTITLE_FRAG_PROCESSED, (event, data) => {
+                    console.log('Subtitle fragment processed:', data);
+                });
+                
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                 video.src = '/hls/master.m3u8';
             }
@@ -186,7 +273,7 @@
 
         // Wait for page load then init
         document.addEventListener('DOMContentLoaded', () => {
-            checkVTTUpdate(); // Check VTT update immediately
+            loadVTT(); // Load subtitles immediately
             initPlayer();
             setupSubtitleChangeListener();
             

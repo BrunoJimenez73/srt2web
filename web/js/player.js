@@ -98,8 +98,14 @@ class StreamPlayer {
                 
                 // Force subtitles showing
                 setTimeout(() => {
+                    console.log('[Player] Text tracks count:', this.video.textTracks.length);
                     for (let i = 0; i < this.video.textTracks.length; i++) {
-                        this.video.textTracks[i].mode = 'showing';
+                        const track = this.video.textTracks[i];
+                        console.log(`[Player] Track ${i}: kind=${track.kind}, label=${track.label}, mode=${track.mode}`);
+                        if (track.kind === 'subtitles') {
+                            track.mode = 'showing';
+                            console.log(`[Player] Set track ${i} to showing`);
+                        }
                     }
                 }, 1000);
             });

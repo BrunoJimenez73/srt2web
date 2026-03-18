@@ -142,6 +142,10 @@ class SubtitleGenerator(BaseModule):
                             f.write(f"{clean_text}\n\n")
                             logger.info(f"[SUB] {clean_text}")
 
+            # Also log the file size for debugging
+            file_size = os.path.getsize(self._vtt_path)
+            logger.debug(f"VTT file size: {file_size} bytes")
+
             data.subtitles_path = self._vtt_path
         except Exception as e:
             logger.error(f"Error writing global VTT: {e}")
