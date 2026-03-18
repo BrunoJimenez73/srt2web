@@ -41,6 +41,9 @@ class VideoMuxer(BaseModule):
         self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
         self._total_duration_emitted = 0.0
         self._segment_durations = {}  # Cache durations for manifest: {index: duration}
+        # Subtitle language settings
+        self._subtitle_language = "es"
+        self._subtitle_language_name = "Spanish"
         # Encoder configuration
         self._encoder_config = EncoderConfig(config) if config else EncoderConfig()
         super().__init__("video_muxer", config)
@@ -55,8 +58,11 @@ class VideoMuxer(BaseModule):
         # Video quality settings
         self._video_preset = config.get("video_preset", self._video_preset)
         self._gpu_preset = config.get("gpu_preset", self._gpu_preset)
+        # Subtitle language settings
+        self._subtitle_language = config.get("subtitle_language", "es")
+        self._subtitle_language_name = config.get("subtitle_language_name", "Spanish")
         logger.info(
-            f"VideoMuxer reconfigured: Audio Offset: {self._audio_offset_ms}ms, Video Preset: {self._video_preset}, GPU Preset: {self._gpu_preset}"
+            f"VideoMuxer reconfigured: Audio Offset: {self._audio_offset_ms}ms, Video Preset: {self._video_preset}, GPU Preset: {self._gpu_preset}, Subtitle Language: {self._subtitle_language_name}"
         )
 
     def start(self) -> None:
@@ -328,7 +334,7 @@ class VideoMuxer(BaseModule):
 
             if subs_exist:
                 master_lines.append(
-                    '#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="Spanish",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="es",URI="subs.vtt"'
+                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="subs.vtt"'
                 )
                 master_lines.append(
                     '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"'
