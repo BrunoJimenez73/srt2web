@@ -72,6 +72,7 @@
         let hls = null;
         let userPreference = null; // null = no user preference yet, true = enabled, false = disabled
         let subtitleTrackElement = null; // Reference to the track element
+        let subtitleLanguageName = 'Italiano'; // Default, will be updated from HLS manifest
         const video = document.getElementById('video-player');
         const waiting = document.getElementById('waiting');
 
@@ -108,8 +109,8 @@
                     // Create new track
                     subtitleTrackElement = document.createElement('track');
                     subtitleTrackElement.kind = 'subtitles';
-                    subtitleTrackElement.label = 'Italiano';
-                    subtitleTrackElement.srclang = 'it';
+                    subtitleTrackElement.label = subtitleLanguageName;
+                    subtitleTrackElement.srclang = 'it'; // Default, will be updated if we get language code from HLS
                     subtitleTrackElement.src = vttUrl;
                     subtitleTrackElement.default = true;
                     
@@ -157,6 +158,24 @@
                     waiting.style.display = 'none';
                     
                     console.log('Manifest parsed. Subtitle tracks:', hls.subtitleTracks);
+                    
+                    // Get subtitle language info from HLS manifest
+                    if (hls.subtitleTracks.length > 0) {
+                        const firstTrack = hls.subtitleTracks[0];
+                        console.log('First subtitle track:', firstTrack);
+                        if (firstTrack.name) {
+                            subtitleLanguageName = firstTrack.name;
+                            console.log('Subtitle language from manifest:', subtitleLanguageName);
+                        }
+                        // Also try to get language code if available
+                        if (firstTrack.lang) {
+                            console.log('Subtitle language code:', firstTrack.lang);
+                            // Update srclang if we have a language code
+                            if (subtitleTrackElement) {
+                                subtitleTrackElement.srclang = firstTrack.lang;
+                            }
+                        }
+                    }
                     
                     // Note: We handle subtitles manually via loadVTT() function
                     // HLS.js subtitle tracks are ignored to avoid conflicts
