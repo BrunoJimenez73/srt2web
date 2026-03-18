@@ -66,6 +66,7 @@
     <script>
         let hls = null;
         let subtitlesEnabled = true; // Enabled by default
+        let userPreference = null; // null = no user preference yet, true = enabled, false = disabled
         let subtitleTrack = null;
         const video = document.getElementById('video-player');
         const waiting = document.getElementById('waiting');
@@ -82,45 +83,85 @@
                 if (window.lastVTTContent === vttContent) return;
                 window.lastVTTContent = vttContent;
                 
-                // Create blob URL
+                // Check current subtitle mode before updating
+                let currentMode = 'hidden';
+                let hasSubtitles = false;
+                for (let i = 0; i < video.textTracks.length; i++) {
+                    if (video.textTracks[i].kind === 'subtitles') {
+                        currentMode = video.textTracks[i].mode;
+                        hasSubtitles = true;
+                        break;
+                    }
+                }
+                
+                // Update userPreference based on current mode (unless user has explicitly set a preference)
+                if (userPreference === null && hasSubtitles) {
+                    userPreference = currentMode === 'showing';
+                }
+                
+                // Find existing subtitle track element
+                let existingTrack = null;
+                const tracks = video.querySelectorAll('track');
+                for (const track of tracks) {
+                    if (track.kind === 'subtitles') {
+                        existingTrack = track;
+                        break;
+                    }
+                }
+                
+                // Create or update blob URL
                 const vttBlob = new Blob([vttContent], { type: 'text/vtt' });
                 const vttUrl = URL.createObjectURL(vttBlob);
                 
-                // Remove old subtitle tracks properly
-                for (let i = video.textTracks.length - 1; i >= 0; i--) {
-                    video.textTracks[i].mode = 'hidden';
-                }
-                
-                // Find and remove track elements and revoke old blob URLs
-                const oldTracks = video.querySelectorAll('track');
-                oldTracks.forEach(track => {
-                    if (track.kind === 'subtitles' && track.src) {
-                        // Revoke the old blob URL to prevent memory leaks
-                        if (track.src.startsWith('blob:')) {
-                            URL.revokeObjectURL(track.src);
-                        }
-                        track.parentNode.removeChild(track);
+                if (existingTrack) {
+                    // Update existing track
+                    const oldSrc = existingTrack.src;
+                    existingTrack.src = vttUrl;
+                    
+                    // Revoke old blob URL if it was a blob URL
+                    if (oldSrc && oldSrc.startsWith('blob:')) {
+                        URL.revokeObjectURL(oldSrc);
                     }
-                });
-                
-                const track = document.createElement('track');
-                track.kind = 'subtitles';
-                track.label = 'Spanish';
-                track.srclang = 'es';
-                track.src = vttUrl;
-                track.default = true;
-                
-                video.appendChild(track);
-                
-                track.addEventListener('load', () => {
-                    if (subtitlesEnabled) {
-                        for (let i = 0; i < video.textTracks.length; i++) {
-                            if (video.textTracks[i].kind === 'subtitles') {
-                                video.textTracks[i].mode = 'showing';
+                    
+                    // Preserve user's mode preference
+                    existingTrack.addEventListener('load', () => {
+                        // Apply user preference or current mode
+                        const shouldShow = userPreference !== null ? userPreference : 
+                                          currentMode === 'showing' ? true : subtitlesEnabled;
+                        
+                        if (shouldShow) {
+                            for (let i = 0; i < video.textTracks.length; i++) {
+                                if (video.textTracks[i].kind === 'subtitles') {
+                                    video.textTracks[i].mode = 'showing';
+                                }
                             }
                         }
-                    }
-                });
+                    }, { once: true });
+                    
+                } else {
+                    // Create new track
+                    const track = document.createElement('track');
+                    track.kind = 'subtitles';
+                    track.label = 'Spanish';
+                    track.srclang = 'es';
+                    track.src = vttUrl;
+                    track.default = true;
+                    
+                    video.appendChild(track);
+                    
+                    track.addEventListener('load', () => {
+                        // Apply user preference if set, otherwise use default enabled state
+                        const shouldShow = userPreference !== null ? userPreference : subtitlesEnabled;
+                        
+                        if (shouldShow) {
+                            for (let i = 0; i < video.textTracks.length; i++) {
+                                if (video.textTracks[i].kind === 'subtitles') {
+                                    video.textTracks[i].mode = 'showing';
+                                }
+                            }
+                        }
+                    });
+                }
                 
             } catch(e) {
                 console.log('VTT load error:', e);
@@ -171,10 +212,48 @@
             }
         }
 
+        // Listen for user changes to subtitle mode via native controls
+        function setupSubtitleChangeListener() {
+            // Listen for mode changes on text tracks
+            const setupTrackListeners = () => {
+                for (let i = 0; i < video.textTracks.length; i++) {
+                    const track = video.textTracks[i];
+                    if (track.kind === 'subtitles') {
+                        // Remove any existing listeners to avoid duplicates
+                        track.removeEventListener('modechange', handleModeChange);
+                        // Add new listener
+                        track.addEventListener('modechange', handleModeChange);
+                        break;
+                    }
+                }
+            };
+            
+            const handleModeChange = (event) => {
+                const track = event.target;
+                if (track.kind === 'subtitles') {
+                    // Update user preference based on current mode
+                    userPreference = track.mode === 'showing';
+                    console.log('Subtitle mode changed to:', track.mode, '(userPreference:', userPreference + ')');
+                }
+            };
+            
+            // Setup listeners when text tracks are available
+            if (video.textTracks.length > 0) {
+                setupTrackListeners();
+            } else {
+                // Wait for tracks to be added
+                video.addEventListener('loadedmetadata', setupTrackListeners);
+            }
+            
+            // Also check periodically in case tracks are recreated
+            setInterval(setupTrackListeners, 2000);
+        }
+
         // Wait for page load then init
         document.addEventListener('DOMContentLoaded', () => {
             loadVTT(); // Load subtitles immediately
             initPlayer();
+            setupSubtitleChangeListener();
             
             // Retry init every few seconds until stream appears
             const checkInterval = setInterval(() => {
