@@ -16,6 +16,7 @@ from typing import Optional
 
 from core.module_base import BaseModule, PipelineData, ModuleState
 from core.ffmpeg_utils import ensure_ffmpeg
+from core.encoder_config import EncoderConfig
 
 logger = logging.getLogger("srt2web.module.video_muxer")
 
@@ -40,6 +41,8 @@ class VideoMuxer(BaseModule):
         self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
         self._total_duration_emitted = 0.0
         self._segment_durations = {}  # Cache durations for manifest: {index: duration}
+        # Encoder configuration
+        self._encoder_config = EncoderConfig(config) if config else EncoderConfig()
         super().__init__("video_muxer", config)
 
     def configure(self, config: dict) -> None:
@@ -49,7 +52,12 @@ class VideoMuxer(BaseModule):
         )
         self._hls_list_size = 30  # Increased for stability
         self._audio_offset_ms = config.get("audio_offset_ms", self._audio_offset_ms)
-        logger.info(f"VideoMuxer reconfigured: Audio Offset: {self._audio_offset_ms}ms")
+        # Video quality settings
+        self._video_preset = config.get("video_preset", self._video_preset)
+        self._gpu_preset = config.get("gpu_preset", self._gpu_preset)
+        logger.info(
+            f"VideoMuxer reconfigured: Audio Offset: {self._audio_offset_ms}ms, Video Preset: {self._video_preset}, GPU Preset: {self._gpu_preset}"
+        )
 
     def start(self) -> None:
         """Initialize HLS output directory."""
@@ -114,53 +122,75 @@ class VideoMuxer(BaseModule):
         # Save duration for manifest
         self._segment_durations[self._segment_index] = chunk_duration
 
-        # Determine Encoder and Preset
+        # Determine Encoder and Preset using EncoderConfig
         encoder = "libx264"
-        preset = "ultrafast"
-        extra_args = ["-tune", "zerolatency"]
+        preset = self._encoder_config.video_preset
+        extra_args = []
 
-        if self._gpu_info["nvenc"]:
+        # Get encoder mode from configuration
+        encoder_mode = self._encoder_config.encoder_mode
+
+        # Auto-detect if configured to auto
+        if encoder_mode == "auto":
+            if self._gpu_info["nvenc"]:
+                encoder_mode = "gpu_nvenc"
+            elif self._gpu_info["amf"]:
+                encoder_mode = "gpu_amf"
+            elif self._gpu_info["qsv"]:
+                encoder_mode = "gpu_qsv"
+            elif self._gpu_info["vaapi"]:
+                encoder_mode = "gpu_vaapi"
+            else:
+                encoder_mode = "cpu"
+
+        # Configure encoder based on mode
+        if encoder_mode == "gpu_nvenc" and self._gpu_info["nvenc"]:
             encoder = "h264_nvenc"
-            preset = "p1"  # Fastest NVENC preset
-            extra_args = ["-delay", "0", "-zerolatency", "1", "-rc", "vbr", "-cq", "23"]
+            preset = self._encoder_config.gpu_preset
+            extra_args = self._encoder_config.get_gpu_nvenc_args()
             logger.info(
                 f"[VideoMuxer] Using GPU encoder: h264_nvenc (preset: {preset})"
             )
-        elif self._gpu_info["amf"]:
+        elif encoder_mode == "gpu_amf" and self._gpu_info["amf"]:
             encoder = "h264_amf"
-            preset = "speed"
-            extra_args = ["-usage", "lowlatency", "-quality", "speed"]
+            preset = self._encoder_config.video_preset
+            extra_args = self._encoder_config.get_gpu_amf_args()
             logger.info(f"[VideoMuxer] Using GPU encoder: h264_amf (preset: {preset})")
-        elif self._gpu_info["qsv"]:
+        elif encoder_mode == "gpu_qsv" and self._gpu_info["qsv"]:
             encoder = "h264_qsv"
-            preset = "veryfast"
-            extra_args = ["-low_power", "1", "-async_depth", "1"]
+            preset = self._encoder_config.video_preset
+            extra_args = self._encoder_config.get_gpu_qsv_args()
             logger.info(f"[VideoMuxer] Using GPU encoder: h264_qsv (preset: {preset})")
-        elif self._gpu_info["vaapi"]:
+        elif encoder_mode == "gpu_vaapi" and self._gpu_info["vaapi"]:
             encoder = "h264_vaapi"
-            preset = "medium"
             extra_args = ["-vaapi_device", "/dev/dri/renderD128"]
-            logger.info(
-                f"[VideoMuxer] Using GPU encoder: h264_vaapi (preset: {preset})"
-            )
+            logger.info(f"[VideoMuxer] Using GPU encoder: h264_vaapi")
         else:
+            # CPU encoder
+            encoder = "libx264"
+            preset = self._encoder_config.video_preset
+            extra_args = self._encoder_config.get_cpu_args()
             logger.info(f"[VideoMuxer] Using CPU encoder: libx264 (preset: {preset})")
+
+        # Get audio configuration from EncoderConfig
+        audio_args = self._encoder_config.get_audio_args()
 
         common_args = [
             "-map",
             "0:v:0",
             "-map",
             "1:a:0" if audio_input else "0:a:0",
-            "-c:a",
-            "aac",
-            "-b:a",
-            "128k",
-            "-output_ts_offset",
-            offset_sec,
-            "-f",
-            "mpegts",
-            segment_path,
         ]
+        common_args.extend(audio_args)
+        common_args.extend(
+            [
+                "-output_ts_offset",
+                offset_sec,
+                "-f",
+                "mpegts",
+                segment_path,
+            ]
+        )
 
         # Build FFmpeg command
         cmd = [self._ffmpeg_path, "-y", "-i", input_path]

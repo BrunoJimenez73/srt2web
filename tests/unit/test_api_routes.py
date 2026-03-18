@@ -194,14 +194,27 @@ class TestApiRouter:
 
         config = ConfigManager()
         pipeline = Pipeline()
-        srt_ingest = Mock()
-        srt_ingest.is_receiving.return_value = False
-        srt_ingest.get_srt_url.return_value = "srt://localhost:9000"
+        input_source = Mock()
+        input_source.is_receiving.return_value = True
+        input_source.get_connection_info.return_value = {
+            "type": "srt",
+            "port": 9000,
+            "mode": "listener",
+            "latency_ms": 400,
+            "obs_url": "srt://localhost:9000",
+        }
 
         return {
             "config": config,
             "pipeline": pipeline,
-            "srt_ingest": srt_ingest,
+            "input_source": input_source,
+            "log_broadcast": Mock(),
+        }
+
+        return {
+            "config": config,
+            "pipeline": pipeline,
+            "input_source": input_source,
             "log_broadcast": Mock(),
         }
 
@@ -329,7 +342,7 @@ class TestApiRouter:
         from fastapi.testclient import TestClient
         from server.app import create_app
 
-        mock_ctx["srt_ingest"].is_receiving.return_value = True
+        mock_ctx["input_source"].is_receiving.return_value = True
 
         app = create_app(mock_ctx)
         client = TestClient(app)
@@ -414,7 +427,7 @@ class TestApiRouter:
         assert response.status_code == 400
 
     def test_srt_info_contains_correct_format(self, mock_ctx):
-        """Test SRT info contains proper OBS/VMix URLs."""
+        """Test SRT info contains proper connection info."""
         from fastapi.testclient import TestClient
         from server.app import create_app
 
@@ -425,10 +438,8 @@ class TestApiRouter:
 
         assert response.status_code == 200
         data = response.json()
-        assert "srt://" in data["obs_url"]
-        assert "srt://" in data["vmix_url"]
-        assert "latency" in data["instructions"]["obs"]
-        assert "9000" in data["instructions"]["vmix"]
+        assert "type" in data
+        assert data["type"] == "srt"
 
 
 class TestApiRouterEdgeCases:

@@ -22,6 +22,7 @@ from typing import Optional
 from core.output_sink import OutputSink
 from core.module_base import PipelineData
 from core.ffmpeg_utils import ensure_ffmpeg, check_gpu_support
+from core.encoder_config import EncoderConfig
 
 
 class HLSOutput(OutputSink):
@@ -40,6 +41,9 @@ class HLSOutput(OutputSink):
         self._list_size = config.get("list_size", 6)
         self._audio_offset_ms = config.get("audio_offset_ms", 0)
 
+        # Configuración de encoder
+        self._encoder_config = EncoderConfig(config if config else {})
+
         # Estado interno
         self._ffmpeg_path: Optional[str] = None
         self._hls_dir: str = ""
@@ -54,8 +58,13 @@ class HLSOutput(OutputSink):
         self._segment_duration = config.get("segment_duration", self._segment_duration)
         self._list_size = config.get("list_size", self._list_size)
         self._audio_offset_ms = config.get("audio_offset_ms", self._audio_offset_ms)
+
+        # Actualizar configuración de encoder
+        self._encoder_config = EncoderConfig(config)
+
         self.logger.info(
-            f"HLS output reconfigured: segment={self._segment_duration}s, list_size={self._list_size}"
+            f"HLS output reconfigured: segment={self._segment_duration}s, list_size={self._list_size}, "
+            f"encoder_mode={self._encoder_config.encoder_mode}, video_preset={self._encoder_config.video_preset}"
         )
 
     def get_stream_info(self) -> dict:
@@ -134,22 +143,23 @@ class HLSOutput(OutputSink):
             audio_delay_sec = self._audio_offset_ms / 1000.0
             cmd.extend(["-itsoffset", str(audio_delay_sec), "-i", audio_input])
 
+        # Obtener argumentos de audio desde EncoderConfig
+        audio_args = self._encoder_config.get_audio_args()
+
         cmd.extend(
             [
                 "-map",
                 "0:v:0",
                 "-map",
                 "1:a:0" if audio_input else "0:a:0",
-                "-c:a",
-                "aac",
-                "-b:a",
-                "128k",
-                "-c:v",
-                encoder,
-                "-preset",
-                preset,
             ]
         )
+        cmd.extend(audio_args)
+        cmd.extend(["-c:v", encoder])
+
+        # Añadir preset solo para CPU (para GPU se pasa en extra_args)
+        if encoder == "libx264":
+            cmd.extend(["-preset", preset])
         cmd.extend(extra_args)
         cmd.extend(
             [
@@ -202,28 +212,52 @@ class HLSOutput(OutputSink):
         self._segment_index += 1
 
     def _get_encoder_config(self) -> tuple:
-        """Determinar configuración del encoder (CPU/GPU)."""
+        """Determinar configuración del encoder (CPU/GPU) basado en preferencias."""
         encoder = "libx264"
-        preset = "ultrafast"
-        extra_args = ["-tune", "zerolatency"]
+        preset = self._encoder_config.video_preset
+        extra_args = []
 
-        if self._gpu_info["nvenc"]:
+        # Determinar encoder basado en modo configurado y disponibilidad de hardware
+        encoder_mode = self._encoder_config.encoder_mode
+
+        if encoder_mode == "auto":
+            # Auto-detectar mejor hardware disponible
+            if self._gpu_info["nvenc"]:
+                encoder_mode = "gpu_nvenc"
+            elif self._gpu_info["amf"]:
+                encoder_mode = "gpu_amf"
+            elif self._gpu_info["qsv"]:
+                encoder_mode = "gpu_qsv"
+            else:
+                encoder_mode = "cpu"
+
+        # Configurar encoder según modo seleccionado
+        if encoder_mode == "gpu_nvenc" and self._gpu_info["nvenc"]:
             encoder = "h264_nvenc"
-            preset = "p1"
-            extra_args = ["-delay", "0", "-zerolatency", "1", "-rc", "vbr", "-cq", "23"]
-            self.logger.info("Using GPU encoder: h264_nvenc")
-        elif self._gpu_info["amf"]:
+            preset = self._encoder_config.gpu_preset
+            extra_args = self._encoder_config.get_gpu_nvenc_args()
+            self.logger.info(f"Using GPU NVENC encoder (preset: {preset})")
+
+        elif encoder_mode == "gpu_amf" and self._gpu_info["amf"]:
             encoder = "h264_amf"
-            preset = "speed"
-            extra_args = ["-usage", "lowlatency", "-quality", "speed"]
-            self.logger.info("Using GPU encoder: h264_amf")
-        elif self._gpu_info["qsv"]:
+            preset = self._encoder_config.video_preset
+            extra_args = self._encoder_config.get_gpu_amf_args()
+            self.logger.info(f"Using GPU AMF encoder (preset: {preset})")
+
+        elif encoder_mode == "gpu_qsv" and self._gpu_info["qsv"]:
             encoder = "h264_qsv"
-            preset = "veryfast"
-            extra_args = ["-low_power", "1", "-async_depth", "1"]
-            self.logger.info("Using GPU encoder: h264_qsv")
+            preset = self._encoder_config.video_preset
+            extra_args = self._encoder_config.get_gpu_qsv_args()
+            self.logger.info(f"Using GPU QSV encoder (preset: {preset})")
+
         else:
-            self.logger.info("Using CPU encoder: libx264")
+            # CPU encoder con configuración CRF
+            encoder = "libx264"
+            preset = self._encoder_config.video_preset
+            extra_args = self._encoder_config.get_cpu_args()
+            self.logger.info(
+                f"Using CPU encoder libx264 (preset: {preset}, crf: {self._encoder_config.video_crf})"
+            )
 
         return encoder, preset, extra_args
 

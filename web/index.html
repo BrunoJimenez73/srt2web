@@ -922,30 +922,138 @@
                         </div>
                     </div>
 
-                    <!-- Video Muxer -->
-                    <div class="module-card" id="mod-video_muxer">
-                        <div class="module-header">
-                            <span class="module-name"><span class="status-dot" id="status-video_muxer"></span> 📦 HLS Muxer</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="adv-muxer-enabled" checked disabled>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        <div class="module-settings">
-                            <div class="form-group">
-                                <label class="form-label">Segmento</label>
-                                <input type="number" class="form-input" id="adv-seg" value="15">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Lista</label>
-                                <input type="number" class="form-input" id="adv-list" value="6">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Offset audio</label>
-                                <input type="number" class="form-input" id="adv-offset" value="0">
-                            </div>
-                        </div>
-                    </div>
+                     <!-- Video Muxer -->
+                     <div class="module-card" id="mod-video_muxer">
+                         <div class="module-header">
+                             <span class="module-name"><span class="status-dot" id="status-video_muxer"></span> 📦 HLS Muxer</span>
+                             <label class="toggle-switch">
+                                 <input type="checkbox" id="adv-muxer-enabled" checked disabled>
+                                 <span class="toggle-slider"></span>
+                             </label>
+                         </div>
+                         <div class="module-settings">
+                             <!-- HLS Settings -->
+                             <div class="form-group">
+                                 <label class="form-label">Segmento (s)</label>
+                                 <input type="number" class="form-input" id="adv-seg" value="15">
+                             </div>
+                             <div class="form-group">
+                                 <label class="form-label">Lista</label>
+                                 <input type="number" class="form-input" id="adv-list" value="6">
+                             </div>
+                             <div class="form-group">
+                                 <label class="form-label">Offset audio (ms)</label>
+                                 <input type="number" class="form-input" id="adv-offset" value="0">
+                             </div>
+                             
+                             <!-- Encoder Settings Section -->
+                             <div style="border-top: 1px solid #444; padding-top: 12px; margin-top: 8px;">
+                                 <div class="form-group" style="margin-bottom: 8px;">
+                                     <label class="form-label" style="color: #888;">⚙️ CONFIGURACIÓN DE ENCODER</label>
+                                 </div>
+                             </div>
+                             
+                             <div class="form-group">
+                                 <label class="form-label">Modo Codificación</label>
+                                 <select class="form-select" id="adv-encoder-mode">
+                                     <option value="auto">Automático (GPU/CPU)</option>
+                                     <option value="cpu">CPU (libx264)</option>
+                                     <option value="gpu_nvenc">NVIDIA NVENC</option>
+                                     <option value="gpu_amf">AMD AMF</option>
+                                     <option value="gpu_qsv">Intel QSV</option>
+                                 </select>
+                             </div>
+                             
+                             <div class="form-group">
+                                 <label class="form-label">Preset Calidad</label>
+                                 <select class="form-select" id="adv-video-quality">
+                                     <option value="ultrafast">Ultrafast (CRF 28)</option>
+                                     <option value="superfast">Superfast (CRF 26)</option>
+                                     <option value="veryfast">Veryfast (CRF 24)</option>
+                                     <option value="faster">Faster (CRF 22)</option>
+                                     <option value="fast">Fast (CRF 20)</option>
+                                     <option value="medium" selected>Equilibrada (CRF 18)</option>
+                                     <option value="slow">Slow (CRF 16)</option>
+                                     <option value="slower">Slower (CRF 14)</option>
+                                     <option value="veryslow">Veryslow (CRF 12)</option>
+                                 </select>
+                             </div>
+                             
+                             <div class="form-group">
+                                 <label class="form-label">Calidad (CRF/CQ) <span id="crf-value">18</span></label>
+                                 <input type="range" class="form-input" id="adv-video-crf" min="0" max="51" value="18" 
+                                        oninput="document.getElementById('crf-value').textContent = this.value">
+                             </div>
+                             
+                             <div class="form-group">
+                                 <label class="form-label">Perfil Video</label>
+                                 <select class="form-select" id="adv-video-profile">
+                                     <option value="baseline">Baseline (máxima compatibilidad)</option>
+                                     <option value="main">Main (equilibrado)</option>
+                                     <option value="high" selected>High (mejor calidad)</option>
+                                 </select>
+                             </div>
+                             
+                             <div class="form-group">
+                                 <label class="form-label">Tuning</label>
+                                 <select class="form-select" id="adv-video-tune">
+                                     <option value="zerolatency" selected>Streaming (baja latencia)</option>
+                                     <option value="film">Cine</option>
+                                     <option value="animation">Animación</option>
+                                     <option value="none">Ninguno</option>
+                                 </select>
+                             </div>
+                             
+                             <div class="form-group">
+                                 <label class="form-label">Preset GPU (p1-p7)</label>
+                                 <select class="form-select" id="adv-gpu-preset">
+                                     <option value="p1">P1 - Máxima velocidad</option>
+                                     <option value="p2">P2 - Rápida</option>
+                                     <option value="p3" selected>P3 - Equilibrada</option>
+                                     <option value="p4">P4 - Lenta</option>
+                                     <option value="p5">P5 - Más lenta</option>
+                                     <option value="p6">P6 - Alta calidad</option>
+                                     <option value="p7">P7 - Máxima calidad</option>
+                                 </select>
+                             </div>
+                             
+                             <!-- Audio Settings -->
+                             <div style="border-top: 1px solid #444; padding-top: 12px; margin-top: 8px;">
+                                 <div class="form-group" style="margin-bottom: 8px;">
+                                     <label class="form-label" style="color: #888;">🎵 CONFIGURACIÓN DE AUDIO</label>
+                                 </div>
+                             </div>
+                             
+                             <div class="form-group">
+                                 <label class="form-label">Codec Audio</label>
+                                 <select class="form-select" id="adv-audio-codec">
+                                     <option value="aac" selected>AAC (estándar)</option>
+                                     <option value="opus">Opus (eficiente)</option>
+                                 </select>
+                             </div>
+                             
+                             <div class="form-group">
+                                 <label class="form-label">Bitrate Audio (kbps)</label>
+                                 <select class="form-select" id="adv-audio-bitrate">
+                                     <option value="64k">64 kbps</option>
+                                     <option value="96k">96 kbps</option>
+                                     <option value="128k">128 kbps (estándar)</option>
+                                     <option value="160k">160 kbps</option>
+                                     <option value="192k" selected>192 kbps (alta calidad)</option>
+                                     <option value="256k">256 kbps</option>
+                                     <option value="320k">320 kbps</option>
+                                 </select>
+                             </div>
+                             
+                             <div class="form-group">
+                                 <label class="form-label">Frecuencia Muestreo</label>
+                                 <select class="form-select" id="adv-audio-samplerate">
+                                     <option value="44100">44.1 kHz</option>
+                                     <option value="48000" selected>48 kHz</option>
+                                 </select>
+                             </div>
+                         </div>
+                     </div>
                 </div>
 
                 <button class="btn-start" style="margin-top:12px;width:100%;" onclick="saveConfig()">💾 Guardar Configuración</button>
@@ -1135,12 +1243,27 @@
                 document.getElementById('adv-device').value = modules.transcriber.device || 'auto';
             }
             
-            // Advanced - HLS
-            if (modules.video_muxer) {
-                document.getElementById('adv-seg').value = modules.video_muxer.hls_segment_duration || 15;
-                document.getElementById('adv-list').value = modules.video_muxer.hls_list_size || 6;
-                document.getElementById('adv-offset').value = modules.video_muxer.audio_offset_ms || 0;
-            }
+             // Advanced - HLS
+             if (modules.video_muxer) {
+                 document.getElementById('adv-seg').value = modules.video_muxer.hls_segment_duration || 15;
+                 document.getElementById('adv-list').value = modules.video_muxer.hls_list_size || 6;
+                 document.getElementById('adv-offset').value = modules.video_muxer.audio_offset_ms || 0;
+             }
+             
+             // Advanced - Output (web)
+             if (config.output && config.output.web) {
+                 const webConfig = config.output.web;
+                 document.getElementById('adv-video-quality').value = webConfig.video_preset || 'medium';
+                 document.getElementById('adv-video-crf').value = webConfig.video_crf || 18;
+                 document.getElementById('crf-value').textContent = webConfig.video_crf || 18;
+                 document.getElementById('adv-video-profile').value = webConfig.video_profile || 'high';
+                 document.getElementById('adv-video-tune').value = webConfig.video_tune || 'zerolatency';
+                 document.getElementById('adv-encoder-mode').value = webConfig.encoder_mode || 'auto';
+                 document.getElementById('adv-gpu-preset').value = webConfig.gpu_preset || 'p3';
+                 document.getElementById('adv-audio-codec').value = webConfig.audio_codec || 'aac';
+                 document.getElementById('adv-audio-bitrate').value = webConfig.audio_bitrate || '192k';
+                 document.getElementById('adv-audio-samplerate').value = webConfig.audio_sample_rate || 48000;
+             }
             
             updateInputFields();
         }
@@ -1218,7 +1341,18 @@
                     type: document.getElementById('output-type').value,
                     web: {
                         segment_duration: parseInt(document.getElementById('output-segment').value),
-                        list_size: 6
+                        list_size: 6,
+                        // Configuración de encoder
+                        video_preset: document.getElementById('adv-video-quality').value,
+                        video_crf: parseInt(document.getElementById('adv-video-crf').value),
+                        video_profile: document.getElementById('adv-video-profile').value,
+                        video_tune: document.getElementById('adv-video-tune').value,
+                        encoder_mode: document.getElementById('adv-encoder-mode').value,
+                        gpu_preset: document.getElementById('adv-gpu-preset').value,
+                        // Configuración de audio
+                        audio_codec: document.getElementById('adv-audio-codec').value,
+                        audio_bitrate: document.getElementById('adv-audio-bitrate').value,
+                        audio_sample_rate: parseInt(document.getElementById('adv-audio-samplerate').value)
                     }
                 },
                 modules: {
@@ -1248,12 +1382,14 @@
                         original_volume: parseFloat(document.getElementById('adv-vol-orig').value),
                         dubbed_volume: parseFloat(document.getElementById('adv-vol-dub').value)
                     },
-                    video_muxer: {
-                        enabled: true,
-                        hls_segment_duration: parseInt(document.getElementById('adv-seg').value),
-                        hls_list_size: parseInt(document.getElementById('adv-list').value),
-                        audio_offset_ms: parseInt(document.getElementById('adv-offset').value)
-                    }
+                     video_muxer: {
+                         enabled: true,
+                         hls_segment_duration: parseInt(document.getElementById('adv-seg').value),
+                         hls_list_size: parseInt(document.getElementById('adv-list').value),
+                         audio_offset_ms: parseInt(document.getElementById('adv-offset').value),
+                         video_preset: document.getElementById('adv-video-quality').value,
+                         gpu_preset: document.getElementById('adv-gpu-preset').value
+                     }
                 }
             };
             

@@ -40,6 +40,18 @@ ALLOWED_WHISPER_MODELS = {"tiny", "small", "medium", "large-v2", "large-v3", "la
 ALLOWED_LANGUAGES = {"auto", "en", "es", "fr", "de", "it", "pt", "ja", "zh", "ko", "ru"}
 ALLOWED_DEVICES = {"auto", "cuda", "cpu"}
 ALLOWED_SRT_MODES = {"listener", "caller"}
+ALLOWED_VIDEO_PRESETS = {
+    "ultrafast",
+    "superfast",
+    "veryfast",
+    "faster",
+    "fast",
+    "medium",
+    "slow",
+    "slower",
+    "veryslow",
+}
+ALLOWED_GPU_PRESETS = {"p1", "p2", "p3", "p4", "p5", "p6", "p7"}
 
 
 def sanitize_module_name(name: str) -> str:
@@ -131,6 +143,21 @@ def validate_config_value(key: str, value: Any) -> Any:
             )
         if not (0.5 <= value <= 2.0):
             raise HTTPException(400, f"Speed must be between 0.5 and 2.0, got: {value}")
+
+    # Validate video_muxer presets
+    if key == "video_muxer.video_preset":
+        if value not in ALLOWED_VIDEO_PRESETS:
+            raise HTTPException(
+                400,
+                f"Invalid video preset: '{value}'. Valid presets are: {', '.join(sorted(ALLOWED_VIDEO_PRESETS))}",
+            )
+
+    if key == "video_muxer.gpu_preset":
+        if value not in ALLOWED_GPU_PRESETS:
+            raise HTTPException(
+                400,
+                f"Invalid GPU preset: '{value}'. Valid presets are: {', '.join(sorted(ALLOWED_GPU_PRESETS))}",
+            )
 
     return value
 

@@ -55,6 +55,7 @@ El proyecto sigue un diseño **Modular Basado en Pipeline**:
 - **Sincronización HLS**: Se utiliza una medición de duración exacta mediante `ffprobe` para evitar tirones en las uniones de los segmentos.
 - **PipelineData**: Es el objeto central que viaja entre módulos conteniendo rutas de archivos y metadatos del chunk.
 - **Hot Reload**: La configuración puede cambiarse mientras el stream corre sin perder la conexión SRT.
+- **Seguridad**: El módulo `core/security.py` proporciona utilidades para sanitización de paths, validación de entrada y protección contra inyección de comandos.
 
 ### Añadir un nuevo módulo
 Hereda de `BaseModule` en `core/module_base.py` e impleméntalo en la lista de `main.py`.
