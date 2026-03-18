@@ -714,18 +714,67 @@
 
         <!-- Bottom Row: Connection + Logs + Preview -->
         <section class="bottom-row">
-            <!-- Connection -->
-            <div class="connection-card">
-                <div class="connection-label">
-                    📡 SRT
-                    <button class="btn-copy" onclick="copyToClipboard('url-srt')">📋</button>
+            <!-- Connection Mode Selector -->
+            <div class="connection-card" style="flex: 1.5;">
+                <div class="connection-mode-header">
+                    <span class="connection-mode-title">📡 Conexión SRT</span>
+                    <div class="mode-selector">
+                        <button class="mode-btn active" data-mode="local" onclick="setConnectionMode('local')">
+                            🏠 LOCAL
+                        </button>
+                        <button class="mode-btn" data-mode="remote" onclick="setConnectionMode('remote')">
+                            🌐 REMOTE
+                        </button>
+                    </div>
                 </div>
-                <div class="connection-url" id="url-srt">srt://192.168.1.100:9000?mode=caller&latency=1000000</div>
-                <div class="connection-label" style="margin-top:8px;">
-                    🌐 Web
-                    <button class="btn-copy" onclick="copyToClipboard('url-web')">📋</button>
+                
+                <!-- Remote Config (shown only in remote mode) -->
+                <div class="remote-config" id="remote-config" style="display: none;">
+                    <div class="form-group" style="margin: 8px 0;">
+                        <label class="form-label">Emisor SRT Address</label>
+                        <input type="text" class="form-input" id="emitter-address" 
+                               placeholder="203.0.113.xx" 
+                               oninput="updateConnectionUrls()">
+                    </div>
                 </div>
-                <div class="connection-url" id="url-web">localhost:9999/hls/stream.m3u8</div>
+                
+                <!-- IP Info -->
+                <div class="ip-info" id="ip-info">
+                    <div class="ip-row">
+                        <span class="ip-label">Local:</span>
+                        <code class="ip-value" id="local-ip">Detectando...</code>
+                    </div>
+                    <div class="ip-row">
+                        <span class="ip-label">Public:</span>
+                        <code class="ip-value" id="public-ip">Detectando...</code>
+                        <span class="ip-warning" id="public-ip-warning" style="display: none;">⚠️</span>
+                    </div>
+                </div>
+                
+                <!-- Connection URLs -->
+                <div class="connection-urls">
+                    <div class="url-row">
+                        <span class="url-label">SRT:</span>
+                        <code class="url-value" id="url-srt">srt://...</code>
+                        <button class="btn-copy-small" onclick="copyUrl('srt')" title="Copiar">📋</button>
+                    </div>
+                    <div class="url-row">
+                        <span class="url-label">Stream:</span>
+                        <code class="url-value" id="url-stream">http://...</code>
+                        <button class="btn-copy-small" onclick="copyUrl('stream')" title="Copiar">📋</button>
+                    </div>
+                    <div class="url-row">
+                        <span class="url-label">Player:</span>
+                        <code class="url-value" id="url-player">http://...</code>
+                        <button class="btn-copy-small" onclick="copyUrl('player')" title="Copiar">📋</button>
+                    </div>
+                </div>
+                
+                <!-- Warning for no public IP -->
+                <div class="connection-warning" id="connection-warning" style="display: none;">
+                    ⚠️ No se detectó IP pública. Usando IP local. 
+                    El emisor debe estar en la misma red.
+                </div>
             </div>
 
             <!-- Logs -->

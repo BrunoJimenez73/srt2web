@@ -539,3 +539,183 @@ input:checked + .slider::before { transform: translateX(16px); }
     .sidebar, .right-shelf { width: 100%; border: none; flex-shrink: 0; height: auto; }
     .main-stage { height: auto; overflow: visible; }
 }
+
+/* ── Connection Mode Section ──────────────────────── */
+
+.connection-mode-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.connection-mode-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-prime);
+}
+
+.mode-selector {
+    display: flex;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+}
+
+.mode-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-sec);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mode-btn:hover {
+    color: var(--text-prime);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.mode-btn.active {
+    background: var(--accent);
+    color: white;
+}
+
+.remote-config {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-dim);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.ip-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+}
+
+.ip-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+}
+
+.ip-label {
+    color: var(--text-sec);
+    min-width: 50px;
+}
+
+.ip-value {
+    color: var(--text-prime);
+    font-size: 12px;
+}
+
+.ip-warning {
+    color: var(--warning);
+    font-size: 12px;
+}
+
+.connection-urls {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.url-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.url-label {
+    font-size: 11px;
+    color: var(--text-sec);
+    min-width: 50px;
+}
+
+.url-value {
+    flex: 1;
+    font-size: 11px;
+    color: var(--accent);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.btn-copy-small {
+    background: transparent;
+    border: 1px solid var(--border-dim);
+    color: var(--text-sec);
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.btn-copy-small:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.connection-warning {
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 6px;
+    font-size: 11px;
+    color: var(--warning);
+}
+
+.connection-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-md);
+    padding: 16px;
+}
+
+.connection-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-prime);
+}
+
+.connection-url {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    word-break: break-all;
+    margin-top: 4px;
+}
+
+.btn-copy {
+    background: transparent;
+    border: 1px solid var(--border-dim);
+    color: var(--text-sec);
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    margin-left: 8px;
+}
+
+.btn-copy:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}

@@ -227,12 +227,29 @@ def create_api_router() -> APIRouter:
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
         input_source = ctx.get("input_source")
+        config = ctx["config"]
 
         status = pipeline.get_status()
 
         if input_source:
             status["input_receiving"] = input_source.is_receiving()
             status["input_info"] = input_source.get_connection_info()
+
+        # Add network info
+        from core.network_utils import get_network_info
+
+        srt_port = config.get("input.srt.listen_port", 9000)
+        server_port = config.get("server.port", 9999)
+        latency_ms = config.get("input.srt.latency_ms", 1000)
+        srt_mode = config.get("input.srt.mode", "listener")
+        caller_address = config.get("input.srt.caller_address", "")
+
+        network = get_network_info(
+            srt_port=srt_port, server_port=server_port, latency_ms=latency_ms
+        )
+        network["srt_mode"] = srt_mode
+        network["caller_address"] = caller_address
+        status["network"] = network
 
         return status
 
@@ -522,5 +539,30 @@ def create_api_router() -> APIRouter:
     async def srt_info(request: Request):
         """Get SRT connection information (legacy - use /input-info)."""
         return await input_info(request)
+
+    # ── Network Information ──────────────────────────────────
+
+    @router.get("/network/info")
+    async def network_info(request: Request):
+        """Get network information for external connections."""
+        from core.network_utils import get_network_info
+
+        ctx = _ctx(request)
+        config = ctx["config"]
+
+        srt_port = config.get("input.srt.listen_port", 9000)
+        server_port = config.get("server.port", 9999)
+        latency_ms = config.get("input.srt.latency_ms", 1000)
+        srt_mode = config.get("input.srt.mode", "listener")
+        caller_address = config.get("input.srt.caller_address", "")
+
+        network = get_network_info(
+            srt_port=srt_port, server_port=server_port, latency_ms=latency_ms
+        )
+
+        network["srt_mode"] = srt_mode
+        network["caller_address"] = caller_address
+
+        return network
 
     return router

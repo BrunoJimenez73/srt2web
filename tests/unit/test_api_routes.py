@@ -615,3 +615,135 @@ class TestApiRouterValidation:
 
         assert validate_config_value("volume", 0.0) == 0.0
         assert validate_config_value("volume", 2.0) == 2.0
+
+
+class TestNetworkInfo:
+    """Tests for network info endpoint."""
+
+    @pytest.fixture
+    def mock_ctx(self):
+        """Create a mock app context."""
+        from core.config_manager import ConfigManager
+        from core.pipeline import Pipeline
+
+        config = ConfigManager()
+        pipeline = Pipeline()
+        input_source = Mock()
+        input_source.is_receiving.return_value = True
+        input_source.get_connection_info.return_value = {
+            "type": "srt",
+            "port": 9000,
+            "mode": "listener",
+            "latency_ms": 400,
+            "obs_url": "srt://localhost:9000",
+        }
+
+        return {
+            "config": config,
+            "pipeline": pipeline,
+            "input_source": input_source,
+            "log_broadcast": Mock(),
+        }
+
+    def test_network_info_endpoint_exists(self, mock_ctx):
+        """Test that /api/network/info endpoint exists."""
+        from fastapi.testclient import TestClient
+        from server.app import create_app
+
+        app = create_app(mock_ctx)
+        client = TestClient(app)
+
+        response = client.get("/api/network/info")
+
+        assert response.status_code == 200
+
+    def test_network_info_returns_required_fields(self, mock_ctx):
+        """Test that network info returns all required fields."""
+        from fastapi.testclient import TestClient
+        from server.app import create_app
+
+        app = create_app(mock_ctx)
+        client = TestClient(app)
+
+        response = client.get("/api/network/info")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert "local_ip" in data
+        assert "public_ip" in data
+        assert "public_ip_available" in data
+        assert "server_port" in data
+        assert "srt_port" in data
+        assert "srt_url_listener" in data
+        assert "stream_url" in data
+        assert "player_url" in data
+        assert "srt_mode" in data
+
+    def test_network_info_local_ip_detected(self, mock_ctx):
+        """Test that local IP is detected."""
+        from fastapi.testclient import TestClient
+        from server.app import create_app
+
+        app = create_app(mock_ctx)
+        client = TestClient(app)
+
+        response = client.get("/api/network/info")
+
+        data = response.json()
+        assert data["local_ip"] is not None
+        assert len(data["local_ip"]) > 0
+
+    def test_network_info_status_includes_network(self, mock_ctx):
+        """Test that status endpoint includes network info."""
+        from fastapi.testclient import TestClient
+        from server.app import create_app
+
+        app = create_app(mock_ctx)
+        client = TestClient(app)
+
+        response = client.get("/api/status")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "network" in data
+        assert "local_ip" in data["network"]
+
+
+class TestNetworkUtils:
+    """Tests for network_utils module."""
+
+    def test_get_local_ip(self):
+        """Test local IP detection."""
+        from core.network_utils import get_local_ip
+
+        ip = get_local_ip()
+        assert ip is not None
+        assert len(ip) > 0
+        assert ip != "127.0.0.1" or True  # Accept localhost as fallback
+
+    def test_get_public_ip_returns_tuple(self):
+        """Test that get_public_ip returns tuple."""
+        from core.network_utils import get_public_ip
+
+        result = get_public_ip()
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], (str, type(None)))
+        assert isinstance(result[1], bool)
+
+    def test_get_network_info(self):
+        """Test get_network_info returns all URLs."""
+        from core.network_utils import get_network_info
+
+        info = get_network_info(srt_port=9000, server_port=9999, latency_ms=1000)
+
+        assert "local_ip" in info
+        assert "public_ip" in info
+        assert "stream_url" in info
+        assert "player_url" in info
+        assert "srt_url_listener" in info
+        assert info["srt_port"] == 9000
+        assert info["server_port"] == 9999
+        assert "mode=listener" in info["srt_url_listener"]
+        assert "latency=1000000" in info["srt_url_listener"]

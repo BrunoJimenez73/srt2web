@@ -21,6 +21,7 @@ let statusPollInterval = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     loadConfig();
+    loadNetworkInfo();  // Load network info early
     loadStatus();
     
     // Connect WebSocket
@@ -118,15 +119,19 @@ async function stopPipeline() {
 
 async function saveConfig(silent = false) {
     const port = parseInt(document.getElementById('srt-port').value) || 9000;
-    const mode = document.getElementById('srt-mode').value;
+    const mode = connectionMode === 'remote' ? 'caller' : 'listener';
     const latency = parseInt(document.getElementById('srt-latency').value) || 400;
     const chunkDur = parseInt(document.getElementById('chunk-duration').value) || 4;
+    const callerAddress = connectionMode === 'remote' 
+        ? (document.getElementById('emitter-address').value || '') 
+        : '';
 
     const update = {
         srt: {
             listen_port: port,
             mode: mode,
             latency_ms: latency,
+            caller_address: callerAddress,
         },
         pipeline: {
             chunk_duration_sec: chunkDur,
@@ -136,7 +141,7 @@ async function saveConfig(silent = false) {
     try {
         const result = await apiCall('PUT', '/config', { config: update });
         currentConfig = result.config;
-        updateSrtUrl();
+        updateConnectionUrls();
         if (!silent) showToast('Configuration saved', 'success');
     } catch (e) {
         if (!silent) showToast(`Save failed: ${e.message}`, 'error');
@@ -164,22 +169,162 @@ async function toggleModule(moduleName, enabled) {
 function applyConfigToUI(config) {
     if (config.srt) {
         document.getElementById('srt-port').value = config.srt.listen_port || 9000;
-        document.getElementById('srt-mode').value = config.srt.mode || 'listener';
         document.getElementById('srt-latency').value = config.srt.latency_ms || 400;
+        
+        // Set connection mode based on config
+        if (config.srt.mode === 'caller' && config.srt.caller_address) {
+            setConnectionMode('remote');
+            const emitterInput = document.getElementById('emitter-address');
+            if (emitterInput) {
+                emitterInput.value = config.srt.caller_address;
+            }
+        } else {
+            setConnectionMode('local');
+        }
     }
     if (config.pipeline) {
         document.getElementById('chunk-duration').value = config.pipeline.chunk_duration_sec || 4;
     }
-    updateSrtUrl();
+    updateConnectionUrls();
     renderModules(config.modules || {});
 }
 
-function updateSrtUrl() {
-    const port = document.getElementById('srt-port').value || 9000;
-    const latency = document.getElementById('srt-latency').value || 400;
+// ── Network / Connection Mode ────────────────────
+
+let connectionMode = 'local';  // 'local' o 'remote'
+let networkInfo = null;
+
+async function loadNetworkInfo() {
+    try {
+        const response = await apiCall('GET', '/network/info');
+        networkInfo = response;
+        updateNetworkDisplay();
+        updateConnectionUrls();
+    } catch (e) {
+        console.warn('Could not load network info:', e);
+        // Fallback: use local IP only
+        networkInfo = {
+            local_ip: '127.0.0.1',
+            public_ip: null,
+            public_ip_available: false,
+            srt_port: 9000,
+            srt_url_listener: 'srt://127.0.0.1:9000?mode=listener&latency=1000000',
+            srt_url_caller_template: 'srt://EMITTER_IP:9000?mode=caller&latency=1000000',
+            stream_url: 'http://127.0.0.1:9999/hls/stream.m3u8',
+            player_url: 'http://127.0.0.1:9999/player'
+        };
+        updateNetworkDisplay();
+    }
+}
+
+function updateNetworkDisplay() {
+    if (!networkInfo) return;
+    
+    // Update IP display
+    document.getElementById('local-ip').textContent = networkInfo.local_ip || 'N/A';
+    
+    const publicIpEl = document.getElementById('public-ip');
+    const warningEl = document.getElementById('public-ip-warning');
+    const warningBox = document.getElementById('connection-warning');
+    
+    if (networkInfo.public_ip) {
+        publicIpEl.textContent = networkInfo.public_ip;
+        warningEl.style.display = 'none';
+        warningBox.style.display = 'none';
+    } else {
+        publicIpEl.textContent = 'No detectada';
+        warningEl.style.display = 'inline';
+        warningBox.style.display = 'block';
+    }
+}
+
+function setConnectionMode(mode) {
+    connectionMode = mode;
+    
+    // Update button states
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+    
+    // Show/hide remote config
+    const remoteConfig = document.getElementById('remote-config');
+    if (mode === 'remote') {
+        remoteConfig.style.display = 'block';
+    } else {
+        remoteConfig.style.display = 'none';
+    }
+    
+    // Update URLs
+    updateConnectionUrls();
+}
+
+function updateConnectionUrls() {
+    if (!networkInfo) return;
+    
+    const srtPort = document.getElementById('srt-port')?.value || networkInfo.srt_port || 9000;
+    const latency = document.getElementById('srt-latency')?.value || 400;
     const latencyUs = latency * 1000;
-    document.getElementById('srt-url').textContent =
-        `srt://127.0.0.1:${port}?mode=caller&latency=${latencyUs}`;
+    
+    if (connectionMode === 'local') {
+        // Modo listener - para que el emisor se conecte a ti
+        const ip = networkInfo.public_ip || networkInfo.local_ip;
+        document.getElementById('url-srt').textContent = 
+            `srt://${ip}:${srtPort}?mode=listener&latency=${latencyUs}`;
+    } else {
+        // Modo caller - te conectas al emisor
+        const emitterIp = document.getElementById('emitter-address')?.value;
+        if (emitterIp && emitterIp.trim()) {
+            document.getElementById('url-srt').textContent = 
+                `srt://${emitterIp}:${srtPort}?mode=caller&latency=${latencyUs}`;
+        } else {
+            document.getElementById('url-srt').textContent = 
+                `srt://EMITTER_IP:${srtPort}?mode=caller&latency=${latencyUs}`;
+        }
+    }
+    
+    // Stream URL siempre usa IP pública si disponible
+    const ip = networkInfo.public_ip || networkInfo.local_ip;
+    const serverPort = networkInfo.server_port || 9999;
+    document.getElementById('url-stream').textContent = 
+        `http://${ip}:${serverPort}/hls/stream.m3u8`;
+    document.getElementById('url-player').textContent = 
+        `http://${ip}:${serverPort}/player`;
+}
+
+async function copyUrl(type) {
+    let url;
+    switch (type) {
+        case 'srt':
+            url = document.getElementById('url-srt').textContent;
+            break;
+        case 'stream':
+            url = document.getElementById('url-stream').textContent;
+            break;
+        case 'player':
+            url = document.getElementById('url-player').textContent;
+            break;
+        default:
+            return;
+    }
+    
+    try {
+        await navigator.clipboard.writeText(url);
+        showToast(`${type.toUpperCase()} URL copiada`, 'success');
+    } catch (e) {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = url;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showToast(`${type.toUpperCase()} URL copiada`, 'success');
+    }
+}
+
+// Legacy function for backwards compatibility
+function updateSrtUrl() {
+    updateConnectionUrls();
 }
 
 function updatePipelineUI(state) {
@@ -362,6 +507,24 @@ async function updateModuleSetting(moduleName, key, value) {
 function handleStatusUpdate(status) {
     if (status.state) {
         updatePipelineUI(status.state);
+    }
+    
+    // Update network info if available
+    if (status.network) {
+        networkInfo = status.network;
+        networkInfo.srt_mode = status.network.srt_mode || 'listener';
+        networkInfo.caller_address = status.network.caller_address || '';
+        updateNetworkDisplay();
+        updateConnectionUrls();
+        
+        // Set initial connection mode based on config
+        if (status.network.srt_mode === 'caller' && status.network.caller_address) {
+            setConnectionMode('remote');
+            const emitterInput = document.getElementById('emitter-address');
+            if (emitterInput) {
+                emitterInput.value = status.network.caller_address;
+            }
+        }
     }
 
     if (status.modules) {
