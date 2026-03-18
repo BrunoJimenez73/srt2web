@@ -1,9 +1,0 @@
-# SRT2Web - Full dependencies (with ML processing)
-# Use this for full functionality including transcription, translation, and TTS
-
--r requirements.txt
-
-# ML Processing (optional - for transcription, translation, TTS)
-faster-whisper>=1.0.0
-argostranslate>=1.9.0
-piper-tts>=1.2.0
