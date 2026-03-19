@@ -828,7 +828,7 @@ import ProcessCard from '../components/ProcessCard.astro';
             }
             
             if (status.network && status.network.local_ip) {
-                updateUrls(status.network.local_ip);
+                updateConnectionUrls(status.network.local_ip);
             }
         } catch (e) {}
     }
@@ -1018,7 +1018,7 @@ import ProcessCard from '../components/ProcessCard.astro';
         try {
             const result = await apiCall('PUT', '/api/config', { config: update });
             config = result.config;
-            updateUrls();
+            updateConnectionUrls();
             if (!silent) {
                 addLog('info', 'Configuración guardada');
                 showToast('Configuración guardada', 'success');
