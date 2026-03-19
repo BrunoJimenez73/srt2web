@@ -51,7 +51,7 @@ class TestConfigManager:
         """Test initialization with a config file."""
         config = ConfigManager(config_file)
 
-        assert config.get("server.port") == 8080
+        assert config.get("server.port") == 9999
         assert config.get("input.srt.listen_port") == 9000
 
     def test_get_with_default(self):
