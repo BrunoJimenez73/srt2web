@@ -882,11 +882,20 @@ import ProcessCard from '../components/ProcessCard.astro';
         const latencyUs = latency * 1000;
         
         if (connectionMode === 'local') {
-            const ip = networkInfo.public_ip || networkInfo.local_ip;
+            // Modo LOCAL: usar IP local para todo
+            const localIp = networkInfo.local_ip;
             document.getElementById('url-srt').textContent = 
-                `srt://${ip}:${srtPort}?mode=listener&latency=${latencyUs}`;
+                `srt://${localIp}:${srtPort}?mode=listener&latency=${latencyUs}`;
+            
+            document.getElementById('url-stream').textContent = 
+                `http://${localIp}:9999/hls/stream.m3u8`;
+            document.getElementById('url-player').textContent = 
+                `http://${localIp}:9999/player`;
         } else {
+            // Modo REMOTE: usar IP pública para Stream/Player, y modo caller para SRT
+            const publicIp = networkInfo.public_ip || networkInfo.local_ip;
             const emitterIp = document.getElementById('emitter-address')?.value;
+            
             if (emitterIp && emitterIp.trim()) {
                 document.getElementById('url-srt').textContent = 
                     `srt://${emitterIp}:${srtPort}?mode=caller&latency=${latencyUs}`;
@@ -894,14 +903,12 @@ import ProcessCard from '../components/ProcessCard.astro';
                 document.getElementById('url-srt').textContent = 
                     `srt://EMITTER_IP:${srtPort}?mode=caller&latency=${latencyUs}`;
             }
+            
+            document.getElementById('url-stream').textContent = 
+                `http://${publicIp}:9999/hls/stream.m3u8`;
+            document.getElementById('url-player').textContent = 
+                `http://${publicIp}:9999/player`;
         }
-        
-        const ip = networkInfo.public_ip || networkInfo.local_ip;
-        const serverPort = networkInfo.server_port || 9999;
-        document.getElementById('url-stream').textContent = 
-            `http://${ip}:${serverPort}/hls/stream.m3u8`;
-        document.getElementById('url-player').textContent = 
-            `http://${ip}:${serverPort}/player`;
     }
 
     // WebSocket connection
@@ -1054,6 +1061,14 @@ import ProcessCard from '../components/ProcessCard.astro';
             if (config.input.srt) {
                 document.getElementById('input-port').value = config.input.srt.listen_port || 9000;
                 document.getElementById('input-latency').value = config.input.srt.latency_ms || 1000;
+                
+                const srtMode = config.input.srt.mode || 'listener';
+                connectionMode = srtMode === 'caller' ? 'remote' : 'local';
+                setConnectionMode(connectionMode);
+                
+                if (config.input.srt.caller_address) {
+                    document.getElementById('emitter-address').value = config.input.srt.caller_address;
+                }
             }
         }
         
@@ -1165,13 +1180,19 @@ import ProcessCard from '../components/ProcessCard.astro';
             }
         };
         
+        const srtMode = connectionMode === 'remote' ? 'caller' : 'listener';
+        const callerAddress = connectionMode === 'remote' 
+            ? (document.getElementById('emitter-address')?.value || '') 
+            : '';
+        
         const update = {
             input: {
                 type: document.getElementById('input-type').value,
                 srt: {
                     listen_port: parseInt(document.getElementById('input-port').value),
                     latency_ms: parseInt(document.getElementById('input-latency').value),
-                    mode: 'listener'
+                    mode: srtMode,
+                    caller_address: callerAddress
                 }
             },
             output: {
