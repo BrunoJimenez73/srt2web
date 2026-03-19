@@ -156,3 +156,112 @@ def escape_ffmpeg_path(path: str) -> str:
     # Escape single quotes
     escaped = escaped.replace("'", "'\\''")
     return escaped
+
+
+def cleanup_temporary_files(output_dir: str, patterns: list = None) -> None:
+    """
+    Clean up temporary files from output directory.
+    
+    Args:
+        output_dir: Directory to clean
+        patterns: List of glob patterns to match files for deletion
+    """
+    if patterns is None:
+        patterns = [
+            "output/chunks/*",
+            "output/temp_audio/*",
+            "output/temp_mix/*", 
+            "output/temp_tts/*",
+            "output/hls/seg_*.ts",
+            "output/hls/chunk_*.srt"
+        ]
+    
+    import glob
+    for pattern in patterns:
+        full_pattern = os.path.join(output_dir, pattern)
+        for file_path in glob.glob(full_pattern):
+            try:
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+                elif os.path.isdir(file_path):
+                    import shutil
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger("srt2web.cleanup")
+                logger.warning(f"Could not clean {file_path}: {e}")
+
+
+def validate_directory_access(directory: str, create_if_missing: bool = True) -> bool:
+    """
+    Validate that a directory is accessible and can be written to.
+    
+    Args:
+        directory: Path to directory to validate
+        create_if_missing: Whether to create the directory if it doesn't exist
+    
+    Returns:
+        True if directory is accessible, False otherwise
+    """
+    try:
+        # Convert to Path object for easier manipulation
+        path = Path(directory)
+        
+        # Create directory if it doesn't exist
+        if not path.exists():
+            if create_if_missing:
+                path.mkdir(parents=True, exist_ok=True)
+            else:
+                return False
+        
+        # Check if it's actually a directory
+        if not path.is_dir():
+            return False
+        
+        # Check if we can write to it
+        test_file = path / ".write_test"
+        try:
+            test_file.touch()
+            test_file.unlink()
+        except (PermissionError, OSError):
+            return False
+        
+        return True
+        
+    except (PermissionError, OSError) as e:
+        import logging
+        logger = logging.getLogger("srt2web.security")
+        logger.error(f"Directory validation failed for {directory}: {e}")
+        return False
+
+
+def sanitize_module_name(name: str) -> str:
+    """
+    Sanitize module name to prevent injection attacks.
+    
+    Args:
+        name: Module name to sanitize
+    
+    Returns:
+        Sanitized module name
+    
+    Raises:
+        ValueError: If module name is invalid
+    """
+    if not name or not isinstance(name, str):
+        raise ValueError("Module name is required and must be a string")
+
+    # Only allow alphanumeric characters, underscores, and hyphens
+    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', name):
+        raise ValueError("Invalid module name format")
+    
+    # List of valid modules
+    valid_modules = [
+        "audio_extractor", "transcriber", "translator", 
+        "subtitle_generator", "tts_engine", "audio_mixer", "video_muxer"
+    ]
+    
+    if name not in valid_modules:
+        raise ValueError(f"Unknown module: {name}")
+    
+    return name

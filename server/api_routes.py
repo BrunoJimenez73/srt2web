@@ -59,16 +59,27 @@ def sanitize_module_name(name: str) -> str:
     if not name or not isinstance(name, str):
         raise HTTPException(400, "Module name is required and must be a string")
 
-    if not re.match(r"^[a-z_]+$", name):
+    if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", name):
         raise HTTPException(
             400,
-            f"Invalid module name format: '{name}'. Only lowercase letters and underscores are allowed.",
+            f"Invalid module name format: '{name}'. Only letters, numbers and underscores are allowed.",
         )
 
-    if name not in VALID_MODULE_NAMES:
+    # Lista de módulos válidos
+    valid_modules = [
+        "audio_extractor",
+        "transcriber",
+        "translator",
+        "subtitle_generator",
+        "tts_engine",
+        "audio_mixer",
+        "video_muxer",
+    ]
+
+    if name not in valid_modules:
         raise HTTPException(
             400,
-            f"Unknown module: '{name}'. Valid modules are: {', '.join(sorted(VALID_MODULE_NAMES))}",
+            f"Unknown module: '{name}'. Valid modules are: {', '.join(sorted(valid_modules))}",
         )
 
     return name
@@ -564,5 +575,96 @@ def create_api_router() -> APIRouter:
         network["caller_address"] = caller_address
 
         return network
+
+    # ── Health Check ───────────────────────────────────────────
+
+    @router.get("/health")
+    async def health_check(request: Request):
+        """
+        Health check endpoint for monitoring and load balancers.
+
+        Returns:
+            - status: overall health status (healthy/degraded/unhealthy)
+            - uptime_seconds: time since startup
+            - memory_mb: current memory usage
+            - modules: status of each module with circuit breaker state
+            - pipeline: pipeline state and stats
+        """
+        from time import time as get_time
+
+        ctx = _ctx(request)
+        pipeline = ctx["pipeline"]
+        config = ctx["config"]
+
+        start_time = ctx.get("_start_time", get_time())
+        uptime = get_time() - start_time
+
+        memory_info = {"memory_mb": 0, "memory_percent": 0}
+        try:
+            import psutil
+
+            process = psutil.Process()
+            memory_info = {
+                "memory_mb": round(process.memory_info().rss / 1024 / 1024, 1),
+                "memory_percent": round(process.memory_percent(), 1),
+            }
+        except ImportError:
+            pass
+
+        modules_status = {}
+        overall_healthy = True
+        has_degraded = False
+
+        for module in pipeline.get_modules():
+            status = module.get_status()
+            status_dict = status.to_dict()
+            circuit_state = status_dict.pop("circuit_state", "closed")
+
+            modules_status[module.name] = {
+                "state": status_dict["state"],
+                "circuit_state": circuit_state,
+                "enabled": status_dict["enabled"],
+                "processed_chunks": status_dict["processed_chunks"],
+                "last_process_time_ms": status_dict["last_process_time_ms"],
+                "error": status_dict["error_message"],
+            }
+
+            if status.state == "error":
+                overall_healthy = False
+            elif circuit_state in ("open", "half_open"):
+                has_degraded = True
+
+        if overall_healthy and has_degraded:
+            health_status = "degraded"
+        elif overall_healthy:
+            health_status = "healthy"
+        else:
+            health_status = "unhealthy"
+
+        input_health = {"receiving": False}
+        if pipeline.input_source:
+            input_health = {
+                "receiving": pipeline.input_source.is_receiving(),
+                "type": pipeline.input_source.name,
+            }
+
+        output_health = {"streaming": False}
+        if pipeline.output_sink:
+            output_health = {
+                "streaming": pipeline.output_sink.is_streaming(),
+                "type": pipeline.output_sink.name,
+            }
+
+        return {
+            "status": health_status,
+            "uptime_seconds": round(uptime, 1),
+            "memory_mb": memory_info["memory_mb"],
+            "memory_percent": memory_info["memory_percent"],
+            "chunks_processed": pipeline._chunk_index,
+            "pipeline_state": pipeline.state.value,
+            "modules": modules_status,
+            "input": input_health,
+            "output": output_health,
+        }
 
     return router

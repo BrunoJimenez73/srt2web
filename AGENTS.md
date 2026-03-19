@@ -151,36 +151,16 @@ python -m pytest tests/unit/ --cov=modules --cov=core --cov-report=term-missing
 - Los subtítulos se sincronizan con el video usando tiempo acumulado (misma lógica que VideoMuxer)
 - El player refresca VTT cada 5 segundos para mantener sync en streams vivos
 
-## 🚨 **Fallos y Problemas Detectados**
+## Plan de Implementación - Semanas 1, 2 y 3
 
-### 1. **Configuración Incorrecta**
-- **Problema**: El archivo `config.yaml` tiene un modelo de transcripción inválido: `model: invalid_model`
-- **Impacto**: El módulo de transcripción fallará al iniciar
-- **Ubicación**: `config.yaml` línea 30
-
-### 2. **Problemas de Seguridad**
-- **Input Validation**: Falta validación robusta en varios endpoints de la API
-- **Path Traversal**: No hay sanitización de rutas en operaciones de archivos
-- **Command Injection**: Posible riesgo en llamadas a FFmpeg sin sanitización completa
-
-### 3. **Problemas de Rendimiento**
-- **Chunk Duration Mismatch**: Configuración de 6s vs 15s en diferentes partes del sistema
-- **Memory Leaks**: Posibles fugas en manejo de procesos FFmpeg
-- **Resource Cleanup**: No siempre se limpian archivos temporales correctamente
-
-### 4. **Problemas de Estabilidad**
-- **WebSocket Reconnections**: Lógica de reconexión limitada
-- **Error Handling**: Falta manejo de errores en varios módulos
-- **Process Management**: No siempre se matan procesos FFmpeg en Windows
-
-## 🚀 **Plan de Implementación - 3 Semanas**
-
-### **Semana 1: Correcciones Urgentes (Días 1-2)**
+### 📅 **Semana 1: Correcciones Urgentes (Días 1-2)**
 
 #### **Día 1: Corrección de Configuración Base**
+
 **Objetivo**: Estabilizar el sistema corrigiendo configuraciones críticas
 
 **Tareas Detalladas**:
+
 1. **Corregir modelo de transcripción**
    - Cambiar `model: invalid_model` a `model: tiny` en config.yaml
    - Validar que el modelo "tiny" esté disponible
@@ -213,9 +193,11 @@ python -m pytest tests/unit/ --cov=modules --cov=core --cov-report=term-missing
 ---
 
 #### **Día 2: Seguridad Básica y Estabilidad**
+
 **Objetivo**: Implementar medidas de seguridad esenciales y mejorar estabilidad
 
 **Tareas Detalladas**:
+
 1. **Validación de parámetros de API**
    - Implementar validación en `server/api_routes.py`
    - Validar rangos de puertos (1-65535)
@@ -252,12 +234,14 @@ python -m pytest tests/unit/ --cov=modules --cov=core --cov-report=term-missing
 
 ---
 
-### **Semana 2: Optimización de Rendimiento (Días 3-5)**
+### 📅 **Semana 2: Optimización de Rendimiento (Días 3-5)**
 
 #### **Día 3: Optimización de Pipeline**
+
 **Objetivo**: Mejorar eficiencia del procesamiento de datos
 
 **Tareas Detalladas**:
+
 1. **Buffer óptimo para HLS**
    - Configurar `hls_segment_duration: 10`
    - Ajustar `hls_list_size: 4-6`
@@ -291,9 +275,11 @@ python -m pytest tests/unit/ --cov=modules --cov=core --cov-report=term-missing
 ---
 
 #### **Día 4: Mejoras de UI/UX**
+
 **Objetivo**: Mejorar experiencia de usuario y monitoreo
 
 **Tareas Detalladas**:
+
 1. **Dashboard de monitoreo**
    - Añadir indicadores de CPU, memoria, latencia
    - Implementar gráficos de rendimiento en tiempo real
@@ -327,9 +313,11 @@ python -m pytest tests/unit/ --cov=modules --cov=core --cov-report=term-missing
 ---
 
 #### **Día 5: WebSocket Mejorado**
+
 **Objetivo**: Mejorar comunicación en tiempo real y estabilidad
 
 **Tareas Detalladas**:
+
 1. **Reconexión automática robusta**
    - Implementar algoritmo de reconexión exponencial
    - Añadir detección de pérdida de conexión
@@ -362,12 +350,14 @@ python -m pytest tests/unit/ --cov=modules --cov=core --cov-report=term-missing
 
 ---
 
-### **Semana 3: Características Avanzadas (Días 6-10)**
+### 📅 **Semana 3: Características Avanzadas (Días 6-10)**
 
 #### **Día 6-7: Autenticación y Autorización**
+
 **Objetivo**: Implementar seguridad avanzada para entornos de producción
 
 **Tareas Detalladas**:
+
 1. **Sistema de tokens JWT**
    - Implementar generación de tokens JWT
    - Añadir middleware de autenticación
@@ -401,9 +391,11 @@ python -m pytest tests/unit/ --cov=modules --cov=core --cov-report=term-missing
 ---
 
 #### **Día 8: Monitoreo y Alertas**
+
 **Objetivo**: Implementar sistema de monitoreo avanzado y alertas
 
 **Tareas Detalladas**:
+
 1. **Métricas de rendimiento**
    - Implementar recolección de métricas en tiempo real
    - Añadir métricas de CPU, memoria, red
@@ -437,9 +429,11 @@ python -m pytest tests/unit/ --cov=modules --cov=core --cov-report=term-missing
 ---
 
 #### **Día 9-10: Escalabilidad**
+
 **Objetivo**: Preparar el sistema para manejar múltiples streams y alta carga
 
 **Tareas Detalladas**:
+
 1. **Soporte para múltiples streams**
    - Implementar gestión de múltiples pipelines
    - Añadir balanceo de carga entre pipelines
@@ -472,7 +466,7 @@ python -m pytest tests/unit/ --cov=modules --cov=core --cov-report=term-missing
 
 ---
 
-### **Cronograma Resumido**
+### 📊 **Cronograma Resumido**
 
 | Semana | Día | Actividad Principal | Entregable Clave |
 |--------|-----|-------------------|------------------|
@@ -485,13 +479,13 @@ python -m pytest tests/unit/ --cov=modules --cov=core --cov-report=term-missing
 | **3** | 8 | Monitoreo y Alertas | Sistema de alertas implementado |
 | **3** | 9-10 | Escalabilidad | Sistema multi-stream listo |
 
-### **Milestones Clave**
+### 🎯 **Milestones Clave**
 
 1. **Fin de Semana 1**: Sistema estable y seguro para uso básico
 2. **Fin de Semana 2**: Sistema optimizado con buen rendimiento y UX
 3. **Fin de Semana 3**: Sistema listo para producción con características avanzadas
 
-### **Métricas de Éxito por Semana**
+### 📈 **Métricas de Éxito por Semana**
 
 #### **Semana 1**
 - Sistema inicia sin errores: ✅
@@ -510,141 +504,3 @@ python -m pytest tests/unit/ --cov=modules --cov=core --cov-report=term-missing
 - Sistema de alertas: ✅
 - Múltiples streams: ✅
 - Escalabilidad probada: ✅
-
-## 🛠️ **Implementación Gradual**
-
-Recomiendo implementar estas mejoras de forma incremental:
-
-1. **Semana 1**: Correcciones urgentes y seguridad básica
-2. **Semana 2**: Optimización de rendimiento y estabilidad
-3. **Semana 3**: Características avanzadas y monitoreo
-4. **Semana 4**: Pruebas, documentación y preparación para producción
-
-## 📊 **Prioridades de Implementación**
-
-### **Prioridad Alta (Semana 1)**
-- Corrección de modelo de transcripción
-- Validación de parámetros de API
-- Sanitización de paths de archivos
-- Mejor manejo de procesos FFmpeg
-
-### **Prioridad Media (Semana 2)**
-- Optimización de buffer HLS
-- Dashboard de monitoreo
-- WebSocket mejorado
-- Logs estructurados
-
-### **Prioridad Baja (Semana 3)**
-- Autenticación JWT
-- Sistema de alertas
-- Escalabilidad multi-stream
-- Clustering opcional
-
-## 🔄 **Flujo de Trabajo Recomendado**
-
-1. **Desarrollo**: Implementar en rama feature por funcionalidad
-2. **Pruebas**: Testear cada cambio individualmente
-3. **Integración**: Unir cambios a main después de pruebas exitosas
-4. **Despliegue**: Deployar a entorno de staging para validación
-5. **Producción**: Deployar a producción después de validación final
-
-## 📈 **Métricas de Monitoreo**
-
-### **Rendimiento**
-- Latencia de procesamiento < 30s
-- Uso de CPU < 70% bajo carga normal
-- Uso de memoria estable sin leaks
-- Tiempo de respuesta de API < 500ms
-
-### **Disponibilidad**
-- Tiempo de actividad > 99.9%
-- Tiempo de recuperación ante fallos < 30s
-- Reconexión automática de WebSocket < 5s
-- Limpieza de recursos automática
-
-### **Seguridad**
-- 0 vulnerabilidades críticas
-- Validación de entrada 100%
-- Logs de seguridad completos
-- Acceso restringido a recursos
-
-## 🚨 **Consideraciones de Seguridad**
-
-### **Prioridad Alta**
-- Validación de entrada en todos los endpoints
-- Sanitización de comandos FFmpeg
-- Protección contra ataques DoS
-- Autenticación básica
-
-### **Prioridad Media**
-- HTTPS/TLS para producción
-- Rate limiting
-- Logging de seguridad
-- Validación de archivos subidos
-
-### **Prioridad Baja**
-- Auditoría de seguridad completa
-- Escaneo de vulnerabilidades
-- Hardening del sistema
-
-## ⚡ **Optimizaciones de Rendimiento**
-
-### **Inmediatas**
-- Buffer HLS óptimo (8-10s)
-- Modelo Whisper "tiny" para menor CPU
-- Chunk duration 10s para mejor sincronización
-
-### **Medio Plazo**
-- GPU acceleration detection mejorado
-- Caching de resultados
-- Compresión de datos
-
-### **Largo Plazo**
-- Distribución de carga
-- Microservicios opcionales
-- CDN para assets estáticos
-
-## 📋 **Checklist de Implementación**
-
-### **Semana 1 - Correcciones Urgentes**
-- [ ] Corregir modelo de transcripción en config.yaml
-- [ ] Unificar duración de chunks en todo el sistema
-- [ ] Implementar validación de configuración al inicio
-- [ ] Validar parámetros de API (puertos, latencia, volúmenes)
-- [ ] Mejorar sanitización de paths de archivos
-- [ ] Mejorar manejo de procesos FFmpeg
-- [ ] Implementar limpieza automática de archivos temporales
-
-### **Semana 2 - Optimización de Rendimiento**
-- [ ] Configurar buffer óptimo para HLS
-- [ ] Implementar mejor manejo de memoria
-- [ ] Implementar pooling de recursos
-- [ ] Crear dashboard de monitoreo
-- [ ] Añadir indicadores de rendimiento
-- [ ] Mejorar logs estructurados
-- [ ] Implementar reconexión automática robusta de WebSocket
-- [ ] Implementar compresión de mensajes
-- [ ] Mejorar manejo de alta carga en WebSocket
-
-### **Semana 3 - Características Avanzadas**
-- [ ] Implementar sistema de tokens JWT
-- [ ] Crear roles de usuario (admin, user, viewer)
-- [ ] Implementar API segura con validación avanzada
-- [ ] Implementar métricas de rendimiento en tiempo real
-- [ ] Crear sistema de alertas basado en umbrales
-- [ ] Desarrollar dashboard avanzado de monitoreo
-- [ ] Implementar soporte para múltiples streams
-- [ ] Crear balanceo de carga entre procesos
-- [ ] Implementar clustering opcional
-
-## 🎯 **Próximos Pasos**
-
-1. **Iniciar con Semana 1**: Comenzar por las correcciones urgentes
-2. **Validar cada cambio**: Asegurar que cada implementación funciona correctamente
-3. **Documentar avances**: Mantener registro de cambios y pruebas realizadas
-4. **Preparar para producción**: Configurar entornos de staging y producción
-5. **Monitorear continuamente**: Implementar monitoreo continuo del sistema
-
----
-
-**Nota**: Este plan está diseñado para ser implementado de forma incremental, permitiendo validaciones parciales y correcciones tempranas. Cada semana debe concluir con un sistema funcional y estable que sirva como base para la siguiente fase.

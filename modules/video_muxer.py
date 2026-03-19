@@ -53,7 +53,7 @@ class VideoMuxer(BaseModule):
         self._hls_segment_duration = config.get(
             "hls_segment_duration", self._hls_segment_duration
         )
-        self._hls_list_size = 30  # Increased for stability
+        self._hls_list_size = 4  # Optimized for lower latency
         self._audio_offset_ms = config.get("audio_offset_ms", self._audio_offset_ms)
         # Video quality settings
         self._video_preset = config.get("video_preset", self._video_preset)

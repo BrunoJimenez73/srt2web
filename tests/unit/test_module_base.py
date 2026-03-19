@@ -185,7 +185,8 @@ class TestBaseModule:
         data = PipelineData(chunk_index=0)
         result = module.process(data)
 
-        assert module._state == ModuleState.ERROR
+        # After all retries, module enters DEGRADED state (graceful degradation)
+        assert module._state == ModuleState.DEGRADED
         assert module._error_message == "Test error"
         # Data should be returned unchanged
         assert result.chunk_index == 0

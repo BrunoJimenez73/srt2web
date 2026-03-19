@@ -312,3 +312,128 @@ def start_ffmpeg_process(
         text=True,
         creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
     )
+
+
+def cleanup_ffmpeg_processes():
+    """Clean up any orphaned FFmpeg processes."""
+    import subprocess
+    import platform
+    import time
+
+    logger = logging.getLogger("srt2web.ffmpeg")
+
+    try:
+        if platform.system() == "Windows":
+            # Use taskkill to kill FFmpeg processes
+            result = subprocess.run(
+                ["taskkill", "/F", "/IM", "ffmpeg.exe"],
+                capture_output=True,
+                text=True,
+                creationflags=subprocess.CREATE_NO_WINDOW
+                if hasattr(subprocess, "CREATE_NO_WINDOW")
+                else 0,
+            )
+            if result.returncode == 0:
+                logger.info("Cleaned up orphaned FFmpeg processes")
+            elif "not found" in result.stderr.lower():
+                logger.debug("No FFmpeg processes found to clean up")
+            else:
+                logger.warning(f"Failed to clean up FFmpeg processes: {result.stderr}")
+        else:
+            # Use pkill on Unix-like systems
+            result = subprocess.run(["pkill", "-f", "ffmpeg"], capture_output=True, text=True)
+            if result.returncode == 0:
+                logger.info("Cleaned up orphaned FFmpeg processes")
+            elif result.returncode == 1:
+                logger.debug("No FFmpeg processes found to clean up")
+            else:
+                logger.warning(f"Failed to clean up FFmpeg processes: {result.stderr}")
+    except Exception as e:
+        logger.warning(f"Error during FFmpeg cleanup: {e}")
+
+
+def kill_process_gracefully(process, timeout: int = 5):
+    """Kill a process gracefully with timeout."""
+    import signal
+    import platform
+    
+    logger = logging.getLogger("srt2web.ffmpeg")
+    
+    if process is None:
+        return
+    
+    try:
+        # First try graceful termination
+        if platform.system() == "Windows":
+            process.terminate()
+        else:
+            process.send_signal(signal.SIGTERM)
+        
+        # Wait for process to terminate
+        try:
+            process.wait(timeout=timeout)
+            logger.info(f"Process {process.pid} terminated gracefully")
+            return
+        except subprocess.TimeoutExpired:
+            logger.warning(f"Process {process.pid} did not terminate gracefully, forcing kill")
+        
+        # Force kill if graceful termination failed
+        if platform.system() == "Windows":
+            process.kill()
+        else:
+            process.send_signal(signal.SIGKILL)
+        
+        try:
+            process.wait(timeout=2)
+            logger.info(f"Process {process.pid} killed forcefully")
+        except subprocess.TimeoutExpired:
+            logger.error(f"Failed to kill process {process.pid}")
+            
+    except Exception as e:
+        logger.error(f"Error killing process {process.pid}: {e}")
+
+
+def run_ffmpeg_with_timeout(cmd: list, timeout: int = 30, **kwargs):
+    """Run FFmpeg command with timeout and proper error handling."""
+    import subprocess
+    import platform
+    
+    logger = logging.getLogger("srt2web.ffmpeg")
+    
+    # Add timeout to command if supported
+    if timeout and platform.system() != "Windows":
+        cmd = ["timeout", str(timeout)] + cmd
+    
+    try:
+        # Set creation flags for Windows to hide console
+        creationflags = 0
+        if platform.system() == "Windows":
+            creationflags = subprocess.CREATE_NO_WINDOW
+        
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            creationflags=creationflags,
+            **kwargs
+        )
+        
+        stdout, stderr = process.communicate(timeout=timeout)
+        
+        if process.returncode != 0:
+            logger.error(f"FFmpeg command failed: {' '.join(cmd)}")
+            logger.error(f"Error: {stderr}")
+            raise subprocess.CalledProcessError(process.returncode, cmd, stderr)
+        
+        return stdout, stderr
+        
+    except subprocess.TimeoutExpired:
+        logger.error(f"FFmpeg command timed out after {timeout} seconds: {' '.join(cmd)}")
+        kill_process_gracefully(process, timeout=5)
+        raise
+    except Exception as e:
+        logger.error(f"Error running FFmpeg command: {e}")
+        if 'process' in locals():
+            kill_process_gracefully(process, timeout=5)
+        raise
