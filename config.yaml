@@ -1,0 +1,88 @@
+server:
+  host: 0.0.0.0
+  port: 9999
+  cors_origins:
+  - http://localhost:*
+  - http://127.0.0.1:*
+  auth_token: ''
+input:
+  type: srt
+  srt:
+    listen_port: 9999
+    mode: listener
+    latency_ms: 1000
+    caller_address: ''
+  file:
+    path: ./video.mp4
+    loop: false
+    speed: 1
+  rtmp:
+    url: rtmp://localhost/live/stream
+    mode: pull
+  chunk_duration_sec: 10
+output:
+  type: web
+  web:
+    segment_duration: 15
+    list_size: 6
+    audio_offset_ms: 0
+    video_preset: medium
+    video_crf: 18
+    video_profile: high
+    video_tune: zerolatency
+    encoder_mode: auto
+    gpu_preset: p3
+    audio_codec: aac
+    audio_bitrate: 192k
+    audio_sample_rate: 48000
+    subtitle_language: es
+    subtitle_language_name: Spanish
+  rtmp:
+    url: rtmp://localhost/live/output
+    video_bitrate: 2500k
+    audio_bitrate: 128k
+    video_codec: libx264
+    preset: medium
+    audio_codec: aac
+  srt:
+    host: localhost
+    port: 9001
+    latency_ms: 1000
+pipeline:
+  chunk_duration_sec: 6
+modules:
+  audio_extractor:
+    enabled: true
+  transcriber:
+    enabled: true
+    model: tiny
+    language: auto
+    device: auto
+  translator:
+    enabled: true
+    source_lang: en
+    target_lang: it
+  subtitle_generator:
+    enabled: true
+    format: webvtt
+    use_translated: true
+    font_size: 1
+  tts_engine:
+    enabled: true
+    voice: pt-BR-FranciscaNeural
+    speed: 1
+  audio_mixer:
+    enabled: true
+    original_volume: 0.4
+    dubbed_volume: 1.8
+  video_muxer:
+    enabled: true
+    hls_segment_duration: 10
+    audio_offset_ms: 0
+    hls_list_size: 4
+    video_preset: medium
+    gpu_preset: p3
+output_dir:
+  directory: ./output
+srt:
+  listen_port: 8888
