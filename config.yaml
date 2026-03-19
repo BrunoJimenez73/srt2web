@@ -8,7 +8,7 @@ server:
 input:
   type: srt
   srt:
-    listen_port: 9999
+    listen_port: 9000
     mode: listener
     latency_ms: 1000
     caller_address: ''
@@ -61,7 +61,7 @@ modules:
   translator:
     enabled: true
     source_lang: en
-    target_lang: it
+    target_lang: es
   subtitle_generator:
     enabled: true
     format: webvtt
@@ -69,7 +69,7 @@ modules:
     font_size: 1
   tts_engine:
     enabled: true
-    voice: pt-BR-FranciscaNeural
+    voice: es-ES-ElviraNeural
     speed: 1
   audio_mixer:
     enabled: true
