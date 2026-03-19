@@ -131,32 +131,32 @@ import ProcessCard from '../components/ProcessCard.astro';
         </section>
 
         <!-- URLs -->
-        <section class="urls-section">
+        <section class="urls-section" id="urls-section">
             <h3>🔗 URLs de Conexión</h3>
             <div class="urls-grid">
                 <div class="url-card">
                     <span class="url-label">SRT (OBS)</span>
                     <span class="url-value" id="url-srt">srt://TU_IP:9000?mode=caller&latency=1000000</span>
-                    <button class="copy-btn" onclick="copyUrl('srt')">📋</button>
+                    <button class="copy-btn" id="btn-copy-srt">📋</button>
                 </div>
                 <div class="url-card">
                     <span class="url-label">Stream HLS</span>
                     <span class="url-value" id="url-stream">http://TU_IP:9999/hls/stream.m3u8</span>
-                    <button class="copy-btn" onclick="copyUrl('stream')">📋</button>
+                    <button class="copy-btn" id="btn-copy-stream">📋</button>
                 </div>
                 <div class="url-card">
                     <span class="url-label">Player</span>
-                    <span class="url-value" id="url-player">http://TU_IP:9999/player</span>
-                    <button class="copy-btn" onclick="copyUrl('player')">📋</button>
+                    <a class="url-value" id="url-player" href="http://TU_IP:9999/player" target="_blank">http://TU_IP:9999/player</a>
+                    <button class="copy-btn" id="btn-copy-player">📋</button>
                 </div>
             </div>
         </section>
 
         <!-- Advanced Section -->
         <section class="advanced-section" id="advanced-section">
-            <div class="advanced-header" onclick="toggleAdvanced()">
+            <div class="advanced-header" id="advanced-header">
                 <span class="advanced-title">⚙️ CONFIGURACIÓN AVANZADA</span>
-                <span class="advanced-toggle-icon">▼</span>
+                <span class="advanced-toggle-icon" id="advanced-icon">▼</span>
             </div>
             <div class="advanced-body">
                 <div class="modules-grid">
@@ -233,7 +233,7 @@ import ProcessCard from '../components/ProcessCard.astro';
                         </div>
                     </div>
                 </div>
-                <button class="btn-start" style="margin-top:12px;width:100%;" onclick="saveConfig()">
+                <button class="btn-start" style="margin-top:12px;width:100%;" id="btn-save-config">
                     💾 Guardar Configuración
                 </button>
             </div>
@@ -243,7 +243,7 @@ import ProcessCard from '../components/ProcessCard.astro';
         <section class="logs-section">
             <div class="logs-header">
                 <span>📜 Logs</span>
-                <button onclick="clearLogs()">🗑 Limpiar</button>
+                <button id="btn-clear-logs">🗑 Limpiar</button>
             </div>
             <div class="logs-container" id="logs-container"></div>
         </section>
@@ -359,6 +359,12 @@ import ProcessCard from '../components/ProcessCard.astro';
         font-family: 'JetBrains Mono', monospace;
         font-size: 11px;
         color: var(--accent);
+        text-decoration: none;
+    }
+    
+    .url-value:hover {
+        text-decoration: underline;
+        cursor: pointer;
     }
 
     .copy-btn {
@@ -624,6 +630,7 @@ import ProcessCard from '../components/ProcessCard.astro';
     let config = {};
     let ws = null;
     let wsReconnectCount = 0;
+    let statusPollInterval = null;
 
     // API calls
     async function apiCall(method, path, body = null) {
@@ -661,56 +668,185 @@ import ProcessCard from '../components/ProcessCard.astro';
                 }
                 setTimeout(connectWebSocket, 2000);
             };
+            
+            ws.onerror = () => {
+                addLog('error', 'Error WebSocket');
+            };
         } catch (e) {
             setTimeout(connectWebSocket, 3000);
         }
     }
 
-    // Update module status
     function updateModuleStatus(data) {
         const modules = data.modules || [];
         const pipelineState = data.state || 'idle';
         
+        const moduleToCard = {
+            'tts_engine': 'card-dub',
+            'audio_mixer': 'card-dub',
+            'translator': 'card-translate',
+            'subtitle_generator': 'card-subtitle',
+            'transcriber': 'card-input',
+            'audio_extractor': 'card-input'
+        };
+        
+        const moduleToIndicator = {
+            'tts_engine': 'indicator-dub',
+            'audio_mixer': 'indicator-dub',
+            'translator': 'indicator-translate',
+            'subtitle_generator': 'indicator-subtitle',
+            'transcriber': null,
+            'audio_extractor': null
+        };
+        
         modules.forEach(mod => {
-            const indicator = document.getElementById(`indicator-${mod.name}`);
-            const card = document.getElementById(`card-${mod.name}`);
-            const dot = document.getElementById(`status-${mod.name}`);
-            
-            if (indicator && card) {
-                if (mod.state === 'running' || mod.state === 'starting') {
-                    indicator.classList.add('active');
-                    card.classList.add('active');
-                } else {
-                    indicator.classList.remove('active');
-                    card.classList.remove('active');
+            const statusDot = document.getElementById(`status-${mod.name}`);
+            if (statusDot) {
+                statusDot.classList.remove('running', 'error', 'disabled');
+                if (!mod.enabled || mod.state === 'disabled') {
+                    statusDot.classList.add('disabled');
+                } else if (mod.state === 'error') {
+                    statusDot.classList.add('error');
+                } else if (mod.state === 'running' || mod.state === 'starting') {
+                    statusDot.classList.add('running');
                 }
             }
-            if (dot) {
-                dot.classList.remove('disabled', 'error');
-                dot.classList.add(mod.state === 'running' ? 'running' : 'disabled');
+            
+            const cardId = moduleToCard[mod.name];
+            const indicatorId = moduleToIndicator[mod.name];
+            const card = cardId ? document.getElementById(cardId) : null;
+            const indicator = indicatorId ? document.getElementById(indicatorId) : null;
+            
+            if (card) {
+                card.classList.remove('active');
+                if (mod.state === 'running' || mod.state === 'starting') {
+                    card.classList.add('active');
+                }
+            }
+            
+            if (indicator) {
+                indicator.classList.remove('active');
+                if (mod.state === 'running' || mod.state === 'starting') {
+                    indicator.classList.add('active');
+                }
             }
         });
+        
+        const outputCard = document.getElementById('card-output');
+        const outputIndicator = document.getElementById('indicator-output');
+        const outputDot = document.getElementById('status-video_muxer');
+        
+        if (pipelineState === 'running' || pipelineState === 'starting') {
+            if (outputCard) outputCard.classList.add('active');
+            if (outputIndicator) outputIndicator.classList.add('active');
+            if (outputDot) {
+                outputDot.classList.remove('disabled', 'error');
+                outputDot.classList.add('running');
+            }
+        } else {
+            if (outputCard) outputCard.classList.remove('active');
+            if (outputIndicator) outputIndicator.classList.remove('active');
+            if (outputDot) {
+                outputDot.classList.remove('running');
+                outputDot.classList.add('disabled');
+            }
+        }
+        
+        const inputCard = document.getElementById('card-input');
+        const inputIndicator = document.getElementById('indicator-input');
+        if ((pipelineState === 'running' || pipelineState === 'starting') && data.input_receiving) {
+            if (inputCard) inputCard.classList.add('active');
+            if (inputIndicator) inputIndicator.classList.add('active');
+        } else {
+            if (inputCard) inputCard.classList.remove('active');
+            if (inputIndicator) inputIndicator.classList.remove('active');
+        }
     }
 
-    // Load status
     async function loadStatus() {
         try {
-            const status = await apiCall('GET', '/status');
+            const status = await apiCall('GET', '/api/status');
             updatePipelineUI(status.state);
             updateModuleStatus(status);
             
-            if (status.input_receiving) {
-                document.getElementById('card-input').classList.add('active');
-                document.getElementById('indicator-input').classList.add('active');
+            const inputCard = document.getElementById('card-input');
+            const inputIndicator = document.getElementById('indicator-input');
+            if (status.state === 'running' && status.input_receiving) {
+                if (inputCard) inputCard.classList.add('active');
+                if (inputIndicator) inputIndicator.classList.add('active');
+            } else {
+                if (inputCard) inputCard.classList.remove('active');
+                if (inputIndicator) inputIndicator.classList.remove('active');
+            }
+            
+            if (status.network && status.network.local_ip) {
+                updateUrls(status.network.local_ip);
             }
         } catch (e) {}
     }
 
-    // Pipeline controls
+    function applyConfigToUI() {
+        if (config.input) {
+            document.getElementById('input-type').value = config.input.type || 'srt';
+            if (config.input.srt) {
+                document.getElementById('input-port').value = config.input.srt.listen_port || 9000;
+                document.getElementById('input-latency').value = config.input.srt.latency_ms || 1000;
+            }
+        }
+        
+        if (config.output) {
+            document.getElementById('output-type').value = config.output.type || 'web';
+            if (config.output.web) {
+                document.getElementById('output-segment').value = config.output.web.segment_duration || 15;
+            }
+        }
+        
+        const modules = config.modules || {};
+        
+        if (modules.translator) {
+            const translateEnabled = document.getElementById('translate-enabled');
+            if (translateEnabled) translateEnabled.checked = modules.translator.enabled;
+            document.getElementById('translate-source').value = modules.translator.source_lang || 'en';
+            document.getElementById('translate-target').value = modules.translator.target_lang || 'es';
+        }
+        
+        if (modules.subtitle_generator) {
+            const subtitleEnabled = document.getElementById('subtitle-enabled');
+            if (subtitleEnabled) subtitleEnabled.checked = modules.subtitle_generator.enabled;
+            document.getElementById('subtitle-format').value = modules.subtitle_generator.format || 'srt';
+            document.getElementById('subtitle-use-translated').value = String(modules.subtitle_generator.use_translated || true);
+        }
+        
+        const dubEnabled = modules.tts_engine?.enabled || modules.audio_mixer?.enabled;
+        document.getElementById('dub-enabled').checked = dubEnabled;
+        if (modules.tts_engine) {
+            document.getElementById('dub-voice').value = modules.tts_engine.voice || 'es-ES-AlvaroNeural';
+            document.getElementById('dub-speed').value = modules.tts_engine.speed || 1.0;
+        }
+        
+        if (modules.transcriber) {
+            document.getElementById('adv-whisper-enabled').checked = modules.transcriber.enabled;
+            document.getElementById('adv-model').value = modules.transcriber.model || 'tiny';
+            document.getElementById('adv-lang').value = modules.transcriber.language || 'auto';
+            document.getElementById('adv-device').value = modules.transcriber.device || 'auto';
+        }
+        
+        if (modules.video_muxer) {
+            document.getElementById('adv-seg').value = modules.video_muxer.hls_segment_duration || 15;
+            document.getElementById('adv-list').value = modules.video_muxer.hls_list_size || 6;
+        }
+        
+        toggleTranslate();
+        toggleDub();
+        toggleSubtitle();
+        updateInputFields();
+    }
+
     async function startPipeline() {
         const btn = document.getElementById('btn-start');
         btn.disabled = true;
         try {
+            await saveConfig(true);
             await apiCall('POST', '/api/start');
             addLog('info', 'Pipeline iniciado');
             showToast('Pipeline iniciado', 'success');
@@ -747,14 +883,39 @@ import ProcessCard from '../components/ProcessCard.astro';
         btnStop.disabled = state !== 'running';
     }
 
-    // Config
-    async function saveConfig() {
+    async function saveConfig(silent = false) {
+        const modules = {
+            transcriber: {
+                enabled: document.getElementById('adv-whisper-enabled').checked
+            },
+            translator: {
+                enabled: document.getElementById('translate-enabled').checked
+            },
+            subtitle_generator: {
+                enabled: document.getElementById('subtitle-enabled').checked
+            },
+            tts_engine: {
+                enabled: document.getElementById('dub-enabled').checked
+            },
+            audio_mixer: {
+                enabled: document.getElementById('dub-enabled').checked
+            }
+        };
+        
         const update = {
             input: {
                 type: document.getElementById('input-type').value,
                 srt: {
                     listen_port: parseInt(document.getElementById('input-port').value),
-                    latency_ms: parseInt(document.getElementById('input-latency').value)
+                    latency_ms: parseInt(document.getElementById('input-latency').value),
+                    mode: 'listener'
+                }
+            },
+            output: {
+                type: document.getElementById('output-type').value,
+                web: {
+                    segment_duration: parseInt(document.getElementById('output-segment').value),
+                    list_size: 6
                 }
             },
             modules: {
@@ -765,22 +926,24 @@ import ProcessCard from '../components/ProcessCard.astro';
                     device: document.getElementById('adv-device').value
                 },
                 translator: {
-                    enabled: document.getElementById('translate-enabled')?.checked || false,
+                    enabled: document.getElementById('translate-enabled').checked,
                     source_lang: document.getElementById('translate-source').value,
                     target_lang: document.getElementById('translate-target').value
                 },
                 subtitle_generator: {
-                    enabled: document.getElementById('subtitle-enabled')?.checked || false,
+                    enabled: document.getElementById('subtitle-enabled').checked,
                     format: document.getElementById('subtitle-format').value,
                     use_translated: document.getElementById('subtitle-use-translated').value === 'true'
                 },
                 tts_engine: {
-                    enabled: document.getElementById('dub-enabled')?.checked || false,
+                    enabled: document.getElementById('dub-enabled').checked,
                     voice: document.getElementById('dub-voice').value,
                     speed: parseFloat(document.getElementById('dub-speed').value)
                 },
                 audio_mixer: {
-                    enabled: document.getElementById('dub-enabled')?.checked || false
+                    enabled: document.getElementById('dub-enabled').checked,
+                    original_volume: 0.4,
+                    dubbed_volume: 1.8
                 },
                 video_muxer: {
                     enabled: true,
@@ -791,54 +954,114 @@ import ProcessCard from '../components/ProcessCard.astro';
         };
 
         try {
-            await apiCall('PUT', '/config', { config: update });
-            addLog('info', 'Configuración guardada');
-            showToast('Configuración guardada', 'success');
+            const result = await apiCall('PUT', '/api/config', { config: update });
+            config = result.config;
+            updateUrls();
+            if (!silent) {
+                addLog('info', 'Configuración guardada');
+                showToast('Configuración guardada', 'success');
+            }
         } catch (e) {
             addLog('error', 'Error guardando: ' + e.message);
             showToast('Error: ' + e.message, 'error');
+            throw e;
         }
-    }
-
-    // Toggle functions
-    function toggleAdvanced() {
-        document.getElementById('advanced-section').classList.toggle('expanded');
     }
 
     function toggleTranslate() {
         const enabled = document.getElementById('translate-enabled').checked;
-        document.getElementById('card-translate').classList.toggle('disabled', !enabled);
-        document.getElementById('translate-settings').style.opacity = enabled ? '1' : '0.5';
+        const card = document.getElementById('card-translate');
+        const settings = document.getElementById('translate-settings');
+        if (card) card.classList.toggle('disabled', !enabled);
+        if (settings) settings.style.opacity = enabled ? '1' : '0.5';
+        
+        if (!enabled) {
+            const subtitleEnabled = document.getElementById('subtitle-enabled');
+            const dubEnabled = document.getElementById('dub-enabled');
+            if (subtitleEnabled && subtitleEnabled.checked) {
+                subtitleEnabled.checked = false;
+                toggleSubtitle();
+                showToast('Subtítulos desactivado (requiere traducción)', 'warning');
+            }
+            if (dubEnabled && dubEnabled.checked) {
+                dubEnabled.checked = false;
+                toggleDub();
+                showToast('Doblaje desactivado (requiere traducción)', 'warning');
+            }
+        }
     }
 
     function toggleDub() {
         const enabled = document.getElementById('dub-enabled').checked;
-        document.getElementById('card-dub').classList.toggle('disabled', !enabled);
-        document.getElementById('dub-settings').style.opacity = enabled ? '1' : '0.5';
+        const card = document.getElementById('card-dub');
+        const settings = document.getElementById('dub-settings');
+        if (card) card.classList.toggle('disabled', !enabled);
+        if (settings) settings.style.opacity = enabled ? '1' : '0.5';
+        
+        if (enabled && !document.getElementById('translate-enabled').checked) {
+            document.getElementById('translate-enabled').checked = true;
+            toggleTranslate();
+            showToast('Traducción activado automáticamente para doblaje', 'info');
+        }
     }
 
     function toggleSubtitle() {
         const enabled = document.getElementById('subtitle-enabled').checked;
-        document.getElementById('card-subtitle').classList.toggle('disabled', !enabled);
-        document.getElementById('subtitle-settings').style.opacity = enabled ? '1' : '0.5';
+        const card = document.getElementById('card-subtitle');
+        const settings = document.getElementById('subtitle-settings');
+        if (card) card.classList.toggle('disabled', !enabled);
+        if (settings) settings.style.opacity = enabled ? '1' : '0.5';
+        
+        if (enabled && !document.getElementById('translate-enabled').checked) {
+            document.getElementById('translate-enabled').checked = true;
+            toggleTranslate();
+            showToast('Traducción activado automáticamente para subtítulos', 'info');
+        }
     }
 
-    // Logs
+    function updateUrls(serverIp) {
+        const port = document.getElementById('input-port').value || 9000;
+        const latency = document.getElementById('input-latency').value || 1000;
+        const latencyUs = latency * 1000;
+        const ip = serverIp || window.location.hostname;
+        
+        const srtUrl = `srt://${ip}:${port}?mode=caller&latency=${latencyUs}`;
+        document.getElementById('url-srt').textContent = srtUrl;
+        
+        document.getElementById('url-stream').textContent = `http://${ip}:9999/hls/stream.m3u8`;
+        
+        const playerUrl = `http://${ip}:9999/player`;
+        const playerLink = document.getElementById('url-player');
+        playerLink.textContent = playerUrl;
+        playerLink.href = playerUrl;
+    }
+
+    function updateInputFields() {
+        const type = document.getElementById('input-type').value;
+        const portGroup = document.getElementById('input-port-group');
+        const latencyGroup = document.getElementById('input-latency-group');
+        if (portGroup) portGroup.style.display = type === 'srt' ? 'block' : 'none';
+        if (latencyGroup) latencyGroup.style.display = type === 'srt' ? 'block' : 'none';
+    }
+
     function addLog(level, message) {
         const container = document.getElementById('logs-container');
+        const time = new Date().toLocaleTimeString();
         const entry = document.createElement('div');
         entry.className = `log-entry ${level}`;
-        const time = new Date().toLocaleTimeString();
         entry.textContent = `[${time}] ${message}`;
         container.appendChild(entry);
         container.scrollTop = container.scrollHeight;
+        
+        while (container.children.length > 100) {
+            container.removeChild(container.firstChild);
+        }
     }
 
     function clearLogs() {
         document.getElementById('logs-container').innerHTML = '';
     }
 
-    // Toast
     function showToast(message, type = 'info') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
@@ -848,7 +1071,6 @@ import ProcessCard from '../components/ProcessCard.astro';
         setTimeout(() => toast.remove(), 3000);
     }
 
-    // Copy URL
     function copyUrl(type) {
         let text;
         if (type === 'srt') {
@@ -861,32 +1083,48 @@ import ProcessCard from '../components/ProcessCard.astro';
         navigator.clipboard.writeText(text).then(() => showToast('URL copiada', 'success'));
     }
 
-    // Event listeners
-    document.getElementById('btn-start').addEventListener('click', startPipeline);
-    document.getElementById('btn-stop').addEventListener('click', stopPipeline);
-    document.getElementById('input-port').addEventListener('input', updateUrls);
-    document.getElementById('input-latency').addEventListener('input', updateUrls);
-    document.getElementById('input-type').addEventListener('change', updateInputFields);
-
-    function updateUrls() {
-        const port = document.getElementById('input-port').value || 9000;
-        const latency = document.getElementById('input-latency').value || 1000;
-        const ip = 'TU_IP';
-        document.getElementById('url-srt').textContent = `srt://${ip}:${port}?mode=caller&latency=${latency * 1000}`;
-        document.getElementById('url-stream').textContent = `http://${ip}:9999/hls/stream.m3u8`;
-        document.getElementById('url-player').textContent = `http://${ip}:9999/player`;
-    }
-
-    function updateInputFields() {
-        const type = document.getElementById('input-type').value;
-        document.getElementById('input-port-group').style.display = type === 'srt' ? 'block' : 'none';
-        document.getElementById('input-latency-group').style.display = type === 'srt' ? 'block' : 'none';
-    }
-
     // Init
-    window.addEventListener('DOMContentLoaded', () => {
-        loadStatus();
-        connectWebSocket();
-        updateInputFields();
+    window.addEventListener('DOMContentLoaded', async () => {
+        addLog('info', 'Inicializando...');
+        
+        try {
+            config = await apiCall('GET', '/api/config');
+            applyConfigToUI();
+            
+            const status = await apiCall('GET', '/api/status');
+            updatePipelineUI(status.state);
+            
+            if (status.network && status.network.local_ip) {
+                updateUrls(status.network.local_ip);
+            }
+            
+            connectWebSocket();
+            statusPollInterval = setInterval(loadStatus, 3000);
+            
+            addLog('info', 'Conectado');
+        } catch (e) {
+            addLog('error', 'Error inicializando: ' + e.message);
+        }
+        
+        document.getElementById('btn-start').addEventListener('click', startPipeline);
+        document.getElementById('btn-stop').addEventListener('click', stopPipeline);
+        document.getElementById('input-port').addEventListener('input', updateUrls);
+        document.getElementById('input-latency').addEventListener('input', updateUrls);
+        document.getElementById('input-type').addEventListener('change', updateInputFields);
+        
+        document.getElementById('translate-enabled').addEventListener('change', toggleTranslate);
+        document.getElementById('dub-enabled').addEventListener('change', toggleDub);
+        document.getElementById('subtitle-enabled').addEventListener('change', toggleSubtitle);
+        
+        document.getElementById('advanced-header').addEventListener('click', () => {
+            document.getElementById('advanced-section').classList.toggle('expanded');
+        });
+        
+        document.getElementById('btn-save-config').addEventListener('click', () => saveConfig(false));
+        document.getElementById('btn-clear-logs').addEventListener('click', clearLogs);
+        
+        document.getElementById('btn-copy-srt').addEventListener('click', () => copyUrl('srt'));
+        document.getElementById('btn-copy-stream').addEventListener('click', () => copyUrl('stream'));
+        document.getElementById('btn-copy-player').addEventListener('click', () => copyUrl('player'));
     });
 </script>
