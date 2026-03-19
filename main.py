@@ -42,18 +42,18 @@ def _cleanup_orphan_processes():
     """Cleanup any orphan FFmpeg processes on unexpected shutdown."""
     from core.ffmpeg_utils import cleanup_ffmpeg_processes
     from core.security import cleanup_temporary_files
-    
+
     logger = logging.getLogger("srt2web.cleanup")
     logger.info("Cleaning up orphan processes and temporary files...")
 
     try:
         # Clean up FFmpeg processes
         cleanup_ffmpeg_processes()
-        
+
         # Clean up temporary files
         output_dir = "./output"
         cleanup_temporary_files(output_dir)
-        
+
         logger.info("Cleanup completed successfully")
     except Exception as e:
         logger.warning(f"Cleanup warning: {e}")
@@ -188,57 +188,70 @@ def build_pipeline(config: ConfigManager, output_dir: str):
     audio_mixer = AudioMixer(config=mixer_config, output_dir=output_dir)
     pipeline.register_module(audio_mixer)
 
-    # Note: Output is now handled by the OutputSink, not a module
+    # Note: Output (HLS muxing) is handled by OutputSink, not a pipeline module
 
     return pipeline, input_source
 
 
 def validate_configuration(config):
     """Valida la configuración antes de iniciar el sistema."""
+    logger = logging.getLogger("srt2web.config")
     errors = []
-    
+
     # Validar puertos
     server_port = config.get("server.port", 9999)
     if not (1 <= server_port <= 65535):
         errors.append(f"Puerto del servidor fuera de rango: {server_port}")
-    
+
     srt_port = config.get("input.srt.listen_port", 9000)
     if not (1 <= srt_port <= 65535):
         errors.append(f"Puerto SRT fuera de rango: {srt_port}")
-    
+
     # Validar chunk duration
     chunk_duration = config.get("pipeline.chunk_duration_sec", 10)
     if not (1 <= chunk_duration <= 60):
         errors.append(f"Duración de chunk fuera de rango: {chunk_duration}")
-    
+
     # Validar modelo de transcripción
     model = config.get("modules.transcriber.model", "tiny")
     valid_models = ["tiny", "small", "medium", "large-v2", "large-v3", "large"]
     if model not in valid_models:
         errors.append(f"Modelo de transcripción inválido: {model}")
-    
+
     # Validar idioma
     language = config.get("modules.transcriber.language", "auto")
-    valid_languages = ["auto", "en", "es", "fr", "de", "it", "pt", "ja", "zh", "ko", "ru"]
+    valid_languages = [
+        "auto",
+        "en",
+        "es",
+        "fr",
+        "de",
+        "it",
+        "pt",
+        "ja",
+        "zh",
+        "ko",
+        "ru",
+    ]
     if language not in valid_languages:
         errors.append(f"Idioma inválido: {language}")
-    
+
     # Validar dispositivo
     device = config.get("modules.transcriber.device", "auto")
     valid_devices = ["auto", "cuda", "cpu"]
     if device not in valid_devices:
         errors.append(f"Dispositivo inválido: {device}")
-    
+
     # Validar volúmenes
     original_volume = config.get("modules.audio_mixer.original_volume", 0.7)
     dubbed_volume = config.get("modules.audio_mixer.dubbed_volume", 1.3)
-    
+
     if not (0.0 <= original_volume <= 2.0):
         errors.append(f"Volumen original fuera de rango: {original_volume}")
-    
+
     if not (0.0 <= dubbed_volume <= 2.0):
         errors.append(f"Volumen doblado fuera de rango: {dubbed_volume}")
-    
+
     # Validar rutas de directorios
     output_dir = config.get("output_dir.directory", "./output")
     if not os.path.exists(output_dir):
@@ -247,32 +260,35 @@ def validate_configuration(config):
             logger.info(f"Directorio de salida creado: {output_dir}")
         except Exception as e:
             errors.append(f"No se puede crear el directorio de salida: {e}")
-    
+
     # Validar dependencias
     try:
         import faster_whisper
+
         logger.info("faster-whisper disponible")
     except ImportError:
         errors.append("faster-whisper no está instalado")
-    
+
     try:
         import argostranslate
+
         logger.info("Argos Translate disponible")
     except ImportError:
         errors.append("Argos Translate no está instalado")
-    
+
     try:
         import edge_tts
+
         logger.info("Edge TTS disponible")
     except ImportError:
         errors.append("Edge TTS no está instalado")
-    
+
     if errors:
         logger.error("Errores de configuración:")
         for error in errors:
             logger.error(f"  - {error}")
         raise ValueError("Configuración inválida")
-    
+
     logger.info("Configuración validada exitosamente")
 
 
@@ -291,10 +307,10 @@ def main():
     # Load configuration
     config_path = str(PROJECT_ROOT / "config.yaml")
     config = ConfigManager(config_path)
-    
+
     # Validar configuración antes de continuar
     validate_configuration(config)
-    
+
     logger.info("Configuration loaded and validated")
 
     # Ensure output directory exists

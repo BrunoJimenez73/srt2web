@@ -770,6 +770,7 @@
             <!-- OUTPUT -->
             <div class="process-card" id="card-output">
                 <div class="process-header">
+                    <span class="process-indicator" id="indicator-output"></span>
                     <span class="process-title">📤 OUTPUT</span>
                 </div>
                 <div class="form-group">
@@ -1051,7 +1052,7 @@
                          <div class="module-header">
                              <span class="module-name"><span class="status-dot" id="status-video_muxer"></span> 📦 HLS Muxer</span>
                              <label class="toggle-switch">
-                                 <input type="checkbox" id="adv-muxer-enabled" checked disabled>
+                                 <input type="checkbox" id="adv-muxer-enabled" checked onchange="toggleVideoMuxer()">
                                  <span class="toggle-slider"></span>
                              </label>
                          </div>
@@ -1220,8 +1221,12 @@
                 const status = await apiCall('GET', '/status');
                 updatePipelineUI(status.state);
                 
-                // Update URLs
-                updateUrls();
+                // Update URLs with network info
+                if (status.network && status.network.local_ip) {
+                    updateUrls(status.network.local_ip);
+                } else {
+                    updateUrls(null);
+                }
                 
                 // Connect WebSocket
                 connectWebSocket();
@@ -1285,6 +1290,7 @@
         // Update module status indicators
         function updateModuleStatus(data) {
             const modules = data.modules || [];
+            const pipelineState = data.state || 'idle';
             
             // Module to card/indicator mapping
             const moduleToCard = {
@@ -1292,7 +1298,8 @@
                 'audio_mixer': 'card-dub',
                 'translator': 'card-subtitle',
                 'subtitle_generator': 'card-subtitle',
-                'transcriber': 'card-subtitle'
+                'transcriber': 'card-subtitle',
+                'audio_extractor': 'card-input'
             };
             
             const moduleToIndicator = {
@@ -1300,16 +1307,15 @@
                 'audio_mixer': 'indicator-dub',
                 'translator': 'indicator-subtitle',
                 'subtitle_generator': 'indicator-subtitle',
-                'transcriber': 'indicator-subtitle'
+                'transcriber': 'indicator-subtitle',
+                'audio_extractor': null
             };
             
             modules.forEach(mod => {
                 const statusDot = document.getElementById(`status-${mod.name}`);
                 if (statusDot) {
-                    // Remove all state classes first
                     statusDot.classList.remove('running', 'error', 'disabled');
                     
-                    // Add the appropriate class based on state
                     if (!mod.enabled || mod.state === 'disabled') {
                         statusDot.classList.add('disabled');
                     } else if (mod.state === 'error') {
@@ -1319,7 +1325,6 @@
                     }
                 }
                 
-                // Update process card glow effect
                 const cardId = moduleToCard[mod.name];
                 const indicatorId = moduleToIndicator[mod.name];
                 const card = cardId ? document.getElementById(cardId) : null;
@@ -1339,6 +1344,23 @@
                     }
                 }
             });
+            
+            // Update OUTPUT card based on pipeline state (HLS is always running when pipeline is running)
+            const outputCard = document.getElementById('card-output');
+            const outputIndicator = document.getElementById('indicator-output');
+            const outputDot = document.getElementById('status-video_muxer');
+            
+            if (pipelineState === 'running' || pipelineState === 'starting') {
+                outputCard.classList.add('active');
+                outputIndicator.classList.add('active');
+                outputDot.classList.remove('disabled', 'error');
+                outputDot.classList.add('running');
+            } else {
+                outputCard.classList.remove('active');
+                outputIndicator.classList.remove('active');
+                outputDot.classList.remove('running');
+                outputDot.classList.add('disabled');
+            }
         }
 
         // ── Load Status ──
@@ -1351,6 +1373,10 @@
                 // Update connection URLs if available
                 if (status.input_info) {
                     document.getElementById('url-srt').textContent = status.input_info.url || 'No disponible';
+                    document.getElementById('url-srt').dataset.actualUrl = status.input_info.obs_url || status.input_info.url;
+                }
+                if (status.network && status.network.local_ip) {
+                    updateUrls(status.network.local_ip);
                 }
             } catch (e) {}
         }
@@ -1442,11 +1468,23 @@
         }
 
         // ── Update URLs ──
-        function updateUrls() {
+        function updateUrls(serverIp) {
             const port = document.getElementById('input-port').value || 9000;
             const latency = document.getElementById('input-latency').value || 1000;
-            document.getElementById('url-srt').textContent = `srt://192.168.1.100:${port}?mode=caller&latency=${latency * 1000}`;
-            document.getElementById('url-web').textContent = `localhost:9999/hls/stream.m3u8`;
+            const latencyUs = latency * 1000;
+            const ip = serverIp || 'TU_IP_LOCAL';
+            
+            // OBS/emisores deben conectar como CALLER al servidor
+            const srtUrl = `srt://${ip}:${port}?mode=caller&latency=${latencyUs}`;
+            document.getElementById('url-srt').textContent = srtUrl;
+            document.getElementById('url-srt').dataset.actualUrl = srtUrl;
+            
+            // URLs del servidor
+            const streamUrl = `http://${ip}:9999/hls/stream.m3u8`;
+            document.getElementById('url-stream').textContent = streamUrl;
+            
+            const playerUrl = `http://${ip}:9999/player`;
+            document.getElementById('url-player').textContent = playerUrl;
         }
 
         // ── Pipeline Controls ──
@@ -1579,11 +1617,11 @@
                     showToast('Configuración guardada', 'success');
                 }
             } catch (e) {
-                if (!silent) {
-                    addLog('error', 'Error guardando: ' + e.message);
-                    showToast('Error: ' + e.message, 'error');
-                }
+                addLog('error', 'Error guardando: ' + e.message);
+                showToast('Error: ' + e.message, 'error');
                 throw e;
+            } finally {
+                updateUrls();
             }
         }
 
@@ -1620,6 +1658,15 @@
             document.getElementById('adv-subs-enabled').checked = enabled;
         }
 
+        function toggleVideoMuxer() {
+            const enabled = document.getElementById('adv-muxer-enabled').checked;
+            document.getElementById('mod-video_muxer').classList.toggle('disabled', !enabled);
+            
+            // Sync with main toggle if exists
+            const mainToggle = document.getElementById('output-enabled');
+            if (mainToggle) mainToggle.checked = enabled;
+        }
+
         // ── Logs ──
         function addLog(level, message) {
             const container = document.getElementById('logs-content');
@@ -1641,8 +1688,16 @@
         }
 
         // ── Copy ──
-        function copyToClipboard(id) {
-            navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => showToast('Copiado', 'success'));
+        function copyUrl(type) {
+            let text;
+            if (type === 'srt') {
+                text = document.getElementById('url-srt').dataset.actualUrl || document.getElementById('url-srt').textContent;
+            } else if (type === 'stream') {
+                text = document.getElementById('url-stream').textContent;
+            } else if (type === 'player') {
+                text = document.getElementById('url-player').textContent;
+            }
+            navigator.clipboard.writeText(text).then(() => showToast('URL copiada', 'success'));
         }
 
         // ── Toast ──
