@@ -130,24 +130,60 @@ import ProcessCard from '../components/ProcessCard.astro';
             </ProcessCard>
         </section>
 
-        <!-- URLs -->
-        <section class="urls-section" id="urls-section">
-            <h3>🔗 URLs de Conexión</h3>
-            <div class="urls-grid">
-                <div class="url-card">
-                    <span class="url-label">SRT (OBS)</span>
-                    <span class="url-value" id="url-srt">srt://TU_IP:9000?mode=caller&latency=1000000</span>
-                    <button class="copy-btn" id="btn-copy-srt">📋</button>
+        <!-- Connection Panel -->
+        <section class="connection-section" id="connection-section">
+            <div class="connection-card">
+                <div class="connection-mode-header">
+                    <span class="connection-mode-title">📡 Conexión SRT</span>
+                    <div class="mode-selector">
+                        <button class="mode-btn active" data-mode="local" id="btn-mode-local">🏠 LOCAL</button>
+                        <button class="mode-btn" data-mode="remote" id="btn-mode-remote">🌐 REMOTE</button>
+                    </div>
                 </div>
-                <div class="url-card">
-                    <span class="url-label">Stream HLS</span>
-                    <span class="url-value" id="url-stream">http://TU_IP:9999/hls/stream.m3u8</span>
-                    <button class="copy-btn" id="btn-copy-stream">📋</button>
+                
+                <!-- Remote Config (shown only in remote mode) -->
+                <div class="remote-config" id="remote-config" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label">Emisor SRT Address</label>
+                        <input type="text" class="form-input" id="emitter-address" placeholder="203.0.113.xx" />
+                    </div>
                 </div>
-                <div class="url-card">
-                    <span class="url-label">Player</span>
-                    <a class="url-value" id="url-player" href="http://TU_IP:9999/player" target="_blank">http://TU_IP:9999/player</a>
-                    <button class="copy-btn" id="btn-copy-player">📋</button>
+                
+                <!-- IP Info -->
+                <div class="ip-info">
+                    <div class="ip-row">
+                        <span class="ip-label">Local:</span>
+                        <code class="ip-value" id="local-ip">Detectando...</code>
+                    </div>
+                    <div class="ip-row">
+                        <span class="ip-label">Public:</span>
+                        <code class="ip-value" id="public-ip">Detectando...</code>
+                        <span class="ip-warning" id="public-ip-warning" style="display: none;">⚠️</span>
+                    </div>
+                </div>
+                
+                <!-- Connection URLs -->
+                <div class="connection-urls">
+                    <div class="url-row">
+                        <span class="url-label">SRT:</span>
+                        <code class="url-value" id="url-srt">srt://...</code>
+                        <button class="btn-copy-small" id="btn-copy-srt">📋</button>
+                    </div>
+                    <div class="url-row">
+                        <span class="url-label">Stream:</span>
+                        <code class="url-value" id="url-stream">http://...</code>
+                        <button class="btn-copy-small" id="btn-copy-stream">📋</button>
+                    </div>
+                    <div class="url-row">
+                        <span class="url-label">Player:</span>
+                        <code class="url-value" id="url-player">http://...</code>
+                        <button class="btn-copy-small" id="btn-copy-player">📋</button>
+                    </div>
+                </div>
+                
+                <!-- Warning for no public IP -->
+                <div class="connection-warning" id="connection-warning" style="display: none;">
+                    ⚠️ No se detectó IP pública. Usando IP local. El emisor debe estar en la misma red.
                 </div>
             </div>
         </section>
@@ -373,6 +409,145 @@ import ProcessCard from '../components/ProcessCard.astro';
         cursor: pointer;
         padding: 4px;
         font-size: 14px;
+    }
+
+    /* Connection Section */
+    .connection-section {
+        margin-bottom: 16px;
+    }
+
+    .connection-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-dim);
+        border-radius: var(--radius-md);
+        padding: 12px;
+    }
+
+    .connection-mode-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .connection-mode-title {
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .mode-selector {
+        display: flex;
+        gap: 4px;
+    }
+
+    .mode-btn {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-dim);
+        border-radius: var(--radius-sm);
+        padding: 6px 12px;
+        font-size: 10px;
+        color: var(--text-sec);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .mode-btn:hover {
+        border-color: var(--accent);
+    }
+
+    .mode-btn.active {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: white;
+    }
+
+    .remote-config {
+        margin-bottom: 12px;
+        padding: 8px;
+        background: var(--bg-surface);
+        border-radius: var(--radius-sm);
+    }
+
+    .ip-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 12px;
+    }
+
+    .ip-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .ip-label {
+        font-size: 10px;
+        color: var(--text-sec);
+        min-width: 50px;
+    }
+
+    .ip-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: var(--accent);
+        background: var(--bg-surface);
+        padding: 2px 6px;
+        border-radius: 3px;
+    }
+
+    .ip-warning {
+        font-size: 12px;
+    }
+
+    .connection-urls {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .url-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--bg-surface);
+        padding: 6px 8px;
+        border-radius: var(--radius-sm);
+    }
+
+    .url-row .url-label {
+        font-size: 10px;
+        color: var(--text-sec);
+        min-width: 45px;
+    }
+
+    .url-row .url-value {
+        flex: 1;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        color: var(--text-prime);
+    }
+
+    .btn-copy-small {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 12px;
+        padding: 2px 4px;
+    }
+
+    .btn-copy-small:hover {
+        opacity: 0.7;
+    }
+
+    .connection-warning {
+        margin-top: 10px;
+        padding: 8px;
+        background: rgba(245, 158, 11, 0.1);
+        border: 1px solid var(--warning);
+        border-radius: var(--radius-sm);
+        font-size: 10px;
+        color: var(--warning);
     }
 
     .advanced-section {
@@ -631,6 +806,8 @@ import ProcessCard from '../components/ProcessCard.astro';
     let ws = null;
     let wsReconnectCount = 0;
     let statusPollInterval = null;
+    let networkInfo = null;
+    let connectionMode = 'local';
 
     // API calls
     async function apiCall(method, path, body = null) {
@@ -639,6 +816,92 @@ import ProcessCard from '../components/ProcessCard.astro';
         const res = await fetch(path, options);
         if (!res.ok) throw new Error(await res.text());
         return res.json();
+    }
+
+    // Network info
+    async function loadNetworkInfo() {
+        try {
+            const response = await apiCall('GET', '/api/network/info');
+            networkInfo = response;
+            updateNetworkDisplay();
+            updateConnectionUrls();
+        } catch (e) {
+            console.warn('Could not load network info:', e);
+            networkInfo = {
+                local_ip: '127.0.0.1',
+                public_ip: null,
+                srt_port: 9000,
+                server_port: 9999
+            };
+            updateNetworkDisplay();
+            updateConnectionUrls();
+        }
+    }
+
+    function updateNetworkDisplay() {
+        if (!networkInfo) return;
+        
+        document.getElementById('local-ip').textContent = networkInfo.local_ip || 'N/A';
+        
+        const publicIpEl = document.getElementById('public-ip');
+        const warningEl = document.getElementById('public-ip-warning');
+        const warningBox = document.getElementById('connection-warning');
+        
+        if (networkInfo.public_ip) {
+            publicIpEl.textContent = networkInfo.public_ip;
+            warningEl.style.display = 'none';
+            warningBox.style.display = 'none';
+        } else {
+            publicIpEl.textContent = 'No detectada';
+            warningEl.style.display = 'inline';
+            warningBox.style.display = 'block';
+        }
+    }
+
+    function setConnectionMode(mode) {
+        connectionMode = mode;
+        
+        document.getElementById('btn-mode-local').classList.toggle('active', mode === 'local');
+        document.getElementById('btn-mode-remote').classList.toggle('active', mode === 'remote');
+        
+        const remoteConfig = document.getElementById('remote-config');
+        if (mode === 'remote') {
+            remoteConfig.style.display = 'block';
+        } else {
+            remoteConfig.style.display = 'none';
+        }
+        
+        updateConnectionUrls();
+    }
+
+    function updateConnectionUrls() {
+        if (!networkInfo) return;
+        
+        const srtPort = document.getElementById('input-port')?.value || networkInfo.srt_port || 9000;
+        const latency = document.getElementById('input-latency')?.value || 1000;
+        const latencyUs = latency * 1000;
+        
+        if (connectionMode === 'local') {
+            const ip = networkInfo.public_ip || networkInfo.local_ip;
+            document.getElementById('url-srt').textContent = 
+                `srt://${ip}:${srtPort}?mode=listener&latency=${latencyUs}`;
+        } else {
+            const emitterIp = document.getElementById('emitter-address')?.value;
+            if (emitterIp && emitterIp.trim()) {
+                document.getElementById('url-srt').textContent = 
+                    `srt://${emitterIp}:${srtPort}?mode=caller&latency=${latencyUs}`;
+            } else {
+                document.getElementById('url-srt').textContent = 
+                    `srt://EMITTER_IP:${srtPort}?mode=caller&latency=${latencyUs}`;
+            }
+        }
+        
+        const ip = networkInfo.public_ip || networkInfo.local_ip;
+        const serverPort = networkInfo.server_port || 9999;
+        document.getElementById('url-stream').textContent = 
+            `http://${ip}:${serverPort}/hls/stream.m3u8`;
+        document.getElementById('url-player').textContent = 
+            `http://${ip}:${serverPort}/player`;
     }
 
     // WebSocket connection
@@ -1019,23 +1282,6 @@ import ProcessCard from '../components/ProcessCard.astro';
         }
     }
 
-    function updateUrls(serverIp) {
-        const port = document.getElementById('input-port').value || 9000;
-        const latency = document.getElementById('input-latency').value || 1000;
-        const latencyUs = latency * 1000;
-        const ip = serverIp || window.location.hostname;
-        
-        const srtUrl = `srt://${ip}:${port}?mode=caller&latency=${latencyUs}`;
-        document.getElementById('url-srt').textContent = srtUrl;
-        
-        document.getElementById('url-stream').textContent = `http://${ip}:9999/hls/stream.m3u8`;
-        
-        const playerUrl = `http://${ip}:9999/player`;
-        const playerLink = document.getElementById('url-player');
-        playerLink.textContent = playerUrl;
-        playerLink.href = playerUrl;
-    }
-
     function updateInputFields() {
         const type = document.getElementById('input-type').value;
         const portGroup = document.getElementById('input-port-group');
@@ -1071,16 +1317,34 @@ import ProcessCard from '../components/ProcessCard.astro';
         setTimeout(() => toast.remove(), 3000);
     }
 
-    function copyUrl(type) {
-        let text;
-        if (type === 'srt') {
-            text = document.getElementById('url-srt').textContent;
-        } else if (type === 'stream') {
-            text = document.getElementById('url-stream').textContent;
-        } else if (type === 'player') {
-            text = document.getElementById('url-player').textContent;
+    async function copyUrl(type) {
+        let url;
+        switch (type) {
+            case 'srt':
+                url = document.getElementById('url-srt').textContent;
+                break;
+            case 'stream':
+                url = document.getElementById('url-stream').textContent;
+                break;
+            case 'player':
+                url = document.getElementById('url-player').textContent;
+                break;
+            default:
+                return;
         }
-        navigator.clipboard.writeText(text).then(() => showToast('URL copiada', 'success'));
+        
+        try {
+            await navigator.clipboard.writeText(url);
+            showToast(`${type.toUpperCase()} URL copiada`, 'success');
+        } catch (e) {
+            const textarea = document.createElement('textarea');
+            textarea.value = url;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast(`${type.toUpperCase()} URL copiada`, 'success');
+        }
     }
 
     // Init
@@ -1094,9 +1358,7 @@ import ProcessCard from '../components/ProcessCard.astro';
             const status = await apiCall('GET', '/api/status');
             updatePipelineUI(status.state);
             
-            if (status.network && status.network.local_ip) {
-                updateUrls(status.network.local_ip);
-            }
+            await loadNetworkInfo();
             
             connectWebSocket();
             statusPollInterval = setInterval(loadStatus, 3000);
@@ -1108,8 +1370,8 @@ import ProcessCard from '../components/ProcessCard.astro';
         
         document.getElementById('btn-start').addEventListener('click', startPipeline);
         document.getElementById('btn-stop').addEventListener('click', stopPipeline);
-        document.getElementById('input-port').addEventListener('input', updateUrls);
-        document.getElementById('input-latency').addEventListener('input', updateUrls);
+        document.getElementById('input-port').addEventListener('input', updateConnectionUrls);
+        document.getElementById('input-latency').addEventListener('input', updateConnectionUrls);
         document.getElementById('input-type').addEventListener('change', updateInputFields);
         
         document.getElementById('translate-enabled').addEventListener('change', toggleTranslate);
@@ -1126,5 +1388,9 @@ import ProcessCard from '../components/ProcessCard.astro';
         document.getElementById('btn-copy-srt').addEventListener('click', () => copyUrl('srt'));
         document.getElementById('btn-copy-stream').addEventListener('click', () => copyUrl('stream'));
         document.getElementById('btn-copy-player').addEventListener('click', () => copyUrl('player'));
+        
+        document.getElementById('btn-mode-local').addEventListener('click', () => setConnectionMode('local'));
+        document.getElementById('btn-mode-remote').addEventListener('click', () => setConnectionMode('remote'));
+        document.getElementById('emitter-address').addEventListener('input', updateConnectionUrls);
     });
 </script>
