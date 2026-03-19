@@ -3,6 +3,88 @@ import requests
 from pathlib import Path
 import pytest
 import traceback
+from fastapi.testclient import TestClient
+from unittest.mock import MagicMock
+
+
+@pytest.fixture
+def mock_module():
+    """Create a mock module for testing."""
+    from core.module_base import BaseModule, ModuleState, PipelineData
+
+    class MockModule(BaseModule):
+        def __init__(self, name):
+            super().__init__(name)
+            self._mock_process_data = None
+
+        def start(self):
+            self._state = ModuleState.RUNNING
+
+        def stop(self):
+            self._state = ModuleState.IDLE
+
+        def _do_process(self, data):
+            if self._mock_process_data:
+                for key, value in self._mock_process_data.items():
+                    setattr(data, key, value)
+            return data
+
+    return MockModule
+
+
+@pytest.fixture
+def mock_pipeline(mock_module):
+    """Create a mock pipeline for testing."""
+    from core.pipeline import Pipeline
+    from core.module_base import ModuleState
+
+    pipeline = Pipeline()
+
+    module = mock_module("test_module")
+    pipeline.register_module(module)
+
+    pipeline._state = "running"
+    pipeline._chunk_index = 0
+
+    pipeline.input_source = MagicMock()
+    pipeline.input_source.is_receiving.return_value = True
+    pipeline.input_source.name = "srt"
+
+    pipeline.output_sink = MagicMock()
+    pipeline.output_sink.is_streaming.return_value = True
+    pipeline.output_sink.name = "hls"
+
+    return pipeline
+
+
+@pytest.fixture
+def mock_config():
+    """Create a mock config for testing."""
+    return {
+        "server": {"host": "0.0.0.0", "port": 9999},
+        "modules": {
+            "transcriber": {"model": "tiny", "device": "cpu"},
+            "translator": {"source_lang": "en", "target_lang": "es"},
+        },
+        "_start_time": 1000.0,
+    }
+
+
+@pytest.fixture
+def client(mock_pipeline, mock_config):
+    """Create a test client for API testing."""
+    from server.app import create_app
+
+    app = create_app(
+        {
+            "config": mock_config,
+            "pipeline": mock_pipeline,
+            "input_source": mock_pipeline.input_source,
+            "log_broadcast": MagicMock(),
+        }
+    )
+
+    return TestClient(app)
 
 
 def pytest_sessionstart(session):
