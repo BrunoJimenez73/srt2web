@@ -669,11 +669,12 @@ import ProcessCard from '../components/ProcessCard.astro';
         const latencyUs = latency * 1000;
         
         if (connectionMode === 'local') {
-            const localIp = networkInfo.local_ip;
-            urlSrt.textContent = `srt://${localIp}:${srtPort}?mode=listener&latency=${latencyUs}`;
-            urlStream.textContent = `http://${localIp}:9999/hls/stream.m3u8`;
-            urlPlayer.textContent = `http://${localIp}:9999/player`;
+            // Modo LOCAL: usar 127.0.0.1 para acceso local
+            urlSrt.textContent = `srt://127.0.0.1:${srtPort}?mode=listener&latency=${latencyUs}`;
+            urlStream.textContent = `http://127.0.0.1:9999/hls/stream.m3u8`;
+            urlPlayer.textContent = `http://127.0.0.1:9999/player`;
         } else {
+            // Modo REMOTE: usar IP pública para Stream/Player, y modo caller para SRT
             const publicIp = networkInfo.public_ip || networkInfo.local_ip;
             const emitterIp = document.getElementById('emitter-address')?.value;
             
