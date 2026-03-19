@@ -1,0 +1,98 @@
+---
+interface Props {
+  state?: string;
+}
+
+const { state = 'idle' } = Astro.props;
+---
+
+<div class="status-card">
+    <div class="status-left">
+        <span class="status-dot" id="status-dot" class:list={{ running: state === 'running' }}></span>
+        <span class="status-text" id="status-text">{state === 'running' ? 'ACTIVO' : 'APAGADO'}</span>
+    </div>
+    <div class="status-right">
+        <button class="btn-stop" id="btn-stop" disabled>⏹ Detener</button>
+        <button class="btn-start" id="btn-start">▶ Iniciar</button>
+    </div>
+</div>
+
+<style>
+    .status-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-dim);
+        border-radius: var(--radius-md);
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+
+    .status-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .status-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--text-dim);
+    }
+
+    .status-dot.running {
+        background: #00ff00;
+        box-shadow: 0 0 8px #00ff00, 0 0 15px #00ff00, 0 0 25px #00ff00;
+        animation: phosphor-pulse 1.5s ease-in-out infinite;
+    }
+
+    .status-text {
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .status-right {
+        display: flex;
+        gap: 8px;
+    }
+
+    .btn-start, .btn-stop {
+        padding: 8px 16px;
+        border-radius: var(--radius-sm);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+    }
+
+    .btn-start {
+        background: var(--success);
+        color: white;
+    }
+
+    .btn-start:hover {
+        background: #0ea571;
+    }
+
+    .btn-start:disabled {
+        background: var(--text-dim);
+        cursor: not-allowed;
+    }
+
+    .btn-stop {
+        background: var(--error);
+        color: white;
+    }
+
+    .btn-stop:hover {
+        background: #dc2626;
+    }
+
+    .btn-stop:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+</style>

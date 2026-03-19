@@ -212,11 +212,13 @@ def validate_configuration(config):
     if not (1 <= chunk_duration <= 60):
         errors.append(f"Duración de chunk fuera de rango: {chunk_duration}")
 
-    # Validar modelo de transcripción
-    model = config.get("modules.transcriber.model", "tiny")
-    valid_models = ["tiny", "small", "medium", "large-v2", "large-v3", "large"]
-    if model not in valid_models:
-        errors.append(f"Modelo de transcripción inválido: {model}")
+    # Validar transcriber solo si está habilitado
+    transcriber_enabled = config.get("modules.transcriber.enabled", True)
+    if transcriber_enabled:
+        model = config.get("modules.transcriber.model", "tiny")
+        valid_models = ["tiny", "small", "medium", "large-v2", "large-v3", "large"]
+        if model not in valid_models:
+            errors.append(f"Modelo de transcripción inválido: {model}")
 
     # Validar idioma
     language = config.get("modules.transcriber.language", "auto")
@@ -282,6 +284,25 @@ def validate_configuration(config):
         logger.info("Edge TTS disponible")
     except ImportError:
         errors.append("Edge TTS no está instalado")
+
+    # Validar dependencias de módulos
+    modules = config.to_dict().get("modules", {})
+    translator_enabled = modules.get("translator", {}).get("enabled", False)
+    subtitle_enabled = modules.get("subtitle_generator", {}).get("enabled", False)
+    tts_enabled = modules.get("tts_engine", {}).get("enabled", False)
+    mixer_enabled = modules.get("audio_mixer", {}).get("enabled", False)
+
+    if subtitle_enabled and not translator_enabled:
+        errors.append("Subtítulos requiere que Traducción esté activo")
+
+    if tts_enabled and not translator_enabled:
+        errors.append("Doblaje (TTS) requiere que Traducción esté activo")
+
+    if mixer_enabled:
+        if not translator_enabled:
+            errors.append("Mezcla de audio requiere que Traducción esté activo")
+        if not tts_enabled:
+            errors.append("Mezcla de audio requiere que Doblaje (TTS) esté activo")
 
     if errors:
         logger.error("Errores de configuración:")

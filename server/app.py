@@ -22,6 +22,7 @@ logger = logging.getLogger("srt2web.server")
 PROJECT_ROOT = Path(__file__).parent.parent
 WEB_DIR = PROJECT_ROOT / "web"
 OUTPUT_DIR = PROJECT_ROOT / "output"
+ASTRO_DIST_DIR = PROJECT_ROOT / "frontend" / "dist"
 
 
 def create_app(app_context: dict) -> FastAPI:
@@ -62,7 +63,7 @@ def create_app(app_context: dict) -> FastAPI:
         if "*" in origin:
             # Convert localhost:* patterns to actual available ports
             base = origin.replace(":*", "")
-            for port in [3000, 5173, 8080, 8089, 8000, 9999]:
+            for port in [3000, 3001, 5173, 8080, 8089, 8000, 9999]:
                 allowed_origins.append(f"{base}:{port}")
         else:
             allowed_origins.append(origin)
@@ -96,9 +97,22 @@ def create_app(app_context: dict) -> FastAPI:
         app.mount("/css", StaticFiles(directory=str(WEB_DIR / "css")), name="css")
         app.mount("/js", StaticFiles(directory=str(WEB_DIR / "js")), name="js")
 
-    # Root — serve index.html
+    # Serve Astro build assets
+    if ASTRO_DIST_DIR.exists():
+        app.mount(
+            "/_astro",
+            StaticFiles(directory=str(ASTRO_DIST_DIR / "_astro")),
+            name="astro-assets",
+        )
+
+    # Root — serve index.html from Astro build
     @app.get("/")
     async def serve_index():
+        # Try Astro dist first, fallback to web
+        if ASTRO_DIST_DIR.exists():
+            index_path = ASTRO_DIST_DIR / "index.html"
+            if index_path.exists():
+                return FileResponse(str(index_path), media_type="text/html")
         index_path = WEB_DIR / "index.html"
         if index_path.exists():
             return FileResponse(str(index_path), media_type="text/html")

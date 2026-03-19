@@ -1,0 +1,892 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import StatusCard from '../components/StatusCard.astro';
+import ProcessCard from '../components/ProcessCard.astro';
+---
+
+<BaseLayout title="SRT2Web — Dashboard v0.4">
+    <div class="dashboard">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="2" y="8" width="28" height="16" rx="2" fill="#6366f1"/>
+                    <path d="M8 12h4v8H8z" fill="white"/>
+                    <path d="M14 12h4v8h-4z" fill="white" opacity="0.7"/>
+                    <path d="M20 12h4v8h-4z" fill="white" opacity="0.4"/>
+                    <circle cx="26" cy="24" r="4" fill="#10b981"/>
+                    <path d="M24.5 24l1 1 2-2" stroke="white" stroke-width="1.5"/>
+                </svg>
+                <span class="logo-text">SRT2Web</span>
+                <span class="version-badge">v0.4</span>
+            </div>
+            <div class="header-info">
+                <span id="version-info">Pipeline Modular</span>
+            </div>
+        </header>
+
+        <!-- Status -->
+        <StatusCard id="status" />
+
+        <!-- Process Grid -->
+        <section class="process-grid">
+            <!-- INPUT -->
+            <ProcessCard id="input" icon="📥" title="INPUT">
+                <div class="form-group">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-select" id="input-type">
+                        <option value="srt">SRT</option>
+                        <option value="file">Archivo</option>
+                    </select>
+                </div>
+                <div class="form-group" id="input-port-group">
+                    <label class="form-label">Puerto</label>
+                    <input type="number" class="form-input" id="input-port" value="9000" />
+                </div>
+                <div class="form-group" id="input-latency-group">
+                    <label class="form-label">Latencia (ms)</label>
+                    <input type="number" class="form-input" id="input-latency" value="1000" />
+                </div>
+            </ProcessCard>
+
+            <!-- TRADUCIR -->
+            <ProcessCard id="translate" icon="🌐" title="TRADUCIR" hasToggle={true}>
+                <div class="form-group">
+                    <label class="form-label">Origen</label>
+                    <select class="form-select" id="translate-source">
+                        <option value="auto">Auto (Detectar)</option>
+                        <option value="es">Español</option>
+                        <option value="en" selected>Inglés</option>
+                        <option value="fr">Francés</option>
+                        <option value="de">Alemán</option>
+                        <option value="it">Italiano</option>
+                        <option value="pt">Portugués</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Destino</label>
+                    <select class="form-select" id="translate-target">
+                        <option value="es" selected>Español</option>
+                        <option value="en">Inglés</option>
+                        <option value="fr">Francés</option>
+                        <option value="de">Alemán</option>
+                        <option value="it">Italiano</option>
+                        <option value="pt">Portugués</option>
+                    </select>
+                </div>
+            </ProcessCard>
+
+            <!-- DOBLAR -->
+            <ProcessCard id="dub" icon="🗣" title="DOBLAR" hasToggle={true}>
+                <div class="form-group">
+                    <label class="form-label">Voz</label>
+                    <select class="form-select" id="dub-voice">
+                        <option value="es-ES-AlvaroNeural">ES - Álvaro</option>
+                        <option value="es-ES-ElviraNeural">ES - Elvira</option>
+                        <option value="en-US-AriaNeural">EN - Aria</option>
+                        <option value="en-US-GuyNeural">EN - Guy</option>
+                        <option value="fr-FR-DeniseNeural">FR - Denise</option>
+                        <option value="it-IT-ElsaNeural">IT - Elsa</option>
+                        <option value="de-DE-KatjaNeural">DE - Katja</option>
+                        <option value="pt-BR-FranciscaNeural">PT - Francisca</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Velocidad</label>
+                    <input type="number" class="form-input" id="dub-speed" value="1.0" step="0.1" min="0.5" max="2.0" />
+                </div>
+            </ProcessCard>
+
+            <!-- SUBTITULAR -->
+            <ProcessCard id="subtitle" icon="📝" title="SUBTITULAR" hasToggle={true}>
+                <div class="form-group">
+                    <label class="form-label">Formato</label>
+                    <select class="form-select" id="subtitle-format">
+                        <option value="srt">SRT</option>
+                        <option value="webvtt" selected>WebVTT</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Usar trad.</label>
+                    <select class="form-select" id="subtitle-use-translated">
+                        <option value="true" selected>Sí</option>
+                        <option value="false">No</option>
+                    </select>
+                </div>
+            </ProcessCard>
+
+            <!-- OUTPUT -->
+            <ProcessCard id="output" icon="📤" title="OUTPUT">
+                <div class="form-group">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-select" id="output-type">
+                        <option value="web">Web (HLS)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Segmento (s)</label>
+                    <input type="number" class="form-input" id="output-segment" value="15" />
+                </div>
+            </ProcessCard>
+        </section>
+
+        <!-- URLs -->
+        <section class="urls-section">
+            <h3>🔗 URLs de Conexión</h3>
+            <div class="urls-grid">
+                <div class="url-card">
+                    <span class="url-label">SRT (OBS)</span>
+                    <span class="url-value" id="url-srt">srt://TU_IP:9000?mode=caller&latency=1000000</span>
+                    <button class="copy-btn" onclick="copyUrl('srt')">📋</button>
+                </div>
+                <div class="url-card">
+                    <span class="url-label">Stream HLS</span>
+                    <span class="url-value" id="url-stream">http://TU_IP:9999/hls/stream.m3u8</span>
+                    <button class="copy-btn" onclick="copyUrl('stream')">📋</button>
+                </div>
+                <div class="url-card">
+                    <span class="url-label">Player</span>
+                    <span class="url-value" id="url-player">http://TU_IP:9999/player</span>
+                    <button class="copy-btn" onclick="copyUrl('player')">📋</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Advanced Section -->
+        <section class="advanced-section" id="advanced-section">
+            <div class="advanced-header" onclick="toggleAdvanced()">
+                <span class="advanced-title">⚙️ CONFIGURACIÓN AVANZADA</span>
+                <span class="advanced-toggle-icon">▼</span>
+            </div>
+            <div class="advanced-body">
+                <div class="modules-grid">
+                    <!-- Whisper -->
+                    <div class="module-card" id="mod-transcriber">
+                        <div class="module-header">
+                            <span class="module-name">
+                                <span class="status-dot" id="status-transcriber"></span>
+                                🎙 Whisper
+                            </span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="adv-whisper-enabled" checked />
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="module-settings">
+                            <div class="form-group">
+                                <label class="form-label">Modelo</label>
+                                <select class="form-select" id="adv-model">
+                                    <option value="tiny">tiny</option>
+                                    <option value="small">small</option>
+                                    <option value="medium">medium</option>
+                                    <option value="large-v2">large-v2</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Idioma</label>
+                                <select class="form-select" id="adv-lang">
+                                    <option value="auto">Auto</option>
+                                    <option value="es">Español</option>
+                                    <option value="en">Inglés</option>
+                                    <option value="fr">Francés</option>
+                                    <option value="de">Alemán</option>
+                                    <option value="it">Italiano</option>
+                                    <option value="pt">Portugués</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Device</label>
+                                <select class="form-select" id="adv-device">
+                                    <option value="auto">Auto</option>
+                                    <option value="cuda">GPU</option>
+                                    <option value="cpu">CPU</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HLS Output -->
+                    <div class="module-card" id="mod-video_muxer">
+                        <div class="module-header">
+                            <span class="module-name">
+                                <span class="status-dot" id="status-video_muxer"></span>
+                                📦 HLS Output
+                            </span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="adv-muxer-enabled" checked />
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="module-settings">
+                            <div class="form-group">
+                                <label class="form-label">Segmento (s)</label>
+                                <input type="number" class="form-input" id="adv-seg" value="15" />
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Lista</label>
+                                <input type="number" class="form-input" id="adv-list" value="6" />
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Offset audio (ms)</label>
+                                <input type="number" class="form-input" id="adv-offset" value="0" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn-start" style="margin-top:12px;width:100%;" onclick="saveConfig()">
+                    💾 Guardar Configuración
+                </button>
+            </div>
+        </section>
+
+        <!-- Logs -->
+        <section class="logs-section">
+            <div class="logs-header">
+                <span>📜 Logs</span>
+                <button onclick="clearLogs()">🗑 Limpiar</button>
+            </div>
+            <div class="logs-container" id="logs-container"></div>
+        </section>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast-container" id="toast-container"></div>
+</BaseLayout>
+
+<style>
+    .dashboard {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 16px;
+        min-height: calc(100vh - 32px);
+    }
+
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-dim);
+    }
+
+    .logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .logo svg { width: 32px; height: 32px; }
+
+    .logo-text {
+        font-size: 18px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #6366f1, #a855f7);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .version-badge {
+        background: var(--bg-card);
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        color: var(--text-sec);
+        border: 1px solid var(--border-dim);
+    }
+
+    .header-info {
+        font-size: 12px;
+        color: var(--text-sec);
+    }
+
+    .process-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    @media (max-width: 1000px) {
+        .process-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    @media (max-width: 600px) {
+        .process-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .urls-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border-dim);
+        border-radius: var(--radius-md);
+        padding: 12px;
+        margin-bottom: 16px;
+    }
+
+    .urls-section h3 {
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+
+    .urls-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .url-card {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--bg-surface);
+        padding: 8px;
+        border-radius: var(--radius-sm);
+    }
+
+    .url-label {
+        font-size: 10px;
+        color: var(--text-sec);
+        min-width: 80px;
+    }
+
+    .url-value {
+        flex: 1;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: var(--accent);
+    }
+
+    .copy-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px;
+        font-size: 14px;
+    }
+
+    .advanced-section {
+        margin-top: 16px;
+    }
+
+    .advanced-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 12px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-dim);
+        border-radius: var(--radius-md) var(--radius-md) 0 0;
+        cursor: pointer;
+    }
+
+    .advanced-header:hover {
+        background: var(--bg-card-hover);
+    }
+
+    .advanced-title {
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .advanced-toggle-icon {
+        transition: transform 0.3s;
+    }
+
+    .advanced-body {
+        background: var(--bg-card);
+        border: 1px solid var(--border-dim);
+        border-top: none;
+        border-radius: 0 0 var(--radius-md) var(--radius-md);
+        padding: 12px;
+        display: none;
+    }
+
+    .advanced-section.expanded .advanced-body {
+        display: block;
+    }
+
+    .advanced-section.expanded .advanced-toggle-icon {
+        transform: rotate(180deg);
+    }
+
+    .modules-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    @media (max-width: 600px) {
+        .modules-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .module-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-dim);
+        border-radius: var(--radius-sm);
+        padding: 10px;
+    }
+
+    .module-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .module-name {
+        font-size: 11px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--text-dim);
+    }
+
+    .status-dot.running {
+        background: #00ff00;
+        box-shadow: 0 0 6px #00ff00;
+    }
+
+    .module-settings {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 36px;
+        height: 20px;
+    }
+
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: var(--text-dim);
+        transition: 0.3s;
+        border-radius: 20px;
+    }
+
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 14px;
+        width: 14px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+    }
+
+    input:checked + .toggle-slider {
+        background-color: var(--success);
+    }
+
+    input:checked + .toggle-slider:before {
+        transform: translateX(16px);
+    }
+
+    .form-group {
+        margin-bottom: 4px;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 9px;
+        color: var(--text-sec);
+        margin-bottom: 2px;
+    }
+
+    .form-input, .form-select {
+        width: 100%;
+        padding: 6px 8px;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-dim);
+        border-radius: var(--radius-sm);
+        color: var(--text-prime);
+        font-size: 11px;
+    }
+
+    .logs-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border-dim);
+        border-radius: var(--radius-md);
+        margin-top: 16px;
+    }
+
+    .logs-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border-dim);
+    }
+
+    .logs-header span {
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .logs-header button {
+        background: none;
+        border: none;
+        color: var(--text-sec);
+        cursor: pointer;
+        font-size: 11px;
+    }
+
+    .logs-container {
+        height: 150px;
+        overflow-y: auto;
+        padding: 8px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        color: var(--text-sec);
+    }
+
+    .log-entry {
+        padding: 2px 0;
+    }
+
+    .log-entry.info { color: var(--text-prime); }
+    .log-entry.warn { color: var(--warning); }
+    .log-entry.error { color: var(--error); }
+
+    .btn-start {
+        background: var(--success);
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: var(--radius-sm);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .btn-start:hover {
+        background: #0ea571;
+    }
+
+    .toast-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .toast {
+        padding: 10px 16px;
+        border-radius: var(--radius-sm);
+        font-size: 12px;
+        animation: slideIn 0.3s ease;
+    }
+
+    .toast.success { background: var(--success); color: white; }
+    .toast.error { background: var(--error); color: white; }
+    .toast.warning { background: var(--warning); color: black; }
+    .toast.info { background: var(--accent); color: white; }
+
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+</style>
+
+<script>
+    // State
+    let config = {};
+    let ws = null;
+    let wsReconnectCount = 0;
+
+    // API calls
+    async function apiCall(method, path, body = null) {
+        const options = { method, headers: { 'Content-Type': 'application/json' } };
+        if (body) options.body = JSON.stringify(body);
+        const res = await fetch(path, options);
+        if (!res.ok) throw new Error(await res.text());
+        return res.json();
+    }
+
+    // WebSocket connection
+    function connectWebSocket() {
+        try {
+            ws = new WebSocket(`ws://${window.location.host}/ws/logs`);
+            
+            ws.onopen = () => {
+                wsReconnectCount = 0;
+                addLog('info', 'WebSocket conectado');
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'log') {
+                        addLog(data.level, data.message);
+                    } else if (data.type === 'status') {
+                        updateModuleStatus(data);
+                    }
+                } catch (e) {}
+            };
+            
+            ws.onclose = () => {
+                if (wsReconnectCount <= 3) {
+                    addLog('warn', 'WebSocket desconectado, reconectando...');
+                }
+                setTimeout(connectWebSocket, 2000);
+            };
+        } catch (e) {
+            setTimeout(connectWebSocket, 3000);
+        }
+    }
+
+    // Update module status
+    function updateModuleStatus(data) {
+        const modules = data.modules || [];
+        const pipelineState = data.state || 'idle';
+        
+        modules.forEach(mod => {
+            const indicator = document.getElementById(`indicator-${mod.name}`);
+            const card = document.getElementById(`card-${mod.name}`);
+            const dot = document.getElementById(`status-${mod.name}`);
+            
+            if (indicator && card) {
+                if (mod.state === 'running' || mod.state === 'starting') {
+                    indicator.classList.add('active');
+                    card.classList.add('active');
+                } else {
+                    indicator.classList.remove('active');
+                    card.classList.remove('active');
+                }
+            }
+            if (dot) {
+                dot.classList.remove('disabled', 'error');
+                dot.classList.add(mod.state === 'running' ? 'running' : 'disabled');
+            }
+        });
+    }
+
+    // Load status
+    async function loadStatus() {
+        try {
+            const status = await apiCall('GET', '/status');
+            updatePipelineUI(status.state);
+            updateModuleStatus(status);
+            
+            if (status.input_receiving) {
+                document.getElementById('card-input').classList.add('active');
+                document.getElementById('indicator-input').classList.add('active');
+            }
+        } catch (e) {}
+    }
+
+    // Pipeline controls
+    async function startPipeline() {
+        const btn = document.getElementById('btn-start');
+        btn.disabled = true;
+        try {
+            await apiCall('POST', '/api/start');
+            addLog('info', 'Pipeline iniciado');
+            showToast('Pipeline iniciado', 'success');
+            updatePipelineUI('running');
+        } catch (e) {
+            addLog('error', 'Error: ' + e.message);
+            showToast('Error: ' + e.message, 'error');
+            btn.disabled = false;
+        }
+    }
+
+    async function stopPipeline() {
+        try {
+            await apiCall('POST', '/api/stop');
+            addLog('info', 'Pipeline detenido');
+            showToast('Pipeline detenido', 'info');
+            updatePipelineUI('idle');
+        } catch (e) {
+            addLog('error', 'Error: ' + e.message);
+            showToast('Error: ' + e.message, 'error');
+        }
+    }
+
+    function updatePipelineUI(state) {
+        const dot = document.getElementById('status-dot');
+        const text = document.getElementById('status-text');
+        const btnStart = document.getElementById('btn-start');
+        const btnStop = document.getElementById('btn-stop');
+        
+        dot.classList.toggle('running', state === 'running');
+        text.textContent = state === 'running' ? 'ACTIVO' : 'APAGADO';
+        
+        btnStart.disabled = state === 'running';
+        btnStop.disabled = state !== 'running';
+    }
+
+    // Config
+    async function saveConfig() {
+        const update = {
+            input: {
+                type: document.getElementById('input-type').value,
+                srt: {
+                    listen_port: parseInt(document.getElementById('input-port').value),
+                    latency_ms: parseInt(document.getElementById('input-latency').value)
+                }
+            },
+            modules: {
+                transcriber: {
+                    enabled: document.getElementById('adv-whisper-enabled').checked,
+                    model: document.getElementById('adv-model').value,
+                    language: document.getElementById('adv-lang').value,
+                    device: document.getElementById('adv-device').value
+                },
+                translator: {
+                    enabled: document.getElementById('translate-enabled')?.checked || false,
+                    source_lang: document.getElementById('translate-source').value,
+                    target_lang: document.getElementById('translate-target').value
+                },
+                subtitle_generator: {
+                    enabled: document.getElementById('subtitle-enabled')?.checked || false,
+                    format: document.getElementById('subtitle-format').value,
+                    use_translated: document.getElementById('subtitle-use-translated').value === 'true'
+                },
+                tts_engine: {
+                    enabled: document.getElementById('dub-enabled')?.checked || false,
+                    voice: document.getElementById('dub-voice').value,
+                    speed: parseFloat(document.getElementById('dub-speed').value)
+                },
+                audio_mixer: {
+                    enabled: document.getElementById('dub-enabled')?.checked || false
+                },
+                video_muxer: {
+                    enabled: true,
+                    hls_segment_duration: parseInt(document.getElementById('adv-seg').value),
+                    hls_list_size: parseInt(document.getElementById('adv-list').value)
+                }
+            }
+        };
+
+        try {
+            await apiCall('PUT', '/config', { config: update });
+            addLog('info', 'Configuración guardada');
+            showToast('Configuración guardada', 'success');
+        } catch (e) {
+            addLog('error', 'Error guardando: ' + e.message);
+            showToast('Error: ' + e.message, 'error');
+        }
+    }
+
+    // Toggle functions
+    function toggleAdvanced() {
+        document.getElementById('advanced-section').classList.toggle('expanded');
+    }
+
+    function toggleTranslate() {
+        const enabled = document.getElementById('translate-enabled').checked;
+        document.getElementById('card-translate').classList.toggle('disabled', !enabled);
+        document.getElementById('translate-settings').style.opacity = enabled ? '1' : '0.5';
+    }
+
+    function toggleDub() {
+        const enabled = document.getElementById('dub-enabled').checked;
+        document.getElementById('card-dub').classList.toggle('disabled', !enabled);
+        document.getElementById('dub-settings').style.opacity = enabled ? '1' : '0.5';
+    }
+
+    function toggleSubtitle() {
+        const enabled = document.getElementById('subtitle-enabled').checked;
+        document.getElementById('card-subtitle').classList.toggle('disabled', !enabled);
+        document.getElementById('subtitle-settings').style.opacity = enabled ? '1' : '0.5';
+    }
+
+    // Logs
+    function addLog(level, message) {
+        const container = document.getElementById('logs-container');
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${level}`;
+        const time = new Date().toLocaleTimeString();
+        entry.textContent = `[${time}] ${message}`;
+        container.appendChild(entry);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function clearLogs() {
+        document.getElementById('logs-container').innerHTML = '';
+    }
+
+    // Toast
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    // Copy URL
+    function copyUrl(type) {
+        let text;
+        if (type === 'srt') {
+            text = document.getElementById('url-srt').textContent;
+        } else if (type === 'stream') {
+            text = document.getElementById('url-stream').textContent;
+        } else if (type === 'player') {
+            text = document.getElementById('url-player').textContent;
+        }
+        navigator.clipboard.writeText(text).then(() => showToast('URL copiada', 'success'));
+    }
+
+    // Event listeners
+    document.getElementById('btn-start').addEventListener('click', startPipeline);
+    document.getElementById('btn-stop').addEventListener('click', stopPipeline);
+    document.getElementById('input-port').addEventListener('input', updateUrls);
+    document.getElementById('input-latency').addEventListener('input', updateUrls);
+    document.getElementById('input-type').addEventListener('change', updateInputFields);
+
+    function updateUrls() {
+        const port = document.getElementById('input-port').value || 9000;
+        const latency = document.getElementById('input-latency').value || 1000;
+        const ip = 'TU_IP';
+        document.getElementById('url-srt').textContent = `srt://${ip}:${port}?mode=caller&latency=${latency * 1000}`;
+        document.getElementById('url-stream').textContent = `http://${ip}:9999/hls/stream.m3u8`;
+        document.getElementById('url-player').textContent = `http://${ip}:9999/player`;
+    }
+
+    function updateInputFields() {
+        const type = document.getElementById('input-type').value;
+        document.getElementById('input-port-group').style.display = type === 'srt' ? 'block' : 'none';
+        document.getElementById('input-latency-group').style.display = type === 'srt' ? 'block' : 'none';
+    }
+
+    // Init
+    window.addEventListener('DOMContentLoaded', () => {
+        loadStatus();
+        connectWebSocket();
+        updateInputFields();
+    });
+</script>

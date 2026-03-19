@@ -1,0 +1,72 @@
+---
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <slot />
+</body>
+</html>
+
+<style is:global>
+    :root {
+        --bg-deep: #0a0a0f;
+        --bg-surface: #12121a;
+        --bg-card: #1a1a24;
+        --bg-card-hover: #222230;
+        --border-dim: rgba(255,255,255,0.08);
+        --border-accent: rgba(99,102,241,0.3);
+        --text-pure: #fff;
+        --text-prime: #e4e4e8;
+        --text-sec: #8888a0;
+        --text-dim: #555570;
+        --accent: #6366f1;
+        --accent-hover: #7c7ff7;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --error: #ef4444;
+        --radius-lg: 12px;
+        --radius-md: 8px;
+        --radius-sm: 6px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: 'Inter', system-ui, sans-serif;
+        background: var(--bg-deep);
+        color: var(--text-prime);
+        min-height: 100vh;
+        font-size: 13px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    @keyframes phosphor-pulse {
+        0%, 100% { opacity: 0.8; box-shadow: 0 0 8px #00ff00, 0 0 15px #00ff00; }
+        50% { opacity: 1; box-shadow: 0 0 15px #00ff00, 0 0 30px #00ff00, 0 0 45px #00ff00; }
+    }
+
+    @keyframes error-pulse {
+        0%, 100% { opacity: 0.8; box-shadow: 0 0 8px #ff3333, 0 0 15px #ff3333; }
+        50% { opacity: 1; box-shadow: 0 0 15px #ff3333, 0 0 30px #ff3333; }
+    }
+
+    @keyframes indicator-pulse {
+        0%, 100% { opacity: 0.8; box-shadow: 0 0 4px #00ff00, 0 0 8px #00ff00; }
+        50% { opacity: 1; box-shadow: 0 0 8px #00ff00, 0 0 16px #00ff00, 0 0 24px #00ff00; }
+    }
+</style>
