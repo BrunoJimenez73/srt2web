@@ -103,16 +103,28 @@
         }
 
         .status-dot {
-            width: 10px;
-            height: 10px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
             background: var(--text-dim);
         }
 
         .status-dot.running {
-            background: var(--success);
-            box-shadow: 0 0 10px var(--success);
-            animation: pulse 2s infinite;
+            background: #00ff00;
+            box-shadow: 0 0 8px #00ff00, 0 0 15px #00ff00, 0 0 25px #00ff00, 0 0 40px #00ff00;
+            animation: phosphor-pulse 1.5s ease-in-out infinite;
+        }
+
+        .status-dot.error {
+            background: #ff3333;
+            box-shadow: 0 0 8px #ff3333, 0 0 15px #ff3333;
+            animation: error-pulse 1s ease-in-out infinite;
+        }
+
+        .status-dot.disabled {
+            background: var(--text-dim);
+            box-shadow: none;
+            opacity: 0.5;
         }
 
         /* Module status dots - smaller */
@@ -127,13 +139,41 @@
         }
 
         .module-name .status-dot.running {
-            background: var(--success);
-            box-shadow: 0 0 6px var(--success);
+            background: #00ff00;
+            box-shadow: 0 0 4px #00ff00, 0 0 8px #00ff00, 0 0 12px #00ff00;
+            animation: phosphor-pulse 1.5s ease-in-out infinite;
         }
 
-        @keyframes pulse {
+        .module-name .status-dot.error {
+            background: #ff3333;
+            box-shadow: 0 0 4px #ff3333, 0 0 8px #ff3333;
+            animation: error-pulse 1s ease-in-out infinite;
+        }
+
+        .module-name .status-dot.disabled {
+            background: var(--text-dim);
+            box-shadow: none;
+            opacity: 0.4;
+        }
+
+        @keyframes phosphor-pulse {
+            0% { 
+                opacity: 0.7;
+                box-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 20px #00ff00;
+            }
+            50% { 
+                opacity: 1;
+                box-shadow: 0 0 8px #00ff00, 0 0 15px #00ff00, 0 0 30px #00ff00, 0 0 40px #00ff00;
+            }
+            100% { 
+                opacity: 0.7;
+                box-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 20px #00ff00;
+            }
+        }
+
+        @keyframes error-pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            50% { opacity: 0.6; }
         }
 
         .status-text {
@@ -199,10 +239,43 @@
             border: 1px solid var(--border-dim);
             border-radius: var(--radius-md);
             padding: 12px;
+            position: relative;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .process-card.active {
+            border-color: rgba(0, 255, 0, 0.3);
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.1), inset 0 0 20px rgba(0, 255, 0, 0.02);
         }
 
         .process-card.disabled {
             opacity: 0.5;
+        }
+
+        .process-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-dim);
+            margin-right: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .process-indicator.active {
+            background: #00ff00;
+            box-shadow: 0 0 6px #00ff00, 0 0 12px #00ff00, 0 0 18px #00ff00;
+            animation: indicator-pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes indicator-pulse {
+            0%, 100% { 
+                opacity: 0.8;
+                box-shadow: 0 0 4px #00ff00, 0 0 8px #00ff00;
+            }
+            50% { 
+                opacity: 1;
+                box-shadow: 0 0 8px #00ff00, 0 0 16px #00ff00, 0 0 24px #00ff00;
+            }
         }
 
         .process-header {
@@ -623,6 +696,7 @@
             <!-- DOBLAR -->
             <div class="process-card" id="card-dub">
                 <div class="process-header">
+                    <span class="process-indicator" id="indicator-dub"></span>
                     <span class="process-title">🗣 DOBLAR</span>
                     <label class="toggle-switch">
                         <input type="checkbox" id="dub-enabled" onchange="toggleDub()">
@@ -659,6 +733,7 @@
             <!-- SUBTITULAR -->
             <div class="process-card" id="card-subtitle">
                 <div class="process-header">
+                    <span class="process-indicator" id="indicator-subtitle"></span>
                     <span class="process-title">📝 SUBTITULAR</span>
                     <label class="toggle-switch">
                         <input type="checkbox" id="subtitle-enabled" checked onchange="toggleSubtitle()">
@@ -1210,10 +1285,58 @@
         // Update module status indicators
         function updateModuleStatus(data) {
             const modules = data.modules || [];
+            
+            // Module to card/indicator mapping
+            const moduleToCard = {
+                'tts_engine': 'card-dub',
+                'audio_mixer': 'card-dub',
+                'translator': 'card-subtitle',
+                'subtitle_generator': 'card-subtitle',
+                'transcriber': 'card-subtitle'
+            };
+            
+            const moduleToIndicator = {
+                'tts_engine': 'indicator-dub',
+                'audio_mixer': 'indicator-dub',
+                'translator': 'indicator-subtitle',
+                'subtitle_generator': 'indicator-subtitle',
+                'transcriber': 'indicator-subtitle'
+            };
+            
             modules.forEach(mod => {
                 const statusDot = document.getElementById(`status-${mod.name}`);
                 if (statusDot) {
-                    statusDot.classList.toggle('running', mod.state === 'running');
+                    // Remove all state classes first
+                    statusDot.classList.remove('running', 'error', 'disabled');
+                    
+                    // Add the appropriate class based on state
+                    if (!mod.enabled || mod.state === 'disabled') {
+                        statusDot.classList.add('disabled');
+                    } else if (mod.state === 'error') {
+                        statusDot.classList.add('error');
+                    } else if (mod.state === 'running' || mod.state === 'starting') {
+                        statusDot.classList.add('running');
+                    }
+                }
+                
+                // Update process card glow effect
+                const cardId = moduleToCard[mod.name];
+                const indicatorId = moduleToIndicator[mod.name];
+                const card = cardId ? document.getElementById(cardId) : null;
+                const indicator = indicatorId ? document.getElementById(indicatorId) : null;
+                
+                if (card) {
+                    card.classList.remove('active');
+                    if (mod.state === 'running' || mod.state === 'starting') {
+                        card.classList.add('active');
+                    }
+                }
+                
+                if (indicator) {
+                    indicator.classList.remove('active');
+                    if (mod.state === 'running' || mod.state === 'starting') {
+                        indicator.classList.add('active');
+                    }
                 }
             });
         }
@@ -1223,6 +1346,7 @@
             try {
                 const status = await apiCall('GET', '/status');
                 updatePipelineUI(status.state);
+                updateModuleStatus(status);
                 
                 // Update connection URLs if available
                 if (status.input_info) {
