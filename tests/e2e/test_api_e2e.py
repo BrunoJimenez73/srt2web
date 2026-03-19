@@ -323,7 +323,7 @@ class TestAPILiveServer:
         """Test that live server API is healthy."""
         import requests
 
-        response = requests.get("http://localhost:8080/health", timeout=5)
+        response = requests.get("http://localhost:9999/health", timeout=5)
 
         assert response.status_code == 200
 
@@ -335,7 +335,7 @@ class TestAPILiveServer:
         """Test live server status endpoint."""
         import requests
 
-        response = requests.get("http://localhost:8080/api/status", timeout=5)
+        response = requests.get("http://localhost:9999/api/status", timeout=5)
 
         assert response.status_code == 200
         data = response.json()
@@ -351,7 +351,7 @@ class TestAPILiveServer:
 
         # First ensure config is valid
         # Then try to start
-        response = requests.post("http://localhost:8080/api/start", timeout=30)
+        response = requests.post("http://localhost:9999/api/start", timeout=30)
 
         # May succeed or fail depending on setup
         assert response.status_code in [200, 500]
