@@ -229,7 +229,7 @@
         /* Process Grid */
         .process-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 12px;
             margin-bottom: 16px;
         }
@@ -618,6 +618,7 @@
 
         .toast.success { border-color: var(--success); }
         .toast.error { border-color: var(--error); }
+        .toast.warning { border-color: var(--warning); }
 
         @keyframes slideIn {
             from { transform: translateX(100%); opacity: 0; }
@@ -668,6 +669,7 @@
             <!-- INPUT -->
             <div class="process-card" id="card-input">
                 <div class="process-header">
+                    <span class="process-indicator" id="indicator-input"></span>
                     <span class="process-title">📥 INPUT</span>
                 </div>
                 <div class="form-group">
@@ -690,6 +692,43 @@
                 <div class="form-group" id="input-file-group" style="display:none;">
                     <label class="form-label">Archivo</label>
                     <input type="text" class="form-input" id="input-file-path" placeholder="./video.mp4">
+                </div>
+            </div>
+
+            <!-- TRADUCCIÓN -->
+            <div class="process-card" id="card-translate">
+                <div class="process-header">
+                    <span class="process-indicator" id="indicator-translate"></span>
+                    <span class="process-title">🌐 TRADUCIR</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="translate-enabled" checked onchange="toggleTranslate()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div id="translate-settings">
+                     <div class="form-group">
+                         <label class="form-label">Origen</label>
+                         <select class="form-select" id="translate-source">
+                             <option value="auto">Auto (Detectar)</option>
+                             <option value="es">Español</option>
+                             <option value="en">Inglés</option>
+                             <option value="fr">Francés</option>
+                             <option value="de">Alemán</option>
+                             <option value="it">Italiano</option>
+                             <option value="pt">Portugués</option>
+                         </select>
+                     </div>
+                     <div class="form-group">
+                         <label class="form-label">Destino</label>
+                         <select class="form-select" id="translate-target">
+                             <option value="es">Español</option>
+                             <option value="en">Inglés</option>
+                             <option value="fr">Francés</option>
+                             <option value="de">Alemán</option>
+                             <option value="it">Italiano</option>
+                             <option value="pt">Portugués</option>
+                         </select>
+                     </div>
                 </div>
             </div>
 
@@ -736,32 +775,23 @@
                     <span class="process-indicator" id="indicator-subtitle"></span>
                     <span class="process-title">📝 SUBTITULAR</span>
                     <label class="toggle-switch">
-                        <input type="checkbox" id="subtitle-enabled" checked onchange="toggleSubtitle()">
+                        <input type="checkbox" id="subtitle-enabled" onchange="toggleSubtitle()">
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
                 <div id="subtitle-settings">
                      <div class="form-group">
-                         <label class="form-label">Origen</label>
-                         <select class="form-select" id="subtitle-source">
-                             <option value="auto">Auto (Detectar)</option>
-                             <option value="es">Español</option>
-                             <option value="en">Inglés</option>
-                             <option value="fr">Francés</option>
-                             <option value="de">Alemán</option>
-                             <option value="it">Italiano</option>
-                             <option value="pt">Portugués</option>
+                         <label class="form-label">Formato</label>
+                         <select class="form-select" id="subtitle-format">
+                             <option value="srt">SRT</option>
+                             <option value="webvtt">WebVTT</option>
                          </select>
                      </div>
                      <div class="form-group">
-                         <label class="form-label">Destino</label>
-                         <select class="form-select" id="subtitle-target">
-                             <option value="es">Español</option>
-                             <option value="en">Inglés</option>
-                             <option value="fr">Francés</option>
-                             <option value="de">Alemán</option>
-                             <option value="it">Italiano</option>
-                             <option value="pt">Portugués</option>
+                         <label class="form-label">Usar trad.</label>
+                         <select class="form-select" id="subtitle-use-translated">
+                             <option value="true">Sí</option>
+                             <option value="false">No</option>
                          </select>
                      </div>
                 </div>
@@ -885,7 +915,7 @@
             </div>
             <div class="advanced-body">
                 <div class="modules-grid">
-                    <!-- Transcription -->
+                    <!-- Transcription (Whisper) -->
                     <div class="module-card" id="mod-transcriber">
                         <div class="module-header">
                             <span class="module-name"><span class="status-dot" id="status-transcriber"></span> 🎙 Whisper</span>
@@ -904,18 +934,18 @@
                                     <option value="large-v2">large-v2</option>
                                 </select>
                             </div>
-                             <div class="form-group">
-                                 <label class="form-label">Idioma</label>
-                                 <select class="form-select" id="adv-lang">
-                                     <option value="auto">Auto (Detectar)</option>
-                                     <option value="es">Español</option>
-                                     <option value="en">Inglés</option>
-                                     <option value="fr">Francés</option>
-                                     <option value="de">Alemán</option>
-                                     <option value="it">Italiano</option>
-                                     <option value="pt">Portugués</option>
-                                 </select>
-                             </div>
+                            <div class="form-group">
+                                <label class="form-label">Idioma</label>
+                                <select class="form-select" id="adv-lang">
+                                    <option value="auto">Auto (Detectar)</option>
+                                    <option value="es">Español</option>
+                                    <option value="en">Inglés</option>
+                                    <option value="fr">Francés</option>
+                                    <option value="de">Alemán</option>
+                                    <option value="it">Italiano</option>
+                                    <option value="pt">Portugués</option>
+                                </select>
+                            </div>
                             <div class="form-group">
                                 <label class="form-label">Device</label>
                                 <select class="form-select" id="adv-device">
@@ -927,137 +957,16 @@
                         </div>
                     </div>
 
-                    <!-- Translator -->
-                    <div class="module-card" id="mod-translator">
-                        <div class="module-header">
-                            <span class="module-name"><span class="status-dot" id="status-translator"></span> 🌐 Translator</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="adv-translator-enabled" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        <div class="module-settings">
-                             <div class="form-group">
-                                 <label class="form-label">Origen</label>
-                                 <select class="form-select" id="adv-source">
-                                     <option value="auto">Auto (Detectar)</option>
-                                     <option value="es">Español</option>
-                                     <option value="en">Inglés</option>
-                                     <option value="fr">Francés</option>
-                                     <option value="de">Alemán</option>
-                                     <option value="it">Italiano</option>
-                                     <option value="pt">Portugués</option>
-                                 </select>
-                             </div>
-                             <div class="form-group">
-                                 <label class="form-label">Destino</label>
-                                 <select class="form-select" id="adv-target">
-                                     <option value="es">Español</option>
-                                     <option value="en">Inglés</option>
-                                     <option value="fr">Francés</option>
-                                     <option value="de">Alemán</option>
-                                     <option value="it">Italiano</option>
-                                     <option value="pt">Portugués</option>
-                                 </select>
-                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Subtitle Generator -->
-                    <div class="module-card" id="mod-subtitle_generator">
-                        <div class="module-header">
-                            <span class="module-name"><span class="status-dot" id="status-subtitle_generator"></span> 📝 Subtitles</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="adv-subs-enabled" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        <div class="module-settings">
-                            <div class="form-group">
-                                <label class="form-label">Formato</label>
-                                <select class="form-select" id="adv-subs-format">
-                                    <option value="srt">SRT</option>
-                                    <option value="webvtt">WebVTT</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Usar trad.</label>
-                                <select class="form-select" id="adv-subs-translated">
-                                    <option value="true">Sí</option>
-                                    <option value="false">No</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- TTS -->
-                    <div class="module-card" id="mod-tts_engine">
-                        <div class="module-header">
-                            <span class="module-name"><span class="status-dot" id="status-tts_engine"></span> 🔊 TTS</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="adv-tts-enabled">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        <div class="module-settings">
-                             <div class="form-group">
-                                 <label class="form-label">Voz</label>
-                                 <select class="form-select" id="adv-tts-voice">
-                                     <option value="es-ES-AlvaroNeural">ES - Álvaro</option>
-                                     <option value="es-ES-ElviraNeural">ES - Elvira</option>
-                                     <option value="en-US-AriaNeural">EN - Aria</option>
-                                     <option value="en-US-GuyNeural">EN - Guy</option>
-                                     <option value="fr-FR-DeniseNeural">FR - Denise</option>
-                                     <option value="fr-FR-HenriNeural">FR - Henri</option>
-                                     <option value="it-IT-ElsaNeural">IT - Elsa</option>
-                                     <option value="it-IT-DiegoNeural">IT - Diego</option>
-                                     <option value="de-DE-KatjaNeural">DE - Katja</option>
-                                     <option value="de-DE-ConradNeural">DE - Conrad</option>
-                                     <option value="pt-BR-FranciscaNeural">PT - Francisca</option>
-                                     <option value="pt-BR-AntonioNeural">PT - Antonio</option>
-                                     <option value="nl-NL-ColetteNeural">NL - Colette</option>
-                                     <option value="nl-NL-FennaNeural">NL - Fenna</option>
-                                 </select>
-                             </div>
-                            <div class="form-group">
-                                <label class="form-label">Velocidad</label>
-                                <input type="number" class="form-input" id="adv-tts-speed" value="1.0" step="0.1" min="0.5" max="2.0">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Audio Mixer -->
-                    <div class="module-card" id="mod-audio_mixer">
-                        <div class="module-header">
-                            <span class="module-name"><span class="status-dot" id="status-audio_mixer"></span> 🎛 Mixer</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="adv-mixer-enabled">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        <div class="module-settings">
-                            <div class="form-group">
-                                <label class="form-label">Vol Orig</label>
-                                <input type="number" class="form-input" id="adv-vol-orig" value="0.4" step="0.1" min="0" max="2">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Vol Dub</label>
-                                <input type="number" class="form-input" id="adv-vol-dub" value="1.8" step="0.1" min="0" max="2">
-                            </div>
-                        </div>
-                    </div>
-
-                     <!-- Video Muxer -->
+                     <!-- Video Muxer / HLS -->
                      <div class="module-card" id="mod-video_muxer">
                          <div class="module-header">
-                             <span class="module-name"><span class="status-dot" id="status-video_muxer"></span> 📦 HLS Muxer</span>
+                             <span class="module-name"><span class="status-dot" id="status-video_muxer"></span> 📦 HLS Output</span>
                              <label class="toggle-switch">
                                  <input type="checkbox" id="adv-muxer-enabled" checked onchange="toggleVideoMuxer()">
                                  <span class="toggle-slider"></span>
                              </label>
                          </div>
                          <div class="module-settings">
-                             <!-- HLS Settings -->
                              <div class="form-group">
                                  <label class="form-label">Segmento (s)</label>
                                  <input type="number" class="form-input" id="adv-seg" value="15">
@@ -1071,15 +980,15 @@
                                  <input type="number" class="form-input" id="adv-offset" value="0">
                              </div>
                              
-                             <!-- Encoder Settings Section -->
-                             <div style="border-top: 1px solid #444; padding-top: 12px; margin-top: 8px;">
-                                 <div class="form-group" style="margin-bottom: 8px;">
-                                     <label class="form-label" style="color: #888;">⚙️ CONFIGURACIÓN DE ENCODER</label>
+                             <!-- Encoder Settings -->
+                             <div style="border-top: 1px solid #444; padding-top: 8px; margin-top: 4px;">
+                                 <div class="form-group" style="margin-bottom: 6px;">
+                                     <label class="form-label" style="color: #888;">⚙️ Encoder</label>
                                  </div>
                              </div>
                              
                              <div class="form-group">
-                                 <label class="form-label">Modo Codificación</label>
+                                 <label class="form-label">Modo</label>
                                  <select class="form-select" id="adv-encoder-mode">
                                      <option value="auto">Automático (GPU/CPU)</option>
                                      <option value="cpu">CPU (libx264)</option>
@@ -1090,88 +999,56 @@
                              </div>
                              
                              <div class="form-group">
-                                 <label class="form-label">Preset Calidad</label>
+                                 <label class="form-label">Preset</label>
                                  <select class="form-select" id="adv-video-quality">
-                                     <option value="ultrafast">Ultrafast (CRF 28)</option>
-                                     <option value="superfast">Superfast (CRF 26)</option>
-                                     <option value="veryfast">Veryfast (CRF 24)</option>
-                                     <option value="faster">Faster (CRF 22)</option>
-                                     <option value="fast">Fast (CRF 20)</option>
-                                     <option value="medium" selected>Equilibrada (CRF 18)</option>
-                                     <option value="slow">Slow (CRF 16)</option>
-                                     <option value="slower">Slower (CRF 14)</option>
-                                     <option value="veryslow">Veryslow (CRF 12)</option>
+                                     <option value="ultrafast">Ultrafast</option>
+                                     <option value="superfast">Superfast</option>
+                                     <option value="veryfast">Veryfast</option>
+                                     <option value="faster">Faster</option>
+                                     <option value="fast">Fast</option>
+                                     <option value="medium" selected>Equilibrada</option>
+                                     <option value="slow">Slow</option>
+                                     <option value="slower">Slower</option>
+                                     <option value="veryslow">Veryslow</option>
                                  </select>
                              </div>
                              
                              <div class="form-group">
-                                 <label class="form-label">Calidad (CRF/CQ) <span id="crf-value">18</span></label>
+                                 <label class="form-label">CRF <span id="crf-value">18</span></label>
                                  <input type="range" class="form-input" id="adv-video-crf" min="0" max="51" value="18" 
                                         oninput="document.getElementById('crf-value').textContent = this.value">
                              </div>
                              
-                             <div class="form-group">
-                                 <label class="form-label">Perfil Video</label>
-                                 <select class="form-select" id="adv-video-profile">
-                                     <option value="baseline">Baseline (máxima compatibilidad)</option>
-                                     <option value="main">Main (equilibrado)</option>
-                                     <option value="high" selected>High (mejor calidad)</option>
-                                 </select>
-                             </div>
-                             
-                             <div class="form-group">
-                                 <label class="form-label">Tuning</label>
-                                 <select class="form-select" id="adv-video-tune">
-                                     <option value="zerolatency" selected>Streaming (baja latencia)</option>
-                                     <option value="film">Cine</option>
-                                     <option value="animation">Animación</option>
-                                     <option value="none">Ninguno</option>
-                                 </select>
-                             </div>
-                             
-                             <div class="form-group">
-                                 <label class="form-label">Preset GPU (p1-p7)</label>
-                                 <select class="form-select" id="adv-gpu-preset">
-                                     <option value="p1">P1 - Máxima velocidad</option>
-                                     <option value="p2">P2 - Rápida</option>
-                                     <option value="p3" selected>P3 - Equilibrada</option>
-                                     <option value="p4">P4 - Lenta</option>
-                                     <option value="p5">P5 - Más lenta</option>
-                                     <option value="p6">P6 - Alta calidad</option>
-                                     <option value="p7">P7 - Máxima calidad</option>
-                                 </select>
-                             </div>
-                             
                              <!-- Audio Settings -->
-                             <div style="border-top: 1px solid #444; padding-top: 12px; margin-top: 8px;">
-                                 <div class="form-group" style="margin-bottom: 8px;">
-                                     <label class="form-label" style="color: #888;">🎵 CONFIGURACIÓN DE AUDIO</label>
+                             <div style="border-top: 1px solid #444; padding-top: 8px; margin-top: 4px;">
+                                 <div class="form-group" style="margin-bottom: 6px;">
+                                     <label class="form-label" style="color: #888;">🎵 Audio</label>
                                  </div>
                              </div>
                              
                              <div class="form-group">
-                                 <label class="form-label">Codec Audio</label>
+                                 <label class="form-label">Codec</label>
                                  <select class="form-select" id="adv-audio-codec">
-                                     <option value="aac" selected>AAC (estándar)</option>
-                                     <option value="opus">Opus (eficiente)</option>
+                                     <option value="aac" selected>AAC</option>
+                                     <option value="opus">Opus</option>
                                  </select>
                              </div>
                              
                              <div class="form-group">
-                                 <label class="form-label">Bitrate Audio (kbps)</label>
+                                 <label class="form-label">Bitrate</label>
                                  <select class="form-select" id="adv-audio-bitrate">
                                      <option value="64k">64 kbps</option>
                                      <option value="96k">96 kbps</option>
-                                     <option value="128k">128 kbps (estándar)</option>
+                                     <option value="128k">128 kbps</option>
                                      <option value="160k">160 kbps</option>
-                                     <option value="192k" selected>192 kbps (alta calidad)</option>
+                                     <option value="192k" selected>192 kbps</option>
                                      <option value="256k">256 kbps</option>
                                      <option value="320k">320 kbps</option>
                                  </select>
                              </div>
                              
                              <div class="form-group">
-                                 <label class="form-label">Frecuencia Muestreo</label>
+                                 <label class="form-label">Sample Rate</label>
                                  <select class="form-select" id="adv-audio-samplerate">
                                      <option value="44100">44.1 kHz</option>
                                      <option value="48000" selected>48 kHz</option>
@@ -1241,6 +1118,7 @@
             
             toggleDub();
             toggleSubtitle();
+            toggleTranslate();
         });
 
         // ── WebSocket ──
@@ -1296,18 +1174,18 @@
             const moduleToCard = {
                 'tts_engine': 'card-dub',
                 'audio_mixer': 'card-dub',
-                'translator': 'card-subtitle',
+                'translator': 'card-translate',
                 'subtitle_generator': 'card-subtitle',
-                'transcriber': 'card-subtitle',
+                'transcriber': 'card-input',
                 'audio_extractor': 'card-input'
             };
             
             const moduleToIndicator = {
                 'tts_engine': 'indicator-dub',
                 'audio_mixer': 'indicator-dub',
-                'translator': 'indicator-subtitle',
+                'translator': 'indicator-translate',
                 'subtitle_generator': 'indicator-subtitle',
-                'transcriber': 'indicator-subtitle',
+                'transcriber': null,
                 'audio_extractor': null
             };
             
@@ -1361,6 +1239,17 @@
                 outputDot.classList.remove('running');
                 outputDot.classList.add('disabled');
             }
+            
+            // Update INPUT card based on receiving status
+            const inputCard = document.getElementById('card-input');
+            const inputIndicator = document.getElementById('indicator-input');
+            if ((pipelineState === 'running' || pipelineState === 'starting') && data.input_receiving) {
+                inputCard.classList.add('active');
+                inputIndicator.classList.add('active');
+            } else {
+                inputCard.classList.remove('active');
+                inputIndicator.classList.remove('active');
+            }
         }
 
         // ── Load Status ──
@@ -1369,6 +1258,17 @@
                 const status = await apiCall('GET', '/status');
                 updatePipelineUI(status.state);
                 updateModuleStatus(status);
+                
+                // Update Input indicator based on receiving status
+                const inputCard = document.getElementById('card-input');
+                const inputIndicator = document.getElementById('indicator-input');
+                if (status.state === 'running' && status.input_receiving) {
+                    inputCard.classList.add('active');
+                    inputIndicator.classList.add('active');
+                } else {
+                    inputCard.classList.remove('active');
+                    inputIndicator.classList.remove('active');
+                }
                 
                 // Update connection URLs if available
                 if (status.input_info) {
@@ -1406,32 +1306,26 @@
             // Modules
             const modules = config.modules || {};
             
-            // Subtitles (translator + subtitle_generator)
-            if (modules.translator && modules.translator.enabled) {
-                document.getElementById('subtitle-enabled').checked = true;
-                document.getElementById('adv-translator-enabled').checked = true;
-                document.getElementById('adv-source').value = modules.translator.source_lang || 'en';
-                document.getElementById('adv-target').value = modules.translator.target_lang || 'es';
-            }
-            if (modules.subtitle_generator && modules.subtitle_generator.enabled) {
-                document.getElementById('adv-subs-enabled').checked = true;
-                document.getElementById('adv-subs-format').value = modules.subtitle_generator.format || 'srt';
-                document.getElementById('adv-subs-translated').value = String(modules.subtitle_generator.use_translated || true);
+            // Translation (translator)
+            if (modules.translator) {
+                document.getElementById('translate-enabled').checked = modules.translator.enabled;
+                document.getElementById('translate-source').value = modules.translator.source_lang || 'en';
+                document.getElementById('translate-target').value = modules.translator.target_lang || 'es';
             }
             
-            // Dub (TTS + Mixer)
-            if (modules.tts_engine && modules.tts_engine.enabled) {
-                document.getElementById('dub-enabled').checked = true;
-                document.getElementById('adv-tts-enabled').checked = true;
+            // Subtitles (subtitle_generator)
+            if (modules.subtitle_generator) {
+                document.getElementById('subtitle-enabled').checked = modules.subtitle_generator.enabled;
+                document.getElementById('subtitle-format').value = modules.subtitle_generator.format || 'srt';
+                document.getElementById('subtitle-use-translated').value = String(modules.subtitle_generator.use_translated || true);
+            }
+            
+            // Dub (TTS + Mixer) - coupled together
+            const dubEnabled = modules.tts_engine?.enabled || modules.audio_mixer?.enabled;
+            document.getElementById('dub-enabled').checked = dubEnabled;
+            if (modules.tts_engine) {
                 document.getElementById('dub-voice').value = modules.tts_engine.voice || 'es-ES-AlvaroNeural';
                 document.getElementById('dub-speed').value = modules.tts_engine.speed || 1.0;
-                document.getElementById('adv-tts-voice').value = modules.tts_engine.voice || 'es-ES-AlvaroNeural';
-                document.getElementById('adv-tts-speed').value = modules.tts_engine.speed || 1.0;
-            }
-            if (modules.audio_mixer && modules.audio_mixer.enabled) {
-                document.getElementById('adv-mixer-enabled').checked = true;
-                document.getElementById('adv-vol-orig').value = modules.audio_mixer.original_volume || 0.4;
-                document.getElementById('adv-vol-dub').value = modules.audio_mixer.dubbed_volume || 1.8;
             }
             
             // Advanced - Whisper
@@ -1455,15 +1349,16 @@
                  document.getElementById('adv-video-quality').value = webConfig.video_preset || 'medium';
                  document.getElementById('adv-video-crf').value = webConfig.video_crf || 18;
                  document.getElementById('crf-value').textContent = webConfig.video_crf || 18;
-                 document.getElementById('adv-video-profile').value = webConfig.video_profile || 'high';
-                 document.getElementById('adv-video-tune').value = webConfig.video_tune || 'zerolatency';
                  document.getElementById('adv-encoder-mode').value = webConfig.encoder_mode || 'auto';
-                 document.getElementById('adv-gpu-preset').value = webConfig.gpu_preset || 'p3';
                  document.getElementById('adv-audio-codec').value = webConfig.audio_codec || 'aac';
                  document.getElementById('adv-audio-bitrate').value = webConfig.audio_bitrate || '192k';
                  document.getElementById('adv-audio-samplerate').value = webConfig.audio_sample_rate || 48000;
              }
             
+            // Initialize toggle states
+            toggleTranslate();
+            toggleDub();
+            toggleSubtitle();
             updateInputFields();
         }
 
@@ -1532,8 +1427,62 @@
             btnStop.disabled = state !== 'running';
         }
 
+        // ── Validate Module Dependencies ──
+        function validateDependencies(modules) {
+            const errors = [];
+            
+            // Rule: subtitle_generator requires translator
+            if (modules.subtitle_generator?.enabled && !modules.translator?.enabled) {
+                errors.push("Subtítulos requiere que Traducción esté activo");
+            }
+            
+            // Rule: tts_engine requires translator
+            if (modules.tts_engine?.enabled && !modules.translator?.enabled) {
+                errors.push("Doblaje (TTS) requiere que Traducción esté activo");
+            }
+            
+            // Rule: audio_mixer requires translator AND tts_engine
+            if (modules.audio_mixer?.enabled) {
+                if (!modules.translator?.enabled) {
+                    errors.push("Mezcla de audio requiere que Traducción esté activo");
+                }
+                if (!modules.tts_engine?.enabled) {
+                    errors.push("Mezcla de audio requiere que Doblaje (TTS) esté activo");
+                }
+            }
+            
+            return errors;
+        }
+
         // ── Save Config ──
         async function saveConfig(silent = false) {
+            const modules = {
+                transcriber: {
+                    enabled: document.getElementById('adv-whisper-enabled').checked
+                },
+                translator: {
+                    enabled: document.getElementById('translate-enabled').checked
+                },
+                subtitle_generator: {
+                    enabled: document.getElementById('subtitle-enabled').checked
+                },
+                tts_engine: {
+                    enabled: document.getElementById('dub-enabled').checked
+                },
+                audio_mixer: {
+                    enabled: document.getElementById('dub-enabled').checked
+                }
+            };
+            
+            // Validate dependencies before saving
+            const errors = validateDependencies(modules);
+            if (errors.length > 0) {
+                const errorMsg = 'Configuración inválida:\n• ' + errors.join('\n• ');
+                addLog('error', errorMsg);
+                showToast(errorMsg, 'error');
+                return false;
+            }
+            
             const update = {
                 input: {
                     type: document.getElementById('input-type').value,
@@ -1553,14 +1502,9 @@
                     web: {
                         segment_duration: parseInt(document.getElementById('output-segment').value),
                         list_size: 6,
-                        // Configuración de encoder
                         video_preset: document.getElementById('adv-video-quality').value,
                         video_crf: parseInt(document.getElementById('adv-video-crf').value),
-                        video_profile: document.getElementById('adv-video-profile').value,
-                        video_tune: document.getElementById('adv-video-tune').value,
                         encoder_mode: document.getElementById('adv-encoder-mode').value,
-                        gpu_preset: document.getElementById('adv-gpu-preset').value,
-                        // Configuración de audio
                         audio_codec: document.getElementById('adv-audio-codec').value,
                         audio_bitrate: document.getElementById('adv-audio-bitrate').value,
                         audio_sample_rate: parseInt(document.getElementById('adv-audio-samplerate').value)
@@ -1574,39 +1518,33 @@
                         device: document.getElementById('adv-device').value
                     },
                     translator: {
-                        enabled: document.getElementById('adv-translator-enabled').checked,
-                        source_lang: document.getElementById('adv-source').value,
-                        target_lang: document.getElementById('adv-target').value
+                        enabled: document.getElementById('translate-enabled').checked,
+                        source_lang: document.getElementById('translate-source').value,
+                        target_lang: document.getElementById('translate-target').value
                     },
                     subtitle_generator: {
-                        enabled: document.getElementById('adv-subs-enabled').checked,
-                        format: document.getElementById('adv-subs-format').value,
-                        use_translated: document.getElementById('adv-subs-translated').value === 'true'
+                        enabled: document.getElementById('subtitle-enabled').checked,
+                        format: document.getElementById('subtitle-format').value,
+                        use_translated: document.getElementById('subtitle-use-translated').value === 'true'
                     },
                     tts_engine: {
-                        enabled: document.getElementById('adv-tts-enabled').checked,
-                        voice: document.getElementById('adv-tts-voice').value,
-                        speed: parseFloat(document.getElementById('adv-tts-speed').value)
+                        enabled: document.getElementById('dub-enabled').checked,
+                        voice: document.getElementById('dub-voice').value,
+                        speed: parseFloat(document.getElementById('dub-speed').value)
                     },
                     audio_mixer: {
-                        enabled: document.getElementById('adv-mixer-enabled').checked,
-                        original_volume: parseFloat(document.getElementById('adv-vol-orig').value),
-                        dubbed_volume: parseFloat(document.getElementById('adv-vol-dub').value)
+                        enabled: document.getElementById('dub-enabled').checked,
+                        original_volume: 0.4,
+                        dubbed_volume: 1.8
                     },
-                     video_muxer: {
-                         enabled: true,
-                         hls_segment_duration: parseInt(document.getElementById('adv-seg').value),
-                         hls_list_size: parseInt(document.getElementById('adv-list').value),
-                         audio_offset_ms: parseInt(document.getElementById('adv-offset').value),
-                         video_preset: document.getElementById('adv-video-quality').value,
-                         gpu_preset: document.getElementById('adv-gpu-preset').value
-                     }
+                    video_muxer: {
+                        enabled: true,
+                        hls_segment_duration: parseInt(document.getElementById('adv-seg').value),
+                        hls_list_size: parseInt(document.getElementById('adv-list').value),
+                        audio_offset_ms: parseInt(document.getElementById('adv-offset').value)
+                    }
                 }
             };
-            
-            // Sync main toggles to modules
-            update.modules.subtitle_generator.enabled = update.modules.subtitle_generator.enabled || update.modules.translator.enabled;
-            update.modules.tts_engine.enabled = update.modules.tts_engine.enabled || update.modules.audio_mixer.enabled;
             
             try {
                 const result = await apiCall('PUT', '/config', { config: update });
@@ -1638,14 +1576,39 @@
             updateUrls();
         }
 
+        function toggleTranslate() {
+            const enabled = document.getElementById('translate-enabled').checked;
+            document.getElementById('card-translate').classList.toggle('disabled', !enabled);
+            document.getElementById('translate-settings').style.opacity = enabled ? '1' : '0.5';
+            
+            // If disabling translation, also disable dependent modules
+            if (!enabled) {
+                const subtitleEnabled = document.getElementById('subtitle-enabled');
+                const dubEnabled = document.getElementById('dub-enabled');
+                if (subtitleEnabled.checked) {
+                    subtitleEnabled.checked = false;
+                    toggleSubtitle();
+                    showToast('Subtítulos desactivado (requiere traducción)', 'warning');
+                }
+                if (dubEnabled.checked) {
+                    dubEnabled.checked = false;
+                    toggleDub();
+                    showToast('Doblaje desactivado (requiere traducción)', 'warning');
+                }
+            }
+        }
+
         function toggleDub() {
             const enabled = document.getElementById('dub-enabled').checked;
             document.getElementById('card-dub').classList.toggle('disabled', !enabled);
             document.getElementById('dub-settings').style.opacity = enabled ? '1' : '0.5';
             
-            // Sync with advanced
-            document.getElementById('adv-tts-enabled').checked = enabled;
-            document.getElementById('adv-mixer-enabled').checked = enabled;
+            // If enabling dubbing, ensure translation is enabled
+            if (enabled && !document.getElementById('translate-enabled').checked) {
+                document.getElementById('translate-enabled').checked = true;
+                toggleTranslate();
+                showToast('Traducción activado automáticamente para doblaje', 'info');
+            }
         }
 
         function toggleSubtitle() {
@@ -1653,18 +1616,17 @@
             document.getElementById('card-subtitle').classList.toggle('disabled', !enabled);
             document.getElementById('subtitle-settings').style.opacity = enabled ? '1' : '0.5';
             
-            // Sync with advanced
-            document.getElementById('adv-translator-enabled').checked = enabled;
-            document.getElementById('adv-subs-enabled').checked = enabled;
+            // If enabling subtitles, ensure translation is enabled
+            if (enabled && !document.getElementById('translate-enabled').checked) {
+                document.getElementById('translate-enabled').checked = true;
+                toggleTranslate();
+                showToast('Traducción activado automáticamente para subtítulos', 'info');
+            }
         }
 
         function toggleVideoMuxer() {
             const enabled = document.getElementById('adv-muxer-enabled').checked;
             document.getElementById('mod-video_muxer').classList.toggle('disabled', !enabled);
-            
-            // Sync with main toggle if exists
-            const mainToggle = document.getElementById('output-enabled');
-            if (mainToggle) mainToggle.checked = enabled;
         }
 
         // ── Logs ──

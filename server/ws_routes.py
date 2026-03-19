@@ -138,7 +138,7 @@ def create_ws_router() -> APIRouter:
                         ctx = websocket.app.state.ctx
                         pipeline = ctx["pipeline"]
                         status = pipeline.get_status()
-                        status["srt_receiving"] = ctx["srt_ingest"].is_receiving()
+                        status["input_receiving"] = ctx["srt_ingest"].is_receiving()
                         await websocket.send_text(
                             json.dumps({"type": "status", **status})
                         )

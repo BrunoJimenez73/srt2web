@@ -194,6 +194,40 @@ def create_error_response(
     }
 
 
+def validate_module_dependencies(config: dict) -> list:
+    """
+    Validate module dependencies according to pipeline rules.
+
+    Rules:
+    - subtitle_generator requires translator
+    - tts_engine requires translator
+    - audio_mixer requires translator AND tts_engine
+
+    Returns list of error messages, empty if valid.
+    """
+    errors = []
+    modules = config.get("modules", {})
+
+    translator_enabled = modules.get("translator", {}).get("enabled", False)
+    subtitle_enabled = modules.get("subtitle_generator", {}).get("enabled", False)
+    tts_enabled = modules.get("tts_engine", {}).get("enabled", False)
+    mixer_enabled = modules.get("audio_mixer", {}).get("enabled", False)
+
+    if subtitle_enabled and not translator_enabled:
+        errors.append("subtitle_generator requires translator to be enabled")
+
+    if tts_enabled and not translator_enabled:
+        errors.append("tts_engine requires translator to be enabled")
+
+    if mixer_enabled:
+        if not translator_enabled:
+            errors.append("audio_mixer requires translator to be enabled")
+        if not tts_enabled:
+            errors.append("audio_mixer requires tts_engine to be enabled")
+
+    return errors
+
+
 class ConfigUpdate(BaseModel):
     """Request body for configuration updates with validation."""
 
@@ -406,9 +440,18 @@ def create_api_router() -> APIRouter:
 
     @router.put("/config")
     async def update_config(request: Request, body: ConfigUpdate):
-        """Update configuration (partial update)."""
+        """Update configuration (partial update) with dependency validation."""
         ctx = _ctx(request)
         config = ctx["config"]
+
+        # Validate module dependencies BEFORE saving
+        dependency_errors = validate_module_dependencies(body.config)
+        if dependency_errors:
+            raise HTTPException(
+                400,
+                f"Configuration violates module dependencies:\n• "
+                + "\n• ".join(dependency_errors),
+            )
 
         config.update_from_dict(body.config)
         config.save()
