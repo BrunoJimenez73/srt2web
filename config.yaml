@@ -11,6 +11,7 @@ input:
     listen_port: 9000
     mode: listener
     latency_ms: 1000
+    chunk_duration_sec: 10
     caller_address: ''
   file:
     path: ./video.mp4

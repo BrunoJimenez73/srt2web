@@ -10,121 +10,133 @@ set "YELLOW=[93m"
 set "WHITE=[97m"
 set "RESET=[0m"
 
-set "ERRORS_FOUND=0"
-set "KILLED=0"
-
 echo.
 echo  +=============================================+
 echo  ^|          DETENIENDO SRT2Web               ^|
 echo  +=============================================+
 echo.
 
-echo %WHITE%[INFO]%RESET% Deteniendo servicios y limpiando puertos...
+echo %WHITE%[INFO]%RESET% Deteniendo todos los procesos relacionados...
 echo.
 
+REM Kill FFmpeg first
+echo %WHITE%[INFO]%RESET% Matando FFmpeg...
+taskkill /F /IM ffmpeg.exe 2>nul
+if !errorlevel!==0 (
+    echo %GREEN%[OK]%RESET% FFmpeg detenido
+) else (
+    echo %WHITE%[INFO]%RESET% No habia FFmpeg corriendo
+)
+timeout /t 1 /nobreak >nul
+
+REM Kill Python processes
+echo %WHITE%[INFO]%RESET% Matando procesos Python...
+taskkill /F /IM python.exe 2>nul
+if !errorlevel!==0 (
+    echo %GREEN%[OK]%RESET% Python detenido
+) else (
+    echo %WHITE%[INFO]%RESET% No habia Python corriendo
+)
+timeout /t 1 /nobreak >nul
+
+REM Also kill pythonw if any
+taskkill /F /IM pythonw.exe 2>nul
+
+REM Check for processes on our ports and kill them
 set "PORTS=9999 9000 8000"
 
+echo.
+echo %WHITE%[INFO]%RESET% Verificando puertos...
 for %%P in (%PORTS%) do (
+    echo Verificando puerto %%P...
     for /f "tokens=5" %%A in ('netstat -ano ^| findstr :%%P ^| findstr LISTENING') do (
         if "%%A" NEQ "0" (
-            echo %YELLOW%[WARN]%RESET% Proceso PID %%A en puerto %%P
-            taskkill /F /PID %%A >nul 2>&1
-            if !errorlevel! equ 0 (
-                echo %GREEN%[OK]%RESET% Proceso %%A detenido
-                set "KILLED=1"
-            ) else (
-                echo %RED%[ERROR]%RESET% No se pudo detener %%A
-                set "ERRORS_FOUND=1"
-            )
+            echo %YELLOW%[WARN]%RESET% Matando proceso PID %%A en puerto %%P
+            taskkill /F /PID %%A 2>nul
+            timeout /t 1 /nobreak >nul
         )
     )
 )
 
+REM Double check FFmpeg is dead
 echo.
-echo %WHITE%[INFO]%RESET% Deteniendo FFmpeg...
-for /f "tokens=2" %%A in ('tasklist /NH /FI "IMAGENAME eq ffmpeg.exe" 2^>nul ^| findstr /I "ffmpeg.exe"') do (
-    taskkill /F /PID %%A >nul 2>&1
-    if !errorlevel! equ 0 (
-        set "KILLED=1"
-    )
-)
-if !KILLED!==1 (
-    echo %GREEN%[OK]%RESET% FFmpeg detenido
+echo %WHITE%[INFO]%RESET% Verificando FFmpeg...
+tasklist /NH /FI "IMAGENAME eq ffmpeg.exe" 2>nul | findstr /I "ffmpeg.exe" >nul
+if !errorlevel!==0 (
+    echo %YELLOW%[WARN]%RESET% FFmpeg aun corriendo, forzando muerte...
+    taskkill /F /IM ffmpeg.exe /T 2>nul
+    timeout /t 2 /nobreak >nul
 )
 
-set "KILLED=0"
+REM Verify ports are free
 echo.
-echo %WHITE%[INFO]%RESET% Deteniendo procesos Python...
-for /f "tokens=2" %%A in ('tasklist /NH /FI "IMAGENAME eq python.exe" 2^>nul ^| findstr /I "python.exe"') do (
-    taskkill /F /PID %%A >nul 2>&1
-    if !errorlevel! equ 0 (
-        set "KILLED=1"
-    )
-)
-if !KILLED!==1 (
-    echo %GREEN%[OK]%RESET% Procesos Python detenidos
-)
-
-echo.
-echo %WHITE%[INFO]%RESET% Verificando puertos...
+echo %WHITE%[INFO]%RESET% Verificando que puertos estan libres...
 set "ALL_FREE=1"
 for %%P in (%PORTS%) do (
     netstat -ano | findstr :%%P | findstr LISTENING >nul 2>&1
-    if !errorlevel! equ 0 (
+    if !errorlevel!==0 (
         echo %RED%[ERROR]%RESET% Puerto %%P aun en uso
+        for /f "tokens=5" %%A in ('netstat -ano ^| findstr :%%P ^| findstr LISTENING') do (
+            echo %RED%[ERROR]%RESET% Matando PID %%A que ocupa %%P
+            taskkill /F /PID %%A 2>nul
+        )
         set "ALL_FREE=0"
-        set "ERRORS_FOUND=1"
+    ) else (
+        echo %GREEN%[OK]%RESET% Puerto %%P libre
     )
 )
-if "!ALL_FREE!"=="1" (
-    echo %GREEN%[OK]%RESET% Todos los puertos libres
-)
 
+REM Clean temp files
 echo.
 echo %WHITE%[INFO]%RESET% Limpiando archivos temporales...
 
 set "SCRIPT_DIR=%~dp0"
 cd /d "%SCRIPT_DIR%"
 
-set "CLEANED=0"
-
+REM Clean output directories
 for %%D in (chunks temp_audio temp_mix temp_tts) do (
     if exist "output\%%D" (
+        echo Limpiando output\%%D\...
+        del /q /f "output\%%D\*" 2>nul
         for %%F in ("output\%%D\*") do (
-            del /q "%%F" >nul 2>&1
-            set "CLEANED=1"
+            del /q /f "%%F" 2>nul
         )
     )
 )
 
-for %%E in (seg_*.ts chunk_*.srt *.m3u8) do (
-    if exist "output\hls\%%E" (
-        del /q "output\hls\%%E" >nul 2>&1
-        set "CLEANED=1"
-    )
+REM Clean HLS files
+if exist "output\hls" (
+    echo Limpiando output\hls\...
+    del /q /f "output\hls\seg_*.ts" 2>nul
+    del /q /f "output\hls\chunk_*.srt" 2>nul
+    del /q /f "output\hls\*.m3u8" 2>nul
 )
 
+REM Reset VTT file
 if exist "output\hls\subs.vtt" (
     (
         echo WEBVTT
         echo.
     ) > "output\hls\subs.vtt"
-    set "CLEANED=1"
 )
 
-if "!CLEANED!"=="1" (
-    echo %GREEN%[OK]%RESET% Archivos temporales limpiados
-) else (
-    echo %WHITE%[INFO]%RESET% No habia archivos que limpiar
+REM Reset playlist
+if exist "output\hls\stream.m3u8" (
+    (
+        echo #EXTM3U
+        echo #EXT-X-VERSION:3
+        echo #EXT-X-TARGETDURATION:10
+        echo #EXT-X-MEDIA-SEQUENCE:0
+        echo #EXT-X-PLAYLIST-TYPE:EVENT
+        echo #EXT-X-ENDLIST
+    ) > "output\hls\stream.m3u8"
 )
+
+echo %GREEN%[OK]%RESET% Archivos temporales limpiados
 
 echo.
 echo  +=============================================+
-if "!ERRORS_FOUND!"=="1" (
-    echo %RED%[ERROR]%RESET% Algunos procesos no pudieron detenerse
-) else (
-    echo %GREEN%[OK]%RESET% Servidor detenido correctamente
-)
+echo %GREEN%[OK]%RESET% Servidor detenido correctamente
 echo  +=============================================+
 echo.
 pause
