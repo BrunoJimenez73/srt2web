@@ -669,9 +669,10 @@ import ProcessCard from '../components/ProcessCard.astro';
         const latencyUs = latency * 1000;
         
         if (connectionMode === 'local') {
-            // Modo LOCAL: usar IP local para SRT (OBS debe conectarse a la IP de red, no 127.0.0.1)
+            // Modo LOCAL: usar IP local para SRT
+            // OBS se conecta como CALLER a nuestro LISTENER
             const localIp = networkInfo.local_ip;
-            urlSrt.textContent = `srt://${localIp}:${srtPort}?mode=listener&latency=${latencyUs}`;
+            urlSrt.textContent = `srt://${localIp}:${srtPort}?mode=caller&latency=${latencyUs}`;
             urlStream.textContent = `http://127.0.0.1:9999/hls/stream.m3u8`;
             urlPlayer.textContent = `http://127.0.0.1:9999/player`;
         } else {
