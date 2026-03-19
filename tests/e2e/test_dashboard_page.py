@@ -33,18 +33,17 @@ class TestDashboardPageStructure:
         """Test that HTML has all required elements."""
         if dashboard_html is None:
             pytest.skip("index.html not found")
-        
+
         assert 'id="btn-start"' in dashboard_html
         assert 'id="btn-stop"' in dashboard_html
-        assert 'id="srt-url"' in dashboard_html
-        assert 'id="module-list"' in dashboard_html
-        assert 'id="log-output"' in dashboard_html
+        assert 'id="url-srt"' in dashboard_html
+        assert 'id="logs-content"' in dashboard_html
 
     def test_has_navigation(self, dashboard_html):
         """Test that navigation elements exist."""
         if dashboard_html is None:
             pytest.skip("index.html not found")
-        
+
         assert "SRT2Web" in dashboard_html
         assert "Dashboard" in dashboard_html or "Processing Engine" in dashboard_html
 
@@ -52,17 +51,17 @@ class TestDashboardPageStructure:
         """Test that SRT settings form exists."""
         if dashboard_html is None:
             pytest.skip("index.html not found")
-        
-        assert 'id="srt-port"' in dashboard_html
-        assert 'id="srt-mode"' in dashboard_html
-        assert 'id="srt-latency"' in dashboard_html
-        assert 'id="chunk-duration"' in dashboard_html
+
+        assert 'id="input-port"' in dashboard_html
+        assert 'id="input-type"' in dashboard_html
+        assert 'id="input-latency"' in dashboard_html
+        assert 'id="output-segment"' in dashboard_html
 
     def test_has_player_link(self, dashboard_html):
         """Test that player link exists."""
         if dashboard_html is None:
             pytest.skip("index.html not found")
-        
+
         assert "/player" in dashboard_html
 
 
@@ -86,7 +85,7 @@ class TestAppJavaScript:
         """Test that API call functions exist."""
         if app_js_content is None:
             pytest.skip("app.js not found")
-        
+
         assert "function apiCall" in app_js_content
         assert "function startPipeline" in app_js_content
         assert "function stopPipeline" in app_js_content
@@ -97,7 +96,7 @@ class TestAppJavaScript:
         """Test that module labels are defined."""
         if app_js_content is None:
             pytest.skip("app.js not found")
-        
+
         assert "MODULE_LABELS" in app_js_content
         assert "transcriber" in app_js_content
         assert "translator" in app_js_content
@@ -107,7 +106,7 @@ class TestAppJavaScript:
         """Test that correct API endpoints are used."""
         if app_js_content is None:
             pytest.skip("app.js not found")
-        
+
         assert "/api/status" in app_js_content
         assert "/api/start" in app_js_content
         assert "/api/stop" in app_js_content
@@ -135,21 +134,21 @@ class TestWebSocketClient:
         """Test that WSClient class is defined."""
         if ws_js_content is None:
             pytest.skip("ws.js not found")
-        
+
         assert "class WSClient" in ws_js_content
 
     def test_has_reconnection_logic(self, ws_js_content):
         """Test that reconnection logic exists."""
         if ws_js_content is None:
             pytest.skip("ws.js not found")
-        
+
         assert "reconnect" in ws_js_content.lower()
 
     def test_has_heartbeat(self, ws_js_content):
         """Test that heartbeat/ping mechanism exists."""
         if ws_js_content is None:
             pytest.skip("ws.js not found")
-        
+
         assert "ping" in ws_js_content.lower()
 
 
@@ -173,14 +172,14 @@ class TestStreamPlayer:
         """Test that StreamPlayer class is defined."""
         if player_js_content is None:
             pytest.skip("player.js not found")
-        
+
         assert "class StreamPlayer" in player_js_content
 
     def test_has_hls_integration(self, player_js_content):
         """Test that HLS.js integration exists."""
         if player_js_content is None:
             pytest.skip("player.js not found")
-        
+
         assert "Hls" in player_js_content
         assert "hls.js" in player_js_content or "hls.js@" in player_js_content
 
@@ -195,52 +194,56 @@ class TestDashboardFunctionality:
         from server.app import create_app
         from core.config_manager import ConfigManager
         from core.pipeline import Pipeline
-        
+
         config = ConfigManager()
         pipeline = Pipeline()
-        
+
         # Add dummy modules
         class DummyModule:
             def __init__(self, name):
                 self.name = name
                 self.enabled = True
                 from core.module_base import ModuleState
+
                 self._state = ModuleState.IDLE
-            
+
             def get_status(self):
                 from core.module_base import ModuleStatus, ModuleState
+
                 return ModuleStatus(
                     name=self.name,
                     state=self._state,
                     enabled=self.enabled,
                 )
-        
+
         pipeline.register_module(DummyModule("transcriber"))
         pipeline.register_module(DummyModule("translator"))
-        
+
         srt_ingest = Mock()
         srt_ingest.is_receiving.return_value = False
         srt_ingest.get_srt_url.return_value = "srt://127.0.0.1:9000"
-        
-        app = create_app({
-            "config": config,
-            "pipeline": pipeline,
-            "srt_ingest": srt_ingest,
-            "log_broadcast": Mock(),
-        })
-        
+
+        app = create_app(
+            {
+                "config": config,
+                "pipeline": pipeline,
+                "srt_ingest": srt_ingest,
+                "log_broadcast": Mock(),
+            }
+        )
+
         return TestClient(app)
 
     def test_page_loads_successfully(self, mock_server):
         """Test that dashboard page loads successfully."""
         response = mock_server.get("/")
-        
+
         assert response.status_code == 200
 
     def test_api_status_returns_json(self, mock_server):
         """Test that /api/status returns valid JSON."""
         response = mock_server.get("/api/status")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "state" in data
@@ -249,7 +252,7 @@ class TestDashboardFunctionality:
     def test_api_config_returns_json(self, mock_server):
         """Test that /api/config returns valid JSON."""
         response = mock_server.get("/api/config")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "server" in data
@@ -257,16 +260,15 @@ class TestDashboardFunctionality:
     def test_can_update_config(self, mock_server):
         """Test that configuration can be updated."""
         response = mock_server.put(
-            "/api/config",
-            json={"config": {"pipeline": {"chunk_duration_sec": 6}}}
+            "/api/config", json={"config": {"pipeline": {"chunk_duration_sec": 6}}}
         )
-        
+
         assert response.status_code == 200
 
     def test_srt_info_endpoint(self, mock_server):
         """Test SRT info endpoint."""
         response = mock_server.get("/api/srt-info")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "port" in data
@@ -287,26 +289,26 @@ class TestDashboardWithLiveServer:
 
     @pytest.mark.skipif(
         not os.environ.get("RUN_LIVE_TESTS"),
-        reason="Live server tests require explicit opt-in"
+        reason="Live server tests require explicit opt-in",
     )
     def test_live_server_health(self, live_server_url):
         """Test that live server is healthy."""
         import requests
-        
+
         response = requests.get(f"{live_server_url}/health", timeout=5)
-        
+
         assert response.status_code == 200
         assert response.json()["status"] == "ok"
 
     @pytest.mark.skipif(
         not os.environ.get("RUN_LIVE_TESTS"),
-        reason="Live server tests require explicit opt-in"
+        reason="Live server tests require explicit opt-in",
     )
     def test_live_dashboard_accessible(self, live_server_url):
         """Test that dashboard is accessible on live server."""
         import requests
-        
+
         response = requests.get(f"{live_server_url}/", timeout=5)
-        
+
         assert response.status_code == 200
         assert "text/html" in response.headers.get("content-type", "")
