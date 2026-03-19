@@ -121,6 +121,12 @@ def create_app(app_context: dict) -> FastAPI:
     # Clean player page
     @app.get("/player")
     async def serve_player():
+        # Try Astro dist first
+        if ASTRO_DIST_DIR.exists():
+            astro_player_path = ASTRO_DIST_DIR / "player" / "index.html"
+            if astro_player_path.exists():
+                return FileResponse(str(astro_player_path), media_type="text/html")
+        # Fallback to web/player.html
         player_path = WEB_DIR / "player.html"
         if player_path.exists():
             return FileResponse(str(player_path), media_type="text/html")
