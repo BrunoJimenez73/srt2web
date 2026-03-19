@@ -143,6 +143,28 @@ class Pipeline:
                 output_config = config_manager.get_section("output")
                 output_type = output_config.get("type", "web")
                 type_config = output_config.get(output_type, {})
+
+                # Get translator language for subtitle language
+                translator_config = config_manager.get_module_config("translator")
+                target_lang = translator_config.get("target_lang", "es")
+                subtitle_lang_map = {
+                    "es": ("es", "Spanish"),
+                    "en": ("en", "English"),
+                    "fr": ("fr", "French"),
+                    "de": ("de", "German"),
+                    "it": ("it", "Italian"),
+                    "pt": ("pt", "Portuguese"),
+                    "ja": ("ja", "Japanese"),
+                    "zh": ("zh", "Chinese"),
+                    "ko": ("ko", "Korean"),
+                    "ru": ("ru", "Russian"),
+                }
+                subtitle_lang_code, subtitle_lang_name = subtitle_lang_map.get(
+                    target_lang, ("es", "Spanish")
+                )
+                type_config["subtitle_language"] = subtitle_lang_code
+                type_config["subtitle_language_name"] = subtitle_lang_name
+
                 self._output_sink.configure(type_config)
                 self._log("info", f"Reconfigured output: {output_type}")
             except Exception as e:

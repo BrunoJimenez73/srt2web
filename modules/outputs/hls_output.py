@@ -63,12 +63,33 @@ class HLSOutput(OutputSink):
         self._list_size = config.get("list_size", self._list_size)
         self._audio_offset_ms = config.get("audio_offset_ms", self._audio_offset_ms)
 
+        # Actualizar idioma de subtítulos
+        old_subtitle_lang = self._subtitle_language
+        old_subtitle_name = self._subtitle_language_name
+        self._subtitle_language = config.get(
+            "subtitle_language", self._subtitle_language
+        )
+        self._subtitle_language_name = config.get(
+            "subtitle_language_name", self._subtitle_language_name
+        )
+
+        # Si cambió el idioma de subtítulos, regenerar manifest
+        if (
+            old_subtitle_lang != self._subtitle_language
+            or old_subtitle_name != self._subtitle_language_name
+        ):
+            self.logger.info(
+                f"Subtitle language changed: {old_subtitle_name} -> {self._subtitle_language_name}"
+            )
+            self._update_master_playlist()
+
         # Actualizar configuración de encoder
         self._encoder_config = EncoderConfig(config)
 
         self.logger.info(
             f"HLS output reconfigured: segment={self._segment_duration}s, list_size={self._list_size}, "
-            f"encoder_mode={self._encoder_config.encoder_mode}, video_preset={self._encoder_config.video_preset}"
+            f"encoder_mode={self._encoder_config.encoder_mode}, video_preset={self._encoder_config.video_preset}, "
+            f"subtitle_language={self._subtitle_language_name}"
         )
 
     def get_stream_info(self) -> dict:
@@ -129,6 +150,29 @@ class HLSOutput(OutputSink):
             self.logger.error(f"Failed to create initial master playlist: {e}")
 
         self.logger.info(f"HLS output ready: {self._hls_dir}")
+
+    def _update_master_playlist(self) -> None:
+        """Actualizar el manifest master.m3u8 con el nuevo idioma de subtítulos."""
+        if not self._hls_dir:
+            return
+
+        master_path = os.path.join(self._hls_dir, "master.m3u8")
+        try:
+            with open(master_path, "w", encoding="utf-8") as f:
+                f.write("#EXTM3U\n")
+                f.write("#EXT-X-VERSION:4\n")
+                f.write(
+                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="subs.vtt"\n'
+                )
+                f.write(
+                    '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"\n'
+                )
+                f.write("stream.m3u8\n")
+            self.logger.info(
+                f"Updated master playlist with subtitle language: {self._subtitle_language_name}"
+            )
+        except Exception as e:
+            self.logger.error(f"Failed to update master playlist: {e}")
 
     def stop(self) -> None:
         """Detener salida HLS."""

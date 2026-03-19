@@ -59,8 +59,24 @@ class VideoMuxer(BaseModule):
         self._video_preset = config.get("video_preset", self._video_preset)
         self._gpu_preset = config.get("gpu_preset", self._gpu_preset)
         # Subtitle language settings
-        self._subtitle_language = config.get("subtitle_language", "es")
-        self._subtitle_language_name = config.get("subtitle_language_name", "Spanish")
+        old_subtitle_lang = self._subtitle_language
+        old_subtitle_name = self._subtitle_language_name
+        self._subtitle_language = config.get(
+            "subtitle_language", self._subtitle_language
+        )
+        self._subtitle_language_name = config.get(
+            "subtitle_language_name", self._subtitle_language_name
+        )
+
+        # Log if subtitle language changed
+        if (
+            old_subtitle_lang != self._subtitle_language
+            or old_subtitle_name != self._subtitle_language_name
+        ):
+            logger.info(
+                f"VideoMuxer subtitle language changed: {old_subtitle_name} -> {self._subtitle_language_name}"
+            )
+
         logger.info(
             f"VideoMuxer reconfigured: Audio Offset: {self._audio_offset_ms}ms, Video Preset: {self._video_preset}, GPU Preset: {self._gpu_preset}, Subtitle Language: {self._subtitle_language_name}"
         )
