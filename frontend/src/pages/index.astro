@@ -626,7 +626,6 @@ import ProcessCard from '../components/ProcessCard.astro';
         try {
             const response = await apiCall('GET', '/api/network/info');
             networkInfo = response;
-            updateNetworkDisplay();
             updateConnectionUrls();
         } catch (e) {
             console.warn('Could not load network info:', e);
@@ -636,28 +635,7 @@ import ProcessCard from '../components/ProcessCard.astro';
                 srt_port: 9000,
                 server_port: 9999
             };
-            updateNetworkDisplay();
             updateConnectionUrls();
-        }
-    }
-
-    function updateNetworkDisplay() {
-        if (!networkInfo) return;
-        
-        document.getElementById('local-ip').textContent = networkInfo.local_ip || 'N/A';
-        
-        const publicIpEl = document.getElementById('public-ip');
-        const warningEl = document.getElementById('public-ip-warning');
-        const warningBox = document.getElementById('connection-warning');
-        
-        if (networkInfo.public_ip) {
-            publicIpEl.textContent = networkInfo.public_ip;
-            warningEl.style.display = 'none';
-            warningBox.style.display = 'none';
-        } else {
-            publicIpEl.textContent = 'No detectada';
-            warningEl.style.display = 'inline';
-            warningBox.style.display = 'block';
         }
     }
 
@@ -680,37 +658,33 @@ import ProcessCard from '../components/ProcessCard.astro';
     function updateConnectionUrls() {
         if (!networkInfo) return;
         
+        const urlSrt = document.getElementById('url-srt');
+        const urlStream = document.getElementById('url-stream');
+        const urlPlayer = document.getElementById('url-player');
+        
+        if (!urlSrt || !urlStream || !urlPlayer) return;
+        
         const srtPort = document.getElementById('input-port')?.value || networkInfo.srt_port || 9000;
         const latency = document.getElementById('input-latency')?.value || 1000;
         const latencyUs = latency * 1000;
         
         if (connectionMode === 'local') {
-            // Modo LOCAL: usar IP local para todo
             const localIp = networkInfo.local_ip;
-            document.getElementById('url-srt').textContent = 
-                `srt://${localIp}:${srtPort}?mode=listener&latency=${latencyUs}`;
-            
-            document.getElementById('url-stream').textContent = 
-                `http://${localIp}:9999/hls/stream.m3u8`;
-            document.getElementById('url-player').textContent = 
-                `http://${localIp}:9999/player`;
+            urlSrt.textContent = `srt://${localIp}:${srtPort}?mode=listener&latency=${latencyUs}`;
+            urlStream.textContent = `http://${localIp}:9999/hls/stream.m3u8`;
+            urlPlayer.textContent = `http://${localIp}:9999/player`;
         } else {
-            // Modo REMOTE: usar IP pública para Stream/Player, y modo caller para SRT
             const publicIp = networkInfo.public_ip || networkInfo.local_ip;
             const emitterIp = document.getElementById('emitter-address')?.value;
             
             if (emitterIp && emitterIp.trim()) {
-                document.getElementById('url-srt').textContent = 
-                    `srt://${emitterIp}:${srtPort}?mode=caller&latency=${latencyUs}`;
+                urlSrt.textContent = `srt://${emitterIp}:${srtPort}?mode=caller&latency=${latencyUs}`;
             } else {
-                document.getElementById('url-srt').textContent = 
-                    `srt://EMITTER_IP:${srtPort}?mode=caller&latency=${latencyUs}`;
+                urlSrt.textContent = `srt://EMITTER_IP:${srtPort}?mode=caller&latency=${latencyUs}`;
             }
             
-            document.getElementById('url-stream').textContent = 
-                `http://${publicIp}:9999/hls/stream.m3u8`;
-            document.getElementById('url-player').textContent = 
-                `http://${publicIp}:9999/player`;
+            urlStream.textContent = `http://${publicIp}:9999/hls/stream.m3u8`;
+            urlPlayer.textContent = `http://${publicIp}:9999/player`;
         }
     }
 
