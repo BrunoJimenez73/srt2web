@@ -107,21 +107,20 @@ class SubtitleGenerator(BaseModule):
         if not duration or duration <= 0:
             duration = 4.0
 
-        # Calculate real TTS duration based on speed (if TTS is faster, audio is shorter)
+        # TTS speed affects relative timestamps within chunk, not cumulative time
         tts_speed = self._tts_speed if self._tts_speed > 0 else 1.0
-        tts_scale_factor = 1.0 / tts_speed  # 1.0 for speed=1.0, 0.5 for speed=2.0
 
         # Use cumulative timing - same logic as VideoMuxer
         # Track which chunks we've already processed
         if data.chunk_index > self._last_chunk_index:
-            # New chunk, add its scaled duration to cumulative time
+            # New chunk, add its duration to cumulative time (NOT scaled - video is normal speed)
             # Skip chunks we already processed (for resume case)
             if self._last_chunk_index >= 0:
-                self._cumulative_time += duration * tts_scale_factor
+                self._cumulative_time += duration
             self._last_chunk_index = data.chunk_index
         elif data.chunk_index < self._last_chunk_index:
-            # Resume case - recalculate from scratch with scaling
-            self._cumulative_time = data.chunk_index * duration * tts_scale_factor
+            # Resume case - recalculate from scratch
+            self._cumulative_time = data.chunk_index * duration
             self._last_chunk_index = data.chunk_index
 
         # chunk_start_time is the current cumulative time (matches VideoMuxer's offset_sec)
@@ -149,12 +148,14 @@ class SubtitleGenerator(BaseModule):
             with self._lock:
                 with open(self._vtt_path, "a", encoding="utf-8") as f:
                     for seg in segments:
-                        # Apply TTS speed scaling to relative timestamps
-                        scaled_start = seg.get("start", 0) * tts_scale_factor
-                        scaled_end = seg.get("end", duration) * tts_scale_factor
+                        # Apply TTS speed scaling to relative timestamps within the chunk
+                        # When TTS is faster (speed > 1), words are spoken earlier
+                        seg_duration = seg.get("end", duration) - seg.get("start", 0)
+                        scaled_seg_duration = seg_duration / tts_speed
+                        scaled_start = seg.get("start", 0) / tts_speed
                         # Apply audio offset to sync with delayed audio
                         abs_start = chunk_start_time + scaled_start + audio_offset_sec
-                        abs_end = chunk_start_time + scaled_end + audio_offset_sec
+                        abs_end = abs_start + scaled_seg_duration
 
                         start_str = self._format_timestamp(abs_start, "vtt")
                         end_str = self._format_timestamp(abs_end, "vtt")
@@ -187,10 +188,11 @@ class SubtitleGenerator(BaseModule):
             with open(chunk_srt_path, "w", encoding="utf-8") as f:
                 for i, seg in enumerate(segments):
                     # Apply TTS speed scaling and audio offset for SRT timing
-                    scaled_start = seg.get("start", 0) * tts_scale_factor
-                    scaled_end = seg.get("end", duration) * tts_scale_factor
+                    seg_duration = seg.get("end", duration) - seg.get("start", 0)
+                    scaled_seg_duration = seg_duration / tts_speed
+                    scaled_start = seg.get("start", 0) / tts_speed
                     seg_start = scaled_start + audio_offset_sec
-                    seg_end = scaled_end + audio_offset_sec
+                    seg_end = seg_start + scaled_seg_duration
                     start_str = self._format_timestamp(seg_start, "srt")
                     end_str = self._format_timestamp(seg_end, "srt")
                     clean_text = seg.get("text", "").replace("\n", " ").strip()
