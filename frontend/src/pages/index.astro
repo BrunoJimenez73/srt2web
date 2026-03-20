@@ -720,6 +720,7 @@ import ProcessCard from '../components/ProcessCard.astro';
             urlSrt.textContent = `srt://${localIp}:${srtPort}?mode=caller&latency=${latencyUs}`;
             urlStream.textContent = `http://127.0.0.1:9999/hls/stream.m3u8`;
             urlPlayer.textContent = `http://127.0.0.1:9999/player`;
+            urlPlayer.href = `http://127.0.0.1:9999/player`;
         } else {
             const publicIp = networkInfo.public_ip || networkInfo.local_ip;
             const emitterIp = document.getElementById('emitter-address')?.value;
@@ -732,6 +733,7 @@ import ProcessCard from '../components/ProcessCard.astro';
             
             urlStream.textContent = `http://${publicIp}:9999/hls/stream.m3u8`;
             urlPlayer.textContent = `http://${publicIp}:9999/player`;
+            urlPlayer.href = `http://${publicIp}:9999/player`;
         }
     }
 

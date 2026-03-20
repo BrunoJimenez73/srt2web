@@ -34,7 +34,7 @@ const { state = 'idle' } = Astro.props;
         </div>
         <div class="url-item">
             <span class="url-label">Player:</span>
-            <code class="url-value" id="url-player">http://...</code>
+            <a class="url-link" id="url-player" href="http://127.0.0.1:9999/player" target="_blank">http://...</a>
             <button class="btn-copy-small" id="btn-copy-player">📋</button>
         </div>
     </div>
@@ -192,6 +192,22 @@ const { state = 'idle' } = Astro.props;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+
+    .url-link {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        color: var(--accent);
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .url-link:hover {
+        text-decoration: underline;
     }
 
     .btn-copy-small {
