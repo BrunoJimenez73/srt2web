@@ -143,37 +143,23 @@ class Pipeline:
                 output_config = config_manager.get_section("output")
                 output_type = output_config.get("type", "web")
                 type_config = output_config.get(output_type, {})
-
-                # Get translator language for subtitle language
-                translator_config = config_manager.get_module_config("translator")
-                target_lang = translator_config.get("target_lang", "es")
-                subtitle_lang_map = {
-                    "es": ("es", "Spanish"),
-                    "en": ("en", "English"),
-                    "fr": ("fr", "French"),
-                    "de": ("de", "German"),
-                    "it": ("it", "Italian"),
-                    "pt": ("pt", "Portuguese"),
-                    "ja": ("ja", "Japanese"),
-                    "zh": ("zh", "Chinese"),
-                    "ko": ("ko", "Korean"),
-                    "ru": ("ru", "Russian"),
-                }
-                subtitle_lang_code, subtitle_lang_name = subtitle_lang_map.get(
-                    target_lang, ("es", "Spanish")
-                )
-                type_config["subtitle_language"] = subtitle_lang_code
-                type_config["subtitle_language_name"] = subtitle_lang_name
-
                 self._output_sink.configure(type_config)
                 self._log("info", f"Reconfigured output: {output_type}")
             except Exception as e:
                 self._log("error", f"Failed to reconfigure output: {e}")
 
         # Reconfigure modules
+        # Propagate audio_offset_ms from video_muxer to subtitle_generator for sync
+        modules_config = config_manager.get("modules", {})
+        video_muxer_config = modules_config.get("video_muxer", {})
+        audio_offset_ms = video_muxer_config.get("audio_offset_ms", 0)
+
         for module in self._modules:
             try:
                 mod_config = config_manager.get_module_config(module.name)
+                # Propagate audio_offset to subtitle_generator for sync
+                if module.name == "subtitle_generator" and audio_offset_ms:
+                    mod_config["audio_offset_ms"] = audio_offset_ms
                 module.configure(mod_config)
                 self._log("info", f"Reconfigured module: {module.name}")
             except Exception as e:
