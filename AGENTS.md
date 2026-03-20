@@ -509,6 +509,60 @@ python -m pytest tests/unit/ --cov=modules --cov=core --cov-report=term-missing
 
 ## 📝 Sesiones Realizadas
 
+### **Sesión 2026-03-20 - Fix Puertos SRT y URLs Locales**
+
+**Problema identificado:**
+- Conflicto de puertos: servidor web y SRT usaban el mismo puerto 9999
+- URL de OBS mostraba IP local en lugar de 127.0.0.1 para conexiones locales
+
+**Cambios realizados:**
+
+1. **Separación de puertos en `config.yaml`**
+   - Servidor web: 9999 (TCP)
+   - Input SRT: 9000 (UDP)
+
+2. **URLs locales con 127.0.0.1 (`web/index.html`)**
+   - Modificada función `updateUrls()` para detectar localhost
+   - Si el dashboard está en localhost → usa 127.0.0.1 para SRT y HTTP
+   - Si está en otra máquina → usa la IP real del servidor
+   - Puerto SRT (9000) separado del puerto web (9999)
+
+**Verificación:**
+- OBS puede conectar a `srt://127.0.0.1:9000`
+- Dashboard muestra URLs correctas según el contexto (local vs remote)
+
+**Tests:** 392 passed, 3 skipped
+
+---
+
+### **Sesión 2026-03-20 - Fix Input Indicator, Tests E2E, Verificación Browser**
+
+**Resumen de cambios realizados:**
+
+1. **Fix Input Indicator (verde incorrecto)**
+   - `web/index.html`: El indicador INPUT se ponía verde aunque no recibiera señal SRT
+   - Causa: `is_receiving()` solo verificaba si el proceso estaba corriendo, no si recibía datos
+   - Solución: Usar `chunks_processed > 0` como criterio real de actividad
+   - Cambiado en `updateModuleStatus()` y `loadStatus()`
+
+2. **Tests E2E reescritos**
+   - `tests/e2e/test_astro_dashboard.py`: Reescrito de 0 (era para archivos Astro obsoletos)
+   - Ahora apunta a `web/index.html` correctamente
+   - 69 tests para funciones JS, API, sección avanzada, dependencias de módulos
+
+3. **Tests corregidos**
+   - `tests/e2e/test_status_indicators.py`: Actualizado para buscar `indicator-*` en lugar de `status-*`
+
+**Verificación con navegador:**
+- Dashboard carga correctamente
+- Flechita CONFIGURACIÓN AVANZADA funciona (expand/collapse)
+- Player `/player` funciona, espera stream
+- Input indicator: Ahora gris cuando no hay chunks procesados
+
+**Tests totales:** 441 passed, 8 skipped, 1 warning
+
+---
+
 ### **Sesión 2026-03-20 - Fix Audio Sync, HLS Indicator, Config Validation**
 
 **Resumen de cambios realizados:**

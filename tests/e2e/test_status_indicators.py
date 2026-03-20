@@ -117,17 +117,17 @@ class TestStatusIndicatorsHTML:
         assert 'id="status-dot"' in dashboard_html
 
     def test_all_module_status_dots_exist(self, dashboard_html):
-        """Test that all module status dots exist."""
+        """Test that all expected module status dot elements exist."""
         if dashboard_html is None:
             pytest.skip("index.html not found")
 
+        # The actual IDs in the dashboard use indicator-* naming
         expected_modules = [
-            "status-transcriber",
-            "status-translator",
-            "status-subtitle_generator",
-            "status-tts_engine",
-            "status-audio_mixer",
-            "status-video_muxer",
+            "indicator-input",
+            "indicator-translate",
+            "indicator-subtitle",
+            "indicator-dub",
+            "indicator-output",
         ]
 
         for module_id in expected_modules:

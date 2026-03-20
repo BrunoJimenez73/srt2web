@@ -1240,10 +1240,13 @@
                 outputDot.classList.add('disabled');
             }
             
-            // Update INPUT card based on receiving status
+            // Update INPUT card based on actual activity (chunks processed)
             const inputCard = document.getElementById('card-input');
             const inputIndicator = document.getElementById('indicator-input');
-            if ((pipelineState === 'running' || pipelineState === 'starting') && data.input_receiving) {
+            const chunksProcessed = data.chunks_processed || 0;
+            // Only show green if pipeline is running AND chunks have been processed
+            // (indicates real data flow, not just process running)
+            if ((pipelineState === 'running' || pipelineState === 'starting') && chunksProcessed > 0) {
                 inputCard.classList.add('active');
                 inputIndicator.classList.add('active');
             } else {
@@ -1259,10 +1262,13 @@
                 updatePipelineUI(status.state);
                 updateModuleStatus(status);
                 
-                // Update Input indicator based on receiving status
+                // Update Input indicator based on actual activity (chunks processed)
                 const inputCard = document.getElementById('card-input');
                 const inputIndicator = document.getElementById('indicator-input');
-                if (status.state === 'running' && status.input_receiving) {
+                const chunksProcessed = status.chunks_processed || 0;
+                // Only show green if pipeline is running AND chunks have been processed
+                // (indicates real data flow, not just process running)
+                if (status.state === 'running' && chunksProcessed > 0) {
                     inputCard.classList.add('active');
                     inputIndicator.classList.add('active');
                 } else {
@@ -1364,21 +1370,31 @@
 
         // ── Update URLs ──
         function updateUrls(serverIp) {
-            const port = document.getElementById('input-port').value || 9000;
+            const srtPort = document.getElementById('input-port').value || 9000;
             const latency = document.getElementById('input-latency').value || 1000;
             const latencyUs = latency * 1000;
-            const ip = serverIp || 'TU_IP_LOCAL';
+            const webPort = 9999; // Servidor web siempre usa 9999
             
-            // OBS/emisores deben conectar como CALLER al servidor
-            const srtUrl = `srt://${ip}:${port}?mode=caller&latency=${latencyUs}`;
+            // Detectar si estamos en la misma máquina (localhost)
+            const isLocalhost = window.location.hostname === 'localhost' || 
+                               window.location.hostname === '127.0.0.1';
+            
+            // Para SRT: usar 127.0.0.1 si es local, sino la IP del servidor
+            const srtIp = isLocalhost ? '127.0.0.1' : (serverIp || 'TU_IP_LOCAL');
+            
+            // Para HTTP (stream/player): usar localhost si es local, sino IP del servidor
+            const httpIp = isLocalhost ? '127.0.0.1' : (serverIp || 'TU_IP_LOCAL');
+            
+            // URL SRT para OBS (CALLER)
+            const srtUrl = `srt://${srtIp}:${srtPort}?mode=caller&latency=${latencyUs}`;
             document.getElementById('url-srt').textContent = srtUrl;
             document.getElementById('url-srt').dataset.actualUrl = srtUrl;
             
-            // URLs del servidor
-            const streamUrl = `http://${ip}:9999/hls/stream.m3u8`;
+            // URLs HTTP del servidor (stream y player)
+            const streamUrl = `http://${httpIp}:${webPort}/hls/stream.m3u8`;
             document.getElementById('url-stream').textContent = streamUrl;
             
-            const playerUrl = `http://${ip}:9999/player`;
+            const playerUrl = `http://${httpIp}:${webPort}/player`;
             document.getElementById('url-player').textContent = playerUrl;
         }
 

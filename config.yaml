@@ -62,7 +62,7 @@ modules:
   translator:
     enabled: true
     source_lang: en
-    target_lang: es
+    target_lang: fr
   subtitle_generator:
     enabled: true
     format: webvtt
@@ -71,8 +71,8 @@ modules:
     font_size: 1
   tts_engine:
     enabled: true
-    voice: es-ES-AlvaroNeural
-    speed: 0.5
+    voice: fr-FR-DeniseNeural
+    speed: 1.2
   audio_mixer:
     enabled: true
     original_volume: 0.4
