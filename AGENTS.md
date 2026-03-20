@@ -509,6 +509,39 @@ python -m pytest tests/unit/ --cov=modules --cov=core --cov-report=term-missing
 
 ## 📝 Sesiones Realizadas
 
+### **Sesión 2026-03-20 - Integrar Conexión SRT en Status Card**
+
+**Objetivo:**
+- Integrar botones LOCAL/REMOTE y URLs en el card de Iniciar/Detener
+- Hacer enlace del Player clickeable
+
+**Cambios realizados:**
+
+1. **Card de Estado Expandido (`web/index.html`)**
+   - Agregados botones LOCAL/REMOTE (📡) en el status card
+   - Agregadas URLs visibles: SRT, Stream, Player
+   - Player URL ahora es un enlace clickeable (`<a href="/player" target="_blank">`)
+   - Botones de copiar (📋) para cada URL
+
+2. **CSS Nuevo**
+   - `.status-card`: expandido con sección de URLs
+   - `.status-mode-buttons`: estilos para botones LOCAL/REMOTE
+   - `.status-urls`: contenedor de URLs
+   - `.status-player-link`: estilo para enlace del player
+
+3. **JavaScript Actualizado**
+   - `updateUrls()` ahora actualiza los elementos del status card
+   - `copyUrl()` funciona para todos los elementos de URL
+
+**Verificación:**
+- Dashboard muestra URLs en el card principal
+- Botón PLAYER abre player en nueva pestaña
+- Botones LOCAL/REMOTE visibles y funcionales
+
+**Tests:** 409 passed, 3 skipped
+
+---
+
 ### **Sesión 2026-03-20 - Fix Puertos SRT y URLs Locales**
 
 **Problema identificado:**
