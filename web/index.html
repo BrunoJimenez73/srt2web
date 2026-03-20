@@ -84,22 +84,129 @@
             border: 1px solid var(--border-dim);
         }
 
-        /* Status Card - Compact */
+        /* Status Card - Expanded with Connection Info */
         .status-card {
             background: var(--bg-card);
             border: 1px solid var(--border-dim);
             border-radius: var(--radius-md);
             padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .status-top {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .status-left {
             display: flex;
             align-items: center;
             gap: 12px;
+        }
+
+        /* Connection Mode in Status Card */
+        .status-connection {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 16px;
+            padding-left: 16px;
+            border-left: 1px solid var(--border-dim);
+        }
+
+        .status-mode-buttons {
+            display: flex;
+            gap: 4px;
+        }
+
+        .status-mode-btn {
+            padding: 4px 10px;
+            border: 1px solid var(--border-dim);
+            background: var(--bg-surface);
+            color: var(--text-sec);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+
+        .status-mode-btn:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .status-mode-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        /* URLs in Status Card */
+        .status-urls {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-dim);
+        }
+
+        .status-url-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-url-label {
+            font-size: 11px;
+            color: var(--text-sec);
+            min-width: 50px;
+        }
+
+        .status-url-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--success);
+            background: var(--bg-surface);
+            padding: 3px 8px;
+            border-radius: 4px;
+            max-width: 280px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .status-url-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 2px;
+            opacity: 0.7;
+        }
+
+        .status-url-btn:hover {
+            opacity: 1;
+        }
+
+        /* Player link in status card */
+        .status-player-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 11px;
+            padding: 3px 8px;
+            background: var(--bg-surface);
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .status-player-link:hover {
+            background: var(--accent);
+            color: white;
         }
 
         .status-dot {
@@ -652,15 +759,50 @@
             </div>
         </header>
 
-        <!-- Status -->
+        <!-- Status Card - Expanded with Connection Info -->
         <section class="status-card">
-            <div class="status-left">
-                <div class="status-dot" id="status-dot"></div>
-                <span class="status-text" id="status-text">APAGADO</span>
+            <div class="status-top">
+                <div class="status-left">
+                    <div class="status-dot" id="status-dot"></div>
+                    <span class="status-text" id="status-text">APAGADO</span>
+                </div>
+                <div class="status-actions">
+                    <button class="btn-start" id="btn-start" onclick="startPipeline()">▶ Iniciar</button>
+                    <button class="btn-stop" id="btn-stop" onclick="stopPipeline()" disabled>⏹ Detener</button>
+                </div>
             </div>
-            <div class="status-actions">
-                <button class="btn-start" id="btn-start" onclick="startPipeline()">▶ Iniciar</button>
-                <button class="btn-stop" id="btn-stop" onclick="stopPipeline()" disabled>⏹ Detener</button>
+            
+            <!-- Connection Mode & URLs in Status Card -->
+            <div class="status-connection">
+                <span style="font-size:11px;color:var(--text-sec);">📡:</span>
+                <div class="status-mode-buttons">
+                    <button class="status-mode-btn active" data-mode="local" onclick="setConnectionMode('local')">
+                        🏠 LOCAL
+                    </button>
+                    <button class="status-mode-btn" data-mode="remote" onclick="setConnectionMode('remote')">
+                        🌐 REMOTE
+                    </button>
+                </div>
+            </div>
+            
+            <!-- URLs Display -->
+            <div class="status-urls">
+                <div class="status-url-item">
+                    <span class="status-url-label">SRT:</span>
+                    <code class="status-url-value" id="status-url-srt" title="Copiar SRT URL" onclick="copyUrl('srt')">srt://127.0.0.1:9000?mode=caller</code>
+                    <button class="status-url-btn" onclick="copyUrl('srt')" title="Copiar">📋</button>
+                </div>
+                <div class="status-url-item">
+                    <span class="status-url-label">Stream:</span>
+                    <code class="status-url-value" id="status-url-stream" title="Copiar Stream URL" onclick="copyUrl('stream')">http://127.0.0.1:9999/hls/stream.m3u8</code>
+                    <button class="status-url-btn" onclick="copyUrl('stream')" title="Copiar">📋</button>
+                </div>
+                <div class="status-url-item">
+                    <span class="status-url-label">Player:</span>
+                    <a href="/player" target="_blank" class="status-player-link" title="Abrir player">
+                        ↗ <span id="status-url-player">127.0.0.1:9999/player</span>
+                    </a>
+                </div>
             </div>
         </section>
 
@@ -1387,6 +1529,8 @@
             
             // URL SRT para OBS (CALLER)
             const srtUrl = `srt://${srtIp}:${srtPort}?mode=caller&latency=${latencyUs}`;
+            
+            // Actualizar URLs en bottom-row (original)
             document.getElementById('url-srt').textContent = srtUrl;
             document.getElementById('url-srt').dataset.actualUrl = srtUrl;
             
@@ -1396,6 +1540,25 @@
             
             const playerUrl = `http://${httpIp}:${webPort}/player`;
             document.getElementById('url-player').textContent = playerUrl;
+            
+            // Actualizar URLs en status card (nuevo)
+            const statusUrlSrt = document.getElementById('status-url-srt');
+            const statusUrlStream = document.getElementById('status-url-stream');
+            const statusUrlPlayer = document.getElementById('status-url-player');
+            
+            if (statusUrlSrt) {
+                statusUrlSrt.textContent = srtUrl;
+                statusUrlSrt.title = srtUrl;
+            }
+            
+            if (statusUrlStream) {
+                statusUrlStream.textContent = streamUrl;
+                statusUrlStream.title = streamUrl;
+            }
+            
+            if (statusUrlPlayer) {
+                statusUrlPlayer.textContent = `${httpIp}:${webPort}/player`;
+            }
         }
 
         // ── Pipeline Controls ──
