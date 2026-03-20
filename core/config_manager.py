@@ -65,7 +65,6 @@ DEFAULT_CONFIG = {
             "enabled": True,
             "format": "webvtt",
             "use_translated": True,
-            "audio_offset_ms": 0,
         },
         "tts_engine": {
             "enabled": False,

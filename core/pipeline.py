@@ -149,21 +149,9 @@ class Pipeline:
                 self._log("error", f"Failed to reconfigure output: {e}")
 
         # Reconfigure modules
-        # Propagate audio_offset_ms from video_muxer to subtitle_generator for sync
-        modules_config = config_manager.get("modules", {})
-        video_muxer_config = modules_config.get("video_muxer", {})
-        tts_config = modules_config.get("tts_engine", {})
-        audio_offset_ms = video_muxer_config.get("audio_offset_ms", 0)
-        tts_speed = tts_config.get("speed", 1.0)
-
         for module in self._modules:
             try:
                 mod_config = config_manager.get_module_config(module.name)
-                # Propagate audio_offset and tts_speed to subtitle_generator for sync
-                if module.name == "subtitle_generator":
-                    if audio_offset_ms:
-                        mod_config["audio_offset_ms"] = audio_offset_ms
-                    mod_config["tts_speed"] = tts_speed
                 module.configure(mod_config)
                 self._log("info", f"Reconfigured module: {module.name}")
             except Exception as e:

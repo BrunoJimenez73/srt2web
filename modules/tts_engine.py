@@ -30,7 +30,7 @@ class TTSEngine(BaseModule):
         self._engine = "edge-tts"  # "edge-tts" (online) or "piper" (offline)
         self._voice_model = "en-US-AriaNeural"  # Very natural female AI voice
         self._use_translated = True
-        self._speed = 1.0  # TTS speed multiplier (1.0 = normal, 2.0 = 2x faster)
+        self._speed = 1.0  # TTS speech rate multiplier
 
         # Piper specific
         self._piper_voice = None
@@ -42,8 +42,10 @@ class TTSEngine(BaseModule):
         self._engine = config.get("engine", self._engine)
         self._voice_model = config.get("voice", self._voice_model)
         self._use_translated = config.get("use_translated", self._use_translated)
-        self._speed = float(config.get("speed", self._speed))
-        logger.debug(f"TTSEngine configured: speed={self._speed}")
+        self._speed = config.get("speed", self._speed)
+        logger.info(
+            f"TTS configured: voice={self._voice_model}, speed={self._speed}, engine={self._engine}"
+        )
 
     def start(self) -> None:
         """Initialize TTS engine."""
@@ -179,19 +181,22 @@ class TTSEngine(BaseModule):
 
         return data
 
+    def _format_speed(self, speed: float) -> str:
+        """Convert speed multiplier to edge-tts rate format (+X% or -X%)."""
+        delta = (speed - 1.0) * 100
+        sign = "+" if delta >= 0 else ""
+        return f"{sign}{delta:.0f}%"
+
     def _run_edge_tts(self, text: str, output_wav: str):
         """Run edge-tts to get highly natural audio."""
         import edge_tts
 
         temp_mp3 = output_wav.replace(".wav", ".mp3")
-
-        # Calculate rate for Edge-TTS: speed is multiplier (1.0=normal, 2.0=faster)
-        # Edge-TTS rate: +50% means 50% faster, so rate = (speed - 1) * 100
-        rate_percent = int((self._speed - 1.0) * 100)
-        rate_str = f"+{rate_percent}%" if rate_percent >= 0 else f"{rate_percent}%"
+        rate = self._format_speed(self._speed)
+        logger.debug(f"Generating TTS with rate={rate} (speed={self._speed})")
 
         async def _generate():
-            communicate = edge_tts.Communicate(text, self._voice_model, rate=rate_str)
+            communicate = edge_tts.Communicate(text, self._voice_model, rate=rate)
             await communicate.save(temp_mp3)
 
         # We need a new event loop to run async from a sync background thread

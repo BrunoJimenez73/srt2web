@@ -32,9 +32,9 @@ def config_file(temp_dir: str) -> str:
     config_content = """
 server:
   host: "0.0.0.0"
-  port: 9999
+  port: 8080
   cors_origins:
-    - "http://localhost:9999"
+    - "http://localhost:8080"
   auth_token: ""
 
 srt:
@@ -119,10 +119,10 @@ def mock_app_context():
     """Create a mock app context for testing."""
     from core.config_manager import ConfigManager
     from core.pipeline import Pipeline
-
+    
     config = ConfigManager()
     pipeline = Pipeline()
-
+    
     return {
         "config": config,
         "pipeline": pipeline,
@@ -136,6 +136,6 @@ def client(mock_app_context):
     """Create a test client for the FastAPI app."""
     from fastapi.testclient import TestClient
     from server.app import create_app
-
+    
     app = create_app(mock_app_context)
     return TestClient(app)

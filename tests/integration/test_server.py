@@ -194,7 +194,7 @@ class TestServerCORS:
         response = client.options(
             "/api/status",
             headers={
-                "Origin": "http://localhost:9999",
+                "Origin": "http://localhost:8080",
                 "Access-Control-Request-Method": "GET",
             },
         )

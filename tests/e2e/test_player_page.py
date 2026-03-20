@@ -263,7 +263,7 @@ class TestPlayerWithLiveServer:
         """Test that player page is accessible on live server."""
         import requests
 
-        response = requests.get("http://localhost:9999/player", timeout=5)
+        response = requests.get("http://localhost:8080/player", timeout=5)
 
         assert response.status_code == 200
         assert "text/html" in response.headers.get("content-type", "")
@@ -276,7 +276,7 @@ class TestPlayerWithLiveServer:
         """Test that HLS stream is available."""
         import requests
 
-        response = requests.head("http://localhost:9999/hls/master.m3u8", timeout=5)
+        response = requests.head("http://localhost:8080/hls/master.m3u8", timeout=5)
 
         # May not exist yet if pipeline isn't running
         assert response.status_code in [200, 404]

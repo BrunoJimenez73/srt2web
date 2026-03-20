@@ -54,12 +54,17 @@
     box-sizing: border-box;
 }
 
-html, body {
+html {
     height: 100%;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background-color: var(--bg-deep);
     color: var(--text-prime);
-    overflow: hidden;
+}
+
+body {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 body {
@@ -230,7 +235,6 @@ body {
     background: var(--bg-card);
     border: 1px solid var(--border-dim);
     border-radius: var(--radius-md);
-    overflow: hidden;
     display: flex;
     flex-direction: column;
 }
@@ -346,7 +350,6 @@ body {
     display: flex;
     flex-direction: column;
     position: relative;
-    overflow: hidden;
 }
 
 .module-card:hover {

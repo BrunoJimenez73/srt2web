@@ -287,7 +287,7 @@ class TestDashboardWithLiveServer:
     @pytest.fixture
     def live_server_url(self):
         """Get the live server URL."""
-        return "http://localhost:9999"
+        return "http://localhost:8080"
 
     @pytest.mark.skipif(
         not os.environ.get("RUN_LIVE_TESTS"),

@@ -71,7 +71,7 @@ modules:
     font_size: 1
   tts_engine:
     enabled: true
-    voice: es-ES-ElviraNeural
+    voice: es-ES-AlvaroNeural
     speed: 0.5
   audio_mixer:
     enabled: true

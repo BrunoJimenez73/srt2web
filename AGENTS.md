@@ -23,30 +23,7 @@ python -m pytest tests/ --cov=. --cov-report=html
 
 # Ejecutar lint
 ruff check .
-
-# Frontend Astro (ubicado en frontend/)
-cd frontend
-
-# Instalar dependencias
-npm install
-
-# Desarrollo (servidor en puerto 3000/3001)
-npm run dev
-
-# Build para producción (genera dist/)
-npm run build
-
-# Preview del build
-npm run preview
 ```
-
-## Proceso de Update del Frontend
-
-Cuando se modifican archivos en `frontend/src/`:
-1. Ejecutar `npm run build` en la carpeta `frontend/`
-2. El build genera archivos en `frontend/dist/`
-3. El servidor Python (main.py) sirve automáticamente los archivos desde `frontend/dist/`
-4. No es necesario reiniciar el servidor Python para ver cambios en producción, solo regenerar el build
 
 ## Estructura del Proyecto
 
