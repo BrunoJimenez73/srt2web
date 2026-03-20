@@ -29,6 +29,7 @@ class SubtitleGenerator(BaseModule):
         self._vtt_path = ""
         self._chunk_duration = 4
         self._audio_offset_ms = 0  # Audio delay offset for sync
+        self._tts_speed = 1.0  # TTS speed multiplier for scaling subtitles
         self._lock = threading.Lock()
 
         # Track cumulative time for sync - same as VideoMuxer
@@ -46,8 +47,9 @@ class SubtitleGenerator(BaseModule):
         self._format = config.get("format", self._format)
         self._chunk_duration = config.get("chunk_duration", 4)
         self._audio_offset_ms = config.get("audio_offset_ms", self._audio_offset_ms)
+        self._tts_speed = float(config.get("tts_speed", 1.0))
         logger.debug(
-            f"SubtitleGenerator configured: audio_offset_ms={self._audio_offset_ms}"
+            f"SubtitleGenerator configured: audio_offset_ms={self._audio_offset_ms}, tts_speed={self._tts_speed}"
         )
 
     def start(self) -> None:
@@ -105,25 +107,28 @@ class SubtitleGenerator(BaseModule):
         if not duration or duration <= 0:
             duration = 4.0
 
+        # Calculate real TTS duration based on speed (if TTS is faster, audio is shorter)
+        tts_speed = self._tts_speed if self._tts_speed > 0 else 1.0
+        tts_scale_factor = 1.0 / tts_speed  # 1.0 for speed=1.0, 0.5 for speed=2.0
+
         # Use cumulative timing - same logic as VideoMuxer
         # Track which chunks we've already processed
         if data.chunk_index > self._last_chunk_index:
-            # New chunk, add its duration to cumulative time
+            # New chunk, add its scaled duration to cumulative time
             # Skip chunks we already processed (for resume case)
-            # NOTE: We update cumulative_time BEFORE setting chunk_start_time to match VideoMuxer logic
             if self._last_chunk_index >= 0:
-                self._cumulative_time += duration
+                self._cumulative_time += duration * tts_scale_factor
             self._last_chunk_index = data.chunk_index
         elif data.chunk_index < self._last_chunk_index:
-            # Resume case - recalculate from scratch
-            self._cumulative_time = data.chunk_index * duration
+            # Resume case - recalculate from scratch with scaling
+            self._cumulative_time = data.chunk_index * duration * tts_scale_factor
             self._last_chunk_index = data.chunk_index
 
         # chunk_start_time is the current cumulative time (matches VideoMuxer's offset_sec)
         chunk_start_time = self._cumulative_time
 
         logger.debug(
-            f"[SubtitleGen] chunk={data.chunk_index}, duration={duration}, chunk_start_time={chunk_start_time}"
+            f"[SubtitleGen] chunk={data.chunk_index}, duration={duration}, tts_speed={tts_speed}, chunk_start_time={chunk_start_time}"
         )
 
         # Determine segments to use
@@ -136,7 +141,7 @@ class SubtitleGenerator(BaseModule):
         if not segments and text:
             segments = [{"start": 0.0, "end": duration * 0.9, "text": text}]
 
-        # Apply audio offset to subtitle timing (in seconds)
+        # Apply audio offset and TTS speed scaling to subtitle timing
         audio_offset_sec = self._audio_offset_ms / 1000.0
 
         # 1. Update rolling VTT for the HLS player (absolute timing)
@@ -144,15 +149,12 @@ class SubtitleGenerator(BaseModule):
             with self._lock:
                 with open(self._vtt_path, "a", encoding="utf-8") as f:
                     for seg in segments:
+                        # Apply TTS speed scaling to relative timestamps
+                        scaled_start = seg.get("start", 0) * tts_scale_factor
+                        scaled_end = seg.get("end", duration) * tts_scale_factor
                         # Apply audio offset to sync with delayed audio
-                        abs_start = (
-                            chunk_start_time + seg.get("start", 0) + audio_offset_sec
-                        )
-                        abs_end = (
-                            chunk_start_time
-                            + seg.get("end", duration)
-                            + audio_offset_sec
-                        )
+                        abs_start = chunk_start_time + scaled_start + audio_offset_sec
+                        abs_end = chunk_start_time + scaled_end + audio_offset_sec
 
                         start_str = self._format_timestamp(abs_start, "vtt")
                         end_str = self._format_timestamp(abs_end, "vtt")
@@ -184,9 +186,11 @@ class SubtitleGenerator(BaseModule):
         try:
             with open(chunk_srt_path, "w", encoding="utf-8") as f:
                 for i, seg in enumerate(segments):
-                    # Apply audio offset for SRT timing too
-                    seg_start = seg.get("start", 0) + audio_offset_sec
-                    seg_end = seg.get("end", duration) + audio_offset_sec
+                    # Apply TTS speed scaling and audio offset for SRT timing
+                    scaled_start = seg.get("start", 0) * tts_scale_factor
+                    scaled_end = seg.get("end", duration) * tts_scale_factor
+                    seg_start = scaled_start + audio_offset_sec
+                    seg_end = scaled_end + audio_offset_sec
                     start_str = self._format_timestamp(seg_start, "srt")
                     end_str = self._format_timestamp(seg_end, "srt")
                     clean_text = seg.get("text", "").replace("\n", " ").strip()

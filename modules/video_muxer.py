@@ -59,24 +59,8 @@ class VideoMuxer(BaseModule):
         self._video_preset = config.get("video_preset", self._video_preset)
         self._gpu_preset = config.get("gpu_preset", self._gpu_preset)
         # Subtitle language settings
-        old_subtitle_lang = self._subtitle_language
-        old_subtitle_name = self._subtitle_language_name
-        self._subtitle_language = config.get(
-            "subtitle_language", self._subtitle_language
-        )
-        self._subtitle_language_name = config.get(
-            "subtitle_language_name", self._subtitle_language_name
-        )
-
-        # Log if subtitle language changed
-        if (
-            old_subtitle_lang != self._subtitle_language
-            or old_subtitle_name != self._subtitle_language_name
-        ):
-            logger.info(
-                f"VideoMuxer subtitle language changed: {old_subtitle_name} -> {self._subtitle_language_name}"
-            )
-
+        self._subtitle_language = config.get("subtitle_language", "es")
+        self._subtitle_language_name = config.get("subtitle_language_name", "Spanish")
         logger.info(
             f"VideoMuxer reconfigured: Audio Offset: {self._audio_offset_ms}ms, Video Preset: {self._video_preset}, GPU Preset: {self._gpu_preset}, Subtitle Language: {self._subtitle_language_name}"
         )
@@ -248,12 +232,20 @@ class VideoMuxer(BaseModule):
             logger.error(f"FFmpeg mux exception: {e}")
             return data
 
-        # Update cumulative duration
-        self._total_duration_emitted += chunk_duration
+        # Use actual audio duration for cumulative timing (important for TTS sync)
+        actual_audio_duration = chunk_duration
+        audio_input = data.mixed_audio_path or data.dubbed_audio_path
+        if audio_input and os.path.exists(audio_input):
+            actual_audio_duration = (
+                self._get_audio_duration(audio_input) or chunk_duration
+            )
+
+        # Update cumulative duration with actual audio length
+        self._total_duration_emitted += actual_audio_duration
 
         # DEBUG: Log segment timing
         logger.info(
-            f"[VideoMuxer] Segment {self._segment_index}: duration={chunk_duration:.3f}s, offset={offset_sec}s, total={self._total_duration_emitted:.3f}s"
+            f"[VideoMuxer] Segment {self._segment_index}: orig_dur={chunk_duration:.3f}s, real_dur={actual_audio_duration:.3f}s, offset={offset_sec}s, total={self._total_duration_emitted:.3f}s"
         )
 
         # Update HLS manifest
@@ -367,3 +359,28 @@ class VideoMuxer(BaseModule):
                     f.write("\n".join(master_lines) + "\n")
             except Exception as e:
                 logger.error(f"Failed to write master playlist: {e}")
+
+    def _get_audio_duration(self, audio_path: str) -> float:
+        """Get audio duration using ffprobe."""
+        try:
+            ffprobe = (
+                self._ffmpeg_path.replace("ffmpeg", "ffprobe")
+                if self._ffmpeg_path
+                else "ffprobe"
+            )
+            if not os.path.exists(ffprobe):
+                ffprobe = "ffprobe"
+            cmd = [
+                ffprobe,
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                audio_path,
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            return float(result.stdout.strip())
+        except Exception:
+            return 0.0
