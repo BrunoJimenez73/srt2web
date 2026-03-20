@@ -11,8 +11,8 @@ input:
     listen_port: 9000
     mode: listener
     latency_ms: 1000
-    chunk_duration_sec: 10
     caller_address: ''
+    chunk_duration_sec: 10
   file:
     path: ./video.mp4
     loop: false
@@ -67,11 +67,12 @@ modules:
     enabled: true
     format: webvtt
     use_translated: true
+    audio_offset_ms: 0
     font_size: 1
   tts_engine:
     enabled: true
     voice: es-ES-ElviraNeural
-    speed: 1
+    speed: 0.5
   audio_mixer:
     enabled: true
     original_volume: 0.4
@@ -83,6 +84,12 @@ modules:
     hls_list_size: 4
     video_preset: medium
     gpu_preset: p3
+    encoder_mode: auto
+    video_quality: medium
+    video_crf: 18
+    audio_codec: aac
+    audio_bitrate: 192k
+    audio_samplerate: 48000
 output_dir:
   directory: ./output
 srt:
