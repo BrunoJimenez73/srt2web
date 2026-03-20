@@ -167,7 +167,7 @@
         .status-url-value {
             font-family: 'JetBrains Mono', monospace;
             font-size: 11px;
-            color: var(--success);
+            color: var(--text-prime);
             background: var(--bg-surface);
             padding: 3px 8px;
             border-radius: 4px;
@@ -960,73 +960,10 @@
             </div>
         </section>
 
-        <!-- Bottom Row: Connection + Logs + Preview -->
+        <!-- Bottom Row: Logs + Preview -->
         <section class="bottom-row">
-            <!-- Connection Mode Selector -->
-            <div class="connection-card" style="flex: 1.5;">
-                <div class="connection-mode-header">
-                    <span class="connection-mode-title">📡 Conexión SRT</span>
-                    <div class="mode-selector">
-                        <button class="mode-btn active" data-mode="local" onclick="setConnectionMode('local')">
-                            🏠 LOCAL
-                        </button>
-                        <button class="mode-btn" data-mode="remote" onclick="setConnectionMode('remote')">
-                            🌐 REMOTE
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Remote Config (shown only in remote mode) -->
-                <div class="remote-config" id="remote-config" style="display: none;">
-                    <div class="form-group" style="margin: 8px 0;">
-                        <label class="form-label">Emisor SRT Address</label>
-                        <input type="text" class="form-input" id="emitter-address" 
-                               placeholder="203.0.113.xx" 
-                               oninput="updateConnectionUrls()">
-                    </div>
-                </div>
-                
-                <!-- IP Info -->
-                <div class="ip-info" id="ip-info">
-                    <div class="ip-row">
-                        <span class="ip-label">Local:</span>
-                        <code class="ip-value" id="local-ip">Detectando...</code>
-                    </div>
-                    <div class="ip-row">
-                        <span class="ip-label">Public:</span>
-                        <code class="ip-value" id="public-ip">Detectando...</code>
-                        <span class="ip-warning" id="public-ip-warning" style="display: none;">⚠️</span>
-                    </div>
-                </div>
-                
-                <!-- Connection URLs -->
-                <div class="connection-urls">
-                    <div class="url-row">
-                        <span class="url-label">SRT:</span>
-                        <code class="url-value" id="url-srt">srt://...</code>
-                        <button class="btn-copy-small" onclick="copyUrl('srt')" title="Copiar">📋</button>
-                    </div>
-                    <div class="url-row">
-                        <span class="url-label">Stream:</span>
-                        <code class="url-value" id="url-stream">http://...</code>
-                        <button class="btn-copy-small" onclick="copyUrl('stream')" title="Copiar">📋</button>
-                    </div>
-                    <div class="url-row">
-                        <span class="url-label">Player:</span>
-                        <code class="url-value" id="url-player">http://...</code>
-                        <button class="btn-copy-small" onclick="copyUrl('player')" title="Copiar">📋</button>
-                    </div>
-                </div>
-                
-                <!-- Warning for no public IP -->
-                <div class="connection-warning" id="connection-warning" style="display: none;">
-                    ⚠️ No se detectó IP pública. Usando IP local. 
-                    El emisor debe estar en la misma red.
-                </div>
-            </div>
-
             <!-- Logs -->
-            <div class="logs-card">
+            <div class="logs-card" style="flex: 2;">
                 <div class="logs-header">
                     <span class="logs-title">📜 LOGS</span>
                     <button class="btn-clear" onclick="clearLogs()">Limpiar</button>
@@ -1418,11 +1355,7 @@
                     inputIndicator.classList.remove('active');
                 }
                 
-                // Update connection URLs if available
-                if (status.input_info) {
-                    document.getElementById('url-srt').textContent = status.input_info.url || 'No disponible';
-                    document.getElementById('url-srt').dataset.actualUrl = status.input_info.obs_url || status.input_info.url;
-                }
+                // Update URLs with network info
                 if (status.network && status.network.local_ip) {
                     updateUrls(status.network.local_ip);
                 }
@@ -1515,33 +1448,18 @@
             const srtPort = document.getElementById('input-port').value || 9000;
             const latency = document.getElementById('input-latency').value || 1000;
             const latencyUs = latency * 1000;
-            const webPort = 9999; // Servidor web siempre usa 9999
+            const webPort = 9999;
             
-            // Detectar si estamos en la misma máquina (localhost)
             const isLocalhost = window.location.hostname === 'localhost' || 
                                window.location.hostname === '127.0.0.1';
             
-            // Para SRT: usar 127.0.0.1 si es local, sino la IP del servidor
             const srtIp = isLocalhost ? '127.0.0.1' : (serverIp || 'TU_IP_LOCAL');
-            
-            // Para HTTP (stream/player): usar localhost si es local, sino IP del servidor
             const httpIp = isLocalhost ? '127.0.0.1' : (serverIp || 'TU_IP_LOCAL');
             
-            // URL SRT para OBS (CALLER)
             const srtUrl = `srt://${srtIp}:${srtPort}?mode=caller&latency=${latencyUs}`;
-            
-            // Actualizar URLs en bottom-row (original)
-            document.getElementById('url-srt').textContent = srtUrl;
-            document.getElementById('url-srt').dataset.actualUrl = srtUrl;
-            
-            // URLs HTTP del servidor (stream y player)
             const streamUrl = `http://${httpIp}:${webPort}/hls/stream.m3u8`;
-            document.getElementById('url-stream').textContent = streamUrl;
             
-            const playerUrl = `http://${httpIp}:${webPort}/player`;
-            document.getElementById('url-player').textContent = playerUrl;
-            
-            // Actualizar URLs en status card (nuevo)
+            // Actualizar URLs en status card
             const statusUrlSrt = document.getElementById('status-url-srt');
             const statusUrlStream = document.getElementById('status-url-stream');
             const statusUrlPlayer = document.getElementById('status-url-player');
@@ -1830,15 +1748,17 @@
 
         // ── Copy ──
         function copyUrl(type) {
-            let text;
+            let text = '';
             if (type === 'srt') {
-                text = document.getElementById('url-srt').dataset.actualUrl || document.getElementById('url-srt').textContent;
+                text = document.getElementById('status-url-srt')?.textContent || '';
             } else if (type === 'stream') {
-                text = document.getElementById('url-stream').textContent;
+                text = document.getElementById('status-url-stream')?.textContent || '';
             } else if (type === 'player') {
-                text = document.getElementById('url-player').textContent;
+                text = 'http://' + (document.getElementById('status-url-player')?.textContent || '');
             }
-            navigator.clipboard.writeText(text).then(() => showToast('URL copiada', 'success'));
+            if (text) {
+                navigator.clipboard.writeText(text).then(() => showToast('URL copiada', 'success'));
+            }
         }
 
         // ── Toast ──

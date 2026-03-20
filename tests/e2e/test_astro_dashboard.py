@@ -285,35 +285,12 @@ class TestDashboardConnectionMode:
         assert 'data-mode="local"' in content
         assert 'data-mode="remote"' in content
 
-    def test_remote_config_exists(self, content):
-        """Test that remote config section exists for remote mode."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "remote-config" in content
-
-    def test_remote_config_hidden_by_default(self, content):
-        """Test that remote config is hidden by default."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert 'id="remote-config" style="display: none;"' in content
-
     def test_local_ip_display_exists(self, content):
         """Test that local IP display exists."""
         if content is None:
             pytest.skip("web/index.html not found")
-        assert "local-ip" in content
-
-    def test_public_ip_display_exists(self, content):
-        """Test that public IP display exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "public-ip" in content
-
-    def test_emitter_address_input_exists(self, content):
-        """Test that emitter address input exists for remote mode."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "emitter-address" in content
+        # Now URLs are in status card
+        assert "status-url-srt" in content or "status-url-player" in content
 
     def test_update_urls_function_exists(self, content):
         """Test that updateUrls function exists."""
@@ -321,17 +298,13 @@ class TestDashboardConnectionMode:
             pytest.skip("web/index.html not found")
         assert "function updateUrls(" in content
 
-    def test_ip_info_section_exists(self, content):
-        """Test that IP info section exists."""
+    def test_status_urls_exist_in_status_card(self, content):
+        """Test that status URLs exist in status card."""
         if content is None:
             pytest.skip("web/index.html not found")
-        assert "ip-info" in content
-
-    def test_connection_urls_section_exists(self, content):
-        """Test that connection URLs section exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "connection-urls" in content
+        assert "status-url-srt" in content
+        assert "status-url-stream" in content
+        assert "status-url-player" in content
 
 
 class TestDashboardURLs:
@@ -343,22 +316,22 @@ class TestDashboardURLs:
         return get_frontend_content()
 
     def test_srt_url_element_exists(self, content):
-        """Test that SRT URL element exists."""
+        """Test that SRT URL element exists in status card."""
         if content is None:
             pytest.skip("web/index.html not found")
-        assert "url-srt" in content
+        assert "status-url-srt" in content
 
     def test_stream_url_element_exists(self, content):
-        """Test that Stream URL element exists."""
+        """Test that Stream URL element exists in status card."""
         if content is None:
             pytest.skip("web/index.html not found")
-        assert "url-stream" in content
+        assert "status-url-stream" in content
 
     def test_player_url_element_exists(self, content):
-        """Test that Player URL element exists."""
+        """Test that Player URL element exists in status card."""
         if content is None:
             pytest.skip("web/index.html not found")
-        assert "url-player" in content
+        assert "status-url-player" in content
 
     def test_hls_url_generated(self, content):
         """Test that HLS URL is generated."""
