@@ -1,0 +1,333 @@
+---
+layout: '../../layouts/BaseLayout.astro'
+title: 'Frontend - SRT2Web Documentation'
+---
+
+<h1 class="text-2xl font-bold mb-6">Frontend Interface</h1>
+<p class="text-sec mb-8">Documentación de la interfaz web de SRT2Web, incluyendo dashboard, reproductor y componentes.</p>
+
+<h2 class="text-xl font-semibold mb-4">🖥️ Visión General</h2>
+<p class="text-sec mb-6">El frontend de SRT2Web está construido con Astro y proporciona una interfaz reactiva para monitorear y controlar el pipeline de procesamiento en tiempo real.</p>
+
+<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
+  <h3 class="font-semibold mb-4">Tecnologías Utilizadas</h3>
+  <ul class="list-disc list-inside text-sec space-y-2">
+    <li><strong>Astro:</strong> Framework para sitios web estáticos y de alto rendimiento</li>
+    <li><strong>HTML5/CSS3:</strong> Estructura y presentación moderna</li>
+    <li><strong>JavaScript Vanilla:</strong> Lógica de interacción sin frameworks pesados</li>
+    <li><strong>WebSockets:</strong> Comunicación en tiempo real para logs y estado</li>
+    <li><strong>HLS.js:</strong> Reproducción de streams HLS en navegadores</li>
+  </ul>
+  
+  <h3 class="font-semibold mb-4 mt-4">Características Principales</h3>
+  <ul class="list-disc list-inside text-sec space-y-2">
+    <li>Dashboard de monitoreo en tiempo real</li>
+    <li>Control remoto del pipeline (iniciar/detener/reiniciar)</li>
+    <li>Visualización del estado de cada módulo</li>
+    <li>Panel de logs en tiempo real mediante WebSocket</li>
+    <li>Reproductor HLS integrado con subtítulos</li>
+    <li>Configuración básica desde la interfaz</li>
+    <li>Modo claro/oscuro (preferencia del sistema)</li>
+    <li>Diseño responsive para desktop y móvil</li>
+  </ul>
+</div>
+
+<h2 class="text-xl font-semibold mb-4">📊 Dashboard Principal</h2>
+<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
+  <h3 class="font-semibold mb-4">Acceso</h3>
+  <p class="text-sec mb-4">El dashboard está disponible en <span class="font-mono">http://localhost:9999</span> cuando el servidor está en ejecución.</p>
+  
+  <h3 class="font-semibold mb-4 mt-4">Componentes del Dashboard</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div>
+      <h4 class="font-semibold mb-2">Tarjeta de Estado General</h4>
+      <p class="text-sec">Muestra el estado global del pipeline (ACTIVO/APAGADO) con indicador visual y controles de inicio/detención.</p>
+    </div>
+    <div>
+      <h4 class="font-semibold mb-2">Tarjetas de Estado de Módulos</h4>
+      <p class="text-sec">Una tarjeta por cada módulo del pipeline mostrando su estado activo/inactivo con indicadores de color.</p>
+    </div>
+    <div>
+      <h4 class="font-semibold mb-2">Panel de Configuración Rápida</h4>
+      <p class="text-sec">Controles para ajustar idiomas de entrada/salida y activar/desactivar funcionalidades principales.</p>
+    </div>
+    <div>
+      <h4 class="font-semibold mb-2">Panel de Logs en Tiempo Real</h4>
+      <p class="text-sec">Flujos de logs continuos desde el backend mediante WebSocket con auto-scroll y filtrado.</p>
+    </div>
+    <div>
+      <h4 class="font-semibold mb-2">Sección de URLs y Accesos</h4>
+      <p class="text-sec">Muestra las URLs importantes para OBS, stream HLS y acceso al reproductor.</p>
+    </div>
+    <div>
+      <h4 class="font-semibold mb-2">Modo de Configuración Avanzada</h4>
+      <p class="text-sec">Panel expandible para acceder a configuración detallada de cada módulo.</p>
+    </div>
+  </div>
+</div>
+
+<h2 class="text-xl font-semibold mb-4">🎮 Controles de Pipeline</h2>
+<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
+  <h3 class="font-semibold mb-4">Botones de Acción Principal</h3>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div>
+      <h4 class="font-semibold mb-2">▶️ Iniciar Pipeline</h4>
+      <p class="text-sec">Inicia todos los módulos habilitados del pipeline. Cambia el estado a ACTIVO y comienza el procesamiento.</p>
+    </div>
+    <div>
+      <h4 class="font-semibold mb-2">⏹️ Detener Pipeline</h4>
+      <p class="text-sec">Detiene el pipeline y limpia todos los archivos temporales generados durante el procesamiento.</p>
+    </div>
+    <div>
+      <h4 class="font-semibold mb-2">🔄 Reiniciar Pipeline</h4>
+      <p class="text-sec">Equivalente a detener seguido de iniciar, útil para aplicar cambios de configuración.</p>
+    </div>
+  </div>
+  
+  <h3 class="font-semibold mb-4 mt-6">Indicadores de Estado</h3>
+  <p class="text-sec">Cada módulo muestra su estado mediante:</p>
+  <ul class="list-disc list-inside text-sec space-y-2">
+    <li><span class="status-dot running"></span> <strong>Verde:</strong> Activo y procesando</li>
+    <li><span class="status-dot"></span> <strong>Gris:</strong> Inactivo o detenido</li>
+    <li><span class="status-dot" style="background: var(--warning);"></span> <strong>Ámbar:</strong> En proceso de inicio/detención</li>
+    <li><span class="status-dot" style="background: var(--error);"></span> <strong>Rojo:</strong> Error o fallo</li>
+  </ul>
+  
+  <h3 class="font-semibold mb-4 mt-6">Información de Tiempo de Ejecución</h3>
+  <p class="text-sec">Muestra el tiempo transcurrido desde que se inició el pipeline y el número de chunks procesados.</p>
+</div>
+
+<h2 class="text-xl font-semibold mb-4">⚙️ Paneles de Configuración</h2>
+<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
+  <h3 class="font-semibold mb-4">Configuración Básica (Visible siempre)</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+      <h4 class="font-semibold mb-2">Idiomas</h4>
+      <div class="space-y-2">
+        <p class="text-sec mb-1">Idioma de entrada:</p>
+        <p class="font-mono bg-bg-deep p-2 rounded">español (es)</p>
+        <p class="text-sec mb-1">Idioma de salida:</p>
+        <p class="font-mono bg-bg-deep p-2 rounded">inglés (en)</p>
+      </p>
+    </div>
+    <div>
+      <h4 class="font-semibold mb-2">Funcionalidades</h4>
+      <div class="space-y-2">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-4 h-4 bg-success rounded"></div>
+          <span>Transcripción</span>
+        </div>
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-4 h-4 bg-success rounded"></div>
+          <span>Traducción</span>
+        </div>
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-4 h-4 bg-success rounded"></div>
+          <span>Subtitulado</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-4 h-4 bg-success rounded"></div>
+          <span>Doblaje (TTS)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <h3 class="font-semibold mb-4 mt-6">Configuración Avanzada (Panel Expandible)</h3>
+  <p class="text-sec mb-4">Accessible mediante el ícono de ajustes o la sección "Configuración Avanzada". Permite configurar parámetros detallados de cada módulo.</p>
+  
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div>
+      <h4 class="font-semibold mb-2">Transcripción</h4>
+      <div class="space-y-2">
+        <label class="block text-xs font-medium text-sec mb-1">Modelo Whisper:</label>
+        <select class="w-full form-select">
+          <option value="tiny">Tiny (más rápido)</option>
+          <option value="base" selected>Base (recomendado)</option>
+          <option value="small">Small</option>
+          <option value="medium">Medium</option>
+          <option value="large">Large (más preciso)</option>
+        </select>
+        <label class="block text-xs font-medium text-sec mb-1 mt-2">Dispositivo:</label>
+        <select class="w-full form-select">
+          <option value="cpu" selected>CPU</option>
+          <option value="cuda">GPU NVIDIA (CUDA)</option>
+        </select>
+      </div>
+    </div>
+    <div>
+      <h4 class="font-semibold mb-2">Traducción</h4>
+      <div class="space-y-2">
+        <label class="block text-xs font-medium text-sec mb-1">Idioma de origen:</label>
+        <input type="text" value="es" class="w-full form-input" placeholder="es">
+        <label class="block text-xs font-medium text-sec mb-1 mt-2">Idioma de destino:</label>
+        <input type="text" value="en" class="w-full form-input" placeholder="en">
+      </div>
+    </div>
+    <div>
+      <h4 class="font-semibold mb-2">Síntesis de Voz (TTS)</h4>
+      <div class="space-y-2">
+        <label class="block text-xs font-medium text-sec mb-1">Voz:</label>
+        <input type="text" value="es-ES-ElviraNeural" class="w-full form-input" placeholder="es-ES-ElviraNeural">
+        <label class="block text-xs font-medium text-sec mb-1 mt-2">Velocidad:</label>
+        <input type="number" value="1.0" min="0.5" max="2.0" step="0.1" class="w-full form-input">
+      </div>
+    </div>
+    <div>
+      <h4 class="font-semibold mb-2">Mezcla de Audio</h4>
+      <div class="space-y-2">
+        <label class="block text-xs font-medium text-sec mb-1">Volumen Original:</label>
+        <input type="number" value="0.3" min="0.0" max="2.0" step="0.1" class="w-full form-input">
+        <label class="block text-xs font-medium text-sec mb-1 mt-2">Volumen Doblado:</label>
+        <input type="number" value="0.7" min="0.0" max="2.0" step="0.1" class="w-full form-input">
+        <div class="flex items-center gap-2 mb-2">
+          <input type="checkbox" checked class="w-4 h-4 text-success">
+          <span class="text-xs">Activar Ducking</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 class="text-xl font-semibold mb-4">📺 Reproductor HLS</h2>
+<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
+  <h3 class="font-semibold mb-4">Acceso</h3>
+  <p class="text-sec mb-4">El reproductor está disponible en <span class="font-mono">http://localhost:9999/player.html</span> cuando el pipeline está activo y generando contenido HLS.</p>
+  
+  <h3 class="font-semibold mb-4 mt-4">Características del Reproductor</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div>
+      <h4 class="font-semibold mb-2">Reproducción de Video</h4>
+      <ul class="list-disc list-inside text-sec space-y-2">
+        <li>Reproducción de stream HLS en tiempo real</li>
+        <li>Compatibilidad con HLS.js para navegadores sin soporte nativo HLS</li>
+        <li>Controles estándar de reproducción (play/pause, seek, volumen)</li>
+        <li>Modo pantalla completa</li>
+        <li>Selección de calidad automática basada en ancho de banda</li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="font-semibold mb-2">Subtítulos Integrados</h4>
+      <ul class="list-disc list-inside text-sec space-y-2">
+        <li>Subtítulos WebVTT integrados en tiempo real</li>
+        <li>Botón CC para activar/desactivar subtítulos</li>
+        <li>Refresco automático cada 5 segundos para mantener sincronización</li>
+        <li>Estilo de subtítulos configurable (tamaño, color, fondo)</li>
+        <li>Soporte para múltiples idiomas de subtítulos (cuando están disponibles)</li>
+      </ul>
+    </div>
+  </div>
+  
+  <h3 class="font-semibold mb-4 mt-6">Funcionalidades de Sincronización</h3>
+  <p class="text-sec">Para mantener la sincronización en streams en vivo:</p>
+  <ul class="list-disc list-inside text-sec space-y-2">
+    <li>El reproductor solicita actualizaciones de la playlist M3U8 cada segmento</li>
+    <li>Los subtítulos WebVTT se refrescan automáticamente cada 5 segundos</li>
+    <li>El tiempo de los subtítulos se basa en el tiempo acumulado desde el inicio del stream</li>
+    <li>Se utiliza la misma lógica de tiempo que el Video Muxer para garantizar consistencia</li>
+  </ul>
+</div>
+
+<h2 class="text-xl font-semibold mb-4">🔌 Comunicación en Tiempo Real</h2>
+<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
+  <h3 class="font-semibold mb-4">WebSocket para Logs y Estado</h3>
+  <p class="text-sec mb-4">El frontend mantiene una conexión WebSocket permanente con el backend para recibir actualizaciones en tiempo real.</p>
+  
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+      <h4 class="font-semibold mb-2">Endpoint WebSocket</h4>
+      <p class="text-xs font-mono bg-bg-deep p-2 rounded">ws://localhost:9999/ws/logs</p>
+    </div>
+    <div>
+      <h4 class="font-semibold mb-2">Tipos de Mensajes</h4>
+      <ul class="list-disc list-inside text-sec space-y-1">
+        <li><strong>Log entries:</strong> Mensajes de sistema con niveles (info, warning, error)</li>
+        <li><strong>Module status:</strong> Actualizaciones de estado de cada módulo</li>
+        <li><strong>Pipeline metrics:</strong> Información de rendimiento y throughput</li>
+        <li><strong>Configuration updates:</strong> Notificaciones de cambios en configuración</li>
+      </ul>
+    </div>
+  </div>
+  
+  <h3 class="font-semibold mb-4 mt-6">Manejo de Reconexión</h3>
+  <p class="text-sec">El cliente WebSocket implementa reconexión automática robusta:</p>
+  <ul class="list-disc list-inside text-sec space-y-2">
+    <li>Intenta reconectar hasta 3 veces con espera exponencial</li>
+    <li>Muestra indicador visual de estado de conexión</li>
+    <li>Preserva el estado de la UI durante interrupciones breves</li>
+    <li>Recupera automáticamente la conexión cuando el backend está disponible nuevamente</li>
+  </ul>
+</div>
+
+<h2 class="text-xl font-semibold mb-4">📱 Diseño Responsivo</h2>
+<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
+  <h3 class="font-semibold mb-4">Adaptabilidad a Diferentes Tamaños de Pantalla</h3>
+  <p class="text-sec mb-4">La interfaz se adapta automáticamente para proporcionar una experiencia óptima en diferentes dispositivos:</p>
+  
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div>
+      <h4 class="font-semibold mb-2">Escritorio (≥1024px)</h4>
+      <p class="text-sec">Diseño de múltiples columnas con todos los paneles visibles simultáneamente</p>
+    </div>
+    <div>
+      <h4 class="font-semibold mb-2">Tablet (768px-1023px)</h4>
+      <p class="text-sec">Diseño de dos columnas con paneles apilados según prioridad</p>
+    </div>
+    <div>
+      <h4 class="font-semibold mb-2">Móvil (<768px)</h4>
+      <p class="text-sec">Diseño de una columna con paneles apilados verticalmente y navegación de pestañas</p>
+    </div>
+  </div>
+  
+  <h3 class="font-semibold mb-4 mt-6">Controles Táctiles Optimizados</h3>
+  <p class="text-sec">En dispositivos táctiles:</p>
+  <ul class="list-disc list-inside text-sec space-y-2">
+    <li>Botones y controles con tamaño mínimo de 44x44px para fácil acceso</li>
+    <li>Gestos de deslizar para navegar entre secciones</li>
+    <li>Menús desplegables optimizados para toque</li>
+    <li>Entradas de texto con espaciado adecuado para teclado en pantalla</li>
+  </ul>
+</div>
+
+<h2 class="text-xl font-semibold mb-4">🎨 Temas y Personalización</h2>
+<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
+  <h3 class="font-semibold mb-4">Tema Oscuro por Defecto</h3>
+  <p class="text-sec">La interfaz utiliza un tema oscuro optimizado para uso en entornos de producción y salas de control:</p>
+  <ul class="list-disc list-inside text-sec space-y-2">
+    <li>Fondo muy oscuro para reducir fatiga visual en entornos oscuros</li>
+    <li>Colores de acento vibrantes para indicadores de estado y acciones importantes</li>
+    <li>Tipografía legible con contraste suficiente para lectura prolongada</li>
+    <li>Animaciones sutiles que no distraen pero proporcionan feedback visual</li>
+  </ul>
+  
+  <h3 class="font-semibold mb-4 mt-4">Adaptación al Sistema</h3>
+  <p class="text-sec mb-2">La interfaz respeta la preferencia de tema del sistema operativo:</p>
+  <ul class="list-disc list-inside text-sec space-y-1">
+    <li>Si el sistema está en modo claro, se adapta automáticamente</li>
+    <li>Si el sistema está en modo oscuro, mantiene el tema oscuro optimizado</li>
+    <li>Se puede forzar un tema específico mediante parámetros de URL (futuras versiones)</li>
+  </ul>
+</div>
+
+<hr class="my-8 border-border-dim">
+
+<h2 class="text-xl font-semibold mb-4">💡 Tips de Uso</h2>
+<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
+  <h3 class="font-semibold mb-4">Para Operadores de Producción</h3>
+  <ul class="list-disc list-inside text-sec space-y-2">
+    <li>Mantenga el dashboard visible en una pantalla dedicada para monitoreo continuo</li>
+    <li>Configure alertas visuales mediante los indicadores de color de los módulos</li>
+    <li>Utilice el panel de logs para diagnóstico rápido de problemas</li>
+    <li>Pruebe siempre con streams de corta duración antes de transmitir eventos en vivo</li>
+  </ul>
+  
+  <h3 class="font-semibold mb-4 mt-6">Para Desarrollo y Personalización</h3>
+  <ul class="list-disc list-inside text-sec space-y-2">
+    <li>El código fuente del frontend está en <span class="font-mono">frontend/src/</span></p>
+    <li>Los componentes reutilizables están en <span class="font-mono">frontend/src/components/</span></p>
+    <li>Los diseños de página están en <span class="font-mono">frontend/src/layouts/</span></p>
+    <li>Los estilos globales están en los componentes Astro utilizando <code>style is:global</code></p>
+    <li>Para modificar colores, edite las variables CSS en <code>:root</code> dentro de BaseLayout.astro</p>
+  </ul>
+</div>
+</content>

@@ -1,0 +1,129 @@
+---
+layout: '../../layouts/BaseLayout.astro'
+title: 'Getting Started - SRT2Web Documentation'
+---
+
+<h1 class="text-2xl font-bold mb-6">Getting Started</h1>
+<p class="text-sec mb-8">Guía rápida para instalar y poner en marcha SRT2Web en tu sistema.</p>
+
+<h2 class="text-xl font-semibold mb-4">📋 Requisitos Previos</h2>
+<ul class="list-disc list-inside text-sec space-y-2 mb-6">
+  <li>Python 3.8 o superior</li>
+  <li>FFmpeg instalado y accesible en PATH</li>
+  <li>Conexión a internet (para descarga de modelos iniciales)</li>
+  <li>Al menos 4GB de RAM recomendado</li>
+  <li>GPU compatible con CUDA para aceleración (opcional pero recomendado)</li>
+</ul>
+
+<h2 class="text-xl font-semibold mb-4">⚙️ Instalación</h2>
+<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
+  <h3 class="font-semibold mb-4">1. Clonar el repositorio</h3>
+  <pre class="bg-bg-deep p-4 rounded overflow-auto text-xs"><code class="language-bash">git clone https://github.com/yourusername/srt2web.git
+cd srt2web</code></pre>
+  
+  <h3 class="font-semibold mb-4 mt-4">2. Instalar dependencias</h3>
+  <pre class="bg-bg-deep p-4 rounded overflow-auto text-xs"><code class="language-bash">pip install -r requirements.txt</code></pre>
+  
+  <h3 class="font-semibold mb-4 mt-4">3. Verificar instalación de FFmpeg</h3>
+  <pre class="bg-bg-deep p-4 rounded overflow-auto text-xs"><code class="language-bash">ffmpeg -version
+# Debería mostrar información de versión de FFmpeg</code></pre>
+</div>
+
+<h2 class="text-xl font-semibold mb-4">🚀 Primera Ejecución</h2>
+<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
+  <h3 class="font-semibold mb-4">Usando los scripts de control (Windows)</h3>
+  <p class="text-sec mb-4">Los archivos .bat en el directorio raíz facilitan el control del servidor:</p>
+  <ul class="list-disc list-inside text-sec space-y-2">
+    <li><strong>Arrancar_Servidor.bat:</strong> Inicia el servidor SRT2Web</li>
+    <li><strong>Detener_Servidor.bat:</strong> Detiene el servidor y limpia archivos temporales</li>
+    <li><strong>Reiniciar_Servidor.bat:</strong> Detiene y vuelve a iniciar el servidor</li>
+    <li><strong>Diagnosticar_Puertos.bat:</strong> Muestra qué puertos están en uso</li>
+  </ul>
+  
+  <h3 class="font-semibold mb-4 mt-4">Ejecución manual</h3>
+  <pre class="bg-bg-deep p-4 rounded overflow-auto text-xs"><code class="language-bash">python main.py</code></pre>
+  
+  <p class="text-sec mt-2">El servidor iniciará en <span class="font-mono">http://localhost:9999</span></p>
+</div>
+
+<h2 class="text-xl font-semibold mb-4">🌐 Accediendo a la Interfaz</h2>
+<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
+  <h3 class="font-semibold mb-4">Dashboard Principal</h3>
+  <p class="text-sec">Visita <span class="font-mono">http://localhost:9999</span> para acceder al dashboard donde puedes:</p>
+  <ul class="list-disc list-inside text-sec space-y-2">
+    <li>Iniciar y detener el pipeline de procesamiento</li>
+    <li>Configurar idiomas de entrada y salida</li>
+    <li>Activar/desactivar módulos individuales</li>
+    <li>Ver logs en tiempo real mediante WebSockets</li>
+    <li>Monitorear el estado de cada módulo del pipeline</li>
+  </ul>
+  
+  <h3 class="font-semibold mb-4 mt-4">Reproductor HLS</h3>
+  <p class="text-sec">Una vez que el pipeline esté activo, accede al reproductor en:</p>
+  <p class="font-mono mb-2">http://localhost:9999/player.html</p>
+  <p class="text-sec">Donde podrás ver el video procesado con subtítulos en tiempo real.</p>
+</div>
+
+<h2 class="text-xl font-semibold mb-4">⚙️ Configuración Inicial</h2>
+<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
+  <h3 class="font-semibold mb-4">Archivo de configuración</h3>
+  <p class="text-sec">Edita <span class="font-mono">config.yaml</span> para ajustar parámetros según tus necesidades:</p>
+  <div class="bg-bg-deep p-4 rounded overflow-auto text-xs"><code class="language-yaml">server:
+  host: "0.0.0.0"  # Escuchar en todas las interfaces
+  port: 9999       # Puerto del servidor web
+
+input:
+  srt:
+    listen_port: 8888  # Puerto para recibir stream SRT
+    mode: "caller"     # o "listener" según tu configuración
+
+modules:
+  transcriber:
+    model: "tiny"      # Modelo Whisper: tiny, base, small, medium, large
+    language: "es"     # Idioma de entrada para transcripción
+    device: "cpu"      # cpu o cuda (si tienes GPU compatible)
+    
+  translator:
+    source_lang: "es"  # Idioma de origen
+    target_lang: "en"  # Idioma de destino
+    
+  subtitle_generator:
+    format: "webvtt"   # Formato de subtítulos: webvtt o srt
+    use_translated: true  # Usar texto traducido para subtítulos
+    
+  tts_engine:
+    voice: "es-ES-ElviraNeural"  # Voz para síntesis (consultar disponibles)
+    speed: 1.0                   # Velocidad de habla (0.5 a 2.0)
+    
+  audio_mixer:
+    original_volume: 0.3   # Volumen del audio original (0.0 a 2.0)
+    dubbed_volume: 0.7     # Volumen del audio doblado (0.0 a 2.0)
+    
+  video_muxer:
+    chunk_duration_sec: 10 # Duración de cada chunk en segundos
+    hls_segment_duration: 10 # Duración de segmentos HLS
+    hls_list_size: 6       # Número máximo de segmentos en playlist</code></pre>
+</div>
+
+<h2 class="text-xl font-semibold mb-4">🔧 Pruebas Iniciales</h2>
+<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
+  <h3 class="font-semibold mb-4">Probar con un stream SRT de prueba</h3>
+  <p class="text-sec">Para probar el sistema sin necesidad de un stream SRT real, puedes usar:</p>
+  <div class="bg-bg-deep p-4 rounded overflow-auto text-xs"><code class="language-bash"># En una terminal diferente
+ffmpeg -re -f lavfi -i testsrc=duration=300:size=640x360:rate=30 \
+  -f lavfi -i sine=frequency=440:duration=300 \
+  -c:v libx264 -preset veryfast -c:a aac \
+  -f mpegts udp://localhost:8888?pkt_size=1316</code></pre>
+  <p class="text-sec mt-2">Este comando genera un stream de prueba de video y audio en UDP que puedes redirigir a SRT usando herramientas como <code>srt-live-transmit</code>.</p>
+</div>
+
+<h2 class="text-xl font-semibold mb-4">📚 Próximos Pasos</h2>
+<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
+  <ul class="list-disc list-inside text-sec space-y-2">
+    <li>Explora la <a href="/docs/configuration" class="text-accent hover:text-accent-hover">referencia completa de configuración</a></li>
+    <li>Aprende sobre la <a href="/docs/api-reference" class="text-accent hover:text-accent-hover">API REST</a> para integración</li>
+    <li>Revisa la <a href="/docs/modules" class="text-accent hover:text-accent-hover">documentación de módulos</a> para entender el pipeline</li>
+    <li>Consulta la guía de <a href="/docs/deployment" class="text-accent hover:text-accent-hover">despliegue en producción</a></li>
+  </ul>
+</div>
+</content>

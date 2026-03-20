@@ -1,0 +1,83 @@
+---
+layout: '../../layouts/BaseLayout.astro'
+title: 'SRT2Web Documentation'
+---
+
+<h1 class="text-2xl font-bold mb-6">SRT2Web Documentation</h1>
+<p class="text-sec mb-8">Procesador modular de streams SRT para transcripción, traducción, subtitulado y doblaje automático de video en tiempo real</p>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  <div class="process-card">
+    <h2 class="font-semibold mb-4">🚀 Empezando</h2>
+    <p class="text-sec mb-4">Guía de instalación y configuración inicial para poner en marcha SRT2Web rápidamente.</p>
+    <a href="/docs/getting-started" class="inline-block text-accent hover:text-accent-hover">Leer más →</a>
+  </div>
+  
+  <div class="process-card">
+    <h2 class="font-semibold mb-4">⚙️ Configuración</h2>
+    <p class="text-sec mb-4">Referencia completa de todas las opciones de configuración disponibles en config.yaml.</p>
+    <a href="/docs/configuration" class="inline-block text-accent hover:text-accent-hover">Leer más →</a>
+  </div>
+  
+  <div class="process-card">
+    <h2 class="font-semibold mb-4">🔌 API REST</h2>
+    <p class="text-sec mb-4">Documentación detallada de todos los endpoints de la API REST para control y monitoreo.</p>
+    <a href="/docs/api-reference" class="inline-block text-accent hover:text-accent-hover">Leer más →</a>
+  </div>
+  
+  <div class="process-card">
+    <h2 class="font-semibold mb-4">🧩 Módulos</h2>
+    <p class="text-sec mb-4">Descripción detallada de cada módulo del pipeline y su función en el procesamiento.</p>
+    <a href="/docs/modules" class="inline-block text-accent hover:text-accent-hover">Leer más →</a>
+  </div>
+  
+  <div class="process-card">
+    <h2 class="font-semibold mb-4">💻 Frontend</h2>
+    <p class="text-sec mb-4">Información sobre la interfaz web, dashboard y reproductor HLS integrado.</p>
+    <a href="/docs/frontend" class="inline-block text-accent hover:text-accent-hover">Leer más →</a>
+  </div>
+  
+  <div class="process-card">
+    <h2 class="font-semibold mb-4">🚢 Despliegue</h2>
+    <p class="text-sec mb-4">Guías para desplegar SRT2Web en diferentes entornos y configuraciones de producción.</p>
+    <a href="/docs/deployment" class="inline-block text-accent hover:text-accent-hover">Leer más →</a>
+  </div>
+</div>
+
+<hr class="my-8 border-border-dim">
+
+<h2 class="text-xl font-semibold mb-4">📖 Visión General</h2>
+<p class="text-sec">
+SRT2Web es un sistema modular diseñado para procesar streams SRT (Secure Reliable Transport) en tiempo real, 
+ofreciendo capacidades de transcripción automática, traducción, generación de subtítulos y doblaje mediante 
+síntesis de voz (TTS). El sistema distribuye el contenido procesado vía HLS (HTTP Live Streaming) para 
+reproducción en navegadores web.
+</p>
+
+<h3 class="text-lg font-semibold mb-3">Características Principales</h3>
+<ul class="list-disc list-inside text-sec space-y-2">
+  <li>Pipeline modular de 8 etapas para procesamiento de flujo completo</li>
+  <li>Transcripción en tiempo real con Whisper (faster-whisper)</li>
+  <li>Traducción entre múltiples idiomas usando Argos Translate</li>
+  <li>Generación de subtítulos WebVTT y SRT</li>
+  <li>Doblaje automático con síntesis de voz (Edge-TTS)</li>
+  <li>Mezcla de audio con ducking para mantener el audio original audible</li>
+  <li>Salida HLS con segmentación precisa para streaming sin interrupciones</li>
+  <li>Interfaz web reactiva con monitoreo en tiempo real vía WebSockets</li>
+  <li>API REST completa para control y automatización</li>
+  <li>Soporte para aceleración GPU (NVENC, AMF, QSV, VAAPI)</li>
+  <li>Escalable para múltiples streams simultáneos</li>
+</ul>
+
+<h3 class="text-lg font-semibold mb-3">Arquitectura del Sistema</h3>
+<ol class="decimal list-inside text-sec space-y-2">
+  <li><strong>Ingesta SRT:</strong> Recibe flujo SRT y lo fragmenta en chunks de video</li>
+  <li><strong>Extracción de Audio:</strong> Separa audio .wav de los fragmentos de video</li>
+  <li><strong>Transcripción:</strong> Convierte audio a texto usando modelos Whisper</li>
+  <li><strong>Traducción:</strong> Traduce el texto transcrito al idioma objetivo</li>
+  <li><strong>Generación de Subtítulos:</strong> Crea subtítulos sincronizados (WebVTT/SRT)</li>
+  <li><strong>Síntesis de Voz (TTS):</strong> Genera audio doblado desde texto traducido</li>
+  <li><strong>Mezcla de Audio:</strong> Combina audio original (con ducking) y TTS</li>
+  <li><strong>Multiplexado de Video:</strong> Empaqueta video y audio final en stream HLS</li>
+</ol>
+</content>
