@@ -208,16 +208,86 @@ import ProcessCard from '../components/ProcessCard.astro';
                                 <label class="form-label">Offset audio (ms)</label>
                                 <input type="number" class="form-input" id="adv-offset" value="0" />
                             </div>
+                            
+                            <!-- Encoder Settings -->
+                            <div class="settings-divider">
+                                <span class="settings-label">⚙️ Encoder</span>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Modo</label>
+                                <select class="form-select" id="adv-encoder-mode">
+                                    <option value="auto">Automático (GPU/CPU)</option>
+                                    <option value="cpu">CPU (libx264)</option>
+                                    <option value="gpu_nvenc">NVIDIA NVENC</option>
+                                    <option value="gpu_amf">AMD AMF</option>
+                                    <option value="gpu_qsv">Intel QSV</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Preset</label>
+                                <select class="form-select" id="adv-video-quality">
+                                    <option value="ultrafast">Ultrafast</option>
+                                    <option value="superfast">Superfast</option>
+                                    <option value="veryfast">Veryfast</option>
+                                    <option value="faster">Faster</option>
+                                    <option value="fast">Fast</option>
+                                    <option value="medium" selected>Equilibrada</option>
+                                    <option value="slow">Slow</option>
+                                    <option value="slower">Slower</option>
+                                    <option value="veryslow">Veryslow</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">CRF <span id="crf-value">18</span></label>
+                                <input type="range" class="form-range" id="adv-video-crf" min="0" max="51" value="18" />
+                            </div>
+                            
+                            <!-- Audio Settings -->
+                            <div class="settings-divider">
+                                <span class="settings-label">🎵 Audio</span>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Codec</label>
+                                <select class="form-select" id="adv-audio-codec">
+                                    <option value="aac" selected>AAC</option>
+                                    <option value="opus">Opus</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Bitrate</label>
+                                <select class="form-select" id="adv-audio-bitrate">
+                                    <option value="64k">64 kbps</option>
+                                    <option value="96k">96 kbps</option>
+                                    <option value="128k">128 kbps</option>
+                                    <option value="160k">160 kbps</option>
+                                    <option value="192k" selected>192 kbps</option>
+                                    <option value="256k">256 kbps</option>
+                                    <option value="320k">320 kbps</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Sample Rate</label>
+                                <select class="form-select" id="adv-audio-samplerate">
+                                    <option value="44100">44.1 kHz</option>
+                                    <option value="48000" selected>48 kHz</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <button class="btn-start" style="margin-top:12px;width:100%;" id="btn-save-config">
+                <button class="btn-save" id="btn-save-config">
                     💾 Guardar Configuración
                 </button>
             </div>
         </section>
 
-        <!-- Logs -->
+        <!-- logs -->
         <section class="logs-section">
             <div class="logs-header">
                 <span>📜 Logs</span>
@@ -297,62 +367,6 @@ import ProcessCard from '../components/ProcessCard.astro';
         }
     }
 
-    .urls-section {
-        background: var(--bg-card);
-        border: 1px solid var(--border-dim);
-        border-radius: var(--radius-md);
-        padding: 12px;
-        margin-bottom: 16px;
-    }
-
-    .urls-section h3 {
-        font-size: 12px;
-        font-weight: 600;
-        margin-bottom: 10px;
-    }
-
-    .urls-grid {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .url-card {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        background: var(--bg-surface);
-        padding: 8px;
-        border-radius: var(--radius-sm);
-    }
-
-    .url-label {
-        font-size: 10px;
-        color: var(--text-sec);
-        min-width: 80px;
-    }
-
-    .url-value {
-        flex: 1;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 11px;
-        color: var(--accent);
-        text-decoration: none;
-    }
-    
-    .url-value:hover {
-        text-decoration: underline;
-        cursor: pointer;
-    }
-
-    .copy-btn {
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 4px;
-        font-size: 14px;
-    }
-
     .advanced-section {
         margin-top: 16px;
     }
@@ -417,6 +431,10 @@ import ProcessCard from '../components/ProcessCard.astro';
         padding: 10px;
     }
 
+    .module-card.disabled {
+        opacity: 0.5;
+    }
+
     .module-header {
         display: flex;
         justify-content: space-between;
@@ -444,10 +462,29 @@ import ProcessCard from '../components/ProcessCard.astro';
         box-shadow: 0 0 6px #00ff00;
     }
 
+    .status-dot.error {
+        background: var(--error);
+    }
+
+    .status-dot.disabled {
+        background: var(--text-dim);
+    }
+
     .module-settings {
         display: flex;
         flex-direction: column;
         gap: 6px;
+    }
+
+    .settings-divider {
+        border-top: 1px solid var(--border-dim);
+        padding-top: 8px;
+        margin-top: 4px;
+    }
+
+    .settings-label {
+        font-size: 10px;
+        color: var(--text-sec);
     }
 
     .toggle-switch {
@@ -516,6 +553,31 @@ import ProcessCard from '../components/ProcessCard.astro';
         font-size: 11px;
     }
 
+    .form-range {
+        width: 100%;
+        padding: 4px 0;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+    }
+
+    .btn-save {
+        margin-top: 12px;
+        width: 100%;
+        padding: 10px 16px;
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: var(--radius-sm);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .btn-save:hover {
+        background: #4f46e5;
+    }
+
     .logs-section {
         background: var(--bg-card);
         border: 1px solid var(--border-dim);
@@ -560,21 +622,6 @@ import ProcessCard from '../components/ProcessCard.astro';
     .log-entry.info { color: var(--text-prime); }
     .log-entry.warn { color: var(--warning); }
     .log-entry.error { color: var(--error); }
-
-    .btn-start {
-        background: var(--success);
-        color: white;
-        border: none;
-        padding: 10px 16px;
-        border-radius: var(--radius-sm);
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-    }
-
-    .btn-start:hover {
-        background: #0ea571;
-    }
 
     .toast-container {
         position: fixed;
@@ -669,14 +716,11 @@ import ProcessCard from '../components/ProcessCard.astro';
         const latencyUs = latency * 1000;
         
         if (connectionMode === 'local') {
-            // Modo LOCAL: usar IP local para SRT
-            // OBS se conecta como CALLER a nuestro LISTENER
             const localIp = networkInfo.local_ip;
             urlSrt.textContent = `srt://${localIp}:${srtPort}?mode=caller&latency=${latencyUs}`;
             urlStream.textContent = `http://127.0.0.1:9999/hls/stream.m3u8`;
             urlPlayer.textContent = `http://127.0.0.1:9999/player`;
         } else {
-            // Modo REMOTE: usar IP pública para Stream/Player, y modo caller para SRT
             const publicIp = networkInfo.public_ip || networkInfo.local_ip;
             const emitterIp = document.getElementById('emitter-address')?.value;
             
@@ -892,6 +936,30 @@ import ProcessCard from '../components/ProcessCard.astro';
         if (modules.video_muxer) {
             document.getElementById('adv-seg').value = modules.video_muxer.hls_segment_duration || 15;
             document.getElementById('adv-list').value = modules.video_muxer.hls_list_size || 6;
+            document.getElementById('adv-offset').value = modules.video_muxer.audio_offset_ms || 0;
+            
+            // Encoder settings
+            if (modules.video_muxer.encoder_mode) {
+                document.getElementById('adv-encoder-mode').value = modules.video_muxer.encoder_mode;
+            }
+            if (modules.video_muxer.video_quality) {
+                document.getElementById('adv-video-quality').value = modules.video_muxer.video_quality;
+            }
+            if (modules.video_muxer.video_crf !== undefined) {
+                document.getElementById('adv-video-crf').value = modules.video_muxer.video_crf;
+                document.getElementById('crf-value').textContent = modules.video_muxer.video_crf;
+            }
+            
+            // Audio settings
+            if (modules.video_muxer.audio_codec) {
+                document.getElementById('adv-audio-codec').value = modules.video_muxer.audio_codec;
+            }
+            if (modules.video_muxer.audio_bitrate) {
+                document.getElementById('adv-audio-bitrate').value = modules.video_muxer.audio_bitrate;
+            }
+            if (modules.video_muxer.audio_samplerate) {
+                document.getElementById('adv-audio-samplerate').value = modules.video_muxer.audio_samplerate;
+            }
         }
         
         toggleTranslate();
@@ -942,24 +1010,6 @@ import ProcessCard from '../components/ProcessCard.astro';
     }
 
     async function saveConfig(silent = false) {
-        const modules = {
-            transcriber: {
-                enabled: document.getElementById('adv-whisper-enabled').checked
-            },
-            translator: {
-                enabled: document.getElementById('translate-enabled').checked
-            },
-            subtitle_generator: {
-                enabled: document.getElementById('subtitle-enabled').checked
-            },
-            tts_engine: {
-                enabled: document.getElementById('dub-enabled').checked
-            },
-            audio_mixer: {
-                enabled: document.getElementById('dub-enabled').checked
-            }
-        };
-        
         const srtMode = connectionMode === 'remote' ? 'caller' : 'listener';
         const callerAddress = connectionMode === 'remote' 
             ? (document.getElementById('emitter-address')?.value || '') 
@@ -1010,9 +1060,16 @@ import ProcessCard from '../components/ProcessCard.astro';
                     dubbed_volume: 1.8
                 },
                 video_muxer: {
-                    enabled: true,
+                    enabled: document.getElementById('adv-muxer-enabled').checked,
                     hls_segment_duration: parseInt(document.getElementById('adv-seg').value),
-                    hls_list_size: parseInt(document.getElementById('adv-list').value)
+                    hls_list_size: parseInt(document.getElementById('adv-list').value),
+                    audio_offset_ms: parseInt(document.getElementById('adv-offset').value),
+                    encoder_mode: document.getElementById('adv-encoder-mode').value,
+                    video_quality: document.getElementById('adv-video-quality').value,
+                    video_crf: parseInt(document.getElementById('adv-video-crf').value),
+                    audio_codec: document.getElementById('adv-audio-codec').value,
+                    audio_bitrate: document.getElementById('adv-audio-bitrate').value,
+                    audio_samplerate: parseInt(document.getElementById('adv-audio-samplerate').value)
                 }
             }
         };
@@ -1033,13 +1090,13 @@ import ProcessCard from '../components/ProcessCard.astro';
     }
 
     function toggleTranslate() {
-        const enabled = document.getElementById('translate-enabled').checked;
+        const enabled = document.getElementById('translate-enabled')?.checked;
         const card = document.getElementById('card-translate');
         const settings = document.getElementById('translate-settings');
         if (card) card.classList.toggle('disabled', !enabled);
         if (settings) settings.style.opacity = enabled ? '1' : '0.5';
         
-        if (!enabled) {
+        if (enabled === false) {
             const subtitleEnabled = document.getElementById('subtitle-enabled');
             const dubEnabled = document.getElementById('dub-enabled');
             if (subtitleEnabled && subtitleEnabled.checked) {
@@ -1056,13 +1113,13 @@ import ProcessCard from '../components/ProcessCard.astro';
     }
 
     function toggleDub() {
-        const enabled = document.getElementById('dub-enabled').checked;
+        const enabled = document.getElementById('dub-enabled')?.checked;
         const card = document.getElementById('card-dub');
         const settings = document.getElementById('dub-settings');
         if (card) card.classList.toggle('disabled', !enabled);
         if (settings) settings.style.opacity = enabled ? '1' : '0.5';
         
-        if (enabled && !document.getElementById('translate-enabled').checked) {
+        if (enabled && !document.getElementById('translate-enabled')?.checked) {
             document.getElementById('translate-enabled').checked = true;
             toggleTranslate();
             showToast('Traducción activado automáticamente para doblaje', 'info');
@@ -1070,17 +1127,23 @@ import ProcessCard from '../components/ProcessCard.astro';
     }
 
     function toggleSubtitle() {
-        const enabled = document.getElementById('subtitle-enabled').checked;
+        const enabled = document.getElementById('subtitle-enabled')?.checked;
         const card = document.getElementById('card-subtitle');
         const settings = document.getElementById('subtitle-settings');
         if (card) card.classList.toggle('disabled', !enabled);
         if (settings) settings.style.opacity = enabled ? '1' : '0.5';
         
-        if (enabled && !document.getElementById('translate-enabled').checked) {
+        if (enabled && !document.getElementById('translate-enabled')?.checked) {
             document.getElementById('translate-enabled').checked = true;
             toggleTranslate();
             showToast('Traducción activado automáticamente para subtítulos', 'info');
         }
+    }
+
+    function toggleVideoMuxer() {
+        const enabled = document.getElementById('adv-muxer-enabled')?.checked;
+        const card = document.getElementById('mod-video_muxer');
+        if (card) card.classList.toggle('disabled', !enabled);
     }
 
     function updateInputFields() {
@@ -1175,9 +1238,14 @@ import ProcessCard from '../components/ProcessCard.astro';
         document.getElementById('input-latency').addEventListener('input', updateConnectionUrls);
         document.getElementById('input-type').addEventListener('change', updateInputFields);
         
-        document.getElementById('translate-enabled').addEventListener('change', toggleTranslate);
-        document.getElementById('dub-enabled').addEventListener('change', toggleDub);
-        document.getElementById('subtitle-enabled').addEventListener('change', toggleSubtitle);
+        document.getElementById('translate-enabled')?.addEventListener('change', toggleTranslate);
+        document.getElementById('dub-enabled')?.addEventListener('change', toggleDub);
+        document.getElementById('subtitle-enabled')?.addEventListener('change', toggleSubtitle);
+        
+        document.getElementById('adv-muxer-enabled')?.addEventListener('change', toggleVideoMuxer);
+        document.getElementById('adv-video-crf')?.addEventListener('input', (e) => {
+            document.getElementById('crf-value').textContent = e.target.value;
+        });
         
         document.getElementById('advanced-header').addEventListener('click', () => {
             document.getElementById('advanced-section').classList.toggle('expanded');
