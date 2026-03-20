@@ -36,7 +36,9 @@ class TestDashboardPageStructure:
 
         assert 'id="btn-start"' in dashboard_html
         assert 'id="btn-stop"' in dashboard_html
-        assert 'id="url-srt"' in dashboard_html
+        assert (
+            'id="status-url-srt"' in dashboard_html or 'id="url-srt"' in dashboard_html
+        )
         assert 'id="logs-content"' in dashboard_html
 
     def test_has_navigation(self, dashboard_html):

@@ -61,12 +61,23 @@ class TestDashboardJavaScript:
             pytest.skip("web/index.html not found")
         assert "async function stopPipeline()" in content
 
-    def test_toggle_advanced_function_exists(self, content):
-        """Test that toggleAdvanced function exists for the advanced section."""
+    def test_whisper_card_exists(self, content):
+        """Test that whisper card exists in process-grid."""
         if content is None:
             pytest.skip("web/index.html not found")
-        assert "function toggleAdvanced()" in content
-        assert "advanced-section" in content
+        assert "card-whisper" in content
+
+    def test_hls_output_card_exists(self, content):
+        """Test that HLS output card exists in process-grid."""
+        if content is None:
+            pytest.skip("web/index.html not found")
+        assert "card-hls" in content
+
+    def test_save_config_button_in_header(self, content):
+        """Test that save config button exists in header."""
+        if content is None:
+            pytest.skip("web/index.html not found")
+        assert "btn-save" in content
 
     def test_toggle_translate_function_exists(self, content):
         """Test that toggleTranslate function exists."""
@@ -132,49 +143,38 @@ class TestDashboardAPI:
         assert "'/stop'" in content or '"/stop"' in content
 
 
-class TestDashboardAdvancedSection:
-    """Tests for Advanced Configuration Section."""
+class TestDashboardProcessGrid:
+    """Tests for Process Grid (main module cards)."""
 
     @pytest.fixture
     def content(self):
         """Load frontend content."""
         return get_frontend_content()
 
-    def test_advanced_section_exists(self, content):
-        """Test that advanced-section exists in HTML."""
+    def test_whisper_card_exists(self, content):
+        """Test that whisper card exists in process-grid."""
         if content is None:
             pytest.skip("web/index.html not found")
-        assert 'id="advanced-section"' in content
+        assert "card-whisper" in content
 
-    def test_advanced_section_has_header(self, content):
-        """Test that advanced section has clickable header."""
+    def test_hls_output_card_exists(self, content):
+        """Test that HLS output card exists in process-grid."""
         if content is None:
             pytest.skip("web/index.html not found")
-        assert 'onclick="toggleAdvanced()' in content
+        assert "card-hls" in content
 
-    def test_advanced_section_toggle_works(self, content):
-        """Test that toggleAdvanced toggles 'expanded' class."""
+    def test_save_config_button_in_header(self, content):
+        """Test that save config button exists in header."""
         if content is None:
             pytest.skip("web/index.html not found")
-        assert "classList.toggle('expanded')" in content
+        assert "btn-save" in content
 
-    def test_advanced_body_expands(self, content):
-        """Test that advanced-body exists for expanded content."""
+    def test_process_grid_has_7_cards(self, content):
+        """Test that process-grid contains 7 module cards."""
         if content is None:
             pytest.skip("web/index.html not found")
-        assert "advanced-body" in content
-
-    def test_advanced_toggle_icon_exists(self, content):
-        """Test that advanced section has toggle icon (arrow)."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "advanced-toggle-icon" in content
-
-    def test_advanced_section_styled_expanded(self, content):
-        """Test that expanded state is styled in CSS."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert ".advanced-section.expanded" in content
+        card_count = content.count("card-")
+        assert card_count >= 7, f"Expected at least 7 cards, found {card_count}"
 
 
 class TestDashboardEventListeners:
@@ -196,12 +196,6 @@ class TestDashboardEventListeners:
         if content is None:
             pytest.skip("web/index.html not found")
         assert "btn-stop" in content
-
-    def test_advanced_header_click_listener(self, content):
-        """Test that advanced header has click listener."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert 'onclick="toggleAdvanced()' in content
 
     def test_toggle_translate_changes_checkbox(self, content):
         """Test that toggleTranslate function exists."""

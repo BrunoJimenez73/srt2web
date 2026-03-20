@@ -333,6 +333,22 @@
             cursor: not-allowed;
         }
 
+        .btn-save {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .btn-save:hover {
+            background: var(--accent-hover);
+        }
+
         /* Process Grid */
         .process-grid {
             display: grid;
@@ -757,6 +773,7 @@
                 <span class="logo-text">SRT2Web</span>
                 <span class="version-badge">v0.4</span>
             </div>
+            <button class="btn-save" onclick="saveConfig()">💾 Guardar Config</button>
         </header>
 
         <!-- Status Card - Expanded with Connection Info -->
@@ -834,6 +851,47 @@
                 <div class="form-group" id="input-file-group" style="display:none;">
                     <label class="form-label">Archivo</label>
                     <input type="text" class="form-input" id="input-file-path" placeholder="./video.mp4">
+                </div>
+            </div>
+
+            <!-- WHISPER -->
+            <div class="process-card" id="card-whisper">
+                <div class="process-header">
+                    <span class="process-indicator" id="indicator-whisper"></span>
+                    <span class="process-title">🎙 WHISPER</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="adv-whisper-enabled" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Modelo</label>
+                    <select class="form-select" id="adv-model">
+                        <option value="tiny">tiny</option>
+                        <option value="small">small</option>
+                        <option value="medium">medium</option>
+                        <option value="large-v2">large-v2</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Idioma</label>
+                    <select class="form-select" id="adv-lang">
+                        <option value="auto">Auto (Detectar)</option>
+                        <option value="es">Español</option>
+                        <option value="en">Inglés</option>
+                        <option value="fr">Francés</option>
+                        <option value="de">Alemán</option>
+                        <option value="it">Italiano</option>
+                        <option value="pt">Portugués</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Device</label>
+                    <select class="form-select" id="adv-device">
+                        <option value="auto">Auto</option>
+                        <option value="cuda">GPU</option>
+                        <option value="cpu">CPU</option>
+                    </select>
                 </div>
             </div>
 
@@ -935,7 +993,59 @@
                              <option value="true">Sí</option>
                              <option value="false">No</option>
                          </select>
-                     </div>
+                      </div>
+                 </div>
+            </div>
+
+            <!-- HLS OUTPUT -->
+            <div class="process-card" id="card-hls">
+                <div class="process-header">
+                    <span class="process-indicator" id="indicator-hls"></span>
+                    <span class="process-title">📦 HLS OUTPUT</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Segmento (s)</label>
+                    <input type="number" class="form-input" id="adv-seg" value="10">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Lista</label>
+                    <input type="number" class="form-input" id="adv-list" value="4" min="2" max="20">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Offset audio (ms)</label>
+                    <input type="number" class="form-input" id="adv-offset" value="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Encoder</label>
+                    <select class="form-select" id="adv-encoder-mode">
+                        <option value="auto">Automático</option>
+                        <option value="cpu">CPU</option>
+                        <option value="gpu_nvenc">NVIDIA</option>
+                        <option value="gpu_amf">AMD</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">CRF <span id="crf-value">18</span></label>
+                    <input type="range" class="form-input" id="adv-video-crf" min="0" max="51" value="18" 
+                           style="padding: 0;" oninput="document.getElementById('crf-value').textContent = this.value">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Audio Codec</label>
+                    <select class="form-select" id="adv-audio-codec">
+                        <option value="aac">AAC</option>
+                        <option value="opus">Opus</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Bitrate</label>
+                    <select class="form-select" id="adv-audio-bitrate">
+                        <option value="64k">64 kbps</option>
+                        <option value="96k">96 kbps</option>
+                        <option value="128k">128 kbps</option>
+                        <option value="192k">192 kbps</option>
+                        <option value="256k">256 kbps</option>
+                        <option value="320k">320 kbps</option>
+                    </select>
                 </div>
             </div>
 
