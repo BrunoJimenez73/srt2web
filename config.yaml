@@ -57,12 +57,12 @@ modules:
   transcriber:
     enabled: true
     model: tiny
-    language: auto
+    language: en
     device: auto
   translator:
     enabled: true
     source_lang: en
-    target_lang: fr
+    target_lang: es
   subtitle_generator:
     enabled: true
     format: webvtt
@@ -71,7 +71,7 @@ modules:
     font_size: 1
   tts_engine:
     enabled: true
-    voice: fr-FR-DeniseNeural
+    voice: es-ES-ElviraNeural
     speed: 1.2
   audio_mixer:
     enabled: true

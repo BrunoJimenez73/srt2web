@@ -108,7 +108,8 @@ class TestAPIEndpoints:
     def test_update_config_partial(self, client):
         """Test partial config update."""
         response = client.put(
-            "/api/config", json={"config": {"srt": {"listen_port": 9999}}}
+            "/api/config",
+            json={"config": {"modules": {"translator": {"source_lang": "en"}}}},
         )
 
         assert response.status_code == 200
@@ -300,9 +301,10 @@ class TestAPIIntegration:
 
     def test_srt_info_uses_config(self, client):
         """Test that srt-info uses current config."""
-        # Update SRT port
+        # Update a non-port setting to avoid conflicts
         client.put(
-            "/api/config", json={"config": {"input": {"srt": {"listen_port": 9999}}}}
+            "/api/config",
+            json={"config": {"modules": {"translator": {"source_lang": "fr"}}}},
         )
 
         # Check srt-info - it may fail or return error if no input source

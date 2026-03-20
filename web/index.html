@@ -1038,8 +1038,8 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Bitrate</label>
-                    <select class="form-select" id="adv-audio-bitrate">
-                        <option value="64k">64 kbps</option>
+                                  <select class="form-select" id="adv-audio-bitrate-advanced">
+                                      <option value="64k">64 kbps</option>
                         <option value="96k">96 kbps</option>
                         <option value="128k">128 kbps</option>
                         <option value="192k">192 kbps</option>
@@ -1109,14 +1109,14 @@
                         <div class="module-header">
                             <span class="module-name"><span class="status-dot" id="status-transcriber"></span> 🎙 Whisper</span>
                             <label class="toggle-switch">
-                                <input type="checkbox" id="adv-whisper-enabled" checked>
+                                <input type="checkbox" id="adv-whisper-enabled-2" checked>
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
                         <div class="module-settings">
                             <div class="form-group">
                                 <label class="form-label">Modelo</label>
-                                <select class="form-select" id="adv-model">
+                                <select class="form-select" id="adv-model-2">
                                     <option value="tiny">tiny</option>
                                     <option value="small">small</option>
                                     <option value="medium">medium</option>
@@ -1125,7 +1125,7 @@
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Idioma</label>
-                                <select class="form-select" id="adv-lang">
+                                <select class="form-select" id="adv-lang-advanced">
                                     <option value="auto">Auto (Detectar)</option>
                                     <option value="es">Español</option>
                                     <option value="en">Inglés</option>
@@ -1137,7 +1137,7 @@
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Device</label>
-                                <select class="form-select" id="adv-device">
+                                <select class="form-select" id="adv-device-advanced">
                                     <option value="auto">Auto</option>
                                     <option value="cuda">GPU</option>
                                     <option value="cpu">CPU</option>
@@ -1158,15 +1158,15 @@
                          <div class="module-settings">
                              <div class="form-group">
                                  <label class="form-label">Segmento (s)</label>
-                                 <input type="number" class="form-input" id="adv-seg" value="15">
+                                  <input type="number" class="form-input" id="adv-seg-advanced" value="15">
                              </div>
                              <div class="form-group">
                                  <label class="form-label">Lista</label>
-                                 <input type="number" class="form-input" id="adv-list" value="6">
+                                  <input type="number" class="form-input" id="adv-list-advanced" value="6">
                              </div>
                              <div class="form-group">
                                  <label class="form-label">Offset audio (ms)</label>
-                                 <input type="number" class="form-input" id="adv-offset" value="0">
+                                  <input type="number" class="form-input" id="adv-offset-advanced" value="0">
                              </div>
                              
                              <!-- Encoder Settings -->
@@ -1178,8 +1178,8 @@
                              
                              <div class="form-group">
                                  <label class="form-label">Modo</label>
-                                 <select class="form-select" id="adv-encoder-mode">
-                                     <option value="auto">Automático (GPU/CPU)</option>
+                                  <select class="form-select" id="adv-encoder-mode-advanced">
+                                      <option value="auto">Automático (GPU/CPU)</option>
                                      <option value="cpu">CPU (libx264)</option>
                                      <option value="gpu_nvenc">NVIDIA NVENC</option>
                                      <option value="gpu_amf">AMD AMF</option>
@@ -1203,9 +1203,9 @@
                              </div>
                              
                              <div class="form-group">
-                                 <label class="form-label">CRF <span id="crf-value">18</span></label>
-                                 <input type="range" class="form-input" id="adv-video-crf" min="0" max="51" value="18" 
-                                        oninput="document.getElementById('crf-value').textContent = this.value">
+                                  <label class="form-label">CRF <span id="crf-value-advanced">18</span></label>
+                                  <input type="range" class="form-input" id="adv-video-crf-advanced" min="0" max="51" value="18" 
+                                         oninput="document.getElementById('crf-value-advanced').textContent = this.value">
                              </div>
                              
                              <!-- Audio Settings -->
@@ -1217,8 +1217,8 @@
                              
                              <div class="form-group">
                                  <label class="form-label">Codec</label>
-                                 <select class="form-select" id="adv-audio-codec">
-                                     <option value="aac" selected>AAC</option>
+                                  <select class="form-select" id="adv-audio-codec-advanced">
+                                      <option value="aac" selected>AAC</option>
                                      <option value="opus">Opus</option>
                                  </select>
                              </div>
