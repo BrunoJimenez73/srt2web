@@ -1409,13 +1409,12 @@
                 document.getElementById('dub-speed').value = modules.tts_engine.speed || 1.0;
             }
             
-            // Advanced - Whisper
-            if (modules.transcriber) {
-                document.getElementById('adv-whisper-enabled').checked = modules.transcriber.enabled;
-                document.getElementById('adv-model').value = modules.transcriber.model || 'tiny';
-                document.getElementById('adv-lang').value = modules.transcriber.language || 'auto';
-                document.getElementById('adv-device').value = modules.transcriber.device || 'auto';
-            }
+            // Advanced - Whisper (always apply defaults)
+            const transcriber = modules.transcriber || {};
+            document.getElementById('adv-whisper-enabled').checked = transcriber.enabled !== false;
+            document.getElementById('adv-model').value = transcriber.model || 'tiny';
+            document.getElementById('adv-lang').value = transcriber.language || 'auto';
+            document.getElementById('adv-device').value = transcriber.device || 'auto';
             
              // Advanced - HLS
              if (modules.video_muxer) {
