@@ -504,3 +504,96 @@ python -m pytest tests/unit/ --cov=modules --cov=core --cov-report=term-missing
 - Sistema de alertas: ✅
 - Múltiples streams: ✅
 - Escalabilidad probada: ✅
+
+---
+
+## 📝 Sesiones Realizadas
+
+### **Sesión 2026-03-20 - Fix Audio Sync, HLS Indicator, Config Validation**
+
+**Resumen de cambios realizados:**
+
+1. **Fix logger in validate_configuration()**
+   - `main.py`: Añadido `logger = logging.getLogger("srt2web.config")` dentro de la función
+   - El logger se usaba sin definirlo en el scope local
+
+2. **Fix model in config.yaml**
+   - Cambiado `model: invalid_model` a `model: tiny`
+   - Validación del modelo solo si transcriber está habilitado
+
+3. **Fix AudioMixer - TTS padding para sincronización**
+   - `modules/audio_mixer.py`: Agregados métodos `_get_audio_duration()` y `_pad_audio()`
+   - El audio TTS se rellena con silencio si es más corto que la duración esperada
+   - Cambiado `duration=longest` a `duration=first` en amix
+
+4. **Fix HLS Muxer indicator**
+   - `web/index.html`: Agregado indicador verde al OUTPUT card
+   - `updateModuleStatus()` ahora actualiza OUTPUT basándose en estado del pipeline
+   - Habilitado toggle del HLS Muxer (quitado `disabled`)
+
+5. **Fix test expectations**
+   - `tests/unit/test_audio_mixer.py`: Actualizado mock para 3 llamadas a subprocess
+   - Tests pasan: 411 passed, 10 skipped
+
+6. **Separación de módulos TRADUCCIÓN/SUBTITULAR/DOBLAR**
+   - `web/index.html`: Nueva tarjeta TRADUCIR independiente
+   - Toggles separados: TRADUCCIÓN, SUBTITULAR, DOBLAR
+   - Validación de dependencias en frontend y backend
+   - Al desactivar TRADUCCIÓN → desactiva SUBTITULAR y DOBLAR automáticamente
+   - Al activar SUBTITULAR o DOBLAR sin traducción → activa TRADUCCIÓN automáticamente
+
+**Reglas de dependencias implementadas:**
+- `subtitle_generator` requiere `translator`
+- `tts_engine` requiere `translator`
+- `audio_mixer` requiere `translator` + `tts_engine`
+
+---
+
+### **Sesión 2026-03-20 - Configuración de Modelos Docker para OpenCode**
+
+**Resumen de configuración:**
+
+1. **Modelos descargados en Docker Model Runner:**
+   - Qwen2.5-Coder-7B-Instruct-GGUF (4.4GB, Q4_K_M) - Mejor para programación
+   - Qwen3-8B-128K-GGUF (4.7GB, Q4_K_M, 128K contexto) - Contexto extendido
+   - Qwen3.5-4B-GGUF-Q4_K_M (2.5GB) - Rápido y ligero
+   - Gemma3 (2.3GB, Q4_K_M) - Tareas simples
+
+2. **Configuración de OpenCode:**
+   - Archivo: `C:\Users\bruno\.config\opencode\opencode.json`
+   - Proveedor: `docker_dmr` (Docker Model Runner)
+   - URL: `http://localhost:12434/v1`
+
+3. **Modelos eliminados:**
+   - Qwen3-8B (BF16, 16GB) - Demasiado grande para VRAM (~8GB)
+   - Qwen3-4B (BF16, 8GB) - Demasiado grande para VRAM
+
+4. **Solución a problema de BF16:**
+   - Los modelos BF16 no funcionaban con Docker Model Runner
+   - Se reemplazaron por modelos Q4_K_M (GGUF) que son compatibles
+
+5. **JSON corregido:**
+   - Se encontraron llaves duplicadas en el JSON
+   - Se reescribió el archivo completo
+
+---
+
+### **Notas importantes para próximas sesiones:**
+
+1. **Configuración de contexto de modelos:**
+   - Docker Model Runner usa el contexto definido en el modelo GGUF
+   - Para máximo contexto usar: `Qwen3-8B-128K` (131072 tokens)
+   - Para programación rápida usar: `Qwen2.5-Coder-7B` (32768 tokens)
+   - Para tareas simples usar: `Gemma3` (32768 tokens)
+
+2. **VRAM del sistema:**
+   - GPU VRAM: ~8GB disponible
+   - Modelos que caben: Q4_K_M hasta ~5GB
+   - Modelos BF16 NO funcionan (demasiado grandes)
+
+3. **Archivos modificados en sesiones:**
+   - `config.yaml`: Corregido modelo transcripción
+   - `modules/audio_mixer.py`: Agregado padding TTS
+   - `web/index.html`: Indicadores HLS, separación de módulos
+   - `server/api_routes.py`: Validación de dependencias
+   - `main.py`: Validación de modelo solo si transcriber habilitado
