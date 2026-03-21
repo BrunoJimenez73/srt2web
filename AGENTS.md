@@ -77,19 +77,47 @@ La configuración se encuentra en `config.yaml`. La estructura es jerárquica:
 
 ## Frontend
 
-### Dashboard (`web/index.html`)
+### Arquitectura Astro
+
+El frontend está migrado a **Astro** para mejor mantenibilidad. La estructura está en `frontend/`:
+
+```
+frontend/
+├── src/
+│   ├── components/     # Componentes Astro reutilizables
+│   ├── layouts/         # Layouts base
+│   ├── lib/            # Cliente API, tipos, utilidades
+│   ├── pages/          # Páginas Astro
+│   └── styles/         # Estilos globales
+└── dist/               # Build output (server/static/)
+```
+
+**Build:** `cd frontend && npm run build`
+
+### Dashboard (`frontend/src/pages/index.astro`)
 - Estado del pipeline (ACTIVO/APAGADO)
 - Controles de inicio/detención
-- Configuración básica de doblaje y subtitulado
+- **System Metrics** con barras de progreso (CPU, RAM, GPU, Throughput)
+- **Métricas por módulo** (tiempo, memoria, chunks)
 - Panel de logs en tiempo real (WebSocket)
 - Indicadores de estado de módulos (puntos verdes cuando activos)
-- Configuración avanzada con checkboxes por módulo
+- **Auto-save** de configuración individual con debouncing
+- WS status indicator y live clock en header
 
-### Player (`web/player.html`)
+### Player (`frontend/src/pages/player.astro`)
 - Reproductor HLS con HLS.js
 - Subtítulos integrados vía WebVTT
 - Botón para activar/desactivar subtítulos (CC: ON/OFF)
 - Refresco automático de subtítulos cada 5 segundos para sincronización en vivo
+
+### Componentes Principales
+- `Header.astro` - Logo, WS status, live clock, botón guardar
+- `StatusCard.astro` - Estado del pipeline, URLs, controles LOCAL/REMOTE
+- `MetricsCard.astro` - CPU, RAM, GPU, Throughput con barras
+- `WhisperCard.astro` - Transcriptor con métricas
+- `TranslateCard.astro` - Traductor con métricas
+- `TtsCard.astro` - TTS con voces y velocidad
+- `AudioMixerCard.astro` - Control de volúmenes
 
 ## API REST
 
@@ -724,3 +752,172 @@ python -m pytest tests/unit/ --cov=modules --cov=core --cov-report=term-missing
 - Los modelos Whisper (~4.6GB) fueron eliminados para liberar espacio en disco
 
 **Tests:** 504 passed, 16 skipped
+
+---
+
+### **Sesión 2026-03-21 - Migración a Astro + Mejoras de Frontend**
+
+**Objetivo:**
+Migrar el frontend vanilla HTML/JS a Astro framework para mejor mantenibilidad y rendimiento.
+
+**Arquitectura Frontend Astro:**
+
+```
+frontend/src/
+├── components/           # Componentes Astro reutilizables
+│   ├── Header.astro     # Header con logo, WS status, live clock
+│   ├── StatusCard.astro # Card de estado con URLs y controles
+│   ├── MetricsCard.astro # Métricas del sistema (CPU, RAM, GPU)
+│   ├── ProcessGrid.astro # Grid de módulos
+│   ├── AudioMixerCard.astro # Control de volúmenes
+│   ├── HlsCard.astro    # Configuración HLS avanzada
+│   ├── TranslateCard.astro # Traductor con métricas
+│   ├── TtsCard.astro    # TTS con voz y velocidad
+│   ├── WhisperCard.astro # Whisper con métricas
+│   ├── SubtitleCard.astro # Subtítulos
+│   ├── LogPanel.astro   # Panel de logs
+│   ├── Toast.astro      # Notificaciones toast
+│   └── OutputCard.astro # Card de salida
+├── layouts/
+│   └── BaseLayout.astro # Layout base con CSS variables
+├── lib/
+│   ├── api.ts          # Cliente API y WSClient mejorado
+│   ├── types.ts        # Tipos TypeScript
+│   └── utils.ts        # Utilidades (URLs, clipboard)
+├── pages/
+│   ├── index.astro      # Dashboard principal
+│   └── player.astro    # Reproductor HLS
+└── styles/
+    └── global.css       # Estilos globales
+```
+
+**Cambios Implementados:**
+
+1. **WSClient con Exponential Backoff y Heartbeat (`api.ts`)**
+   - Implementación robusta de WebSocket con reconexión automática
+   - Exponential backoff: 1s → 2s → 4s... hasta 30s máximo
+   - Heartbeat/ping cada 30 segundos con timeout de 10s
+   - Estados: disconnected/connecting/connected
+   - Callback `onStateChange` para actualizar UI
+
+2. **System Metrics con Barras de Progreso (`MetricsCard.astro`, `pipeline.py`)**
+   - Métricas de CPU con porcentaje animado
+   - Memoria RAM con MB y %
+   - GPU con porcentaje y memoria (usando GPUtil)
+   - Throughput calculado (chunks/segundo)
+   - Barras con gradientes y colores dinámicos (verde/ámbar/rojo)
+   - Estados warning (>70%) y critical (>90%)
+
+3. **Actualización Individual de Configuración (`index.astro`)**
+   - Función `updateConfigField()` con debouncing de 1 segundo
+   - Cada campo individual envía update parcial al servidor
+   - No necesita botón "Guardar" - cambios en tiempo real
+   - Soporta: SRT, Whisper, Translator, TTS, Subtítulos, Audio Mixer, HLS
+
+4. **Indicador WS en Header**
+   - Punto de estado WebSocket en header
+   - Verde (conectado), ámbar (conectando), rojo (desconectado)
+   - Label "WS" / "WS..." / "WS OFF"
+
+5. **Live Clock**
+   - Reloj en tiempo real en header (HH:MM:SS)
+   - Actualización cada segundo
+
+6. **Métricas de Módulos**
+   - Cada card (Whisper, Translator, TTS) muestra:
+     - Tiempo de procesamiento (ms)
+     - Memoria usada (MB)
+     - Chunks procesados
+   - IDs: `module-time-{name}`, `module-memory-{name}`, `module-chunks-{name}`
+
+7. **CSS Profesional**
+   - Variables CSS para theming
+   - Barras de progreso con shimmer animation
+   - Rangos de input estilizados
+   - Grid responsive (2 columnas → 1 columna en móvil)
+
+**Archivos Modificados/Creados:**
+
+| Archivo | Acción |
+|---------|--------|
+| `frontend/src/lib/api.ts` | Creado WSClient completo |
+| `frontend/src/lib/types.ts` | Tipos SystemMetrics, ModuleStatus actualizados |
+| `frontend/src/layouts/BaseLayout.astro` | CSS global, variables, métricas |
+| `frontend/src/components/MetricsCard.astro` | Nuevo - métricas del sistema |
+| `frontend/src/components/Header.astro` | WS status, live clock |
+| `frontend/src/pages/index.astro` | Dashboard logic, auto-save |
+| `frontend/src/components/WhisperCard.astro` | Métricas de módulo |
+| `frontend/src/components/TranslateCard.astro` | Métricas de módulo |
+| `frontend/src/components/TtsCard.astro` | Fix slider duplicado |
+| `core/pipeline.py` | `_get_system_metrics()` con CPU, RAM, GPU |
+| `core/network_utils.py` | `_public_ip_logged` para evitar log spam |
+| `requirements.txt` | `gputil>=1.4.0`, `psutil>=5.9.0` |
+
+**Dependencias Añadidas:**
+
+```txt
+psutil>=5.9.0     # Métricas del sistema (CPU, RAM)
+gputil>=1.4.0    # Métricas de GPU
+```
+
+**Build y Deploy:**
+
+```bash
+cd frontend
+npm install
+npm run build    # Genera static en server/static/
+```
+
+**Tests:** 308 passed, 3 skipped
+
+**Commits Realizados:**
+
+| Commit | Descripción |
+|--------|-------------|
+| a18dce9 | Add WSClient con exponential backoff y heartbeat |
+| 6a4e8c2 | Add system metrics (CPU, memory, throughput) con barras |
+| 115d66e | Fix duplicate TTS slider y update module metrics |
+| 79fe739 | Add GPU metrics al System Metrics |
+| 543c5df | Add gputil y psutil a requirements.txt |
+| 0ad8201 | Fix: Solo loguear public IP una vez |
+
+---
+
+## 📋 Estado Actual del Proyecto
+
+### ✅ Implementado y Funcional
+
+- [x] Dashboard Astro con métricas en tiempo real
+- [x] WebSocket con reconexión automática y heartbeat
+- [x] System Metrics (CPU, RAM, GPU) con barras de progreso
+- [x] Métricas por módulo (tiempo, memoria, chunks)
+- [x] Actualización individual de config en tiempo real
+- [x] Live clock y WS status indicator
+- [x] TTS con voces válidas (Alvaro, Elvira)
+- [x] Audio Mixer con control de volúmenes
+- [x] Logs de Public IP reducidos (solo 1 vez)
+
+### 🔧 Configuración Actual
+
+```yaml
+server.port: 9999
+input.srt.listen_port: 9000
+modules.transcriber.model: tiny
+modules.translator.target_lang: es
+modules.tts_engine.voice: es-ES-AlvoroNeural
+modules.audio_mixer.tts_volume: 1.1
+```
+
+### 📝 Notas de Mantenimiento
+
+1. **Disco lleno**: El disco puede llenarse con logs y outputs. Limpiar periódicamente:
+   - `output/` - archivos HLS temporales
+   - `server.out` - logs del servidor
+   - `*.png` - capturas de dashboard
+
+2. **Modelos Whisper**: Ubicados en `models/whisper/`. Si el disco está lleno:
+   ```bash
+   rm -rf models/whisper/models--Systran--faster-whisper-large-v2/
+   ```
+
+3. **GPUtil**: Necesario para métricas de GPU. Si no está disponible, muestra "N/A".
