@@ -259,6 +259,16 @@ import Toast from '../components/Toast.astro';
     if (muxerEnabled) muxerEnabled.checked = cfg.modules.video_muxer.enabled;
     const audioMixerEnabled = document.getElementById('audio-mixer-enabled') as HTMLInputElement;
     if (audioMixerEnabled) audioMixerEnabled.checked = cfg.modules.audio_mixer?.enabled ?? false;
+    
+    const originalVolume = document.getElementById('audio-mixer-original-volume') as HTMLInputElement;
+    if (originalVolume) originalVolume.value = String(cfg.modules.audio_mixer?.original_volume ?? 0.3);
+    const originalValue = document.getElementById('audio-mixer-original-value') as HTMLSpanElement;
+    if (originalValue) originalValue.textContent = String(cfg.modules.audio_mixer?.original_volume ?? 0.3);
+    
+    const dubbedVolume = document.getElementById('audio-mixer-dubbed-volume') as HTMLInputElement;
+    if (dubbedVolume) dubbedVolume.value = String(cfg.modules.audio_mixer?.dubbed_volume ?? 1.0);
+    const dubbedValue = document.getElementById('audio-mixer-dubbed-value') as HTMLSpanElement;
+    if (dubbedValue) dubbedValue.textContent = String(cfg.modules.audio_mixer?.dubbed_volume ?? 1.0);
     if (hlsSegment) hlsSegment.value = String(cfg.modules.video_muxer.hls_segment_duration);
     if (hlsList) hlsList.value = String(cfg.modules.video_muxer.hls_list_size);
     if (hlsEncoder) hlsEncoder.value = cfg.modules.video_muxer.encoder_mode;
@@ -285,11 +295,11 @@ import Toast from '../components/Toast.astro';
           source_lang: (document.getElementById('translator-source') as HTMLSelectElement)?.value || 'auto',
           target_lang: (document.getElementById('translator-target') as HTMLSelectElement)?.value || 'es'
         },
-        tts_engine: {
-          enabled: (document.getElementById('tts-enabled') as HTMLInputElement)?.checked ?? true,
-          voice: (document.getElementById('tts-voice') as HTMLSelectElement)?.value || 'es-ES-AlejandroNeural',
-          speed: parseFloat((document.getElementById('tts-speed') as HTMLInputElement)?.value || '1.0')
-        },
+            tts_engine: {
+              enabled: (document.getElementById('tts-enabled') as HTMLInputElement)?.checked ?? true,
+              voice: (document.getElementById('tts-voice') as HTMLSelectElement)?.value || 'es-ES-AlvaroNeural',
+              speed: parseFloat((document.getElementById('tts-speed') as HTMLInputElement)?.value || '1.0')
+            },
         subtitle_generator: {
           enabled: (document.getElementById('subtitle-enabled') as HTMLInputElement)?.checked ?? true,
           format: (document.getElementById('subtitle-format') as HTMLSelectElement)?.value || 'webvtt',
@@ -297,8 +307,8 @@ import Toast from '../components/Toast.astro';
         },
         audio_mixer: {
           enabled: (document.getElementById('audio-mixer-enabled') as HTMLInputElement)?.checked ?? false,
-          original_volume: 0.3,
-          dubbed_volume: 1.0
+          original_volume: parseFloat((document.getElementById('audio-mixer-original-volume') as HTMLInputElement)?.value || '0.3'),
+          dubbed_volume: parseFloat((document.getElementById('audio-mixer-dubbed-volume') as HTMLInputElement)?.value || '1.0')
         },
         video_muxer: {
           enabled: (document.getElementById('muxer-enabled') as HTMLInputElement)?.checked ?? true,

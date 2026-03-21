@@ -54,14 +54,23 @@ pipeline:
 modules:
   audio_extractor:
     enabled: true
+    transcriber:
+      enabled: true
+      model: tiny
+      language: en
+      device: auto
+    translator:
+      enabled: true
+      source_lang: auto
+      target_lang: en
   transcriber:
     enabled: true
     model: tiny
-    language: en
+    language: auto
     device: auto
   translator:
     enabled: true
-    source_lang: en
+    source_lang: auto
     target_lang: es
   subtitle_generator:
     enabled: true
@@ -71,12 +80,12 @@ modules:
     font_size: 1
   tts_engine:
     enabled: true
-    voice: es-ES-ElviraNeural
-    speed: 1.2
+    voice: es-ES-AlvaroNeural
+    speed: 1.1
   audio_mixer:
     enabled: true
-    original_volume: 0.4
-    dubbed_volume: 1.8
+    original_volume: 0.8
+    dubbed_volume: 1.1
   video_muxer:
     enabled: true
     hls_segment_duration: 10
@@ -89,7 +98,7 @@ modules:
     video_crf: 18
     audio_codec: aac
     audio_bitrate: 192k
-    audio_samplerate: 48000
+    audio_samplerate: '48000'
 output_dir:
   directory: ./output
 srt:
