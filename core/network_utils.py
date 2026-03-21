@@ -10,6 +10,8 @@ import logging
 
 logger = logging.getLogger("srt2web.network")
 
+_public_ip_logged = False
+
 
 def get_local_ip() -> str:
     """
@@ -32,19 +34,23 @@ def get_local_ip() -> str:
 def get_public_ip() -> tuple[str | None, bool]:
     """
     Get the public IP address of this machine using ipify.org.
+    Only logs the IP once to avoid log spam.
 
     Returns:
         tuple: (ip_address, success)
             - ip_address: Public IP string or None if failed
             - success: True if IP was retrieved successfully
     """
+    global _public_ip_logged
     try:
         with urllib.request.urlopen(
             "https://api.ipify.org?format=text", timeout=5
         ) as response:
             ip = response.read().decode("utf-8").strip()
             if ip:
-                logger.info(f"Public IP detected: {ip}")
+                if not _public_ip_logged:
+                    logger.info(f"Public IP detected: {ip}")
+                    _public_ip_logged = True
                 return ip, True
     except Exception as e:
         logger.warning(f"Could not detect public IP: {e}")
