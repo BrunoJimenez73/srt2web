@@ -1,0 +1,316 @@
+---
+interface Props {
+    code?: string;
+    renderOnLoad?: boolean;
+    showButton?: boolean;
+    buttonText?: string;
+}
+
+const { 
+    code, 
+    renderOnLoad = false, 
+    showButton = true,
+    buttonText = "Render diagram"
+} = Astro.props;
+const id = `mermaid-${Math.random().toString(36).slice(2, 9)}`;
+---
+
+<div class="mermaid-container" id={`${id}-container`}>
+    <div class="mermaid-controls">
+        {showButton && (
+            <button class="mermaid-render-btn" id={`${id}-btn`} type="button">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span>{buttonText}</span>
+            </button>
+        )}
+        <div class="mermaid-status" id={`${id}-status`}></div>
+    </div>
+    
+    <div class="mermaid" id={id} data-original-content={code ? code.trim() : undefined}>
+        {code ? code.trim() : '<slot />'}
+    </div>
+</div>
+
+<style>
+    .mermaid-container {
+        margin: 20px 0;
+        border: 1px solid var(--docs-border);
+        border-radius: var(--docs-radius);
+        overflow: hidden;
+        background: var(--docs-card);
+    }
+
+    .mermaid-controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        background: var(--docs-surface);
+        border-bottom: 1px solid var(--docs-border);
+    }
+
+    .mermaid-render-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: var(--docs-accent);
+        color: white;
+        border: none;
+        border-radius: var(--docs-radius-sm);
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: inherit;
+    }
+
+    .mermaid-render-btn:hover {
+        background: var(--docs-accent-hover);
+    }
+
+    .mermaid-render-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .mermaid-status {
+        font-size: 12px;
+        color: var(--docs-text-sec);
+        flex: 1;
+    }
+
+    .mermaid-status.loading {
+        color: var(--docs-accent);
+    }
+
+    .mermaid-status.error {
+        color: var(--docs-error);
+    }
+
+    .mermaid-status.success {
+        color: var(--docs-success);
+    }
+
+    .mermaid {
+        padding: 24px;
+        overflow-x: auto;
+        min-height: 100px;
+    }
+
+    .mermaid.rendered {
+        background: var(--docs-bg);
+    }
+
+    .mermaid svg {
+        max-width: 100%;
+    }
+
+    .mermaid-error {
+        padding: 16px;
+        color: var(--docs-error);
+        font-size: 13px;
+        text-align: center;
+    }
+
+    .mermaid-loading {
+        padding: 16px;
+        color: var(--docs-text-sec);
+        font-size: 13px;
+        text-align: center;
+    }
+</style>
+
+<script define:vars={{ id, renderOnLoad }}>
+    // Función para mostrar estado
+    function setStatus(statusElement, message, type = '') {
+        if (statusElement) {
+            statusElement.textContent = message;
+            statusElement.className = `mermaid-status ${type}`;
+        }
+    }
+
+    // Función para cargar Mermaid desde CDN con manejo robusto de errores
+    async function loadMermaidCDN() {
+        return new Promise((resolve, reject) => {
+            // Si ya está cargado
+            if (window.mermaid) {
+                resolve(window.mermaid);
+                return;
+            }
+
+            // Timeout de 10 segundos
+            const timeout = setTimeout(() => {
+                reject(new Error('Timeout loading Mermaid from CDN'));
+            }, 10000);
+
+            // Crear script element
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+            script.async = true;
+            
+            script.onload = () => {
+                clearTimeout(timeout);
+                if (window.mermaid) {
+                    resolve(window.mermaid);
+                } else {
+                    reject(new Error('Mermaid loaded but not available'));
+                }
+            };
+            
+            script.onerror = () => {
+                clearTimeout(timeout);
+                reject(new Error('Failed to load Mermaid from CDN'));
+            };
+
+            document.head.appendChild(script);
+        });
+    }
+
+    // Función para renderizar diagrama
+    async function renderDiagram(containerId) {
+        const container = document.getElementById(`${containerId}-container`);
+        const statusElement = document.getElementById(`${containerId}-status`);
+        const renderBtn = document.getElementById(`${containerId}-btn`);
+        const mermaidDiv = document.getElementById(containerId);
+        
+        if (!container || !statusElement || !mermaidDiv) return;
+
+        try {
+            // Deshabilitar botón
+            if (renderBtn) {
+                renderBtn.disabled = true;
+                renderBtn.querySelector('span').textContent = 'Loading...';
+            }
+            
+            setStatus(statusElement, 'Loading Mermaid library...', 'loading');
+
+            // Cargar Mermaid con reintentos
+            let mermaid = null;
+            let retries = 2;
+            
+            while (retries > 0 && !mermaid) {
+                try {
+                    mermaid = await loadMermaidCDN();
+                    break;
+                } catch (error) {
+                    retries--;
+                    if (retries > 0) {
+                        setStatus(statusElement, `Retrying... (${retries} attempts left)`, 'loading');
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    } else {
+                        throw error;
+                    }
+                }
+            }
+
+            if (!mermaid) {
+                throw new Error('Failed to load Mermaid after retries');
+            }
+
+            setStatus(statusElement, 'Rendering diagram...', 'loading');
+
+            // Configurar tema
+            const theme = document.documentElement.getAttribute('data-theme') === 'light' ? 'neutral' : 'dark';
+            mermaid.initialize({
+                startOnLoad: false,
+                theme,
+                themeVariables: theme === 'light' ? {} : {
+                    primaryColor: '#6366f1',
+                    primaryTextColor: '#e0e0e8',
+                    primaryBorderColor: 'rgba(255,255,255,0.15)',
+                    lineColor: '#555570',
+                    secondaryColor: '#1a1a26',
+                    tertiaryColor: '#13131c',
+                    background: '#0b0b10',
+                    mainBkg: '#1a1a26',
+                    nodeBorder: 'rgba(255,255,255,0.15)',
+                    clusterBkg: '#13131c',
+                    clusterBorder: 'rgba(255,255,255,0.1)',
+                    titleColor: '#e0e0e8',
+                    edgeLabelBackground: '#1a1a26',
+                }
+            });
+
+            // Obtener contenido del diagrama
+            let graphDefinition = '';
+            if (mermaidDiv.dataset.originalContent) {
+                graphDefinition = mermaidDiv.dataset.originalContent;
+            } else {
+                graphDefinition = mermaidDiv.textContent?.trim() || '';
+            }
+
+            if (!graphDefinition) {
+                throw new Error('No diagram content found');
+            }
+
+            // Renderizar diagrama
+            const { svg } = await mermaid.render(`mg-${Math.random().toString(36).slice(2)}`, graphDefinition);
+            
+            // Limpiar y mostrar SVG
+            mermaidDiv.innerHTML = svg;
+            mermaidDiv.classList.add('rendered');
+            
+            // Ocultar botón y mostrar éxito
+            if (renderBtn) {
+                renderBtn.style.display = 'none';
+            }
+            setStatus(statusElement, 'Diagram rendered successfully', 'success');
+            
+            // Limpiar mensaje de éxito después de 3 segundos
+            setTimeout(() => {
+                setStatus(statusElement, '', '');
+            }, 3000);
+
+        } catch (error) {
+            console.error('Mermaid render error:', error);
+            
+            // Mostrar error
+            setStatus(statusElement, `Error: ${error.message}`, 'error');
+            
+            // Restaurar botón para reintentar
+            if (renderBtn) {
+                renderBtn.disabled = false;
+                renderBtn.querySelector('span').textContent = 'Retry';
+                renderBtn.style.display = 'flex';
+            }
+
+            // Mostrar contenido original
+            if (mermaidDiv) {
+                mermaidDiv.innerHTML = `
+                    <div class="mermaid-error">
+                        <p>Failed to render diagram</p>
+                        <p style="font-size: 11px; color: var(--docs-text-dim); margin-top: 8px;">
+                            ${error.message}
+                        </p>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    // Event listener para botón
+    document.addEventListener('DOMContentLoaded', () => {
+        const renderBtn = document.getElementById(`${id}-btn`);
+        if (renderBtn) {
+            renderBtn.addEventListener('click', () => renderDiagram(id));
+        }
+
+        // Si renderOnLoad es true, renderizar automáticamente
+        if (renderOnLoad) {
+            // Pequeño retraso para asegurar que la página esté cargada
+            setTimeout(() => renderDiagram(id), 100);
+        }
+
+        // Escuchar cambios de tema
+        document.getElementById('theme-toggle')?.addEventListener('click', () => {
+            const mermaidDiv = document.getElementById(id);
+            if (mermaidDiv && mermaidDiv.classList.contains('rendered')) {
+                // Re-renderizar si ya está renderizado
+                setTimeout(() => renderDiagram(id), 200);
+            }
+        });
+    });
+</script>

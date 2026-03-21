@@ -1,285 +1,281 @@
 ---
-layout: '../../layouts/BaseLayout.astro'
-title: 'Configuration - SRT2Web Documentation'
+import DocsLayout from '../../components/docs/DocsLayout.astro';
+import ConfigTable from '../../components/docs/ConfigTable.astro';
+import CodeBlock from '../../components/docs/CodeBlock.astro';
+import Callout from '../../components/docs/Callout.astro';
 ---
 
-<h1 class="text-2xl font-bold mb-6">Configuration Reference</h1>
-<p class="text-sec mb-8">Referencia completa de todas las opciones de configuración disponibles en SRT2Web.</p>
+<DocsLayout title="Configuration" description="Complete config.yaml reference for SRT2Web">
+    <div class="breadcrumb">
+        <a href="/docs/getting-started">Docs</a>
+        <span class="breadcrumb-sep">/</span>
+        <span>Configuration</span>
+    </div>
 
-<h2 class="text-xl font-semibold mb-4">📁 Archivo de Configuración</h2>
-<p class="text-sec mb-6">La configuración principal se encuentra en <span class="font-mono">config.yaml</span> en la raíz del proyecto. El formato sigue la estructura YAML estándar.</p>
+    <div class="docs-hero">
+        <h1>Referencia de Configuración</h1>
+        <p>Referencia completa de todas las opciones disponibles en config.yaml.</p>
+    </div>
 
-<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
-  <h3 class="font-semibold mb-4">Ejemplo básico de config.yaml</h3>
-  <pre class="bg-bg-deep p-4 rounded overflow-auto text-xs"><code class="language-yaml"># Configuración del servidor web
-server:
+    <h2>Estructura General</h2>
+
+    <CodeBlock lang="yaml" code={`server:
   host: "0.0.0.0"
   port: 9999
+  cors_origins: ["*"]
+  auth_token: ""
 
-# Configuración de entrada SRT
 input:
+  type: srt  # srt | file | rtmp
   srt:
-    listen_port: 8888
-    mode: "caller"  # o "listener"
+    listen_port: 9000
+    mode: listener
+    latency_ms: 1000
+    caller_address: ""
+    chunk_duration_sec: 6
+  file:
+    path: ""
+    loop: false
+    speed: 1.0
+  rtmp:
+    url: ""
+    mode: listener
 
-# Configuración de módulos
+pipeline:
+  chunk_duration_sec: 6
+
+modules:
+  audio_extractor:
+    enabled: true
+  transcriber:
+    enabled: true
+    model: tiny
+    language: auto
+    device: auto
+  translator:
+    enabled: false
+    source_lang: en
+    target_lang: es
+  subtitle_generator:
+    enabled: false
+    format: webvtt
+    use_translated: false
+    audio_offset_ms: 0
+    font_size: 48
+  tts_engine:
+    enabled: false
+    voice: es-ES-AlvaroNeural
+    speed: 1.0
+  audio_mixer:
+    enabled: false
+    original_volume: 0.4
+    dubbed_volume: 1.1
+    tts_volume: 1.0
+  video_muxer:
+    enabled: true
+    hls_segment_duration: 6
+    hls_list_size: 6
+    encoder_mode: copy
+    video_crf: 23
+    audio_codec: aac
+    audio_bitrate: 128k
+    output_path: ./output/hls
+
+output_dir:
+  directory: ./output`} title="config.yaml (completo)" />
+
+    <h2>Server</h2>
+
+    <ConfigTable entries={[
+        { path: "server.host", type: "string", default: "0.0.0.0", description: "Host del servidor web." },
+        { path: "server.port", type: "integer", default: "9999", description: "Puerto TCP del servidor FastAPI." },
+        { path: "server.cors_origins", type: "array", default: "[*]", description: "Orígenes permitidos para CORS." },
+        { path: "server.auth_token", type: "string", default: "''", description: "Token para autenticación (vacío = deshabilitado)." },
+    ]} />
+
+    <h2>Input</h2>
+
+    <h3>General</h3>
+    <ConfigTable entries={[
+        { path: "input.type", type: "string", default: "srt", description: "Tipo de entrada: srt, file, o rtmp.", required: true },
+    ]} />
+
+    <h3>SRT Input</h3>
+    <ConfigTable entries={[
+        { path: "input.srt.listen_port", type: "integer", default: "9000", description: "Puerto UDP para escuchar conexiones SRT entrantes.", required: true },
+        { path: "input.srt.mode", type: "string", default: "listener", description: "Modo SRT: listener o caller.", required: true },
+        { path: "input.srt.latency_ms", type: "integer", default: "1000", description: "Latencia SRT en milisegundos. Recomendado: 1000-4000ms." },
+        { path: "input.srt.caller_address", type: "string", default: "''", description: "Dirección del caller (para modo caller)." },
+        { path: "input.srt.chunk_duration_sec", type: "float", default: "6", description: "Duración de cada fragmento en segundos." },
+    ]} />
+
+    <h3>File Input</h3>
+    <ConfigTable entries={[
+        { path: "input.file.path", type: "string", default: "''", description: "Ruta al archivo de video de entrada." },
+        { path: "input.file.loop", type: "boolean", default: "false", description: "Reproducir en bucle." },
+        { path: "input.file.speed", type: "float", default: "1.0", description: "Velocidad de reproducción (1.0 = normal)." },
+    ]} />
+
+    <h3>RTMP Input</h3>
+    <ConfigTable entries={[
+        { path: "input.rtmp.url", type: "string", default: "''", description: "URL RTMP (ej: rtmp://localhost/live/stream)." },
+        { path: "input.rtmp.mode", type: "string", default: "listener", description: "Modo: listener o caller." },
+    ]} />
+
+    <h2>Pipeline</h2>
+    <ConfigTable entries={[
+        { path: "pipeline.chunk_duration_sec", type: "float", default: "6", description: "Duración de chunks en segundos. Debe coincidir con input.srt.chunk_duration_sec." },
+    ]} />
+
+    <h2>Modules</h2>
+
+    <h3>Transcriber</h3>
+    <ConfigTable entries={[
+        { path: "modules.transcriber.enabled", type: "boolean", default: "true", description: "Habilitar/deshabilitar transcripción." },
+        { path: "modules.transcriber.model", type: "string", default: "tiny", description: "Modelo Whisper: tiny, base, small, medium, large-v3, large-v3-turbo." },
+        { path: "modules.transcriber.language", type: "string", default: "auto", description: "Idioma del audio. auto = detección automática." },
+        { path: "modules.transcriber.device", type: "string", default: "auto", description: "Dispositivo: auto, cpu, cuda, mps." },
+    ]} />
+
+    <Callout type="info">
+        <strong>Modelos Whisper:</strong> tiny (~75MB), base (~148MB), small (~488MB), medium (~1.5GB), large-v3 (~2.9GB), large-v3-turbo (~1.6GB). Modelos más grandes ofrecen mejor precisión pero requieren más VRAM.
+    </Callout>
+
+    <h3>Translator</h3>
+    <ConfigTable entries={[
+        { path: "modules.translator.enabled", type: "boolean", default: "false", description: "Habilitar traducción." },
+        { path: "modules.translator.source_lang", type: "string", default: "en", description: "Idioma source (código ISO 639-1)." },
+        { path: "modules.translator.target_lang", type: "string", default: "es", description: "Idioma destino (código ISO 639-1)." },
+    ]} />
+
+    <h3>Subtitle Generator</h3>
+    <ConfigTable entries={[
+        { path: "modules.subtitle_generator.enabled", type: "boolean", default: "false", description: "Habilitar generación de subtítulos." },
+        { path: "modules.subtitle_generator.format", type: "string", default: "webvtt", description: "Formato: webvtt o srt." },
+        { path: "modules.subtitle_generator.use_translated", type: "boolean", default: "false", description: "Usar texto traducido en lugar del original." },
+        { path: "modules.subtitle_generator.audio_offset_ms", type: "integer", default: "0", description: "Offset de tiempo en ms para sincronización." },
+        { path: "modules.subtitle_generator.font_size", type: "integer", default: "48", description: "Tamaño de fuente para subtítulos." },
+    ]} />
+
+    <h3>TTS Engine</h3>
+    <ConfigTable entries={[
+        { path: "modules.tts_engine.enabled", type: "boolean", default: "false", description: "Habilitar síntesis de voz." },
+        { path: "modules.tts_engine.voice", type: "string", default: "es-ES-AlvaroNeural", description: "Voz Edge-TTS (ej: es-ES-AlvaroNeural, es-MX-DaliaNeural)." },
+        { path: "modules.tts_engine.speed", type: "float", default: "1.0", description: "Velocidad del habla (0.5 = lento, 2.0 = rápido)." },
+    ]} />
+
+    <h3>Audio Mixer</h3>
+    <ConfigTable entries={[
+        { path: "modules.audio_mixer.enabled", type: "boolean", default: "false", description: "Habilitar mezcla de audio." },
+        { path: "modules.audio_mixer.original_volume", type: "float", default: "0.4", description: "Volumen del audio original (0.0 - 2.0)." },
+        { path: "modules.audio_mixer.dubbed_volume", type: "float", default: "1.1", description: "Volumen del audio doblado (0.0 - 2.0)." },
+        { path: "modules.audio_mixer.tts_volume", type: "float", default: "1.0", description: "Volumen del audio TTS (0.0 - 2.0)." },
+    ]} />
+
+    <h3>Video Muxer</h3>
+    <ConfigTable entries={[
+        { path: "modules.video_muxer.enabled", type: "boolean", default: "true", description: "Habilitar salida HLS." },
+        { path: "modules.video_muxer.hls_segment_duration", type: "integer", default: "6", description: "Duración de segmentos HLS en segundos." },
+        { path: "modules.video_muxer.hls_list_size", type: "integer", default: "6", description: "Número de segmentos en la playlist." },
+        { path: "modules.video_muxer.encoder_mode", type: "string", default: "copy", description: "Modo de codificación: copy (reempaquetar) o encode (re-encoder)." },
+        { path: "modules.video_muxer.video_crf", type: "integer", default: "23", description: "CRF de video para re-encoding (0-51, menor = mejor calidad)." },
+        { path: "modules.video_muxer.audio_codec", type: "string", default: "aac", description: "Codec de audio: aac o mp3." },
+        { path: "modules.video_muxer.audio_bitrate", type: "string", default: "128k", description: "Bitrate de audio (ej: 128k, 192k, 256k)." },
+        { path: "modules.video_muxer.output_path", type: "string", default: "./output/hls", description: "Ruta de salida para archivos HLS." },
+    ]} />
+
+    <h2>Output Directory</h2>
+    <ConfigTable entries={[
+        { path: "output_dir.directory", type: "string", default: "./output", description: "Directorio base para todos los archivos de salida." },
+    ]} />
+
+    <h2>Ejemplos de Configuración</h2>
+
+    <h3>Básico — Solo Transcripción</h3>
+    <CodeBlock lang="yaml" code={`server:
+  port: 9999
+
+input:
+  type: srt
+  srt:
+    listen_port: 9000
+    mode: listener
+
 modules:
   transcriber:
-    model: "tiny"
-    language: "es"
-    device: "cpu"
-    
-  translator:
-    source_lang: "es"
-    target_lang: "en"
-    
-  subtitle_generator:
-    format: "webvtt"
-    use_translated: true
-    
-  tts_engine:
-    voice: "es-ES-ElviraNeural"
-    speed: 1.0
-    
-  audio_mixer:
-    original_volume: 0.3
-    dubbed_volume: 0.7
-    
-  video_muxer:
+    enabled: true
+    model: base
+    language: auto`} title="Transcripción simple" />
+
+    <h3>Completo — Traducción + TTS + Mezcla</h3>
+    <CodeBlock lang="yaml" code={`server:
+  port: 9999
+
+input:
+  type: srt
+  srt:
+    listen_port: 9000
     chunk_duration_sec: 10
+
+modules:
+  transcriber:
+    enabled: true
+    model: small
+    language: auto
+    device: cuda
+
+  translator:
+    enabled: true
+    source_lang: en
+    target_lang: es
+
+  subtitle_generator:
+    enabled: true
+    format: webvtt
+    use_translated: true
+
+  tts_engine:
+    enabled: true
+    voice: es-ES-AlvaroNeural
+    speed: 1.0
+
+  audio_mixer:
+    enabled: true
+    original_volume: 0.3
+    dubbed_volume: 1.0
+
+  video_muxer:
+    enabled: true
     hls_segment_duration: 10
-    hls_list_size: 6
-</code></pre>
-</div>
+    encoder_mode: copy`} title="Pipeline completo" />
 
-<h2 class="text-xl font-semibold mb-4">🌐 Servidor</h2>
-<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-    <div>
-      <h3 class="font-semibold mb-2">server.host</h3>
-      <p class="text-sm text-sec mb-2">Dirección IP donde el servidor escuchará conexiones</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">"0.0.0.0"</p>
-    </div>
-    <div>
-      <h3 class="font-semibold mb-2">server.port</h3>
-      <p class="text-sm text-sec mb-2">Puerto donde el servidor web estará disponible</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">9999</p>
-    </div>
-  </div>
-</div>
+    <h3>Optimizado para GPU NVIDIA</h3>
+    <CodeBlock lang="yaml" code={`modules:
+  transcriber:
+    model: large-v3
+    device: cuda
 
-<h2 class="text-xl font-semibold mb-4">📥 Entrada SRT</h2>
-<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-    <div>
-      <h3 class="font-semibold mb-2">input.srt.listen_port</h3>
-      <p class="text-sm text-sec mb-2">Puerto UDP donde se recibirá el stream SRT de entrada</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">8888</p>
-    </div>
-    <div>
-      <h3 class="font-semibold mb-2">input.srt.mode</h3>
-      <p class="text-sm text-sec mb-2">Modo de conexión SRT</p>
-      <ul class="list-disc list-inside text-xs mt-1">
-        <li><span class="font-mono">caller</span>: SRT2Web inicia la conexión</li>
-        <li><span class="font-mono">listener</span>: SRT2Web espera conexión entrante</li>
-      </ul>
-    </div>
-  </div>
-</div>
+  video_muxer:
+    encoder_mode: encode
+    video_crf: 20
+    audio_codec: aac
+    audio_bitrate: 192k`} title="GPU Optimizado" />
 
-<h2 class="text-xl font-semibold mb-4">🎤 Transcripción (Whisper)</h2>
-<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-    <div>
-      <h3 class="font-semibold mb-2">modules.transcriber.model</h3>
-      <p class="text-sm text-sec mb-2">Modelo Whisper a utilizar</p>
-      <ul class="list-disc list-inside text-xs mt-1">
-        <li><span class="font-mono">tiny</span>: Más rápido, menos preciso (~75 MB)</li>
-        <li><span class="font-mono">base</span>: Balance velocidad/precisión (~150 MB)</li>
-        <li><span class="font-mono">small</span>: Buena precisión (~250 MB)</li>
-        <li><span class="font-mono">medium</span>: Alta precisión (~500 MB)</li>
-        <li><span class="font-mono">large</span>: Máxima precisión (~1.5 GB)</li>
-      </ul>
-    </div>
-    <div>
-      <h3 class="font-semibold mb-2">modules.transcriber.language</h3>
-      <p class="text-sm text-sec mb-2">Código de idioma para transcripción (ej: "es", "en", "fr")</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">"es"</p>
-      <p class="text-xs text-sec mt-1">Usar "auto" para detección automática</p>
-    </div>
-    <div>
-      <h3 class="font-semibold mb-2">modules.transcriber.device</h3>
-      <p class="text-sm text-sec mb-2">Dispositivo de cómputo para Whisper</p>
-      <ul class="list-disc list-inside text-xs mt-1">
-        <li><span class="font-mono">cpu</span>: Procesador principal</li>
-        <li><span class="font-mono">cuda</span>: GPU NVIDIA (requiere CUDA)</li>
-      </ul>
-    </div>
-    <div>
-      <h3 class="font-semibold mb-2">modules.transcriber.compute_type</h3>
-      <p class="text-sm text-sec mb-2">Tipo de cómputo para optimización</p>
-      <ul class="list-disc list-inside text-xs mt-1">
-        <li><span class="font-mono">int8</span>: Máxima velocidad, menos precisión</li>
-        <li><span class="font-mono">int8_float16</span>: Balance velocidad/precisión</li>
-        <li><span class="font-mono">float16</span>: Buena precisión (requiere GPU)</li>
-        <li><span class="font-mono">float32</span>: Máxima precisión</li>
-      </ul>
-    </div>
-  </div>
-</div>
+    <h3>Streaming Ligero (baja latencia)</h3>
+    <CodeBlock lang="yaml" code={`input:
+  srt:
+    latency_ms: 200
+    chunk_duration_sec: 2
 
-<h2 class="text-xl font-semibold mb-4">🌐 Traducción</h2>
-<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-    <div>
-      <h3 class="font-semibold mb-2">modules.translator.source_lang</h3>
-      <p class="text-sm text-sec mb-2">Código de idioma de origen</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">"es"</p>
-    </div>
-    <div>
-      <h3 class="font-semibold mb-2">modules.translator.target_lang</h3>
-      <p class="text-sm text-sec mb-2">Código de idioma de destino</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">"en"</p>
-    </div>
-  </div>
-</div>
+modules:
+  transcriber:
+    model: tiny
+    device: cpu
 
-<h2 class="text-xl font-semibold mb-4">📝 Generación de Subtítulos</h2>
-<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-    <div>
-      <h3 class="font-semibold mb-2">modules.subtitle_generator.format</h3>
-      <p class="text-sm text-sec mb-2">Formato de subtítulos de salida</p>
-      <ul class="list-disc list-inside text-xs mt-1">
-        <li><span class="font-mono">webvtt</span>: Formato estándar para HLS/HTML5</li>
-        <li><span class="font-mono">srt</span>: Formato clásico de subtítulos</li>
-      </ul>
-    </div>
-    <div>
-      <h3 class="font-semibold mb-2">modules.subtitle_generator.use_translated</h3>
-      <p class="text-sm text-sec mb-2">Si usar texto traducido para subtítulos</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">true</p>
-      <p class="text-xs text-sec mt-1">Si false, usa texto original transcrito</p>
-    </div>
-    <div>
-      <h3 class="font-semibold mb-2">modules.subtitle_generator.rolling_update</h3>
-      <p class="text-sm text-sec mb-2">Actualizar subtítulos en tiempo real (rolling)</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">true</p>
-    </div>
-  </div>
-</div>
+  video_muxer:
+    hls_segment_duration: 2
+    hls_list_size: 4`} title="Baja latencia" />
 
-<h2 class="text-xl font-semibold mb-4">🔊 Síntesis de Voz (TTS)</h2>
-<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-    <div>
-      <h3 class="font-semibold mb-2">modules.tts_engine.voice</h3>
-      <p class="text-sm text-sec mb-2">Voz para síntesis de voz</p>
-      <p class="text-sec mb-2">Consultar voces disponibles con:</p>
-      <pre class="bg-bg-deep p-2 rounded text-xs"><code class="language-bash">edge-tts --list-voices</code></pre>
-    </div>
-    <div>
-      <h3 class="font-semibold mb-2">modules.tts_engine.speed</h3>
-      <p class="text-sm text-sec mb-2">Velocidad de habla</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">1.0</p>
-      <p class="text-xs text-sec mt-1">Rango: 0.5 (lento) a 2.0 (rápido)</p>
-    </div>
-    <div>
-      <h3 class="font-semibold mb-2">modules.tts_engine.volume</h3>
-      <p class="text-sm text-sec mb-2">Volumen del audio TTS</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">0.7</p>
-      <p class="text-xs text-sec mt-1">Rango: 0.0 a 2.0</p>
-    </div>
-  </div>
-</div>
-
-<h2 class="text-xl font-semibold mb-4">🎚️ Mezcla de Audio</h2>
-<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-    <div>
-      <h3 class="font-semibold mb-2">modules.audio_mixer.original_volume</h3>
-      <p class="text-sm text-sec mb-2">Volumen del audio original</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">0.3</p>
-      <p class="text-xs text-sec mt-1">Reducido para dejar espacio al TTS</p>
-    </div>
-    <div>
-      <h3 class="font-semibold mb-2">modules.audio_mixer.dubbed_volume</h3>
-      <p class="text-sm text-sec mb-2">Volumen del audio doblado (TTS)</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">0.7</p>
-    </div>
-    <div>
-      <h3 class="font-semibold mb-2">modules.audio_mixer.ducking_enabled</h3>
-      <p class="text-sm text-sec mb-2">Activar ducking (atenuar original cuando hay TTS)</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">true</p>
-    </div>
-    <div>
-      <h3 class="font-semibold mb-2">modules.audio_mixer.ducking_threshold</h3>
-      <p class="text-sm text-sec mb-2">Umbral para activar ducking</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">-30.0</p>
-      <p class="text-xs text-sec mt-1">En dBFS, más negativo = menos sensitivo</p>
-    </div>
-  </div>
-</div>
-
-<h2 class="text-xl font-semibold mb-4">📺 Multiplexado de Video (HLS)</h2>
-<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-    <div>
-      <h3 class="font-semibold mb-2">modules.video_muxer.chunk_duration_sec</h3>
-      <p class="text-sm text-sec mb-2">Duración de cada chunk de video en segundos</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">10</p>
-      <p class="text-xs text-sec mt-1">Debe coincidir con SRT ingest y player buffer</p>
-    </div>
-    <div>
-      <h3 class="font-semibold mb-2">modules.video_muxer.hls_segment_duration</h3>
-      <p class="text-sm text-sec mb-2">Duración de cada segmento HLS</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">10</p>
-      <p class="text-xs text-sec mt-1">Idealmente igual a chunk_duration_sec</p>
-    </div>
-    <div>
-      <h3 class="font-semibold mb-2">modules.video_muxer.hls_list_size</h3>
-      <p class="text-sm text-sec mb-2">Número máximo de segmentos en playlist</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">6</p>
-      <p class="text-xs text-sec mt-1">Afecta la ventana de reproducción en vivo</p>
-    </div>
-    <div>
-      <h3 class="font-semibold mb-2">modules.video_muxer.hls_flags</h3>
-      <p class="text-sm text-sec mb-2">Flags adicionales para HLS</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">"+single_file"</p>
-      <p class="text-xs text-sec mt-1">Opciones: +single_file, +periodic_rekey, etc.</p>
-    </div>
-  </div>
-</div>
-
-<h2 class="text-xl font-semibold mb-4">🎛️ Indicadores de Rendimiento</h2>
-<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-    <div>
-      <h3 class="font-semibold mb-2">performance.metrics_enabled</h3>
-      <p class="text-sm text-sec mb-2">Activar recolección de métricas de rendimiento</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">true</p>
-    </div>
-    <div>
-      <h3 class="font-semibold mb-2">performance.metrics_interval</h3>
-      <p class="text-sm text-sec mb-2">Intervalo de actualización de métricas (segundos)</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">5</p>
-    </div>
-  </div>
-</div>
-
-<h2 class="text-xl font-semibold mb-4">🛡️ Seguridad</h2>
-<div class="bg-bg-surface p-6 rounded-lg border border-border-dim mb-6">
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-    <div>
-      <h3 class="font-semibold mb-2">security.rate_limit_enabled</h3>
-      <p class="text-sm text-sec mb-2">Activar rate limiting en API</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">false</p>
-    </div>
-    <div>
-      <h3 class="font-semibold mb-2">security.rate_limit_requests</h3>
-      <p class="text-sm text-sec mb-2">Solicitudes permitidas por ventana</p>
-      <p class="text-xs font-mono bg-bg-deep p-2 rounded">60</p>
-    </div>
-    <div>
-      <h3 class="font-semibold mb-2">security.rate_limit_window</h3>
-      <p class="text-sm text-sec mb-2">Ventana de rate limiting en segundos</p
+    <h2>Siguiente Paso</h2>
+    <p><a href="/docs/modules">Módulos</a> — Descripción detallada de cada módulo del pipeline.</p>
+</DocsLayout>

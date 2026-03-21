@@ -1,0 +1,80 @@
+---
+import DocsLayout from '../../../components/docs/DocsLayout.astro';
+import ConfigTable from '../../../components/docs/ConfigTable.astro';
+import CodeBlock from '../../../components/docs/CodeBlock.astro';
+---
+
+<DocsLayout title="Subtitle Generator" description="WebVTT and SRT subtitle generation">
+    <div class="breadcrumb">
+        <a href="/docs/getting-started">Docs</a>
+        <span class="breadcrumb-sep">/</span>
+        <a href="/docs/modules">Modules</a>
+        <span class="breadcrumb-sep">/</span>
+        <span>Subtitle Generator</span>
+    </div>
+
+    <div class="docs-hero">
+        <h1>Subtitle Generator</h1>
+        <p>Generación de subtítulos en formato WebVTT y SRT para reproductores HLS.</p>
+    </div>
+
+    <h2>Descripción</h2>
+    <p>El módulo Subtitle Generator crea subtítulos a partir del texto transcrito (y traducido opcionalmente). Genera subtítulos WebVTT para HLS en tiempo real y archivos SRT por chunk para descarga.</p>
+
+    <h2>Configuración</h2>
+
+    <ConfigTable entries={[
+        { path: "modules.subtitle_generator.enabled", type: "boolean", default: "false", description: "Habilitar generación de subtítulos." },
+        { path: "modules.subtitle_generator.format", type: "string", default: "webvtt", description: "Formato: webvtt o srt." },
+        { path: "modules.subtitle_generator.use_translated", type: "boolean", default: "false", description: "Usar texto traducido en lugar del original." },
+        { path: "modules.subtitle_generator.audio_offset_ms", type: "integer", default: "0", description: "Offset de tiempo en ms para sincronización." },
+        { path: "modules.subtitle_generator.font_size", type: "integer", default: "48", description: "Tamaño de fuente para subtítulos." },
+    ]} />
+
+    <h2>Dependencias</h2>
+
+    <div class="dependency-flow">
+        <h4>Habilita automáticamente:</h4>
+        <p>Ninguno — es módulo terminal en la cadena de subtítulos.</p>
+        <h4>Requiere que esté habilitado:</h4>
+        <p><code>translator</code> — consume la traducción</p>
+    </div>
+
+    <h2>Ejemplos</h2>
+
+    <h3>WebVTT con Texto Traducido</h3>
+    <CodeBlock lang="yaml" code={`modules:
+  subtitle_generator:
+    enabled: true
+    format: webvtt
+    use_translated: true  # subtítulos en el idioma destino`} title="config.yaml" />
+
+    <h3>WebVTT con Texto Original</h3>
+    <CodeBlock lang="yaml" code={`modules:
+  subtitle_generator:
+    enabled: true
+    format: webvtt
+    use_translated: false  # subtítulos en idioma original`} title="config.yaml" />
+
+    <h2>Métricas</h2>
+    <table>
+        <thead><tr><th>Métrica</th><th>Descripción</th></tr></thead>
+        <tbody>
+            <tr><td><code>process_time</code></td><td>Tiempo de generación (ms)</td></tr>
+            <tr><td><code>chunks_processed</code></td><td>Total de chunks procesados</td></tr>
+        </tbody>
+    </table>
+
+    <h2>Salida</h2>
+    <CodeBlock lang="python" code={`{
+    "subtitles_path": "./output/hls/subs.vtt",
+    "metadata": {
+        "format": "webvtt",
+        "use_translated": true,
+        "chunks_included": 15
+    }
+}`} title="PipelineData" />
+
+    <h2>Siguiente Módulo</h2>
+    <p><a href="/docs/modules/audio-mixer">Audio Mixer</a> — Mezcla audio original y TTS.</p>
+</DocsLayout>

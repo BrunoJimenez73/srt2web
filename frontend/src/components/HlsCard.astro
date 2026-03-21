@@ -6,7 +6,7 @@
     <span class="process-indicator" id="indicator-hls"></span>
     <span class="process-title">📦 HLS OUTPUT</span>
     <label class="toggle-switch">
-      <input type="checkbox" id="muxer-enabled" checked />
+      <input type="checkbox" id="muxer-enabled" onchange="window.toggleModule('video_muxer', this.checked)" />
       <span class="toggle-slider"></span>
     </label>
   </div>

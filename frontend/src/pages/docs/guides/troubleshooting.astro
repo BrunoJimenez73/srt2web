@@ -1,0 +1,221 @@
+---
+import DocsLayout from '../../../components/docs/DocsLayout.astro';
+import CodeBlock from '../../../components/docs/CodeBlock.astro';
+import Callout from '../../../components/docs/Callout.astro';
+---
+
+<DocsLayout title="Troubleshooting Guide" description="FAQ and common issues">
+    <div class="breadcrumb">
+        <a href="/docs/getting-started">Docs</a>
+        <span class="breadcrumb-sep">/</span>
+        <a href="/docs/guides">Guides</a>
+        <span class="breadcrumb-sep">/</span>
+        <span>Troubleshooting</span>
+    </div>
+
+    <div class="docs-hero">
+        <h1>Troubleshooting</h1>
+        <p>FAQ y soluciones a problemas comunes con SRT2Web.</p>
+    </div>
+
+    <h2>Instalación</h2>
+
+    <details class="alert-item">
+        <summary><span class="alert-icon">⚠</span> Error: No module named 'faster_whisper'</summary>
+        <div style="padding: 12px 0;">
+            <p><strong>Solución:</strong></p>
+            <CodeBlock lang="bash" code={`pip install faster-whisper`} showCopy={false} />
+            <p>Si tienes problemas con PyTorch, intenta:</p>
+            <CodeBlock lang="bash" code={`pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu`} showCopy={false} />
+        </div>
+    </details>
+
+    <details class="alert-item">
+        <summary><span class="alert-icon">⚠</span> Error: FFmpeg not found</summary>
+        <div style="padding: 12px 0;">
+            <p><strong>Solución:</strong></p>
+            <p>Instala FFmpeg y asegúrate de que esté en el PATH del sistema:</p>
+            <CodeBlock lang="bash" code={`# Windows (winget)
+winget install ffmpeg
+
+# Verificar
+ffmpeg -version`} showCopy={false} />
+            <p>Reinicia tu terminal después de instalar.</p>
+        </div>
+    </details>
+
+    <details class="alert-item">
+        <summary><span class="alert-icon">⚠</span> CUDA out of memory al cargar Whisper</summary>
+        <div style="padding: 12px 0;">
+            <p><strong>Solución:</strong> Usa un modelo más pequeño o cambia a CPU:</p>
+            <CodeBlock lang="yaml" code={`modules:
+  transcriber:
+    model: tiny  # o base
+    device: cpu  # usa CPU en lugar de GPU`} title="config.yaml" showCopy={false} />
+            <p>O limpia la caché de PyTorch:</p>
+            <CodeBlock lang="python" code={`import torch
+torch.cuda.empty_cache()`} showCopy={false} />
+        </div>
+    </details>
+
+    <h2>Conexión SRT</h2>
+
+    <details class="alert-item">
+        <summary><span class="alert-icon">⚠</span> No se reciben datos SRT — INPUT permanece gris</summary>
+        <div style="padding: 12px 0;">
+            <p><strong>Posibles causas y soluciones:</strong></p>
+            <ol>
+                <li><strong>Firewall:</strong> Verifica que el puerto 9000 (UDP) esté abierto</li>
+                <li><strong>Dirección incorrecta:</strong> Usa <code>srt://127.0.0.1:9000</code> para local</li>
+                <li><strong>Modo SRT:</strong> Asegúrate de que el encoder use modo listener</li>
+                <li><strong>URL de OBS:</strong> Verifica que la URL sea <code>srt://localhost:9000?mode=listener</code></li>
+            </ol>
+            <CodeBlock lang="bash" code={`# Verificar que el puerto está escuchando (Windows)
+netstat -an | findstr 9000`} showCopy={false} />
+        </div>
+    </details>
+
+    <details class="alert-item">
+        <summary><span class="alert-icon">⚠</span> Stream entrecortado o con lags</summary>
+        <div style="padding: 12px 0;">
+            <p><strong>Solución:</strong> Aumenta la latencia SRT:</p>
+            <CodeBlock lang="yaml" code={`input:
+  srt:
+    latency_ms: 2000  # aumenta de 1000 a 2000 o más`} title="config.yaml" showCopy={false} />
+            <p>También verifica tu ancho de banda — asegúrate de que el bitrate de OBS no supere tu conexión.</p>
+        </div>
+    </details>
+
+    <h2>Transcripción y Traducción</h2>
+
+    <details class="alert-item">
+        <summary><span class="alert-icon">⚠</span> Transcripción vacía o con errores</summary>
+        <div style="padding: 12px 0;">
+            <p><strong>Posibles causas:</strong></p>
+            <ol>
+                <li><strong>Sin audio:</strong> Verifica que el stream tenga audio</li>
+                <li><strong>Idioma incorrecto:</strong> Especifica el idioma manualmente</li>
+                <li><strong>Audio muy corto:</strong> Aumenta <code>chunk_duration_sec</code> a 10</li>
+            </ol>
+            <CodeBlock lang="yaml" code={`modules:
+  transcriber:
+    language: es  # especifica el idioma directamente`} title="config.yaml" showCopy={false} />
+        </div>
+    </details>
+
+    <details class="alert-item">
+        <summary><span class="alert-icon">⚠</span> Traducción de mala calidad</summary>
+        <div style="padding: 12px 0;">
+            <p>Argos Translate usa modelos más pequeños que Google Translate. Para mejor calidad:</p>
+            <ol>
+                <li>Usa <code>source_lang: auto</code> para detección correcta</li>
+                <li>Simplifica el discurso — jerga y modismos son difíciles de traducir</li>
+                <li>Aumenta el chunk duration para más contexto</li>
+            </ol>
+        </div>
+    </details>
+
+    <h2>TTS y Audio</h2>
+
+    <details class="alert-item">
+        <summary><span class="alert-icon">⚠</span> Audio TTS desincronizado con video</summary>
+        <div style="padding: 12px 0;">
+            <p><strong>Solución:</strong> Ajusta el offset de sincronización:</p>
+            <CodeBlock lang="yaml" code={`modules:
+  subtitle_generator:
+    audio_offset_ms: -500  # valor negativo adelanta, positivo atrasa`} title="config.yaml" showCopy={false} />
+            <p>Prueba valores entre -1000ms y +1000ms hasta que esté sincronizado.</p>
+        </div>
+    </details>
+
+    <details class="alert-item">
+        <summary><span class="alert-icon">⚠</span> Error de voz Edge-TTS no disponible</summary>
+        <div style="padding: 12px 0;">
+            <p><strong>Solución:</strong> Usa una voz válida. Verifica las voces disponibles:</p>
+            <CodeBlock lang="python" code={`import edge_tts
+import asyncio
+
+async def list():
+    voices = await edge_tts.list_voices()
+    for v in voices:
+        if 'es' in v['Locale']:
+            print(v['ShortName'])
+
+asyncio.run(list())`} showCopy={false} />
+            <p>Voces conocidas que funcionan: <code>es-ES-AlvaroNeural</code>, <code>es-ES-ElviraNeural</code></p>
+        </div>
+    </details>
+
+    <h2>HLS y Streaming</h2>
+
+    <details class="alert-item">
+        <summary><span class="alert-icon">⚠</span> Player no carga el stream — 404</summary>
+        <div style="padding: 12px 0;">
+            <ol>
+                <li>Verifica que el pipeline esté corriendo (dashboard verde)</li>
+                <li>Revisa que haya chunks procesados</li>
+                <li>Abre directamente: <code>http://localhost:9999/stream/stream.m3u8</code></li>
+            </ol>
+        </div>
+    </details>
+
+    <details class="alert-item">
+        <summary><span class="alert-icon">⚠</span> Subtítulos no aparecen en el player</summary>
+        <div style="padding: 12px 0;">
+            <p>Verifica que los subtítulos estén habilitados:</p>
+            <CodeBlock lang="yaml" code={`modules:
+  subtitle_generator:
+    enabled: true`} title="config.yaml" showCopy={false} />
+            <p>En el player, asegúrate de que CC/Subtitles esté activado.</p>
+        </div>
+    </details>
+
+    <h2>Dashboard y API</h2>
+
+    <details class="alert-item">
+        <summary><span class="alert-icon">⚠</span> WebSocket no conecta — panel de logs vacío</summary>
+        <div style="padding: 12px 0;">
+            <ol>
+                <li>Verifica que el servidor esté corriendo</li>
+                <li>Abre las herramientas de desarrollo del navegador (F12) → Console</li>
+                <li>Revisa errores de CORS si accedes desde otra máquina</li>
+            </ol>
+            <CodeBlock lang="yaml" code={`server:
+  cors_origins: ["http://localhost:9999"]  # especifica orígenes`} title="config.yaml" showCopy={false} />
+        </div>
+    </details>
+
+    <details class="alert-item">
+        <summary><span class="alert-icon">⚠</span> Configuración no se guarda</summary>
+        <div style="padding: 12px 0;">
+            <p>Los cambios desde el dashboard son en tiempo real pero no persisten al reiniciar. Para guardar permanentemente:</p>
+            <ol>
+                <li>Edita <code>config.yaml</code> manualmente</li>
+                <li>O reinicia el servidor después de hacer cambios desde el dashboard</li>
+            </ol>
+        </div>
+    </details>
+
+    <h2>Logs</h2>
+
+    <p>Para obtener logs detallados:</p>
+
+    <CodeBlock lang="bash" code={`# Ejecutar con logging verbose
+python main.py --log-level DEBUG
+
+# Ver logs en tiempo real
+tail -f server.out`} showCopy={false} />
+
+    <h2>Obtener Ayuda</h2>
+
+    <p>Si el problema persiste:</p>
+    <ul>
+        <li>Revisa los logs completos del servidor</li>
+        <li>Incluye el output de <code>python main.py --log-level DEBUG</code></li>
+        <li>Reporta el issue en GitHub con la información de tu sistema (OS, Python, GPU)</li>
+    </ul>
+
+    <Callout type="info">
+        <strong>Tip:</strong> La mayoría de los problemas se resuelven reiniciando el servidor y limpiando los archivos temporales en <code>output/</code>.
+    </Callout>
+</DocsLayout>

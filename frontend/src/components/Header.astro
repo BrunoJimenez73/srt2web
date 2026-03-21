@@ -23,6 +23,9 @@ const { version = 'Astro' } = Astro.props;
   </div>
   
   <div class="header-right">
+    <a href="/docs/" class="btn-docs" target="_blank">
+      📚 Docs
+    </a>
     <div id="ws-status" class="ws-status disconnected">
       <span class="ws-status-dot"></span>
       <span class="ws-status-label">WS OFF</span>
@@ -77,6 +80,24 @@ const { version = 'Astro' } = Astro.props;
     display: flex;
     align-items: center;
     gap: 12px;
+  }
+
+  .btn-docs {
+    background: transparent;
+    color: var(--text-sec);
+    text-decoration: none;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.2s;
+    border: 1px solid var(--border-dim);
+  }
+
+  .btn-docs:hover {
+    background: var(--bg-card);
+    color: var(--text);
+    border-color: var(--accent);
   }
 
   .btn-save {

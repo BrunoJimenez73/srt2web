@@ -1,0 +1,39 @@
+---
+interface ConfigEntry {
+    path: string;
+    type: string;
+    default?: string;
+    description: string;
+    required?: boolean;
+}
+
+interface Props {
+    entries: ConfigEntry[];
+}
+
+const { entries } = Astro.props;
+---
+
+<table class="config-table">
+    <thead>
+        <tr>
+            <th>Path</th>
+            <th>Type</th>
+            <th>Default</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        {entries.map((entry) => (
+            <tr>
+                <td>
+                    <code class="config-path">{entry.path}</code>
+                    {entry.required && <span class="badge required" style="margin-left:6px">required</span>}
+                </td>
+                <td><span class="config-type">{entry.type}</span></td>
+                <td><span class="config-default">{entry.default ?? '—'}</span></td>
+                <td>{entry.description}</td>
+            </tr>
+        ))}
+    </tbody>
+</table>

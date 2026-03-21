@@ -1,0 +1,115 @@
+---
+---
+
+<form class="input-card" id="card-input">
+  <div class="process-header">
+    <span class="process-indicator" id="indicator-input"></span>
+    <span class="process-title">📥 INPUT</span>
+  </div>
+  <div class="process-content">
+    <div class="form-group">
+      <label class="form-label">Tipo</label>
+      <select class="form-select" id="input-type" onchange="updateInputFields()">
+        <option value="srt">SRT</option>
+        <option value="rtmp">RTMP</option>
+      </select>
+    </div>
+    <div class="form-group" id="input-port-group">
+      <label class="form-label">Puerto SRT</label>
+      <input type="number" class="form-input" id="input-srt-port" value="9000" min="1" max="65535" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Modo</label>
+      <select class="form-select" id="input-srt-mode">
+        <option value="listener">Listener</option>
+        <option value="caller">Caller</option>
+        <option value="rendezvous">Rendezvous</option>
+      </select>
+    </div>
+  </div>
+</form>
+
+<style>
+  .input-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    transition: all 0.3s ease;
+  }
+
+  .input-card.active {
+    border-color: var(--success) !important;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.3) !important;
+  }
+
+  .process-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .process-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: all 0.3s ease;
+  }
+
+  .process-indicator.active {
+    background: #00ff00 !important;
+    box-shadow: 0 0 6px #00ff00, 0 0 12px #00ff00 !important;
+    animation: indicator-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes indicator-pulse {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; }
+  }
+
+  .process-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-prime);
+  }
+
+  .process-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .form-label {
+    font-size: 10px;
+    color: var(--text-sec);
+    font-weight: 500;
+  }
+
+  .form-input, .form-select {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-sm);
+    color: var(--text-prime);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .form-input:focus, .form-select:focus {
+    border-color: var(--accent);
+  }
+
+  .form-select {
+    cursor: pointer;
+  }
+</style>

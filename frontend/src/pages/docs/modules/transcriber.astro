@@ -1,0 +1,134 @@
+---
+import DocsLayout from '../../../components/docs/DocsLayout.astro';
+import ConfigTable from '../../../components/docs/ConfigTable.astro';
+import CodeBlock from '../../../components/docs/CodeBlock.astro';
+import Callout from '../../../components/docs/Callout.astro';
+---
+
+<DocsLayout title="Transcriber Module" description="Speech-to-text with faster-whisper">
+    <div class="breadcrumb">
+        <a href="/docs/getting-started">Docs</a>
+        <span class="breadcrumb-sep">/</span>
+        <a href="/docs/modules">Modules</a>
+        <span class="breadcrumb-sep">/</span>
+        <span>Transcriber</span>
+    </div>
+
+    <div class="docs-hero">
+        <h1>Transcriber</h1>
+        <p>Convierte audio en texto usando faster-whisper con aceleración GPU opcional.</p>
+    </div>
+
+    <h2>Descripción</h2>
+    <p>El módulo Transcriber recibe audio extraído del stream y lo procesa usando el modelo Whisper de OpenAI via faster-whisper. Soporta detección automática de idioma y múltiples dispositivos (CPU, CUDA, MPS).</p>
+
+    <h2>Configuración</h2>
+
+    <ConfigTable entries={[
+        { path: "modules.transcriber.enabled", type: "boolean", default: "true", description: "Habilitar/deshabilitar el módulo." },
+        { path: "modules.transcriber.model", type: "string", default: "tiny", description: "Modelo Whisper a usar.", required: true },
+        { path: "modules.transcriber.language", type: "string", default: "auto", description: "Idioma del audio (ISO 639-1) o 'auto' para detección." },
+        { path: "modules.transcriber.device", type: "string", default: "auto", description: "Dispositivo: auto, cpu, cuda, mps." },
+    ]} />
+
+    <h3>Modelos Disponibles</h3>
+
+    <table>
+        <thead>
+            <tr><th>Modelo</th><th>VRAM</th><th>VRAM (int8)</th><th>Velocidad</th><th>WER (.en)</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><code>tiny</code></td><td>~1GB</td><td>~1GB</td><td>~32x</td><td>—</td></tr>
+            <tr><td><code>base</code></td><td>~1GB</td><td>~1GB</td><td>~16x</td><td>—</td></tr>
+            <tr><td><code>small</code></td><td>~2GB</td><td>~2GB</td><td>~6x</td><td>—</td></tr>
+            <tr><td><code>medium</code></td><td>~5GB</td><td>~3GB</td><td>~2x</td><td>—</td></tr>
+            <tr><td><code>large-v3</code></td><td>~10GB</td><td>~6GB</td><td>~1x</td><td>—</td></tr>
+            <tr><td><code>large-v3-turbo</code></td><td>~6GB</td><td>~3GB</td><td>~2x</td><td>—</td></tr>
+        </tbody>
+    </table>
+
+    <h2>Dependencias</h2>
+
+    <p>Este módulo requiere <code>translator</code> como entrada de datos (el traductor consume la transcripción). No tiene dependencias hacia atrás — es el primer módulo de procesamiento.</p>
+
+    <div class="dependency-flow">
+        <h4>Habilita automáticamente:</h4>
+        <p>Ninguno — es módulo de entrada en la cadena de procesamiento.</p>
+        <h4>Requiere que esté habilitado:</h4>
+        <p>Ninguno — es el primer módulo de la cadena.</p>
+    </div>
+
+    <h2>Ejemplos</h2>
+
+    <h3>Básico — CPU</h3>
+    <CodeBlock lang="yaml" code={`modules:
+  transcriber:
+    enabled: true
+    model: base
+    language: auto
+    device: cpu`} title="config.yaml" />
+
+    <h3>GPU NVIDIA</h3>
+    <CodeBlock lang="yaml" code={`modules:
+  transcriber:
+    enabled: true
+    model: large-v3
+    language: en
+    device: cuda`} title="config.yaml" />
+
+    <h3>Mixed Precision GPU</h3>
+    <p>Para GPUs con memoria limitada, usa <code>compute_type: float16</code>:</p>
+    <CodeBlock lang="yaml" code={`modules:
+  transcriber:
+    enabled: true
+    model: large-v3-turbo
+    language: auto
+    device: cuda
+    # compute_type: float16  # descomentar para GPUs con <8GB VRAM`} title="config.yaml" />
+
+    <h2>Métricas</h2>
+
+    <table>
+        <thead>
+            <tr><th>Métrica</th><th>Descripción</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><code>process_time</code></td><td>Tiempo de transcripción del chunk (ms)</td></tr>
+            <tr><td><code>memory_usage</code></td><td>Memoria VRAM + RAM del modelo</td></tr>
+            <tr><td><code>chunks_processed</code></td><td>Total de chunks transcritos</td></tr>
+            <tr><td><code>detected_language</code></td><td>Último idioma detectado</td></tr>
+        </tbody>
+    </table>
+
+    <h2>Salida</h2>
+
+    <p>El módulo produce los siguientes campos en <code>PipelineData</code>:</p>
+
+    <CodeBlock lang="python" code={`{
+    "transcript": "Texto completo de la transcripción...",
+    "transcript_segments": [
+        {
+            "start": 0.0,
+            "end": 2.5,
+            "text": "Hello world"
+        },
+        {
+            "start": 2.5,
+            "end": 5.0,
+            "text": "This is a test"
+        }
+    ],
+    "detected_language": "en",
+    "metadata": {
+        "model": "base",
+        "language_probability": 0.99
+    }
+}`} title="PipelineData" />
+
+    <Callout type="info">
+        <strong>Tip:</strong> Si el idioma no se detecta correctamente, especifica manualmente el código ISO 639-1 (ej: <code>language: es</code> para español).
+    </Callout>
+
+    <h2>Siguiente Módulo</h2>
+    <p><a href="/docs/modules/translator">Translator</a> — Traducción del texto transcrito.</p>
+</DocsLayout>

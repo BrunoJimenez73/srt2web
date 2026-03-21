@@ -1,0 +1,200 @@
+---
+import DocsLayout from '../../../components/docs/DocsLayout.astro';
+import CodeBlock from '../../../components/docs/CodeBlock.astro';
+import Callout from '../../../components/docs/Callout.astro';
+---
+
+<DocsLayout title="WebSocket API" description="Real-time WebSocket communication">
+    <div class="breadcrumb">
+        <a href="/docs/getting-started">Docs</a>
+        <span class="breadcrumb-sep">/</span>
+        <a href="/docs/api">API Reference</a>
+        <span class="breadcrumb-sep">/</span>
+        <span>WebSocket</span>
+    </div>
+
+    <div class="docs-hero">
+        <h1>WebSocket API</h1>
+        <p>Conexión bidireccional para logs en tiempo real y comandos interactivos.</p>
+    </div>
+
+    <h2>Conexión</h2>
+
+    <CodeBlock lang="javascript" code={`const ws = new WebSocket('ws://localhost:9999/ws/logs');
+
+ws.onopen = () => {
+  console.log('WebSocket connected');
+};
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log(data);
+};
+
+ws.onclose = () => {
+  console.log('WebSocket disconnected');
+};`} title="JavaScript" showCopy={false} />
+
+    <h2>Mensajes del Servidor</h2>
+
+    <p>El servidor envía mensajes JSON con la siguiente estructura:</p>
+
+    <h3>Log Message</h3>
+    <CodeBlock lang="json" code={`{
+  "type": "log",
+  "level": "INFO",
+  "message": "Processing chunk 42",
+  "timestamp": "2026-03-21T10:30:00.000Z",
+  "module": "transcriber"
+}`} title="JSON" />
+
+    <h3>Status Update</h3>
+    <CodeBlock lang="json" code={`{
+  "type": "status",
+  "pipeline_state": "RUNNING",
+  "modules": {
+    "transcriber": { "state": "RUNNING" },
+    "translator": { "state": "DISABLED" }
+  },
+  "chunks_processed": 42
+}`} title="JSON" />
+
+    <h3>Metric Update</h3>
+    <CodeBlock lang="json" code={`{
+  "type": "metric",
+  "name": "process_time",
+  "module": "transcriber",
+  "value": 1200,
+  "timestamp": "2026-03-21T10:30:00.000Z"
+}`} title="JSON" />
+
+    <h3>Error Message</h3>
+    <CodeBlock lang="json" code={`{
+  "type": "error",
+  "module": "transcriber",
+  "message": "Whisper model failed to load",
+  "details": "CUDA out of memory",
+  "timestamp": "2026-03-21T10:30:00.000Z"
+}`} title="JSON" />
+
+    <h2>Comandos del Cliente</h2>
+
+    <p>Puedes enviar comandos al servidor para solicitar información:</p>
+
+    <h3>Get Status</h3>
+    <CodeBlock lang="json" code={`{
+  "command": "get_status"
+}`} title="Enviar" showCopy={false} />
+
+    <h3>Ping (Heartbeat)</h3>
+    <CodeBlock lang="json" code={`{
+  "command": "ping"
+}`} title="Enviar" showCopy={false} />
+
+    <p>Respuesta del servidor:</p>
+    <CodeBlock lang="json" code={`{
+  "type": "pong",
+  "latency_ms": 5
+}`} title="Respuesta" showCopy={false} />
+
+    <h2>Niveles de Log</h2>
+
+    <table>
+        <thead>
+            <tr><th>Nivel</th><th>Descripción</th><th>Color</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><code>DEBUG</code></td><td>Información detallada de debug</td><td>Gris</td></tr>
+            <tr><td><code>INFO</code></td><td>Información general</td><td>Blanco</td></tr>
+            <tr><td><code>WARNING</code></td><td>Advertencias</td><td>Amarillo</td></tr>
+            <tr><td><code>ERROR</code></td><td>Errores</td><td>Rojo</td></tr>
+            <tr><td><code>CRITICAL</code></td><td>Errores críticos</td><td>Rojo brillante</td></tr>
+        </tbody>
+    </table>
+
+    <h2>Ejemplo Completo</h2>
+
+    <CodeBlock lang="javascript" code={`class WSClient {
+  constructor(url) {
+    this.url = url;
+    this.ws = null;
+    this.reconnectDelay = 1000;
+    this.maxDelay = 30000;
+  }
+
+  connect() {
+    this.ws = new WebSocket(this.url);
+
+    this.ws.onopen = () => {
+      console.log('Connected');
+      this.reconnectDelay = 1000;
+    };
+
+    this.ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      this.handleMessage(data);
+    };
+
+    this.ws.onclose = () => {
+      console.log('Disconnected, reconnecting...');
+      setTimeout(() => this.connect(), this.reconnectDelay);
+      this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxDelay);
+    };
+
+    this.ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+  }
+
+  handleMessage(data) {
+    switch (data.type) {
+      case 'log':
+        console.log(\`[\${data.level}] \${data.module}: \${data.message}\`);
+        break;
+      case 'status':
+        this.updateStatus(data);
+        break;
+      case 'metric':
+        this.updateMetric(data);
+        break;
+      case 'error':
+        this.handleError(data);
+        break;
+      case 'pong':
+        console.log(\`Latency: \${data.latency_ms}ms\`);
+        break;
+    }
+  }
+
+  sendCommand(command) {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(command));
+    }
+  }
+
+  ping() {
+    this.sendCommand({ command: 'ping' });
+  }
+
+  getStatus() {
+    this.sendCommand({ command: 'get_status' });
+  }
+
+  updateStatus(data) { /* update UI */ }
+  updateMetric(data) { /* update charts */ }
+  handleError(data) { /* show error */ }
+}
+
+const client = new WSClient('ws://localhost:9999/ws/logs');
+client.connect();
+
+// Heartbeat cada 30 segundos
+setInterval(() => client.ping(), 30000);`} title="Client completo" />
+
+    <Callout type="info">
+        <strong>Auto-reconnect:</strong> El cliente WebSocket del dashboard implementa reconexión automática con exponential backoff (1s → 2s → 4s → ... hasta 30s máximo).
+    </Callout>
+
+    <h2>Siguiente Paso</h2>
+    <p><a href="/docs/guides/quick-start">Quick Start</a> — Primeros 5 minutos con OBS Studio.</p>
+</DocsLayout>
