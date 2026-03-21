@@ -1,59 +1,67 @@
 ---
 ---
 
-<div class="tts-card" id="card-tts">
+<div class="whisper-card" id="card-whisper">
   <div class="process-header">
-    <span class="process-indicator" id="indicator-tts"></span>
-    <span class="process-title">🎤 DOBLAR</span>
+    <span class="process-indicator" id="indicator-whisper"></span>
+    <span class="process-title">🎙 WHISPER</span>
     <label class="toggle-switch">
-      <input type="checkbox" id="tts-enabled" onchange="window.toggleModule('tts_engine', this.checked)" />
+      <input type="checkbox" id="whisper-enabled" onchange="window.toggleModule('transcriber', this.checked)" />
       <span class="toggle-slider"></span>
     </label>
   </div>
     <div class="process-content">
       <div class="form-group">
-        <label class="form-label">Voz</label>
-        <select class="form-select" id="tts-voice">
-          <option value="es-ES-AlvaroNeural">Alvaro (ES)</option>
-          <option value="es-ES-ElviraNeural">Elvira (ES)</option>
-          <option value="en-US-AriaNeural">Aria (EN)</option>
-          <option value="en-US-GuyNeural">Guy (EN)</option>
-          <option value="fr-FR-DeniseNeural">Denise (FR)</option>
-          <option value="de-DE-ConradNeural">Conrad (DE)</option>
+        <label class="form-label">Modelo</label>
+        <select class="form-select" id="whisper-model">
+          <option value="tiny">tiny</option>
+          <option value="small">small</option>
+          <option value="medium">medium</option>
+          <option value="large-v2">large-v2</option>
         </select>
       </div>
-      <div class="form-group" id="tts-voice-debug">
-        <label class="form-label">Voz Actual:</label>
-        <span id="tts-voice-current-value">es-ES-AlvaroNeural</span>
+      <div class="form-group">
+        <label class="form-label">Idioma</label>
+        <select class="form-select" id="whisper-lang">
+          <option value="auto">Auto (Detectar)</option>
+          <option value="es">Español</option>
+          <option value="en">Inglés</option>
+          <option value="fr">Francés</option>
+          <option value="de">Alemán</option>
+          <option value="it">Italiano</option>
+          <option value="pt">Portugués</option>
+        </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Velocidad: <span id="tts-speed-value">1.0</span>x</label>
-        <input type="range" class="form-range" id="tts-speed" min="0.5" max="2.0" step="0.1" value="1.0" 
-                oninput="document.getElementById('tts-speed-value').textContent = this.value" />
+        <label class="form-label">Device</label>
+        <select class="form-select" id="whisper-device">
+          <option value="auto">Auto</option>
+          <option value="cuda">GPU</option>
+          <option value="cpu">CPU</option>
+        </select>
       </div>
-      <div class="form-group" id="tts-metrics">
+      <div class="form-group" id="whisper-metrics">
         <label class="form-label">Métricas</label>
         <div class="metrics-row">
           <div class="metric-mini">
             <span class="metric-label">Tiempo</span>
-            <span class="metric-value" id="module-time-tts_engine">--</span>
+            <span class="metric-value" id="module-time-transcriber">--</span>
           </div>
           <div class="metric-mini">
             <span class="metric-label">Memoria</span>
-            <span class="metric-value" id="module-memory-tts_engine">--</span>
+            <span class="metric-value" id="module-memory-transcriber">--</span>
           </div>
           <div class="metric-mini">
             <span class="metric-label">Chunks</span>
-            <span class="metric-value" id="module-chunks-tts_engine">--</span>
+            <span class="metric-value" id="module-chunks-transcriber">--</span>
           </div>
         </div>
       </div>
     </div>
-  </div>
 </div>
 
 <style>
-  .tts-card {
+  .whisper-card {
     background: var(--bg-card);
     border: 1px solid var(--border-dim);
     border-radius: var(--radius-md);
@@ -61,7 +69,7 @@
     transition: all 0.3s ease;
   }
 
-  .tts-card.active {
+  .whisper-card.active {
     border-color: var(--success) !important;
     box-shadow: 0 0 12px rgba(16, 185, 129, 0.3) !important;
   }
@@ -162,7 +170,7 @@
     font-weight: 500;
   }
 
-  .form-select {
+  .form-input, .form-select {
     width: 100%;
     padding: 8px 10px;
     background: var(--bg-surface);
@@ -171,28 +179,14 @@
     color: var(--text-prime);
     font-size: 12px;
     outline: none;
-    cursor: pointer;
+    transition: border-color 0.2s;
   }
 
-  .form-select:focus {
+  .form-input:focus, .form-select:focus {
     border-color: var(--accent);
   }
 
-  .form-range {
-    width: 100%;
-    height: 6px;
-    -webkit-appearance: none;
-    background: var(--bg-surface);
-    border-radius: 3px;
-    outline: none;
-  }
-
-  .form-range::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 16px;
-    height: 16px;
-    background: var(--accent);
-    border-radius: 50%;
+  .form-select {
     cursor: pointer;
   }
 
