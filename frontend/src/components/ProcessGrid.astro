@@ -1,0 +1,36 @@
+---
+import InputCard from './InputCard.astro';
+import WhisperCard from './WhisperCard.astro';
+import TranslateCard from './TranslateCard.astro';
+import TtsCard from './TtsCard.astro';
+import SubtitleCard from './SubtitleCard.astro';
+import AudioMixerCard from './AudioMixerCard.astro';
+import HlsCard from './HlsCard.astro';
+import OutputCard from './OutputCard.astro';
+---
+
+<div class="process-grid">
+  <InputCard />
+  <WhisperCard />
+  <TranslateCard />
+  <TtsCard />
+  <SubtitleCard />
+  <AudioMixerCard />
+  <HlsCard />
+  <OutputCard />
+</div>
+
+<style>
+  .process-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  @media (max-width: 768px) {
+    .process-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

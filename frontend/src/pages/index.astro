@@ -105,27 +105,27 @@ import Toast from '../components/Toast.astro';
   import { getSRTUrl, getStreamUrl, getPlayerUrl, isLocalhost, copyToClipboard, showToast } from '../lib/utils';
   import type { Config, Status, LogMessage, ModuleName } from '../lib/types';
 
-  const moduleToCard: Record<string, string> = {
-    srt_ingest: 'card-input',
-    audio_extractor: 'card-input',
-    transcriber: 'card-whisper',
-    translator: 'card-translate',
-    tts_engine: 'card-tts',
-    subtitle_generator: 'card-subtitle',
-    audio_mixer: 'card-tts',
-    video_muxer: 'card-hls'
-  };
+   const moduleToCard: Record<string, string> = {
+     srt_ingest: 'card-input',
+     audio_extractor: 'card-input',
+     transcriber: 'card-whisper',
+     translator: 'card-translate',
+     tts_engine: 'card-tts',
+     subtitle_generator: 'card-subtitle',
+     audio_mixer: 'card-audio-mixer',
+     video_muxer: 'card-hls'
+   };
 
-  const moduleToIndicator: Record<string, string> = {
-    srt_ingest: 'indicator-input',
-    audio_extractor: 'indicator-input',
-    transcriber: 'indicator-whisper',
-    translator: 'indicator-translate',
-    tts_engine: 'indicator-tts',
-    subtitle_generator: 'indicator-subtitle',
-    audio_mixer: 'indicator-tts',
-    video_muxer: 'indicator-hls'
-  };
+   const moduleToIndicator: Record<string, string> = {
+     srt_ingest: 'indicator-input',
+     audio_extractor: 'indicator-input',
+     transcriber: 'indicator-whisper',
+     translator: 'indicator-translate',
+     tts_engine: 'indicator-tts',
+     subtitle_generator: 'indicator-subtitle',
+     audio_mixer: 'indicator-audio-mixer',
+     video_muxer: 'indicator-hls'
+   };
 
   let config: Config | null = null;
   let status: Status | null = null;
@@ -257,6 +257,8 @@ import Toast from '../components/Toast.astro';
     if (subtitleFormat) subtitleFormat.value = cfg.modules.subtitle_generator.format;
     if (subtitleUseTranslated) subtitleUseTranslated.value = String(cfg.modules.subtitle_generator.use_translated);
     if (muxerEnabled) muxerEnabled.checked = cfg.modules.video_muxer.enabled;
+    const audioMixerEnabled = document.getElementById('audio-mixer-enabled') as HTMLInputElement;
+    if (audioMixerEnabled) audioMixerEnabled.checked = cfg.modules.audio_mixer?.enabled ?? false;
     if (hlsSegment) hlsSegment.value = String(cfg.modules.video_muxer.hls_segment_duration);
     if (hlsList) hlsList.value = String(cfg.modules.video_muxer.hls_list_size);
     if (hlsEncoder) hlsEncoder.value = cfg.modules.video_muxer.encoder_mode;
@@ -294,7 +296,7 @@ import Toast from '../components/Toast.astro';
           use_translated: (document.getElementById('subtitle-use-translated') as HTMLSelectElement)?.value === 'true'
         },
         audio_mixer: {
-          enabled: true,
+          enabled: (document.getElementById('audio-mixer-enabled') as HTMLInputElement)?.checked ?? false,
           original_volume: 0.3,
           dubbed_volume: 1.0
         },
