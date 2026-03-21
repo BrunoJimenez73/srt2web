@@ -29,6 +29,7 @@ sys.modules["argostranslate.translate"] = mock_translate
 from modules.translator import Translator
 from core.module_base import PipelineData, ModuleState
 
+
 class TestTranslator:
     """Tests for Translator class."""
 
@@ -47,7 +48,7 @@ class TestTranslator:
         assert translator._source_lang == "es"
         assert translator._target_lang == "fr"
 
-    @patch("modules.translator.Translator._load_language_model")
+    @patch("modules.translator.Translator._load_model")
     def test_start(self, mock_load):
         """Test module startup."""
         with patch.dict(os.environ, {"ARGOS_PACKAGES_DIR": ""}):
@@ -61,15 +62,15 @@ class TestTranslator:
         """Test loading model when already installed."""
         translator = Translator()
         translator._argos_installed = True
-        
+
         # Setup mocks
         mock_pkg = MagicMock()
         mock_pkg.from_code = "es"
         mock_pkg.to_code = "en"
         mock_package.get_installed_packages.return_value = [mock_pkg]
-        
-        translator._load_language_model()
-        
+
+        translator._load_model("es", "en")
+
         mock_translate.get_translation_from_codes.assert_called_with("es", "en")
         mock_package.update_package_index.assert_not_called()
 
@@ -78,14 +79,14 @@ class TestTranslator:
         translator = Translator()
         translator._argos_installed = True
         mock_package.get_installed_packages.return_value = []
-        
+
         mock_avail_pkg = MagicMock()
         mock_avail_pkg.from_code = "es"
         mock_avail_pkg.to_code = "en"
         mock_package.get_available_packages.return_value = [mock_avail_pkg]
-        
-        translator._load_language_model()
-        
+
+        translator._load_model("es", "en")
+
         mock_avail_pkg.install.assert_called_once()
         mock_package.update_package_index.assert_called_once()
 
@@ -95,9 +96,9 @@ class TestTranslator:
         translator._argos_installed = True
         mock_package.get_installed_packages.return_value = []
         mock_package.get_available_packages.return_value = []
-        
+
         with pytest.raises(ValueError, match="No translation package found"):
-            translator._load_language_model()
+            translator._load_model("xx", "yy")
 
     def test_do_process(self):
         """Test translation processing."""
@@ -105,13 +106,13 @@ class TestTranslator:
         mock_pipeline = MagicMock()
         mock_pipeline.translate.return_value = "Hello"
         translator._translation_pipeline = mock_pipeline
-        
+
         data = PipelineData(
-            transcript="Hola", 
-            transcript_segments=[{"start": 0.0, "end": 1.0, "text": "Hola"}]
+            transcript="Hola",
+            transcript_segments=[{"start": 0.0, "end": 1.0, "text": "Hola"}],
         )
         result = translator._do_process(data)
-        
+
         assert result.translated_text == "Hello"
         assert len(result.translated_segments) == 1
         assert result.translated_segments[0]["text"] == "Hello"
@@ -122,9 +123,9 @@ class TestTranslator:
         translator = Translator()
         mock_pipeline = MagicMock()
         translator._translation_pipeline = mock_pipeline
-        
+
         data = PipelineData(transcript="")
         result = translator._do_process(data)
-        
+
         assert result.translated_text is None
         mock_pipeline.translate.assert_not_called()

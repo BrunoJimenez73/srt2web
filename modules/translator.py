@@ -20,38 +20,74 @@ class Translator(BaseModule):
     """
 
     def __init__(self, config: Optional[dict] = None):
-        self._source_lang = "es"
-        self._target_lang = "en"
+        self._source_lang = config.get("source_lang", "es") if config else "es"
+        self._target_lang = config.get("target_lang", "en") if config else "en"
         self._translation_pipeline = None
         self._argos_installed = False
+        self._waiting_for_language = self._source_lang == "auto"
+        self._current_source_lang = None
         super().__init__("translator", config)
 
     def configure(self, config: dict) -> None:
-        super().configure(config)
-        self._source_lang = config.get("source_lang", self._source_lang)
-        self._target_lang = config.get("target_lang", self._target_lang)
-        
-        # If language changed while running, reload pipeline
-        if self.state == ModuleState.RUNNING and self._argos_installed:
-            self._load_language_model()
+        """
+        Update translator configuration and reload translation model if language settings changed.
+        Called during pipeline reconfiguration (hot-reload).
+        """
+        new_source_lang = config.get("source_lang", self._source_lang)
+        new_target_lang = config.get("target_lang", self._target_lang)
+
+        # Determine if we should wait for language detection
+        new_waiting_for_language = new_source_lang == "auto"
+
+        # Check if we need to reload the translation model
+        model_needs_reload = False
+
+        # Case 1: We're not waiting for language and source/target changed
+        if not new_waiting_for_language and (
+            new_source_lang != self._source_lang or new_target_lang != self._target_lang
+        ):
+            model_needs_reload = True
+
+        # Case 2: We were waiting for language but now have a fixed source language
+        elif (
+            self._waiting_for_language
+            and not new_waiting_for_language
+            and new_source_lang != "auto"
+        ):
+            model_needs_reload = True
+
+        # Reload model if needed
+        if model_needs_reload:
+            self._load_model(new_source_lang, new_target_lang)
+            self._current_source_lang = new_source_lang
+
+        # Update internal state
+        self._source_lang = new_source_lang
+        self._target_lang = new_target_lang
+        self._waiting_for_language = new_waiting_for_language
 
     def start(self) -> None:
         """Initialize the translation engine and models."""
         self._state = ModuleState.STARTING
-        
+
         try:
             import argostranslate.package
             import argostranslate.translate
+
             self._argos_installed = True
-            
+
             # Setup Argos packages cache dir if needed
-            os.environ["ARGOS_PACKAGES_DIR"] = os.path.abspath(os.path.join(".", "models", "argos"))
-            
-            self._load_language_model()
-            
+            os.environ["ARGOS_PACKAGES_DIR"] = os.path.abspath(
+                os.path.join(".", "models", "argos")
+            )
+
+            # Only load model if not waiting for language (i.e., source_lang is not auto)
+            if not self._waiting_for_language:
+                self._load_model(self._source_lang, self._target_lang)
+
             self._state = ModuleState.RUNNING
             logger.info(f"Translator ready: {self._source_lang} -> {self._target_lang}")
-            
+
         except ImportError:
             self._state = ModuleState.ERROR
             self._error_message = "argostranslate package not installed"
@@ -63,46 +99,52 @@ class Translator(BaseModule):
             logger.error(self._error_message)
             self.enabled = False
 
-    def _load_language_model(self):
-        """Install package if missing and create translation pipeline."""
+    def _load_model(self, source_lang: str, target_lang: str):
+        """Install package if missing and create translation pipeline for the given language pair."""
         import argostranslate.package
         import argostranslate.translate
 
         # Check if installed
         installed = argostranslate.package.get_installed_packages()
         package_found = False
-        
+
         for pkg in installed:
-            if pkg.from_code == self._source_lang and pkg.to_code == self._target_lang:
+            if pkg.from_code == source_lang and pkg.to_code == target_lang:
                 package_found = True
                 break
 
         if not package_found:
-            msg = f"Downloading translation model for {self._source_lang} -> {self._target_lang}... This may take a minute."
+            msg = f"Downloading translation model for {source_lang} -> {target_lang}... This may take a minute."
             logger.info(msg)
-            self.logger.info(msg) # Broadcast to web UI
-            
+            self.logger.info(msg)  # Broadcast to web UI
+
             argostranslate.package.update_package_index()
             available_packages = argostranslate.package.get_available_packages()
-            
+
             target_pkg = next(
-                (pkg for pkg in available_packages 
-                 if pkg.from_code == self._source_lang and pkg.to_code == self._target_lang),
-                None
+                (
+                    pkg
+                    for pkg in available_packages
+                    if pkg.from_code == source_lang and pkg.to_code == target_lang
+                ),
+                None,
             )
-            
+
             if target_pkg:
                 target_pkg.install()
-                success_msg = f"Translation model {self._source_lang}->{self._target_lang} installed successfully!"
+                success_msg = f"Translation model {source_lang}->{target_lang} installed successfully!"
                 logger.info(success_msg)
-                self.logger.info(success_msg) # Broadcast to web UI
+                self.logger.info(success_msg)  # Broadcast to web UI
             else:
-                raise ValueError(f"No translation package found from '{self._source_lang}' to '{self._target_lang}'")
+                raise ValueError(
+                    f"No translation package found from '{source_lang}' to '{target_lang}'"
+                )
 
         # Get the actual translation function
-        self._translation_pipeline = argostranslate.translate.get_translation_from_codes(
-            self._source_lang, 
-            self._target_lang
+        self._translation_pipeline = (
+            argostranslate.translate.get_translation_from_codes(
+                source_lang, target_lang
+            )
         )
 
     def stop(self) -> None:
@@ -119,24 +161,36 @@ class Translator(BaseModule):
             return data
 
         try:
-            # Override source language if detected language is valid and differs
-            # Note: For simplicity we stick to configured source_lang here, 
-            # dynamic reloading per chunk would be too slow
-            
+            # Determine source language to use
+            source_lang = self._source_lang
+            if self._waiting_for_language and data.detected_language:
+                # Use detected language from transcriber if available
+                source_lang = data.detected_language
+                # If we need to reload the model for this language pair, do it
+                if self._current_source_lang != source_lang:
+                    self._load_model(source_lang, self._target_lang)
+                    self._current_source_lang = source_lang
+                    self._waiting_for_language = False
+                    logger.info(
+                        f"Translator switched to {self._source_lang} -> {self._target_lang}"
+                    )
+
             # Translate full text
             data.translated_text = self._translation_pipeline.translate(data.transcript)
-            
+
             # Translate individual segments (useful for precise subtitles)
             if data.transcript_segments:
                 translated_segs = []
                 for seg in data.transcript_segments:
-                    translated_segs.append({
-                        "start": seg["start"],
-                        "end": seg["end"],
-                        "text": self._translation_pipeline.translate(seg["text"])
-                    })
+                    translated_segs.append(
+                        {
+                            "start": seg["start"],
+                            "end": seg["end"],
+                            "text": self._translation_pipeline.translate(seg["text"]),
+                        }
+                    )
                 data.translated_segments = translated_segs
-            
+
             logger.info(f"Translated: {data.translated_text}")
 
         except Exception as e:
