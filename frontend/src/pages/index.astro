@@ -265,10 +265,10 @@ import Toast from '../components/Toast.astro';
     const originalValue = document.getElementById('audio-mixer-original-value') as HTMLSpanElement;
     if (originalValue) originalValue.textContent = String(cfg.modules.audio_mixer?.original_volume ?? 0.3);
     
-    const dubbedVolume = document.getElementById('audio-mixer-dubbed-volume') as HTMLInputElement;
-    if (dubbedVolume) dubbedVolume.value = String(cfg.modules.audio_mixer?.dubbed_volume ?? 1.0);
-    const dubbedValue = document.getElementById('audio-mixer-dubbed-value') as HTMLSpanElement;
-    if (dubbedValue) dubbedValue.textContent = String(cfg.modules.audio_mixer?.dubbed_volume ?? 1.0);
+    const ttsVolume = document.getElementById('audio-mixer-dubbed-volume') as HTMLInputElement;
+    if (ttsVolume) ttsVolume.value = String(cfg.modules.audio_mixer?.tts_volume ?? 1.0);
+    const ttsValue = document.getElementById('audio-mixer-dubbed-value') as HTMLSpanElement;
+    if (ttsValue) ttsValue.textContent = String(cfg.modules.audio_mixer?.tts_volume ?? 1.0);
     if (hlsSegment) hlsSegment.value = String(cfg.modules.video_muxer.hls_segment_duration);
     if (hlsList) hlsList.value = String(cfg.modules.video_muxer.hls_list_size);
     if (hlsEncoder) hlsEncoder.value = cfg.modules.video_muxer.encoder_mode;
@@ -308,7 +308,7 @@ import Toast from '../components/Toast.astro';
         audio_mixer: {
           enabled: (document.getElementById('audio-mixer-enabled') as HTMLInputElement)?.checked ?? false,
           original_volume: parseFloat((document.getElementById('audio-mixer-original-volume') as HTMLInputElement)?.value || '0.3'),
-          dubbed_volume: parseFloat((document.getElementById('audio-mixer-dubbed-volume') as HTMLInputElement)?.value || '1.0')
+          tts_volume: parseFloat((document.getElementById('audio-mixer-dubbed-volume') as HTMLInputElement)?.value || '1.0')
         },
         video_muxer: {
           enabled: (document.getElementById('muxer-enabled') as HTMLInputElement)?.checked ?? true,
