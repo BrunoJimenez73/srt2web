@@ -78,15 +78,23 @@ const { title } = Astro.props;
         background: var(--text-dim);
         transition: all 0.3s ease;
         display: inline-block;
+        flex-shrink: 0;
     }
 
     .process-indicator.active {
-        background: #00ff00;
+        background: #00ff00 !important;
         box-shadow: 0 0 6px #00ff00, 0 0 12px #00ff00, 0 0 18px #00ff00;
         animation: indicator-pulse 1.5s ease-in-out infinite;
     }
 
-    .process-card.active {
+    /* Active state for cards */
+    #card-input.active,
+    #card-whisper.active,
+    #card-translate.active,
+    #card-tts.active,
+    #card-subtitle.active,
+    #card-hls.active,
+    #card-output.active {
         border-color: var(--success);
         box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
     }

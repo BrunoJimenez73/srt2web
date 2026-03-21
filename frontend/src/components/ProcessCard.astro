@@ -3,29 +3,72 @@ interface Props {
   id: string;
   icon: string;
   title: string;
-  hasToggle?: boolean;
-  disabled?: boolean;
+  active?: boolean;
 }
 
-const { id, icon, title, hasToggle = false, disabled = false } = Astro.props;
+const { id, icon, title, active = false } = Astro.props;
 ---
 
-<div class:list={["process-card", { disabled }]} id={`card-${id}`}>
-    <div class="process-header">
-        <span class="process-indicator" id={`indicator-${id}`}></span>
-        <span class="process-title">{icon} {title}</span>
-        {hasToggle && (
-            <label class="toggle-switch">
-                <input type="checkbox" id={`${id}-enabled`} />
-                <span class="toggle-slider"></span>
-            </label>
-        )}
-    </div>
-    <div id={`${id}-settings`} class="process-settings">
-        <slot />
-    </div>
+<div class:list={["process-card", { active }]} id={`card-${id}`}>
+  <div class="process-header">
+    <span class="process-indicator" id={`indicator-${id}`}></span>
+    <span class="process-title">{icon} {title}</span>
+  </div>
+  <div class="process-content">
+    <slot />
+  </div>
 </div>
 
 <style>
-    /* Styles moved to BaseLayout.astro for global scope */
+  .process-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    transition: all 0.3s ease;
+  }
+
+  .process-card.active {
+    border-color: var(--success);
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.3) !important;
+  }
+
+  .process-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .process-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: all 0.3s ease;
+  }
+
+  .process-indicator.active {
+    background: #00ff00;
+    box-shadow: 0 0 6px #00ff00, 0 0 12px #00ff00;
+    animation: indicator-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes indicator-pulse {
+    0%, 100% { opacity: 0.8; box-shadow: 0 0 4px #00ff00, 0 0 8px #00ff00; }
+    50% { opacity: 1; box-shadow: 0 0 8px #00ff00, 0 0 16px #00ff00, 0 0 24px #00ff00; }
+  }
+
+  .process-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-prime);
+    flex: 1;
+  }
+
+  .process-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
 </style>

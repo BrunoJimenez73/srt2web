@@ -621,56 +621,7 @@
             background: var(--bg-card-hover);
         }
 
-        /* Advanced Section - Inline */
-        .advanced-section {
-            margin-top: 16px;
-        }
-
-        .advanced-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 12px;
-            background: var(--bg-card);
-            border: 1px solid var(--border-dim);
-            border-radius: var(--radius-md) var(--radius-md) 0 0;
-            cursor: pointer;
-        }
-
-        .advanced-header:hover {
-            background: var(--bg-card-hover);
-        }
-
-        .advanced-title {
-            font-size: 12px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .advanced-toggle-icon {
-            transition: transform 0.3s;
-        }
-
-        .advanced-section.expanded .advanced-toggle-icon {
-            transform: rotate(180deg);
-        }
-
-        .advanced-body {
-            background: var(--bg-card);
-            border: 1px solid var(--border-dim);
-            border-top: none;
-            border-radius: 0 0 var(--radius-md) var(--radius-md);
-            padding: 12px;
-            display: none;
-        }
-
-        .advanced-section.expanded .advanced-body {
-            display: block;
-        }
-
-        /* Modules Grid */
+        /* Modules Grid (for advanced section - now unused, keeping for reference) */
         .modules-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -1095,161 +1046,6 @@
                 </a>
             </div>
         </section>
-
-        <!-- Advanced Section - Inline -->
-        <section class="advanced-section" id="advanced-section">
-            <div class="advanced-header" onclick="toggleAdvanced()">
-                <span class="advanced-title">⚙️ CONFIGURACIÓN AVANZADA</span>
-                <span class="advanced-toggle-icon">▼</span>
-            </div>
-            <div class="advanced-body">
-                <div class="modules-grid">
-                    <!-- Transcription (Whisper) -->
-                    <div class="module-card" id="mod-transcriber">
-                        <div class="module-header">
-                            <span class="module-name"><span class="status-dot" id="status-transcriber"></span> 🎙 Whisper</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="adv-whisper-enabled-2" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        <div class="module-settings">
-                            <div class="form-group">
-                                <label class="form-label">Modelo</label>
-                                <select class="form-select" id="adv-model-2">
-                                    <option value="tiny">tiny</option>
-                                    <option value="small">small</option>
-                                    <option value="medium">medium</option>
-                                    <option value="large-v2">large-v2</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Idioma</label>
-                                <select class="form-select" id="adv-lang-advanced">
-                                    <option value="auto">Auto (Detectar)</option>
-                                    <option value="es">Español</option>
-                                    <option value="en">Inglés</option>
-                                    <option value="fr">Francés</option>
-                                    <option value="de">Alemán</option>
-                                    <option value="it">Italiano</option>
-                                    <option value="pt">Portugués</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Device</label>
-                                <select class="form-select" id="adv-device-advanced">
-                                    <option value="auto">Auto</option>
-                                    <option value="cuda">GPU</option>
-                                    <option value="cpu">CPU</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                     <!-- Video Muxer / HLS -->
-                     <div class="module-card" id="mod-video_muxer">
-                         <div class="module-header">
-                             <span class="module-name"><span class="status-dot" id="status-video_muxer"></span> 📦 HLS Output</span>
-                             <label class="toggle-switch">
-                                 <input type="checkbox" id="adv-muxer-enabled" checked onchange="toggleVideoMuxer()">
-                                 <span class="toggle-slider"></span>
-                             </label>
-                         </div>
-                         <div class="module-settings">
-                             <div class="form-group">
-                                 <label class="form-label">Segmento (s)</label>
-                                  <input type="number" class="form-input" id="adv-seg-advanced" value="15">
-                             </div>
-                             <div class="form-group">
-                                 <label class="form-label">Lista</label>
-                                  <input type="number" class="form-input" id="adv-list-advanced" value="6">
-                             </div>
-                             <div class="form-group">
-                                 <label class="form-label">Offset audio (ms)</label>
-                                  <input type="number" class="form-input" id="adv-offset-advanced" value="0">
-                             </div>
-                             
-                             <!-- Encoder Settings -->
-                             <div style="border-top: 1px solid #444; padding-top: 8px; margin-top: 4px;">
-                                 <div class="form-group" style="margin-bottom: 6px;">
-                                     <label class="form-label" style="color: #888;">⚙️ Encoder</label>
-                                 </div>
-                             </div>
-                             
-                             <div class="form-group">
-                                 <label class="form-label">Modo</label>
-                                  <select class="form-select" id="adv-encoder-mode-advanced">
-                                      <option value="auto">Automático (GPU/CPU)</option>
-                                     <option value="cpu">CPU (libx264)</option>
-                                     <option value="gpu_nvenc">NVIDIA NVENC</option>
-                                     <option value="gpu_amf">AMD AMF</option>
-                                     <option value="gpu_qsv">Intel QSV</option>
-                                 </select>
-                             </div>
-                             
-                             <div class="form-group">
-                                 <label class="form-label">Preset</label>
-                                 <select class="form-select" id="adv-video-quality">
-                                     <option value="ultrafast">Ultrafast</option>
-                                     <option value="superfast">Superfast</option>
-                                     <option value="veryfast">Veryfast</option>
-                                     <option value="faster">Faster</option>
-                                     <option value="fast">Fast</option>
-                                     <option value="medium" selected>Equilibrada</option>
-                                     <option value="slow">Slow</option>
-                                     <option value="slower">Slower</option>
-                                     <option value="veryslow">Veryslow</option>
-                                 </select>
-                             </div>
-                             
-                             <div class="form-group">
-                                  <label class="form-label">CRF <span id="crf-value-advanced">18</span></label>
-                                  <input type="range" class="form-input" id="adv-video-crf-advanced" min="0" max="51" value="18" 
-                                         oninput="document.getElementById('crf-value-advanced').textContent = this.value">
-                             </div>
-                             
-                             <!-- Audio Settings -->
-                             <div style="border-top: 1px solid #444; padding-top: 8px; margin-top: 4px;">
-                                 <div class="form-group" style="margin-bottom: 6px;">
-                                     <label class="form-label" style="color: #888;">🎵 Audio</label>
-                                 </div>
-                             </div>
-                             
-                             <div class="form-group">
-                                 <label class="form-label">Codec</label>
-                                  <select class="form-select" id="adv-audio-codec-advanced">
-                                      <option value="aac" selected>AAC</option>
-                                     <option value="opus">Opus</option>
-                                 </select>
-                             </div>
-                             
-                             <div class="form-group">
-                                 <label class="form-label">Bitrate</label>
-                                 <select class="form-select" id="adv-audio-bitrate">
-                                     <option value="64k">64 kbps</option>
-                                     <option value="96k">96 kbps</option>
-                                     <option value="128k">128 kbps</option>
-                                     <option value="160k">160 kbps</option>
-                                     <option value="192k" selected>192 kbps</option>
-                                     <option value="256k">256 kbps</option>
-                                     <option value="320k">320 kbps</option>
-                                 </select>
-                             </div>
-                             
-                             <div class="form-group">
-                                 <label class="form-label">Sample Rate</label>
-                                 <select class="form-select" id="adv-audio-samplerate">
-                                     <option value="44100">44.1 kHz</option>
-                                     <option value="48000" selected>48 kHz</option>
-                                 </select>
-                             </div>
-                         </div>
-                     </div>
-                </div>
-
-                <button class="btn-start" style="margin-top:12px;width:100%;" onclick="saveConfig()">💾 Guardar Configuración</button>
-            </div>
-        </section>
     </div>
 
     <!-- Toast -->
@@ -1365,16 +1161,16 @@
                 'audio_mixer': 'card-dub',
                 'translator': 'card-translate',
                 'subtitle_generator': 'card-subtitle',
-                'transcriber': 'card-input',
+                'transcriber': 'card-whisper',
                 'audio_extractor': 'card-input'
             };
-            
+
             const moduleToIndicator = {
                 'tts_engine': 'indicator-dub',
                 'audio_mixer': 'indicator-dub',
                 'translator': 'indicator-translate',
                 'subtitle_generator': 'indicator-subtitle',
-                'transcriber': null,
+                'transcriber': 'indicator-whisper',
                 'audio_extractor': null
             };
             
@@ -1400,7 +1196,7 @@
                 if (card) {
                     card.classList.remove('active');
                     if (mod.state === 'running' || mod.state === 'starting') {
-                        card.classList.add('active');
+                    // Card active state removed - only indicators show status
                     }
                 }
                 
@@ -1418,12 +1214,12 @@
             const outputDot = document.getElementById('status-video_muxer');
             
             if (pipelineState === 'running' || pipelineState === 'starting') {
-                outputCard.classList.add('active');
+                                // Output card active state removed - only indicators show status
                 outputIndicator.classList.add('active');
                 outputDot.classList.remove('disabled', 'error');
                 outputDot.classList.add('running');
             } else {
-                outputCard.classList.remove('active');
+                                // Output card active state removed - only indicators show status
                 outputIndicator.classList.remove('active');
                 outputDot.classList.remove('running');
                 outputDot.classList.add('disabled');
@@ -1458,7 +1254,7 @@
                 // Only show green if pipeline is running AND chunks have been processed
                 // (indicates real data flow, not just process running)
                 if (status.state === 'running' && chunksProcessed > 0) {
-                    inputCard.classList.add('active');
+                    // Input card active state removed - only indicators show status
                     inputIndicator.classList.add('active');
                 } else {
                     inputCard.classList.remove('active');
@@ -1770,10 +1566,6 @@
         }
 
         // ── Toggle Functions ──
-        function toggleAdvanced() {
-            document.getElementById('advanced-section').classList.toggle('expanded');
-        }
-
         function updateInputFields() {
             const type = document.getElementById('input-type').value;
             document.getElementById('input-port-group').style.display = (type === 'srt') ? 'block' : 'none';

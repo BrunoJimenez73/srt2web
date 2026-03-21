@@ -20,8 +20,12 @@ logger = logging.getLogger("srt2web.server")
 
 # Resolve paths relative to project root
 PROJECT_ROOT = Path(__file__).parent.parent
-WEB_DIR = PROJECT_ROOT / "web"
 OUTPUT_DIR = PROJECT_ROOT / "output"
+
+# Frontend build output (Astro)
+FRONTEND_DIR = PROJECT_ROOT / "server" / "static"
+# Legacy web files (fallback)
+WEB_DIR = PROJECT_ROOT / "web"
 
 
 def create_app(app_context: dict) -> FastAPI:
@@ -60,7 +64,6 @@ def create_app(app_context: dict) -> FastAPI:
     allowed_origins = []
     for origin in cors_origins:
         if "*" in origin:
-            # Convert localhost:* patterns to actual available ports
             base = origin.replace(":*", "")
             for port in [3000, 5173, 8080, 8089, 8000, 9999]:
                 allowed_origins.append(f"{base}:{port}")
@@ -78,7 +81,7 @@ def create_app(app_context: dict) -> FastAPI:
     # Store context for route handlers
     app.state.ctx = app_context
 
-    # API routes
+    # API routes (prefix /api)
     api_router = create_api_router()
     app.include_router(api_router, prefix="/api")
 
@@ -86,35 +89,47 @@ def create_app(app_context: dict) -> FastAPI:
     ws_router = create_ws_router()
     app.include_router(ws_router)
 
+    # Health check endpoint
+    @app.get("/health")
+    async def health():
+        return {"status": "ok"}
+
     # Serve HLS output files
     hls_dir = OUTPUT_DIR / "hls"
     hls_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/hls", StaticFiles(directory=str(hls_dir)), name="hls")
 
-    # Serve static web files (CSS, JS)
-    if WEB_DIR.exists():
-        app.mount("/css", StaticFiles(directory=str(WEB_DIR / "css")), name="css")
-        app.mount("/js", StaticFiles(directory=str(WEB_DIR / "js")), name="js")
+    # Serve Astro build output (static files with CSS, JS, assets)
+    # Mount AFTER API routes so they don't get intercepted
+    if FRONTEND_DIR.exists():
+        app.mount(
+            "/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend"
+        )
 
-    # Root — serve index.html
+    # Root — serve index.html (from Astro build or fallback to legacy)
     @app.get("/")
     async def serve_index():
+        index_path = FRONTEND_DIR / "index.html"
+        if index_path.exists():
+            return FileResponse(str(index_path), media_type="text/html")
+
         index_path = WEB_DIR / "index.html"
         if index_path.exists():
             return FileResponse(str(index_path), media_type="text/html")
+
         return {"error": "index.html not found"}
 
-    # Clean player page
+    # Player page (from Astro build or fallback)
     @app.get("/player")
     async def serve_player():
+        player_path = FRONTEND_DIR / "player" / "index.html"
+        if player_path.exists():
+            return FileResponse(str(player_path), media_type="text/html")
+
         player_path = WEB_DIR / "player.html"
         if player_path.exists():
             return FileResponse(str(player_path), media_type="text/html")
-        return {"error": "player.html not found"}
 
-    # Health check
-    @app.get("/health")
-    async def health():
-        return {"status": "ok"}
+        return {"error": "player.html not found"}
 
     return app

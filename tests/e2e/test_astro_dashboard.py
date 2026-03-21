@@ -442,11 +442,11 @@ class TestDashboardProcessCards:
             pytest.skip("web/index.html not found")
         assert "card-output" in content
 
-    def test_transcriber_maps_to_input_card(self, content):
-        """Test that transcriber module maps to card-input in updateModuleStatus."""
+    def test_transcriber_maps_to_whisper_card(self, content):
+        """Test that transcriber module maps to card-whisper in updateModuleStatus."""
         if content is None:
             pytest.skip("web/index.html not found")
-        assert "'transcriber': 'card-input'" in content
+        assert "'transcriber': 'card-whisper'" in content
 
     def test_translator_maps_to_translate_card(self, content):
         """Test that translator module maps to card-translate."""

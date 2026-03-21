@@ -277,10 +277,10 @@ class TestStatusIndicatorsMappings:
         assert "'subtitle_generator': 'card-subtitle'" in dashboard_html
         assert "'subtitle_generator': 'indicator-subtitle'" in dashboard_html
 
-    def test_transcriber_maps_to_input_card(self, dashboard_html):
-        """Test that transcriber module maps to card-input."""
+    def test_transcriber_maps_to_whisper_card(self, dashboard_html):
+        """Test that transcriber module maps to card-whisper."""
         if dashboard_html is None:
             pytest.skip("index.html not found")
 
-        assert "'transcriber': 'card-input'" in dashboard_html
-        assert "'transcriber': null" in dashboard_html
+        assert "'transcriber': 'card-whisper'" in dashboard_html
+        assert "'transcriber': 'indicator-whisper'" in dashboard_html

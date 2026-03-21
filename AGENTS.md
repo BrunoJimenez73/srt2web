@@ -684,3 +684,43 @@ python -m pytest tests/unit/ --cov=modules --cov=core --cov-report=term-missing
    - `web/index.html`: Indicadores HLS, separación de módulos
    - `server/api_routes.py`: Validación de dependencias
    - `main.py`: Validación de modelo solo si transcriber habilitado
+
+---
+
+### **Sesión 2026-03-20 - Integrar WHISPER y HLS en Dashboard, Botón Guardar**
+
+**Problema identificado:**
+- Dashboard no tenía cards WHISPER ni HLS OUTPUT en el process-grid
+- Faltaba botón "Guardar Config" en el header
+- Tests E2E fallaban porque referenciaban elementos eliminados
+
+**Cambios realizados:**
+
+1. **Card WHISPER (`web/index.html`)**
+   - Agregado card-whisper con toggle, modelo, idioma, device
+   - Toggle `adv-whisper-enabled` para habilitar/deshabilitar transcripción
+
+2. **Card HLS OUTPUT (`web/index.html`)**
+   - Agregado card-hls con segmento, lista, offset, encoder, CRF, audio codec, bitrate
+   - Todos los campos con IDs `adv-*` para saveConfig()
+
+3. **Botón Guardar Config (`web/index.html`)**
+   - Agregado botón `💾 Guardar Config` en el header
+   - Estilos CSS `.btn-save` agregados
+
+4. **Tests E2E actualizados**
+   - `test_astro_dashboard.py`: Nuevos tests para cards y botón
+   - `test_srt_connection.py`: Tests flexibles que usan ConfigManager
+   - `test_dashboard_page.py`: Actualizado para nuevos IDs
+
+**Resultado:**
+- Dashboard muestra 7 cards: INPUT, WHISPER, TRADUCIR, DOBLAR, SUBTITULAR, HLS OUTPUT, OUTPUT
+- Botón guardar en header funciona correctamente
+- Tests: 504 passed, 16 skipped
+
+**Nota importante:**
+- El config.yaml puede ser sobrescrito por el servidor durante ejecución
+- Si los tests fallan, verificar que `input.srt.listen_port` sea diferente de `server.port`
+- Los modelos Whisper (~4.6GB) fueron eliminados para liberar espacio en disco
+
+**Tests:** 504 passed, 16 skipped
