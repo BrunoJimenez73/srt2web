@@ -1,0 +1,97 @@
+---
+interface Props {
+  version?: string;
+}
+
+const { version = 'Astro' } = Astro.props;
+---
+
+<header class="header">
+  <div class="logo">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+      <circle cx="16" cy="16" r="14" stroke="url(#grad)" stroke-width="2"/>
+      <path d="M10 20L16 10L22 20H10Z" fill="url(#grad)"/>
+      <defs>
+        <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#6366f1"/>
+          <stop offset="100%" stop-color="#a855f7"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    <span class="logo-text">SRT2Web</span>
+    <span class="version-badge">{version}</span>
+  </div>
+  
+  <div class="header-right">
+    <div id="ws-status" class="ws-status disconnected">
+      <span class="ws-status-dot"></span>
+      <span class="ws-status-label">WS OFF</span>
+    </div>
+    <span id="live-clock" class="live-clock">--:--:--</span>
+    <button class="btn-save" id="btn-save-config" onclick="saveConfig()">
+      💾 Guardar Config
+    </button>
+  </div>
+</header>
+
+<style>
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-dim);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  .logo-text {
+    font-size: 18px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .version-badge {
+    background: var(--bg-card);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    color: var(--text-sec);
+    border: 1px solid var(--border-dim);
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .btn-save {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-save:hover {
+    background: var(--accent-hover);
+  }
+</style>

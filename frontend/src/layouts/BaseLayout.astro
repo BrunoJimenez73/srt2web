@@ -228,4 +228,128 @@ const { title } = Astro.props;
     .form-select {
         cursor: pointer;
     }
+
+    /* Live Clock */
+    .live-clock {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        color: var(--text-sec);
+        background: var(--bg-surface);
+        padding: 4px 10px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border-dim);
+        letter-spacing: 0.5px;
+    }
+
+    /* WebSocket Status Indicator */
+    .ws-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        color: var(--text-sec);
+        padding: 4px 8px;
+        border-radius: var(--radius-sm);
+        background: var(--bg-surface);
+        border: 1px solid var(--border-dim);
+    }
+
+    .ws-status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--text-dim);
+        transition: all 0.3s ease;
+    }
+
+    .ws-status.connected .ws-status-dot {
+        background: var(--success);
+        box-shadow: 0 0 6px var(--success);
+    }
+
+    .ws-status.connecting .ws-status-dot {
+        background: var(--warning);
+        animation: blink 1s ease-in-out infinite;
+    }
+
+    .ws-status.disconnected .ws-status-dot {
+        background: var(--error);
+    }
+
+    @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+    }
+
+    /* Metrics Grid */
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 8px;
+        padding: 10px;
+        background: var(--bg-surface);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-dim);
+    }
+
+    .metric-item {
+        text-align: center;
+        padding: 8px;
+        background: var(--bg-card);
+        border-radius: var(--radius-sm);
+    }
+
+    .metric-label {
+        font-size: 10px;
+        color: var(--text-sec);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+
+    .metric-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-prime);
+    }
+
+    .metric-value.success {
+        color: var(--success);
+    }
+
+    .metric-value.warning {
+        color: var(--warning);
+    }
+
+    .metric-value.error {
+        color: var(--error);
+    }
+
+    /* Module Metrics in Cards */
+    .module-metrics {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        font-size: 10px;
+        color: var(--text-sec);
+        padding-top: 8px;
+        border-top: 1px solid var(--border-dim);
+        margin-top: 8px;
+    }
+
+    .module-metric {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .module-metric-label {
+        opacity: 0.7;
+    }
+
+    .module-metric-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 500;
+    }
 </style>

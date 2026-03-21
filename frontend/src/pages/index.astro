@@ -101,7 +101,7 @@ import Toast from '../components/Toast.astro';
 </style>
 
 <script>
-  import { apiCall, getConfig, startPipeline, stopPipeline, connectWebSocket } from '../lib/api';
+  import { apiCall, getConfig, startPipeline, stopPipeline, WSClient } from '../lib/api';
   import { getSRTUrl, getStreamUrl, getPlayerUrl, isLocalhost, copyToClipboard, showToast } from '../lib/utils';
   import type { Config, Status, LogMessage, ModuleName } from '../lib/types';
 
@@ -129,7 +129,7 @@ import Toast from '../components/Toast.astro';
 
   let config: Config | null = null;
   let status: Status | null = null;
-  let ws: WebSocket | null = null;
+  let wsClient: WSClient | null = null;
   let localMode: 'local' | 'remote' = 'local';
   let statusPollInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -154,6 +154,12 @@ import Toast from '../components/Toast.astro';
     //   const el = document.getElementById(id);
     //   if (el) el.classList.toggle('active', state === 'running');
     // });
+    
+    // Update live clock
+    const clock = document.getElementById('live-clock');
+    if (clock) {
+      clock.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+    }
   }
 
     function updateModuleStatus(status: Status): void {
@@ -199,6 +205,60 @@ import Toast from '../components/Toast.astro';
       const statState = document.getElementById('stat-state');
       if (statChunks) statChunks.textContent = String(status.chunks_processed ?? 0);
       if (statState) statState.textContent = status.state;
+      
+      // Update performance metrics for modules
+      updateModulePerformanceMetrics(status.modules);
+    }
+
+    // Update performance metrics display for modules
+    function updateModulePerformanceMetrics(modules: any[]): void {
+      modules.forEach(module => {
+        // Update last process time
+        const timeEl = document.getElementById(`module-time-${module.name}`);
+        if (timeEl) {
+          if (!module.enabled) {
+            timeEl.textContent = 'DISABLED';
+            timeEl.style.color = 'var(--text-dim)';
+          } else if (module.state === 'running') {
+            // Show last process time if available, otherwise show RUNNING
+            const lastProcessTime = module.last_process_time_ms > 0 ? `${module.last_process_time_ms.toFixed(1)}ms` : 'RUNNING';
+            timeEl.textContent = lastProcessTime;
+            timeEl.style.color = 'var(--success)';
+          } else if (module.state === 'error') {
+            timeEl.textContent = 'ERROR';
+            timeEl.style.color = 'var(--error)';
+          } else {
+            timeEl.textContent = 'IDLE';
+            timeEl.style.color = 'var(--text-sec)';
+          }
+        }
+        
+        // Update memory usage if available
+        const memoryEl = document.getElementById(`module-memory-${module.name}`);
+        if (memoryEl && module.memory_mb !== undefined) {
+          memoryEl.textContent = `${module.memory_mb.toFixed(1)} MB`;
+        }
+        
+        // Update processed chunks if available
+        const chunksEl = document.getElementById(`module-chunks-${module.name}`);
+        if (chunksEl && module.processed_chunks !== undefined) {
+          chunksEl.textContent = String(module.processed_chunks);
+        }
+      });
+    }
+
+    // Toggle individual module state via API
+    async function toggleModule(moduleName: string, enabled: boolean): Promise<void> {
+      try {
+        await apiCall('PUT', `/modules/${moduleName}/toggle`, { enabled });
+        // Optionally show a toast or log
+        // showToast(`Module ${moduleName} ${enabled ? 'enabled' : 'disabled'}`, 'success');
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        showToast(`Failed to toggle ${moduleName}: ${msg}`, 'error');
+        // Optionally revert the UI change? We'll rely on the API call to update the state and then we'll refresh via status update.
+        // But for now, we show an error and the user can try again.
+      }
     }
 
   function updateUrls(ip: string | null): void {
@@ -421,10 +481,18 @@ import Toast from '../components/Toast.astro';
         updateUrls(status.network.local_ip);
       }
 
-      ws = connectWebSocket(
-        (msg: LogMessage) => addLog(msg.level, msg.message),
-        () => addLog('error', 'WebSocket desconectado')
-      );
+      wsClient = new WSClient({
+        onLog: (msg: LogMessage) => addLog(msg.level, msg.message),
+        onConnectionChange: (connected: boolean) => {
+          if (!connected) addLog('error', 'WebSocket desconectado');
+        },
+        onStatus: (newStatus: Status) => {
+          status = newStatus;
+          updatePipelineUI(newStatus.state);
+          updateModuleStatus(newStatus);
+        }
+      });
+      wsClient.connect();
 
       statusPollInterval = setInterval(async () => {
         try {
@@ -442,8 +510,19 @@ import Toast from '../components/Toast.astro';
     }
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    setupEventListeners();
-    initDashboard();
-  });
+    document.addEventListener('DOMContentLoaded', () => {
+      setupEventListeners();
+      initDashboard();
+
+      // Live clock
+      setInterval(() => {
+        const clock = document.getElementById('live-clock');
+        if (clock) {
+          clock.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+        }
+      }, 1000);
+    });
+
+    // Expose toggleModule to global scope for use in inline event handlers
+    window.toggleModule = toggleModule;
 </script>
