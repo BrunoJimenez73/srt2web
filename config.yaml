@@ -80,8 +80,8 @@ modules:
     font_size: 1
   tts_engine:
     enabled: true
-    voice: es-ES-ElviraNeural
-    speed: 1.4
+    voice: es-ES-AlvaroNeural
+    speed: 1.2
   audio_mixer:
     enabled: true
     original_volume: 0.7
