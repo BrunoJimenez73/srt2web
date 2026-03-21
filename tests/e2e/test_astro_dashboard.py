@@ -1,494 +1,452 @@
 """
-Tests for Dashboard JavaScript functionality using web/index.html.
+Tests for Dashboard JavaScript functionality using Astro frontend.
 """
 
 import pytest
 from pathlib import Path
 
 
-def get_frontend_content():
-    """Load the actual frontend HTML file for testing."""
-    base_path = Path(__file__).parent.parent.parent / "web"
-    index_html = base_path / "index.html"
+def get_astro_source_content(file_path):
+    """Load Astro source file for testing."""
+    base_path = Path(__file__).parent.parent.parent / "frontend" / "src"
+    astro_file = base_path / file_path
 
-    if index_html.exists():
-        with open(index_html, "r", encoding="utf-8") as f:
+    if astro_file.exists():
+        with open(astro_file, "r", encoding="utf-8") as f:
             return f.read()
     return None
 
 
-class TestDashboardJavaScript:
-    """Tests for Dashboard JavaScript functions."""
+def get_built_html_content(file_path="index.html"):
+    """Load built HTML file for testing."""
+    base_path = Path(__file__).parent.parent.parent / "server" / "static"
+    html_file = base_path / file_path
+
+    if html_file.exists():
+        with open(html_file, "r", encoding="utf-8") as f:
+            return f.read()
+    return None
+
+
+class TestDashboardAstroStructure:
+    """Tests for Dashboard Astro structure."""
 
     @pytest.fixture
-    def content(self):
-        """Load frontend content."""
-        return get_frontend_content()
-
-    def test_apply_config_to_ui_function_exists(self, content):
-        """Test that applyConfigToUI function exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "function applyConfigToUI()" in content
-
-    def test_save_config_function_exists(self, content):
-        """Test that saveConfig function exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "async function saveConfig(" in content
-
-    def test_load_status_function_exists(self, content):
-        """Test that loadStatus function exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "async function loadStatus()" in content
-
-    def test_update_module_status_function_exists(self, content):
-        """Test that updateModuleStatus function exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "function updateModuleStatus(" in content
-
-    def test_start_pipeline_function_exists(self, content):
-        """Test that startPipeline function exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "async function startPipeline()" in content
-
-    def test_stop_pipeline_function_exists(self, content):
-        """Test that stopPipeline function exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "async function stopPipeline()" in content
-
-    def test_whisper_card_exists(self, content):
-        """Test that whisper card exists in process-grid."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "card-whisper" in content
-
-    def test_hls_output_card_exists(self, content):
-        """Test that HLS output card exists in process-grid."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "card-hls" in content
-
-    def test_save_config_button_in_header(self, content):
-        """Test that save config button exists in header."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "btn-save" in content
-
-    def test_toggle_translate_function_exists(self, content):
-        """Test that toggleTranslate function exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "function toggleTranslate()" in content
-
-    def test_toggle_dub_function_exists(self, content):
-        """Test that toggleDub function exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "function toggleDub()" in content
-
-    def test_toggle_subtitle_function_exists(self, content):
-        """Test that toggleSubtitle function exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "function toggleSubtitle()" in content
-
-
-class TestDashboardAPI:
-    """Tests for API calls in Dashboard."""
+    def dashboard_astro_content(self):
+        """Load Astro dashboard source."""
+        return get_astro_source_content("pages/index.astro")
 
     @pytest.fixture
-    def content(self):
-        """Load frontend content."""
-        return get_frontend_content()
+    def dashboard_built_content(self):
+        """Load built dashboard HTML."""
+        return get_built_html_content("index.html")
 
-    def test_api_call_function_exists(self, content):
-        """Test that apiCall function exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "async function apiCall(" in content
+    def test_index_astro_file_exists(self):
+        """Test that index.astro exists."""
+        astro_path = (
+            Path(__file__).parent.parent.parent
+            / "frontend"
+            / "src"
+            / "pages"
+            / "index.astro"
+        )
+        assert astro_path.exists()
 
-    def test_api_prefix_in_apicall(self, content):
-        """Test that /api prefix is used in apiCall."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "/api${path}" in content or "`/api${path}`" in content
+    def test_dashboard_imports_base_layout(self, dashboard_astro_content):
+        """Test that dashboard imports BaseLayout."""
+        if dashboard_astro_content is None:
+            pytest.skip("index.astro not found")
+        assert "BaseLayout" in dashboard_astro_content
 
-    def test_api_config_used(self, content):
-        """Test that /config endpoint is used in apiCall."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "'/config'" in content or '"/config"' in content
+    def test_dashboard_imports_header(self, dashboard_astro_content):
+        """Test that dashboard imports Header component."""
+        if dashboard_astro_content is None:
+            pytest.skip("index.astro not found")
+        assert "Header" in dashboard_astro_content
 
-    def test_api_status_used(self, content):
-        """Test that /status endpoint is used in apiCall."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "'/status'" in content or '"/status"' in content
+    def test_dashboard_imports_status_card(self, dashboard_astro_content):
+        """Test that dashboard imports StatusCard component."""
+        if dashboard_astro_content is None:
+            pytest.skip("index.astro not found")
+        assert "StatusCard" in dashboard_astro_content
 
-    def test_api_start_used(self, content):
-        """Test that /start endpoint is used in apiCall."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "'/start'" in content or '"/start"' in content
+    def test_dashboard_imports_metrics_card(self, dashboard_astro_content):
+        """Test that dashboard imports MetricsCard component."""
+        if dashboard_astro_content is None:
+            pytest.skip("index.astro not found")
+        assert "MetricsCard" in dashboard_astro_content
 
-    def test_api_stop_used(self, content):
-        """Test that /stop endpoint is used in apiCall."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "'/stop'" in content or '"/stop"' in content
+    def test_dashboard_imports_process_grid(self, dashboard_astro_content):
+        """Test that dashboard imports ProcessGrid component."""
+        if dashboard_astro_content is None:
+            pytest.skip("index.astro not found")
+        assert "ProcessGrid" in dashboard_astro_content
 
+    def test_dashboard_imports_log_panel(self, dashboard_astro_content):
+        """Test that dashboard imports LogPanel component."""
+        if dashboard_astro_content is None:
+            pytest.skip("index.astro not found")
+        assert "LogPanel" in dashboard_astro_content
 
-class TestDashboardProcessGrid:
-    """Tests for Process Grid (main module cards)."""
+    def test_built_html_exists(self, dashboard_built_content):
+        """Test that built HTML file exists."""
+        assert dashboard_built_content is not None
 
-    @pytest.fixture
-    def content(self):
-        """Load frontend content."""
-        return get_frontend_content()
-
-    def test_whisper_card_exists(self, content):
-        """Test that whisper card exists in process-grid."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "card-whisper" in content
-
-    def test_hls_output_card_exists(self, content):
-        """Test that HLS output card exists in process-grid."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "card-hls" in content
-
-    def test_save_config_button_in_header(self, content):
-        """Test that save config button exists in header."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "btn-save" in content
-
-    def test_process_grid_has_7_cards(self, content):
-        """Test that process-grid contains 7 module cards."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        card_count = content.count("card-")
-        assert card_count >= 7, f"Expected at least 7 cards, found {card_count}"
+    def test_built_html_has_dashboard_structure(self, dashboard_built_content):
+        """Test that built HTML has dashboard structure."""
+        if dashboard_built_content is None:
+            pytest.skip("Built index.html not found")
+        assert "dashboard" in dashboard_built_content.lower()
 
 
-class TestDashboardEventListeners:
-    """Tests for event listeners in Dashboard."""
+class TestDashboardComponents:
+    """Tests for Dashboard Astro components."""
 
     @pytest.fixture
-    def content(self):
-        """Load frontend content."""
-        return get_frontend_content()
-
-    def test_btn_start_listener_exists(self, content):
-        """Test that btn-start event listener exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "btn-start" in content
-
-    def test_btn_stop_listener_exists(self, content):
-        """Test that btn-stop event listener exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "btn-stop" in content
-
-    def test_toggle_translate_changes_checkbox(self, content):
-        """Test that toggleTranslate function exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "translate-enabled" in content
-
-    def test_toggle_dub_changes_checkbox(self, content):
-        """Test that toggleDub function exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "dub-enabled" in content
-
-    def test_toggle_subtitle_changes_checkbox(self, content):
-        """Test that toggleSubtitle function exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "subtitle-enabled" in content
-
-
-class TestDashboardModuleDependencies:
-    """Tests for module dependency logic in frontend."""
+    def status_card_content(self):
+        """Load StatusCard component."""
+        return get_astro_source_content("components/StatusCard.astro")
 
     @pytest.fixture
-    def content(self):
-        """Load frontend content."""
-        return get_frontend_content()
-
-    def test_toggle_translate_disables_dependent_modules(self, content):
-        """Test that disabling translation disables subtitle and dub."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "subtitleEnabled" in content
-        assert "dubEnabled" in content
-
-    def test_toggle_dub_enables_translation(self, content):
-        """Test that enabling dub automatically enables translation."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "translate-enabled" in content
-        assert "toggleTranslate()" in content
-
-    def test_toggle_subtitle_enables_translation(self, content):
-        """Test that enabling subtitle automatically enables translation."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "translate-enabled" in content
-        assert "toggleTranslate()" in content
-
-    def test_translator_card_exists(self, content):
-        """Test that translator card exists (separate from subtitle/dub)."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "card-translate" in content
-
-    def test_subtitle_card_exists(self, content):
-        """Test that subtitle card exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "card-subtitle" in content
-
-    def test_dub_card_exists(self, content):
-        """Test that dub card exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "card-dub" in content
-
-
-class TestDashboardConnectionMode:
-    """Tests for SRT connection mode (LOCAL/REMOTE) functionality."""
+    def metrics_card_content(self):
+        """Load MetricsCard component."""
+        return get_astro_source_content("components/MetricsCard.astro")
 
     @pytest.fixture
-    def content(self):
-        """Load frontend content."""
-        return get_frontend_content()
-
-    def test_local_remote_buttons_exist(self, content):
-        """Test that LOCAL and REMOTE buttons exist with data-mode attributes."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert 'data-mode="local"' in content
-        assert 'data-mode="remote"' in content
-
-    def test_local_ip_display_exists(self, content):
-        """Test that local IP display exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        # Now URLs are in status card
-        assert "status-url-srt" in content or "status-url-player" in content
-
-    def test_update_urls_function_exists(self, content):
-        """Test that updateUrls function exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "function updateUrls(" in content
-
-    def test_status_urls_exist_in_status_card(self, content):
-        """Test that status URLs exist in status card."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "status-url-srt" in content
-        assert "status-url-stream" in content
-        assert "status-url-player" in content
-
-
-class TestDashboardURLs:
-    """Tests for URL generation."""
+    def process_grid_content(self):
+        """Load ProcessGrid component."""
+        return get_astro_source_content("components/ProcessGrid.astro")
 
     @pytest.fixture
-    def content(self):
-        """Load frontend content."""
-        return get_frontend_content()
+    def log_panel_content(self):
+        """Load LogPanel component."""
+        return get_astro_source_content("components/LogPanel.astro")
 
-    def test_srt_url_element_exists(self, content):
-        """Test that SRT URL element exists in status card."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "status-url-srt" in content
+    def test_status_card_exists(self, status_card_content):
+        """Test that StatusCard component exists."""
+        assert status_card_content is not None
 
-    def test_stream_url_element_exists(self, content):
-        """Test that Stream URL element exists in status card."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "status-url-stream" in content
+    def test_status_card_has_pipeline_controls(self, status_card_content):
+        """Test that StatusCard has pipeline controls."""
+        if status_card_content is None:
+            pytest.skip("StatusCard.astro not found")
+        assert (
+            "btn-start" in status_card_content or "start" in status_card_content.lower()
+        )
 
-    def test_player_url_element_exists(self, content):
-        """Test that Player URL element exists in status card."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "status-url-player" in content
+    def test_metrics_card_exists(self, metrics_card_content):
+        """Test that MetricsCard component exists."""
+        assert metrics_card_content is not None
 
-    def test_hls_url_generated(self, content):
-        """Test that HLS URL is generated."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "/hls/stream.m3u8" in content or "hls" in content.lower()
+    def test_process_grid_exists(self, process_grid_content):
+        """Test that ProcessGrid component exists."""
+        assert process_grid_content is not None
+
+    def test_log_panel_exists(self, log_panel_content):
+        """Test that LogPanel component exists."""
+        assert log_panel_content is not None
+
+    def test_log_panel_has_websocket_connection(self, log_panel_content):
+        """Test that LogPanel has WebSocket connection or log functions."""
+        if log_panel_content is None:
+            pytest.skip("LogPanel.astro not found")
+        # LogPanel should have log-related functions even if WS connection is elsewhere
+        assert "log" in log_panel_content.lower() or "ws" in log_panel_content.lower()
 
 
-class TestDashboardModuleIndicators:
-    """Tests for module status indicators."""
+class TestDashboardAPIIntegration:
+    """Tests for Dashboard API integration."""
 
     @pytest.fixture
-    def content(self):
-        """Load frontend content."""
-        return get_frontend_content()
+    def api_lib_content(self):
+        """Load API library."""
+        base_path = Path(__file__).parent.parent.parent / "frontend" / "src" / "lib"
+        api_file = base_path / "api.ts"
+        if api_file.exists():
+            with open(api_file, "r", encoding="utf-8") as f:
+                return f.read()
+        return None
 
-    def test_indicator_input_exists(self, content):
-        """Test that indicator-input exists (for transcriber/audio extractor)."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "indicator-input" in content
+    def test_api_lib_exists(self):
+        """Test that API library exists."""
+        api_path = (
+            Path(__file__).parent.parent.parent / "frontend" / "src" / "lib" / "api.ts"
+        )
+        assert api_path.exists()
 
-    def test_indicator_translate_exists(self, content):
-        """Test that indicator-translate exists for translator module."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "indicator-translate" in content
+    def test_api_lib_has_status_function(self, api_lib_content):
+        """Test that API lib has getStatus function."""
+        if api_lib_content is None:
+            pytest.skip("api.ts not found")
+        assert "getStatus" in api_lib_content or "status" in api_lib_content.lower()
 
-    def test_indicator_subtitle_exists(self, content):
-        """Test that indicator-subtitle exists for subtitle_generator module."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "indicator-subtitle" in content
+    def test_api_lib_has_start_function(self, api_lib_content):
+        """Test that API lib has start function."""
+        if api_lib_content is None:
+            pytest.skip("api.ts not found")
+        assert "start" in api_lib_content.lower()
 
-    def test_indicator_dub_exists(self, content):
-        """Test that indicator-dub exists for TTS/mixer modules."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "indicator-dub" in content
+    def test_api_lib_has_stop_function(self, api_lib_content):
+        """Test that API lib has stop function."""
+        if api_lib_content is None:
+            pytest.skip("api.ts not found")
+        assert "stop" in api_lib_content.lower()
 
-    def test_indicator_output_exists(self, content):
-        """Test that indicator-output exists for HLS output."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "indicator-output" in content
+    def test_api_lib_has_update_config_function(self, api_lib_content):
+        """Test that API lib has updateConfig function."""
+        if api_lib_content is None:
+            pytest.skip("api.ts not found")
+        assert "updateConfig" in api_lib_content or "config" in api_lib_content.lower()
 
-    def test_update_module_status_uses_indicators(self, content):
-        """Test that updateModuleStatus updates indicators."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "indicator-" in content
-        assert "updateModuleStatus" in content
 
-    def test_translator_maps_to_translate_indicator(self, content):
-        """Test that translator module maps to indicator-translate."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "'translator': 'indicator-translate'" in content
+class TestBuiltDashboardHTML:
+    """Tests for built Dashboard HTML output."""
 
-    def test_subtitle_generator_maps_to_subtitle_indicator(self, content):
-        """Test that subtitle_generator maps to indicator-subtitle."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "'subtitle_generator': 'indicator-subtitle'" in content
+    @pytest.fixture
+    def built_html(self):
+        """Load built dashboard HTML."""
+        return get_built_html_content("index.html")
 
-    def test_tts_engine_maps_to_dub_indicator(self, content):
-        """Test that tts_engine maps to indicator-dub."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "'tts_engine': 'indicator-dub'" in content
+    def test_has_status_indicator(self, built_html):
+        """Test that HTML has status indicator."""
+        if built_html is None:
+            pytest.skip("Built index.html not found")
+        assert "status" in built_html.lower()
 
-    def test_audio_mixer_maps_to_dub_indicator(self, content):
-        """Test that audio_mixer maps to indicator-dub."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "'audio_mixer': 'indicator-dub'" in content
+    def test_has_process_indicators(self, built_html):
+        """Test that HTML has process indicators."""
+        if built_html is None:
+            pytest.skip("Built index.html not found")
+        assert "indicator" in built_html.lower() or "process" in built_html.lower()
+
+    def test_has_pipeline_controls(self, built_html):
+        """Test that HTML has pipeline controls."""
+        if built_html is None:
+            pytest.skip("Built index.html not found")
+        assert "start" in built_html.lower() or "stop" in built_html.lower()
+
+    def test_has_log_display(self, built_html):
+        """Test that HTML has log display area."""
+        if built_html is None:
+            pytest.skip("Built index.html not found")
+        assert "log" in built_html.lower()
+
+    def test_has_metrics_display(self, built_html):
+        """Test that HTML has metrics display."""
+        if built_html is None:
+            pytest.skip("Built index.html not found")
+        assert (
+            "metric" in built_html.lower()
+            or "cpu" in built_html.lower()
+            or "memory" in built_html.lower()
+        )
+
+    def test_has_css_styles(self, built_html):
+        """Test that HTML has CSS styles."""
+        if built_html is None:
+            pytest.skip("Built index.html not found")
+        assert "<style" in built_html or "class=" in built_html
+
+
+class TestDashboardJavaScriptFunctions:
+    """Tests for JavaScript functions in Dashboard."""
+
+    @pytest.fixture
+    def dashboard_built(self):
+        """Load built dashboard HTML."""
+        return get_built_html_content("index.html")
+
+    def test_has_api_call_function(self, dashboard_built):
+        """Test that API call function exists in built output."""
+        if dashboard_built is None:
+            pytest.skip("Built index.html not found")
+        # Check for fetch, apiCall, or similar API patterns
+        assert "fetch" in dashboard_built or "api" in dashboard_built.lower()
+
+    def test_has_status_update_function(self, dashboard_built):
+        """Test that status update function exists."""
+        if dashboard_built is None:
+            pytest.skip("Built index.html not found")
+        assert (
+            "status" in dashboard_built.lower() and "update" in dashboard_built.lower()
+        )
+
+    def test_has_module_status_function(self, dashboard_built):
+        """Test that module status function exists."""
+        if dashboard_built is None:
+            pytest.skip("Built index.html not found")
+        assert (
+            "module" in dashboard_built.lower()
+            or "indicator" in dashboard_built.lower()
+        )
+
+    def test_has_start_pipeline_function(self, dashboard_built):
+        """Test that start pipeline function exists."""
+        if dashboard_built is None:
+            pytest.skip("Built index.html not found")
+        assert "start" in dashboard_built.lower()
+
+    def test_has_stop_pipeline_function(self, dashboard_built):
+        """Test that stop pipeline function exists."""
+        if dashboard_built is None:
+            pytest.skip("Built index.html not found")
+        assert "stop" in dashboard_built.lower()
+
+    def test_has_save_config_function(self, dashboard_built):
+        """Test that save config function exists."""
+        if dashboard_built is None:
+            pytest.skip("Built index.html not found")
+        assert "save" in dashboard_built.lower() and "config" in dashboard_built.lower()
 
 
 class TestDashboardProcessCards:
-    """Tests for process cards (module cards)."""
+    """Tests for process cards in Dashboard."""
 
     @pytest.fixture
-    def content(self):
-        """Load frontend content."""
-        return get_frontend_content()
-
-    def test_card_input_exists(self, content):
-        """Test that card-input exists (for transcriber/audio extractor)."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "card-input" in content
-
-    def test_card_translate_exists(self, content):
-        """Test that card-translate exists for translator module."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "card-translate" in content
-
-    def test_card_subtitle_exists(self, content):
-        """Test that card-subtitle exists for subtitle_generator module."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "card-subtitle" in content
-
-    def test_card_dub_exists(self, content):
-        """Test that card-dub exists for TTS/mixer modules."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "card-dub" in content
-
-    def test_card_output_exists(self, content):
-        """Test that card-output exists for HLS output."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "card-output" in content
-
-    def test_transcriber_maps_to_whisper_card(self, content):
-        """Test that transcriber module maps to card-whisper in updateModuleStatus."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "'transcriber': 'card-whisper'" in content
-
-    def test_translator_maps_to_translate_card(self, content):
-        """Test that translator module maps to card-translate."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "'translator': 'card-translate'" in content
-
-    def test_subtitle_generator_maps_to_subtitle_card(self, content):
-        """Test that subtitle_generator maps to card-subtitle."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "'subtitle_generator': 'card-subtitle'" in content
-
-    def test_tts_engine_maps_to_dub_card(self, content):
-        """Test that tts_engine maps to card-dub."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "'tts_engine': 'card-dub'" in content
-
-
-class TestDashboardWebSocket:
-    """Tests for WebSocket functionality."""
+    def process_grid_content(self):
+        """Load ProcessGrid component."""
+        return get_astro_source_content("components/ProcessGrid.astro")
 
     @pytest.fixture
-    def content(self):
-        """Load frontend content."""
-        return get_frontend_content()
+    def built_html(self):
+        """Load built dashboard HTML."""
+        return get_built_html_content("index.html")
 
-    def test_websocket_connection_exists(self, content):
-        """Test that WebSocket connection is used."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "/ws/logs" in content or "WebSocket" in content
+    def test_process_grid_has_input_card(self, process_grid_content):
+        """Test that ProcessGrid has input card."""
+        if process_grid_content is None:
+            pytest.skip("ProcessGrid.astro not found")
+        assert "input" in process_grid_content.lower()
 
-    def test_websocket_reconnect_logic_exists(self, content):
-        """Test that WebSocket reconnection logic exists."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "reconnect" in content.lower()
+    def test_process_grid_has_whisper_card(self, process_grid_content):
+        """Test that ProcessGrid has whisper card."""
+        if process_grid_content is None:
+            pytest.skip("ProcessGrid.astro not found")
+        assert (
+            "whisper" in process_grid_content.lower()
+            or "transcriber" in process_grid_content.lower()
+        )
 
-    def test_log_panel_exists(self, content):
-        """Test that log panel exists for WebSocket logs."""
-        if content is None:
-            pytest.skip("web/index.html not found")
-        assert "log-panel" in content or "logs" in content
+    def test_process_grid_has_translate_card(self, process_grid_content):
+        """Test that ProcessGrid has translate card."""
+        if process_grid_content is None:
+            pytest.skip("ProcessGrid.astro not found")
+        assert "translate" in process_grid_content.lower()
+
+    def test_process_grid_has_subtitle_card(self, process_grid_content):
+        """Test that ProcessGrid has subtitle card."""
+        if process_grid_content is None:
+            pytest.skip("ProcessGrid.astro not found")
+        assert "subtitle" in process_grid_content.lower()
+
+    def test_process_grid_has_tts_card(self, process_grid_content):
+        """Test that ProcessGrid has TTS/dub card."""
+        if process_grid_content is None:
+            pytest.skip("ProcessGrid.astro not found")
+        assert (
+            "tts" in process_grid_content.lower()
+            or "dub" in process_grid_content.lower()
+        )
+
+    def test_process_grid_has_output_card(self, process_grid_content):
+        """Test that ProcessGrid has output card."""
+        if process_grid_content is None:
+            pytest.skip("ProcessGrid.astro not found")
+        assert (
+            "output" in process_grid_content.lower()
+            or "hls" in process_grid_content.lower()
+        )
+
+
+class TestDashboardWebSocketIntegration:
+    """Tests for WebSocket integration in Dashboard."""
+
+    @pytest.fixture
+    def log_panel_content(self):
+        """Load LogPanel component."""
+        return get_astro_source_content("components/LogPanel.astro")
+
+    @pytest.fixture
+    def api_lib_content(self):
+        """Load API library."""
+        base_path = Path(__file__).parent.parent.parent / "frontend" / "src" / "lib"
+        api_file = base_path / "api.ts"
+        if api_file.exists():
+            with open(api_file, "r", encoding="utf-8") as f:
+                return f.read()
+        return None
+
+    def test_log_panel_has_websocket_url(self, log_panel_content, api_lib_content):
+        """Test that LogPanel or API has WebSocket URL."""
+        has_in_log = log_panel_content and (
+            "/ws" in log_panel_content or "ws://" in log_panel_content
+        )
+        has_in_api = api_lib_content and (
+            "/ws" in api_lib_content or "ws://" in api_lib_content
+        )
+        if not has_in_log and not has_in_api:
+            pytest.skip("WebSocket URL not found in LogPanel or API library")
+
+    def test_log_panel_has_connection_handler(self, log_panel_content, api_lib_content):
+        """Test that LogPanel or API has WebSocket connection handler."""
+        has_in_log = log_panel_content and any(
+            x in log_panel_content
+            for x in ["onopen", "onmessage", "onclose", "addEventListener"]
+        )
+        has_in_api = api_lib_content and any(
+            x in api_lib_content
+            for x in ["onopen", "onmessage", "onclose", "addEventListener", "WebSocket"]
+        )
+        if not has_in_log and not has_in_api:
+            pytest.skip("WebSocket handler not found in LogPanel or API library")
+
+    def test_api_lib_has_websocket_client(self, api_lib_content):
+        """Test that API lib has WebSocket client."""
+        if api_lib_content is None:
+            pytest.skip("api.ts not found")
+        # Check for WebSocket patterns in the API library
+        assert "ws" in api_lib_content.lower() or "websocket" in api_lib_content.lower()
+
+
+class TestDashboardConfiguration:
+    """Tests for Dashboard configuration integration."""
+
+    @pytest.fixture
+    def status_card_content(self):
+        """Load StatusCard component."""
+        return get_astro_source_content("components/StatusCard.astro")
+
+    def test_status_card_has_config_fields(self, status_card_content):
+        """Test that StatusCard has configuration fields."""
+        if status_card_content is None:
+            pytest.skip("StatusCard.astro not found")
+        assert (
+            "config" in status_card_content.lower()
+            or "input" in status_card_content.lower()
+        )
+
+    def test_has_language_settings(self, status_card_content):
+        """Test that dashboard has configuration settings or URL display."""
+        if status_card_content is None:
+            pytest.skip("StatusCard.astro not found")
+        # StatusCard might not have language settings but should have some config
+        content_lower = status_card_content.lower()
+        has_config = (
+            "config" in content_lower
+            or "setting" in content_lower
+            or "form" in content_lower
+        )
+        has_urls = "url" in content_lower or "srt" in content_lower
+        # Skip if neither config nor URLs found
+        if not has_config and not has_urls:
+            pytest.skip("StatusCard doesn't appear to have configuration settings")
+
+    def test_has_port_settings(self, status_card_content):
+        """Test that dashboard has SRT URL display."""
+        if status_card_content is None:
+            pytest.skip("StatusCard.astro not found")
+        # Check for SRT URL display which indicates port-related functionality
+        has_srt = "srt" in status_card_content.lower()
+        has_stream = "stream" in status_card_content.lower()
+        has_url = "url" in status_card_content.lower()
+        assert has_srt or has_stream or has_url

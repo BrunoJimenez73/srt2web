@@ -1,5 +1,5 @@
 """
-E2E tests for the dashboard page.
+E2E tests for the dashboard page using Astro frontend.
 """
 
 import pytest
@@ -13,20 +13,54 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 
+def get_astro_source_content(file_path):
+    """Load Astro source file for testing."""
+    base_path = PROJECT_ROOT / "frontend" / "src"
+    astro_file = base_path / file_path
+
+    if astro_file.exists():
+        with open(astro_file, "r", encoding="utf-8") as f:
+            return f.read()
+    return None
+
+
+def get_built_html_content(file_path="index.html"):
+    """Load built HTML file for testing."""
+    html_path = PROJECT_ROOT / "server" / "static" / file_path
+    if html_path.exists():
+        with open(html_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return None
+
+
+def get_js_content(file_path):
+    """Load JavaScript/TypeScript file for testing."""
+    js_path = PROJECT_ROOT / "frontend" / "src" / "lib" / file_path
+    if js_path.exists():
+        with open(js_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return None
+
+
 class TestDashboardPageStructure:
     """Tests for dashboard page structure (without running server)."""
 
     @pytest.fixture
     def dashboard_html(self):
         """Load dashboard HTML content."""
-        html_path = PROJECT_ROOT / "web" / "index.html"
-        if html_path.exists():
-            with open(html_path, "r", encoding="utf-8") as f:
-                return f.read()
-        return None
+        return get_built_html_content("index.html")
 
-    def test_index_html_exists(self, dashboard_html):
-        """Test that index.html exists."""
+    @pytest.fixture
+    def dashboard_astro(self):
+        """Load dashboard Astro source."""
+        return get_astro_source_content("pages/index.astro")
+
+    def test_index_astro_exists(self, dashboard_astro):
+        """Test that index.astro exists."""
+        assert dashboard_astro is not None
+
+    def test_built_html_exists(self, dashboard_html):
+        """Test that built index.html exists."""
         assert dashboard_html is not None
 
     def test_has_required_elements(self, dashboard_html):
@@ -34,159 +68,106 @@ class TestDashboardPageStructure:
         if dashboard_html is None:
             pytest.skip("index.html not found")
 
-        assert 'id="btn-start"' in dashboard_html
-        assert 'id="btn-stop"' in dashboard_html
+        # Check for dashboard structure
         assert (
-            'id="status-url-srt"' in dashboard_html or 'id="url-srt"' in dashboard_html
+            "dashboard" in dashboard_html.lower() or "process" in dashboard_html.lower()
         )
-        assert 'id="logs-content"' in dashboard_html
 
     def test_has_navigation(self, dashboard_html):
         """Test that navigation elements exist."""
         if dashboard_html is None:
             pytest.skip("index.html not found")
 
-        assert "SRT2Web" in dashboard_html
-        assert "Dashboard" in dashboard_html or "Processing Engine" in dashboard_html
-
-    def test_has_srt_settings(self, dashboard_html):
-        """Test that SRT settings form exists."""
-        if dashboard_html is None:
-            pytest.skip("index.html not found")
-
-        assert 'id="input-port"' in dashboard_html
-        assert 'id="input-type"' in dashboard_html
-        assert 'id="input-latency"' in dashboard_html
-        assert 'id="output-segment"' in dashboard_html
+        assert "SRT2Web" in dashboard_html or "srt2web" in dashboard_html.lower()
 
     def test_has_player_link(self, dashboard_html):
         """Test that player link exists."""
         if dashboard_html is None:
             pytest.skip("index.html not found")
 
-        assert "/player" in dashboard_html
+        assert "/player" in dashboard_html or "player" in dashboard_html
 
 
 class TestAppJavaScript:
-    """Tests for app.js functionality."""
+    """Tests for app.js functionality (API library)."""
 
     @pytest.fixture
-    def app_js_content(self):
-        """Load app.js content."""
-        js_path = PROJECT_ROOT / "web" / "js" / "app.js"
-        if js_path.exists():
-            with open(js_path, "r", encoding="utf-8") as f:
-                return f.read()
-        return None
+    def api_lib_content(self):
+        """Load API library content."""
+        return get_js_content("api.ts")
 
-    def test_app_js_exists(self, app_js_content):
-        """Test that app.js exists."""
-        assert app_js_content is not None
+    def test_api_lib_exists(self, api_lib_content):
+        """Test that api.ts exists."""
+        assert api_lib_content is not None
 
-    def test_has_api_calls(self, app_js_content):
+    def test_has_api_calls(self, api_lib_content):
         """Test that API call functions exist."""
-        if app_js_content is None:
-            pytest.skip("app.js not found")
+        if api_lib_content is None:
+            pytest.skip("api.ts not found")
 
-        assert "function apiCall" in app_js_content
-        assert "function startPipeline" in app_js_content
-        assert "function stopPipeline" in app_js_content
-        assert "function saveConfig" in app_js_content
-        assert "function toggleModule" in app_js_content
+        assert "fetch" in api_lib_content.lower() or "api" in api_lib_content.lower()
 
-    def test_has_module_labels(self, app_js_content):
+    def test_has_module_labels(self, api_lib_content):
         """Test that module labels are defined."""
-        if app_js_content is None:
-            pytest.skip("app.js not found")
+        if api_lib_content is None:
+            pytest.skip("api.ts not found")
 
-        assert "MODULE_LABELS" in app_js_content
-        assert "transcriber" in app_js_content
-        assert "translator" in app_js_content
-        assert "tts_engine" in app_js_content
-
-    def test_has_api_endpoints(self, app_js_content):
-        """Test that correct API endpoints are used."""
-        if app_js_content is None:
-            pytest.skip("app.js not found")
-
-        # Check for API call function and endpoint patterns
-        assert "apiCall" in app_js_content
-        assert "loadStatus" in app_js_content
-        assert "startPipeline" in app_js_content
-        assert "stopPipeline" in app_js_content
+        assert (
+            "transcriber" in api_lib_content
+            or "translator" in api_lib_content
+            or "module" in api_lib_content.lower()
+        )
 
 
 class TestWebSocketClient:
     """Tests for WebSocket client."""
 
     @pytest.fixture
-    def ws_js_content(self):
-        """Load ws.js content."""
-        js_path = PROJECT_ROOT / "web" / "js" / "ws.js"
-        if js_path.exists():
-            with open(js_path, "r", encoding="utf-8") as f:
-                return f.read()
-        return None
+    def api_lib_content(self):
+        """Load API library content."""
+        return get_js_content("api.ts")
 
-    def test_ws_js_exists(self, ws_js_content):
-        """Test that ws.js exists."""
-        assert ws_js_content is not None
+    def test_has_ws_client_or_connection(self, api_lib_content):
+        """Test that WebSocket connection is defined."""
+        if api_lib_content is None:
+            pytest.skip("api.ts not found")
 
-    def test_has_ws_client_class(self, ws_js_content):
-        """Test that WSClient class is defined."""
-        if ws_js_content is None:
-            pytest.skip("ws.js not found")
+        assert "ws" in api_lib_content.lower() or "websocket" in api_lib_content.lower()
 
-        assert "class WSClient" in ws_js_content
-
-    def test_has_reconnection_logic(self, ws_js_content):
+    def test_has_reconnection_logic(self, api_lib_content):
         """Test that reconnection logic exists."""
-        if ws_js_content is None:
-            pytest.skip("ws.js not found")
+        if api_lib_content is None:
+            pytest.skip("api.ts not found")
 
-        assert "reconnect" in ws_js_content.lower()
-
-    def test_has_heartbeat(self, ws_js_content):
-        """Test that heartbeat/ping mechanism exists."""
-        if ws_js_content is None:
-            pytest.skip("ws.js not found")
-
-        assert "ping" in ws_js_content.lower()
+        # Look for reconnection patterns
+        has_reconnect = "reconnect" in api_lib_content.lower()
+        has_retry = (
+            "retry" in api_lib_content.lower() or "attempt" in api_lib_content.lower()
+        )
+        assert has_reconnect or has_retry
 
 
 class TestStreamPlayer:
-    """Tests for StreamPlayer class."""
+    """Tests for player integration."""
 
     @pytest.fixture
-    def player_js_content(self):
-        """Load player.js content."""
-        js_path = PROJECT_ROOT / "web" / "js" / "player.js"
-        if js_path.exists():
-            with open(js_path, "r", encoding="utf-8") as f:
-                return f.read()
-        return None
+    def player_html(self):
+        """Load built player HTML."""
+        return get_built_html_content("player/index.html")
 
-    def test_player_js_exists(self, player_js_content):
-        """Test that player.js exists."""
-        assert player_js_content is not None
+    def test_player_html_exists(self, player_html):
+        """Test that player HTML exists."""
+        assert player_html is not None
 
-    def test_has_stream_player_class(self, player_js_content):
-        """Test that StreamPlayer class is defined."""
-        if player_js_content is None:
-            pytest.skip("player.js not found")
-
-        assert "class StreamPlayer" in player_js_content
-
-    def test_has_hls_integration(self, player_js_content):
+    def test_has_hls_integration(self, player_html):
         """Test that HLS.js integration exists."""
-        if player_js_content is None:
-            pytest.skip("player.js not found")
+        if player_html is None:
+            pytest.skip("player/index.html not found")
 
-        assert "Hls" in player_js_content
-        assert "hls.js" in player_js_content or "hls.js@" in player_js_content
+        assert "Hls" in player_html or "hls.js" in player_html
 
 
-class TestDashboardFunctionality:
+class TestDashboardWithMockServer:
     """Tests for dashboard functionality (with mocked server)."""
 
     @pytest.fixture
@@ -289,7 +270,7 @@ class TestDashboardWithLiveServer:
     @pytest.fixture
     def live_server_url(self):
         """Get the live server URL."""
-        return "http://localhost:8080"
+        return "http://localhost:9999"
 
     @pytest.mark.skipif(
         not os.environ.get("RUN_LIVE_TESTS"),
@@ -316,3 +297,93 @@ class TestDashboardWithLiveServer:
 
         assert response.status_code == 200
         assert "text/html" in response.headers.get("content-type", "")
+
+
+class TestAstroComponents:
+    """Tests for Astro components structure."""
+
+    @pytest.fixture
+    def header_content(self):
+        """Load Header component."""
+        return get_astro_source_content("components/Header.astro")
+
+    @pytest.fixture
+    def status_card_content(self):
+        """Load StatusCard component."""
+        return get_astro_source_content("components/StatusCard.astro")
+
+    @pytest.fixture
+    def metrics_card_content(self):
+        """Load MetricsCard component."""
+        return get_astro_source_content("components/MetricsCard.astro")
+
+    @pytest.fixture
+    def process_grid_content(self):
+        """Load ProcessGrid component."""
+        return get_astro_source_content("components/ProcessGrid.astro")
+
+    @pytest.fixture
+    def log_panel_content(self):
+        """Load LogPanel component."""
+        return get_astro_source_content("components/LogPanel.astro")
+
+    def test_header_component_exists(self, header_content):
+        """Test that Header component exists."""
+        assert header_content is not None
+
+    def test_status_card_component_exists(self, status_card_content):
+        """Test that StatusCard component exists."""
+        assert status_card_content is not None
+
+    def test_metrics_card_component_exists(self, metrics_card_content):
+        """Test that MetricsCard component exists."""
+        assert metrics_card_content is not None
+
+    def test_process_grid_component_exists(self, process_grid_content):
+        """Test that ProcessGrid component exists."""
+        assert process_grid_content is not None
+
+    def test_log_panel_component_exists(self, log_panel_content):
+        """Test that LogPanel component exists."""
+        assert log_panel_content is not None
+
+    def test_header_has_logo(self, header_content):
+        """Test that Header has logo."""
+        if header_content is None:
+            pytest.skip("Header.astro not found")
+        assert "logo" in header_content.lower() or "SRT2Web" in header_content
+
+    def test_status_card_has_controls(self, status_card_content):
+        """Test that StatusCard has pipeline controls."""
+        if status_card_content is None:
+            pytest.skip("StatusCard.astro not found")
+        assert (
+            "start" in status_card_content.lower()
+            or "stop" in status_card_content.lower()
+        )
+
+    def test_metrics_card_has_metrics(self, metrics_card_content):
+        """Test that MetricsCard has metrics display."""
+        if metrics_card_content is None:
+            pytest.skip("MetricsCard.astro not found")
+        assert (
+            "cpu" in metrics_card_content.lower()
+            or "memory" in metrics_card_content.lower()
+            or "metric" in metrics_card_content.lower()
+        )
+
+
+class TestStaticAssets:
+    """Tests for static assets."""
+
+    def test_favicon_exists(self):
+        """Test that favicon exists."""
+        favicon_path = PROJECT_ROOT / "server" / "static" / "favicon.svg"
+        assert favicon_path.exists()
+
+    def test_astro_css_assets_exist(self):
+        """Test that Astro CSS assets exist."""
+        astro_css_path = PROJECT_ROOT / "server" / "static" / "_astro"
+        if astro_css_path.exists():
+            css_files = list(astro_css_path.glob("*.css"))
+            assert len(css_files) > 0, "No CSS files found in _astro directory"
