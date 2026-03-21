@@ -80,12 +80,13 @@ modules:
     font_size: 1
   tts_engine:
     enabled: true
-    voice: es-ES-AlvaroNeural
-    speed: 1.2
+    voice: es-ES-ElviraNeural
+    speed: 1.4
   audio_mixer:
     enabled: true
-    original_volume: 0.8
-    dubbed_volume: 1.1
+    original_volume: 0.7
+    dubbed_volume: 1.4
+    tts_volume: 1.1
   video_muxer:
     enabled: true
     hls_segment_duration: 10
