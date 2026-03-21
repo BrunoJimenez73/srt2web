@@ -3,107 +3,119 @@ const pageTitle = "SRT2Web — Live Player";
 ---
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{pageTitle}</title>
-    <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #000;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        #video-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-
-        #video-player {
-            width: 100%;
-            height: 100%;
-            background-color: #000;
-            object-fit: contain;
-        }
-
-        ::cue {
-            background-color: rgba(0, 0, 0, 0.8) !important;
-            color: #fff !important;
-            font-family: 'Inter', system-ui, sans-serif;
-            font-size: 1.2em !important;
-            font-weight: 500;
-            padding: 4px 8px;
-        }
-        
-        video::-webkit-media-text-track-display {
-            background-color: rgba(0, 0, 0, 0.8) !important;
-        }
-
-        .waiting-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: rgba(255,255,255,0.6);
-            font-family: 'Inter', system-ui, sans-serif;
-            text-align: center;
-            pointer-events: none;
-            font-size: 18px;
-        }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div id="video-container">
         <video id="video-player" controls autoplay playsinline crossorigin="anonymous"></video>
         <div id="waiting" class="waiting-text">Esperando stream...</div>
     </div>
-
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.1"></script>
-    <script>
-        let hls = null;
-        let userPreference = null;
-        let subtitleTrackElement = null;
-        let subtitleLanguageName = '';
-        const video = document.getElementById('video-player');
-        const waiting = document.getElementById('waiting');
+</body>
+</html>
 
-        async function loadVTT() {
+<style>
+    :root {
+        --bg-deep: #0a0a0f;
+        --accent: #6366f1;
+    }
+
+    body, html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #000;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-family: 'Inter', system-ui, sans-serif;
+    }
+    
+    #video-container {
+        width: 100%;
+        height: 100%;
+        position: relative;
+    }
+
+    #video-player {
+        width: 100%;
+        height: 100%;
+        background-color: #000;
+        object-fit: contain;
+    }
+
+    ::cue {
+        background-color: rgba(0, 0, 0, 0.8) !important;
+        color: #fff !important;
+        font-family: 'Inter', system-ui, sans-serif;
+        font-size: 1.2em !important;
+        font-weight: 500;
+        padding: 4px 8px;
+    }
+    
+    video::-webkit-media-text-track-display {
+        background-color: rgba(0, 0, 0, 0.8) !important;
+    }
+
+    .waiting-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: rgba(255,255,255,0.6);
+        text-align: center;
+        pointer-events: none;
+        font-size: 18px;
+    }
+</style>
+
+    <script>
+        declare const Hls: typeof import('hls.js');
+
+        let hls: InstanceType<typeof Hls> | null = null;
+        let userPreference: boolean | null = null;
+        let subtitleTrackElement: HTMLTrackElement | null = null;
+        let subtitleLanguageName = '';
+        let lastVTTContent = '';
+
+        const video = document.getElementById('video-player') as HTMLVideoElement;
+        const waiting = document.getElementById('waiting') as HTMLDivElement;
+
+        async function loadVTT(): Promise<void> {
             try {
-                const response = await fetch('/hls/subs.vtt?_=' + Date.now());
+                const response = await fetch(`/hls/subs.vtt?_=${Date.now()}`);
                 if (!response.ok) return;
-                
+
                 const vttContent = await response.text();
-                
-                if (window.lastVTTContent === vttContent) return;
-                window.lastVTTContent = vttContent;
-                
+
+                if (lastVTTContent === vttContent) return;
+                lastVTTContent = vttContent;
+
                 console.log('VTT content changed, updating track');
-                
+
                 const vttBlob = new Blob([vttContent], { type: 'text/vtt; charset=utf-8' });
                 const vttUrl = URL.createObjectURL(vttBlob);
-                
+
                 if (subtitleTrackElement) {
                     const oldSrc = subtitleTrackElement.src;
                     subtitleTrackElement.src = vttUrl;
-                    
+
                     if (!document.contains(subtitleTrackElement)) {
                         video.appendChild(subtitleTrackElement);
-                        console.log('Re-appended subtitle track to video');
                     }
-                    
+
                     if (oldSrc && oldSrc.startsWith('blob:')) {
                         URL.revokeObjectURL(oldSrc);
                     }
-                    
-                    console.log('Updated subtitle track with new VTT content');
                 } else {
                     subtitleTrackElement = document.createElement('track');
                     subtitleTrackElement.kind = 'subtitles';
@@ -111,14 +123,12 @@ const pageTitle = "SRT2Web — Live Player";
                     subtitleTrackElement.srclang = 'es';
                     subtitleTrackElement.src = vttUrl;
                     subtitleTrackElement.default = true;
-                    
+
                     video.appendChild(subtitleTrackElement);
-                    console.log('Created and appended subtitle track element');
-                    
+
                     subtitleTrackElement.addEventListener('load', () => {
-                        console.log('Subtitle track loaded for the first time');
                         const shouldShow = userPreference !== null ? userPreference : true;
-                        
+
                         if (shouldShow) {
                             for (let i = 0; i < video.textTracks.length; i++) {
                                 if (video.textTracks[i].kind === 'subtitles') {
@@ -128,16 +138,16 @@ const pageTitle = "SRT2Web — Live Player";
                         }
                     });
                 }
-                
+
             } catch(e) {
                 console.log('VTT load error:', e);
             }
         }
-        
+
         setInterval(loadVTT, 1000);
         loadVTT();
 
-        function initPlayer() {
+        function initPlayer(): void {
             if (Hls.isSupported()) {
                 hls = new Hls({
                     enableWorker: true,
@@ -152,39 +162,31 @@ const pageTitle = "SRT2Web — Live Player";
                 hls.on(Hls.Events.MANIFEST_PARSED, () => {
                     video.play().catch(() => {});
                     waiting.style.display = 'none';
-                    
-                    console.log('Manifest parsed. Subtitle tracks:', hls.subtitleTracks);
-                    
-                    if (hls.subtitleTracks.length > 0) {
+
+                    if (hls && hls.subtitleTracks.length > 0) {
                         const firstTrack = hls.subtitleTracks[0];
-                        console.log('First subtitle track:', firstTrack);
                         if (firstTrack.name) {
                             subtitleLanguageName = firstTrack.name;
-                            console.log('Subtitle language from manifest:', subtitleLanguageName);
                         }
-                        if (firstTrack.lang) {
-                            console.log('Subtitle language code:', firstTrack.lang);
-                            if (subtitleTrackElement) {
-                                subtitleTrackElement.srclang = firstTrack.lang;
-                            }
+                        if (firstTrack.lang && subtitleTrackElement) {
+                            subtitleTrackElement.srclang = firstTrack.lang;
                         }
                         if (subtitleTrackElement) {
                             subtitleTrackElement.label = subtitleLanguageName;
-                            console.log('Updated subtitle track label:', subtitleLanguageName);
                         }
-                        
+                        // Disable HLS.js subtitle tracks to prevent duplicate entries in menu
                         hls.subtitleTracks.forEach((track, index) => {
                             console.log('Disabling HLS.js subtitle track:', track.name || index);
                         });
-                        hls.subtitleTracks.length = 0;
+                        hls.subtitleTracks.length = 0; // Clear to prevent UI showing them
                     }
-                    
+
                     setTimeout(() => {
                         const trackCount = video.textTracks.length;
-                        
                         for (let i = 0; i < trackCount; i++) {
                             const track = video.textTracks[i];
                             if (track.kind === 'subtitles') {
+                                // Keep the first subtitle track (our manual one)
                                 if (i === 0) {
                                     track.mode = 'showing';
                                     console.log('Kept manual track (first) with label:', track.label);
@@ -197,20 +199,21 @@ const pageTitle = "SRT2Web — Live Player";
                     }, 500);
                 });
 
-                hls.on(Hls.Events.ERROR, (e, data) => {
+                hls.on(Hls.Events.ERROR, (_e, data) => {
                     console.log('HLS Error:', data.type, data.details);
                     if (data.fatal) {
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
-                                hls.startLoad();
+                                hls?.startLoad();
                                 break;
                             case Hls.ErrorTypes.MEDIA_ERROR:
-                                hls.recoverMediaError();
+                                hls?.recoverMediaError();
                                 break;
                         }
                     }
                 });
-                
+
+                // Update subtitle language info when tracks are added
                 hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (event, data) => {
                     console.log('Subtitle tracks updated:', data);
                     if (hls.subtitleTracks.length > 0) {
@@ -219,28 +222,35 @@ const pageTitle = "SRT2Web — Live Player";
                             subtitleLanguageName = firstTrack.name;
                             console.log('Subtitle language from tracks:', subtitleLanguageName);
                         }
+                        // Update our manual track label
                         if (subtitleTrackElement) {
                             subtitleTrackElement.label = subtitleLanguageName;
                             console.log('Updated manual track label to:', subtitleLanguageName);
                         }
                     }
                 });
-                
+
+                // Additional subtitle event listeners for robustness
                 hls.on(Hls.Events.SUBTITLE_TRACK_SWITCH, (event, data) => {
                     console.log('Subtitle track switched:', data);
                 });
-                
+
                 hls.on(Hls.Events.SUBTITLE_FRAG_PROCESSED, (event, data) => {
                     console.log('Subtitle fragment processed:', data);
                 });
-                
+
+                // Keep one debug listener for SUBTITLE_TRACKS_UPDATED
+                hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (event, data) => {
+                    console.log('Subtitle tracks updated:', data);
+                });
+
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                 video.src = '/hls/master.m3u8';
             }
         }
 
-        function setupSubtitleChangeListener() {
-            const setupTrackListeners = () => {
+        function setupSubtitleChangeListener(): void {
+            const setupTrackListeners = (): void => {
                 for (let i = 0; i < video.textTracks.length; i++) {
                     const track = video.textTracks[i];
                     if (track.kind === 'subtitles') {
@@ -249,21 +259,20 @@ const pageTitle = "SRT2Web — Live Player";
                     }
                 }
             };
-            
-            const handleModeChange = (event) => {
-                const track = event.target;
+
+            const handleModeChange = (event: Event): void => {
+                const track = event.target as TextTrack;
                 if (track.kind === 'subtitles') {
                     userPreference = track.mode === 'showing';
-                    console.log('Subtitle mode changed to:', track.mode, '(userPreference:', userPreference + ')');
                 }
             };
-            
+
             if (video.textTracks.length > 0) {
                 setupTrackListeners();
             } else {
                 video.addEventListener('loadedmetadata', setupTrackListeners);
             }
-            
+
             setInterval(setupTrackListeners, 2000);
         }
 
@@ -271,13 +280,11 @@ const pageTitle = "SRT2Web — Live Player";
             loadVTT();
             initPlayer();
             setupSubtitleChangeListener();
-            
-            const checkInterval = setInterval(() => {
+
+            setInterval(() => {
                 if (!hls || hls.state === 'ERROR') {
                     initPlayer();
                 }
             }, 5000);
         });
     </script>
-</body>
-</html>
