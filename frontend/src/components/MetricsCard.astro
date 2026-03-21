@@ -36,16 +36,17 @@ const { title = 'System Metrics' } = Astro.props;
         <span class="metric-percent" id="metric-memory-percent">0%</span>
       </div>
     </div>
-    <div class="metric-item" id="metric-chunks">
+    <div class="metric-item" id="metric-gpu">
       <div class="metric-info">
-        <span class="metric-icon">📦</span>
-        <span class="metric-label">Chunks</span>
+        <span class="metric-icon">🎮</span>
+        <span class="metric-label">GPU</span>
       </div>
       <div class="metric-bar-container">
-        <div class="metric-bar chunk-bar" id="metric-chunks-bar" style="width: 0%"></div>
+        <div class="metric-bar gpu-bar" id="metric-gpu-bar" style="width: 0%"></div>
       </div>
       <div class="metric-values">
-        <span class="metric-value" id="metric-chunks-value">0</span>
+        <span class="metric-value" id="metric-gpu-value">0%</span>
+        <span class="metric-percent" id="metric-gpu-memory">N/A</span>
       </div>
     </div>
     <div class="metric-item" id="metric-throughput">
@@ -57,7 +58,7 @@ const { title = 'System Metrics' } = Astro.props;
         <div class="metric-bar throughput-bar" id="metric-throughput-bar" style="width: 0%"></div>
       </div>
       <div class="metric-values">
-        <span class="metric-value" id="metric-throughput-value">0 msg/s</span>
+        <span class="metric-value" id="metric-throughput-value">0/s</span>
       </div>
     </div>
   </div>
@@ -176,6 +177,10 @@ const { title = 'System Metrics' } = Astro.props;
 
   #metric-throughput-bar {
     background: linear-gradient(90deg, #06b6d4, #10b981);
+  }
+
+  #metric-gpu-bar {
+    background: linear-gradient(90deg, #f97316, #ec4899);
   }
 
   .metric-bar.low {

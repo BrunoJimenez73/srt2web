@@ -371,11 +371,14 @@ class Pipeline:
         return status
 
     def _get_system_metrics(self) -> dict:
-        """Get system metrics like CPU and memory usage."""
+        """Get system metrics like CPU, memory, and GPU usage."""
         metrics = {
             "cpu_percent": 0.0,
             "memory_mb": 0.0,
             "memory_percent": 0.0,
+            "gpu_percent": 0.0,
+            "gpu_memory_mb": 0.0,
+            "gpu_available": False,
             "available": False,
         }
         try:
@@ -392,4 +395,20 @@ class Pipeline:
             logger.debug("psutil not available for system metrics")
         except Exception as e:
             logger.debug(f"Error getting system metrics: {e}")
+
+        # Try to get GPU metrics
+        try:
+            import GPUtil
+
+            gpus = GPUtil.getGPUs()
+            if gpus:
+                gpu = gpus[0]
+                metrics["gpu_percent"] = round(gpu.load * 100, 1)
+                metrics["gpu_memory_mb"] = round(gpu.memoryUsed, 1)
+                metrics["gpu_available"] = True
+        except ImportError:
+            logger.debug("GPUtil not available for GPU metrics")
+        except Exception as e:
+            logger.debug(f"Error getting GPU metrics: {e}")
+
         return metrics

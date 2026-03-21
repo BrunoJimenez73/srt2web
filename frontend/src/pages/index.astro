@@ -261,16 +261,32 @@ import Toast from '../components/Toast.astro';
         memItem.className = memPct > 90 ? 'metric-item critical' : memPct > 70 ? 'metric-item warning' : '';
       }
       
-      // Chunks processed
-      const chunksBar = document.getElementById('metric-chunks-bar');
-      const chunksValue = document.getElementById('metric-chunks-value');
-      if (chunksBar && chunksValue) {
-        const chunks = status.chunks_processed ?? 0;
-        chunksValue.textContent = String(chunks);
-        
-        // Animate bar based on chunks (max at 100 chunks, then reset visual)
-        const displayChunks = chunks % 100;
-        chunksBar.style.width = `${displayChunks}%`;
+      // GPU metric
+      const gpuBar = document.getElementById('metric-gpu-bar');
+      const gpuValue = document.getElementById('metric-gpu-value');
+      const gpuMemory = document.getElementById('metric-gpu-memory');
+      const gpuItem = document.getElementById('metric-gpu');
+      if (gpuBar && gpuValue && gpuMemory && gpuItem) {
+        if (system?.gpu_available) {
+          const gpuPct = system.gpu_percent;
+          const gpuMemMb = system.gpu_memory_mb;
+          gpuBar.style.width = `${Math.min(gpuPct, 100)}%`;
+          gpuValue.textContent = `${gpuPct.toFixed(1)}%`;
+          gpuMemory.textContent = `${gpuMemMb.toFixed(0)} MB`;
+          
+          // Color coding based on GPU usage
+          gpuBar.className = 'metric-bar';
+          if (gpuPct < 50) gpuBar.classList.add('low');
+          else if (gpuPct < 80) gpuBar.classList.add('medium');
+          else gpuBar.classList.add('high');
+          
+          gpuItem.className = gpuPct > 90 ? 'metric-item critical' : gpuPct > 70 ? 'metric-item warning' : '';
+        } else {
+          gpuBar.style.width = '0%';
+          gpuValue.textContent = 'N/A';
+          gpuMemory.textContent = 'N/A';
+          gpuItem.className = 'metric-item';
+        }
       }
       
       // Throughput calculation
