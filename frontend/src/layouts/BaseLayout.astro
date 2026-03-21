@@ -352,4 +352,70 @@ const { title } = Astro.props;
         font-family: 'JetBrains Mono', monospace;
         font-weight: 500;
     }
+
+    /* Config Saved Indicator */
+    .config-saved-indicator {
+        font-size: 9px;
+        color: var(--success);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        margin-left: 4px;
+    }
+
+    /* Slider/Range Input Styles */
+    input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 6px;
+        background: var(--bg-deep);
+        border-radius: 3px;
+        outline: none;
+        padding: 0;
+        margin: 8px 0;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--accent);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 0 4px rgba(99, 102, 241, 0.4);
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+        box-shadow: 0 0 8px rgba(99, 102, 241, 0.6);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--accent);
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s ease;
+        box-shadow: 0 0 4px rgba(99, 102, 241, 0.4);
+    }
+
+    input[type="range"]::-moz-range-thumb:hover {
+        transform: scale(1.2);
+        box-shadow: 0 0 8px rgba(99, 102, 241, 0.6);
+    }
+
+    /* Number Input with Spinners */
+    input[type="number"] {
+        -moz-appearance: textfield;
+    }
+
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
 </style>

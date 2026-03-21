@@ -1,0 +1,229 @@
+---
+interface Props {
+  title?: string;
+}
+
+const { title = 'System Metrics' } = Astro.props;
+---
+
+<div class="metrics-card" id="metrics-card">
+  <div class="metrics-header">
+    <span class="metrics-title">{title}</span>
+  </div>
+  <div class="metrics-grid">
+    <div class="metric-item" id="metric-cpu">
+      <div class="metric-info">
+        <span class="metric-icon">⚡</span>
+        <span class="metric-label">CPU</span>
+      </div>
+      <div class="metric-bar-container">
+        <div class="metric-bar" id="metric-cpu-bar" style="width: 0%"></div>
+      </div>
+      <div class="metric-values">
+        <span class="metric-value" id="metric-cpu-value">0%</span>
+      </div>
+    </div>
+    <div class="metric-item" id="metric-memory">
+      <div class="metric-info">
+        <span class="metric-icon">🧠</span>
+        <span class="metric-label">Memory</span>
+      </div>
+      <div class="metric-bar-container">
+        <div class="metric-bar" id="metric-memory-bar" style="width: 0%"></div>
+      </div>
+      <div class="metric-values">
+        <span class="metric-value" id="metric-memory-value">0 MB</span>
+        <span class="metric-percent" id="metric-memory-percent">0%</span>
+      </div>
+    </div>
+    <div class="metric-item" id="metric-chunks">
+      <div class="metric-info">
+        <span class="metric-icon">📦</span>
+        <span class="metric-label">Chunks</span>
+      </div>
+      <div class="metric-bar-container">
+        <div class="metric-bar chunk-bar" id="metric-chunks-bar" style="width: 0%"></div>
+      </div>
+      <div class="metric-values">
+        <span class="metric-value" id="metric-chunks-value">0</span>
+      </div>
+    </div>
+    <div class="metric-item" id="metric-throughput">
+      <div class="metric-info">
+        <span class="metric-icon">📊</span>
+        <span class="metric-label">Throughput</span>
+      </div>
+      <div class="metric-bar-container">
+        <div class="metric-bar throughput-bar" id="metric-throughput-bar" style="width: 0%"></div>
+      </div>
+      <div class="metric-values">
+        <span class="metric-value" id="metric-throughput-value">0 msg/s</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .metrics-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+
+  .metrics-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-dim);
+  }
+
+  .metrics-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-prime);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  @media (max-width: 600px) {
+    .metrics-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .metric-item {
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    transition: all 0.3s ease;
+  }
+
+  .metric-item:hover {
+    background: var(--bg-card-hover);
+  }
+
+  .metric-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .metric-icon {
+    font-size: 12px;
+  }
+
+  .metric-label {
+    font-size: 10px;
+    color: var(--text-sec);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+  }
+
+  .metric-bar-container {
+    height: 6px;
+    background: var(--bg-deep);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+
+  .metric-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease, background-color 0.3s ease;
+    position: relative;
+  }
+
+  .metric-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%);
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  #metric-cpu-bar {
+    background: linear-gradient(90deg, #22c55e, #84cc16);
+  }
+
+  #metric-memory-bar {
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  }
+
+  #metric-chunks-bar {
+    background: linear-gradient(90deg, #f59e0b, #ef4444);
+  }
+
+  #metric-throughput-bar {
+    background: linear-gradient(90deg, #06b6d4, #10b981);
+  }
+
+  .metric-bar.low {
+    background: linear-gradient(90deg, #22c55e, #16a34a) !important;
+  }
+
+  .metric-bar.medium {
+    background: linear-gradient(90deg, #f59e0b, #d97706) !important;
+  }
+
+  .metric-bar.high {
+    background: linear-gradient(90deg, #ef4444, #dc2626) !important;
+  }
+
+  .metric-values {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .metric-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-prime);
+  }
+
+  .metric-percent {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-sec);
+  }
+
+  .metric-item.warning .metric-bar {
+    animation: pulse-warning 1s ease-in-out infinite;
+  }
+
+  .metric-item.critical .metric-bar {
+    animation: pulse-critical 0.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse-warning {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  @keyframes pulse-critical {
+    0%, 100% { opacity: 1; box-shadow: 0 0 8px #ef4444; }
+    50% { opacity: 0.6; box-shadow: 0 0 16px #ef4444; }
+  }
+</style>

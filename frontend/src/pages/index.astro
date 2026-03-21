@@ -2,6 +2,7 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import StatusCard from '../components/StatusCard.astro';
+import MetricsCard from '../components/MetricsCard.astro';
 import ProcessGrid from '../components/ProcessGrid.astro';
 import LogPanel from '../components/LogPanel.astro';
 import Toast from '../components/Toast.astro';
@@ -11,6 +12,7 @@ import Toast from '../components/Toast.astro';
   <div class="dashboard">
     <Header version="Astro" />
     <StatusCard />
+    <MetricsCard />
     <ProcessGrid />
     <LogPanel />
   </div>
@@ -206,8 +208,90 @@ import Toast from '../components/Toast.astro';
       if (statChunks) statChunks.textContent = String(status.chunks_processed ?? 0);
       if (statState) statState.textContent = status.state;
       
+      // Update system metrics
+      updateSystemMetrics(status);
+      
       // Update performance metrics for modules
       updateModulePerformanceMetrics(status.modules);
+    }
+
+    // Update system metrics display (CPU, Memory, Chunks, Throughput)
+    let lastChunksProcessed = 0;
+    let throughputHistory: number[] = [];
+    
+    function updateSystemMetrics(status: Status): void {
+      const system = status.system;
+      
+      // CPU metric
+      const cpuBar = document.getElementById('metric-cpu-bar');
+      const cpuValue = document.getElementById('metric-cpu-value');
+      const cpuItem = document.getElementById('metric-cpu');
+      if (cpuBar && cpuValue && cpuItem && system?.available) {
+        const cpu = system.cpu_percent;
+        cpuBar.style.width = `${Math.min(cpu, 100)}%`;
+        cpuValue.textContent = `${cpu.toFixed(1)}%`;
+        
+        // Color coding based on CPU usage
+        cpuBar.className = 'metric-bar';
+        if (cpu < 50) cpuBar.classList.add('low');
+        else if (cpu < 80) cpuBar.classList.add('medium');
+        else cpuBar.classList.add('high');
+        
+        cpuItem.className = cpu > 90 ? 'metric-item critical' : cpu > 70 ? 'metric-item warning' : '';
+      }
+      
+      // Memory metric
+      const memBar = document.getElementById('metric-memory-bar');
+      const memValue = document.getElementById('metric-memory-value');
+      const memPercent = document.getElementById('metric-memory-percent');
+      const memItem = document.getElementById('metric-memory');
+      if (memBar && memValue && memPercent && memItem && system?.available) {
+        const memMb = system.memory_mb;
+        const memPct = system.memory_percent;
+        memBar.style.width = `${Math.min(memPct, 100)}%`;
+        memValue.textContent = `${memMb.toFixed(0)} MB`;
+        memPercent.textContent = `${memPct.toFixed(1)}%`;
+        
+        // Color coding based on memory usage
+        memBar.className = 'metric-bar';
+        if (memPct < 50) memBar.classList.add('low');
+        else if (memPct < 80) memBar.classList.add('medium');
+        else memBar.classList.add('high');
+        
+        memItem.className = memPct > 90 ? 'metric-item critical' : memPct > 70 ? 'metric-item warning' : '';
+      }
+      
+      // Chunks processed
+      const chunksBar = document.getElementById('metric-chunks-bar');
+      const chunksValue = document.getElementById('metric-chunks-value');
+      if (chunksBar && chunksValue) {
+        const chunks = status.chunks_processed ?? 0;
+        chunksValue.textContent = String(chunks);
+        
+        // Animate bar based on chunks (max at 100 chunks, then reset visual)
+        const displayChunks = chunks % 100;
+        chunksBar.style.width = `${displayChunks}%`;
+      }
+      
+      // Throughput calculation
+      const throughputBar = document.getElementById('metric-throughput-bar');
+      const throughputValue = document.getElementById('metric-throughput-value');
+      if (throughputBar && throughputValue) {
+        const currentChunks = status.chunks_processed ?? 0;
+        const chunkDiff = currentChunks - lastChunksProcessed;
+        lastChunksProcessed = currentChunks;
+        
+        // Keep rolling average of last 5 measurements
+        throughputHistory.push(chunkDiff);
+        if (throughputHistory.length > 5) throughputHistory.shift();
+        
+        const avgThroughput = throughputHistory.reduce((a, b) => a + b, 0) / throughputHistory.length;
+        throughputValue.textContent = `${avgThroughput.toFixed(1)}/s`;
+        
+        // Throughput bar (max 10 chunks/s)
+        const throughputPct = Math.min((avgThroughput / 10) * 100, 100);
+        throughputBar.style.width = `${throughputPct}%`;
+      }
     }
 
     // Update performance metrics display for modules
@@ -419,10 +503,55 @@ import Toast from '../components/Toast.astro';
       showToast('Configuración guardada', 'success');
       addLog('info', 'Configuración guardada');
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const msg = (e as Error).message;
       showToast(`Error: ${msg}`, 'error');
       addLog('error', `Error al guardar: ${msg}`);
     }
+  }
+
+  // Individual config update with debouncing
+  const configUpdateTimeouts: Record<string, ReturnType<typeof setTimeout>> = {};
+  const CONFIG_UPDATE_DEBOUNCE_MS = 1000;
+
+  async function updateConfigField(path: string, value: unknown): Promise<void> {
+    // Clear any pending update for this field
+    if (configUpdateTimeouts[path]) {
+      clearTimeout(configUpdateTimeouts[path]);
+    }
+
+    // Debounce the update
+    configUpdateTimeouts[path] = setTimeout(async () => {
+      try {
+        // Build partial config path
+        const parts = path.split('.');
+        let partialConfig: any = {};
+        let current = partialConfig;
+        
+        for (let i = 0; i < parts.length - 1; i++) {
+          current[parts[i]] = {};
+          current = current[parts[i]];
+        }
+        current[parts[parts.length - 1]] = value;
+
+        await apiCall('PUT', '/config', { config: partialConfig });
+        
+        // Update local config reference
+        config = await getConfig();
+        
+        // Show subtle indicator
+        const indicator = document.getElementById(`config-saved-${path.replace(/\./g, '-')}`);
+        if (indicator) {
+          indicator.textContent = '✓';
+          indicator.style.opacity = '1';
+          setTimeout(() => {
+            indicator.style.opacity = '0';
+          }, 1500);
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        showToast(`Error al actualizar ${path}: ${msg}`, 'error', 3000);
+      }
+    }, CONFIG_UPDATE_DEBOUNCE_MS);
   }
 
   async function copyUrl(id: string): Promise<void> {
@@ -463,6 +592,80 @@ import Toast from '../components/Toast.astro';
       if (addr) updateUrls(addr);
       document.getElementById('btn-mode-local')?.classList.remove('active');
       document.getElementById('btn-mode-remote')?.classList.add('active');
+    });
+
+    setupAutoSaveFields();
+  }
+
+  function setupAutoSaveFields(): void {
+    document.getElementById('input-srt-port')?.addEventListener('change', (e) => {
+      const value = parseInt((e.target as HTMLInputElement).value);
+      if (!isNaN(value)) updateConfigField('input.srt.listen_port', value);
+    });
+
+    document.getElementById('input-srt-mode')?.addEventListener('change', (e) => {
+      updateConfigField('input.srt.mode', (e.target as HTMLSelectElement).value);
+    });
+
+    document.getElementById('whisper-model')?.addEventListener('change', (e) => {
+      updateConfigField('modules.transcriber.model', (e.target as HTMLSelectElement).value);
+    });
+    document.getElementById('whisper-lang')?.addEventListener('change', (e) => {
+      updateConfigField('modules.transcriber.language', (e.target as HTMLSelectElement).value);
+    });
+    document.getElementById('whisper-device')?.addEventListener('change', (e) => {
+      updateConfigField('modules.transcriber.device', (e.target as HTMLSelectElement).value);
+    });
+
+    document.getElementById('translator-source')?.addEventListener('change', (e) => {
+      updateConfigField('modules.translator.source_lang', (e.target as HTMLSelectElement).value);
+    });
+    document.getElementById('translator-target')?.addEventListener('change', (e) => {
+      updateConfigField('modules.translator.target_lang', (e.target as HTMLSelectElement).value);
+    });
+
+    document.getElementById('tts-voice')?.addEventListener('change', (e) => {
+      updateConfigField('modules.tts_engine.voice', (e.target as HTMLSelectElement).value);
+    });
+    document.getElementById('tts-speed')?.addEventListener('change', (e) => {
+      const value = parseFloat((e.target as HTMLInputElement).value);
+      if (!isNaN(value)) updateConfigField('modules.tts_engine.speed', value);
+    });
+
+    document.getElementById('subtitle-format')?.addEventListener('change', (e) => {
+      updateConfigField('modules.subtitle_generator.format', (e.target as HTMLSelectElement).value);
+    });
+    document.getElementById('subtitle-use-translated')?.addEventListener('change', (e) => {
+      updateConfigField('modules.subtitle_generator.use_translated', (e.target as HTMLSelectElement).value === 'true');
+    });
+
+    document.getElementById('audio-mixer-original-volume')?.addEventListener('input', (e) => {
+      const value = parseFloat((e.target as HTMLInputElement).value);
+      const display = document.getElementById('audio-mixer-original-value');
+      if (display) display.textContent = String(value);
+      if (!isNaN(value)) updateConfigField('modules.audio_mixer.original_volume', value);
+    });
+    document.getElementById('audio-mixer-dubbed-volume')?.addEventListener('input', (e) => {
+      const value = parseFloat((e.target as HTMLInputElement).value);
+      const display = document.getElementById('audio-mixer-dubbed-value');
+      if (display) display.textContent = String(value);
+      if (!isNaN(value)) updateConfigField('modules.audio_mixer.tts_volume', value);
+    });
+
+    document.getElementById('hls-segment')?.addEventListener('change', (e) => {
+      const value = parseInt((e.target as HTMLInputElement).value);
+      if (!isNaN(value)) updateConfigField('modules.video_muxer.hls_segment_duration', value);
+    });
+    document.getElementById('hls-list')?.addEventListener('change', (e) => {
+      const value = parseInt((e.target as HTMLInputElement).value);
+      if (!isNaN(value)) updateConfigField('modules.video_muxer.hls_list_size', value);
+    });
+    document.getElementById('hls-encoder')?.addEventListener('change', (e) => {
+      updateConfigField('modules.video_muxer.encoder_mode', (e.target as HTMLSelectElement).value);
+    });
+    document.getElementById('hls-crf')?.addEventListener('change', (e) => {
+      const value = parseInt((e.target as HTMLInputElement).value);
+      if (!isNaN(value)) updateConfigField('modules.video_muxer.video_crf', value);
     });
   }
 
@@ -510,19 +713,17 @@ import Toast from '../components/Toast.astro';
     }
   }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      setupEventListeners();
-      initDashboard();
+  document.addEventListener('DOMContentLoaded', () => {
+    setupEventListeners();
+    initDashboard();
 
-      // Live clock
-      setInterval(() => {
-        const clock = document.getElementById('live-clock');
-        if (clock) {
-          clock.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
-        }
-      }, 1000);
-    });
+    setInterval(() => {
+      const clock = document.getElementById('live-clock');
+      if (clock) {
+        clock.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+      }
+    }, 1000);
+  });
 
-    // Expose toggleModule to global scope for use in inline event handlers
-    window.toggleModule = toggleModule;
+  window.toggleModule = toggleModule;
 </script>

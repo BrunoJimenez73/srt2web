@@ -352,6 +352,7 @@ class Pipeline:
             "input": None,
             "output": None,
             "modules": [m.get_status().to_dict() for m in self._modules],
+            "system": self._get_system_metrics(),
         }
 
         if self._input_source:
@@ -368,3 +369,27 @@ class Pipeline:
             }
 
         return status
+
+    def _get_system_metrics(self) -> dict:
+        """Get system metrics like CPU and memory usage."""
+        metrics = {
+            "cpu_percent": 0.0,
+            "memory_mb": 0.0,
+            "memory_percent": 0.0,
+            "available": False,
+        }
+        try:
+            import psutil
+
+            process = psutil.Process()
+            metrics = {
+                "cpu_percent": round(process.cpu_percent(interval=0.1), 1),
+                "memory_mb": round(process.memory_info().rss / 1024 / 1024, 1),
+                "memory_percent": round(process.memory_percent(), 1),
+                "available": True,
+            }
+        except ImportError:
+            logger.debug("psutil not available for system metrics")
+        except Exception as e:
+            logger.debug(f"Error getting system metrics: {e}")
+        return metrics
