@@ -13,6 +13,15 @@ const {
     buttonText = "Render diagram"
 } = Astro.props;
 const id = `mermaid-${Math.random().toString(36).slice(2, 9)}`;
+
+// Obtener contenido del slot o del prop code
+let diagramContent = '';
+if (code) {
+    diagramContent = code.trim();
+} else {
+    // El contenido del slot se obtendrá en el cliente
+    diagramContent = '';
+}
 ---
 
 <div class="mermaid-container" id={`${id}-container`}>
@@ -28,8 +37,8 @@ const id = `mermaid-${Math.random().toString(36).slice(2, 9)}`;
         <div class="mermaid-status" id={`${id}-status`}></div>
     </div>
     
-    <div class="mermaid" id={id} data-original-content={code ? code.trim() : undefined}>
-        {code ? code.trim() : '<slot />'}
+    <div class="mermaid" id={id} data-original-content={diagramContent || undefined}>
+        {diagramContent || <slot />}
     </div>
 </div>
 
@@ -236,14 +245,57 @@ const id = `mermaid-${Math.random().toString(36).slice(2, 9)}`;
 
             // Obtener contenido del diagrama
             let graphDefinition = '';
+            
+            // Primero intentar obtener del data attribute
             if (mermaidDiv.dataset.originalContent) {
                 graphDefinition = mermaidDiv.dataset.originalContent;
-            } else {
-                graphDefinition = mermaidDiv.textContent?.trim() || '';
+            }
+            
+            // Si no hay contenido en data attribute, obtener del texto del div
+            if (!graphDefinition) {
+                // Obtener todo el contenido del div (incluyendo texto y slots)
+                const fullText = mermaidDiv.textContent?.trim() || '';
+                
+                // Si el contenido es exactamente "<slot />" o está vacío, significa que el slot no se procesó
+                if (fullText === '<slot />' || fullText === '' || fullText === 'undefined') {
+                    // Intentar obtener el contenido de los nodos hijos
+                    const children = mermaidDiv.childNodes;
+                    let content = '';
+                    
+                    for (const child of children) {
+                        if (child.nodeType === Node.TEXT_NODE) {
+                            content += child.textContent || '';
+                        } else if (child.nodeType === Node.ELEMENT_NODE) {
+                            content += child.textContent || '';
+                        }
+                    }
+                    
+                    graphDefinition = content.trim();
+                } else {
+                    graphDefinition = fullText;
+                }
             }
 
-            if (!graphDefinition) {
-                throw new Error('No diagram content found');
+            // Si todavía no hay contenido, intentar obtener de la estructura DOM
+            if (!graphDefinition || graphDefinition === '<slot />') {
+                // Buscar el contenido del slot en el DOM
+                const slotElement = mermaidDiv.querySelector('slot');
+                if (slotElement) {
+                    // El contenido del slot está en los nodos hijos del slot
+                    const slotContent = slotElement.textContent?.trim() || '';
+                    if (slotContent && slotContent !== '<slot />') {
+                        graphDefinition = slotContent;
+                    }
+                }
+            }
+
+            // Último recurso: usar el contenido original si existe
+            if (!graphDefinition && mermaidDiv.dataset.originalContent) {
+                graphDefinition = mermaidDiv.dataset.originalContent;
+            }
+
+            if (!graphDefinition || graphDefinition === '<slot />' || graphDefinition.trim() === '') {
+                throw new Error('No diagram content found. The slot content may not be properly processed.');
             }
 
             // Renderizar diagrama
