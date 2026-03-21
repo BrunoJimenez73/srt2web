@@ -1,17 +1,437 @@
 ---
-
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import StatusCard from '../components/StatusCard.astro';
+import ProcessGrid from '../components/ProcessGrid.astro';
+import LogPanel from '../components/LogPanel.astro';
+import Toast from '../components/Toast.astro';
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<BaseLayout title="SRT2Web Dashboard">
+  <div class="dashboard">
+    <Header version="Astro" />
+    <StatusCard />
+    <ProcessGrid />
+    <LogPanel />
+  </div>
+  <Toast />
+</BaseLayout>
+
+<style>
+  .dashboard {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 16px;
+    min-height: calc(100vh - 32px);
+  }
+
+  /* Status dot styles */
+  #status-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--text-dim);
+  }
+
+  #status-dot.running {
+    background: #00ff00;
+    box-shadow: 0 0 8px #00ff00, 0 0 15px #00ff00, 0 0 25px #00ff00, 0 0 40px #00ff00;
+    animation: phosphor-pulse 1.5s ease-in-out infinite;
+  }
+
+  #status-dot.error {
+    background: #ff3333;
+    box-shadow: 0 0 8px #ff3333, 0 0 15px #ff3333;
+    animation: error-pulse 1s ease-in-out infinite;
+  }
+
+  #status-dot.disabled {
+    background: var(--text-dim);
+    box-shadow: none;
+    opacity: 0.5;
+  }
+
+  /* Process indicator styles (small dots in process grid) */
+  .process-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    margin-right: 8px;
+    transition: all 0.3s ease;
+  }
+
+  .process-indicator.active {
+    background: #00ff00;
+    box-shadow: 0 0 6px #00ff00, 0 0 12px #00ff00, 0 0 18px #00ff00;
+    animation: indicator-pulse 1.5s ease-in-out infinite;
+  }
+
+  /* Keyframe animations */
+  @keyframes phosphor-pulse {
+    0% { 
+      opacity: 0.7;
+      box-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 20px #00ff00;
+    }
+    50% { 
+      opacity: 1;
+      box-shadow: 0 0 8px #00ff00, 0 0 15px #00ff00, 0 0 30px #00ff00, 0 0 40px #00ff00;
+    }
+    100% { 
+      opacity: 0.7;
+      box-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 20px #00ff00;
+    }
+  }
+
+  @keyframes error-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  @keyframes indicator-pulse {
+    0%, 100% { 
+      opacity: 0.8;
+      box-shadow: 0 0 4px #00ff00, 0 0 8px #00ff00;
+    }
+    50% { 
+      opacity: 1;
+      box-shadow: 0 0 8px #00ff00, 0 0 16px #00ff00, 0 0 24px #00ff00;
+    }
+  }
+</style>
+
+<script>
+  import { apiCall, getConfig, startPipeline, stopPipeline, connectWebSocket } from '../lib/api';
+  import { getSRTUrl, getStreamUrl, getPlayerUrl, isLocalhost, copyToClipboard, showToast } from '../lib/utils';
+  import type { Config, Status, LogMessage, ModuleName } from '../lib/types';
+
+  const moduleToCard: Record<string, string> = {
+    srt_ingest: 'card-input',
+    audio_extractor: 'card-input',
+    transcriber: 'card-whisper',
+    translator: 'card-translate',
+    tts_engine: 'card-tts',
+    subtitle_generator: 'card-subtitle',
+    audio_mixer: 'card-tts',
+    video_muxer: 'card-hls'
+  };
+
+  const moduleToIndicator: Record<string, string> = {
+    srt_ingest: 'indicator-input',
+    audio_extractor: 'indicator-input',
+    transcriber: 'indicator-whisper',
+    translator: 'indicator-translate',
+    tts_engine: 'indicator-tts',
+    subtitle_generator: 'indicator-subtitle',
+    audio_mixer: 'indicator-tts',
+    video_muxer: 'indicator-hls'
+  };
+
+  let config: Config | null = null;
+  let status: Status | null = null;
+  let ws: WebSocket | null = null;
+  let localMode: 'local' | 'remote' = 'local';
+  let statusPollInterval: ReturnType<typeof setInterval> | null = null;
+
+  function addLog(level: LogMessage['level'], message: string): void {
+    const fn = (window as unknown as { addLog: (l: string, m: string) => void }).addLog;
+    if (fn) fn(level, message);
+  }
+
+  function updatePipelineUI(state: Status['state']): void {
+    const dot = document.getElementById('status-dot');
+    const text = document.getElementById('status-text');
+    const startBtn = document.getElementById('btn-start') as HTMLButtonElement;
+    const stopBtn = document.getElementById('btn-stop') as HTMLButtonElement;
+
+    if (dot) dot.classList.toggle('running', state === 'running');
+    if (text) text.textContent = state === 'running' ? 'ACTIVO' : 'APAGADO';
+    if (startBtn) startBtn.disabled = state === 'running';
+    if (stopBtn) stopBtn.disabled = state !== 'running';
+
+    // Card active state removed - only indicators show status
+    // ['card-input', 'card-whisper', 'card-translate', 'card-tts', 'card-subtitle', 'card-hls', 'card-output'].forEach(id => {
+    //   const el = document.getElementById(id);
+    //   if (el) el.classList.toggle('active', state === 'running');
+    // });
+  }
+
+    function updateModuleStatus(status: Status): void {
+      if (!status.modules) return;
+      
+      const isRunning = status.state === 'running';
+
+      // Set indicators based on module status
+      // status.modules is an array of module objects
+      status.modules.forEach((module) => {
+        const indicatorId = moduleToIndicator[module.name];
+        if (indicatorId) {
+          const indicator = document.getElementById(indicatorId);
+          if (indicator) {
+            // Indicator is active if module is enabled AND pipeline is running
+            indicator.classList.toggle('active', isRunning && module.enabled);
+          }
+        }
+      });
+
+      // Special handling for input indicator (combines srt_ingest and audio_extractor)
+      const inputIndicator = document.getElementById('indicator-input');
+      if (inputIndicator) {
+        // Find srt_ingest and audio_extractor modules in the array
+        const srtIngestModule = status.modules.find(m => m.name === 'srt_ingest');
+        const audioExtractorModule = status.modules.find(m => m.name === 'audio_extractor');
+        const srtIngestActive = srtIngestModule?.enabled && isRunning;
+        const audioExtractorActive = audioExtractorModule?.enabled && isRunning;
+        // Input is active if either input module is active
+        inputIndicator.classList.toggle('active', srtIngestActive || audioExtractorActive);
+      }
+
+      // Special handling for output indicator (represents video muxer output)
+      const outputIndicator = document.getElementById('indicator-output');
+      if (outputIndicator) {
+        // Find video_muxer module in the array
+        const videoMuxerModule = status.modules.find(m => m.name === 'video_muxer');
+        const videoMuxerActive = videoMuxerModule?.enabled && isRunning;
+        outputIndicator.classList.toggle('active', videoMuxerActive);
+      }
+
+      const statChunks = document.getElementById('stat-chunks');
+      const statState = document.getElementById('stat-state');
+      if (statChunks) statChunks.textContent = String(status.chunks_processed ?? 0);
+      if (statState) statState.textContent = status.state;
+    }
+
+  function updateUrls(ip: string | null): void {
+    if (!config || !ip) return;
+    
+    const port = config.server.port;
+    const srtPort = config.input.srt.listen_port;
+    const srtMode = config.input.srt.mode;
+    const useIp = isLocalhost() ? '127.0.0.1' : ip;
+
+    const urlSrt = document.getElementById('url-srt');
+    const urlStream = document.getElementById('url-stream');
+    const urlPlayer = document.getElementById('url-player');
+
+    if (urlSrt) urlSrt.textContent = getSRTUrl(useIp, srtPort, srtMode);
+    if (urlStream) urlStream.textContent = getStreamUrl(useIp, port);
+    if (urlPlayer) urlPlayer.href = getPlayerUrl(useIp, port);
+    if (urlPlayer) urlPlayer.textContent = getPlayerUrl(useIp, port);
+  }
+
+  function applyConfigToUI(cfg: Config): void {
+    const srtPort = document.getElementById('input-srt-port') as HTMLInputElement;
+    const srtMode = document.getElementById('input-srt-mode') as HTMLSelectElement;
+    const whisperEnabled = document.getElementById('whisper-enabled') as HTMLInputElement;
+    const whisperModel = document.getElementById('whisper-model') as HTMLSelectElement;
+    const whisperLang = document.getElementById('whisper-lang') as HTMLSelectElement;
+    const whisperDevice = document.getElementById('whisper-device') as HTMLSelectElement;
+    const translatorEnabled = document.getElementById('translator-enabled') as HTMLInputElement;
+    const translatorSource = document.getElementById('translator-source') as HTMLSelectElement;
+    const translatorTarget = document.getElementById('translator-target') as HTMLSelectElement;
+    const ttsEnabled = document.getElementById('tts-enabled') as HTMLInputElement;
+    const ttsVoice = document.getElementById('tts-voice') as HTMLSelectElement;
+    const ttsSpeed = document.getElementById('tts-speed') as HTMLInputElement;
+    const subtitleEnabled = document.getElementById('subtitle-enabled') as HTMLInputElement;
+    const subtitleFormat = document.getElementById('subtitle-format') as HTMLSelectElement;
+    const subtitleUseTranslated = document.getElementById('subtitle-use-translated') as HTMLSelectElement;
+    const muxerEnabled = document.getElementById('muxer-enabled') as HTMLInputElement;
+    const hlsSegment = document.getElementById('hls-segment') as HTMLInputElement;
+    const hlsList = document.getElementById('hls-list') as HTMLInputElement;
+    const hlsEncoder = document.getElementById('hls-encoder') as HTMLSelectElement;
+    const hlsCrf = document.getElementById('hls-crf') as HTMLInputElement;
+
+    if (srtPort) srtPort.value = String(cfg.input.srt.listen_port);
+    if (srtMode) srtMode.value = cfg.input.srt.mode;
+    if (whisperEnabled) whisperEnabled.checked = cfg.modules.transcriber.enabled;
+    if (whisperModel) whisperModel.value = cfg.modules.transcriber.model;
+    if (whisperLang) whisperLang.value = cfg.modules.transcriber.language;
+    if (whisperDevice) whisperDevice.value = cfg.modules.transcriber.device;
+    if (translatorEnabled) translatorEnabled.checked = cfg.modules.translator.enabled;
+    if (translatorSource) translatorSource.value = cfg.modules.translator.source_lang;
+    if (translatorTarget) translatorTarget.value = cfg.modules.translator.target_lang;
+    if (ttsEnabled) ttsEnabled.checked = cfg.modules.tts_engine.enabled;
+    if (ttsVoice) ttsVoice.value = cfg.modules.tts_engine.voice;
+    if (ttsSpeed) ttsSpeed.value = String(cfg.modules.tts_engine.speed);
+    if (subtitleEnabled) subtitleEnabled.checked = cfg.modules.subtitle_generator.enabled;
+    if (subtitleFormat) subtitleFormat.value = cfg.modules.subtitle_generator.format;
+    if (subtitleUseTranslated) subtitleUseTranslated.value = String(cfg.modules.subtitle_generator.use_translated);
+    if (muxerEnabled) muxerEnabled.checked = cfg.modules.video_muxer.enabled;
+    if (hlsSegment) hlsSegment.value = String(cfg.modules.video_muxer.hls_segment_duration);
+    if (hlsList) hlsList.value = String(cfg.modules.video_muxer.hls_list_size);
+    if (hlsEncoder) hlsEncoder.value = cfg.modules.video_muxer.encoder_mode;
+    if (hlsCrf) hlsCrf.value = String(cfg.modules.video_muxer.video_crf);
+  }
+
+  function collectConfigFromUI(): Partial<Config> {
+    return {
+      input: {
+        srt: {
+          listen_port: parseInt((document.getElementById('input-srt-port') as HTMLInputElement)?.value || '9000'),
+          mode: (document.getElementById('input-srt-mode') as HTMLSelectElement)?.value || 'listener'
+        }
+      },
+      modules: {
+        transcriber: {
+          enabled: (document.getElementById('whisper-enabled') as HTMLInputElement)?.checked ?? true,
+          model: (document.getElementById('whisper-model') as HTMLSelectElement)?.value || 'tiny',
+          language: (document.getElementById('whisper-lang') as HTMLSelectElement)?.value || 'auto',
+          device: (document.getElementById('whisper-device') as HTMLSelectElement)?.value || 'auto'
+        },
+        translator: {
+          enabled: (document.getElementById('translator-enabled') as HTMLInputElement)?.checked ?? true,
+          source_lang: (document.getElementById('translator-source') as HTMLSelectElement)?.value || 'auto',
+          target_lang: (document.getElementById('translator-target') as HTMLSelectElement)?.value || 'es'
+        },
+        tts_engine: {
+          enabled: (document.getElementById('tts-enabled') as HTMLInputElement)?.checked ?? true,
+          voice: (document.getElementById('tts-voice') as HTMLSelectElement)?.value || 'es-ES-AlejandroNeural',
+          speed: parseFloat((document.getElementById('tts-speed') as HTMLInputElement)?.value || '1.0')
+        },
+        subtitle_generator: {
+          enabled: (document.getElementById('subtitle-enabled') as HTMLInputElement)?.checked ?? true,
+          format: (document.getElementById('subtitle-format') as HTMLSelectElement)?.value || 'webvtt',
+          use_translated: (document.getElementById('subtitle-use-translated') as HTMLSelectElement)?.value === 'true'
+        },
+        audio_mixer: {
+          enabled: true,
+          original_volume: 0.3,
+          dubbed_volume: 1.0
+        },
+        video_muxer: {
+          enabled: (document.getElementById('muxer-enabled') as HTMLInputElement)?.checked ?? true,
+          hls_segment_duration: parseInt((document.getElementById('hls-segment') as HTMLInputElement)?.value || '10'),
+          hls_list_size: parseInt((document.getElementById('hls-list') as HTMLInputElement)?.value || '6'),
+          audio_offset_ms: 0,
+          encoder_mode: (document.getElementById('hls-encoder') as HTMLSelectElement)?.value || 'auto',
+          video_quality: 'medium',
+          video_crf: parseInt((document.getElementById('hls-crf') as HTMLInputElement)?.value || '18'),
+          audio_codec: 'aac',
+          audio_bitrate: '192k',
+          audio_samplerate: '48000'
+        }
+      }
+    };
+  }
+
+  async function handleStart(): Promise<void> {
+    try {
+      addLog('info', 'Iniciando pipeline...');
+      const result = await startPipeline();
+      status = result;
+      updatePipelineUI(result.state);
+      addLog('success', 'Pipeline iniciado');
+    } catch (e) {
+      addLog('error', `Error: ${(e as Error).message}`);
+    }
+  }
+
+  async function handleStop(): Promise<void> {
+    try {
+      addLog('info', 'Deteniendo pipeline...');
+      const result = await stopPipeline();
+      status = result;
+      updatePipelineUI(result.state);
+      addLog('info', 'Pipeline detenido');
+    } catch (e) {
+      addLog('error', `Error: ${(e as Error).message}`);
+    }
+  }
+
+  async function handleSaveConfig(): Promise<void> {
+    try {
+      const newConfig = collectConfigFromUI();
+      await apiCall('PUT', '/config', { config: newConfig });
+      config = await getConfig();
+      applyConfigToUI(config);
+      showToast('Configuración guardada', 'success');
+      addLog('info', 'Configuración guardada');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      showToast(`Error: ${msg}`, 'error');
+      addLog('error', `Error al guardar: ${msg}`);
+    }
+  }
+
+  async function copyUrl(id: string): Promise<void> {
+    const el = document.getElementById(id);
+    if (el) {
+      await copyToClipboard(el.textContent || '');
+      showToast('URL copiada', 'info');
+    }
+  }
+
+  function updateInputFields(): void {
+    const type = (document.getElementById('input-type') as HTMLSelectElement)?.value;
+    const portGroup = document.getElementById('input-port-group');
+    if (portGroup) portGroup.style.display = type === 'srt' ? 'block' : 'none';
+  }
+
+  function setupEventListeners(): void {
+    document.getElementById('btn-start')?.addEventListener('click', handleStart);
+    document.getElementById('btn-stop')?.addEventListener('click', handleStop);
+    
+    (window as unknown as { saveConfig: () => void }).saveConfig = handleSaveConfig;
+    (window as unknown as { updateInputFields: () => void }).updateInputFields = updateInputFields;
+
+    document.getElementById('btn-copy-srt')?.addEventListener('click', () => copyUrl('url-srt'));
+    document.getElementById('btn-copy-stream')?.addEventListener('click', () => copyUrl('url-stream'));
+    document.getElementById('btn-copy-player')?.addEventListener('click', () => copyUrl('url-player'));
+
+    document.getElementById('btn-mode-local')?.addEventListener('click', () => {
+      localMode = 'local';
+      document.getElementById('btn-mode-local')?.classList.add('active');
+      document.getElementById('btn-mode-remote')?.classList.remove('active');
+      if (status?.network?.local_ip) updateUrls(status.network.local_ip);
+    });
+
+    document.getElementById('btn-mode-remote')?.addEventListener('click', () => {
+      localMode = 'remote';
+      const addr = (document.getElementById('emitter-address') as HTMLInputElement)?.value;
+      if (addr) updateUrls(addr);
+      document.getElementById('btn-mode-local')?.classList.remove('active');
+      document.getElementById('btn-mode-remote')?.classList.add('active');
+    });
+  }
+
+  async function initDashboard(): Promise<void> {
+    addLog('info', 'Inicializando...');
+
+    try {
+      config = await getConfig();
+      applyConfigToUI(config);
+
+      status = await apiCall<Status>('GET', '/status');
+      updatePipelineUI(status.state);
+      updateModuleStatus(status);
+
+      if (status.network?.local_ip) {
+        updateUrls(status.network.local_ip);
+      }
+
+      ws = connectWebSocket(
+        (msg: LogMessage) => addLog(msg.level, msg.message),
+        () => addLog('error', 'WebSocket desconectado')
+      );
+
+      statusPollInterval = setInterval(async () => {
+        try {
+          status = await apiCall<Status>('GET', '/status');
+          updatePipelineUI(status.state);
+          updateModuleStatus(status);
+        } catch {
+          // Silently fail on poll errors
+        }
+      }, 2000);
+
+      addLog('success', 'Dashboard inicializado');
+    } catch (e) {
+      addLog('error', `Error de inicialización: ${(e as Error).message}`);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    setupEventListeners();
+    initDashboard();
+  });
+</script>
