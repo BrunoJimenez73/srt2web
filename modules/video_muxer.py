@@ -44,6 +44,9 @@ class VideoMuxer(BaseModule):
         # Subtitle language settings
         self._subtitle_language = "es"
         self._subtitle_language_name = "Spanish"
+        # Video quality settings (must be initialized before configure())
+        self._video_preset = "medium"
+        self._gpu_preset = "p3"
         # Encoder configuration
         self._encoder_config = EncoderConfig(config) if config else EncoderConfig()
         super().__init__("video_muxer", config)

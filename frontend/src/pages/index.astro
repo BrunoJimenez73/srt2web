@@ -389,9 +389,11 @@ import Toast from '../components/Toast.astro';
             const gpuBadge = document.getElementById('hls-gpu-badge');
             const encoderEl = document.getElementById('module-encoder-video_muxer');
             if (gpuBadge) {
-              if (module.extra.using_gpu) {
+              // Always show badge when module is active, color indicates GPU usage
+              if (module.enabled) {
                 gpuBadge.style.display = 'inline';
-                gpuBadge.classList.toggle('active', isProcessing);
+                gpuBadge.classList.toggle('active', isProcessing && module.extra.using_gpu);
+                gpuBadge.textContent = module.extra.using_gpu ? 'GPU' : 'CPU';
               } else {
                 gpuBadge.style.display = 'none';
               }
