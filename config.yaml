@@ -2,11 +2,12 @@ server:
   host: 127.0.0.1
   port: 9999
   cors_origins:
-  - http://localhost:*
-  - http://127.0.0.1:*
+    - http://localhost:*
+    - http://127.0.0.1:*
   auth_token: ''
   rate_limit_rpm: 60
   max_request_size_mb: 1
+
 input:
   type: srt
   srt:
@@ -23,6 +24,7 @@ input:
     url: rtmp://localhost/live/stream
     mode: pull
   chunk_duration_sec: 10
+
 output:
   type: web
   web:
@@ -51,43 +53,38 @@ output:
     host: localhost
     port: 9001
     latency_ms: 1000
+
 pipeline:
   chunk_duration_sec: 6
+
 modules:
   audio_extractor:
     enabled: true
-    transcriber:
-      enabled: true
-      model: tiny
-      language: en
-      device: auto
-    translator:
-      enabled: true
-      source_lang: auto
-      target_lang: en
   transcriber:
     enabled: true
-    model: invalid_model
-    language: en
+    model: small
+    language: es
     device: auto
   translator:
     enabled: true
-    source_lang: en
-    target_lang: es
+    source_lang: es
+    target_lang: en
   subtitle_generator:
     enabled: true
     format: webvtt
     use_translated: true
     audio_offset_ms: 0
-    font_size: 1
+    font_size: 24
+    max_vtt_entries: 50
+    vtt_max_age_seconds: 60
   tts_engine:
-    enabled: true
+    enabled: false
     engine: piper
-    device: cuda
+    device: cpu
     voice: es_ES-davefx-medium
-    speed: 1.2
+    speed: 1.0
   audio_mixer:
-    enabled: true
+    enabled: false
     original_volume: 0.7
     dubbed_volume: 1.4
     tts_volume: 1.1
@@ -104,7 +101,9 @@ modules:
     audio_codec: aac
     audio_bitrate: 192k
     audio_samplerate: '48000'
+
 output_dir:
   directory: ./output
+
 srt:
   listen_port: 8888
