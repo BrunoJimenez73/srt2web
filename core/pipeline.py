@@ -385,13 +385,21 @@ class Pipeline:
 
     def get_status(self) -> dict:
         """Get full pipeline status including all components."""
+        modules_status = [m.get_status().to_dict() for m in self._modules]
+
+        # Add output sink as a module (for frontend compatibility)
+        if self._output_sink:
+            output_module_status = self._get_output_module_status()
+            if output_module_status:
+                modules_status.append(output_module_status)
+
         status = {
             "state": self._state.value,
             "error": self._error_message,
             "chunks_processed": self._chunk_index,
             "input": None,
             "output": None,
-            "modules": [m.get_status().to_dict() for m in self._modules],
+            "modules": modules_status,
             "system": self._get_system_metrics(),
         }
 
@@ -409,6 +417,59 @@ class Pipeline:
             }
 
         return status
+
+    def _get_output_module_status(self) -> dict:
+        """Get output sink status in module format for frontend."""
+        from core.module_base import ModuleState
+
+        # Determine state based on pipeline state
+        if self._state == PipelineState.RUNNING:
+            state = "running"
+        elif self._state == PipelineState.ERROR:
+            state = "error"
+        else:
+            state = "idle"
+
+        # Get encoder info from output sink
+        extra = {}
+        if hasattr(self._output_sink, "_encoder_config"):
+            encoder_config = self._output_sink._encoder_config
+            encoder_mode = encoder_config.encoder_mode
+
+            # Auto-detect encoder mode
+            if encoder_mode == "auto" and hasattr(self._output_sink, "_gpu_info"):
+                gpu_info = self._output_sink._gpu_info
+                if gpu_info.get("nvenc"):
+                    encoder_mode = "gpu_nvenc"
+                elif gpu_info.get("amf"):
+                    encoder_mode = "gpu_amf"
+                elif gpu_info.get("qsv"):
+                    encoder_mode = "gpu_qsv"
+                else:
+                    encoder_mode = "cpu"
+
+            extra["encoder_mode"] = encoder_mode
+            extra["using_gpu"] = encoder_mode.startswith("gpu_")
+            extra["gpu_available"] = getattr(self._output_sink, "_gpu_info", {})
+            extra["gpu_preset"] = (
+                encoder_config.gpu_preset
+                if hasattr(encoder_config, "gpu_preset")
+                else "p3"
+            )
+
+        return {
+            "name": "video_muxer",
+            "state": state,
+            "enabled": True,
+            "error_message": self._error_message
+            if self._state == PipelineState.ERROR
+            else None,
+            "processed_chunks": self._chunk_index,
+            "last_process_time_ms": 0.0,
+            "extra": extra,
+            "circuit_state": "closed",
+            "memory_mb": None,
+        }
 
     def _get_system_metrics(self) -> dict:
         """Get system metrics like CPU, memory, and GPU usage."""
