@@ -39,6 +39,26 @@ VALID_OUTPUT_TYPES = frozenset({"web", "hls", "srt", "rtmp", "audio"})
 ALLOWED_WHISPER_MODELS = {"tiny", "small", "medium", "large-v2", "large-v3", "large"}
 ALLOWED_LANGUAGES = {"auto", "en", "es", "fr", "de", "it", "pt", "ja", "zh", "ko", "ru"}
 ALLOWED_DEVICES = {"auto", "cuda", "cpu"}
+ALLOWED_TTS_ENGINES = {"edge-tts", "piper"}
+ALLOWED_TTS_VOICES = {
+    # Edge-TTS voices
+    "es-ES-AlvaroNeural",
+    "es-ES-ElviraNeural",
+    "en-US-AriaNeural",
+    "en-US-GuyNeural",
+    "fr-FR-DeniseNeural",
+    "de-DE-ConradNeural",
+    # Piper voices
+    "es_ES-carlfm-x_low",
+    "es_ES-davefx-medium",
+    "en_US-lessac-medium",
+    "en_US-lessac-low",
+    "en_US-amy-low",
+    "en_US-ryan-medium",
+    "fr_FR-gilles-low",
+    "de_DE-thorsten-medium",
+    "de_DE-thorsten-low",
+}
 ALLOWED_SRT_MODES = {"listener", "caller"}
 ALLOWED_VIDEO_PRESETS = {
     "ultrafast",
@@ -128,6 +148,29 @@ def validate_config_value(key: str, value: Any) -> Any:
             raise HTTPException(
                 400,
                 f"Invalid device: '{value}'. Valid devices are: {', '.join(sorted(ALLOWED_DEVICES))}",
+            )
+
+    if key == "tts_engine.engine":
+        if value not in ALLOWED_TTS_ENGINES:
+            raise HTTPException(
+                400,
+                f"Invalid TTS engine: '{value}'. Valid engines are: {', '.join(sorted(ALLOWED_TTS_ENGINES))}",
+            )
+
+    if key == "tts_engine.device":
+        if value not in ALLOWED_DEVICES:
+            raise HTTPException(
+                400,
+                f"Invalid device: '{value}'. Valid devices are: {', '.join(sorted(ALLOWED_DEVICES))}",
+            )
+
+    if key == "tts_engine.voice":
+        if not value or not isinstance(value, str):
+            raise HTTPException(400, "Voice must be a non-empty string")
+        if value not in ALLOWED_TTS_VOICES:
+            raise HTTPException(
+                400,
+                f"Invalid voice: '{value}'. Valid voices are: {', '.join(sorted(ALLOWED_TTS_VOICES))}",
             )
 
     if key == "srt.mode":

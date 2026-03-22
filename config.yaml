@@ -80,8 +80,10 @@ modules:
     font_size: 1
   tts_engine:
     enabled: true
-    voice: es-ES-AlvaroNeural
-    speed: 1.2
+    engine: piper
+    device: cuda
+    voice: es_ES-davefx-medium
+    speed: 0.9
   audio_mixer:
     enabled: true
     original_volume: 0.7

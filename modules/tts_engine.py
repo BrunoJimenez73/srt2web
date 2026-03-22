@@ -28,6 +28,7 @@ class TTSEngine(BaseModule):
         self._output_dir = output_dir
         self._tts_dir = ""
         self._engine = "edge-tts"  # "edge-tts" (online) or "piper" (offline)
+        self._device = "auto"  # "auto", "cuda", or "cpu" (for piper)
         self._voice_model = "en-US-AriaNeural"  # Very natural female AI voice
         self._use_translated = True
         self._speed = 1.0  # TTS speech rate multiplier
@@ -40,11 +41,12 @@ class TTSEngine(BaseModule):
     def configure(self, config: dict) -> None:
         super().configure(config)
         self._engine = config.get("engine", self._engine)
+        self._device = config.get("device", self._device)
         self._voice_model = config.get("voice", self._voice_model)
         self._use_translated = config.get("use_translated", self._use_translated)
         self._speed = config.get("speed", self._speed)
         logger.info(
-            f"TTS configured: voice={self._voice_model}, speed={self._speed}, engine={self._engine}"
+            f"TTS configured: voice={self._voice_model}, speed={self._speed}, engine={self._engine}, device={self._device}"
         )
 
     def start(self) -> None:
@@ -94,17 +96,53 @@ class TTSEngine(BaseModule):
         """Load offline Piper TTS model."""
         from piper import PiperVoice
         import onnxruntime
+        import warnings
 
         model_path, config_path = self._ensure_piper_model(self._voice_model)
 
         logger.info(f"Loading Piper TTS voice: {self._voice_model} (Offline)...")
-        providers = ["CPUExecutionProvider"]
-        if "CUDAExecutionProvider" in onnxruntime.get_available_providers():
-            providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
 
-        self._piper_voice = PiperVoice.load(
-            model_path, config_path, use_cuda=("CUDAExecutionProvider" in providers)
-        )
+        providers = ["CPUExecutionProvider"]
+        use_cuda = False
+
+        if self._device == "cuda":
+            if "CUDAExecutionProvider" in onnxruntime.get_available_providers():
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    try:
+                        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+                        self._piper_voice = PiperVoice.load(
+                            model_path, config_path, use_cuda=True
+                        )
+                        use_cuda = True
+                        logger.info("Using CUDA for Piper TTS (forced by config)")
+                        return
+                    except Exception as e:
+                        logger.info("CUDA not available, falling back to CPU")
+                        use_cuda = False
+            else:
+                logger.info("CUDA requested but not available, using CPU")
+        elif self._device == "cpu":
+            logger.info("Using CPU for Piper TTS (forced by config)")
+        else:  # auto
+            if "CUDAExecutionProvider" in onnxruntime.get_available_providers():
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    try:
+                        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+                        self._piper_voice = PiperVoice.load(
+                            model_path, config_path, use_cuda=True
+                        )
+                        use_cuda = True
+                        logger.info("Using CUDA for Piper TTS (auto-detected)")
+                        return
+                    except Exception as e:
+                        logger.info(
+                            "CUDA auto-detected but failed, falling back to CPU"
+                        )
+                        use_cuda = False
+
+        self._piper_voice = PiperVoice.load(model_path, config_path, use_cuda=False)
 
     def stop(self) -> None:
         """Cleanup TTS resources."""
@@ -227,12 +265,42 @@ class TTSEngine(BaseModule):
     def _run_piper_tts(self, text: str, output_wav: str):
         """Run local Piper TTS generation."""
         import wave
+        import os
+        from piper.config import SynthesisConfig
 
         if not self._piper_voice:
+            logger.error("Piper voice not initialized")
             return
 
-        with wave.open(output_wav, "wb") as wav_file:
-            wav_file.setnchannels(1)
-            wav_file.setsampwidth(2)  # 16-bit
-            wav_file.setframerate(self._piper_voice.config.sample_rate)
-            self._piper_voice.synthesize(text, wav_file)
+        try:
+            length_scale = 1.0 / self._speed
+            logger.debug(
+                f"Synthesizing text with Piper: '{text[:50]}...' ({len(text)} chars), "
+                f"speed={self._speed}, length_scale={length_scale:.2f}"
+            )
+
+            syn_config = SynthesisConfig(length_scale=length_scale)
+
+            with wave.open(output_wav, "wb") as wav_file:
+                wav_file.setnchannels(1)
+                wav_file.setsampwidth(2)
+                wav_file.setframerate(self._piper_voice.config.sample_rate)
+
+                audio_chunks = self._piper_voice.synthesize(text, syn_config=syn_config)
+                for chunk in audio_chunks:
+                    wav_file.writeframes(chunk.audio_int16_bytes)
+
+            if os.path.exists(output_wav):
+                file_size = os.path.getsize(output_wav)
+                logger.debug(
+                    f"Piper TTS generated audio file: {output_wav} ({file_size} bytes)"
+                )
+                if file_size < 44:
+                    logger.warning(
+                        f"Generated WAV file is too small ({file_size} bytes), likely empty"
+                    )
+            else:
+                logger.error(f"Piper TTS failed to generate output file: {output_wav}")
+
+        except Exception as e:
+            logger.error(f"Error during Piper TTS synthesis: {e}", exc_info=True)

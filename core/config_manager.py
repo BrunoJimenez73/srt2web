@@ -68,7 +68,9 @@ DEFAULT_CONFIG = {
         },
         "tts_engine": {
             "enabled": False,
-            "voice": "en_US-lessac-medium",
+            "engine": "edge-tts",
+            "device": "auto",
+            "voice": "es-ES-ElviraNeural",
             "speed": 1.0,
         },
         "audio_mixer": {

@@ -39,6 +39,32 @@ if not exist "requirements.txt" (
     )
 )
 
+echo [INFO] Checking for CUDA...
+where nvcc >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [WARNING] CUDA not found in PATH. Piper TTS will use CPU-only mode.
+    echo [INFO] For GPU acceleration, please install CUDA and cuDNN manually:
+    echo [INFO]   CUDA Toolkit: https://developer.nvidia.com/cuda-downloads
+    echo [INFO]   cuDNN: https://developer.nvidia.com/rdp/cudnn-archive (requires NVIDIA developer login)
+    echo [INFO] After installation, restart this script.
+) else (
+    echo [OK] CUDA detected.
+)
+
+echo [INFO] Checking onnxruntime-gpu for Piper TTS GPU acceleration...
+python -c "import onnxruntime; print('CUDA' in str(onnxruntime.get_available_providers()))" 2>nul | findstr /C:"True" >nul
+if %errorlevel% neq 0 (
+    echo [INFO] onnxruntime-gpu not detected, installing...
+    python -m pip install onnxruntime-gpu --quiet
+    if %errorlevel% equ 0 (
+        echo [OK] onnxruntime-gpu installed successfully
+    ) else (
+        echo [WARNING] Could not install onnxruntime-gpu, Piper will use CPU
+    )
+) else (
+    echo [OK] onnxruntime-gpu detected, GPU available for Piper TTS
+)
+
 echo.
 echo [INFO] Iniciando servidor...
 echo [INFO] Para detener el servidor, presiona Ctrl+C o cierra esta ventana.
@@ -60,15 +86,4 @@ if %errorlevel% neq 0 (
     echo   - Problemas de permisos
     echo.
     echo [SOLUCIONES]:
-    echo   1. Verifica que Python este instalado: python --version
-    echo   2. Instala dependencias: pip install -r requirements.txt
-    echo   3. Cambia el puerto en config.yaml si esta ocupado
-    echo   4. Ejecuta como administrador si es necesario
-    echo.
-    pause
-)
-
-echo.
-echo [INFO] Servidor detenido correctamente
-echo.
-pause
+    echo   1. Verifica que Python este instalado: python --</think>

@@ -53,9 +53,11 @@ class Pipeline:
         """
         self._input_source = input_source
         self._output_sink = output_sink
+        self._config_manager = None
 
         self._modules: List[BaseModule] = []
         self._module_map: Dict[str, BaseModule] = {}
+        self._module_configs: Dict[str, dict] = {}
         self._state = PipelineState.IDLE
         self._error_message: Optional[str] = None
         self._thread: Optional[threading.Thread] = None
@@ -88,10 +90,14 @@ class Pipeline:
     def state(self) -> PipelineState:
         return self._state
 
-    def register_module(self, module: BaseModule) -> None:
+    def register_module(
+        self, module: BaseModule, config: Optional[dict] = None
+    ) -> None:
         """Register a module in the pipeline execution order."""
         self._modules.append(module)
         self._module_map[module.name] = module
+        if config:
+            self._module_configs[module.name] = config.copy()
         logger.info(f"Registered module: {module.name} (enabled={module.enabled})")
 
     def get_module(self, name: str) -> Optional[BaseModule]:
@@ -126,6 +132,9 @@ class Pipeline:
 
     def reconfigure(self, config_manager) -> None:
         """Update configuration for all components while running."""
+        # Save config manager reference for future access
+        self._config_manager = config_manager
+
         # Reconfigure input
         if self._input_source:
             try:
@@ -152,10 +161,41 @@ class Pipeline:
         for module in self._modules:
             try:
                 mod_config = config_manager.get_module_config(module.name)
+                old_config = self._module_configs.get(module.name, {})
+
+                # Check if TTS engine voice/engine changed and restart if needed
+                needs_restart = False
+                if module.name == "tts_engine":
+                    old_voice = old_config.get("voice", "")
+                    new_voice = mod_config.get("voice", "")
+                    old_engine = old_config.get("engine", "")
+                    new_engine = mod_config.get("engine", "")
+                    if old_voice != new_voice or old_engine != new_engine:
+                        needs_restart = True
+                        self._log(
+                            "info", f"TTS voice/engine changed, restarting module..."
+                        )
+
                 module.configure(mod_config)
-                self._log("info", f"Reconfigured module: {module.name}")
+                self._module_configs[module.name] = mod_config.copy()
+
+                if needs_restart and module.enabled:
+                    self._restart_module(module)
+                    self._log("info", f"Restarted module: {module.name}")
+                else:
+                    self._log("info", f"Reconfigured module: {module.name}")
             except Exception as e:
                 self._log("error", f"Failed to reconfigure {module.name}: {e}")
+
+    def _restart_module(self, module) -> None:
+        """Restart a module (stop then start)."""
+        try:
+            if hasattr(module, "stop"):
+                module.stop()
+            if hasattr(module, "start"):
+                module.start()
+        except Exception as e:
+            self._log("error", f"Failed to restart module {module.name}: {e}")
 
     def _log(self, level: str, message: str) -> None:
         """Log a message and notify callback."""

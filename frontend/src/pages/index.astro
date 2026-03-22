@@ -390,7 +390,13 @@ import Toast from '../components/Toast.astro';
     const translatorSource = document.getElementById('translator-source') as HTMLSelectElement;
     const translatorTarget = document.getElementById('translator-target') as HTMLSelectElement;
     const ttsEnabled = document.getElementById('tts-enabled') as HTMLInputElement;
-    const ttsVoice = document.getElementById('tts-voice') as HTMLSelectElement;
+    const ttsEngine = document.getElementById('tts-engine') as HTMLSelectElement;
+    const ttsDevice = document.getElementById('tts-device') as HTMLSelectElement;
+    const ttsDeviceGroup = document.getElementById('tts-device-group') as HTMLDivElement;
+    const ttsVoiceEdge = document.getElementById('tts-voice-edge') as HTMLSelectElement;
+    const ttsVoicePiper = document.getElementById('tts-voice-piper') as HTMLSelectElement;
+    const ttsVoiceEdgeGroup = document.getElementById('tts-voice-edge-group') as HTMLDivElement;
+    const ttsVoicePiperGroup = document.getElementById('tts-voice-piper-group') as HTMLDivElement;
     const ttsSpeed = document.getElementById('tts-speed') as HTMLInputElement;
     const subtitleEnabled = document.getElementById('subtitle-enabled') as HTMLInputElement;
     const subtitleFormat = document.getElementById('subtitle-format') as HTMLSelectElement;
@@ -411,7 +417,20 @@ import Toast from '../components/Toast.astro';
     if (translatorSource) translatorSource.value = cfg.modules.translator.source_lang;
     if (translatorTarget) translatorTarget.value = cfg.modules.translator.target_lang;
     if (ttsEnabled) ttsEnabled.checked = cfg.modules.tts_engine.enabled;
-    if (ttsVoice) ttsVoice.value = cfg.modules.tts_engine.voice;
+    if (ttsEngine) {
+      ttsEngine.value = cfg.modules.tts_engine.engine || 'edge-tts';
+      if (ttsDeviceGroup) {
+        ttsDeviceGroup.style.display = ttsEngine.value === 'piper' ? 'block' : 'none';
+      }
+      if (ttsVoiceEdgeGroup && ttsVoicePiperGroup) {
+        const isEdge = ttsEngine.value === 'edge-tts';
+        ttsVoiceEdgeGroup.style.display = isEdge ? 'block' : 'none';
+        ttsVoicePiperGroup.style.display = isEdge ? 'none' : 'block';
+      }
+    }
+    if (ttsDevice) ttsDevice.value = cfg.modules.tts_engine.device || 'auto';
+    if (ttsVoiceEdge) ttsVoiceEdge.value = cfg.modules.tts_engine.voice || 'es-ES-AlvaroNeural';
+    if (ttsVoicePiper) ttsVoicePiper.value = cfg.modules.tts_engine.voice || 'es_ES-carlfm-x_low';
     if (ttsSpeed) ttsSpeed.value = String(cfg.modules.tts_engine.speed);
     if (subtitleEnabled) subtitleEnabled.checked = cfg.modules.subtitle_generator.enabled;
     if (subtitleFormat) subtitleFormat.value = cfg.modules.subtitle_generator.format;
@@ -457,7 +476,11 @@ import Toast from '../components/Toast.astro';
         },
             tts_engine: {
               enabled: (document.getElementById('tts-enabled') as HTMLInputElement)?.checked ?? true,
-              voice: (document.getElementById('tts-voice') as HTMLSelectElement)?.value || 'es-ES-AlvaroNeural',
+              engine: (document.getElementById('tts-engine') as HTMLSelectElement)?.value || 'edge-tts',
+              device: (document.getElementById('tts-device') as HTMLSelectElement)?.value || 'auto',
+              voice: (document.getElementById('tts-engine') as HTMLSelectElement)?.value === 'piper'
+                ? (document.getElementById('tts-voice-piper') as HTMLSelectElement)?.value || 'es_ES-carlfm-x_low'
+                : (document.getElementById('tts-voice-edge') as HTMLSelectElement)?.value || 'es-ES-AlvaroNeural',
               speed: parseFloat((document.getElementById('tts-speed') as HTMLInputElement)?.value || '1.0')
             },
         subtitle_generator: {
@@ -638,6 +661,25 @@ import Toast from '../components/Toast.astro';
     });
     document.getElementById('translator-target')?.addEventListener('change', (e) => {
       updateConfigField('modules.translator.target_lang', (e.target as HTMLSelectElement).value);
+    });
+
+    document.getElementById('tts-engine')?.addEventListener('change', (e) => {
+      const value = (e.target as HTMLSelectElement).value;
+      updateConfigField('modules.tts_engine.engine', value);
+      const deviceGroup = document.getElementById('tts-device-group');
+      if (deviceGroup) {
+        deviceGroup.style.display = value === 'piper' ? 'block' : 'none';
+      }
+      const voiceEdgeGroup = document.getElementById('tts-voice-edge-group');
+      const voicePiperGroup = document.getElementById('tts-voice-piper-group');
+      if (voiceEdgeGroup && voicePiperGroup) {
+        const isEdge = value === 'edge-tts';
+        voiceEdgeGroup.style.display = isEdge ? 'block' : 'none';
+        voicePiperGroup.style.display = isEdge ? 'none' : 'block';
+      }
+    });
+    document.getElementById('tts-device')?.addEventListener('change', (e) => {
+      updateConfigField('modules.tts_engine.device', (e.target as HTMLSelectElement).value);
     });
 
     document.getElementById('tts-voice')?.addEventListener('change', (e) => {

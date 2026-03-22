@@ -176,17 +176,17 @@ def build_pipeline(config: ConfigManager, output_dir: str):
     # 4. Generate subtitles
     subs_config = config.get_module_config("subtitle_generator")
     subtitle_generator = SubtitleGenerator(config=subs_config, output_dir=output_dir)
-    pipeline.register_module(subtitle_generator)
+    pipeline.register_module(subtitle_generator, subs_config)
 
     # 5. Generate Text-to-Speech audio
     tts_config = config.get_module_config("tts_engine")
     tts_engine = TTSEngine(config=tts_config, output_dir=output_dir)
-    pipeline.register_module(tts_engine)
+    pipeline.register_module(tts_engine, tts_config)
 
     # 6. Mix original audio with TTS audio (ducking)
     mixer_config = config.get_module_config("audio_mixer")
     audio_mixer = AudioMixer(config=mixer_config, output_dir=output_dir)
-    pipeline.register_module(audio_mixer)
+    pipeline.register_module(audio_mixer, mixer_config)
 
     # Note: Output (HLS muxing) is handled by OutputSink, not a pipeline module
 
