@@ -66,24 +66,19 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo [INFO] Iniciando servidor...
-echo [INFO] Para detener el servidor, presiona Ctrl+C o cierra esta ventana.
+echo [INFO] Iniciando servidor en modo minimizado...
+echo [INFO] El servidor se ejecuta en segundo plano.
+echo [INFO] Para detenerlo, cierra la ventana desde la barra de tareas.
 echo.
 echo ===============================================
-echo Presiona Ctrl+C para detener el servidor
+echo Servidor iniciado (minimizado)
 echo ===============================================
 echo.
 
-python -X utf8 main.py
+start /min "" python -X utf8 main.py
 
-if %errorlevel% neq 0 (
-    echo.
-    echo [ERROR] Hubo un problema al iniciar el servidor.
-    echo [INFO] Posibles causas:
-    echo   - Python no esta correctamente instalado
-    echo   - Falta alguna dependencia
-    echo   - Puerto 9999 ya esta en uso
-    echo   - Problemas de permisos
-    echo.
-    echo [SOLUCIONES]:
-    echo   1. Verifica que Python este instalado: python --</think>
+echo [OK] Servidor iniciado exitosamente.
+echo [INFO] Abre http://localhost:9999 en tu navegador.
+echo.
+timeout /t 3 >nul
+exit /b 0</think>

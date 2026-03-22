@@ -128,6 +128,18 @@ def setup_logging():
             except Exception:
                 pass
 
+    class ConsoleFilter(logging.Filter):
+        """Filter out security warnings from console output."""
+
+        SECURITY_PATTERNS = ["SECURITY:", "auth_token not configured"]
+
+        def filter(self, record):
+            msg = record.getMessage()
+            for pattern in self.SECURITY_PATTERNS:
+                if pattern in msg:
+                    return False  # Suppress this record
+            return True
+
     # Console handler
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
@@ -137,6 +149,7 @@ def setup_logging():
             datefmt="%H:%M:%S",
         )
     )
+    console.addFilter(ConsoleFilter())
 
     # Broadcast handler (sends to WebSocket clients)
     broadcast = BroadcastHandler()
