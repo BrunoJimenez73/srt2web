@@ -9,7 +9,7 @@ import logging
 import asyncio
 from typing import Optional
 
-from core.module_base import BaseModule, PipelineData, ModuleState
+from core.module_base import BaseModule, PipelineData, ModuleState, ModuleStatus
 from core.model_cache import ModelCache
 
 logger = logging.getLogger("srt2web.module.transcriber")
@@ -75,7 +75,7 @@ class Transcriber(BaseModule):
             )
             
             self._state = ModuleState.RUNNING
-            logger.info(f"Whisper model '{self._model_size}' loaded successfully (cached)")
+            logger.info(f"Whisper model '{self._model_size}' loaded successfully on {self._device.upper()} (cached)")
             
         except ImportError:
             self._state = ModuleState.ERROR
@@ -150,3 +150,11 @@ class Transcriber(BaseModule):
             logger.error(f"Transcription error: {e}")
 
         return data
+
+    def get_status(self) -> ModuleStatus:
+        """Get current status including device info."""
+        status = super().get_status()
+        status.extra["device"] = self._device
+        status.extra["compute_type"] = self._compute_type
+        status.extra["using_gpu"] = self._device == "cuda"
+        return status

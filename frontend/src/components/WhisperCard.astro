@@ -5,6 +5,7 @@
   <div class="process-header">
     <span class="process-indicator" id="indicator-whisper"></span>
     <span class="process-title">🎙 WHISPER</span>
+    <span class="gpu-badge" id="whisper-gpu-badge" style="display: none;">GPU</span>
     <label class="toggle-switch">
       <input type="checkbox" id="whisper-enabled" onchange="window.toggleModule('transcriber', this.checked)" />
       <span class="toggle-slider"></span>
@@ -54,6 +55,10 @@
           <div class="metric-mini">
             <span class="metric-label">Chunks</span>
             <span class="metric-value" id="module-chunks-transcriber">--</span>
+          </div>
+          <div class="metric-mini">
+            <span class="metric-label">Device</span>
+            <span class="metric-value" id="module-device-transcriber">--</span>
           </div>
         </div>
       </div>
@@ -215,5 +220,15 @@
     font-size: 11px;
     font-weight: 600;
     color: var(--text-prime);
+  }
+
+  .gpu-badge {
+    background: linear-gradient(135deg, #76b900, #a8e600);
+    color: #000;
+    font-size: 8px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
   }
 </style>

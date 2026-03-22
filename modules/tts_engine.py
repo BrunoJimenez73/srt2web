@@ -13,7 +13,7 @@ import urllib.request
 import threading
 from typing import Optional
 
-from core.module_base import BaseModule, PipelineData, ModuleState
+from core.module_base import BaseModule, PipelineData, ModuleState, ModuleStatus
 
 logger = logging.getLogger("srt2web.module.tts_engine")
 
@@ -32,6 +32,7 @@ class TTSEngine(BaseModule):
         self._voice_model = "en-US-AriaNeural"  # Very natural female AI voice
         self._use_translated = True
         self._speed = 1.0  # TTS speech rate multiplier
+        self._using_cuda = False  # Track actual CUDA usage
 
         # Piper specific
         self._piper_voice = None
@@ -115,6 +116,7 @@ class TTSEngine(BaseModule):
                             model_path, config_path, use_cuda=True
                         )
                         use_cuda = True
+                        self._using_cuda = True
                         logger.info("Using CUDA for Piper TTS (forced by config)")
                         return
                     except Exception as e:
@@ -134,6 +136,7 @@ class TTSEngine(BaseModule):
                             model_path, config_path, use_cuda=True
                         )
                         use_cuda = True
+                        self._using_cuda = True
                         logger.info("Using CUDA for Piper TTS (auto-detected)")
                         return
                     except Exception as e:
@@ -143,6 +146,15 @@ class TTSEngine(BaseModule):
                         use_cuda = False
 
         self._piper_voice = PiperVoice.load(model_path, config_path, use_cuda=False)
+        self._using_cuda = False
+
+    def get_status(self) -> ModuleStatus:
+        """Get current status including device info."""
+        status = super().get_status()
+        status.extra["device"] = self._device
+        status.extra["using_gpu"] = self._using_cuda if self._engine == "piper" else False
+        status.extra["engine"] = self._engine
+        return status
 
     def stop(self) -> None:
         """Cleanup TTS resources."""

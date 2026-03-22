@@ -5,6 +5,7 @@
   <div class="process-header">
     <span class="process-indicator" id="indicator-tts"></span>
     <span class="process-title">🎤 DOBLAR</span>
+    <span class="gpu-badge" id="tts-gpu-badge" style="display: none;">GPU</span>
     <label class="toggle-switch">
       <input type="checkbox" id="tts-enabled" onchange="window.toggleModule('tts_engine', this.checked)" />
       <span class="toggle-slider"></span>
@@ -85,6 +86,10 @@
           <div class="metric-mini">
             <span class="metric-label">Chunks</span>
             <span class="metric-value" id="module-chunks-tts_engine">--</span>
+          </div>
+          <div class="metric-mini">
+            <span class="metric-label">Device</span>
+            <span class="metric-value" id="module-device-tts_engine">--</span>
           </div>
         </div>
       </div>
@@ -261,5 +266,15 @@
     font-size: 11px;
     font-weight: 600;
     color: var(--text-prime);
+  }
+
+  .gpu-badge {
+    background: linear-gradient(135deg, #76b900, #a8e600);
+    color: #000;
+    font-size: 8px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
   }
 </style>

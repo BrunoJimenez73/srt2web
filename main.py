@@ -81,12 +81,31 @@ def _shutdown():
 def setup_logging():
     """Configure logging with both console and broadcaster output."""
 
+    # Patterns to filter from frontend logs (noisy but non-critical)
+    FILTER_PATTERNS = [
+        "[FFmpeg]",  # FFmpeg stderr noise
+        "[FFmpeg RTMP]",  # RTMP output warnings
+        "CUDA not available",  # GPU fallback messages
+        "falling back to CPU",  # CPU fallback messages
+        "Duration drift",  # Timing drift warnings
+        "using CPU for",  # CPU usage info
+        "Heartbeat timeout",  # WebSocket heartbeat
+        "[WS] Reconnecting",  # WebSocket reconnect messages
+        "No input video chunk",  # Missing video chunk (normal at start)
+        "Audio padding failed",  # Non-critical audio issues
+        "Audio truncation failed",  # Non-critical audio issues
+    ]
+
     class BroadcastHandler(logging.Handler):
         """Custom handler that sends logs to WebSocket subscribers."""
 
         def emit(self, record):
             try:
                 msg = self.format(record)
+                # Filter out noisy non-critical messages (INFO, DEBUG, and WARNING)
+                for pattern in FILTER_PATTERNS:
+                    if pattern in msg:
+                        return
                 log_broadcaster.broadcast(record.levelname.lower(), msg)
             except Exception:
                 pass
@@ -103,7 +122,7 @@ def setup_logging():
 
     # Broadcast handler (sends to WebSocket clients)
     broadcast = BroadcastHandler()
-    broadcast.setLevel(logging.INFO)
+    broadcast.setLevel(logging.DEBUG)  # Capture all, filter in emit()
     broadcast.setFormatter(
         logging.Formatter("%(levelname)-5s │ %(name)s │ %(message)s")
     )

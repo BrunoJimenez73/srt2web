@@ -344,6 +344,54 @@ import Toast from '../components/Toast.astro';
         if (chunksEl && module.processed_chunks !== undefined) {
           chunksEl.textContent = String(module.processed_chunks);
         }
+
+        // Update GPU badge and device info from extra field
+        if (module.extra) {
+          // GPU badge for transcriber (Whisper)
+          if (module.name === 'transcriber') {
+            const gpuBadge = document.getElementById('whisper-gpu-badge');
+            const deviceEl = document.getElementById('module-device-transcriber');
+            if (gpuBadge) {
+              gpuBadge.style.display = module.extra.using_gpu ? 'inline' : 'none';
+            }
+            if (deviceEl) {
+              deviceEl.textContent = module.extra.device ? module.extra.device.toUpperCase() : '--';
+            }
+          }
+
+          // GPU badge for tts_engine (Doblar)
+          if (module.name === 'tts_engine') {
+            const gpuBadge = document.getElementById('tts-gpu-badge');
+            const deviceEl = document.getElementById('module-device-tts_engine');
+            if (gpuBadge) {
+              gpuBadge.style.display = module.extra.using_gpu ? 'inline' : 'none';
+            }
+            if (deviceEl) {
+              deviceEl.textContent = module.extra.device ? module.extra.device.toUpperCase() : '--';
+            }
+          }
+
+          // GPU badge and encoder info for video_muxer (HLS Output)
+          if (module.name === 'video_muxer') {
+            const gpuBadge = document.getElementById('hls-gpu-badge');
+            const encoderEl = document.getElementById('module-encoder-video_muxer');
+            if (gpuBadge) {
+              gpuBadge.style.display = module.extra.using_gpu ? 'inline' : 'none';
+            }
+            if (encoderEl) {
+              // Show actual encoder mode
+              const encoderMode = module.extra.encoder_mode || 'cpu';
+              const encoderLabels: Record<string, string> = {
+                'cpu': 'CPU',
+                'gpu_nvenc': 'NVENC',
+                'gpu_amf': 'AMF',
+                'gpu_qsv': 'QSV',
+                'gpu_vaapi': 'VAAPI'
+              };
+              encoderEl.textContent = encoderLabels[encoderMode] || encoderMode;
+            }
+          }
+        }
       });
     }
 

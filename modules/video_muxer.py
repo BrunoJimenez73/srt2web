@@ -14,7 +14,7 @@ import threading
 from pathlib import Path
 from typing import Optional
 
-from core.module_base import BaseModule, PipelineData, ModuleState
+from core.module_base import BaseModule, PipelineData, ModuleState, ModuleStatus
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.encoder_config import EncoderConfig
 
@@ -358,3 +358,26 @@ class VideoMuxer(BaseModule):
                     f.write("\n".join(master_lines) + "\n")
             except Exception as e:
                 logger.error(f"Failed to write master playlist: {e}")
+
+    def get_status(self) -> ModuleStatus:
+        """Get current status including GPU encoder info."""
+        status = super().get_status()
+        # Determine actual encoder being used
+        encoder_mode = self._encoder_config.encoder_mode
+        if encoder_mode == "auto":
+            if self._gpu_info["nvenc"]:
+                encoder_mode = "gpu_nvenc"
+            elif self._gpu_info["amf"]:
+                encoder_mode = "gpu_amf"
+            elif self._gpu_info["qsv"]:
+                encoder_mode = "gpu_qsv"
+            elif self._gpu_info["vaapi"]:
+                encoder_mode = "gpu_vaapi"
+            else:
+                encoder_mode = "cpu"
+        
+        status.extra["encoder_mode"] = encoder_mode
+        status.extra["using_gpu"] = encoder_mode.startswith("gpu_")
+        status.extra["gpu_available"] = self._gpu_info
+        status.extra["gpu_preset"] = self._encoder_config.gpu_preset
+        return status
