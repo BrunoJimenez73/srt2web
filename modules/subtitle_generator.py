@@ -3,6 +3,9 @@ Subtitle Generator Module — creates WebVTT files.
 
 Formats transcripts or translations into a rolling WebVTT file
 that can be displayed in the HLS video player.
+
+CRITICAL: Uses data.cumulative_duration from PipelineData for accurate sync,
+not internal tracking, to prevent drift from VideoMuxer.
 """
 
 import os
@@ -19,6 +22,9 @@ class SubtitleGenerator(BaseModule):
     """
     Generates WebVTT subtitles synchronized with the video segments.
     Maintains a rolling subtitle file.
+
+    CRITICAL: Uses data.cumulative_duration from PipelineData for synchronization
+    to prevent drift accumulation across modules.
     """
 
     def __init__(self, config: Optional[dict] = None, output_dir: str = "./output"):
@@ -30,11 +36,9 @@ class SubtitleGenerator(BaseModule):
         self._chunk_duration = 4
         self._lock = threading.Lock()
 
-        # Track cumulative time for sync - same as VideoMuxer
-        self._cumulative_time = 0.0
         self._last_chunk_index = -1
+        self._last_cumulative = 0.0  # Track last cumulative for validation
 
-        # Keep track of recent subtitle text to avoid duplicates
         self._history = []
         self._max_history = 10
         super().__init__("subtitle_generator", config)
@@ -62,9 +66,8 @@ class SubtitleGenerator(BaseModule):
             except Exception as e:
                 logger.error(f"Failed to initialize VTT: {e}")
 
-        # Reset cumulative time - same as VideoMuxer
-        self._cumulative_time = 0.0
         self._last_chunk_index = -1
+        self._last_cumulative = 0.0
         self._history = []
         self._state = ModuleState.RUNNING
         logger.info(
@@ -88,6 +91,9 @@ class SubtitleGenerator(BaseModule):
     def _do_process(self, data: PipelineData) -> PipelineData:
         """
         Append new text to the WebVTT file and create a per-chunk SRT for burn-in.
+
+        CRITICAL: Uses data.cumulative_duration from PipelineData for sync,
+        NOT internal tracking, to prevent drift.
         """
         text = data.translated_text if self._use_translated else data.transcript
 
@@ -95,30 +101,38 @@ class SubtitleGenerator(BaseModule):
             data.subtitles_path = self._vtt_path
             return data
 
-        # Get actual duration from data (from ffprobe), not assumed duration
+        # Get actual duration from data (measured by AudioMixer)
         duration = getattr(data, "duration", None) or self._chunk_duration
         if not duration or duration <= 0:
             duration = 4.0
 
-        # Use cumulative timing - same logic as VideoMuxer
-        # Track which chunks we've already processed
-        if data.chunk_index > self._last_chunk_index:
-            # New chunk, add its duration to cumulative time
-            # Skip chunks we already processed (for resume case)
-            # NOTE: We update cumulative_time BEFORE setting chunk_start_time to match VideoMuxer logic
-            if self._last_chunk_index >= 0:
-                self._cumulative_time += duration
-            self._last_chunk_index = data.chunk_index
-        elif data.chunk_index < self._last_chunk_index:
-            # Resume case - recalculate from scratch
-            self._cumulative_time = data.chunk_index * duration
-            self._last_chunk_index = data.chunk_index
+        # CRITICAL: Use cumulative_duration from PipelineData for sync
+        # This comes from InputSource and is validated there
+        chunk_start_time = getattr(data, "cumulative_duration", 0.0)
 
-        # chunk_start_time is the current cumulative time (matches VideoMuxer's offset_sec)
-        chunk_start_time = self._cumulative_time
+        # Validate sequential processing (detect out-of-order chunks)
+        if (
+            data.chunk_index != self._last_chunk_index + 1
+            and self._last_chunk_index >= 0
+        ):
+            logger.warning(
+                f"[SubtitleGen] Chunk sequence break: expected {self._last_chunk_index + 1}, "
+                f"got {data.chunk_index}"
+            )
+
+        # Validate cumulative duration is monotonically increasing
+        if chunk_start_time <= self._last_cumulative and self._last_cumulative > 0:
+            logger.warning(
+                f"[SubtitleGen] Cumulative duration not increasing: "
+                f"last={self._last_cumulative:.3f}, current={chunk_start_time:.3f}"
+            )
+
+        self._last_chunk_index = data.chunk_index
+        self._last_cumulative = chunk_start_time
 
         logger.debug(
-            f"[SubtitleGen] chunk={data.chunk_index}, duration={duration}, chunk_start_time={chunk_start_time}"
+            f"[SubtitleGen] chunk={data.chunk_index}, duration={duration:.3f}, "
+            f"cumulative={chunk_start_time:.3f}"
         )
 
         # Determine segments to use
@@ -144,9 +158,7 @@ class SubtitleGenerator(BaseModule):
 
                         clean_text = seg.get("text", "").replace("\n", " ").strip()
                         if clean_text:
-                            # Ensure text is properly encoded as UTF-8
                             try:
-                                # Convert to UTF-8 if not already
                                 clean_text = clean_text.encode("utf-8").decode("utf-8")
                             except:
                                 pass
@@ -154,7 +166,6 @@ class SubtitleGenerator(BaseModule):
                             f.write(f"{clean_text}\n\n")
                             logger.info(f"[SUB] {clean_text}")
 
-            # Also log the file size for debugging
             file_size = os.path.getsize(self._vtt_path)
             logger.debug(f"VTT file size: {file_size} bytes")
 

@@ -92,6 +92,9 @@ class AsyncPipeline:
 
         self._chunks_processed = 0
         self._chunks_output = 0
+        self._next_expected_index = (
+            0  # Track expected chunk index for sequential output
+        )
 
         self._on_log: Optional[Callable[[str, str], None]] = None
         self._on_state_change: Optional[Callable[[str], None]] = None
@@ -316,27 +319,54 @@ class AsyncPipeline:
             )
 
     def _output_loop(self) -> None:
-        """Output loop - writes processed chunks to output sink."""
+        """Output loop - writes processed chunks to output sink.
+
+        CRITICAL: Enforces sequential output order to prevent drift.
+        Chunks are output only when they are the next expected chunk.
+        """
+        pending_outputs = {}  # chunk_index -> processor
+
         while not self._stop_event.is_set():
             try:
-                processor = self._output_queue.get(timeout=1)
+                # Try to get next chunk from queue
+                try:
+                    processor = self._output_queue.get(timeout=0.1)
+                    pending_outputs[processor.chunk_index] = processor
+                except queue.Empty:
+                    pass
 
-                if self._output_sink and processor.data:
-                    try:
-                        self._output_sink.write(processor.data)
-                        self._chunks_output += 1
-                        self._log("debug", f"Output chunk {processor.chunk_index}")
-                    except Exception as e:
-                        self._log("error", f"Output error: {e}")
+                # Check if we can output the next expected chunk
+                while self._next_expected_index in pending_outputs:
+                    processor = pending_outputs.pop(self._next_expected_index)
 
-                with self._lock:
-                    self._results.pop(processor.chunk_index, None)
+                    if self._output_sink and processor.data:
+                        try:
+                            self._output_sink.write(processor.data)
+                            self._chunks_output += 1
+                            self._log(
+                                "debug",
+                                f"Output chunk {processor.chunk_index} (sequential)",
+                            )
+                        except Exception as e:
+                            self._log("error", f"Output error: {e}")
 
-                self._output_queue.task_done()
-                self._chunks_processed += 1
+                    with self._lock:
+                        self._results.pop(processor.chunk_index, None)
 
-            except queue.Empty:
-                continue
+                    self._output_queue.task_done()
+                    self._chunks_processed += 1
+                    self._next_expected_index += 1
+
+                # Log warning if we have pending chunks out of order
+                if pending_outputs:
+                    min_pending = min(pending_outputs.keys())
+                    if min_pending > self._next_expected_index + 2:
+                        self._log(
+                            "warning",
+                            f"Output queue gap: expected {self._next_expected_index}, "
+                            f"pending: {list(pending_outputs.keys())[:5]}",
+                        )
+
             except Exception as e:
                 self._log("error", f"Output loop error: {e}")
 

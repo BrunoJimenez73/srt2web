@@ -120,9 +120,9 @@ class VideoMuxer(BaseModule):
         audio_input = data.mixed_audio_path or data.dubbed_audio_path
         # No subtitles_path used here yet, but kept for future use if needed
 
-        # Calculate the proper timestamp offset based on cumulative duration
-        # This prevents the 'stuttering' caused by imprecise chunk durations.
-        offset_sec = f"{self._total_duration_emitted:.3f}"
+        # CRITICAL: Use data.cumulative_duration for accurate sync
+        # This is set by InputSource and validated throughout the pipeline
+        offset_sec = f"{data.cumulative_duration:.3f}"
         chunk_duration = data.duration or self._hls_segment_duration
 
         # Save duration for manifest
@@ -232,8 +232,15 @@ class VideoMuxer(BaseModule):
             logger.error(f"FFmpeg mux exception: {e}")
             return data
 
-        # Update cumulative duration
-        self._total_duration_emitted += chunk_duration
+        # Update cumulative duration for next segment (for logging/validation)
+        expected_next_cumulative = data.cumulative_duration + chunk_duration
+        drift = expected_next_cumulative - self._total_duration_emitted
+        if abs(drift) > 0.01:  # 10ms threshold
+            logger.warning(
+                f"[VideoMuxer] Duration drift detected: expected {expected_next_cumulative:.3f}s, "
+                f"was {self._total_duration_emitted:.3f}s (drift: {drift * 1000:.1f}ms)"
+            )
+        self._total_duration_emitted = expected_next_cumulative
 
         # DEBUG: Log segment timing
         logger.info(

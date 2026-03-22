@@ -306,6 +306,9 @@ class PipelineData:
     chunk_index: int = 0
     timestamp: float = 0.0
     duration: float = 0.0
+    cumulative_duration: float = (
+        0.0  # Accumulated duration from previous chunks (for sync)
+    )
     video_chunk_path: Optional[str] = None
     audio_chunk_path: Optional[str] = None
     audio_samples: Optional[np.ndarray] = None
