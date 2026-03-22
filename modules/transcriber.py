@@ -10,6 +10,7 @@ import asyncio
 from typing import Optional
 
 from core.module_base import BaseModule, PipelineData, ModuleState
+from core.model_cache import ModelCache
 
 logger = logging.getLogger("srt2web.module.transcriber")
 
@@ -27,6 +28,7 @@ class Transcriber(BaseModule):
         self._model = None
         self._device = "cpu"
         self._compute_type = "int8"
+        self._model_cache = ModelCache()
         super().__init__("transcriber", config)
 
     def configure(self, config: dict) -> None:
@@ -39,11 +41,10 @@ class Transcriber(BaseModule):
         self._device_config = config.get("device", self._device_config)
 
     def start(self) -> None:
-        """Initialize and load the Whisper model."""
+        """Initialize and load the Whisper model using ModelCache."""
         self._state = ModuleState.STARTING
         
         try:
-            from faster_whisper import WhisperModel
             import torch
             
             # Determine device and compute type
@@ -66,18 +67,15 @@ class Transcriber(BaseModule):
             # Avoid downloading logs spam
             os.environ["CT2_VERBOSE"] = "-1"
             
-            # Optimized model loading for better performance
-            self._model = WhisperModel(
-                self._model_size, 
-                device=self._device, 
-                compute_type=self._compute_type,
-                cpu_threads=4,  # Prevent CPU hogging
-                download_root="./models/whisper",  # Cache models locally
-                local_files_only=False  # Allow download if not cached
+            # Use ModelCache for shared model instances
+            self._model = self._model_cache.get_whisper_model(
+                model_size=self._model_size,
+                device=self._device,
+                compute_type=self._compute_type
             )
             
             self._state = ModuleState.RUNNING
-            logger.info(f"Whisper model '{self._model_size}' loaded successfully")
+            logger.info(f"Whisper model '{self._model_size}' loaded successfully (cached)")
             
         except ImportError:
             self._state = ModuleState.ERROR

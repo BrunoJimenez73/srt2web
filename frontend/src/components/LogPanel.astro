@@ -2,12 +2,16 @@
 
 ---
 
-<div class="log-panel">
+<div class="log-panel" role="region" aria-label="Panel de registros del sistema">
   <div class="log-header">
     <span class="log-title">📋 Logs</span>
-    <button class="btn-clear" onclick="clearLogs()">Limpiar</button>
+    <button class="btn-clear" onclick="clearLogs()" aria-label="Limpiar todos los registros">Limpiar</button>
   </div>
-  <div class="log-content" id="log-content">
+  <div class="log-content" id="log-content" role="log" aria-live="polite" aria-atomic="false">
+    <div class="log-empty" id="log-empty">
+      <span class="log-empty-icon">📝</span>
+      <span class="log-empty-text">Sin registros aún</span>
+    </div>
   </div>
 </div>
 
@@ -98,6 +102,25 @@
     color: var(--text-prime);
     word-break: break-word;
   }
+
+  .log-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: var(--text-dim);
+    gap: 8px;
+  }
+
+  .log-empty-icon {
+    font-size: 24px;
+    opacity: 0.5;
+  }
+
+  .log-empty-text {
+    font-size: 11px;
+  }
 </style>
 
 <script>
@@ -107,11 +130,19 @@
   const logContent = document.getElementById('log-content');
   const maxLogs = 500;
 
+  const logEmpty = document.getElementById('log-empty');
+
   function addLog(level: LogMessage['level'], message: string, timestamp?: string): void {
     if (!logContent) return;
     
+    // Hide empty state when adding first log
+    if (logEmpty && logEmpty.parentElement === logContent) {
+      logEmpty.remove();
+    }
+    
     const entry = document.createElement('div');
     entry.className = 'log-entry';
+    entry.setAttribute('role', 'listitem');
     
     const time = timestamp ? formatTimestamp(timestamp) : new Date().toLocaleTimeString('es-ES');
     
@@ -139,6 +170,17 @@
   (window as unknown as { addLog: typeof addLog }).addLog = addLog;
 
   (window as unknown as { clearLogs: () => void }).clearLogs = function(): void {
-    if (logContent) logContent.innerHTML = '';
+    if (logContent) {
+      logContent.innerHTML = '';
+      // Restore empty state
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = 'log-empty';
+      emptyDiv.id = 'log-empty';
+      emptyDiv.innerHTML = `
+        <span class="log-empty-icon">📝</span>
+        <span class="log-empty-text">Sin registros aún</span>
+      `;
+      logContent.appendChild(emptyDiv);
+    }
   };
 </script>

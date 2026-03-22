@@ -17,7 +17,10 @@ const { title } = Astro.props;
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-    <slot />
+    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+    <main id="main-content">
+        <slot />
+    </main>
 </body>
 </html>
 
@@ -44,6 +47,24 @@ const { title } = Astro.props;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    .skip-link {
+        position: absolute;
+        top: -40px;
+        left: 0;
+        background: var(--accent);
+        color: white;
+        padding: 8px 16px;
+        z-index: 100;
+        text-decoration: none;
+        font-size: 14px;
+        border-radius: 0 0 var(--radius-sm) 0;
+        transition: top 0.3s;
+    }
+
+    .skip-link:focus {
+        top: 0;
+    }
 
     body {
         font-family: 'Inter', system-ui, sans-serif;

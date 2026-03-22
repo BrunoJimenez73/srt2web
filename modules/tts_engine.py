@@ -237,13 +237,9 @@ class TTSEngine(BaseModule):
             communicate = edge_tts.Communicate(text, self._voice_model, rate=rate)
             await communicate.save(temp_mp3)
 
-        # We need a new event loop to run async from a sync background thread
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            loop.run_until_complete(_generate())
-        finally:
-            loop.close()
+        # Use asyncio.run() which creates and manages event loop efficiently
+        # This is more efficient than manually creating/closing loops
+        asyncio.run(_generate())
 
         # Edge-TTS outputs MP3, but our mixer expects WAV.
         # We use FFmpeg to convert MP3 to WAV 16kHz

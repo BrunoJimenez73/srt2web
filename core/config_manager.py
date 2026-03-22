@@ -18,10 +18,11 @@ logger = logging.getLogger("srt2web.config")
 # Default configuration - used as fallback for missing keys
 DEFAULT_CONFIG = {
     "server": {
-        "host": "0.0.0.0",
+        "host": "127.0.0.1",
         "port": 8080,
         "cors_origins": ["http://localhost:*", "http://127.0.0.1:*"],
         "auth_token": "",
+        "rate_limit_rpm": 60,
     },
     "input": {
         "type": "srt",

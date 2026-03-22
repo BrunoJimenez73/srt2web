@@ -39,6 +39,8 @@ class AudioMixer(BaseModule):
         self._original_volume = 0.15  # 15% original volume (ducking)
         self._tts_volume = 1.0  # 100% TTS volume
         self._last_measured_duration = 0.0
+        # Duration cache to avoid repeated ffprobe calls
+        self._duration_cache: dict[str, float] = {}
         super().__init__("audio_mixer", config)
 
     def configure(self, config: dict) -> None:
@@ -55,6 +57,9 @@ class AudioMixer(BaseModule):
 
         self._mixer_dir = os.path.join(self._output_dir, "temp_mix")
         os.makedirs(self._mixer_dir, exist_ok=True)
+        
+        # Clear duration cache on start
+        self._duration_cache.clear()
 
         # Clean old files
         for f in os.listdir(self._mixer_dir):
@@ -375,9 +380,15 @@ class AudioMixer(BaseModule):
         return False
 
     def _get_audio_duration(self, audio_path: str) -> float:
-        """Get audio duration using ffprobe."""
+        """Get audio duration using ffprobe with caching."""
         if not audio_path or not os.path.exists(audio_path):
             return 0.0
+
+        # Check cache first
+        mtime = os.path.getmtime(audio_path)
+        cache_key = f"{audio_path}:{mtime}"
+        if cache_key in self._duration_cache:
+            return self._duration_cache[cache_key]
 
         try:
             ffmpeg_bin = self._ffmpeg_path or ensure_ffmpeg()
@@ -395,7 +406,14 @@ class AudioMixer(BaseModule):
                 audio_path,
             ]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
-            return float(result.stdout.strip())
+            duration = float(result.stdout.strip())
+            
+            # Cache the result (limit cache size)
+            if len(self._duration_cache) > 100:
+                self._duration_cache.clear()
+            self._duration_cache[cache_key] = duration
+            
+            return duration
         except Exception as e:
             logger.debug(f"Duration query failed for {audio_path}: {e}")
             return 0.0

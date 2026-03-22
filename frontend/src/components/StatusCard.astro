@@ -17,8 +17,14 @@ const { state = 'idle' } = Astro.props;
       <button class="mode-btn" data-mode="remote" id="btn-mode-remote">🌐 REMOTE</button>
     </div>
     <div class="status-right">
-      <button class="btn-stop" id="btn-stop" disabled>⏹ Detener</button>
-      <button class="btn-start" id="btn-start">▶ Iniciar</button>
+      <button class="btn-stop" id="btn-stop" disabled aria-label="Detener el pipeline de procesamiento">
+        <span class="btn-text">⏹ Detener</span>
+        <span class="btn-loading" aria-hidden="true">⏳</span>
+      </button>
+      <button class="btn-start" id="btn-start" aria-label="Iniciar el pipeline de procesamiento">
+        <span class="btn-text">▶ Iniciar</span>
+        <span class="btn-loading" aria-hidden="true">⏳</span>
+      </button>
     </div>
   </div>
   <div class="urls-row">
@@ -146,6 +152,26 @@ const { state = 'idle' } = Astro.props;
   .btn-start:disabled {
     background: var(--text-dim);
     cursor: not-allowed;
+  }
+
+  .btn-start.loading .btn-text,
+  .btn-stop.loading .btn-text {
+    display: none;
+  }
+
+  .btn-start.loading .btn-loading,
+  .btn-stop.loading .btn-loading {
+    display: inline;
+  }
+
+  .btn-loading {
+    display: none;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 
   .btn-stop {

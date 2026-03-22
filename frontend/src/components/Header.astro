@@ -31,8 +31,9 @@ const { version = 'Astro' } = Astro.props;
       <span class="ws-status-label">WS OFF</span>
     </div>
     <span id="live-clock" class="live-clock">--:--:--</span>
-    <button class="btn-save" id="btn-save-config" onclick="saveConfig()">
-      💾 Guardar Config
+    <button class="btn-save" id="btn-save-config" onclick="saveConfig()" aria-label="Guardar configuración actual">
+      <span class="btn-text">💾 Guardar Config</span>
+      <span class="btn-loading" aria-hidden="true">⏳</span>
     </button>
   </div>
 </header>
@@ -114,5 +115,23 @@ const { version = 'Astro' } = Astro.props;
 
   .btn-save:hover {
     background: var(--accent-hover);
+  }
+
+  .btn-save.loading .btn-text {
+    display: none;
+  }
+
+  .btn-save.loading .btn-loading {
+    display: inline;
+    animation: spin 1s linear infinite;
+  }
+
+  .btn-loading {
+    display: none;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 </style>

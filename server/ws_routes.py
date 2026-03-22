@@ -11,6 +11,8 @@ from typing import Set
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Request
 
+from server.security import validate_ws_auth
+
 logger = logging.getLogger("srt2web.ws")
 
 
@@ -110,8 +112,18 @@ def create_ws_router() -> APIRouter:
     router = APIRouter(tags=["websocket"])
 
     @router.websocket("/ws/logs")
-    async def ws_logs(websocket: WebSocket):
+    async def ws_logs(websocket: WebSocket, request: Request):
         """WebSocket endpoint for real-time log streaming."""
+        # Validate authentication via query parameter ?token=xxx
+        ctx = websocket.app.state.ctx
+        config = ctx.get("config")
+        get_token = lambda: config.get("server.auth_token", "") if config else ""
+
+        if not validate_ws_auth(request, get_token):
+            logger.warning(f"SECURITY: WebSocket auth failed from {request.client.host}")
+            await websocket.close(code=4001, reason="Authentication required. Use ?token=<auth_token>")
+            return
+
         # Set the event loop if not set
         try:
             if log_broadcaster._loop is None:

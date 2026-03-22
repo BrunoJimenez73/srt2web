@@ -2,6 +2,7 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import StatusCard from '../components/StatusCard.astro';
+import SecurityCard from '../components/SecurityCard.astro';
 import MetricsCard from '../components/MetricsCard.astro';
 import ProcessGrid from '../components/ProcessGrid.astro';
 import LogPanel from '../components/LogPanel.astro';
@@ -10,8 +11,9 @@ import Toast from '../components/Toast.astro';
 
 <BaseLayout title="SRT2Web Dashboard">
   <div class="dashboard">
-    <Header version="Astro" />
+    <Header version="0.4.0" />
     <StatusCard />
+    <SecurityCard />
     <MetricsCard />
     <ProcessGrid />
     <LogPanel />
@@ -510,7 +512,14 @@ import Toast from '../components/Toast.astro';
   }
 
   async function handleStart(): Promise<void> {
+    const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
+    const btnStop = document.getElementById('btn-stop') as HTMLButtonElement;
+    
     try {
+      btnStart.disabled = true;
+      btnStart.classList.add('loading');
+      btnStop.disabled = true;
+      
       addLog('info', 'Iniciando pipeline...');
       const result = await startPipeline();
       status = result;
@@ -518,11 +527,21 @@ import Toast from '../components/Toast.astro';
       addLog('success', 'Pipeline iniciado');
     } catch (e) {
       addLog('error', `Error: ${(e as Error).message}`);
+      btnStart.disabled = false;
+    } finally {
+      btnStart.classList.remove('loading');
     }
   }
 
   async function handleStop(): Promise<void> {
+    const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
+    const btnStop = document.getElementById('btn-stop') as HTMLButtonElement;
+    
     try {
+      btnStop.disabled = true;
+      btnStop.classList.add('loading');
+      btnStart.disabled = true;
+      
       addLog('info', 'Deteniendo pipeline...');
       const result = await stopPipeline();
       status = result;
@@ -530,11 +549,21 @@ import Toast from '../components/Toast.astro';
       addLog('info', 'Pipeline detenido');
     } catch (e) {
       addLog('error', `Error: ${(e as Error).message}`);
+      btnStop.disabled = false;
+    } finally {
+      btnStop.classList.remove('loading');
     }
   }
 
   async function handleSaveConfig(): Promise<void> {
+    const btnSave = document.getElementById('btn-save-config') as HTMLButtonElement;
+    
     try {
+      if (btnSave) {
+        btnSave.disabled = true;
+        btnSave.classList.add('loading');
+      }
+      
       const newConfig = collectConfigFromUI();
       await apiCall('PUT', '/config', { config: newConfig });
       config = await getConfig();
@@ -545,6 +574,11 @@ import Toast from '../components/Toast.astro';
       const msg = (e as Error).message;
       showToast(`Error: ${msg}`, 'error');
       addLog('error', `Error al guardar: ${msg}`);
+    } finally {
+      if (btnSave) {
+        btnSave.disabled = false;
+        btnSave.classList.remove('loading');
+      }
     }
   }
 

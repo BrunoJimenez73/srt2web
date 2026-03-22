@@ -6,14 +6,14 @@ interface Props {
 const { title = 'System Metrics' } = Astro.props;
 ---
 
-<div class="metrics-card" id="metrics-card">
+<div class="metrics-card" id="metrics-card" role="region" aria-label="Métricas del sistema">
   <div class="metrics-header">
     <span class="metrics-title">{title}</span>
   </div>
   <div class="metrics-grid">
-    <div class="metric-item" id="metric-cpu">
+    <div class="metric-item" id="metric-cpu" role="meter" aria-label="Uso de CPU" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
       <div class="metric-info">
-        <span class="metric-icon">⚡</span>
+        <span class="metric-icon" aria-hidden="true">⚡</span>
         <span class="metric-label">CPU</span>
       </div>
       <div class="metric-bar-container">
@@ -23,9 +23,9 @@ const { title = 'System Metrics' } = Astro.props;
         <span class="metric-value" id="metric-cpu-value">0%</span>
       </div>
     </div>
-    <div class="metric-item" id="metric-memory">
+    <div class="metric-item" id="metric-memory" role="meter" aria-label="Uso de memoria" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
       <div class="metric-info">
-        <span class="metric-icon">🧠</span>
+        <span class="metric-icon" aria-hidden="true">🧠</span>
         <span class="metric-label">Memory</span>
       </div>
       <div class="metric-bar-container">
@@ -36,9 +36,9 @@ const { title = 'System Metrics' } = Astro.props;
         <span class="metric-percent" id="metric-memory-percent">0%</span>
       </div>
     </div>
-    <div class="metric-item" id="metric-gpu">
+    <div class="metric-item" id="metric-gpu" role="meter" aria-label="Uso de GPU" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
       <div class="metric-info">
-        <span class="metric-icon">🎮</span>
+        <span class="metric-icon" aria-hidden="true">🎮</span>
         <span class="metric-label">GPU</span>
       </div>
       <div class="metric-bar-container">
@@ -49,9 +49,9 @@ const { title = 'System Metrics' } = Astro.props;
         <span class="metric-percent" id="metric-gpu-memory">N/A</span>
       </div>
     </div>
-    <div class="metric-item" id="metric-throughput">
+    <div class="metric-item" id="metric-throughput" role="meter" aria-label="Rendimiento de procesamiento" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
       <div class="metric-info">
-        <span class="metric-icon">📊</span>
+        <span class="metric-icon" aria-hidden="true">📊</span>
         <span class="metric-label">Throughput</span>
       </div>
       <div class="metric-bar-container">

@@ -9,6 +9,7 @@ import logging
 from typing import Optional
 
 from core.module_base import BaseModule, PipelineData, ModuleState
+from core.model_cache import ModelCache
 
 logger = logging.getLogger("srt2web.module.translator")
 
@@ -26,6 +27,7 @@ class Translator(BaseModule):
         self._argos_installed = False
         self._waiting_for_language = self._source_lang == "auto"
         self._current_source_lang = None
+        self._model_cache = ModelCache()
         super().__init__("translator", config)
 
     def configure(self, config: dict) -> None:
@@ -100,9 +102,16 @@ class Translator(BaseModule):
             self.enabled = False
 
     def _load_model(self, source_lang: str, target_lang: str):
-        """Install package if missing and create translation pipeline for the given language pair."""
+        """Install package if missing and create translation pipeline using ModelCache."""
         import argostranslate.package
         import argostranslate.translate
+
+        # Try to get from cache first
+        cached_pair = self._model_cache.get_argos_pair(source_lang, target_lang)
+        if cached_pair:
+            self._translation_pipeline = cached_pair
+            logger.info(f"Using cached Argos pair: {source_lang}->{target_lang}")
+            return
 
         # Check if installed
         installed = argostranslate.package.get_installed_packages()

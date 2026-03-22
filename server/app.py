@@ -8,23 +8,26 @@ import os
 import logging
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from server.api_routes import create_api_router
 from server.ws_routes import create_ws_router
+from server.security import (
+    AuthMiddleware,
+    RateLimitMiddleware,
+    SecurityHeadersMiddleware,
+    RateLimiter,
+    RequestSizeLimitMiddleware,
+)
 
 logger = logging.getLogger("srt2web.server")
 
-# Resolve paths relative to project root
 PROJECT_ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = PROJECT_ROOT / "output"
-
-# Frontend build output (Astro)
 FRONTEND_DIR = PROJECT_ROOT / "server" / "static"
-# Legacy web files (fallback)
 WEB_DIR = PROJECT_ROOT / "web"
 
 
@@ -42,11 +45,39 @@ def create_app(app_context: dict) -> FastAPI:
     app = FastAPI(
         title="SRT2Web",
         description="Modular SRT Stream Processor",
-        version="0.1.0",
+        version="0.4.0",
     )
 
-    # CORS - use configurable origins or default to restrictive list
     config = app_context.get("config")
+
+    # Request size limit - first after security headers
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_size_bytes=config.get("server.max_request_size_mb", 1) * 1_048_576
+        if config else 1_048_576,
+    )
+
+    # Security headers
+    app.add_middleware(SecurityHeadersMiddleware)
+
+    # Rate limiting
+    rate_limiter = RateLimiter(
+        requests_per_minute=config.get("server.rate_limit_rpm", 60)
+        if config else 60
+    )
+    app.add_middleware(
+        RateLimitMiddleware,
+        rate_limiter=rate_limiter,
+        get_auth_token=lambda: config.get("server.auth_token", "") if config else "",
+    )
+
+    # Authentication
+    app.add_middleware(
+        AuthMiddleware,
+        get_auth_token=lambda: config.get("server.auth_token", "") if config else "",
+    )
+
+    # CORS
     cors_origins = [
         "http://localhost:8080",
         "http://localhost:8089",
@@ -60,7 +91,6 @@ def create_app(app_context: dict) -> FastAPI:
         if configured_origins:
             cors_origins = configured_origins
 
-    # Replace wildcards with actual allowed origins for development
     allowed_origins = []
     for origin in cors_origins:
         if "*" in origin:
@@ -78,35 +108,27 @@ def create_app(app_context: dict) -> FastAPI:
         allow_credentials=True,
     )
 
-    # Store context for route handlers
     app.state.ctx = app_context
 
-    # API routes (prefix /api)
     api_router = create_api_router()
     app.include_router(api_router, prefix="/api")
 
-    # WebSocket routes
     ws_router = create_ws_router()
     app.include_router(ws_router)
 
-    # Health check endpoint
     @app.get("/health")
     async def health():
         return {"status": "ok"}
 
-    # Serve HLS output files
     hls_dir = OUTPUT_DIR / "hls"
     hls_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/hls", StaticFiles(directory=str(hls_dir)), name="hls")
 
-    # Serve Astro build output (static files with CSS, JS, assets)
-    # Mount AFTER API routes so they don't get intercepted
     if FRONTEND_DIR.exists():
         app.mount(
             "/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend"
         )
 
-    # Root — serve index.html (from Astro build or fallback to legacy)
     @app.get("/")
     async def serve_index():
         index_path = FRONTEND_DIR / "index.html"
@@ -119,7 +141,6 @@ def create_app(app_context: dict) -> FastAPI:
 
         return {"error": "index.html not found"}
 
-    # Player page (from Astro build or fallback)
     @app.get("/player")
     async def serve_player():
         player_path = FRONTEND_DIR / "player" / "index.html"

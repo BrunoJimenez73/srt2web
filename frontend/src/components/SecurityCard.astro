@@ -1,0 +1,340 @@
+---
+---
+
+<div class="security-card" id="security-card">
+  <div class="card-header">
+    <span class="card-icon">🔐</span>
+    <span class="card-title">SEGURIDAD</span>
+    <button class="btn-toggle" id="btn-toggle-security">▾</button>
+  </div>
+  <div class="security-content" id="security-content">
+    <div class="security-status">
+      <div class="status-row">
+        <span class="status-label">Estado:</span>
+        <span class="status-value" id="auth-status">Sin token configurado</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">WebSocket:</span>
+        <span class="status-value" id="ws-auth-status">Desprotegido</span>
+      </div>
+    </div>
+    <div class="security-form">
+      <div class="form-group">
+        <label class="form-label" for="auth-token-input">Token de autenticación</label>
+        <div class="input-row">
+          <input 
+            type="password" 
+            class="form-input" 
+            id="auth-token-input" 
+            placeholder="Ingrese token de seguridad..."
+            autocomplete="off"
+          />
+          <button class="btn-icon" id="btn-toggle-visibility" title="Mostrar/Ocultar">👁</button>
+        </div>
+        <span class="form-hint">Deja vacío para desactivar la autenticación</span>
+      </div>
+      <div class="form-actions">
+        <button class="btn-secondary" id="btn-generate-token">🎲 Generar</button>
+        <button class="btn-primary" id="btn-save-token">💾 Guardar</button>
+        <button class="btn-danger" id="btn-clear-token">🗑 Limpiar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .security-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-md);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-dim);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .card-header:hover {
+    background: var(--bg-card-hover, rgba(255, 255, 255, 0.03));
+  }
+
+  .card-icon {
+    font-size: 14px;
+  }
+
+  .card-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-sec);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex: 1;
+  }
+
+  .btn-toggle {
+    background: none;
+    border: none;
+    color: var(--text-sec);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 6px;
+    transition: transform 0.2s;
+  }
+
+  .btn-toggle.collapsed {
+    transform: rotate(-90deg);
+  }
+
+  .security-content {
+    padding: 14px;
+    transition: max-height 0.3s ease;
+    overflow: hidden;
+  }
+
+  .security-content.collapsed {
+    max-height: 0;
+    padding: 0 14px;
+  }
+
+  .security-status {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border-dim);
+  }
+
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-label {
+    font-size: 10px;
+    color: var(--text-sec);
+  }
+
+  .status-value {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--warning);
+  }
+
+  .status-value.protected {
+    color: var(--success);
+  }
+
+  .form-group {
+    margin-bottom: 12px;
+  }
+
+  .form-label {
+    display: block;
+    font-size: 10px;
+    color: var(--text-sec);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 4px;
+  }
+
+  .form-input {
+    flex: 1;
+    padding: 8px 10px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-sm);
+    color: var(--text-prime);
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .form-input:focus {
+    border-color: var(--accent);
+  }
+
+  .btn-icon {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.2s;
+  }
+
+  .btn-icon:hover {
+    background: var(--bg-card-hover, rgba(255, 255, 255, 0.05));
+  }
+
+  .form-hint {
+    display: block;
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .btn-primary, .btn-secondary, .btn-danger {
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+
+  .btn-primary:hover {
+    opacity: 0.9;
+  }
+
+  .btn-secondary {
+    background: var(--bg-surface);
+    color: var(--text-prime);
+    border: 1px solid var(--border-dim);
+  }
+
+  .btn-secondary:hover {
+    background: var(--bg-card-hover, rgba(255, 255, 255, 0.05));
+  }
+
+  .btn-danger {
+    background: var(--error);
+    color: white;
+  }
+
+  .btn-danger:hover {
+    opacity: 0.9;
+  }
+
+  @media (max-width: 600px) {
+    .security-status {
+      flex-direction: column;
+      gap: 8px;
+    }
+    .form-actions {
+      flex-wrap: wrap;
+    }
+  }
+</style>
+
+<script>
+  import { getAuthToken, setAuthToken, clearAuthToken } from '../lib/api.ts';
+
+  const content = document.getElementById('security-content');
+  const toggleBtn = document.getElementById('btn-toggle-security');
+  const tokenInput = document.getElementById('auth-token-input') as HTMLInputElement;
+  const visibilityBtn = document.getElementById('btn-toggle-visibility');
+  const saveBtn = document.getElementById('btn-save-token');
+  const clearBtn = document.getElementById('btn-clear-token');
+  const generateBtn = document.getElementById('btn-generate-token');
+  const authStatus = document.getElementById('auth-status');
+  const wsAuthStatus = document.getElementById('ws-auth-status');
+
+  // Toggle visibility
+  toggleBtn?.addEventListener('click', () => {
+    content?.classList.toggle('collapsed');
+    toggleBtn.classList.toggle('collapsed');
+  });
+
+  // Toggle password visibility
+  visibilityBtn?.addEventListener('click', () => {
+    if (tokenInput.type === 'password') {
+      tokenInput.type = 'text';
+      visibilityBtn.textContent = '🙈';
+    } else {
+      tokenInput.type = 'password';
+      visibilityBtn.textContent = '👁';
+    }
+  });
+
+  // Save token
+  saveBtn?.addEventListener('click', () => {
+    const token = tokenInput.value.trim();
+    setAuthToken(token);
+    updateStatus(token);
+    showNotification(token ? 'Token guardado. Recargue la página para aplicar.' : 'Autenticación desactivada.');
+  });
+
+  // Clear token
+  clearBtn?.addEventListener('click', () => {
+    tokenInput.value = '';
+    clearAuthToken();
+    updateStatus('');
+    showNotification('Token eliminado. Recargue la página para aplicar.');
+  });
+
+  // Generate random token
+  generateBtn?.addEventListener('click', () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const length = 32;
+    let token = '';
+    const array = new Uint32Array(length);
+    crypto.getRandomValues(array);
+    for (let i = 0; i < length; i++) {
+      token += chars[array[i] % chars.length];
+    }
+    tokenInput.value = token;
+    tokenInput.type = 'text';
+    if (visibilityBtn) visibilityBtn.textContent = '🙈';
+  });
+
+  function updateStatus(token: string) {
+    if (authStatus) {
+      if (token) {
+        authStatus.textContent = 'Protegido con token';
+        authStatus.classList.add('protected');
+      } else {
+        authStatus.textContent = 'Sin token configurado';
+        authStatus.classList.remove('protected');
+      }
+    }
+    if (wsAuthStatus) {
+      if (token) {
+        wsAuthStatus.textContent = 'Protegido';
+        wsAuthStatus.classList.add('protected');
+      } else {
+        wsAuthStatus.textContent = 'Desprotegido';
+        wsAuthStatus.classList.remove('protected');
+      }
+    }
+  }
+
+  function showNotification(message: string) {
+    const event = new CustomEvent('toast', {
+      detail: { message, type: 'info' }
+    });
+    document.dispatchEvent(event);
+  }
+
+  // Initialize
+  const currentToken = getAuthToken();
+  if (currentToken) {
+    tokenInput.value = currentToken;
+    updateStatus(currentToken);
+  }
+</script>
