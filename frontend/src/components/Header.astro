@@ -30,6 +30,30 @@ const { version = 'Astro' } = Astro.props;
       <span class="ws-status-dot"></span>
       <span class="ws-status-label">WS OFF</span>
     </div>
+    
+    <!-- Security Toggle -->
+    <div class="security-wrapper">
+      <button class="btn-secure" id="btn-secure-toggle">
+        <span class="secure-icon">🔐</span>
+        <span class="secure-label" id="secure-label">Secure OFF</span>
+        <span class="secure-arrow" id="secure-arrow">▾</span>
+      </button>
+      <div class="secure-panel" id="secure-panel">
+        <div class="secure-panel-header">
+          <span>Token de autenticación</span>
+          <button class="btn-close-panel" id="btn-close-secure">✕</button>
+        </div>
+        <div class="secure-input-row">
+          <input type="password" class="secure-input" id="secure-token-input" placeholder="Ingresa token..." />
+          <button class="btn-eye" id="btn-eye-token" title="Mostrar/Ocultar">👁</button>
+        </div>
+        <div class="secure-actions">
+          <button class="btn-gen" id="btn-gen-token" title="Generar token">🎲</button>
+          <button class="btn-save-token" id="btn-save-secure">💾 Guardar</button>
+        </div>
+      </div>
+    </div>
+    
     <span id="live-clock" class="live-clock">--:--:--</span>
     <button class="btn-save" id="btn-save-config" onclick="saveConfig()" aria-label="Guardar configuración actual">
       <span class="btn-text">💾 Guardar Config</span>
@@ -80,16 +104,16 @@ const { version = 'Astro' } = Astro.props;
   .header-right {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
   }
 
   .btn-docs {
     background: transparent;
     color: var(--text-sec);
     text-decoration: none;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-radius: var(--radius-sm);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     transition: all 0.2s;
     border: 1px solid var(--border-dim);
@@ -105,9 +129,9 @@ const { version = 'Astro' } = Astro.props;
     background: var(--accent);
     color: white;
     border: none;
-    padding: 8px 16px;
+    padding: 6px 12px;
     border-radius: var(--radius-sm);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
@@ -130,8 +154,286 @@ const { version = 'Astro' } = Astro.props;
     display: none;
   }
 
+  /* Security Toggle */
+  .security-wrapper {
+    position: relative;
+  }
+
+  .btn-secure {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    color: var(--text-sec);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-secure:hover {
+    border-color: var(--accent);
+  }
+
+  .btn-secure.active {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: #22c55e;
+    color: #22c55e;
+  }
+
+  .secure-icon {
+    font-size: 12px;
+  }
+
+  .secure-label {
+    font-weight: 500;
+  }
+
+  .secure-arrow {
+    font-size: 10px;
+    transition: transform 0.2s;
+  }
+
+  .secure-arrow.open {
+    transform: rotate(180deg);
+  }
+
+  .secure-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 280px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    z-index: 100;
+    display: none;
+  }
+
+  .secure-panel.open {
+    display: block;
+    animation: fadeIn 0.15s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .secure-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-sec);
+  }
+
+  .btn-close-panel {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 4px;
+  }
+
+  .btn-close-panel:hover {
+    color: var(--text);
+  }
+
+  .secure-input-row {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+
+  .secure-input {
+    flex: 1;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-sm);
+    padding: 6px 8px;
+    font-size: 11px;
+    color: var(--text-prime);
+    font-family: 'JetBrains Mono', monospace;
+    outline: none;
+  }
+
+  .secure-input:focus {
+    border-color: var(--accent);
+  }
+
+  .btn-eye {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-sm);
+    padding: 6px 8px;
+    cursor: pointer;
+    font-size: 11px;
+  }
+
+  .secure-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .btn-gen {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+  }
+
+  .btn-gen:hover {
+    background: var(--bg-card-hover, rgba(255,255,255,0.05));
+  }
+
+  .btn-save-token {
+    flex: 1;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-save-token:hover {
+    background: var(--accent-hover);
+  }
+
+  .live-clock {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 0 8px;
+  }
+
   @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
   }
+
+  @media (max-width: 768px) {
+    .btn-docs, .live-clock {
+      display: none;
+    }
+    .secure-label {
+      display: none;
+    }
+    .secure-panel {
+      width: 240px;
+    }
+  }
 </style>
+
+<script>
+  import { getAuthToken, setAuthToken } from '../lib/api.ts';
+
+  const btnToggle = document.getElementById('btn-secure-toggle') as HTMLButtonElement;
+  const panel = document.getElementById('secure-panel') as HTMLDivElement;
+  const arrow = document.getElementById('secure-arrow') as HTMLSpanElement;
+  const label = document.getElementById('secure-label') as HTMLSpanElement;
+  const tokenInput = document.getElementById('secure-token-input') as HTMLInputElement;
+  const btnEye = document.getElementById('btn-eye-token') as HTMLButtonElement;
+  const btnGen = document.getElementById('btn-gen-token') as HTMLButtonElement;
+  const btnSave = document.getElementById('btn-save-secure') as HTMLButtonElement;
+  const btnClose = document.getElementById('btn-close-secure') as HTMLButtonElement;
+
+  // Update UI based on token state
+  function updateSecureState() {
+    const token = getAuthToken();
+    if (token) {
+      label.textContent = 'Secure ON';
+      btnToggle.classList.add('active');
+      tokenInput.value = token;
+    } else {
+      label.textContent = 'Secure OFF';
+      btnToggle.classList.remove('active');
+      tokenInput.value = '';
+    }
+  }
+
+  // Toggle panel
+  btnToggle?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    panel.classList.toggle('open');
+    arrow.classList.toggle('open');
+    updateSecureState();
+  });
+
+  // Close panel
+  btnClose?.addEventListener('click', () => {
+    panel.classList.remove('open');
+    arrow.classList.remove('open');
+  });
+
+  // Close on click outside
+  document.addEventListener('click', (e) => {
+    if (!panel.contains(e.target as Node) && !btnToggle.contains(e.target as Node)) {
+      panel.classList.remove('open');
+      arrow.classList.remove('open');
+    }
+  });
+
+  // Toggle password visibility
+  btnEye?.addEventListener('click', () => {
+    if (tokenInput.type === 'password') {
+      tokenInput.type = 'text';
+      btnEye.textContent = '🙈';
+    } else {
+      tokenInput.type = 'password';
+      btnEye.textContent = '👁';
+    }
+  });
+
+  // Generate token
+  btnGen?.addEventListener('click', () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const length = 32;
+    let token = '';
+    const array = new Uint32Array(length);
+    crypto.getRandomValues(array);
+    for (let i = 0; i < length; i++) {
+      token += chars[array[i] % chars.length];
+    }
+    tokenInput.value = token;
+    tokenInput.type = 'text';
+    btnEye.textContent = '🙈';
+  });
+
+  // Save token
+  btnSave?.addEventListener('click', () => {
+    const token = tokenInput.value.trim();
+    setAuthToken(token);
+    updateSecureState();
+    
+    // Show toast
+    const toastEvent = new CustomEvent('toast', {
+      detail: { 
+        message: token ? '🔐 Token guardado. Recarga para aplicar.' : '🔓 Autenticación desactivada.',
+        type: token ? 'success' : 'info'
+      }
+    });
+    document.dispatchEvent(toastEvent);
+    
+    // Close panel
+    panel.classList.remove('open');
+    arrow.classList.remove('open');
+  });
+
+  // Initial state
+  updateSecureState();
+</script>
