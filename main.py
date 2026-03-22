@@ -109,6 +109,9 @@ def setup_logging():
         # SRT/RTMP input warnings
         "srt_input",  # SRT input warnings (by logger name)
         "rtmp_input",  # RTMP input warnings (by logger name)
+        # Security warnings (informational only)
+        "SECURITY:",  # Security token warnings
+        "auth_token not configured",  # Token not configured
     ]
 
     class BroadcastHandler(logging.Handler):

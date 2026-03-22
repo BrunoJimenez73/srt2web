@@ -2,10 +2,10 @@
 
 ---
 
-<div class="log-panel" role="region" aria-label="Panel de registros del sistema">
+<div class="log-panel collapsed" role="region" aria-label="Panel de registros del sistema">
   <div class="log-header" id="log-header" onclick="window.toggleLogPanel()">
     <div class="log-header-left">
-      <span class="log-collapse-icon" id="log-collapse-icon">▼</span>
+      <span class="log-collapse-icon" id="log-collapse-icon">▶</span>
       <span class="log-title">📋 Logs</span>
     </div>
     <div class="log-actions">
@@ -67,7 +67,11 @@
   }
 
   .log-panel.collapsed .log-collapse-icon {
-    transform: rotate(-90deg);
+    transform: rotate(0deg);
+  }
+
+  .log-panel:not(.collapsed) .log-collapse-icon {
+    transform: rotate(90deg);
   }
 
   .log-title {
@@ -205,12 +209,16 @@
 
   const logSearch = document.getElementById('log-search') as HTMLInputElement;
   let currentFilter = '';
-  let isCollapsed = false;
+  let isCollapsed = true; // Start collapsed
 
   function toggleLogPanel(): void {
     if (logPanel) {
       isCollapsed = !isCollapsed;
       logPanel.classList.toggle('collapsed', isCollapsed);
+      const icon = document.getElementById('log-collapse-icon');
+      if (icon) {
+        icon.textContent = isCollapsed ? '▶' : '▼';
+      }
     }
   }
 

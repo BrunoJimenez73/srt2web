@@ -364,7 +364,11 @@ class VideoMuxer(BaseModule):
         status = super().get_status()
         # Determine actual encoder being used
         encoder_mode = self._encoder_config.encoder_mode
+
+        # Show what encoder WILL be used based on config (even if not started yet)
         if encoder_mode == "auto":
+            # Check if any GPU is available (from config or detected)
+            gpu_available = any(self._gpu_info.values())
             if self._gpu_info["nvenc"]:
                 encoder_mode = "gpu_nvenc"
             elif self._gpu_info["amf"]:
@@ -375,7 +379,7 @@ class VideoMuxer(BaseModule):
                 encoder_mode = "gpu_vaapi"
             else:
                 encoder_mode = "cpu"
-        
+
         status.extra["encoder_mode"] = encoder_mode
         status.extra["using_gpu"] = encoder_mode.startswith("gpu_")
         status.extra["gpu_available"] = self._gpu_info
