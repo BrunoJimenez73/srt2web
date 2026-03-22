@@ -217,43 +217,8 @@ const pageTitle = "SRT2Web — Live Player";
                 hls.attachMedia(video);
 
                 hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                    video.play().catch(() => {});
                     waiting.style.display = 'none';
-
-                    if (hls && hls.subtitleTracks.length > 0) {
-                        const firstTrack = hls.subtitleTracks[0];
-                        if (firstTrack.name) {
-                            subtitleLanguageName = firstTrack.name;
-                        }
-                        if (firstTrack.lang && subtitleTrackElement) {
-                            subtitleTrackElement.srclang = firstTrack.lang;
-                        }
-                        if (subtitleTrackElement) {
-                            subtitleTrackElement.label = subtitleLanguageName;
-                        }
-                        // Disable HLS.js subtitle tracks to prevent duplicate entries in menu
-                        hls.subtitleTracks.forEach((track, index) => {
-                            console.log('Disabling HLS.js subtitle track:', track.name || index);
-                        });
-                        hls.subtitleTracks.length = 0; // Clear to prevent UI showing them
-                    }
-
-                    setTimeout(() => {
-                        const trackCount = video.textTracks.length;
-                        for (let i = 0; i < trackCount; i++) {
-                            const track = video.textTracks[i];
-                            if (track.kind === 'subtitles') {
-                                // Keep the first subtitle track (our manual one)
-                                if (i === 0) {
-                                    track.mode = 'showing';
-                                    console.log('Kept manual track (first) with label:', track.label);
-                                } else {
-                                    track.mode = 'disabled';
-                                    console.log('Disabled track with label:', track.label);
-                                }
-                            }
-                        }
-                    }, 500);
+                    video.play().catch(() => {});
                 });
 
                 const errorOverlay = document.getElementById('error-overlay') as HTMLDivElement;
@@ -310,7 +275,7 @@ const pageTitle = "SRT2Web — Live Player";
                         }
                     } else {
                         // Non-fatal errors - reset count on success
-                        if (data.type === Hls.ErrorTypes.ERROR其它 || !data.fatal) {
+                        if (!data.fatal) {
                             errorCount = 0;
                         }
                     }

@@ -240,15 +240,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Referrer Policy
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
-        # Content Security Policy
+        # Content Security Policy (permissive for HLS playback)
         csp = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
+            "default-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
             "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: blob:; "
-            "media-src 'self' blob:; "
-            "connect-src 'self' ws://localhost:* wss://localhost:* http://localhost:*; "
-            "font-src 'self'; "
+            "img-src 'self' data: blob: http://* https://*; "
+            "media-src 'self' blob: http://* https://*; "
+            "connect-src 'self' ws://* wss://* http://* https://*; "
+            "font-src 'self' data:; "
             "object-src 'none'; "
             "frame-src 'none';"
         )
