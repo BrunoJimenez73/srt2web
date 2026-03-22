@@ -537,6 +537,11 @@ import Toast from '../components/Toast.astro';
     const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
     const btnStop = document.getElementById('btn-stop') as HTMLButtonElement;
     
+    // Confirm before stopping
+    if (!confirm('¿Está seguro que desea detener el pipeline?')) {
+      return;
+    }
+    
     try {
       btnStop.disabled = true;
       btnStop.classList.add('loading');

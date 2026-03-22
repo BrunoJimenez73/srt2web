@@ -12,6 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from server.api_routes import create_api_router
 from server.ws_routes import create_ws_router
@@ -49,6 +50,9 @@ def create_app(app_context: dict) -> FastAPI:
     )
 
     config = app_context.get("config")
+
+    # GZip compression for responses (min_size=1000 to compress responses > 1KB)
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
 
     # Request size limit - first after security headers
     app.add_middleware(

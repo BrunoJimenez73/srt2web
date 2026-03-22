@@ -39,6 +39,11 @@ class SubtitleGenerator(BaseModule):
         self._last_chunk_index = -1
         self._last_cumulative = 0.0  # Track last cumulative for validation
 
+        # Rolling window for VTT entries (prevent unbounded growth)
+        self._vtt_entries: list[dict] = []
+        self._max_vtt_entries = 50  # Keep last 50 subtitle entries
+        self._vtt_max_age_seconds = 60.0  # Remove entries older than 60 seconds
+
         self._history = []
         self._max_history = 10
         super().__init__("subtitle_generator", config)
@@ -48,6 +53,9 @@ class SubtitleGenerator(BaseModule):
         self._use_translated = config.get("use_translated", self._use_translated)
         self._format = config.get("format", self._format)
         self._chunk_duration = config.get("chunk_duration", 4)
+        # Rolling window settings
+        self._max_vtt_entries = config.get("max_vtt_entries", 50)
+        self._vtt_max_age_seconds = config.get("vtt_max_age_seconds", 60.0)
 
     def start(self) -> None:
         """Initialize subtitle files."""
@@ -69,6 +77,7 @@ class SubtitleGenerator(BaseModule):
         self._last_chunk_index = -1
         self._last_cumulative = 0.0
         self._history = []
+        self._vtt_entries = []  # Clear rolling window
         self._state = ModuleState.RUNNING
         logger.info(
             f"SubtitleGenerator ready. Format: {self._format}, Output: {self._vtt_path}"
@@ -87,6 +96,38 @@ class SubtitleGenerator(BaseModule):
         if format_type == "srt":
             return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
         return f"{h:02d}:{m:02d}:{s:02d}.{ms:03d}"
+
+    def _trim_vtt_entries(self) -> None:
+        """Trim VTT entries to keep only recent ones (rolling window)."""
+        if not self._vtt_entries:
+            return
+
+        # Get the latest timestamp
+        latest_time = max(entry["end"] for entry in self._vtt_entries)
+        cutoff_time = latest_time - self._vtt_max_age_seconds
+
+        # Remove entries older than cutoff
+        self._vtt_entries = [
+            entry for entry in self._vtt_entries
+            if entry["end"] > cutoff_time
+        ]
+
+        # Also limit by count
+        if len(self._vtt_entries) > self._max_vtt_entries:
+            self._vtt_entries = self._vtt_entries[-self._max_vtt_entries:]
+
+    def _rewrite_vtt_file(self) -> None:
+        """Rewrite VTT file with current rolling window entries."""
+        try:
+            with open(self._vtt_path, "w", encoding="utf-8") as f:
+                f.write("WEBVTT\n\n")
+                for entry in self._vtt_entries:
+                    start_str = self._format_timestamp(entry["start"], "vtt")
+                    end_str = self._format_timestamp(entry["end"], "vtt")
+                    f.write(f"{start_str} --> {end_str}\n")
+                    f.write(f"{entry['text']}\n\n")
+        except Exception as e:
+            logger.error(f"Error rewriting VTT file: {e}")
 
     def _do_process(self, data: PipelineData) -> PipelineData:
         """
@@ -148,26 +189,34 @@ class SubtitleGenerator(BaseModule):
         # 1. Update rolling VTT for the HLS player (absolute timing)
         try:
             with self._lock:
-                with open(self._vtt_path, "a", encoding="utf-8") as f:
-                    for seg in segments:
-                        abs_start = chunk_start_time + seg.get("start", 0)
-                        abs_end = chunk_start_time + seg.get("end", duration)
+                for seg in segments:
+                    abs_start = chunk_start_time + seg.get("start", 0)
+                    abs_end = chunk_start_time + seg.get("end", duration)
 
-                        start_str = self._format_timestamp(abs_start, "vtt")
-                        end_str = self._format_timestamp(abs_end, "vtt")
+                    clean_text = seg.get("text", "").replace("\n", " ").strip()
+                    if clean_text:
+                        try:
+                            clean_text = clean_text.encode("utf-8").decode("utf-8")
+                        except:
+                            pass
 
-                        clean_text = seg.get("text", "").replace("\n", " ").strip()
-                        if clean_text:
-                            try:
-                                clean_text = clean_text.encode("utf-8").decode("utf-8")
-                            except:
-                                pass
-                            f.write(f"{start_str} --> {end_str}\n")
-                            f.write(f"{clean_text}\n\n")
-                            logger.info(f"[SUB] {clean_text}")
+                        # Add to rolling window
+                        self._vtt_entries.append({
+                            "start": abs_start,
+                            "end": abs_end,
+                            "text": clean_text
+                        })
+
+                        logger.info(f"[SUB] {clean_text}")
+
+                # Trim old entries (keep only recent ones)
+                self._trim_vtt_entries()
+
+                # Rewrite VTT file with rolling entries
+                self._rewrite_vtt_file()
 
             file_size = os.path.getsize(self._vtt_path)
-            logger.debug(f"VTT file size: {file_size} bytes")
+            logger.debug(f"VTT file size: {file_size} bytes, entries: {len(self._vtt_entries)}")
 
             data.subtitles_path = self._vtt_path
         except Exception as e:
