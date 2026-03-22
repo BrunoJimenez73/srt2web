@@ -10,8 +10,53 @@ import logging
 from typing import Set
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Request
+from dataclasses import dataclass
+from typing import Optional, Dict, Any
 
 from server.security import validate_ws_auth
+
+
+@dataclass
+class WebSocketRequest:
+    """Wrapper to make WebSocket compatible with validate_ws_auth."""
+    headers: Dict[str, str]
+    query_params: Dict[str, str]
+    client: Optional[Any] = None
+    
+    @classmethod
+    def from_websocket(cls, websocket: WebSocket) -> 'WebSocketRequest':
+        """Create a WebSocketRequest from a WebSocket."""
+        # Extract headers
+        headers = dict(websocket.scope.get('headers', []))
+        # Decode header values from bytes
+        headers = {k.decode() if isinstance(k, bytes) else k: 
+                   v.decode() if isinstance(v, bytes) else v 
+                   for k, v in headers.items()}
+        
+        # Extract query params from query_string
+        query_string = websocket.scope.get('query_string', b'').decode()
+        query_params = {}
+        if query_string:
+            for param in query_string.split('&'):
+                if '=' in param:
+                    key, value = param.split('=', 1)
+                    query_params[key] = value
+        
+        # Extract client info
+        client = websocket.scope.get('client')
+        client_obj = None
+        if client:
+            class ClientInfo:
+                def __init__(self, host, port):
+                    self.host = host
+                    self.port = port
+            client_obj = ClientInfo(client[0], client[1])
+        
+        return cls(
+            headers=headers,
+            query_params=query_params,
+            client=client_obj
+        )
 
 logger = logging.getLogger("srt2web.ws")
 
@@ -112,15 +157,19 @@ def create_ws_router() -> APIRouter:
     router = APIRouter(tags=["websocket"])
 
     @router.websocket("/ws/logs")
-    async def ws_logs(websocket: WebSocket, request: Request):
+    async def ws_logs(websocket: WebSocket):
         """WebSocket endpoint for real-time log streaming."""
+        # Create wrapper for auth validation
+        request = WebSocketRequest.from_websocket(websocket)
+        
         # Validate authentication via query parameter ?token=xxx
         ctx = websocket.app.state.ctx
         config = ctx.get("config")
         get_token = lambda: config.get("server.auth_token", "") if config else ""
 
         if not validate_ws_auth(request, get_token):
-            logger.warning(f"SECURITY: WebSocket auth failed from {request.client.host}")
+            host = request.client.host if request.client else "unknown"
+            logger.warning(f"SECURITY: WebSocket auth failed from {host}")
             await websocket.close(code=4001, reason="Authentication required. Use ?token=<auth_token>")
             return
 
