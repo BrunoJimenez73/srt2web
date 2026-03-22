@@ -347,12 +347,20 @@ import Toast from '../components/Toast.astro';
 
         // Update GPU badge and device info from extra field
         if (module.extra) {
+          // Check if module is actively processing (enabled + running + has processed chunks)
+          const isProcessing = module.enabled && module.state === 'running' && module.processed_chunks > 0;
+
           // GPU badge for transcriber (Whisper)
           if (module.name === 'transcriber') {
             const gpuBadge = document.getElementById('whisper-gpu-badge');
             const deviceEl = document.getElementById('module-device-transcriber');
             if (gpuBadge) {
-              gpuBadge.style.display = module.extra.using_gpu ? 'inline' : 'none';
+              if (module.extra.using_gpu) {
+                gpuBadge.style.display = 'inline';
+                gpuBadge.classList.toggle('active', isProcessing);
+              } else {
+                gpuBadge.style.display = 'none';
+              }
             }
             if (deviceEl) {
               deviceEl.textContent = module.extra.device ? module.extra.device.toUpperCase() : '--';
@@ -364,7 +372,12 @@ import Toast from '../components/Toast.astro';
             const gpuBadge = document.getElementById('tts-gpu-badge');
             const deviceEl = document.getElementById('module-device-tts_engine');
             if (gpuBadge) {
-              gpuBadge.style.display = module.extra.using_gpu ? 'inline' : 'none';
+              if (module.extra.using_gpu) {
+                gpuBadge.style.display = 'inline';
+                gpuBadge.classList.toggle('active', isProcessing);
+              } else {
+                gpuBadge.style.display = 'none';
+              }
             }
             if (deviceEl) {
               deviceEl.textContent = module.extra.device ? module.extra.device.toUpperCase() : '--';
@@ -376,7 +389,12 @@ import Toast from '../components/Toast.astro';
             const gpuBadge = document.getElementById('hls-gpu-badge');
             const encoderEl = document.getElementById('module-encoder-video_muxer');
             if (gpuBadge) {
-              gpuBadge.style.display = module.extra.using_gpu ? 'inline' : 'none';
+              if (module.extra.using_gpu) {
+                gpuBadge.style.display = 'inline';
+                gpuBadge.classList.toggle('active', isProcessing);
+              } else {
+                gpuBadge.style.display = 'none';
+              }
             }
             if (encoderEl) {
               // Show actual encoder mode

@@ -83,17 +83,32 @@ def setup_logging():
 
     # Patterns to filter from frontend logs (noisy but non-critical)
     FILTER_PATTERNS = [
+        # FFmpeg related
         "[FFmpeg]",  # FFmpeg stderr noise
         "[FFmpeg RTMP]",  # RTMP output warnings
+        # GPU/CPU fallback
         "CUDA not available",  # GPU fallback messages
         "falling back to CPU",  # CPU fallback messages
-        "Duration drift",  # Timing drift warnings
         "using CPU for",  # CPU usage info
+        # Timing
+        "Duration drift",  # Timing drift warnings
+        # WebSocket
         "Heartbeat timeout",  # WebSocket heartbeat
         "[WS] Reconnecting",  # WebSocket reconnect messages
+        # Missing data
         "No input video chunk",  # Missing video chunk (normal at start)
+        # Audio issues
         "Audio padding failed",  # Non-critical audio issues
         "Audio truncation failed",  # Non-critical audio issues
+        "Failed to process TTS audio",  # TTS audio issues
+        # Connection issues (non-critical)
+        "connection lost",  # Connection lost warnings
+        "attempting reconnect",  # Reconnect attempts
+        # Subtitle warnings
+        "Duration drift in subtitle timing",  # Subtitle timing
+        # SRT/RTMP input warnings
+        "srt_input",  # SRT input warnings (by logger name)
+        "rtmp_input",  # RTMP input warnings (by logger name)
     ]
 
     class BroadcastHandler(logging.Handler):
@@ -102,9 +117,9 @@ def setup_logging():
         def emit(self, record):
             try:
                 msg = self.format(record)
-                # Filter out noisy non-critical messages (INFO, DEBUG, and WARNING)
+                # Filter out noisy non-critical messages
                 for pattern in FILTER_PATTERNS:
-                    if pattern in msg:
+                    if pattern in msg or pattern in record.name:
                         return
                 log_broadcaster.broadcast(record.levelname.lower(), msg)
             except Exception:
