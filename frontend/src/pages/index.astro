@@ -498,7 +498,7 @@ import Toast from '../components/Toast.astro';
     }
     if (ttsDevice) ttsDevice.value = cfg.modules.tts_engine.device || 'auto';
     if (ttsVoiceEdge) ttsVoiceEdge.value = cfg.modules.tts_engine.voice || 'es-ES-AlvaroNeural';
-    if (ttsVoicePiper) ttsVoicePiper.value = cfg.modules.tts_engine.voice || 'es_ES-carlfm-x_low';
+    if (ttsVoicePiper) ttsVoicePiper.value = cfg.modules.tts_engine.voice || 'es_ES-sharvard-medium';
     if (ttsSpeed) ttsSpeed.value = String(cfg.modules.tts_engine.speed);
     if (subtitleEnabled) subtitleEnabled.checked = cfg.modules.subtitle_generator.enabled;
     if (subtitleFormat) subtitleFormat.value = cfg.modules.subtitle_generator.format;
@@ -547,8 +547,8 @@ import Toast from '../components/Toast.astro';
               engine: (document.getElementById('tts-engine') as HTMLSelectElement)?.value || 'edge-tts',
               device: (document.getElementById('tts-device') as HTMLSelectElement)?.value || 'auto',
               voice: (document.getElementById('tts-engine') as HTMLSelectElement)?.value === 'piper'
-                ? (document.getElementById('tts-voice-piper') as HTMLSelectElement)?.value || 'es_ES-carlfm-x_low'
-                : (document.getElementById('tts-voice-edge') as HTMLSelectElement)?.value || 'es-ES-AlvaroNeural',
+                ? (document.getElementById('tts-voice-piper') as HTMLSelectElement)?.value || 'es_ES-sharvard-medium'
+                : (document.getElementById('tts-voice-edge') as HTMLSelectElement)?.value || 'es-ES-ElviraNeural',
               speed: parseFloat((document.getElementById('tts-speed') as HTMLInputElement)?.value || '1.0')
             },
         subtitle_generator: {
