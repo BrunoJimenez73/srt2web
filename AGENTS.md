@@ -1,8 +1,8 @@
 # SRT2Web - Estado del Proyecto
 
 ## Información General
-- **Fecha sesión**: 2026-03-22
-- **Versión**: 0.4.0
+- **Fecha sesión**: 2026-03-23
+- **Versión**: 0.5.0
 - **Repositorio**: https://github.com/BrunoJimenez73/srt2web
 
 ---
@@ -73,6 +73,57 @@
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
+### Fase 7 - Indicadores GPU ✅
+
+| Archivo | Mejora |
+|---------|--------|
+| `modules/transcriber.py` | `get_status()` con device/compute_type/using_gpu |
+| `modules/tts_engine.py` | `get_status()` con device/using_gpu/engine |
+| `modules/video_muxer.py` | `get_status()` con encoder_mode/using_gpu/gpu_available |
+| `WhisperCard.astro` | GPU badge + métrica Device |
+| `TtsCard.astro` | GPU badge + métrica Device |
+| `HlsCard.astro` | GPU badge + métrica Encoder |
+| `index.astro` | Actualiza badges GPU desde module.extra |
+
+### Fase 8 - Logs Optimizados ✅
+
+| Archivo | Mejora |
+|---------|--------|
+| `main.py` | Filtra warnings ruidosos de FFmpeg, CUDA, RTMP, SRT, etc. |
+| `LogPanel.astro` | Panel colapsable con animación |
+
+**Logs filtrados** (no se muestran en frontend):
+- `[FFmpeg]`, `[FFmpeg RTMP]` - Ruido stderr de FFmpeg
+- `CUDA not available`, `falling back to CPU` - Fallback GPU/CPU
+- `Duration drift` - Drift de timing
+- `No input video chunk` - Chunk faltante (normal al inicio)
+- `Audio padding/truncation failed` - Issues audio no críticos
+- `connection lost`, `attempting reconnect` - Reconnection warnings
+- Loggers `srt_input`, `rtmp_input` - Input module warnings
+- `SECURITY:`, `auth_token not configured` - Security warnings
+
+### GPU Badges - Comportamiento ✅
+
+| Estado | Apariencia |
+|--------|------------|
+| Módulo usa GPU + está procesando | Badge **VERDE** (gradiente) |
+| Módulo usa GPU pero está inactivo | Badge **GRIS** |
+| Módulo no usa GPU | Badge oculto |
+
+**Lógica**: Badge verde solo cuando `enabled && state === 'running' && processed_chunks > 0`
+
+### Video Muxer en Pipeline ✅
+
+| Archivo | Mejora |
+|---------|--------|
+| `core/pipeline.py` | `_get_output_module_status()` - Incluye output sink en lista de módulos |
+| `modules/video_muxer.py` | Inicialización corregida (`_video_preset`, `_gpu_preset`) |
+| `frontend/src/pages/index.astro` | Badge muestra CPU/GPU según encoder mode |
+
+**Problema**: El video_muxer no aparecía en el status porque era un OutputSink, no un módulo del pipeline.
+
+**Solución**: Método `_get_output_module_status()` crea un dict de status simulado para el frontend.
+
 ---
 
 ## Bugs Corregidos
@@ -85,6 +136,8 @@
 | Player no carga | `Hls.ErrorTypes.ERROR_OTHER` no existe | Usar `!data.fatal` |
 | "Esperando..." | No se ocultaba | Ocultar en `MANIFEST_PARSED` |
 | srt_ingest None | Acceso sin verificar | `ctx.get('srt_ingest')` |
+| video_muxer crash | `_video_preset` no inicializado | Inicializar en `__init__` |
+| HLS badge no se ve | video_muxer no en modules | Agregar via `_get_output_module_status()` |
 
 ---
 
@@ -108,6 +161,17 @@ python -m pytest tests/unit/test_security_middleware.py tests/unit/test_performa
 
 | Hash | Descripción |
 |------|-------------|
+| `75f4ddd` | build: Update static frontend files |
+| `8a85ebe` | fix: Add video_muxer status to pipeline modules list |
+| `f5f8da1` | build: Update static frontend files |
+| `ff70f51` | fix: Fix video_muxer initialization and HLS status display |
+| `66003b3` | fix: Run server minimized and filter security warnings from console |
+| `260b425` | build: Update static frontend files |
+| `f960f9a` | fix: Filter security warnings and collapse log panel by default |
+| `7beca2a` | build: Update static frontend files |
+| `bd6e8b4` | fix: Improve log filtering and GPU badge behavior |
+| `2b5eaa9` | build: Update static frontend files |
+| `0fd0b5d` | feat: Add GPU indicators and collapsible log panel |
 | `e372d23` | Config cleanup + remove SecurityCard |
 | `791a740` | Redesign security UI - integrate into Header |
 | `d54bd36` | Tests for player, WebSocket and CSP fixes |
@@ -125,6 +189,7 @@ Arrancar_Servidor.bat
 
 # Reconstruir frontend
 cd frontend && npm run build:local
+cp -r frontend/dist/* server/static/
 
 # Ejecutar tests
 python -m pytest tests/unit/ -v
@@ -143,15 +208,36 @@ python -m pytest tests/unit/ -v
 - SIEMPRE reconstruir tras cambios: `cd frontend && npm run build:local`
 - Copiar a server/static/
 
+### Ejecución del Servidor
+- `Arrancar_Servidor.bat` ejecuta el servidor **minimizado** (en segundo plano)
+- La consola filtra automáticamente los warnings de seguridad
+- Para detener: cerrar la ventana desde la barra de tareas
+
 ### HLS Player
 - URL: `http://localhost:9999/player`
 - Stream: `http://localhost:9999/hls/stream.m3u8`
+
+### GPU Indicators
+- Backend: módulos retornan `extra` con `using_gpu`, `device`, `encoder_mode`
+- Frontend: badges se muestran/ocultan según `module.extra.using_gpu`
+- Métricas: Device (Whisper/TTS), Encoder (HLS)
+
+### Video Muxer Status
+- El video_muxer es un OutputSink, no un módulo del pipeline
+- Se agrega al status via `_get_output_module_status()` en `core/pipeline.py:412`
+- El frontend recibe `video_muxer` en la lista de módulos
+
+### Log Panel
+- Colapsable clickeando header
+- Filtra automáticamente logs ruidosos
+- Filtro por texto funciona sobre logs visibles
 
 ---
 
 ## Pendientes
 
-- [ ] Reemplazar gputil por pynvml
-- [ ] Process pooling para FFmpeg
+- [x] ~~Reemplazar gputil por pynvml~~ ✅ Completado (usando nvidia-ml-py)
+- [x] ~~Process pooling para FFmpeg~~ ✅ Completado (core/ffmpeg_pool.py)
 - [ ] Mejoras responsive design
 - [ ] Keyboard shortcuts
+- [ ] Tests para GPU indicators

@@ -497,18 +497,33 @@ class Pipeline:
         except Exception as e:
             logger.debug(f"Error getting system metrics: {e}")
 
-        # Try to get GPU metrics
+        # Try to get GPU metrics using nvidia-ml-py (official NVIDIA library)
         try:
-            import GPUtil
+            import pynvml
 
-            gpus = GPUtil.getGPUs()
-            if gpus:
-                gpu = gpus[0]
-                metrics["gpu_percent"] = round(gpu.load * 100, 1)
-                metrics["gpu_memory_mb"] = round(gpu.memoryUsed, 1)
+            pynvml.nvmlInit()
+            device_count = pynvml.nvmlDeviceGetCount()
+            if device_count > 0:
+                handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+
+                # GPU utilization
+                try:
+                    util = pynvml.nvmlDeviceGetUtilizationRates(handle)
+                    metrics["gpu_percent"] = round(util.gpu, 1)
+                except Exception:
+                    pass
+
+                # GPU memory
+                try:
+                    mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
+                    metrics["gpu_memory_mb"] = round(mem_info.used / 1024 / 1024, 1)
+                except Exception:
+                    pass
+
                 metrics["gpu_available"] = True
+            pynvml.nvmlShutdown()
         except ImportError:
-            logger.debug("GPUtil not available for GPU metrics")
+            logger.debug("pynvml not available for GPU metrics")
         except Exception as e:
             logger.debug(f"Error getting GPU metrics: {e}")
 

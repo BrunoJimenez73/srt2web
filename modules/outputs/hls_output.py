@@ -23,6 +23,7 @@ from core.output_sink import OutputSink
 from core.module_base import PipelineData
 from core.ffmpeg_utils import ensure_ffmpeg, check_gpu_support
 from core.encoder_config import EncoderConfig
+from core.ffmpeg_pool import get_pool, shutdown_pool
 
 
 class HLSOutput(OutputSink):
@@ -133,6 +134,8 @@ class HLSOutput(OutputSink):
     def stop(self) -> None:
         """Detener salida HLS."""
         self._hls_dir = ""
+        # Shutdown FFmpeg pool on stop
+        shutdown_pool()
         self.logger.info("HLS output stopped")
 
     def write(self, data: PipelineData) -> None:
@@ -195,10 +198,13 @@ class HLSOutput(OutputSink):
             ]
         )
 
+        # Run FFmpeg with optimized settings
         try:
+            # Use DEVNULL for stdout, only capture stderr for errors
             result = subprocess.run(
                 cmd,
-                capture_output=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
                 text=True,
                 timeout=60,
                 creationflags=(
