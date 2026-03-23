@@ -189,30 +189,42 @@ class ModelCache:
         logger.info(f"Loading Argos translation pair: {cache_key}")
 
         try:
-            import argostranslate
+            import argostranslate.translate
 
-            available = argostranslate.translate.get_available_languages()
-            source = None
-            target = None
+            # Use the correct API for newer argostranslate versions
+            try:
+                # Try new API first
+                installed_languages = argostranslate.translate.get_installed_languages()
+                source = None
+                target = None
 
-            for lang in available:
-                if lang.code == source_lang:
-                    source = lang
-                if lang.code == target_lang:
-                    target = lang
+                for lang in installed_languages:
+                    if lang.code == source_lang:
+                        source = lang
+                    if lang.code == target_lang:
+                        target = lang
+
+                    if source and target:
+                        break
 
                 if source and target:
-                    break
+                    # Get translation between languages
+                    pair = source.get_translation(target)
+                    if pair:
+                        self._argos_indexes[cache_key] = pair
+                        logger.info(f"Argos pair loaded: {cache_key}")
+                        return pair
 
-            if not source or not target:
-                logger.warning(f"Language pair not available: {cache_key}")
-                return None
+            except Exception as e:
+                logger.debug(f"New API failed, trying fallback: {e}")
 
-            pair = argostranslate.translate.translate_pair(source, target)
-
+            # Fallback: use get_translation_from_codes directly
+            pair = argostranslate.translate.get_translation_from_codes(
+                source_lang, target_lang
+            )
             if pair:
                 self._argos_indexes[cache_key] = pair
-                logger.info(f"Argos pair loaded: {cache_key}")
+                logger.info(f"Argos pair loaded via fallback: {cache_key}")
 
             return pair
 
