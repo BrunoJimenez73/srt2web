@@ -138,6 +138,7 @@
 | srt_ingest None | Acceso sin verificar | `ctx.get('srt_ingest')` |
 | video_muxer crash | `_video_preset` no inicializado | Inicializar en `__init__` |
 | HLS badge no se ve | video_muxer no en modules | Agregar via `_get_output_module_status()` |
+| Traductor no funciona | API argostranslate cambiada | Usar `get_installed_languages()` |
 
 ---
 
@@ -161,6 +162,10 @@ python -m pytest tests/unit/test_security_middleware.py tests/unit/test_performa
 
 | Hash | Descripción |
 |------|-------------|
+| `4ff1b03` | fix: Fix argostranslate API compatibility |
+| `91985dd` | build: Update static frontend files |
+| `85f96d9` | feat: Change default TTS voice to es_ES-sharvard-medium |
+| `99b9654` | feat: Use nvidia-ml-py and add FFmpeg process pool |
 | `75f4ddd` | build: Update static frontend files |
 | `8a85ebe` | fix: Add video_muxer status to pipeline modules list |
 | `f5f8da1` | build: Update static frontend files |
@@ -231,6 +236,26 @@ python -m pytest tests/unit/ -v
 - Colapsable clickeando header
 - Filtra automáticamente logs ruidosos
 - Filtro por texto funciona sobre logs visibles
+
+### Piper TTS Voces
+- Voz por defecto: `es_ES-sharvard-medium` (calidad medium, España)
+- Voces disponibles en `models/piper/`
+- Voces españolas en frontend: Sharvard (ES), Davefx (ES), Claude (MX), Ald (MX), Daniela (AR)
+
+### GPU Metrics (nvidia-ml-py)
+- Reemplazó GPUtil deprecado por nvidia-ml-py oficial
+- Métricas: GPU utilization % y memoria usada
+- Código: `core/pipeline.py:_get_system_metrics()`
+
+### FFmpeg Pool
+- Pool de procesos FFmpeg para reutilización
+- Max 4 procesos, idle timeout 30s
+- Código: `core/ffmpeg_pool.py`
+
+### Traductor (Argos Translate)
+- API actualizada para nuevas versiones de argostranslate
+- Usa `get_installed_languages()` en vez de `get_available_languages()`
+- Cache: `core/model_cache.py:get_argos_pair()`
 
 ---
 
