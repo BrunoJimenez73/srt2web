@@ -26,8 +26,15 @@ if not os.path.exists(_nvidia_base):
     )
 for _pkg in ['cublas', 'cudnn', 'cufft', 'curand', 'cusolver', 'cusparse', 'nccl', 'nvrtc']:
     _bin_path = os.path.join(_nvidia_base, _pkg, 'bin')
-    if os.path.exists(_bin_path) and _bin_path not in os.environ.get('PATH', ''):
-        os.environ['PATH'] = _bin_path + os.pathsep + os.environ['PATH']
+    if os.path.exists(_bin_path):
+        if _bin_path not in os.environ.get('PATH', ''):
+            os.environ['PATH'] = _bin_path + os.pathsep + os.environ['PATH']
+        # Also use add_dll_directory for Python 3.8+ (required for DLL loading in some cases)
+        if hasattr(os, 'add_dll_directory'):
+            try:
+                os.add_dll_directory(_bin_path)
+            except OSError:
+                pass  # Ignore if already added or not supported
 
 import asyncio
 import atexit
