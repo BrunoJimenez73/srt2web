@@ -62,3 +62,6 @@ PARA BORRAR/
 
 # ML Models
 models/
+
+# External binaries
+bin/
