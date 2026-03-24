@@ -104,6 +104,7 @@ class AudioMixer(BaseModule):
 
         # If no TTS audio, use original audio (with optional volume adjustment)
         if not tts_audio or not os.path.exists(tts_audio):
+            logger.warning(f"[AudioMixer] No TTS audio for chunk {data.chunk_index}: {tts_audio}")
             data.mixed_audio_path = orig_audio
             # Still measure and update duration from original audio
             data.duration = self._get_audio_duration(orig_audio)
@@ -113,6 +114,12 @@ class AudioMixer(BaseModule):
 
         orig_duration = self._get_audio_duration(orig_audio)
         tts_duration = self._get_audio_duration(tts_audio)
+        
+        if orig_duration <= 0:
+            logger.warning(f"[AudioMixer] Cannot get duration for orig: {orig_audio}")
+        if tts_duration <= 0:
+            logger.warning(f"[AudioMixer] Cannot get duration for tts: {tts_audio}")
+        
         expected_duration = getattr(data, "duration", None) or orig_duration
 
         # Clamp expected duration to reasonable bounds
@@ -338,9 +345,6 @@ class AudioMixer(BaseModule):
         ]
 
         try:
-            print(f"[DEBUG] AudioMixer: Running FFmpeg for chunk {data.chunk_index}")
-            print(f"[DEBUG] AudioMixer: mix_wav path = {mix_wav}")
-            print(f"[DEBUG] AudioMixer: orig_audio = {orig_audio}, tts_audio = {tts_audio}")
             result = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -416,7 +420,11 @@ class AudioMixer(BaseModule):
 
         try:
             ffmpeg_bin = self._ffmpeg_path or ensure_ffmpeg()
-            ffprobe = ffmpeg_bin.replace("ffmpeg", "ffprobe")
+            # Use rsplit to replace only the filename, not the full path
+            if sys.platform == "win32":
+                ffprobe = ffmpeg_bin.rsplit(os.sep, 1)[0] + os.sep + "ffprobe.exe"
+            else:
+                ffprobe = ffmpeg_bin.rsplit("/", 1)[0] + "/ffprobe"
             if not os.path.exists(ffprobe):
                 ffprobe = "ffprobe"
             cmd = [
