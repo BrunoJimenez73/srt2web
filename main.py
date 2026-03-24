@@ -7,35 +7,6 @@ and opens the browser to the dashboard.
 
 import os
 import sys
-
-# Add NVIDIA CUDA DLLs to PATH before any imports (needed for ONNX Runtime GPU)
-# This must be done before importing onnxruntime, faster_whisper, or piper
-# Works with both system Python and venv
-_nvidia_base = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    'venv' if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'venv')) else '',
-    'Lib', 'site-packages', 'nvidia'
-)
-if not os.path.exists(_nvidia_base):
-    # Fallback to system Python nvidia packages
-    _nvidia_base = os.path.join(
-        os.path.expanduser('~'), 
-        'AppData', 'Local', 'Python', 
-        f'pythoncore-{sys.version_info.major}.{sys.version_info.minor}-64',
-        'Lib', 'site-packages', 'nvidia'
-    )
-for _pkg in ['cublas', 'cudnn', 'cufft', 'curand', 'cusolver', 'cusparse', 'nccl', 'nvrtc']:
-    _bin_path = os.path.join(_nvidia_base, _pkg, 'bin')
-    if os.path.exists(_bin_path):
-        if _bin_path not in os.environ.get('PATH', ''):
-            os.environ['PATH'] = _bin_path + os.pathsep + os.environ['PATH']
-        # Also use add_dll_directory for Python 3.8+ (required for DLL loading in some cases)
-        if hasattr(os, 'add_dll_directory'):
-            try:
-                os.add_dll_directory(_bin_path)
-            except OSError:
-                pass  # Ignore if already added or not supported
-
 import asyncio
 import atexit
 import logging
@@ -149,12 +120,6 @@ def setup_logging():
         def emit(self, record):
             try:
                 msg = self.format(record)
-                
-                # ALWAYS broadcast PIPER_DEBUG messages (for debugging Piper/TTS issues)
-                if "[PIPER_DEBUG]" in msg:
-                    log_broadcaster.broadcast(record.levelname.lower(), msg)
-                    return
-                
                 # Filter out noisy non-critical messages
                 for pattern in FILTER_PATTERNS:
                     if pattern in msg or pattern in record.name:
@@ -368,7 +333,7 @@ def validate_configuration(config):
 
         logger.info("Edge TTS disponible")
     except ImportError:
-        logger.warning("Edge TTS no está instalado - funcionalidad de doblaje limitada")
+        errors.append("Edge TTS no está instalado")
 
     # Validar dependencias de módulos
     modules = config.to_dict().get("modules", {})
@@ -497,10 +462,4 @@ def main():
 
 
 if __name__ == "__main__":
-    import traceback
-    try:
-        main()
-    except Exception as e:
-        print(f"FATAL ERROR: {e}", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
-        sys.exit(1)
+    main()

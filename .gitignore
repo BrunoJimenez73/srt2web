@@ -50,8 +50,8 @@ htmlcov/
 output/
 *.log
 
-# Config
-# config.yaml is tracked (shared config)
+# Config with secrets
+config.yaml
 !config.yaml.example
 
 # External projects
@@ -62,6 +62,3 @@ PARA BORRAR/
 
 # ML Models
 models/
-
-# Local binaries
-bin/
