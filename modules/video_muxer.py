@@ -106,7 +106,12 @@ class VideoMuxer(BaseModule):
         """Cleanup."""
         self._state = ModuleState.IDLE
 
-    def _do_process(self, data: PipelineData) -> PipelineData:
+    def write(self, data: PipelineData) -> None:
+        """
+        Write chunk to HLS stream (called by AsyncPipeline as output_sink).
+        """
+        self.process(data)
+        return None
         """
         Convert input chunk to HLS segment and update manifest.
         """

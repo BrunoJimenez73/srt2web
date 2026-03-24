@@ -247,6 +247,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: blob: http://* https://*; "
             "media-src 'self' blob: http://* https://*; "
+            "worker-src 'self' blob:; "
             "connect-src 'self' ws://* wss://* http://* https://*; "
             "font-src 'self' data:; "
             "object-src 'none'; "

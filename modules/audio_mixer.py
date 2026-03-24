@@ -90,10 +90,12 @@ class AudioMixer(BaseModule):
         Mix data.audio_chunk_path (original) with data.dubbed_audio_path (TTS).
 
         CRITICAL: Output duration is ALWAYS exactly expected_duration to prevent drift.
-        - If TTS is shorter: pad with silence
-        - If TTS is longer: truncate
-        - Measure actual output duration and update data.duration
         """
+        # Debug: Check what's in data
+        debug_path = os.path.join(self._mixer_dir, "debug.log")
+        with open(debug_path, "a") as f:
+            f.write(f"Chunk {data.chunk_index}: orig={data.audio_chunk_path}, tts={data.dubbed_audio_path}\n")
+        
         orig_audio = data.audio_chunk_path
         tts_audio = data.dubbed_audio_path
 
@@ -131,6 +133,7 @@ class AudioMixer(BaseModule):
         tts_audio = processed_tts
 
         # Mix original (ducked) with TTS using exact duration
+        # Note: amix can reduce volume, so we apply volume filter after
         filter_complex = (
             f"[0:a]volume={self._original_volume}[orig]; "
             f"[1:a]volume={self._tts_volume}[tts]; "
@@ -159,6 +162,16 @@ class AudioMixer(BaseModule):
         ]
 
         try:
+            # Debug: Write to file
+            debug_path = os.path.join(self._mixer_dir, "debug.log")
+            with open(debug_path, "a") as f:
+                f.write(f"Chunk {data.chunk_index}: orig={orig_audio}, tts={tts_audio}, mix={mix_wav}\n")
+            
+            print(f"[DEBUG] AudioMixer: Running FFmpeg for chunk {data.chunk_index}")
+            print(f"[DEBUG] AudioMixer: mix_wav path = {mix_wav}")
+            print(f"[DEBUG] AudioMixer: orig_audio = {orig_audio}")
+            print(f"[DEBUG] AudioMixer: tts_audio = {tts_audio}")
+            print(f"[DEBUG] AudioMixer: FFmpeg cmd = {' '.join(cmd)}")
             result = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -168,12 +181,18 @@ class AudioMixer(BaseModule):
                     subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
                 ),
             )
+            print(f"[DEBUG] AudioMixer: FFmpeg returncode = {result.returncode}")
+            print(f"[DEBUG] AudioMixer: FFmpeg stdout length = {len(result.stdout)}")
+            print(f"[DEBUG] AudioMixer: FFmpeg stderr length = {len(result.stderr)}")
             if result.returncode != 0:
+                print(f"[DEBUG] AudioMixer: FFmpeg error: {result.stderr[-500:]}")
                 logger.error(f"FFmpeg audio mix error: {result.stderr[-500:]}")
                 data.mixed_audio_path = orig_audio
                 return data
 
+            print(f"[DEBUG] AudioMixer: Checking if mix_wav exists: {os.path.exists(mix_wav)}")
             if os.path.exists(mix_wav):
+                print(f"[DEBUG] AudioMixer: mix_wav size = {os.path.getsize(mix_wav) if os.path.exists(mix_wav) else 0} bytes")
                 # CRITICAL: Measure actual output duration
                 actual_duration = self._get_audio_duration(mix_wav)
 
@@ -197,10 +216,12 @@ class AudioMixer(BaseModule):
 
                 data.mixed_audio_path = mix_wav
 
-                # Cleanup temporary TTS files
-                self._cleanup_temp_file(tts_audio)
-                if data.dubbed_audio_path:
-                    self._cleanup_temp_file(data.dubbed_audio_path)
+                # TEMPORARILY DISABLED: Cleanup to debug issue
+                # self._cleanup_temp_file(tts_audio)
+                # if data.dubbed_audio_path:
+                #     self._cleanup_temp_file(data.dubbed_audio_path)
+                
+                logger.info(f"[AudioMixer] Created mix file: {mix_wav}")
 
         except Exception as e:
             logger.error(f"FFmpeg audio mixing exception: {e}")
@@ -317,11 +338,14 @@ class AudioMixer(BaseModule):
         ]
 
         try:
+            print(f"[DEBUG] AudioMixer: Running FFmpeg for chunk {data.chunk_index}")
+            print(f"[DEBUG] AudioMixer: mix_wav path = {mix_wav}")
+            print(f"[DEBUG] AudioMixer: orig_audio = {orig_audio}, tts_audio = {tts_audio}")
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=15,
+                timeout=30,
                 creationflags=(
                     subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
                 ),

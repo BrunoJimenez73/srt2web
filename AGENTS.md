@@ -2,8 +2,45 @@
 
 ## Información General
 - **Fecha sesión**: 2026-03-23
-- **Versión**: 0.5.0
+- **Versión**: 0.6.0
 - **Repositorio**: https://github.com/BrunoJimenez73/srt2web
+
+---
+
+## Fix Piper TTS Crash (v0.5.1)
+
+**Problema**: Piper TTS causaba crashes del servidor al:
+- Guardar configuración con engine=piper
+- Iniciar pipeline con engine=piper
+
+**Causa raíz**: 
+- El modelo Piper tardaba 5+ segundos en cargar
+- El hilo daemon moría silenciosamente sin completar
+- Bloqueaba el event loop de FastAPI causando timeouts WebSocket
+
+**Solución implementada**:
+
+| Archivo | Cambio |
+|---------|--------|
+| `modules/piper_loader.py` | **Nuevo** - Loader subprocess para evitar bloqueo del event loop |
+| `modules/tts_engine.py` | Usa subprocess en vez de threading, timeout 90s |
+| `main.py` | [PIPER_DEBUG] logs siempre visibles (bypass filter) |
+| `config.yaml` | `device: auto` en vez de `cuda` (fallback automático) |
+
+**Diagnóstico CUDA**:
+- CUDA Runtime detectado como disponible en ONNX providers
+- Falta `cublasLt64_12.dll` y `cudnn` - dependencies de CUDA Toolkit
+- Piper carga correctamente con CPU (fallback automático)
+
+**Test Results**:
+```python
+# subprocess loader output:
+{'status': 'success', 'using_cuda': True, 'sample_rate': 16000, 'provider': 'CUDAExecutionProvider'}
+```
+
+---
+
+## Mejoras Implementadas
 
 ---
 
@@ -215,8 +252,10 @@ python -m pytest tests/unit/ -v
 
 ### Ejecución del Servidor
 - `Arrancar_Servidor.bat` ejecuta el servidor **minimizado** (en segundo plano)
+- **IMPORTANTE**: Usa entorno virtual `venv/` con Python 3.12
 - La consola filtra automáticamente los warnings de seguridad
 - Para detener: cerrar la ventana desde la barra de tareas
+- Si no existe `venv/`, el script lo crea automáticamente
 
 ### HLS Player
 - URL: `http://localhost:9999/player`
@@ -238,9 +277,16 @@ python -m pytest tests/unit/ -v
 - Filtro por texto funciona sobre logs visibles
 
 ### Piper TTS Voces
-- Voz por defecto: `es_ES-sharvard-medium` (calidad medium, España)
-- Voces disponibles en `models/piper/`
-- Voces españolas en frontend: Sharvard (ES), Davefx (ES), Claude (MX), Ald (MX), Daniela (AR)
+- Voz por defecto: `en_US-ryan-low` (baja calidad, rápido)
+- Voces disponibles en `models/piper/` (17 voces)
+- Voces españolas: Sharvard (ES), Davefx (ES), Claude (MX), Daniela (AR)
+
+### Piper TTS Loader
+- Usa subprocess en vez de threading para evitar bloqueo del event loop
+- Timeout: 90 segundos
+- Logs [PIPER_DEBUG] siempre visibles (bypass de filtros)
+- `device: auto` intenta CUDA, fallback a CPU si falla
+- CUDA depende de cublasLt64_12.dll y cudnn (instalar CUDA Toolkit 12.x)
 
 ### GPU Metrics (nvidia-ml-py)
 - Reemplazó GPUtil deprecado por nvidia-ml-py oficial
@@ -256,6 +302,27 @@ python -m pytest tests/unit/ -v
 - API actualizada para nuevas versiones de argostranslate
 - Usa `get_installed_languages()` en vez de `get_available_languages()`
 - Cache: `core/model_cache.py:get_argos_pair()`
+
+### Python 3.12 Virtual Environment ✅
+- **Problema**: argostranslate no funciona con Python 3.14 (pydantic v1 incompatibility)
+- **Solución**: Entorno virtual con Python 3.12.10
+- **Ubicación**: `venv/` folder
+- **Dependencias**: Todas instaladas (requirements.txt + nvidia-cublas-cu12 + nvidia-cudnn-cu12)
+- **Startup script**: `Arrancar_Servidor.bat` actualizado para usar venv
+
+**Comandos**:
+```bash
+# Iniciar servidor con venv
+venv\Scripts\python.exe main.py
+
+# O usar el script actualizado
+Arrancar_Servidor.bat
+```
+
+**CUDA DLLs**:
+- Instaladas via pip: `nvidia-cublas-cu12`, `nvidia-cudnn-cu12`
+- PATH configurado automáticamente en `main.py`
+- Piper TTS carga correctamente (CPU fallback si CUDA no disponible)
 
 ---
 

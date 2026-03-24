@@ -163,17 +163,19 @@ class Pipeline:
                 mod_config = config_manager.get_module_config(module.name)
                 old_config = self._module_configs.get(module.name, {})
 
-                # Check if TTS engine voice/engine changed and restart if needed
+                # Check if TTS engine voice/engine/device changed and restart if needed
                 needs_restart = False
                 if module.name == "tts_engine":
                     old_voice = old_config.get("voice", "")
                     new_voice = mod_config.get("voice", "")
                     old_engine = old_config.get("engine", "")
                     new_engine = mod_config.get("engine", "")
-                    if old_voice != new_voice or old_engine != new_engine:
+                    old_device = old_config.get("device", "auto")
+                    new_device = mod_config.get("device", "auto")
+                    if old_voice != new_voice or old_engine != new_engine or old_device != new_device:
                         needs_restart = True
                         self._log(
-                            "info", f"TTS voice/engine changed, restarting module..."
+                            "info", f"TTS config changed (voice/engine/device), restarting module..."
                         )
 
                 module.configure(mod_config)
@@ -192,10 +194,15 @@ class Pipeline:
         try:
             if hasattr(module, "stop"):
                 module.stop()
+        except Exception as e:
+            self._log("error", f"Error stopping module {module.name}: {e}")
+        
+        try:
             if hasattr(module, "start"):
                 module.start()
         except Exception as e:
             self._log("error", f"Failed to restart module {module.name}: {e}")
+            self._log("error", f"Module will remain in current state")
 
     def _log(self, level: str, message: str) -> None:
         """Log a message and notify callback."""

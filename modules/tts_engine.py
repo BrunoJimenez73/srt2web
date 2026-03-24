@@ -41,11 +41,19 @@ class TTSEngine(BaseModule):
 
     def configure(self, config: dict) -> None:
         super().configure(config)
+        old_voice = self._voice_model
         self._engine = config.get("engine", self._engine)
         self._device = config.get("device", self._device)
         self._voice_model = config.get("voice", self._voice_model)
         self._use_translated = config.get("use_translated", self._use_translated)
         self._speed = config.get("speed", self._speed)
+        
+        # If voice changed, reset loaded flag so it reloads lazily
+        if old_voice != self._voice_model:
+            self._voice_loaded = False
+            self._piper_voice = None
+            logger.info(f"[Piper] Voice changed from {old_voice} to {self._voice_model}, will reload lazily")
+        
         logger.info(
             f"TTS configured: voice={self._voice_model}, speed={self._speed}, engine={self._engine}, device={self._device}"
         )
@@ -53,100 +61,100 @@ class TTSEngine(BaseModule):
     def start(self) -> None:
         """Initialize TTS engine."""
         self._state = ModuleState.STARTING
+        self._piper_voice = None  # Don't load on start - load lazily
+        self._using_cuda = False
+        self._voice_loaded = False  # Track if voice has been loaded
 
         self._tts_dir = os.path.join(self._output_dir, "temp_tts")
         os.makedirs(self._tts_dir, exist_ok=True)
 
         # Clean old TTS audio
-        for f in os.listdir(self._tts_dir):
-            if f.endswith(".wav"):
-                try:
-                    os.remove(os.path.join(self._tts_dir, f))
-                except OSError:
-                    pass
-
         try:
-            if self._engine == "piper":
-                self._init_piper()
-            elif self._engine == "edge-tts":
-                import edge_tts
+            for f in os.listdir(self._tts_dir):
+                if f.endswith(".wav"):
+                    try:
+                        os.remove(os.path.join(self._tts_dir, f))
+                    except OSError:
+                        pass
+        except Exception as e:
+            logger.warning(f"Could not clean TTS temp dir: {e}")
 
-                # Edge-TTS is a cloud service, no heavy local model to load,
-                # but we verify the import.
-                logger.info(
-                    f"Edge-TTS ready to use voice '{self._voice_model}' (Online, ultra-natural)"
-                )
-            else:
-                raise ValueError(f"Unknown TTS engine: {self._engine}")
-
+        # For now, just verify config is valid - load voice lazily when needed
+        if self._engine == "piper":
+            logger.info(f"Piper TTS configured (voice: {self._voice_model}, will load lazily)")
+            self._state = ModuleState.RUNNING
+            logger.info("TTS Engine ready (lazy load)")
+        elif self._engine == "edge-tts":
+            import edge_tts
+            logger.info(
+                f"Edge-TTS ready to use voice '{self._voice_model}' (Online, ultra-natural)"
+            )
             self._state = ModuleState.RUNNING
             logger.info("TTS Engine ready")
-
-        except ImportError as e:
-            self._state = ModuleState.ERROR
-            self._error_message = f"TTS package not installed: {e}"
-            logger.error(self._error_message)
-            self.enabled = False
-        except Exception as e:
-            self._state = ModuleState.ERROR
-            self._error_message = f"Failed to init TTS: {e}"
-            logger.error(self._error_message)
-            self.enabled = False
+        else:
+            raise ValueError(f"Unknown TTS engine: {self._engine}")
 
     def _init_piper(self):
-        """Load offline Piper TTS model."""
+        """Load offline Piper TTS model using subprocess (avoids blocking event loop)."""
+        import time
+        from modules.piper_loader import load_piper_model_subprocess, check_piper_environment
         from piper import PiperVoice
-        import onnxruntime
-        import warnings
-
+        
+        start_time = time.time()
+        
+        # First check environment
+        logger.info("[PIPER_DEBUG] Checking Piper environment...")
+        env_info = check_piper_environment()
+        logger.info(f"[PIPER_DEBUG] Environment: piper={env_info['piper_available']}, "
+                    f"onnx={env_info['onnxruntime_available']}, "
+                    f"cuda={env_info['cuda_available']}")
+        
+        if not env_info["piper_available"]:
+            raise RuntimeError(f"Piper not installed: {env_info.get('piper_error', 'unknown')}")
+        if not env_info["onnxruntime_available"]:
+            raise RuntimeError(f"ONNX Runtime not installed: {env_info.get('onnx_error', 'unknown')}")
+        
+        # Get model paths
         model_path, config_path = self._ensure_piper_model(self._voice_model)
-
-        logger.info(f"Loading Piper TTS voice: {self._voice_model} (Offline)...")
-
-        providers = ["CPUExecutionProvider"]
-        use_cuda = False
-
-        if self._device == "cuda":
-            if "CUDAExecutionProvider" in onnxruntime.get_available_providers():
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    try:
-                        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
-                        self._piper_voice = PiperVoice.load(
-                            model_path, config_path, use_cuda=True
-                        )
-                        use_cuda = True
-                        self._using_cuda = True
-                        logger.info("Using CUDA for Piper TTS (forced by config)")
-                        return
-                    except Exception as e:
-                        logger.info("CUDA not available, falling back to CPU")
-                        use_cuda = False
-            else:
-                logger.info("CUDA requested but not available, using CPU")
-        elif self._device == "cpu":
-            logger.info("Using CPU for Piper TTS (forced by config)")
-        else:  # auto
-            if "CUDAExecutionProvider" in onnxruntime.get_available_providers():
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    try:
-                        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
-                        self._piper_voice = PiperVoice.load(
-                            model_path, config_path, use_cuda=True
-                        )
-                        use_cuda = True
-                        self._using_cuda = True
-                        logger.info("Using CUDA for Piper TTS (auto-detected)")
-                        return
-                    except Exception as e:
-                        logger.info(
-                            "CUDA auto-detected but failed, falling back to CPU"
-                        )
-                        use_cuda = False
-
-        self._piper_voice = PiperVoice.load(model_path, config_path, use_cuda=False)
-        self._using_cuda = False
+        load_time = time.time() - start_time
+        logger.info(f"[PIPER_DEBUG] Model path resolved in {load_time:.1f}s")
+        
+        # Load in subprocess (90 second timeout)
+        logger.info(f"[PIPER_DEBUG] Starting subprocess loader for voice: {self._voice_model}")
+        result = load_piper_model_subprocess(
+            voice_name=self._voice_model,
+            model_path=model_path,
+            config_path=config_path,
+            device=self._device,
+            timeout=90
+        )
+        
+        elapsed = time.time() - start_time
+        logger.info(f"[PIPER_DEBUG] Load attempt finished after {elapsed:.1f}s")
+        
+        if result["status"] != "success":
+            error_msg = result.get("error", "Unknown error")
+            logger.error(f"[PIPER_DEBUG] Failed to load Piper voice: {error_msg}")
+            raise RuntimeError(f"Failed to load Piper voice: {error_msg}")
+        
+        # Load was successful in subprocess, now load in main process
+        # (the subprocess validated the model works, so this should be fast)
+        logger.info(f"[PIPER_DEBUG] Subprocess validated model, now loading in main process...")
+        
+        import warnings
+        use_cuda = result.get("using_cuda", False)
+        
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                voice = PiperVoice.load(model_path, config_path, use_cuda=use_cuda)
+            self._piper_voice = voice
+            self._using_cuda = use_cuda
+            logger.info(f"[PIPER_DEBUG] Voice loaded in main process (GPU: {use_cuda}, "
+                       f"sample_rate: {result.get('sample_rate', 'unknown')})")
+        except Exception as e:
+            logger.error(f"[PIPER_DEBUG] Failed to load in main process after subprocess validation: {e}")
+            raise RuntimeError(f"Failed to load Piper voice in main process: {e}")
 
     def get_status(self) -> ModuleStatus:
         """Get current status including device info."""
@@ -164,7 +172,7 @@ class TTSEngine(BaseModule):
         self._state = ModuleState.IDLE
 
     def _ensure_piper_model(self, voice_name: str) -> tuple[str, str]:
-        """Download Piper ONNX model and JSON config if they don't exist."""
+        """Check if Piper ONNX model exists locally. Raises error if not found."""
         models_dir = os.path.abspath(os.path.join(".", "models", "piper"))
         os.makedirs(models_dir, exist_ok=True)
 
@@ -174,35 +182,12 @@ class TTSEngine(BaseModule):
         if os.path.exists(model_path) and os.path.exists(config_path):
             return model_path, config_path
 
-        logger.info(
-            f"Downloading Piper TTS model '{voice_name}' (this happens only once)..."
+        # Model not found locally - list available voices
+        available = [f.replace(".onnx", "") for f in os.listdir(models_dir) if f.endswith(".onnx")]
+        raise RuntimeError(
+            f"Piper voice '{voice_name}' not found locally. "
+            f"Available voices: {', '.join(sorted(available)) if available else 'none'}"
         )
-
-        parts = voice_name.split("-")
-        if len(parts) >= 3:
-            lang_family = parts[0].split("_")[0]
-            lang_code = parts[0]
-            speaker = parts[1]
-            quality = parts[2]
-
-            base_url = f"https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/{lang_family}/{lang_code}/{speaker}/{quality}/{voice_name}"
-
-            try:
-                urllib.request.urlretrieve(f"{base_url}.onnx", model_path)
-                urllib.request.urlretrieve(f"{base_url}.onnx.json", config_path)
-                logger.info("Piper model downloaded successfully")
-                return model_path, config_path
-            except Exception as e:
-                # Clean up partial downloads
-                if os.path.exists(model_path):
-                    os.remove(model_path)
-                if os.path.exists(config_path):
-                    os.remove(config_path)
-                raise RuntimeError(
-                    f"Failed to download Piper model from {base_url}: {e}"
-                )
-        else:
-            raise ValueError(f"Invalid Piper voice name format: {voice_name}")
 
     def _do_process(self, data: PipelineData) -> PipelineData:
         """
@@ -210,10 +195,12 @@ class TTSEngine(BaseModule):
         """
         text = data.translated_text if self._use_translated else data.transcript
 
-        if not text:
-            return data
-
         output_wav = os.path.join(self._tts_dir, f"tts_{data.chunk_index:06d}.wav")
+
+        if not text:
+            logger.debug(f"[TTS] Empty text for chunk {data.chunk_index}, setting dubbed_audio_path to None")
+            data.dubbed_audio_path = None
+            return data
 
         try:
             if self._engine == "edge-tts":
@@ -227,7 +214,8 @@ class TTSEngine(BaseModule):
             )
 
         except Exception as e:
-            logger.error(f"TTS generation error: {e}")
+            logger.error(f"[TTS] Generation error for chunk {data.chunk_index}: {e}")
+            data.dubbed_audio_path = None
 
         return data
 
@@ -271,14 +259,19 @@ class TTSEngine(BaseModule):
             os.remove(temp_mp3)
 
     def _run_piper_tts(self, text: str, output_wav: str):
-        """Run local Piper TTS generation."""
-        import wave
-        import os
-        from piper.config import SynthesisConfig
-
+        """Run local Piper TTS generation (lazy loads voice on first use)."""
+        # Lazy load voice if not loaded yet
+        if not self._voice_loaded:
+            logger.info(f"[Piper] Lazy loading voice: {self._voice_model}")
+            self._init_piper()
+            self._voice_loaded = True
+        
         if not self._piper_voice:
             logger.error("Piper voice not initialized")
             return
+
+        import wave
+        from piper.config import SynthesisConfig
 
         try:
             length_scale = 1.0 / self._speed

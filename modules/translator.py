@@ -35,6 +35,9 @@ class Translator(BaseModule):
         Update translator configuration and reload translation model if language settings changed.
         Called during pipeline reconfiguration (hot-reload).
         """
+        # Apply pydantic patch BEFORE any argostranslate operations
+        self._patch_pydantic_for_argos()
+        
         new_source_lang = config.get("source_lang", self._source_lang)
         new_target_lang = config.get("target_lang", self._target_lang)
 
@@ -73,6 +76,9 @@ class Translator(BaseModule):
         self._state = ModuleState.STARTING
 
         try:
+            # Patch pydantic v1 before importing argostranslate to avoid Python 3.14 issues
+            self._patch_pydantic_for_argos()
+            
             import argostranslate.package
             import argostranslate.translate
 
@@ -100,6 +106,60 @@ class Translator(BaseModule):
             self._error_message = f"Failed to init translator: {e}"
             logger.error(self._error_message)
             self.enabled = False
+
+    def _patch_pydantic_for_argos(self):
+        """Patch pydantic v1 for Python 3.14 compatibility before importing argostranslate."""
+        import sys
+        import warnings
+        
+        # Suppress pydantic v1 warnings
+        warnings.filterwarnings("ignore", message="Core Pydantic V1 functionality.*")
+        
+        try:
+            from pydantic.v1 import fields as pydantic_v1_fields
+            from pydantic.v1 import errors as pydantic_v1_errors
+            
+            if hasattr(pydantic_v1_fields.ModelField, '_patched_for_314'):
+                return  # Already patched
+            
+            original_init = pydantic_v1_fields.ModelField.__init__
+            original_prepare = pydantic_v1_fields.ModelField.prepare
+            
+            def patched_init(self, *args, **kwargs):
+                try:
+                    original_init(self, *args, **kwargs)
+                except pydantic_v1_errors.ConfigError as e:
+                    if "unable to infer type" in str(e):
+                        self.type_ = str
+                        self.outer_type_ = str
+                        self.required = False
+                        self.field_info.extra.pop("regex", None)
+                    else:
+                        raise
+            
+            def patched_prepare(self):
+                try:
+                    original_prepare(self)
+                except Exception as e:
+                    if "regex" in str(e).lower() or "unenforced" in str(e).lower():
+                        self.field_info.extra.pop("regex", None)
+                        if hasattr(self.field_info, 'regex'):
+                            self.field_info.regex = None
+                        try:
+                            original_prepare(self)
+                        except:
+                            pass
+                    else:
+                        raise
+            
+            pydantic_v1_fields.ModelField.__init__ = patched_init
+            pydantic_v1_fields.ModelField.prepare = patched_prepare
+            pydantic_v1_fields.ModelField._patched_for_314 = True
+            
+            logger.debug("pydantic.v1 patched for Python 3.14")
+            
+        except Exception as e:
+            logger.debug(f"pydantic patch failed (may not be needed): {e}")
 
     def _load_model(self, source_lang: str, target_lang: str):
         """Install package if missing and create translation pipeline using ModelCache."""

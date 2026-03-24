@@ -48,16 +48,25 @@ ALLOWED_TTS_VOICES = {
     "en-US-GuyNeural",
     "fr-FR-DeniseNeural",
     "de-DE-ConradNeural",
-    # Piper voices
+    # Piper voices - all available in models/piper/
     "es_ES-carlfm-x_low",
     "es_ES-davefx-medium",
+    "es_ES-sharvard-medium",
+    "es_ES-mls_10246-low",
+    "es_MX-claude-high",
+    "es_AR-daniela-high",
     "en_US-lessac-medium",
     "en_US-lessac-low",
     "en_US-amy-low",
-    "en_US-ryan-medium",
+    "en_US-ryan-low",
     "fr_FR-gilles-low",
+    "fr_FR-siwis-medium",
+    "de_DE-eva_k-x_low",
     "de_DE-thorsten-medium",
-    "de_DE-thorsten-low",
+    "it_IT-paola-medium",
+    "it_IT-riccardo-x_low",
+    "pt_BR-cadu-medium",
+    "pt_PT-tugao-medium",
 }
 ALLOWED_SRT_MODES = {"listener", "caller"}
 ALLOWED_VIDEO_PRESETS = {
@@ -496,12 +505,20 @@ def create_api_router() -> APIRouter:
                 + "\n• ".join(dependency_errors),
             )
 
-        config.update_from_dict(body.config)
-        config.save()
+        try:
+            config.update_from_dict(body.config)
+            config.save()
+        except Exception as e:
+            logger.error(f"Failed to save config: {e}")
+            raise HTTPException(500, f"Failed to save configuration: {e}")
 
         # Hot reload!
         pipeline = ctx["pipeline"]
-        pipeline.reconfigure(config)
+        try:
+            pipeline.reconfigure(config)
+        except Exception as e:
+            logger.error(f"Failed to reconfigure pipeline: {e}")
+            raise HTTPException(500, f"Pipeline reconfiguration failed: {e}")
 
         return {"status": "updated", "config": config.to_dict()}
 
