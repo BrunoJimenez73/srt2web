@@ -71,9 +71,9 @@ modules:
     vtt_max_age_seconds: 60
   tts_engine:
     enabled: true
-    engine: edge-tts
-    device: cpu
-    voice: es-ES-AlvaroNeural
+    engine: piper
+    device: cuda
+    voice: es_ES-sharvard-medium
     speed: 1.3
   audio_mixer:
     enabled: true

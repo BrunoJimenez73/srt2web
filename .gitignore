@@ -50,8 +50,8 @@ htmlcov/
 output/
 *.log
 
-# Config with secrets
-config.yaml
+# Config
+# config.yaml is tracked (shared config)
 !config.yaml.example
 
 # External projects
