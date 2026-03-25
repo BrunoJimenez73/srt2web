@@ -11,11 +11,15 @@ import logging
 import traceback
 import shutil
 import os
+import core.security
+from pathlib import Path
 from typing import Optional, Any, Dict, List
 from datetime import datetime
 
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel, field_validator
+
+from core.security import sanitize_path, PathTraversalError
 
 logger = logging.getLogger("srt2web.api")
 
@@ -84,34 +88,15 @@ ALLOWED_GPU_PRESETS = {"p1", "p2", "p3", "p4", "p5", "p6", "p7"}
 
 
 def sanitize_module_name(name: str) -> str:
-    """Validate and sanitize module name to prevent injection."""
-    if not name or not isinstance(name, str):
-        raise HTTPException(400, "Module name is required and must be a string")
-
-    if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", name):
-        raise HTTPException(
-            400,
-            f"Invalid module name format: '{name}'. Only letters, numbers and underscores are allowed.",
-        )
-
-    # Lista de módulos válidos
-    valid_modules = [
-        "audio_extractor",
-        "transcriber",
-        "translator",
-        "subtitle_generator",
-        "tts_engine",
-        "audio_mixer",
-        "video_muxer",
-    ]
-
-    if name not in valid_modules:
-        raise HTTPException(
-            400,
-            f"Unknown module: '{name}'. Valid modules are: {', '.join(sorted(valid_modules))}",
-        )
-
-    return name
+    """
+    Validate and sanitize module name to prevent injection.
+    
+    Wraps core.security.sanitize_module_name to convert ValueError to HTTPException.
+    """
+    try:
+        return core.security.sanitize_module_name(name)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 def validate_config_value(key: str, value: Any) -> Any:
@@ -136,14 +121,10 @@ def validate_config_value(key: str, value: Any) -> Any:
 
     # Path traversal prevention for file paths
     if "path" in key_lower and isinstance(value, str) and value:
-        resolved = os.path.realpath(value)
-        # Block obvious traversal attempts
-        if ".." in value or value.startswith("/") and not value.startswith("./"):
-            # Allow absolute paths only if they don't contain traversal
-            if ".." in os.path.relpath(resolved, os.getcwd()):
-                raise HTTPException(
-                    400, f"Invalid path: path traversal detected"
-                )
+        try:
+            sanitize_path(value, os.getcwd(), allow_absolute=True)
+        except (PathTraversalError, ValueError) as e:
+            raise HTTPException(400, f"Invalid path: {e}")
 
     if key == "transcriber.model":
         if value not in ALLOWED_WHISPER_MODELS:

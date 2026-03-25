@@ -46,7 +46,7 @@ def create_app(app_context: dict) -> FastAPI:
     app = FastAPI(
         title="SRT2Web",
         description="Modular SRT Stream Processor",
-        version="0.4.0",
+        version="0.7.0",
         docs_url=None,       # Disable Swagger UI in production
         redoc_url=None,      # Disable ReDoc in production
     )

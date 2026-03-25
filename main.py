@@ -382,7 +382,7 @@ def main():
     print()
     print("  +====================================+")
     print("  |      SRT2Web - Stream Processor   |")
-    print("  |         v0.4.0 - Modular          |")
+    print("  |         v0.7.0 - Modular          |")
     print("  +====================================+")
     print()
 

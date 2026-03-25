@@ -5,6 +5,7 @@ from core.module_base import BaseModule, PipelineData, ModuleState
 from core.security import (
     sanitize_path,
     sanitize_filename,
+    sanitize_module_name,
     validate_port,
     validate_latency,
 )
