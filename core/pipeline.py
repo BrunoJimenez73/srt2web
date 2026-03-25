@@ -14,6 +14,7 @@ from typing import List, Optional, Callable, Dict
 from core.module_base import BaseModule, PipelineData, ModuleState
 from core.input_source import InputSource
 from core.output_sink import OutputSink
+from modules.io_wrappers import InputModuleWrapper, OutputModuleWrapper
 
 logger = logging.getLogger("srt2web.pipeline")
 
@@ -99,6 +100,36 @@ class Pipeline:
         if config:
             self._module_configs[module.name] = config.copy()
         logger.info(f"Registered module: {module.name} (enabled={module.enabled})")
+
+    def register_input_module(
+        self, module: BaseModule, config: Optional[dict] = None
+    ) -> None:
+        """
+        Register an input module.
+        
+        Input modules are registered at the beginning of the module list
+        so they produce data first in the pipeline.
+        """
+        self._modules.insert(0, module)
+        self._module_map[module.name] = module
+        if config:
+            self._module_configs[module.name] = config.copy()
+        logger.info(f"Registered input module: {module.name} (enabled={module.enabled})")
+
+    def register_output_module(
+        self, module: BaseModule, config: Optional[dict] = None
+    ) -> None:
+        """
+        Register an output module.
+        
+        Output modules are registered at the end of the module list
+        so they consume data last in the pipeline.
+        """
+        self._modules.append(module)
+        self._module_map[module.name] = module
+        if config:
+            self._module_configs[module.name] = config.copy()
+        logger.info(f"Registered output module: {module.name} (enabled={module.enabled})")
 
     def get_module(self, name: str) -> Optional[BaseModule]:
         """Get a module by name."""

@@ -1,33 +1,98 @@
 ---
 ---
 
-<form class="input-card" id="card-input">
+<div class="input-card" id="card-input">
   <div class="process-header">
     <span class="process-indicator" id="indicator-input"></span>
     <span class="process-title">📥 INPUT</span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="input-enabled" onchange="window.toggleModule('input', this.checked)" />
+      <span class="toggle-slider"></span>
+    </label>
   </div>
   <div class="process-content">
     <div class="form-group">
       <label class="form-label">Tipo</label>
-      <select class="form-select" id="input-type" onchange="updateInputFields()">
+      <select class="form-select" id="input-type" onchange="window.updateInputFields()">
         <option value="srt">SRT</option>
         <option value="rtmp">RTMP</option>
+        <option value="file">Archivo</option>
       </select>
     </div>
-    <div class="form-group" id="input-port-group">
-      <label class="form-label">Puerto SRT</label>
-      <input type="number" class="form-input" id="input-srt-port" value="9000" min="1" max="65535" />
+
+    <!-- SRT Config -->
+    <div id="input-srt-config" class="input-type-config">
+      <div class="form-group">
+        <label class="form-label">Puerto</label>
+        <input type="number" class="form-input" id="input-srt-port" value="9000" min="1" max="65535" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Modo</label>
+        <select class="form-select" id="input-srt-mode">
+          <option value="listener">Listener</option>
+          <option value="caller">Caller</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Latencia (ms)</label>
+        <input type="number" class="form-input" id="input-srt-latency" value="1000" min="100" max="10000" />
+      </div>
     </div>
-    <div class="form-group">
-      <label class="form-label">Modo</label>
-      <select class="form-select" id="input-srt-mode">
-        <option value="listener">Listener</option>
-        <option value="caller">Caller</option>
-        <option value="rendezvous">Rendezvous</option>
-      </select>
+
+    <!-- RTMP Config -->
+    <div id="input-rtmp-config" class="input-type-config" style="display: none;">
+      <div class="form-group">
+        <label class="form-label">URL RTMP</label>
+        <input type="text" class="form-input" id="input-rtmp-url" value="rtmp://localhost/live/stream" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Modo</label>
+        <select class="form-select" id="input-rtmp-mode">
+          <option value="pull">Pull (recibir)</option>
+          <option value="push">Push (enviar)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- File Config -->
+    <div id="input-file-config" class="input-type-config" style="display: none;">
+      <div class="form-group">
+        <label class="form-label">Archivo de video</label>
+        <input type="text" class="form-input" id="input-file-path" value="" placeholder="./video.mp4" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Loop</label>
+        <select class="form-select" id="input-file-loop">
+          <option value="false">No</option>
+          <option value="true">Sí</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Velocidad</label>
+        <input type="number" class="form-input" id="input-file-speed" value="1.0" min="0.5" max="4.0" step="0.1" />
+      </div>
+    </div>
+
+    <!-- Metrics -->
+    <div class="form-group" id="input-metrics">
+      <label class="form-label">Estado</label>
+      <div class="metrics-row">
+        <div class="metric-mini">
+          <span class="metric-label">Chunks</span>
+          <span class="metric-value" id="input-chunks">0</span>
+        </div>
+        <div class="metric-mini">
+          <span class="metric-label">Recibiendo</span>
+          <span class="metric-value" id="input-receiving">--</span>
+        </div>
+        <div class="metric-mini">
+          <span class="metric-label">Puerto</span>
+          <span class="metric-value" id="input-port">--</span>
+        </div>
+      </div>
     </div>
   </div>
-</form>
+</div>
 
 <style>
   .input-card {
@@ -73,12 +138,67 @@
     font-size: 11px;
     font-weight: 600;
     color: var(--text-prime);
+    flex: 1;
+  }
+
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+  }
+
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--text-dim);
+    transition: 0.3s;
+    border-radius: 20px;
+  }
+
+  .toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+  }
+
+  input:checked + .toggle-slider {
+    background-color: var(--success);
+  }
+
+  input:checked + .toggle-slider:before {
+    transform: translateX(16px);
   }
 
   .process-content {
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+
+  .input-type-config {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
   }
 
   .form-group {
@@ -111,5 +231,32 @@
 
   .form-select {
     cursor: pointer;
+  }
+
+  .metrics-row {
+    display: flex;
+    gap: 8px;
+    padding: 8px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
+  }
+
+  .metric-mini {
+    flex: 1;
+    text-align: center;
+  }
+
+  .metric-mini .metric-label {
+    display: block;
+    font-size: 9px;
+    color: var(--text-sec);
+    margin-bottom: 2px;
+  }
+
+  .metric-mini .metric-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-prime);
   }
 </style>

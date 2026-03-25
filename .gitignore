@@ -51,9 +51,8 @@ output/
 logs/
 *.log
 
-# Config with secrets
-config.yaml
-!config.yaml.example
+# Config (no secrets - tracked in git)
+!config/config.yaml
 
 # External projects
 Software-planning-mcp/
