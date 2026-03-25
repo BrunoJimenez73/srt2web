@@ -201,7 +201,7 @@ const pageTitle = "SRT2Web — Live Player";
             }
         }
 
-        setInterval(loadVTT, 5000);
+        setInterval(loadVTT, 10000);
         loadVTT();
 
         function initPlayer(): void {
@@ -211,12 +211,12 @@ const pageTitle = "SRT2Web — Live Player";
                     lowLatencyMode: false,
                     backBufferLength: 90,
                     subtitlesEnabled: true,
-                    manifestLoadingTimeOut: 20000,
+                    manifestLoadingTimeOut: 30000,
                     manifestLoadingMaxRetry: 5,
-                    manifestLoadingRetryDelay: 5000,
-                    levelLoadingTimeOut: 20000,
+                    manifestLoadingRetryDelay: 10000,
+                    levelLoadingTimeOut: 30000,
                     levelLoadingMaxRetry: 5,
-                    levelLoadingRetryDelay: 5000,
+                    levelLoadingRetryDelay: 10000,
                 });
 
                 hls.loadSource('/hls/master.m3u8');
@@ -347,7 +347,7 @@ const pageTitle = "SRT2Web — Live Player";
                 video.addEventListener('loadedmetadata', setupTrackListeners);
             }
 
-            setInterval(setupTrackListeners, 10000);
+            setInterval(setupTrackListeners, 30000);
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -359,6 +359,6 @@ const pageTitle = "SRT2Web — Live Player";
                 if (!hls || hls.state === 'ERROR') {
                     initPlayer();
                 }
-            }, 10000);
+            }, 20000);
         });
     </script>
