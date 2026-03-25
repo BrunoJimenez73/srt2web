@@ -201,7 +201,7 @@ const pageTitle = "SRT2Web — Live Player";
             }
         }
 
-        setInterval(loadVTT, 1000);
+        setInterval(loadVTT, 3000);
         loadVTT();
 
         function initPlayer(): void {
@@ -341,7 +341,7 @@ const pageTitle = "SRT2Web — Live Player";
                 video.addEventListener('loadedmetadata', setupTrackListeners);
             }
 
-            setInterval(setupTrackListeners, 2000);
+            setInterval(setupTrackListeners, 10000);
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -353,6 +353,6 @@ const pageTitle = "SRT2Web — Live Player";
                 if (!hls || hls.state === 'ERROR') {
                     initPlayer();
                 }
-            }, 5000);
+            }, 10000);
         });
     </script>
