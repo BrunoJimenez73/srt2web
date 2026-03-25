@@ -143,6 +143,29 @@ class EncoderConfig:
 
         return args
 
+    def get_gpu_videotoolbox_args(self) -> list:
+        """Obtener argumentos FFmpeg para VideoToolbox (macOS)."""
+        args = []
+
+        # Bitrate-based encoding for VideoToolbox
+        # Map CRF-like quality to bitrate
+        crf_to_bitrate = {
+            28: "2000k",
+            26: "3000k",
+            24: "4000k",
+            22: "5000k",
+            20: "6000k",
+            18: "8000k",
+            16: "10000k",
+            14: "12000k",
+            12: "15000k",
+        }
+        bitrate = crf_to_bitrate.get(self.video_crf, "6000k")
+
+        args.extend(["-b:v", bitrate, "-profile:v", self.video_profile])
+
+        return args
+
     def get_audio_args(self) -> list:
         """Obtener argumentos FFmpeg para audio."""
         # Validar codec

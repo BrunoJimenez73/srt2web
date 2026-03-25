@@ -104,7 +104,7 @@ def get_ffmpeg_version(ffmpeg_path: str) -> Optional[str]:
 
 def check_gpu_support(ffmpeg_path: str) -> dict:
     """Check for hardware acceleration support in FFmpeg (encoders)."""
-    results = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
+    results = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False}
     try:
         result = subprocess.run(
             [ffmpeg_path, "-encoders"],
@@ -117,6 +117,7 @@ def check_gpu_support(ffmpeg_path: str) -> dict:
         results["qsv"] = "h264_qsv" in output or "hevc_qsv" in output
         results["amf"] = "h264_amf" in output or "hevc_amf" in output
         results["vaapi"] = "h264_vaapi" in output or "hevc_vaapi" in output
+        results["videotoolbox"] = "h264_videotoolbox" in output or "hevc_videotoolbox" in output
     except Exception:
         pass
     return results
@@ -281,7 +282,7 @@ def run_ffmpeg(
         capture_output=capture_output,
         text=True,
         timeout=timeout,
-        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+        **({"creationflags": subprocess.CREATE_NO_WINDOW} if sys.platform == "win32" else {}),
     )
 
 
@@ -310,7 +311,7 @@ def start_ffmpeg_process(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+        **({"creationflags": subprocess.CREATE_NO_WINDOW} if sys.platform == "win32" else {}),
     )
 
 
@@ -325,13 +326,14 @@ def cleanup_ffmpeg_processes():
     try:
         if platform.system() == "Windows":
             # Use taskkill to kill FFmpeg processes
+            _popen_kwargs = {}
+            if hasattr(subprocess, "CREATE_NO_WINDOW"):
+                _popen_kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
             result = subprocess.run(
                 ["taskkill", "/F", "/IM", "ffmpeg.exe"],
                 capture_output=True,
                 text=True,
-                creationflags=subprocess.CREATE_NO_WINDOW
-                if hasattr(subprocess, "CREATE_NO_WINDOW")
-                else 0,
+                **_popen_kwargs,
             )
             if result.returncode == 0:
                 logger.info("Cleaned up orphaned FFmpeg processes")
@@ -406,17 +408,16 @@ def run_ffmpeg_with_timeout(cmd: list, timeout: int = 30, **kwargs):
     
     try:
         # Set creation flags for Windows to hide console
-        creationflags = 0
-        if platform.system() == "Windows":
-            creationflags = subprocess.CREATE_NO_WINDOW
-        
+        _popen_kwargs = dict(kwargs)
+        if platform.system() == "Windows" and hasattr(subprocess, "CREATE_NO_WINDOW"):
+            _popen_kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            creationflags=creationflags,
-            **kwargs
+            **_popen_kwargs
         )
         
         stdout, stderr = process.communicate(timeout=timeout)

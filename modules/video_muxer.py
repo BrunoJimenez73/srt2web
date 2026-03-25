@@ -38,7 +38,7 @@ class VideoMuxer(BaseModule):
         self._manifest_lock = threading.Lock()
         self._audio_offset_ms = 0
         self._hls_list_size = 30
-        self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
+        self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False}
         self._total_duration_emitted = 0.0
         self._segment_durations = {}  # Cache durations for manifest: {index: duration}
         # Subtitle language settings
@@ -154,6 +154,8 @@ class VideoMuxer(BaseModule):
                 encoder_mode = "gpu_qsv"
             elif self._gpu_info["vaapi"]:
                 encoder_mode = "gpu_vaapi"
+            elif self._gpu_info["videotoolbox"]:
+                encoder_mode = "gpu_videotoolbox"
             else:
                 encoder_mode = "cpu"
 
@@ -179,6 +181,11 @@ class VideoMuxer(BaseModule):
             encoder = "h264_vaapi"
             extra_args = ["-vaapi_device", "/dev/dri/renderD128"]
             logger.info(f"[VideoMuxer] Using GPU encoder: h264_vaapi")
+        elif encoder_mode == "gpu_videotoolbox" and self._gpu_info["videotoolbox"]:
+            encoder = "h264_videotoolbox"
+            preset = self._encoder_config.video_preset
+            extra_args = self._encoder_config.get_gpu_videotoolbox_args()
+            logger.info(f"[VideoMuxer] Using GPU encoder: h264_videotoolbox")
         else:
             # CPU encoder
             encoder = "libx264"
@@ -385,6 +392,8 @@ class VideoMuxer(BaseModule):
                 encoder_mode = "gpu_qsv"
             elif self._gpu_info["vaapi"]:
                 encoder_mode = "gpu_vaapi"
+            elif self._gpu_info["videotoolbox"]:
+                encoder_mode = "gpu_videotoolbox"
             else:
                 encoder_mode = "cpu"
 
