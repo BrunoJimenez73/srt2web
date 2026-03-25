@@ -272,13 +272,17 @@ class TestConfigManagerDefaults:
 
 
 class TestSecurityCardComponent:
-    """Test that security card component exists."""
+    """Test that security functionality exists in the frontend."""
 
-    def test_security_card_file_exists(self):
-        """Test that the SecurityCard component file exists."""
+    def test_security_in_header_component(self):
+        """Test that security button exists in Header component."""
         import os
-        card_path = "frontend/src/components/SecurityCard.astro"
-        assert os.path.exists(card_path), f"SecurityCard component not found at {card_path}"
+        header_path = "frontend/src/components/Header.astro"
+        if not os.path.exists(header_path):
+            pytest.skip("Header.astro not found")
+        with open(header_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        assert "Secure" in content, "Security toggle should be in Header"
 
     def test_api_ts_has_auth_functions(self):
         """Test that api.ts has auth token functions."""

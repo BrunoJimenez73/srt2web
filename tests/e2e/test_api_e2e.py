@@ -102,7 +102,7 @@ class TestAPIEndpoints:
         data = response.json()
 
         assert "server" in data
-        assert "srt" in data
+        assert "input" in data
         assert "modules" in data
 
     def test_update_config_partial(self, client):
@@ -288,14 +288,16 @@ class TestAPIIntegration:
         """Test that config updates reflect in status."""
         # Get initial config
         config_response = client.get("/api/config")
-        initial_port = config_response.json()["srt"]["listen_port"]
+        config_data = config_response.json()
+        initial_port = config_data.get("input", {}).get("srt", {}).get("listen_port", 9000)
 
-        # Update config
-        client.put("/api/config", json={"config": {"srt": {"listen_port": 8888}}})
+        # Update config via nested input.srt path
+        client.put("/api/config", json={"config": {"input": {"srt": {"listen_port": 8888}}}})
 
         # Get config again
         config_response = client.get("/api/config")
-        updated_port = config_response.json()["srt"]["listen_port"]
+        updated_data = config_response.json()
+        updated_port = updated_data.get("input", {}).get("srt", {}).get("listen_port")
 
         assert updated_port == 8888
 

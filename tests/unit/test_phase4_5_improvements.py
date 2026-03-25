@@ -224,29 +224,29 @@ class TestLogSearchFilter:
 
 
 class TestSecurityCardExists:
-    """Test SecurityCard component exists and has proper structure."""
+    """Test security functionality exists (moved from SecurityCard to Header)."""
 
-    def test_security_card_file_exists(self):
-        """Test that SecurityCard component exists."""
-        assert os.path.exists("frontend/src/components/SecurityCard.astro")
-
-    def test_security_card_has_auth_functions(self):
-        """Test that SecurityCard has auth token management."""
-        with open("frontend/src/components/SecurityCard.astro", "r", encoding="utf-8") as f:
+    def test_security_in_header_exists(self):
+        """Test that security toggle exists in Header component."""
+        header_path = "frontend/src/components/Header.astro"
+        assert os.path.exists(header_path), "Header.astro not found"
+        with open(header_path, "r", encoding="utf-8") as f:
             content = f.read()
+        assert "Secure" in content, "Security toggle should be in Header"
 
-        assert "auth-token-input" in content
-        assert "btn-generate-token" in content
-        assert "btn-save-token" in content
-        assert "btn-clear-token" in content
-
-    def test_security_card_has_status_display(self):
-        """Test that SecurityCard shows auth status."""
-        with open("frontend/src/components/SecurityCard.astro", "r", encoding="utf-8") as f:
+    def test_header_has_auth_toggle(self):
+        """Test that Header has auth token toggle button."""
+        with open("frontend/src/components/Header.astro", "r", encoding="utf-8") as f:
             content = f.read()
+        assert "btn-secure" in content or "secure" in content.lower(), \
+            "Header should have security toggle"
 
-        assert "auth-status" in content
-        assert "ws-auth-status" in content
+    def test_header_shows_security_status(self):
+        """Test that Header shows security status."""
+        with open("frontend/src/components/Header.astro", "r", encoding="utf-8") as f:
+            content = f.read()
+        assert "ON" in content and "OFF" in content, \
+            "Header should show security ON/OFF status"
 
 
 class TestAPIAuthIntegration:

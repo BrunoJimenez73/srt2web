@@ -4,6 +4,7 @@ Unit tests for TTSEngine module.
 
 import sys
 import os
+import tempfile
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
@@ -19,6 +20,13 @@ sys.modules["onnxruntime"] = MagicMock()
 
 from modules.tts_engine import TTSEngine
 from core.module_base import PipelineData, ModuleState
+
+
+@pytest.fixture
+def temp_dir():
+    """Create a temporary directory for tests."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        yield tmpdir
 
 
 class TestTTSEngine:
@@ -42,49 +50,51 @@ class TestTTSEngine:
         assert tts.state == ModuleState.RUNNING
         mock_remove.assert_called_once()
 
-    @patch("modules.tts_engine.TTSEngine._ensure_piper_model")
     @patch("os.makedirs")
     @patch("os.listdir")
-    def test_start_piper(self, mock_listdir, mock_makedirs, mock_ensure):
-        """Test startup with piper engine."""
+    def test_start_piper_lazy_load(self, mock_listdir, mock_makedirs):
+        """Test startup with piper engine uses lazy loading."""
         mock_listdir.return_value = []
-        mock_ensure.return_value = ("/model.onnx", "/config.json")
-
-        # Setup PiperVoice mock
-        mock_piper = sys.modules["piper"]
-        mock_piper.PiperVoice.load.return_value = MagicMock()
 
         tts = TTSEngine({"engine": "piper"})
         tts.start()
 
+        # Piper should start without loading the model (lazy)
         assert tts.state == ModuleState.RUNNING
-        mock_ensure.assert_called_once()
+        assert tts._voice_loaded is False
+        assert tts._piper_voice is None
 
-    def test_ensure_piper_model_locally_exists(self):
+    def test_ensure_piper_model_locally_exists(self, temp_dir):
         """Test model path resolution when already downloaded."""
         tts = TTSEngine()
-        with patch("os.path.exists", return_value=True):
-            model, config = tts._ensure_piper_model("es_ES-sharvard-medium")
-            assert model.endswith("es_ES-sharvard-medium.onnx")
-            assert config.endswith("es_ES-sharvard-medium.onnx.json")
 
-    @patch("urllib.request.urlretrieve")
-    @patch("os.path.exists", return_value=False)
-    @patch("os.makedirs")
-    def test_ensure_piper_model_download(
-        self, mock_makedirs, mock_exists, mock_retrieve
-    ):
-        """Test model download logic."""
+        models_dir = os.path.join(".", "models", "piper")
+        os.makedirs(models_dir, exist_ok=True)
+
+        model_path = os.path.join(models_dir, "test-voice.onnx")
+        config_path = os.path.join(models_dir, "test-voice.onnx.json")
+
+        try:
+            with open(model_path, "w") as f:
+                f.write("fake")
+            with open(config_path, "w") as f:
+                f.write("{}")
+
+            model, config = tts._ensure_piper_model("test-voice")
+            assert model.endswith("test-voice.onnx")
+            assert config.endswith("test-voice.onnx.json")
+        finally:
+            if os.path.exists(model_path):
+                os.remove(model_path)
+            if os.path.exists(config_path):
+                os.remove(config_path)
+
+    def test_ensure_piper_model_not_found(self):
+        """Test that missing model raises RuntimeError."""
         tts = TTSEngine()
-        # Mocking os.path.join and abspath to avoid issues with different OS paths
-        with patch("os.path.abspath", return_value="/tmp/models/piper"):
-            model, config = tts._ensure_piper_model("es_ES-sharvard-medium")
 
-            assert mock_retrieve.call_count == 2
-            # Should have called with correct Hugging Face URL
-            args, _ = mock_retrieve.call_args_list[0]
-            assert "huggingface.co" in args[0]
-            assert "es_ES/sharvard/medium/es_ES-sharvard-medium.onnx" in args[0]
+        with pytest.raises(RuntimeError, match="not found locally"):
+            tts._ensure_piper_model("nonexistent_voice_xyz")
 
     @patch("modules.tts_engine.TTSEngine._run_edge_tts")
     def test_do_process_edge(self, mock_run_edge):
@@ -98,19 +108,15 @@ class TestTTSEngine:
         assert result.dubbed_audio_path == os.path.join("/tmp/tts", "tts_000001.wav")
         mock_run_edge.assert_called_once()
 
-    @patch("wave.open")
-    def test_run_piper_tts(self, mock_wave_open):
-        """Test piper synthesis execution."""
-        tts = TTSEngine({"engine": "piper"})
-        mock_voice = MagicMock()
-        mock_voice.config.sample_rate = 22050
-        tts._piper_voice = mock_voice
+    def test_do_process_no_text(self):
+        """Test processing when no text is available."""
+        tts = TTSEngine({"engine": "edge-tts"})
+        tts._tts_dir = "/tmp/tts"
 
-        tts._run_piper_tts("Hello", "/tmp/out.wav")
+        data = PipelineData(chunk_index=1, translated_text=None)
+        result = tts._do_process(data)
 
-        mock_voice.synthesize.assert_called_once_with(
-            "Hello", mock_wave_open().__enter__()
-        )
+        assert result.dubbed_audio_path is None
 
     def test_format_speed(self):
         """Test speed format conversion for edge-tts."""
@@ -131,7 +137,7 @@ class TestTTSEngine:
         assert tts._speed == 2.0
 
         tts.configure({})
-        assert tts._speed == 2.0  # Should retain last value
+        assert tts._speed == 2.0
 
     @patch("modules.tts_engine.TTSEngine._run_edge_tts")
     def test_edge_tts_uses_speed(self, mock_run_edge):
@@ -143,5 +149,34 @@ class TestTTSEngine:
         tts._do_process(data)
 
         mock_run_edge.assert_called_once()
-        # Verify the speed was set correctly
         assert tts._speed == 0.5
+
+    @patch("os.makedirs")
+    @patch("os.listdir")
+    def test_get_status_extra(self, mock_listdir, mock_makedirs):
+        """Test that get_status includes device and engine info."""
+        mock_listdir.return_value = []
+        tts = TTSEngine({"engine": "piper", "device": "auto"})
+        tts.start()
+
+        status = tts.get_status()
+        assert "device" in status.extra
+        assert "engine" in status.extra
+        assert "using_gpu" in status.extra
+        assert status.extra["engine"] == "piper"
+
+    @patch("os.makedirs")
+    @patch("os.listdir")
+    def test_voice_change_resets_loaded(self, mock_listdir, mock_makedirs):
+        """Test that changing voice resets the loaded flag."""
+        mock_listdir.return_value = []
+        tts = TTSEngine({"engine": "piper", "voice": "voice-a"})
+        tts.start()
+        tts._voice_loaded = True
+        tts._piper_voice = MagicMock()
+
+        # Change voice via configure
+        tts.configure({"voice": "voice-b"})
+
+        assert tts._voice_loaded is False
+        assert tts._piper_voice is None

@@ -247,7 +247,7 @@ class TestApiRouter:
         assert response.status_code == 200
         data = response.json()
         assert "server" in data
-        assert "srt" in data
+        assert "input" in data
 
     def test_update_config(self, mock_ctx):
         """Test PUT /config endpoint."""

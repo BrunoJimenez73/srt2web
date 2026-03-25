@@ -38,7 +38,6 @@ class TestTranslator:
         mock_argos.reset_mock()
         mock_package.reset_mock()
         mock_translate.reset_mock()
-        # Reset return values too for safety
         mock_package.get_installed_packages.return_value = []
         mock_package.get_available_packages.return_value = []
 
@@ -63,7 +62,6 @@ class TestTranslator:
         translator = Translator()
         translator._argos_installed = True
 
-        # Setup mocks
         mock_pkg = MagicMock()
         mock_pkg.from_code = "es"
         mock_pkg.to_code = "en"
@@ -78,22 +76,27 @@ class TestTranslator:
         """Test loading model when installation is needed."""
         translator = Translator()
         translator._argos_installed = True
+        translator._model_cache = MagicMock()
+        translator._model_cache.get_argos_pair.return_value = None
         mock_package.get_installed_packages.return_value = []
 
         mock_avail_pkg = MagicMock()
         mock_avail_pkg.from_code = "es"
         mock_avail_pkg.to_code = "en"
         mock_package.get_available_packages.return_value = [mock_avail_pkg]
+        mock_translate.get_translation_from_codes.return_value = MagicMock()
 
         translator._load_model("es", "en")
 
-        mock_avail_pkg.install.assert_called_once()
         mock_package.update_package_index.assert_called_once()
+        mock_avail_pkg.install.assert_called_once()
 
     def test_load_language_model_not_found(self):
-        """Test error when no package is found."""
+        """Test behavior when no package is found."""
         translator = Translator()
         translator._argos_installed = True
+        translator._model_cache = MagicMock()
+        translator._model_cache.get_argos_pair.return_value = None
         mock_package.get_installed_packages.return_value = []
         mock_package.get_available_packages.return_value = []
 
@@ -129,3 +132,14 @@ class TestTranslator:
 
         assert result.translated_text is None
         mock_pipeline.translate.assert_not_called()
+
+    def test_do_process_no_pipeline(self):
+        """Test processing when translation pipeline is not loaded."""
+        translator = Translator()
+        translator._translation_pipeline = None
+
+        data = PipelineData(transcript="Hola")
+        result = translator._do_process(data)
+
+        # Should return data unchanged
+        assert result.translated_text is None

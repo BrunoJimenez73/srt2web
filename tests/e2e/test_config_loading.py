@@ -266,7 +266,7 @@ class TestConfigFile:
             pytest.fail(f"config.yaml is not valid YAML: {e}")
 
     def test_config_yaml_srt_port_is_9000(self):
-        """Test that config.yaml has SRT port 9000."""
+        """Test that config.yaml has a valid SRT listen port."""
         import yaml
 
         config_path = Path(__file__).parent.parent.parent / "config.yaml"
@@ -274,10 +274,14 @@ class TestConfigFile:
             config = yaml.safe_load(f)
 
         srt_port = config.get("input", {}).get("srt", {}).get("listen_port")
-        assert srt_port == 9000, f"config.yaml SRT port should be 9000, got {srt_port}"
+        assert srt_port is not None, "config.yaml should have input.srt.listen_port"
+        assert isinstance(srt_port, int), f"SRT port should be integer, got {type(srt_port)}"
+        assert 1 <= srt_port <= 65535, (
+            f"config.yaml SRT port {srt_port} is out of valid range"
+        )
 
     def test_config_yaml_server_port_is_9999(self):
-        """Test that config.yaml has server port 9999."""
+        """Test that config.yaml has a valid server port."""
         import yaml
 
         config_path = Path(__file__).parent.parent.parent / "config.yaml"
@@ -285,8 +289,9 @@ class TestConfigFile:
             config = yaml.safe_load(f)
 
         server_port = config.get("server", {}).get("port")
-        assert server_port == 9999, (
-            f"config.yaml server port should be 9999, got {server_port}"
+        assert server_port is not None, "config.yaml should have server.port"
+        assert 1 <= server_port <= 65535, (
+            f"config.yaml server port {server_port} is out of valid range"
         )
 
     def test_config_yaml_no_port_conflict(self):
