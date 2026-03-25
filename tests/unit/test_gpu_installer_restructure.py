@@ -101,7 +101,7 @@ class TestGPUIndicators:
     def test_video_muxer_get_status_has_encoder(self, mock_glob, mock_makedirs, mock_gpu, mock_ensure):
         """Test that video muxer get_status includes encoder info."""
         mock_ensure.return_value = "/bin/ffmpeg"
-        mock_gpu.return_value = {"nvenc": True, "qsv": False, "amf": False, "vaapi": False}
+        mock_gpu.return_value = {"nvenc": True, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False}
         mock_glob.return_value = []
 
         from modules.video_muxer import VideoMuxer
@@ -127,7 +127,7 @@ class TestGPUIndicators:
     def test_video_muxer_cpu_mode(self, mock_glob, mock_makedirs, mock_gpu, mock_ensure):
         """Test that video muxer reports CPU when no GPU available."""
         mock_ensure.return_value = "/bin/ffmpeg"
-        mock_gpu.return_value = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
+        mock_gpu.return_value = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False}
         mock_glob.return_value = []
 
         from modules.video_muxer import VideoMuxer

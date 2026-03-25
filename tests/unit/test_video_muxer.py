@@ -40,6 +40,7 @@ class TestVideoMuxer:
             "qsv": False,
             "amf": False,
             "vaapi": False,
+            "videotoolbox": False,
         }
         mock_glob.return_value = []
 
@@ -58,7 +59,7 @@ class TestVideoMuxer:
     def test_write_calls_process(self, mock_glob, mock_makedirs, mock_gpu, mock_ensure):
         """Test that write() delegates to process()."""
         mock_ensure.return_value = "/bin/ffmpeg"
-        mock_gpu.return_value = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
+        mock_gpu.return_value = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False}
         mock_glob.return_value = []
 
         muxer = TestableVideoMuxer(output_dir="/tmp")
@@ -115,7 +116,7 @@ class TestVideoMuxer:
     def test_get_status_extra(self, mock_glob, mock_makedirs, mock_gpu, mock_ensure):
         """Test that get_status includes GPU encoder info."""
         mock_ensure.return_value = "/bin/ffmpeg"
-        mock_gpu.return_value = {"nvenc": True, "qsv": False, "amf": False, "vaapi": False}
+        mock_gpu.return_value = {"nvenc": True, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False}
         mock_glob.return_value = []
 
         muxer = TestableVideoMuxer(output_dir="/tmp")
@@ -133,7 +134,7 @@ class TestVideoMuxer:
     def test_gpu_nvenc_detection(self, mock_glob, mock_makedirs, mock_gpu, mock_ensure):
         """Test that NVENC GPU is detected correctly."""
         mock_ensure.return_value = "/bin/ffmpeg"
-        mock_gpu.return_value = {"nvenc": True, "qsv": False, "amf": False, "vaapi": False}
+        mock_gpu.return_value = {"nvenc": True, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False}
         mock_glob.return_value = []
 
         muxer = TestableVideoMuxer(output_dir="/tmp")
@@ -150,7 +151,7 @@ class TestVideoMuxer:
     def test_cpu_fallback(self, mock_glob, mock_makedirs, mock_gpu, mock_ensure):
         """Test CPU fallback when no GPU available."""
         mock_ensure.return_value = "/bin/ffmpeg"
-        mock_gpu.return_value = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
+        mock_gpu.return_value = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False}
         mock_glob.return_value = []
 
         muxer = TestableVideoMuxer(output_dir="/tmp")
@@ -167,7 +168,7 @@ class TestVideoMuxer:
     def test_stop(self, mock_glob, mock_makedirs, mock_gpu, mock_ensure):
         """Test module stop."""
         mock_ensure.return_value = "/bin/ffmpeg"
-        mock_gpu.return_value = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
+        mock_gpu.return_value = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False}
         mock_glob.return_value = []
 
         muxer = TestableVideoMuxer(output_dir="/tmp")
