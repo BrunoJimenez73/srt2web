@@ -70,3 +70,13 @@ export function formatTimestamp(iso: string): string {
     second: '2-digit' 
   });
 }
+
+export const ENCODER_LABELS: Record<string, string> = {
+  'cpu': 'CPU',
+  'gpu_nvenc': 'NVENC',
+  'gpu_amf': 'AMF',
+  'gpu_qsv': 'QSV',
+  'gpu_vaapi': 'VAAPI',
+  'gpu_videotoolbox': 'VideoToolbox',
+  'auto': 'Auto'
+};

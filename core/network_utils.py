@@ -8,6 +8,8 @@ import socket
 import urllib.request
 import logging
 
+from core.constants import DEFAULT_SERVER_PORT, DEFAULT_SRT_PORT, DEFAULT_SRT_LATENCY_MS
+
 logger = logging.getLogger("srt2web.network")
 
 _public_ip_logged = False
@@ -59,7 +61,7 @@ def get_public_ip() -> tuple[str | None, bool]:
 
 
 def get_network_info(
-    srt_port: int = 9000, server_port: int = 9999, latency_ms: int = 1000
+    srt_port: int = DEFAULT_SRT_PORT, server_port: int = DEFAULT_SERVER_PORT, latency_ms: int = DEFAULT_SRT_LATENCY_MS
 ) -> dict:
     """
     Get comprehensive network information for external connections.
