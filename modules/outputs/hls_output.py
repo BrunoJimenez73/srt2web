@@ -24,6 +24,7 @@ from core.module_base import PipelineData
 from core.ffmpeg_utils import ensure_ffmpeg, check_gpu_support
 from core.encoder_config import EncoderConfig
 from core.ffmpeg_pool import get_pool, shutdown_pool
+from core.constants import generate_master_playlist
 
 
 class HLSOutput(OutputSink):
@@ -357,24 +358,11 @@ class HLSOutput(OutputSink):
             subs_path = os.path.join(self._hls_dir, "subs.vtt")
             has_subs = os.path.exists(subs_path)
 
-            master_lines = [
-                "#EXTM3U",
-                "#EXT-X-VERSION:4",
-            ]
-
-            if has_subs:
-                master_lines.append(
-                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="subs.vtt"'
-                )
-                master_lines.append(
-                    '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"'
-                )
-            else:
-                master_lines.append(
-                    '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2"'
-                )
-
-            master_lines.append("stream.m3u8")
+            master_lines = generate_master_playlist(
+                subs_exist=has_subs,
+                subtitle_language=self._subtitle_language,
+                subtitle_language_name=self._subtitle_language_name,
+            )
 
             try:
                 with open(master_path, "w", encoding="utf-8") as f:

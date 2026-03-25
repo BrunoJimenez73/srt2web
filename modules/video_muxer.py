@@ -17,6 +17,7 @@ from typing import Optional
 from core.module_base import BaseModule, PipelineData, ModuleState, ModuleStatus
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.encoder_config import EncoderConfig
+from core.constants import generate_master_playlist
 
 logger = logging.getLogger("srt2web.module.video_muxer")
 
@@ -349,24 +350,11 @@ class VideoMuxer(BaseModule):
             subs_vtt_path = os.path.join(self._hls_dir, "subs.vtt")
             subs_exist = os.path.exists(subs_vtt_path)
 
-            master_lines = [
-                "#EXTM3U",
-                "#EXT-X-VERSION:4",
-            ]
-
-            if subs_exist:
-                master_lines.append(
-                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="subs.vtt"'
-                )
-                master_lines.append(
-                    '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"'
-                )
-            else:
-                master_lines.append(
-                    '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2"'
-                )
-
-            master_lines.append("stream.m3u8")
+            master_lines = generate_master_playlist(
+                subs_exist=subs_exist,
+                subtitle_language=self._subtitle_language,
+                subtitle_language_name=self._subtitle_language_name,
+            )
 
             try:
                 with open(master_playlist_path, "w", encoding="utf-8") as f:
