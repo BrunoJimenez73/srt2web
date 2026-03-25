@@ -14,6 +14,8 @@ import tempfile
 import yaml
 from pathlib import Path
 
+from core.constants import VALID_ENCODER_MODES
+
 
 # Valid values for config validation
 VALID_WHISPER_MODELS = [
@@ -38,8 +40,6 @@ VALID_TTS_VOICES = [
 ]
 
 VALID_VIDEO_PRESETS = ["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"]
-
-VALID_ENCODER_MODES = ["auto", "cpu", "gpu"]
 
 
 class TestConfigYAMLValidity:

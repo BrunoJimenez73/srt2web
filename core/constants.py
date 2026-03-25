@@ -79,6 +79,11 @@ VALID_ENCODER_MODES = frozenset([
     "auto",
     "cpu",
     "gpu",
+    "gpu_nvenc",
+    "gpu_amf",
+    "gpu_qsv",
+    "gpu_vaapi",
+    "gpu_videotoolbox",
 ])
 
 # GPU presets

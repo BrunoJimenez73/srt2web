@@ -174,7 +174,7 @@ class TestPlayerCode:
 
     def test_player_has_show_error_function(self):
         """Test that player has showError function."""
-        with open("frontend/src/pages/player.astro", "r", encoding="utf-8") as f:
+        with open("frontend/src/lib/player.ts", "r", encoding="utf-8") as f:
             content = f.read()
         
         assert "showError" in content
@@ -182,7 +182,7 @@ class TestPlayerCode:
 
     def test_player_no_invalid_error_types(self):
         """Test that player doesn't use invalid Hls.ErrorTypes."""
-        with open("frontend/src/pages/player.astro", "r", encoding="utf-8") as f:
+        with open("frontend/src/lib/player.ts", "r", encoding="utf-8") as f:
             content = f.read()
         
         # These should not exist
@@ -191,7 +191,7 @@ class TestPlayerCode:
 
     def test_player_hides_waiting_on_manifest_parsed(self):
         """Test that player hides waiting message on MANIFEST_PARSED."""
-        with open("frontend/src/pages/player.astro", "r", encoding="utf-8") as f:
+        with open("frontend/src/lib/player.ts", "r", encoding="utf-8") as f:
             content = f.read()
         
         assert "MANIFEST_PARSED" in content
@@ -199,7 +199,7 @@ class TestPlayerCode:
 
     def test_player_has_error_handling(self):
         """Test that player has proper HLS error handling."""
-        with open("frontend/src/pages/player.astro", "r", encoding="utf-8") as f:
+        with open("frontend/src/lib/player.ts", "r", encoding="utf-8") as f:
             content = f.read()
         
         assert "Hls.Events.ERROR" in content
