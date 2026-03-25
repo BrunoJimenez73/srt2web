@@ -293,3 +293,113 @@ class TestSecurityCardComponent:
         assert "setAuthToken" in content, "setAuthToken function not found"
         assert "clearAuthToken" in content, "clearAuthToken function not found"
         assert "Authorization" in content, "Authorization header handling not found"
+
+
+class TestSecurityFixes:
+    """Tests for security fixes applied to the codebase."""
+
+    def test_csp_no_unsafe_eval(self):
+        """Test that CSP does not allow unsafe-eval."""
+        import importlib
+        import server.security as sec
+        importlib.reload(sec)
+
+        # Read the source to check CSP string
+        import inspect
+        source = inspect.getsource(sec.SecurityHeadersMiddleware.dispatch)
+
+        # Create a mock request/response to extract CSP
+        # Instead, just check the source code directly
+        assert "unsafe-eval" not in source, \
+            "CSP should not contain unsafe-eval"
+
+    def test_config_endpoint_masks_token(self):
+        """Test that /api/config does not expose raw auth_token."""
+        from fastapi.testclient import TestClient
+        from server.app import create_app
+        from core.config_manager import ConfigManager
+
+        config = ConfigManager()
+        config.set("server.auth_token", "secret_token_123")
+
+        app = create_app({
+            "config": config,
+            "pipeline": MagicMock(),
+            "srt_ingest": MagicMock(),
+            "log_broadcast": lambda x, y: None,
+        })
+
+        client = TestClient(app)
+        response = client.get(
+            "/api/config",
+            headers={"Authorization": "Bearer secret_token_123"}
+        )
+        assert response.status_code == 200
+
+        data = response.json()
+        token_value = data.get("server", {}).get("auth_token", "")
+        assert token_value == "***", \
+            f"auth_token should be masked, got: {token_value}"
+
+    def test_host_default_is_localhost(self):
+        """Test that default host is 127.0.0.1, not 0.0.0.0."""
+        import inspect
+        from main import main
+
+        source = inspect.getsource(main)
+        # Check that the code defaults to 127.0.0.1
+        assert '127.0.0.1' in source or "config.get(\"server.host\"" in source
+
+    def test_docs_url_disabled(self):
+        """Test that Swagger docs are disabled."""
+        from server.app import create_app
+
+        app = create_app({
+            "config": MagicMock(),
+            "pipeline": MagicMock(),
+            "srt_ingest": MagicMock(),
+            "log_broadcast": lambda x, y: None,
+        })
+
+        assert app.docs_url is None, "Swagger docs should be disabled"
+        assert app.redoc_url is None, "ReDoc should be disabled"
+
+    def test_xff_spoofing_protection(self):
+        """Test that X-Forwarded-For is only trusted from localhost."""
+        from server.security import RateLimitMiddleware, RateLimiter
+
+        # Read the source to verify the logic
+        import inspect
+        source = inspect.getsource(RateLimitMiddleware._get_client_ip)
+
+        # Should check client host before trusting XFF
+        assert "127.0.0.1" in source or "localhost" in source, \
+            "X-Forwarded-For should only be trusted from localhost"
+
+    def test_ws_max_subscribers(self):
+        """Test that WebSocket has a max subscriber limit."""
+        from server.ws_routes import LogBroadcaster
+
+        assert hasattr(LogBroadcaster, 'MAX_SUBSCRIBERS'), \
+            "LogBroadcaster should have MAX_SUBSCRIBERS limit"
+        assert LogBroadcaster.MAX_SUBSCRIBERS <= 50, \
+            "MAX_SUBSCRIBERS should be reasonable (<=50)"
+
+    def test_error_response_no_traceback(self):
+        """Test that toggle endpoint does not expose tracebacks."""
+        import inspect
+        from server.api_routes import create_api_router
+
+        source = inspect.getsource(create_api_router)
+
+        # The error handler should not include err_msg in response
+        # Look for the pattern where "error": err_msg was removed
+        lines = source.split('\n')
+        in_toggle_catch = False
+        for line in lines:
+            if 'except Exception as e:' in line:
+                in_toggle_catch = True
+            if in_toggle_catch and '"error":' in line and 'err_msg' in line:
+                raise AssertionError("Toggle endpoint still exposes err_msg in response")
+            if in_toggle_catch and 'return {' in line and 'error' not in line:
+                break

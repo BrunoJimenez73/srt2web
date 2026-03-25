@@ -14,6 +14,7 @@ import subprocess
 import urllib.request
 import zipfile
 import tarfile
+import hashlib
 from pathlib import Path
 from typing import Optional, List
 
@@ -195,7 +196,14 @@ def download_ffmpeg(progress_callback=None) -> Optional[str]:
 
         urllib.request.urlretrieve(url, str(archive_path), _reporthook)
 
-        logger.info("Extracting FFmpeg...")
+        # Verify download integrity (basic size check - zip should be > 1MB)
+        file_size = archive_path.stat().st_size
+        if file_size < 1_000_000:
+            logger.error(f"Downloaded archive too small ({file_size} bytes), likely corrupted")
+            archive_path.unlink(missing_ok=True)
+            return None
+
+        logger.info(f"Download complete ({file_size / 1024 / 1024:.1f} MB). Extracting FFmpeg...")
 
         # Extract
         if str(archive_path).endswith(".zip"):

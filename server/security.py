@@ -189,10 +189,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return False
 
     def _get_client_ip(self, request: Request) -> str:
-        """Get real client IP, considering proxies."""
+        """Get real client IP, considering proxies only if trusted."""
+        # Only trust X-Forwarded-For if a trusted proxy is configured
+        # and the direct client is a trusted proxy address
         forwarded = request.headers.get("X-Forwarded-For")
         if forwarded:
-            return forwarded.split(",")[0].strip()
+            client_host = request.client.host if request.client else ""
+            # Only trust if the immediate client is localhost (reverse proxy)
+            if client_host in ("127.0.0.1", "::1", "localhost"):
+                return forwarded.split(",")[0].strip()
         if request.client:
             return request.client.host
         return "unknown"
@@ -242,8 +247,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         # Content Security Policy (permissive for HLS playback)
         csp = (
-            "default-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: blob: http://* https://*; "
             "media-src 'self' blob: http://* https://*; "

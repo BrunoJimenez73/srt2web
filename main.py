@@ -41,7 +41,6 @@ _app_context = None
 def _cleanup_orphan_processes():
     """Cleanup any orphan FFmpeg processes on unexpected shutdown."""
     from core.ffmpeg_utils import cleanup_ffmpeg_processes
-    from core.security import cleanup_temporary_files
 
     logger = logging.getLogger("srt2web.cleanup")
     logger.info("Cleaning up orphan processes and temporary files...")
@@ -52,7 +51,19 @@ def _cleanup_orphan_processes():
 
         # Clean up temporary files
         output_dir = "./output"
-        cleanup_temporary_files(output_dir)
+        temp_dirs = [
+            os.path.join(output_dir, "chunks"),
+            os.path.join(output_dir, "temp_audio"),
+            os.path.join(output_dir, "temp_mix"),
+            os.path.join(output_dir, "temp_tts"),
+        ]
+        for temp_dir in temp_dirs:
+            if os.path.exists(temp_dir):
+                try:
+                    import shutil
+                    shutil.rmtree(temp_dir)
+                except Exception:
+                    pass
 
         logger.info("Cleanup completed successfully")
     except Exception as e:
@@ -418,7 +429,7 @@ def main():
     app = create_app(app_context)
 
     # Server configuration
-    host = config.get("server.host", "0.0.0.0")
+    host = config.get("server.host", "127.0.0.1")
     port = config.get("server.port", 9999)
 
     # Open browser after a short delay

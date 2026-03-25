@@ -134,6 +134,17 @@ def validate_config_value(key: str, value: Any) -> Any:
         if value < 0:
             raise HTTPException(400, f"Latency cannot be negative, got: {value}")
 
+    # Path traversal prevention for file paths
+    if "path" in key_lower and isinstance(value, str) and value:
+        resolved = os.path.realpath(value)
+        # Block obvious traversal attempts
+        if ".." in value or value.startswith("/") and not value.startswith("./"):
+            # Allow absolute paths only if they don't contain traversal
+            if ".." in os.path.relpath(resolved, os.getcwd()):
+                raise HTTPException(
+                    400, f"Invalid path: path traversal detected"
+                )
+
     if key == "transcriber.model":
         if value not in ALLOWED_WHISPER_MODELS:
             raise HTTPException(
@@ -486,9 +497,14 @@ def create_api_router() -> APIRouter:
 
     @router.get("/config")
     async def get_config(request: Request):
-        """Get current configuration."""
+        """Get current configuration (auth_token masked for security)."""
         ctx = _ctx(request)
-        return ctx["config"].to_dict()
+        config_dict = ctx["config"].to_dict()
+        # Mask auth_token to prevent credential leakage
+        if "server" in config_dict and "auth_token" in config_dict["server"]:
+            token = config_dict["server"]["auth_token"]
+            config_dict["server"]["auth_token"] = "***" if token else ""
+        return config_dict
 
     @router.put("/config")
     async def update_config(request: Request, body: ConfigUpdate):
@@ -600,8 +616,7 @@ def create_api_router() -> APIRouter:
                     "module": safe_module_name,
                     "enabled": body.enabled,
                     "status": module.get_status().to_dict(),
-                    "warning": f"Hot reload failed: {str(e)}",
-                    "error": err_msg,
+                    "warning": f"Hot reload failed: {type(e).__name__}: {str(e)}",
                 }
         else:
             pipeline.reconfigure(config)

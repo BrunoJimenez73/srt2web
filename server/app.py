@@ -47,6 +47,8 @@ def create_app(app_context: dict) -> FastAPI:
         title="SRT2Web",
         description="Modular SRT Stream Processor",
         version="0.4.0",
+        docs_url=None,       # Disable Swagger UI in production
+        redoc_url=None,      # Disable ReDoc in production
     )
 
     config = app_context.get("config")
@@ -83,12 +85,10 @@ def create_app(app_context: dict) -> FastAPI:
 
     # CORS
     cors_origins = [
-        "http://localhost:8080",
-        "http://localhost:8089",
         "http://localhost:9999",
-        "http://127.0.0.1:8080",
-        "http://127.0.0.1:8089",
         "http://127.0.0.1:9999",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
     ]
     if config:
         configured_origins = config.get("server.cors_origins", [])

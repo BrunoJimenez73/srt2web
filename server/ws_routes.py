@@ -67,6 +67,8 @@ class LogBroadcaster:
     Thread-safe: can be called from the pipeline thread.
     """
 
+    MAX_SUBSCRIBERS = 20
+
     def __init__(self):
         self._subscribers: Set[WebSocket] = set()
         self._loop: asyncio.AbstractEventLoop = None
@@ -79,6 +81,11 @@ class LogBroadcaster:
 
     async def subscribe(self, ws: WebSocket):
         """Add a WebSocket subscriber."""
+        if len(self._subscribers) >= self.MAX_SUBSCRIBERS:
+            await ws.close(code=4002, reason="Too many connections")
+            logger.warning(f"WebSocket rejected: max {self.MAX_SUBSCRIBERS} subscribers reached")
+            return
+
         await ws.accept()
         self._subscribers.add(ws)
         logger.info(f"WebSocket client connected. Total: {len(self._subscribers)}")
