@@ -30,7 +30,7 @@ modules:
     enabled: true
   transcriber:
     enabled: true
-    model: small
+    model: tiny
     language: en
     device: auto
   translator:
@@ -58,6 +58,12 @@ modules:
     audio_offset_ms: 0
     type: webplayer
     hls_list_size: 6
+    encoder_mode: auto
+    video_quality: medium
+    video_crf: 26
+    audio_codec: aac
+    audio_bitrate: 192k
+    audio_samplerate: '48000'
   srt_input:
     enabled: true
     type: srt
