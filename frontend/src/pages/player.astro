@@ -143,6 +143,7 @@ const pageTitle = "SRT2Web — Live Player";
         let subtitleTrackElement: HTMLTrackElement | null = null;
         let subtitleLanguageName = '';
         let lastVTTContent = '';
+        let playerInitialized = false;
 
         const video = document.getElementById('video-player') as HTMLVideoElement;
         const waiting = document.getElementById('waiting') as HTMLDivElement;
@@ -156,8 +157,6 @@ const pageTitle = "SRT2Web — Live Player";
 
                 if (lastVTTContent === vttContent) return;
                 lastVTTContent = vttContent;
-
-                console.log('VTT content changed, updating track');
 
                 const vttBlob = new Blob([vttContent], { type: 'text/vtt; charset=utf-8' });
                 const vttUrl = URL.createObjectURL(vttBlob);
@@ -197,34 +196,40 @@ const pageTitle = "SRT2Web — Live Player";
                 }
 
             } catch(e) {
-                console.log('VTT load error:', e);
+                // Silent fail for VTT loading
             }
         }
 
-        setInterval(loadVTT, 10000);
-        loadVTT();
+        function destroyPlayer(): void {
+            if (hls) {
+                try {
+                    hls.destroy();
+                } catch(e) {
+                    // Silent fail on destroy
+                }
+                hls = null;
+            }
+            playerInitialized = false;
+        }
 
         function initPlayer(): void {
+            // Destroy existing player first to prevent instance conflicts
+            destroyPlayer();
+
             if (Hls.isSupported()) {
                 hls = new Hls({
-                    enableWorker: false,
+                    enableWorker: true,
                     lowLatencyMode: false,
                     backBufferLength: 90,
                     subtitlesEnabled: true,
-                    manifestLoadingTimeOut: 30000,
-                    manifestLoadingMaxRetry: 5,
-                    manifestLoadingRetryDelay: 10000,
-                    levelLoadingTimeOut: 30000,
-                    levelLoadingMaxRetry: 5,
-                    levelLoadingRetryDelay: 10000,
-                });
-
-                hls.loadSource('/hls/master.m3u8');
-                hls.attachMedia(video);
-
-                hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                    waiting.style.display = 'none';
-                    video.play().catch(() => {});
+                    manifestLoadingTimeOut: 20000,
+                    manifestLoadingMaxRetry: 3,
+                    manifestLoadingRetryDelay: 3000,
+                    levelLoadingTimeOut: 20000,
+                    levelLoadingMaxRetry: 3,
+                    levelLoadingRetryDelay: 3000,
+                    fragLoadingTimeOut: 20000,
+                    fragLoadingMaxRetry: 3,
                 });
 
                 const errorOverlay = document.getElementById('error-overlay') as HTMLDivElement;
@@ -249,19 +254,23 @@ const pageTitle = "SRT2Web — Live Player";
                 btnRetry?.addEventListener('click', () => {
                     hideError();
                     errorCount = 0;
-                    hls?.startLoad();
+                    initPlayer();
+                });
+
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    waiting.style.display = 'none';
+                    playerInitialized = true;
                     video.play().catch(() => {});
                 });
 
                 hls.on(Hls.Events.ERROR, (_e, data) => {
-                    console.log('HLS Error:', data.type, data.details);
-                    
                     if (data.fatal) {
                         errorCount++;
-                        
+
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
-                                if (errorCount < 3) {
+                                // Use HLS.js built-in recovery instead of recreating player
+                                if (errorCount < 5) {
                                     hls?.startLoad();
                                 } else {
                                     showError('No se puede conectar al stream. Verifique que el servidor esté en ejecución.');
@@ -271,52 +280,40 @@ const pageTitle = "SRT2Web — Live Player";
                                 hls?.recoverMediaError();
                                 break;
                             case Hls.ErrorTypes.MANIFEST_LOAD_ERROR:
-                                showError('No se pudo cargar el manifiesto del stream.');
+                                // Don't show error immediately, let retry mechanism handle it
+                                if (errorCount >= 3) {
+                                    showError('No se pudo cargar el manifiesto del stream.');
+                                }
                                 break;
                             case Hls.ErrorTypes.MANIFEST_PARSE_ERROR:
                                 showError('Error al解析 el stream.');
                                 break;
                             default:
-                                showError(`Error: ${data.details || data.type}`);
+                                if (errorCount >= 3) {
+                                    showError(`Error: ${data.details || data.type}`);
+                                }
                         }
                     } else {
-                        // Non-fatal errors - reset count on success
-                        if (!data.fatal) {
-                            errorCount = 0;
-                        }
+                        // Reset error count on non-fatal errors recovery
+                        errorCount = 0;
                     }
                 });
 
                 // Update subtitle language info when tracks are added
-                hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (event, data) => {
-                    console.log('Subtitle tracks updated:', data);
-                    if (hls.subtitleTracks.length > 0) {
+                hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (_event, _data) => {
+                    if (hls && hls.subtitleTracks.length > 0) {
                         const firstTrack = hls.subtitleTracks[0];
                         if (firstTrack.name) {
                             subtitleLanguageName = firstTrack.name;
-                            console.log('Subtitle language from tracks:', subtitleLanguageName);
                         }
-                        // Update our manual track label
                         if (subtitleTrackElement) {
                             subtitleTrackElement.label = subtitleLanguageName;
-                            console.log('Updated manual track label to:', subtitleLanguageName);
                         }
                     }
                 });
 
-                // Additional subtitle event listeners for robustness
-                hls.on(Hls.Events.SUBTITLE_TRACK_SWITCH, (event, data) => {
-                    console.log('Subtitle track switched:', data);
-                });
-
-                hls.on(Hls.Events.SUBTITLE_FRAG_PROCESSED, (event, data) => {
-                    console.log('Subtitle fragment processed:', data);
-                });
-
-                // Keep one debug listener for SUBTITLE_TRACKS_UPDATED
-                hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (event, data) => {
-                    console.log('Subtitle tracks updated:', data);
-                });
+                hls.loadSource('/hls/master.m3u8');
+                hls.attachMedia(video);
 
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                 video.src = '/hls/master.m3u8';
@@ -324,6 +321,13 @@ const pageTitle = "SRT2Web — Live Player";
         }
 
         function setupSubtitleChangeListener(): void {
+            const handleModeChange = (event: Event): void => {
+                const track = event.target as TextTrack;
+                if (track.kind === 'subtitles') {
+                    userPreference = track.mode === 'showing';
+                }
+            };
+
             const setupTrackListeners = (): void => {
                 for (let i = 0; i < video.textTracks.length; i++) {
                     const track = video.textTracks[i];
@@ -334,31 +338,19 @@ const pageTitle = "SRT2Web — Live Player";
                 }
             };
 
-            const handleModeChange = (event: Event): void => {
-                const track = event.target as TextTrack;
-                if (track.kind === 'subtitles') {
-                    userPreference = track.mode === 'showing';
-                }
-            };
-
             if (video.textTracks.length > 0) {
                 setupTrackListeners();
             } else {
                 video.addEventListener('loadedmetadata', setupTrackListeners);
             }
-
-            setInterval(setupTrackListeners, 30000);
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            loadVTT();
             initPlayer();
+            loadVTT();
             setupSubtitleChangeListener();
 
-            setInterval(() => {
-                if (!hls || hls.state === 'ERROR') {
-                    initPlayer();
-                }
-            }, 20000);
+            // Periodic VTT refresh - only update if content changed
+            setInterval(loadVTT, 10000);
         });
     </script>
