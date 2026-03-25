@@ -201,7 +201,7 @@ const pageTitle = "SRT2Web — Live Player";
             }
         }
 
-        setInterval(loadVTT, 3000);
+        setInterval(loadVTT, 5000);
         loadVTT();
 
         function initPlayer(): void {
@@ -210,7 +210,13 @@ const pageTitle = "SRT2Web — Live Player";
                     enableWorker: false,
                     lowLatencyMode: false,
                     backBufferLength: 90,
-                    subtitlesEnabled: true
+                    subtitlesEnabled: true,
+                    manifestLoadingTimeOut: 20000,
+                    manifestLoadingMaxRetry: 5,
+                    manifestLoadingRetryDelay: 5000,
+                    levelLoadingTimeOut: 20000,
+                    levelLoadingMaxRetry: 5,
+                    levelLoadingRetryDelay: 5000,
                 });
 
                 hls.loadSource('/hls/master.m3u8');
