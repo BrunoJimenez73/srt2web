@@ -11,7 +11,6 @@ import logging
 import traceback
 import shutil
 import os
-import core.security
 from pathlib import Path
 from typing import Optional, Any, Dict, List
 from datetime import datetime
@@ -19,7 +18,7 @@ from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel, field_validator
 
-from core.security import sanitize_path, PathTraversalError
+from core.security import sanitize_path, sanitize_module_name as _core_sanitize_module_name, PathTraversalError
 
 logger = logging.getLogger("srt2web.api")
 
@@ -94,7 +93,7 @@ def sanitize_module_name(name: str) -> str:
     Wraps core.security.sanitize_module_name to convert ValueError to HTTPException.
     """
     try:
-        return core.security.sanitize_module_name(name)
+        return _core_sanitize_module_name(name)
     except ValueError as e:
         raise HTTPException(400, str(e))
 
