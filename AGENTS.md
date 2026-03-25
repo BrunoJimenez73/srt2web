@@ -4,6 +4,68 @@
 - **Fecha sesión**: 2026-03-25
 - **Versión**: 0.7.0
 - **Repositorio**: https://github.com/BrunoJimenez73/srt2web
+- **Tests**: 474 passed, 9 skipped
+
+---
+
+## Refactorización Completa (v0.7.0)
+
+### JavaScript Extraído a TypeScript
+
+**Problema**: Los archivos `.astro` contenían demasiado JavaScript inline (780+ líneas en `index.astro`, 220+ en `player.astro`).
+
+**Solución**:
+
+| Archivo Original | Archivo Extraído | Líneas |
+|-----------------|------------------|--------|
+| `frontend/src/pages/index.astro` | `frontend/src/lib/dashboard.ts` | ~780 |
+| `frontend/src/pages/player.astro` | `frontend/src/lib/player.ts` | ~220 |
+
+### Constantes Centralizadas
+
+**Problema**: Valores hardcodeados dispersos por el código.
+
+**Solución**: Creado `core/constants.py` con todas las constantes:
+
+```python
+# Ejemplos de constantes
+DEFAULT_SERVER_PORT = 9999
+DEFAULT_SRT_PORT = 9000
+VALID_WHISPER_MODELS = frozenset([...])
+VALID_ENCODER_MODES = frozenset(["auto", "cpu", "gpu", "gpu_nvenc", "gpu_amf", "gpu_qsv", "gpu_vaapi", "gpu_videotoolbox"])
+ALLOWED_GPU_PRESETS = frozenset(["p1", "p2", "p3", "p4", "p5", "p6", "p7"])
+```
+
+### Backend Fixes
+
+| Archivo | Problema | Solución |
+|---------|----------|----------|
+| `modules/audio_mixer.py` | `print()` statements | Usar `logger.debug()` |
+| `modules/audio_mixer.py` | Escribía `debug.log` infinito | Eliminado |
+| `server/api_routes.py` | Path traversal bug | Usar `sanitize_path` |
+| `server/api_routes.py` | `sanitize_module_name` duplicado | Unificado con `core/security.py` |
+| `main.py`, `app.py`, `index.astro` | Versión incorrecta (v0.4.0) | Actualizado a v0.7.0 |
+| `modules/video_muxer.py` | HLS master playlist duplicado | Unificado en `core/constants.py` |
+| `modules/outputs/hls_output.py` | HLS master playlist duplicado | Usa `generate_master_playlist()` |
+| `config.yaml` | `model: invalid_model` | Cambiado a `model: small` |
+
+### Tests Arreglados (7 tests)
+
+| Test | Problema | Solución |
+|------|----------|----------|
+| `test_config_video_muxer_valid_encoder_mode` | Falla con `gpu_nvenc` | Agregados todos los encoder modes a constants |
+| `test_player_has_show_error_function` | Busca en .astro | Ahora busca en `player.ts` |
+| `test_player_has_error_count_tracking` | Busca en .astro | Ahora busca en `player.ts` |
+| `test_player_hides_waiting_on_manifest_parsed` | Busca en .astro | Ahora busca en `player.ts` |
+| `test_player_has_error_handling` | Busca en .astro | Ahora busca en `player.ts` |
+| `test_stop_has_confirmation` | Busca en .astro | Ahora busca en `dashboard.ts` |
+
+### Commits
+
+| Hash | Descripción |
+|------|-------------|
+| `e78e93f` | fix: Update encoder modes and fix JavaScript extraction tests |
+| `1140c08` | chore: Track config.yaml in git and update .gitignore |
 
 ---
 
@@ -146,10 +208,6 @@
 
 ## Mejoras Implementadas
 
----
-
-## Mejoras Implementadas
-
 ### Fase 1 - Seguridad Crítica ✅
 
 | Archivo | Mejora |
@@ -210,7 +268,7 @@
 **UI de seguridad rediseñada**:
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│ SRT2Web 0.4.0    📚 Docs  [WS OFF] [🔐 Secure OFF▾]  💾 Guardar  │
+│ SRT2Web 0.7.0    📚 Docs  [WS OFF] [🔐 Secure OFF▾]  💾 Guardar  │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -283,7 +341,7 @@
 
 ---
 
-## Tests (102 tests pasando)
+## Tests (474 tests passing)
 
 | Archivo | Tests | Tema |
 |---------|-------|------|
@@ -292,9 +350,12 @@
 | `tests/unit/test_phase4_5_improvements.py` | 23 | Fases 4-5 |
 | `tests/unit/test_config_validation.py` | 26 | Config |
 | `tests/unit/test_player_websocket_fixes.py` | 20 | Player/WSS/CSP |
+| `tests/unit/test_gpu_installer_restructure.py` | 53 | GPU/Encoder |
+| + other test files | 319 | Varios |
 
 ```bash
-python -m pytest tests/unit/test_security_middleware.py tests/unit/test_performance_optimizations.py tests/unit/test_phase4_5_improvements.py tests/unit/test_config_validation.py tests/unit/test_player_websocket_fixes.py -v
+# Run all tests
+python -m pytest tests/unit/ -v
 ```
 
 ---
@@ -303,6 +364,8 @@ python -m pytest tests/unit/test_security_middleware.py tests/unit/test_performa
 
 | Hash | Descripción |
 |------|-------------|
+| `1140c08` | chore: Track config.yaml in git and update .gitignore |
+| `e78e93f` | fix: Update encoder modes and fix JavaScript extraction tests |
 | `4ff1b03` | fix: Fix argostranslate API compatibility |
 | `91985dd` | build: Update static frontend files |
 | `85f96d9` | feat: Change default TTS voice to es_ES-sharvard-medium |
