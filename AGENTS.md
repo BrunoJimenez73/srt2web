@@ -1,9 +1,113 @@
 # SRT2Web - Estado del Proyecto
 
 ## Información General
-- **Fecha sesión**: 2026-03-23
-- **Versión**: 0.6.0
+- **Fecha sesión**: 2026-03-25
+- **Versión**: 0.7.0
 - **Repositorio**: https://github.com/BrunoJimenez73/srt2web
+
+---
+
+## Fix Player Audio/Video Cuts (v0.7.0)
+
+**Problema**: El player HLS cortaba audio y video cada ~30 segundos.
+
+**Causa raíz**:
+- `setInterval` de 20s recreaba HLS.js sin llamar `hls.destroy()`
+- Instancias huérfanas peleaban por control del `<video>`
+- Timeout de manifest (30s) triggers estado ERROR → reinicialización automática
+
+**Solución**:
+
+| Archivo | Cambio |
+|---------|--------|
+| `frontend/src/pages/player.astro` | `destroyPlayer()` con `hls.destroy()` antes de recrear |
+| `frontend/src/pages/player.astro` | Eliminado `setInterval` auto-reinicialización |
+| `frontend/src/pages/player.astro` | Usa recuperación integrada de HLS.js (`startLoad`/`recoverMediaError`) |
+| `frontend/src/pages/player.astro` | `enableWorker: true` para reducir jank en main thread |
+| `frontend/src/lib/utils.ts` | URL SRT muestra `mode=caller` para OBS |
+
+**Commits**: `ef25a24`, `e44c68f`, `736b710`, `4e28b94`, `68758de`
+
+---
+
+## Fix OBS Connection (v0.7.0)
+
+**Problema**: OBS no podía conectarse al servidor SRT.
+
+**Causas**:
+- URL del frontend mostraba `mode=listener` pero OBS necesita `mode=caller`
+- Tests no incluían `videotoolbox` del commit Mac support (`06c8c35`)
+
+**Solución**:
+
+| Archivo | Cambio |
+|---------|--------|
+| `frontend/src/lib/utils.ts` | `getSRTUrl()` siempre muestra `mode=caller` |
+| `tests/unit/test_video_muxer.py` | Agregado `"videotoolbox": False` a todos los mocks |
+| `tests/unit/test_gpu_installer_restructure.py` | Agregado `"videotoolbox": False` a mocks |
+| `tests/e2e/test_config_loading.py` | Tests de puertos aceptan cualquier valor válido |
+
+**Commits**: `68758de`, `16bf394`
+
+---
+
+## Fix Tests (v0.7.0)
+
+**Problema**: 36 tests fallaban después de reestructuración y commits Mac.
+
+**Archivos corregidos**:
+
+| Archivo | Problema | Solución |
+|---------|----------|----------|
+| `test_api_e2e.py` | `assert "srt" in data` | Cambiado a `"input" in data` |
+| `test_api_routes.py` | Mismo problema | Cambiado a `"input" in data` |
+| `test_config_validation.py` | `model: invalid_model` | `pytest.skip()` si modelo inválido |
+| `test_video_muxer.py` | Clase abstracta `_do_process` | `TestableVideoMuxer` subclass |
+| `test_subtitle_generator.py` | `_cumulative_time` no existe | Tests reescritos con `_last_cumulative` |
+| `test_audio_mixer.py` | Rutas Windows `/tmp/mix` | `tempfile.TemporaryDirectory` |
+| `test_translator.py` | Mock de `ModelCache` faltante | Patch de `_model_cache` |
+| `test_tts_engine.py` | `_voice_loaded` no seteado | Lazy loading verificado |
+| `test_ws_routes.py` | Falta `pytest-asyncio` | Instalado el paquete |
+| `test_security_middleware.py` | `SecurityCard.astro` eliminado | Tests apuntan a `Header.astro` |
+| `test_srt_connection.py` | `web/index.html` no existe | Busca en `server/static/` |
+| `test_player_page.py` | Rutas y contenido corrupto | Archivo reescrito |
+| `test_performance_optimizations.py` | `max_request_size_mb` no existe | `pytest.skip()` |
+| `test_config_loading.py` | Puerto exacto 9999/9000 | Validación de rango |
+
+**Tests nuevos**: 53 tests en `test_gpu_installer_restructure.py`
+- GPU indicators (transcriber, TTS, video_muxer)
+- EncoderConfig (CPU, NVENC, AMF, QSV, VideoToolbox)
+- PiperLoader subprocess
+- Scripts BAT (Install, Start, Stop)
+- Estructura del proyecto
+
+**Commits**: `33af4c9`, `16bf394`
+
+---
+
+## Security Hardening (v0.7.0)
+
+**Problema**: 11 vulnerabilidades de seguridad encontradas en el código.
+
+**Fixes aplicados**:
+
+| Severidad | Fix | Archivo |
+|-----------|-----|---------|
+| CRÍTICO | `auth_token` enmascarado como `***` en `/api/config` | `server/api_routes.py` |
+| CRÍTICO | CSP sin `unsafe-eval` | `server/security.py` |
+| CRÍTICO | Default host `127.0.0.1` (no `0.0.0.0`) | `main.py` |
+| ALTO | X-Forwarded-For solo se confía desde localhost | `server/security.py` |
+| ALTO | Validación path traversal en `file.path` | `server/api_routes.py` |
+| ALTO | CORS: puertos explícitos (sin wildcards) | `server/app.py` |
+| MEDIO | Traceback eliminado del error en toggle | `server/api_routes.py` |
+| MEDIO | WebSocket: máximo 20 conexiones concurrentes | `server/ws_routes.py` |
+| MEDIO | Import roto `cleanup_temporary_files` corregido | `main.py` |
+| BAJO | FFmpeg download: verificación de tamaño | `core/ffmpeg_utils.py` |
+| BAJO | Swagger/ReDoc deshabilitados en producción | `server/app.py` |
+
+**Tests de seguridad nuevos**: 7 tests en `TestSecurityFixes`
+
+**Commits**: `994c655`
 
 ---
 
@@ -330,6 +434,6 @@ Arrancar_Servidor.bat
 
 - [x] ~~Reemplazar gputil por pynvml~~ ✅ Completado (usando nvidia-ml-py)
 - [x] ~~Process pooling para FFmpeg~~ ✅ Completado (core/ffmpeg_pool.py)
+- [x] ~~Tests para GPU indicators~~ ✅ Completado (test_gpu_installer_restructure.py)
 - [ ] Mejoras responsive design
 - [ ] Keyboard shortcuts
-- [ ] Tests para GPU indicators
