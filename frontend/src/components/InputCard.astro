@@ -5,10 +5,6 @@
   <div class="process-header">
     <span class="process-indicator" id="indicator-input"></span>
     <span class="process-title">📥 INPUT</span>
-    <label class="toggle-switch">
-      <input type="checkbox" id="input-enabled" onchange="window.toggleModule('input', this.checked)" />
-      <span class="toggle-slider"></span>
-    </label>
   </div>
   <div class="process-content">
     <div class="form-group">
@@ -72,18 +68,50 @@
         <input type="number" class="form-input" id="input-file-speed" value="1.0" min="0.5" max="4.0" step="0.1" />
       </div>
     </div>
+    <div id="input-rtmp-config" class="input-type-config" style="display: none;">
+      <div class="form-group">
+        <label class="form-label">URL RTMP</label>
+        <input type="text" class="form-input" id="input-rtmp-url" value="rtmp://localhost/live/stream" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Modo</label>
+        <select class="form-select" id="input-rtmp-mode">
+          <option value="pull">Pull (recibir)</option>
+          <option value="push">Push (enviar)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- File Config -->
+    <div id="input-file-config" class="input-type-config" style="display: none;">
+      <div class="form-group">
+        <label class="form-label">Archivo de video</label>
+        <input type="text" class="form-input" id="input-file-path" value="" placeholder="./video.mp4" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Loop</label>
+        <select class="form-select" id="input-file-loop">
+          <option value="false">No</option>
+          <option value="true">Sí</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Velocidad</label>
+        <input type="number" class="form-input" id="input-file-speed" value="1.0" min="0.5" max="4.0" step="0.1" />
+      </div>
+    </div>
 
     <!-- Metrics -->
     <div class="form-group" id="input-metrics">
       <label class="form-label">Estado</label>
       <div class="metrics-row">
         <div class="metric-mini">
-          <span class="metric-label">Chunks</span>
-          <span class="metric-value" id="input-chunks">0</span>
-        </div>
-        <div class="metric-mini">
           <span class="metric-label">Recibiendo</span>
           <span class="metric-value" id="input-receiving">--</span>
+        </div>
+        <div class="metric-mini">
+          <span class="metric-label">Chunks</span>
+          <span class="metric-value" id="input-chunks">0</span>
         </div>
         <div class="metric-mini">
           <span class="metric-label">Puerto</span>
@@ -258,5 +286,10 @@
     font-size: 11px;
     font-weight: 600;
     color: var(--text-prime);
+  }
+
+  .metric-mini .metric-value.active {
+    color: #00ff00;
+    text-shadow: 0 0 6px #00ff00;
   }
 </style>

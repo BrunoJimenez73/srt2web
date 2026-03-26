@@ -69,6 +69,15 @@ class OutputSink(ABC):
         """Establecer el directorio de salida."""
         self._output_dir = output_dir
 
+    def is_streaming(self) -> bool:
+        """
+        Verificar si el output está activamente streaming.
+
+        Returns:
+            True si está streaming, False en caso contrario.
+        """
+        return False
+
     def configure(self, config: dict) -> None:
         """
         Aplicar configuración específica del output.

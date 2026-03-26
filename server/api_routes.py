@@ -322,6 +322,10 @@ def create_api_router() -> APIRouter:
         if input_source:
             status["input_receiving"] = input_source.is_receiving()
             status["input_info"] = input_source.get_connection_info()
+        
+        output_sink = pipeline.output_sink
+        if output_sink:
+            status["output_info"] = output_sink.get_stream_info()
 
         # Add network info
         from core.network_utils import get_network_info
@@ -473,6 +477,127 @@ def create_api_router() -> APIRouter:
 
         return {"status": "restarted"}
 
+    @router.post("/input-type")
+    async def change_input_type(request: Request):
+        """
+        Change input type dynamically (hot-swap).
+        
+        Request body (JSON):
+        {
+            "input_type": "srt" | "file" | "rtmp",
+            "config": { ... }  // optional type-specific config
+        }
+        
+        This will:
+        1. Update config.yaml with new input type and config
+        2. Stop current input source
+        3. Create new input source with new type
+        4. Start new input source if pipeline is running
+        """
+        from pydantic import BaseModel
+        
+        class InputTypeChange(BaseModel):
+            input_type: str
+            config: Optional[dict] = None
+        
+        ctx = _ctx(request)
+        pipeline = ctx["pipeline"]
+        config = ctx["config"]
+        
+        # Parse request body
+        body = await request.json()
+        input_type = body.get("input_type")
+        type_config = body.get("config", {})
+        
+        if not input_type:
+            raise HTTPException(400, "input_type is required")
+        
+        # Validate input type
+        from core.io_factory import InputFactory
+        InputFactory._ensure_initialized()
+        available = InputFactory.available()
+        if input_type not in available:
+            raise HTTPException(
+                400, f"Invalid input type: {input_type}. Available: {', '.join(available)}"
+            )
+        
+        # Get existing config for the type (merge with new config)
+        existing_type_config = config.get_section("input").get(input_type, {})
+        merged_config = {**existing_type_config, **type_config}
+        
+        # Save to config.yaml
+        config.set("input.type", input_type)
+        config.set(f"input.{input_type}", merged_config)
+        config.save()
+        logger.info(f"Saved input type change to config.yaml: {input_type}")
+        
+        # Recreate input in pipeline
+        result = pipeline.recreate_input(input_type, merged_config)
+        
+        if result.get("status") == "error":
+            raise HTTPException(500, f"Failed to change input type: {result.get('error')}")
+        
+        return {
+            "status": "success",
+            "input_type": input_type,
+            "config": merged_config,
+            "info": result.get("info", {}),
+        }
+
+    @router.post("/output-type")
+    async def change_output_type(request: Request):
+        """
+        Change output type dynamically (hot-swap).
+        
+        Request body (JSON):
+        {
+            "output_type": "web" | "rtmp" | "srt",
+            "config": { ... }  // optional type-specific config
+        }
+        """
+        ctx = _ctx(request)
+        pipeline = ctx["pipeline"]
+        config = ctx["config"]
+        
+        body = await request.json()
+        output_type = body.get("output_type")
+        type_config = body.get("config", {})
+        
+        if not output_type:
+            raise HTTPException(400, "output_type is required")
+        
+        # Validate output type
+        from core.io_factory import OutputFactory
+        OutputFactory._ensure_initialized()
+        available = OutputFactory.available()
+        if output_type not in available:
+            raise HTTPException(
+                400, f"Invalid output type: {output_type}. Available: {', '.join(available)}"
+            )
+        
+        # Get existing config for the type
+        existing_type_config = config.get_section("output").get(output_type, {})
+        merged_config = {**existing_type_config, **type_config}
+        
+        # Save to config.yaml
+        config.set("output.type", output_type)
+        config.set(f"output.{output_type}", merged_config)
+        config.save()
+        logger.info(f"Saved output type change to config.yaml: {output_type}")
+        
+        # Recreate output in pipeline
+        result = pipeline.recreate_output(output_type, merged_config)
+        
+        if result.get("status") == "error":
+            raise HTTPException(500, f"Failed to change output type: {result.get('error')}")
+        
+        return {
+            "status": "success",
+            "output_type": output_type,
+            "config": merged_config,
+            "info": result.get("info", {}),
+        }
+
     # ── Configuration ─────────────────────────────────────
 
     @router.get("/config")
@@ -571,21 +696,17 @@ def create_api_router() -> APIRouter:
         if pipeline.state.value == "running":
             try:
                 if body.enabled and not was_enabled:
-                    # Module was disabled, now enabled - start it
                     mod_config = config.get_module_config(safe_module_name)
                     module.configure(mod_config)
                     module.start()
                     module._state = ModuleState.RUNNING
                     logger.info(f"Hot-started module: {safe_module_name}")
-                    # Force re-read of enabled state in next iteration
                     pipeline._chunk_index += 0
                 elif not body.enabled and was_enabled:
-                    # Module was enabled, now disabled - stop it
                     module.stop()
                     module._state = ModuleState.DISABLED
                     logger.info(f"Hot-stopped module: {safe_module_name}")
                 else:
-                    # Just reconfigure
                     pipeline.reconfigure(config)
             except Exception as e:
                 import traceback
@@ -606,6 +727,96 @@ def create_api_router() -> APIRouter:
             "enabled": body.enabled,
             "status": module.get_status().to_dict(),
             "hot_reload": True,
+        }
+
+    @router.put("/input/toggle")
+    async def toggle_input(request: Request, body: ModuleToggle):
+        """
+        Enable or disable the input source.
+        
+        When disabled, stops the input source but keeps pipeline config.
+        When enabled, starts the input source if pipeline is running.
+        """
+        ctx = _ctx(request)
+        pipeline = ctx["pipeline"]
+        config = ctx["config"]
+        
+        input_source = pipeline.input_source
+        if not input_source:
+            raise HTTPException(404, "No input source configured")
+        
+        was_enabled = config.get("input.enabled", True)
+        
+        # Update config
+        config.set("input.enabled", body.enabled)
+        config.save()
+        
+        # Handle enable/disable
+        if pipeline.state.value == "running":
+            if body.enabled and not was_enabled:
+                try:
+                    input_source.start()
+                    logger.info(f"Started input source: {input_source.name}")
+                except Exception as e:
+                    logger.error(f"Error starting input: {e}")
+                    raise HTTPException(500, f"Error starting input: {e}")
+            elif not body.enabled and was_enabled:
+                try:
+                    input_source.stop()
+                    logger.info(f"Stopped input source: {input_source.name}")
+                except Exception as e:
+                    logger.error(f"Error stopping input: {e}")
+        
+        return {
+            "component": "input",
+            "enabled": body.enabled,
+            "input_type": input_source.name,
+            "receiving": input_source.is_receiving() if body.enabled else False,
+        }
+
+    @router.put("/output/toggle")
+    async def toggle_output(request: Request, body: ModuleToggle):
+        """
+        Enable or disable the output sink.
+        
+        When disabled, stops the output sink but keeps pipeline config.
+        When enabled, starts the output sink if pipeline is running.
+        """
+        ctx = _ctx(request)
+        pipeline = ctx["pipeline"]
+        config = ctx["config"]
+        
+        output_sink = pipeline.output_sink
+        if not output_sink:
+            raise HTTPException(404, "No output sink configured")
+        
+        was_enabled = config.get("output.enabled", True)
+        
+        # Update config
+        config.set("output.enabled", body.enabled)
+        config.save()
+        
+        # Handle enable/disable
+        if pipeline.state.value == "running":
+            if body.enabled and not was_enabled:
+                try:
+                    output_sink.start()
+                    logger.info(f"Started output sink: {output_sink.name}")
+                except Exception as e:
+                    logger.error(f"Error starting output: {e}")
+                    raise HTTPException(500, f"Error starting output: {e}")
+            elif not body.enabled and was_enabled:
+                try:
+                    output_sink.stop()
+                    logger.info(f"Stopped output sink: {output_sink.name}")
+                except Exception as e:
+                    logger.error(f"Error stopping output: {e}")
+        
+        return {
+            "component": "output",
+            "enabled": body.enabled,
+            "output_type": output_sink.name,
+            "streaming": output_sink.is_streaming() if body.enabled else False,
         }
 
     # ── Input/Output Info ───────────────────────────────────

@@ -411,6 +411,7 @@ def main():
 
     # Build pipeline
     pipeline, input_source = build_pipeline(config, output_dir)
+    pipeline.set_output_dir(output_dir)
 
     # Create shared context
     global _app_context

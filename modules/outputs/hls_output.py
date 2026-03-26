@@ -81,7 +81,15 @@ class HLSOutput(OutputSink):
             "master_url": f"/hls/master.m3u8",
             "stream_url": f"/hls/stream.m3u8",
             "segment_duration": self._segment_duration,
+            "streaming": self.is_streaming(),
         }
+
+    def is_streaming(self) -> bool:
+        """Check if HLS output is actively writing segments."""
+        if not self._hls_dir or not os.path.isdir(self._hls_dir):
+            return False
+        segments = glob.glob(os.path.join(self._hls_dir, "seg_*.ts"))
+        return len(segments) > 0
 
     def start(self) -> None:
         """Iniciar salida HLS."""

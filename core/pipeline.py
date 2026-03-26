@@ -55,6 +55,7 @@ class Pipeline:
         self._input_source = input_source
         self._output_sink = output_sink
         self._config_manager = None
+        self._output_dir = ""
 
         self._modules: List[BaseModule] = []
         self._module_map: Dict[str, BaseModule] = {}
@@ -234,6 +235,127 @@ class Pipeline:
         except Exception as e:
             self._log("error", f"Failed to restart module {module.name}: {e}")
             self._log("error", f"Module will remain in current state")
+
+    def recreate_input(self, input_type: str, type_config: dict = None) -> dict:
+        """
+        Recreate input source with new type (hot-swap).
+        
+        Args:
+            input_type: Type of input ("srt", "file", "rtmp")
+            type_config: Optional configuration for the input type
+            
+        Returns:
+            Dict with status and connection info
+        """
+        from core.io_factory import InputFactory
+        
+        self._log("info", f"Recreating input: {input_type}")
+        
+        # Stop current input
+        if self._input_source:
+            try:
+                self._input_source.stop()
+                self._log("info", f"Stopped old input: {self._input_source.name}")
+            except Exception as e:
+                self._log("error", f"Error stopping input: {e}")
+        
+        # Get configuration
+        config = type_config or {}
+        config["chunk_duration_sec"] = config.get("chunk_duration_sec", 15)
+        
+        # Create new input
+        try:
+            self._input_source = InputFactory.create(input_type, config)
+            if self._output_dir:
+                self._input_source.set_output_dir(self._output_dir)
+            
+            # Start if pipeline is running
+            if self._state == PipelineState.RUNNING:
+                self._input_source.start()
+                self._log("info", f"Started new input: {input_type}")
+            
+            info = self._input_source.get_connection_info()
+            return {"status": "success", "input_type": input_type, "info": info}
+            
+        except Exception as e:
+            self._log("error", f"Failed to create input {input_type}: {e}")
+            return {"status": "error", "error": str(e)}
+
+    def recreate_output(self, output_type: str, type_config: dict = None) -> dict:
+        """
+        Recreate output sink with new type (hot-swap).
+        
+        Args:
+            output_type: Type of output ("web", "rtmp", "srt")
+            type_config: Optional configuration for the output type
+            
+        Returns:
+            Dict with status and stream info
+        """
+        from core.io_factory import OutputFactory
+        
+        self._log("info", f"Recreating output: {output_type}")
+        
+        # Stop current output
+        if self._output_sink:
+            try:
+                self._output_sink.stop()
+                self._log("info", f"Stopped old output: {self._output_sink.name}")
+            except Exception as e:
+                self._log("error", f"Error stopping output: {e}")
+        
+        # Create new output
+        try:
+            self._output_sink = OutputFactory.create(output_type, type_config or {})
+            if self._output_dir:
+                self._output_sink.set_output_dir(self._output_dir)
+            
+            # Start if pipeline is running
+            if self._state == PipelineState.RUNNING:
+                self._output_sink.start()
+                self._log("info", f"Started new output: {output_type}")
+            
+            info = self._output_sink.get_stream_info()
+            return {"status": "success", "output_type": output_type, "info": info}
+            
+        except Exception as e:
+            self._log("error", f"Failed to create output {output_type}: {e}")
+            return {"status": "error", "error": str(e)}
+
+    def set_output_dir(self, output_dir: str) -> None:
+        """Set output directory for input and output."""
+        self._output_dir = output_dir
+        if self._input_source:
+            self._input_source.set_output_dir(output_dir)
+        if self._output_sink:
+            self._output_sink.set_output_dir(output_dir)
+
+    def check_config_changes(self, config_manager) -> None:
+        """
+        Check if input/output type changed in config and recreate if needed.
+        
+        This should be called periodically or when config is reloaded.
+        """
+        # Check input type
+        input_config = config_manager.get_section("input")
+        new_input_type = input_config.get("type", "srt")
+        
+        if self._input_source and self._input_source.name != new_input_type:
+            type_config = input_config.get(new_input_type, {})
+            type_config["chunk_duration_sec"] = config_manager.get(
+                "pipeline.chunk_duration_sec", 15
+            )
+            self._log("info", f"Input type changed to {new_input_type}, recreating...")
+            self.recreate_input(new_input_type, type_config)
+        
+        # Check output type
+        output_config = config_manager.get_section("output")
+        new_output_type = output_config.get("type", "web")
+        
+        if self._output_sink and self._output_sink.name != new_output_type:
+            type_config = output_config.get(new_output_type, {})
+            self._log("info", f"Output type changed to {new_output_type}, recreating...")
+            self.recreate_output(new_output_type, type_config)
 
     def _log(self, level: str, message: str) -> None:
         """Log a message and notify callback."""
