@@ -76,22 +76,40 @@ class TestConfigYAMLValidity:
 
     def test_config_transcriber_valid_model(self):
         """Test that transcriber uses a valid Whisper model."""
-        with open("config.yaml", "r", encoding="utf-8") as f:
-            config = yaml.safe_load(f)
+        # Get the project root (grandparent of tests/unit directory)
+        # __file__ is tests/unit/test_config_validation.py, so parent.parent.parent is project root
+        project_root = Path(__file__).resolve().parent.parent.parent
+        config_path = project_root / "config.yaml"
+        
+        print(f"DEBUG: Loading config from: {config_path}")
+        print(f"DEBUG: File exists: {config_path.exists()}")
+        print(f"DEBUG: Absolute path: {config_path.resolve()}")
+        
+        with open(config_path, "r", encoding="utf-8") as f:
+            content = f.read()
+            print(f"DEBUG: File content (first 500 chars): {content[:500]}")
+            config = yaml.safe_load(content)
 
         modules = config.get("modules", {})
         transcriber = modules.get("transcriber", {})
         model = transcriber.get("model", "")
         
-        if model not in VALID_WHISPER_MODELS:
-            pytest.skip(
-                f"Config has invalid model '{model}' (transcriber disabled). "
-                f"Valid models: {VALID_WHISPER_MODELS}"
-            )
+        print(f"DEBUG: Transcriber config: {transcriber}")
+        print(f"DEBUG: Model value: '{model}'")
+        print(f"DEBUG: Valid models first 5: {list(VALID_WHISPER_MODELS)[:5]}")
+        
+        # Always validate - if model is not valid, the test should fail
+        assert model in VALID_WHISPER_MODELS, \
+            f"Invalid Whisper model: '{model}'. Valid models: {VALID_WHISPER_MODELS}"
 
     def test_config_transcriber_valid_language(self):
         """Test that transcriber uses a valid language code."""
-        with open("config.yaml", "r", encoding="utf-8") as f:
+        # Get the project root (grandparent of tests/unit directory)
+        # __file__ is tests/unit/test_config_validation.py, so parent.parent.parent is project root
+        project_root = Path(__file__).resolve().parent.parent.parent
+        config_path = project_root / "config.yaml"
+        
+        with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         modules = config.get("modules", {})
@@ -103,7 +121,12 @@ class TestConfigYAMLValidity:
 
     def test_config_transcriber_valid_device(self):
         """Test that transcriber uses a valid device."""
-        with open("config.yaml", "r", encoding="utf-8") as f:
+        # Get the project root (grandparent of tests/unit directory)
+        # __file__ is tests/unit/test_config_validation.py, so parent.parent.parent is project root
+        project_root = Path(__file__).resolve().parent.parent.parent
+        config_path = project_root / "config.yaml"
+        
+        with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         modules = config.get("modules", {})
@@ -115,7 +138,12 @@ class TestConfigYAMLValidity:
 
     def test_config_translator_valid_languages(self):
         """Test that translator uses valid language codes."""
-        with open("config.yaml", "r", encoding="utf-8") as f:
+        # Get the project root (grandparent of tests/unit directory)
+        # __file__ is tests/unit/test_config_validation.py, so parent.parent.parent is project root
+        project_root = Path(__file__).resolve().parent.parent.parent
+        config_path = project_root / "config.yaml"
+        
+        with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         modules = config.get("modules", {})
@@ -217,25 +245,24 @@ class TestConfigManagerLoadsConfig:
     def test_config_manager_returns_valid_model(self):
         """Test that ConfigManager returns valid model."""
         from core.config_manager import ConfigManager
-        
+         
         config = ConfigManager()
         model = config.get("modules.transcriber.model", "")
         
-        if model not in VALID_WHISPER_MODELS:
-            pytest.skip(
-                f"Config has invalid model '{model}' (transcriber disabled). "
-                f"Valid models: {VALID_WHISPER_MODELS}"
-            )
+        # Always validate - if model is not valid, the test should fail
+        assert model in VALID_WHISPER_MODELS, \
+            f"Invalid Whisper model: '{model}'. Valid models: {VALID_WHISPER_MODELS}"
 
     def test_config_manager_has_valid_model(self):
         """Test that ConfigManager has valid model configuration."""
         from core.config_manager import ConfigManager
-        
+         
         config = ConfigManager()
         model = config.get("modules.transcriber.model", "")
         
-        if model not in VALID_WHISPER_MODELS:
-            pytest.skip(f"Config has invalid model: {model}")
+        # Always validate - if model is not valid, the test should fail
+        assert model in VALID_WHISPER_MODELS, \
+            f"Invalid Whisper model: '{model}'. Valid models: {VALID_WHISPER_MODELS}"
 
 
 class TestServerStartup:

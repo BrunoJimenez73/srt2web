@@ -182,7 +182,7 @@ class TestConfigDefaults:
     def test_config_has_max_request_size(self):
         """Test that config has max request size in config or defaults."""
         from core.config_manager import DEFAULT_CONFIG
-        
+         
         # Check in DEFAULT_CONFIG (may or may not be in config.yaml)
         server_defaults = DEFAULT_CONFIG.get("server", {})
         has_in_defaults = "max_request_size_mb" in server_defaults
@@ -193,6 +193,7 @@ class TestConfigDefaults:
             config = yaml.safe_load(f)
         
         has_in_config = "max_request_size_mb" in config.get("server", {})
-        
-        if not has_in_defaults and not has_in_config:
-            pytest.skip("max_request_size_mb not yet implemented in config")
+         
+        # This should be implemented - fail if not found
+        assert has_in_defaults or has_in_config, \
+            "max_request_size_mb should be configured in either DEFAULT_CONFIG or config.yaml"

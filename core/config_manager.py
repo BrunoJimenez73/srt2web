@@ -23,6 +23,7 @@ DEFAULT_CONFIG = {
         "cors_origins": ["http://localhost:*", "http://127.0.0.1:*"],
         "auth_token": "",
         "rate_limit_rpm": 60,
+        "max_request_size_mb": 10,
     },
     "input": {
         "type": "srt",
