@@ -65,7 +65,8 @@ class RTMPInput(InputSource):
         self._config = config
 
         self._url = config.get("url", "rtmp://localhost/live/stream")
-        self._mode = config.get("mode", "pull")
+        self._mode = config.get("mode", "pull")  # pull or push
+        self._listen = config.get("listen", True)  # for push mode - listen for connections
         self._chunk_duration = config.get("chunk_duration_sec", 10)
         self._output_dir = config.get("output_dir", self._output_dir)
 
@@ -97,33 +98,33 @@ class RTMPInput(InputSource):
 
         chunk_pattern = os.path.join(self._chunks_dir, "chunk_%06d.ts")
 
+        # Build FFmpeg command based on mode
+        # For push mode with listen=true: act as RTMP server (-listen 1)
+        # For pull mode: connect to external RTMP URL
         cmd = [
             self._ffmpeg_path,
             "-y",
-            "-i",
-            self._url,
-            "-c",
-            "copy",
-            "-f",
-            "segment",
-            "-segment_time",
-            str(self._chunk_duration),
-            "-segment_format",
-            "mpegts",
-            "-reset_timestamps",
-            "1",
-            "-strftime",
-            "0",
-            "-max_muxing_queue_size",
-            "1024",
-            "-fflags",
-            "+genpts+discardcorrupt",
-            "-flush_packets",
-            "1",
-            chunk_pattern,
         ]
 
-        logger.info(f"Starting RTMP input: {' '.join(cmd[:6])}...")
+        if self._mode == "push" and self._listen:
+            # Push mode: FFmpeg listens for incoming RTMP connections on port 1935
+            # FFmpeg acts as RTMP server when -listen 1 is used
+            cmd.extend(["-listen", "1", "-i", self._url])
+        else:
+            # Pull mode: FFmpeg connects to existing RTMP server
+            cmd.extend(["-i", self._url])
+
+        cmd.extend([
+            "-c", "copy", "-f", "segment", "-segment_time",
+            str(self._chunk_duration), "-segment_format", "mpegts",
+            "-reset_timestamps", "1", "-strftime", "0",
+            "-max_muxing_queue_size", "1024", "-fflags",
+            "+genpts+discardcorrupt", "-flush_packets", "1",
+            chunk_pattern,
+        ])
+
+        logger.info(f"Starting RTMP input (mode={self._mode}, listen={self._listen}, chunk={self._chunk_duration}s)")
+        logger.info(f"Full RTMP command: {' '.join(cmd)}")
 
         self._ffmpeg_proc = subprocess.Popen(
             cmd,

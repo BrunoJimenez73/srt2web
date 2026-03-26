@@ -28,10 +28,15 @@ const { state = 'idle' } = Astro.props;
     </div>
   </div>
   <div class="urls-row">
-    <div class="url-item">
+    <div class="url-item" id="url-item-srt">
       <span class="url-label">SRT:</span>
       <code class="url-value" id="url-srt">srt://...</code>
       <button class="btn-copy-small" id="btn-copy-srt">📋</button>
+    </div>
+    <div class="url-item" id="url-item-rtmp">
+      <span class="url-label">RTMP:</span>
+      <code class="url-value" id="url-rtmp">rtmp://...</code>
+      <button class="btn-copy-small" id="btn-copy-rtmp">📋</button>
     </div>
     <div class="url-item">
       <span class="url-label">Stream:</span>

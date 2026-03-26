@@ -498,5 +498,86 @@ Arrancar_Servidor.bat
 - [x] ~~Reemplazar gputil por pynvml~~ ✅ Completado (usando nvidia-ml-py)
 - [x] ~~Process pooling para FFmpeg~~ ✅ Completado (core/ffmpeg_pool.py)
 - [x] ~~Tests para GPU indicators~~ ✅ Completado (test_gpu_installer_restructure.py)
+- [x] ~~Implementación RTMP completa~~ ✅ Completado (Fases 1-5)
 - [ ] Mejoras responsive design
 - [ ] Keyboard shortcuts
+
+---
+
+## Implementación RTMP y Arquitectura Modular (v0.7.0+)
+
+### Resumen Ejecutivo
+
+Se ha implementado una arquitectura modular completa para RTMP, permitiendo:
+- **Inputs como módulos**: RTMP, SRT y file son módulos con toggle, estado y métricas
+- **Múltiples outputs simultáneos**: HLS, RTMP y file pueden ejecutarse al mismo tiempo
+- **VideoMux como módulo**: Procesa audio+video y pasa al output sink
+- **OutputMultiplexer**: Gestiona escritura a múltiples destinos
+
+### Flujo Esperado Implementado
+
+```
+OBS/FFmpeg → INPUT (RTMP, SRT, file) → Pipeline → Transcripción → Traducción → TTS → Subtítulos → AudioMixer → VideoMux → OUTPUT (webplayer, srt, rtmp, file)
+```
+
+### Cambios Realizados
+
+#### Fase 1: RTMP Básico
+- **config.yaml**: Habilitado `rtmp_input`, modo `pull`, chunk_duration 6s
+- **rtmp_input.py**: Implementado modo push con `-listen 1` para FFmpeg
+- **main.py**: Node Media Server inicia automáticamente para RTMP
+
+#### Fase 2: Inputs como Módulos
+- **pipeline.py**: Soporte para `InputModuleWrapper` como primer módulo
+- **main.py**: Inputs registrados como módulos usando `InputModuleWrapper`
+- **Sistema selección**: Input activo configurable via config.yaml
+
+#### Fase 3: Múltiples Outputs
+- **output_multiplexer.py**: Nuevo gestor de múltiples outputs
+- **pipeline.py**: Soporte para múltiples `OutputModuleWrapper`
+- **main.py**: Outputs registrados como módulos usando `OutputModuleWrapper`
+
+#### Fase 4: VideoMux como Módulo
+- **video_muxer.py**: Implementado `_do_process()` para funcionar como módulo
+- **main.py**: VideoMux registrado como módulo del pipeline
+
+#### Fase 5: Tests y Documentación
+- **test_rtmp_input.py**: 12 tests para RTMP input/output/multiplexer
+- **docs/rtmp-setup.md**: Documentación completa de configuración RTMP
+
+### Archivos Modificados
+
+| Archivo | Cambios |
+|---------|---------|
+| `config.yaml` | Habilitado rtmp_input, modo pull |
+| `modules/inputs/rtmp_input.py` | Modo push implementado correctamente |
+| `modules/outputs/rtmp_output.py` | Corregida importación get_video_info |
+| `modules/video_muxer.py` | Implementado `_do_process()` |
+| `modules/io_wrappers.py` | Agregadas propiedades `is_input_module`, `is_output_module` |
+| `core/pipeline.py` | Soporte InputModule, OutputMultiplexer, múltiples outputs |
+| `core/output_multiplexer.py` | **Nuevo** - Gestor de múltiples outputs |
+| `main.py` | Registro de inputs/outputs como módulos |
+| `tests/unit/test_rtmp_input.py` | **Nuevo** - Tests RTMP |
+| `docs/rtmp-setup.md` | **Nuevo** - Documentación RTMP |
+
+### Configuración RTMP para OBS
+
+**Output Settings**:
+- Streaming Type: Custom Streaming Server
+- Server: `rtmp://localhost:1935/live/stream`
+- Stream Key: `stream`
+
+**Encoder Settings**:
+- Encoder: NVENC (H.264) o x264
+- Rate Control: CBR
+- Bitrate: 2500-5000 Kbps
+- **Keyframe Interval: 2 segundos** (CRÍTICO)
+- Preset: Quality
+- Profile: High
+
+### Próximos Pasos
+
+1. **Testing completo**: Probar flujo OBS → RTMP → Pipeline → HLS
+2. **Sistema selección input**: Implementar cambio dinámico desde UI
+3. **Responsive design**: Mejoras de diseño para móviles
+4. **Keyboard shortcuts**: Atajos de teclado para acciones comunes

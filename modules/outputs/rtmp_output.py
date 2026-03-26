@@ -15,7 +15,7 @@ from typing import Optional
 
 from core.output_sink import OutputSink
 from core.module_base import PipelineData
-from core.ffmpeg_utils import ensure_ffmpeg, get_video_info
+from core.ffmpeg_utils import ensure_ffmpeg
 
 logger = logging.getLogger("srt2web.output.rtmp")
 

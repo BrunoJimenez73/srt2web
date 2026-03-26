@@ -18,7 +18,7 @@ set "NEED_REBOOT=0"
 REM =============================================
 REM 1. Verificar/Crear entorno virtual
 REM =============================================
-echo [1/5] Entorno virtual...
+echo [1/6] Entorno virtual...
 
 if exist "%PYTHON%" (
     echo  [OK] Ya existe.
@@ -46,7 +46,7 @@ REM =============================================
 REM 2. Verificar/Instalar dependencias pip
 REM =============================================
 echo.
-echo [2/5] Dependencias Python...
+echo [2/6] Dependencias Python...
 
 %PYTHON% -m pip install --upgrade pip --quiet 2>nul
 
@@ -105,7 +105,7 @@ REM =============================================
 REM 3. Verificar/Descargar FFmpeg
 REM =============================================
 echo.
-echo [3/5] FFmpeg...
+echo [3/6] FFmpeg...
 
 if exist "bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" (
     echo  [OK] Ya existe en bin/.
@@ -129,7 +129,7 @@ REM =============================================
 REM 4. Verificar CUDA
 REM =============================================
 echo.
-echo [4/5] CUDA...
+echo [4/6] CUDA...
 
 %PYTHON% -c "import onnxruntime; print('CUDA' if 'CUDAExecutionProvider' in onnxruntime.get_available_providers() else 'CPU')" > temp_cuda.txt 2>nul
 set /p CUDA_STATUS=<temp_cuda.txt
@@ -145,7 +145,7 @@ REM =============================================
 REM 5. Verificar voces Piper
 REM =============================================
 echo.
-echo [5/5] Voces Piper...
+echo [5/6] Voces Piper...
 
 if not exist "models\piper" mkdir models\piper
 
@@ -153,6 +153,37 @@ if exist "models\piper\*.onnx" (
     echo  [OK] Voces encontradas.
 ) else (
     echo  [INFO] Sin voces. Se descargaran al usar Piper.
+)
+
+REM =============================================
+REM 6. Verificar Node.js y node-media-server
+REM =============================================
+echo.
+echo [6/6] Node.js RTMP Server...
+
+REM Check if Node.js is installed
+node --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo  [WARNING] Node.js no esta instalado.
+    echo            Descargalo desde: https://nodejs.org
+    echo            RTMP no funcionara sin Node.js
+) else (
+    echo  [OK] Node.js encontrado.
+    
+    REM Check if node-media-server is installed
+    if exist "rtmp_server\node_modules" (
+        echo  [OK] node-media-server instalado.
+    ) else (
+        echo  [INFO] Instalando node-media-server...
+        cd rtmp_server
+        call npm install
+        cd ..
+        if exist "rtmp_server\node_modules" (
+            echo  [OK] node-media-server instalado.
+        ) else (
+            echo  [ERROR] Fallo al instalar node-media-server.
+        )
+    )
 )
 
 echo.

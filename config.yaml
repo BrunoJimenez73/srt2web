@@ -8,17 +8,23 @@ server:
   rate_limit_rpm: 60
   max_request_size_mb: 10
 input:
-  type: srt
+  type: rtmp
   srt:
     listen_port: 9000
     mode: listener
     latency_ms: 1000
     caller_address: ''
+    chunk_duration_sec: 15
   file:
     path: ''
     loop: false
     speed: 1.0
   enabled: true
+  rtmp:
+    url: rtmp://localhost/live/stream
+    mode: pull
+    listen: false
+    chunk_duration_sec: 6
 output:
   type: web
   web:
@@ -77,10 +83,11 @@ modules:
     caller_address: ''
     chunk_duration_sec: 10
   rtmp_input:
-    enabled: false
+    enabled: true
     type: rtmp
     url: rtmp://localhost/live/stream
     mode: pull
+    chunk_duration_sec: 6
   file_input:
     enabled: false
     type: file
