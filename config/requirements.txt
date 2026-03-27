@@ -1,0 +1,22 @@
+# SRT2Web - Modular SRT Stream Processor
+# Core
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pyyaml>=6.0
+aiofiles>=23.0
+websockets>=12.0
+numpy>=1.24.0
+pydub>=0.25.1
+psutil>=5.9.0
+nvidia-ml-py>=12.0.0
+
+# Phase 2 - Processing (uncomment when needed)
+faster-whisper>=1.0.0
+argostranslate>=1.9.0
+piper-tts>=1.2.0
+
+# GPU Support (for Piper TTS and Whisper GPU acceleration)
+onnxruntime-gpu>=1.16.0
+
+# TTS Engines
+edge-tts>=6.1.0

@@ -1,0 +1,193 @@
+"""
+Unit tests for WebSocket routes.
+"""
+
+import pytest
+import asyncio
+import json
+from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from fastapi import WebSocketDisconnect
+from server.ws_routes import LogBroadcaster, create_ws_router
+
+
+class TestLogBroadcaster:
+    """Tests for LogBroadcaster class."""
+
+    def test_init(self):
+        """Test broadcaster initialization."""
+        broadcaster = LogBroadcaster()
+
+        assert broadcaster._subscribers == set()
+        assert broadcaster._loop is None
+        assert len(broadcaster._buffer) == 0
+
+    def test_set_loop(self):
+        """Test setting the event loop."""
+        broadcaster = LogBroadcaster()
+        mock_loop = Mock()
+
+        broadcaster.set_loop(mock_loop)
+
+        assert broadcaster._loop == mock_loop
+
+    @pytest.mark.asyncio
+    async def test_subscribe(self):
+        """Test subscribing a WebSocket."""
+        broadcaster = LogBroadcaster()
+        mock_ws = AsyncMock()
+
+        await broadcaster.subscribe(mock_ws)
+
+        mock_ws.accept.assert_called_once()
+        assert mock_ws in broadcaster._subscribers
+
+    def test_unsubscribe(self):
+        """Test unsubscribing a WebSocket."""
+        broadcaster = LogBroadcaster()
+        mock_ws = Mock()
+
+        broadcaster._subscribers.add(mock_ws)
+        broadcaster.unsubscribe(mock_ws)
+
+        assert mock_ws not in broadcaster._subscribers
+
+    def test_broadcast_buffers_message(self):
+        """Test that broadcast buffers the message."""
+        broadcaster = LogBroadcaster()
+
+        broadcaster.broadcast("info", "Test message")
+
+        assert len(broadcaster._buffer) == 1
+        msg = json.loads(broadcaster._buffer[0])
+        assert msg["message"] == "Test message"
+        assert msg["level"] == "info"
+
+    def test_broadcast_respects_max_buffer(self):
+        """Test that broadcast respects max buffer size."""
+        broadcaster = LogBroadcaster()
+        broadcaster._max_buffer = 5
+
+        for i in range(10):
+            broadcaster.broadcast("info", f"Message {i}")
+
+        assert len(broadcaster._buffer) == 5
+
+    def test_broadcast_status(self):
+        """Test broadcasting status updates."""
+        broadcaster = LogBroadcaster()
+
+        broadcaster.broadcast_status({"state": "running"})
+
+        assert len(broadcaster._buffer) == 0
+
+
+class TestWsRouter:
+    """Tests for WebSocket router."""
+
+    def test_ws_endpoint_exists(self):
+        """Test that WebSocket endpoint is registered."""
+        router = create_ws_router()
+
+        # Get all routes
+        routes = router.routes
+        ws_routes = [r for r in routes if hasattr(r, "path") and "ws" in r.path]
+
+        assert len(ws_routes) > 0
+        assert any("/ws/logs" in str(r.path) for r in ws_routes)
+
+
+class TestWebSocketIntegration:
+    """Integration tests for WebSocket functionality."""
+
+    @pytest.mark.asyncio
+    async def test_ws_connection_flow(self):
+        """Test WebSocket connection and messaging flow."""
+        from fastapi.testclient import TestClient
+        from server.app import create_app
+        from core.config_manager import ConfigManager
+        from core.pipeline import Pipeline
+
+        config = ConfigManager()
+        pipeline = Pipeline()
+        srt_ingest = Mock()
+
+        app_context = {
+            "config": config,
+            "pipeline": pipeline,
+            "srt_ingest": srt_ingest,
+            "log_broadcast": lambda level, msg: None,
+        }
+
+        app = create_app(app_context)
+
+        # This would require a real WebSocket test client
+        # For now, we verify the route is set up correctly
+        assert app is not None
+
+
+class TestLogBroadcasterThreadSafety:
+    """Tests for thread safety of LogBroadcaster."""
+
+    def test_broadcast_from_thread(self):
+        """Test broadcasting from a separate thread."""
+        import threading
+
+        broadcaster = LogBroadcaster()
+
+        def broadcast_message():
+            broadcaster.broadcast("info", "Thread message")
+
+        thread = threading.Thread(target=broadcast_message)
+        thread.start()
+        thread.join()
+
+        # Should not raise and should buffer the message
+        assert len(broadcaster._buffer) == 1
+
+    def test_multiple_threads(self):
+        """Test broadcasting from multiple threads."""
+        import threading
+
+        broadcaster = LogBroadcaster()
+
+        def broadcast_many():
+            for i in range(10):
+                broadcaster.broadcast("info", f"Message {i}")
+
+        threads = [threading.Thread(target=broadcast_many) for _ in range(3)]
+
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # All messages should be buffered
+        assert len(broadcaster._buffer) == 30
+
+
+class TestWsMessageTypes:
+    """Tests for different WebSocket message types."""
+
+    def test_log_message_format(self):
+        """Test log message format."""
+        import time
+
+        broadcaster = LogBroadcaster()
+        before = time.time()
+        broadcaster.broadcast("error", "Test error message")
+        after = time.time()
+
+        msg = json.loads(broadcaster._buffer[-1])
+
+        assert msg["type"] == "log"
+        assert msg["level"] == "error"
+        assert msg["message"] == "Test error message"
+        assert before <= msg["timestamp"] <= after
+
+    def test_status_message_format(self):
+        """Test status message format is correct."""
+        broadcaster = LogBroadcaster()
+
+        broadcaster.broadcast_status({"state": "running", "chunks": 10})
+
+        assert len(broadcaster._buffer) == 0

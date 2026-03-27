@@ -1,0 +1,281 @@
+---
+import DocsLayout from '../../components/docs/DocsLayout.astro';
+import ConfigTable from '../../components/docs/ConfigTable.astro';
+import CodeBlock from '../../components/docs/CodeBlock.astro';
+import Callout from '../../components/docs/Callout.astro';
+---
+
+<DocsLayout title="Configuration" description="Complete config.yaml reference for SRT2Web">
+    <div class="breadcrumb">
+        <a href="/docs/getting-started">Docs</a>
+        <span class="breadcrumb-sep">/</span>
+        <span>Configuration</span>
+    </div>
+
+    <div class="docs-hero">
+        <h1>Referencia de Configuración</h1>
+        <p>Referencia completa de todas las opciones disponibles en config.yaml.</p>
+    </div>
+
+    <h2>Estructura General</h2>
+
+    <CodeBlock lang="yaml" code={`server:
+  host: "0.0.0.0"
+  port: 9999
+  cors_origins: ["*"]
+  auth_token: ""
+
+input:
+  type: srt  # srt | file | rtmp
+  srt:
+    listen_port: 9000
+    mode: listener
+    latency_ms: 1000
+    caller_address: ""
+    chunk_duration_sec: 6
+  file:
+    path: ""
+    loop: false
+    speed: 1.0
+  rtmp:
+    url: ""
+    mode: listener
+
+pipeline:
+  chunk_duration_sec: 6
+
+modules:
+  audio_extractor:
+    enabled: true
+  transcriber:
+    enabled: true
+    model: tiny
+    language: auto
+    device: auto
+  translator:
+    enabled: false
+    source_lang: en
+    target_lang: es
+  subtitle_generator:
+    enabled: false
+    format: webvtt
+    use_translated: false
+    audio_offset_ms: 0
+    font_size: 48
+  tts_engine:
+    enabled: false
+    voice: es-ES-AlvaroNeural
+    speed: 1.0
+  audio_mixer:
+    enabled: false
+    original_volume: 0.4
+    dubbed_volume: 1.1
+    tts_volume: 1.0
+  video_muxer:
+    enabled: true
+    hls_segment_duration: 6
+    hls_list_size: 6
+    encoder_mode: copy
+    video_crf: 23
+    audio_codec: aac
+    audio_bitrate: 128k
+    output_path: ./output/hls
+
+output_dir:
+  directory: ./output`} title="config.yaml (completo)" />
+
+    <h2>Server</h2>
+
+    <ConfigTable entries={[
+        { path: "server.host", type: "string", default: "0.0.0.0", description: "Host del servidor web." },
+        { path: "server.port", type: "integer", default: "9999", description: "Puerto TCP del servidor FastAPI." },
+        { path: "server.cors_origins", type: "array", default: "[*]", description: "Orígenes permitidos para CORS." },
+        { path: "server.auth_token", type: "string", default: "''", description: "Token para autenticación (vacío = deshabilitado)." },
+    ]} />
+
+    <h2>Input</h2>
+
+    <h3>General</h3>
+    <ConfigTable entries={[
+        { path: "input.type", type: "string", default: "srt", description: "Tipo de entrada: srt, file, o rtmp.", required: true },
+    ]} />
+
+    <h3>SRT Input</h3>
+    <ConfigTable entries={[
+        { path: "input.srt.listen_port", type: "integer", default: "9000", description: "Puerto UDP para escuchar conexiones SRT entrantes.", required: true },
+        { path: "input.srt.mode", type: "string", default: "listener", description: "Modo SRT: listener o caller.", required: true },
+        { path: "input.srt.latency_ms", type: "integer", default: "1000", description: "Latencia SRT en milisegundos. Recomendado: 1000-4000ms." },
+        { path: "input.srt.caller_address", type: "string", default: "''", description: "Dirección del caller (para modo caller)." },
+        { path: "input.srt.chunk_duration_sec", type: "float", default: "6", description: "Duración de cada fragmento en segundos." },
+    ]} />
+
+    <h3>File Input</h3>
+    <ConfigTable entries={[
+        { path: "input.file.path", type: "string", default: "''", description: "Ruta al archivo de video de entrada." },
+        { path: "input.file.loop", type: "boolean", default: "false", description: "Reproducir en bucle." },
+        { path: "input.file.speed", type: "float", default: "1.0", description: "Velocidad de reproducción (1.0 = normal)." },
+    ]} />
+
+    <h3>RTMP Input</h3>
+    <ConfigTable entries={[
+        { path: "input.rtmp.url", type: "string", default: "''", description: "URL RTMP (ej: rtmp://localhost/live/stream)." },
+        { path: "input.rtmp.mode", type: "string", default: "listener", description: "Modo: listener o caller." },
+    ]} />
+
+    <h2>Pipeline</h2>
+    <ConfigTable entries={[
+        { path: "pipeline.chunk_duration_sec", type: "float", default: "6", description: "Duración de chunks en segundos. Debe coincidir con input.srt.chunk_duration_sec." },
+    ]} />
+
+    <h2>Modules</h2>
+
+    <h3>Transcriber</h3>
+    <ConfigTable entries={[
+        { path: "modules.transcriber.enabled", type: "boolean", default: "true", description: "Habilitar/deshabilitar transcripción." },
+        { path: "modules.transcriber.model", type: "string", default: "tiny", description: "Modelo Whisper: tiny, base, small, medium, large-v3, large-v3-turbo." },
+        { path: "modules.transcriber.language", type: "string", default: "auto", description: "Idioma del audio. auto = detección automática." },
+        { path: "modules.transcriber.device", type: "string", default: "auto", description: "Dispositivo: auto, cpu, cuda, mps." },
+    ]} />
+
+    <Callout type="info">
+        <strong>Modelos Whisper:</strong> tiny (~75MB), base (~148MB), small (~488MB), medium (~1.5GB), large-v3 (~2.9GB), large-v3-turbo (~1.6GB). Modelos más grandes ofrecen mejor precisión pero requieren más VRAM.
+    </Callout>
+
+    <h3>Translator</h3>
+    <ConfigTable entries={[
+        { path: "modules.translator.enabled", type: "boolean", default: "false", description: "Habilitar traducción." },
+        { path: "modules.translator.source_lang", type: "string", default: "en", description: "Idioma source (código ISO 639-1)." },
+        { path: "modules.translator.target_lang", type: "string", default: "es", description: "Idioma destino (código ISO 639-1)." },
+    ]} />
+
+    <h3>Subtitle Generator</h3>
+    <ConfigTable entries={[
+        { path: "modules.subtitle_generator.enabled", type: "boolean", default: "false", description: "Habilitar generación de subtítulos." },
+        { path: "modules.subtitle_generator.format", type: "string", default: "webvtt", description: "Formato: webvtt o srt." },
+        { path: "modules.subtitle_generator.use_translated", type: "boolean", default: "false", description: "Usar texto traducido en lugar del original." },
+        { path: "modules.subtitle_generator.audio_offset_ms", type: "integer", default: "0", description: "Offset de tiempo en ms para sincronización." },
+        { path: "modules.subtitle_generator.font_size", type: "integer", default: "48", description: "Tamaño de fuente para subtítulos." },
+    ]} />
+
+    <h3>TTS Engine</h3>
+    <ConfigTable entries={[
+        { path: "modules.tts_engine.enabled", type: "boolean", default: "false", description: "Habilitar síntesis de voz." },
+        { path: "modules.tts_engine.voice", type: "string", default: "es-ES-AlvaroNeural", description: "Voz Edge-TTS (ej: es-ES-AlvaroNeural, es-MX-DaliaNeural)." },
+        { path: "modules.tts_engine.speed", type: "float", default: "1.0", description: "Velocidad del habla (0.5 = lento, 2.0 = rápido)." },
+    ]} />
+
+    <h3>Audio Mixer</h3>
+    <ConfigTable entries={[
+        { path: "modules.audio_mixer.enabled", type: "boolean", default: "false", description: "Habilitar mezcla de audio." },
+        { path: "modules.audio_mixer.original_volume", type: "float", default: "0.4", description: "Volumen del audio original (0.0 - 2.0)." },
+        { path: "modules.audio_mixer.dubbed_volume", type: "float", default: "1.1", description: "Volumen del audio doblado (0.0 - 2.0)." },
+        { path: "modules.audio_mixer.tts_volume", type: "float", default: "1.0", description: "Volumen del audio TTS (0.0 - 2.0)." },
+    ]} />
+
+    <h3>Video Muxer</h3>
+    <ConfigTable entries={[
+        { path: "modules.video_muxer.enabled", type: "boolean", default: "true", description: "Habilitar salida HLS." },
+        { path: "modules.video_muxer.hls_segment_duration", type: "integer", default: "6", description: "Duración de segmentos HLS en segundos." },
+        { path: "modules.video_muxer.hls_list_size", type: "integer", default: "6", description: "Número de segmentos en la playlist." },
+        { path: "modules.video_muxer.encoder_mode", type: "string", default: "copy", description: "Modo de codificación: copy (reempaquetar) o encode (re-encoder)." },
+        { path: "modules.video_muxer.video_crf", type: "integer", default: "23", description: "CRF de video para re-encoding (0-51, menor = mejor calidad)." },
+        { path: "modules.video_muxer.audio_codec", type: "string", default: "aac", description: "Codec de audio: aac o mp3." },
+        { path: "modules.video_muxer.audio_bitrate", type: "string", default: "128k", description: "Bitrate de audio (ej: 128k, 192k, 256k)." },
+        { path: "modules.video_muxer.output_path", type: "string", default: "./output/hls", description: "Ruta de salida para archivos HLS." },
+    ]} />
+
+    <h2>Output Directory</h2>
+    <ConfigTable entries={[
+        { path: "output_dir.directory", type: "string", default: "./output", description: "Directorio base para todos los archivos de salida." },
+    ]} />
+
+    <h2>Ejemplos de Configuración</h2>
+
+    <h3>Básico — Solo Transcripción</h3>
+    <CodeBlock lang="yaml" code={`server:
+  port: 9999
+
+input:
+  type: srt
+  srt:
+    listen_port: 9000
+    mode: listener
+
+modules:
+  transcriber:
+    enabled: true
+    model: base
+    language: auto`} title="Transcripción simple" />
+
+    <h3>Completo — Traducción + TTS + Mezcla</h3>
+    <CodeBlock lang="yaml" code={`server:
+  port: 9999
+
+input:
+  type: srt
+  srt:
+    listen_port: 9000
+    chunk_duration_sec: 10
+
+modules:
+  transcriber:
+    enabled: true
+    model: small
+    language: auto
+    device: cuda
+
+  translator:
+    enabled: true
+    source_lang: en
+    target_lang: es
+
+  subtitle_generator:
+    enabled: true
+    format: webvtt
+    use_translated: true
+
+  tts_engine:
+    enabled: true
+    voice: es-ES-AlvaroNeural
+    speed: 1.0
+
+  audio_mixer:
+    enabled: true
+    original_volume: 0.3
+    dubbed_volume: 1.0
+
+  video_muxer:
+    enabled: true
+    hls_segment_duration: 10
+    encoder_mode: copy`} title="Pipeline completo" />
+
+    <h3>Optimizado para GPU NVIDIA</h3>
+    <CodeBlock lang="yaml" code={`modules:
+  transcriber:
+    model: large-v3
+    device: cuda
+
+  video_muxer:
+    encoder_mode: encode
+    video_crf: 20
+    audio_codec: aac
+    audio_bitrate: 192k`} title="GPU Optimizado" />
+
+    <h3>Streaming Ligero (baja latencia)</h3>
+    <CodeBlock lang="yaml" code={`input:
+  srt:
+    latency_ms: 200
+    chunk_duration_sec: 2
+
+modules:
+  transcriber:
+    model: tiny
+    device: cpu
+
+  video_muxer:
+    hls_segment_duration: 2
+    hls_list_size: 4`} title="Baja latencia" />
+
+    <h2>Siguiente Paso</h2>
+    <p><a href="/docs/modules">Módulos</a> — Descripción detallada de cada módulo del pipeline.</p>
+</DocsLayout>

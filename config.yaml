@@ -1,0 +1,120 @@
+server:
+  host: 127.0.0.1
+  port: 9999
+  cors_origins:
+  - http://localhost:*
+  - http://127.0.0.1:*
+  auth_token: ''
+  rate_limit_rpm: 300
+  max_request_size_mb: 10
+input:
+  type: srt
+  srt:
+    listen_port: 9000
+    mode: listener
+    latency_ms: 1000
+    caller_address: ''
+  file:
+    path: ''
+    loop: false
+    speed: 1.0
+  enabled: true
+output:
+  type: web
+  web:
+    segment_duration: 12
+    list_size: 6
+    audio_offset_ms: 0
+    encoder_mode: auto
+  enabled: true
+pipeline:
+  chunk_duration_sec: 12
+modules:
+  audio_extractor:
+    enabled: true
+  transcriber:
+    enabled: true
+    model: tiny
+    language: en
+    device: cuda
+  translator:
+    enabled: true
+    source_lang: en
+    target_lang: es
+  subtitle_generator:
+    enabled: true
+    format: webvtt
+    use_translated: true
+    chunk_duration: 12
+  tts_engine:
+    enabled: true
+    engine: piper
+    device: cuda
+    voice: es_ES-davefx-medium
+    speed: 1.5
+  audio_mixer:
+    enabled: true
+    original_volume: 1
+    dubbed_volume: 1.0
+    tts_volume: 0.8
+  video_muxer:
+    enabled: true
+    hls_segment_duration: 12
+    audio_offset_ms: 0
+    type: webplayer
+    hls_list_size: 6
+    encoder_mode: gpu_nvenc
+    video_quality: medium
+    video_crf: 26
+    audio_codec: aac
+    audio_bitrate: 192k
+    audio_samplerate: '48000'
+  srt_input:
+    enabled: true
+    type: srt
+    listen_port: 9000
+    mode: listener
+    latency_ms: 1000
+    caller_address: ''
+    chunk_duration_sec: 12
+  rtmp_input:
+    enabled: false
+    type: rtmp
+    url: rtmp://localhost/live/stream
+    mode: pull
+  file_input:
+    enabled: false
+    type: file
+    path: ./video.mp4
+    loop: false
+    speed: 1.0
+  webplayer_output:
+    enabled: true
+    type: webplayer
+    segment_duration: 6
+    list_size: 6
+    audio_offset_ms: 0
+    video_preset: medium
+    encoder_mode: auto
+    video_crf: 23
+  srt_output:
+    enabled: false
+    type: srt
+    output_port: 9001
+    mode: caller
+    latency_ms: 1000
+  rtmp_output:
+    enabled: false
+    type: rtmp
+    url: rtmp://localhost/live/output
+    video_bitrate: 2500k
+    audio_bitrate: 128k
+  file_output:
+    enabled: false
+    type: file
+    path: ./output/stream.mp4
+    format: mp4
+    video_codec: libx264
+    audio_codec: aac
+output_dir:
+  directory: ./output

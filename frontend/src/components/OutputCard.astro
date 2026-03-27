@@ -1,0 +1,283 @@
+---
+---
+
+<div class="output-card" id="card-output">
+  <div class="process-header">
+    <span class="process-indicator" id="indicator-output"></span>
+    <span class="process-title">🎬 OUTPUT</span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="output-enabled" onchange="window.toggleModule('output', this.checked)" />
+      <span class="toggle-slider"></span>
+    </label>
+  </div>
+  <div class="process-content">
+    <div class="form-group">
+      <label class="form-label">Tipo</label>
+      <select class="form-select" id="output-type" onchange="window.updateOutputFields()">
+        <option value="webplayer">Web Player (HLS)</option>
+        <option value="srt">SRT</option>
+        <option value="rtmp">RTMP</option>
+        <option value="file">Archivo</option>
+      </select>
+    </div>
+
+    <!-- Webplayer Config -->
+    <div id="output-webplayer-config" class="output-type-config">
+      <div class="form-group">
+        <label class="form-label">Duración segmento (s)</label>
+        <input type="number" class="form-input" id="output-hls-duration" value="4" min="1" max="30" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Lista</label>
+        <input type="number" class="form-input" id="output-hls-list" value="6" min="2" max="30" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Encoder</label>
+        <select class="form-select" id="output-encoder-mode">
+          <option value="auto">Auto</option>
+          <option value="cpu">CPU</option>
+          <option value="gpu_nvenc">NVIDIA</option>
+          <option value="gpu_amf">AMD</option>
+          <option value="gpu_qsv">Intel QSV</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- SRT Output Config -->
+    <div id="output-srt-config" class="output-type-config" style="display: none;">
+      <div class="form-group">
+        <label class="form-label">Puerto salida</label>
+        <input type="number" class="form-input" id="output-srt-port" value="9001" min="1" max="65535" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Modo</label>
+        <select class="form-select" id="output-srt-mode">
+          <option value="caller">Caller</option>
+          <option value="listener">Listener</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Latencia (ms)</label>
+        <input type="number" class="form-input" id="output-srt-latency" value="1000" min="100" max="10000" />
+      </div>
+    </div>
+
+    <!-- RTMP Output Config -->
+    <div id="output-rtmp-config" class="output-type-config" style="display: none;">
+      <div class="form-group">
+        <label class="form-label">URL RTMP</label>
+        <input type="text" class="form-input" id="output-rtmp-url" value="rtmp://localhost/live/output" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Video Bitrate</label>
+        <input type="text" class="form-input" id="output-rtmp-video-bitrate" value="2500k" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Audio Bitrate</label>
+        <input type="text" class="form-input" id="output-rtmp-audio-bitrate" value="128k" />
+      </div>
+    </div>
+
+    <!-- File Output Config -->
+    <div id="output-file-config" class="output-type-config" style="display: none;">
+      <div class="form-group">
+        <label class="form-label">Ruta archivo</label>
+        <input type="text" class="form-input" id="output-file-path" value="./output/stream.mp4" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Formato</label>
+        <select class="form-select" id="output-file-format">
+          <option value="mp4">MP4</option>
+          <option value="mkv">MKV</option>
+          <option value="ts">TS</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Metrics -->
+    <div class="form-group" id="output-metrics">
+      <label class="form-label">Estado</label>
+      <div class="metrics-row">
+        <div class="metric-mini">
+          <span class="metric-label">Chunks</span>
+          <span class="metric-value" id="output-chunks">0</span>
+        </div>
+        <div class="metric-mini">
+          <span class="metric-label">Tipo</span>
+          <span class="metric-value" id="output-type-display">--</span>
+        </div>
+        <div class="metric-mini">
+          <span class="metric-label">Encoder</span>
+          <span class="metric-value" id="output-encoder">--</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .output-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    transition: all 0.3s ease;
+  }
+
+  .output-card.active {
+    border-color: var(--success) !important;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.3) !important;
+  }
+
+  .process-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .process-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: all 0.3s ease;
+  }
+
+  .process-indicator.active {
+    background: #00ff00 !important;
+    box-shadow: 0 0 6px #00ff00, 0 0 12px #00ff00 !important;
+    animation: indicator-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes indicator-pulse {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; }
+  }
+
+  .process-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-prime);
+    flex: 1;
+  }
+
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+  }
+
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--text-dim);
+    transition: 0.3s;
+    border-radius: 20px;
+  }
+
+  .toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+  }
+
+  input:checked + .toggle-slider {
+    background-color: var(--success);
+  }
+
+  input:checked + .toggle-slider:before {
+    transform: translateX(16px);
+  }
+
+  .process-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .output-type-config {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .form-label {
+    font-size: 10px;
+    color: var(--text-sec);
+    font-weight: 500;
+  }
+
+  .form-input, .form-select {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-sm);
+    color: var(--text-prime);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .form-input:focus, .form-select:focus {
+    border-color: var(--accent);
+  }
+
+  .form-select {
+    cursor: pointer;
+  }
+
+  .metrics-row {
+    display: flex;
+    gap: 8px;
+    padding: 8px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
+  }
+
+  .metric-mini {
+    flex: 1;
+    text-align: center;
+  }
+
+  .metric-mini .metric-label {
+    display: block;
+    font-size: 9px;
+    color: var(--text-sec);
+    margin-bottom: 2px;
+  }
+
+  .metric-mini .metric-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-prime);
+  }
+</style>

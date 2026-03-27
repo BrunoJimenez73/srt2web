@@ -1,0 +1,132 @@
+---
+import DocsLayout from '../../../components/docs/DocsLayout.astro';
+import ConfigTable from '../../../components/docs/ConfigTable.astro';
+import CodeBlock from '../../../components/docs/CodeBlock.astro';
+import Callout from '../../../components/docs/Callout.astro';
+---
+
+<DocsLayout title="Video Muxer Module" description="HLS output with subtitles">
+    <div class="breadcrumb">
+        <a href="/docs/getting-started">Docs</a>
+        <span class="breadcrumb-sep">/</span>
+        <a href="/docs/modules">Modules</a>
+        <span class="breadcrumb-sep">/</span>
+        <span>Video Muxer</span>
+    </div>
+
+    <div class="docs-hero">
+        <h1>Video Muxer</h1>
+        <p>Empaquetado final del stream HLS con subtítulos integrados y audio mezclado.</p>
+    </div>
+
+    <h2>Descripción</h2>
+    <p>El módulo Video Muxer es el último eslabón del pipeline. Recibe video, audio mezclado y subtítulos, y los empaqueta en un stream HLS compatible con HLS.js y reproductores nativos.</p>
+
+    <h2>Configuración</h2>
+
+    <ConfigTable entries={[
+        { path: "modules.video_muxer.enabled", type: "boolean", default: "true", description: "Habilitar salida HLS." },
+        { path: "modules.video_muxer.hls_segment_duration", type: "integer", default: "6", description: "Duración de segmentos HLS en segundos." },
+        { path: "modules.video_muxer.hls_list_size", type: "integer", default: "6", description: "Número de segmentos en la playlist." },
+        { path: "modules.video_muxer.encoder_mode", type: "string", default: "copy", description: "Modo: copy (reempaquetar) o encode (re-encoder)." },
+        { path: "modules.video_muxer.video_crf", type: "integer", default: "23", description: "CRF para re-encoding (0-51)." },
+        { path: "modules.video_muxer.audio_codec", type: "string", default: "aac", description: "Codec de audio: aac o mp3." },
+        { path: "modules.video_muxer.audio_bitrate", type: "string", default: "128k", description: "Bitrate de audio." },
+        { path: "modules.video_muxer.output_path", type: "string", default: "./output/hls", description: "Ruta de salida." },
+    ]} />
+
+    <h2>Modos de Encoding</h2>
+
+    <table>
+        <thead>
+            <tr><th>Modo</th><th>Descripción</th><th>Uso</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><code>copy</code></td><td>Reempaqueta sin recodificar</td><td>Mínimo delay, máxima velocidad</td></tr>
+            <tr><td><code>encode</code></td><td>Recodifica video</td><td>Mejor compresión, control CRF</td></tr>
+        </tbody>
+    </table>
+
+    <Callout type="info">
+        <strong>Modo copy:</strong> Recomendado para streams en vivo. El video se reempaqueta sin recodificar, minimizando el delay. Requiere que el stream source use h264/aac.
+    </Callout>
+
+    <h2>Dependencias</h2>
+
+    <div class="dependency-flow">
+        <h4>Habilita automáticamente:</h4>
+        <p>Ninguno — es módulo terminal.</p>
+        <h4>Requiere que esté habilitado:</h4>
+        <p>Ninguno — es el último módulo de la cadena.</p>
+    </div>
+
+    <h2>Ejemplos</h2>
+
+    <h3>Mínimo Delay (Reempaquetar)</h3>
+    <CodeBlock lang="yaml" code={`modules:
+  video_muxer:
+    enabled: true
+    encoder_mode: copy
+    hls_segment_duration: 2
+    hls_list_size: 4`} title="config.yaml" />
+
+    <h3>Alta Calidad (Recodificar)</h3>
+    <CodeBlock lang="yaml" code={`modules:
+  video_muxer:
+    enabled: true
+    encoder_mode: encode
+    video_crf: 20       # menor = mejor calidad
+    audio_codec: aac
+    audio_bitrate: 192k
+    hls_segment_duration: 6
+    hls_list_size: 6`} title="config.yaml" />
+
+    <h3>NVIDIA NVENC</h3>
+    <CodeBlock lang="yaml" code={`modules:
+  video_muxer:
+    enabled: true
+    encoder_mode: encode
+    encoder_mode: nvenc  # descomentar si hay GPU NVIDIA
+    video_crf: 23
+    audio_codec: aac
+    audio_bitrate: 128k`} title="config.yaml" />
+
+    <h2>Métricas</h2>
+    <table>
+        <thead><tr><th>Métrica</th><th>Descripción</th></tr></thead>
+        <tbody>
+            <tr><td><code>process_time</code></td><td>Tiempo de muxing (ms)</td></tr>
+            <tr><td><code>memory_usage</code></td><td>Memoria del proceso FFmpeg</td></tr>
+            <tr><td><code>chunks_processed</code></td><td>Total de chunks empaquetados</td></tr>
+            <tr><td><code>output_size_mb</code></td><td>Tamaño total de salida (MB)</td></tr>
+        </tbody>
+    </table>
+
+    <h2>Salida</h2>
+    <p>El módulo produce los siguientes archivos en <code>./output/hls/</code>:</p>
+
+    <CodeBlock lang="bash" code={`output/hls/
+├── stream.m3u8          # Playlist HLS principal
+├── seg_000.ts          # Segmentos de video/audio
+├── seg_001.ts
+├── seg_002.ts
+├── subs.vtt            # Subtítulos WebVTT
+└── chunk_001.srt       # Subtítulos SRT por chunk`} title="Estructura de salida" showCopy={false} />
+
+    <h2>Playlist HLS</h2>
+    <CodeBlock lang="m3u8" code={`#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-TARGETDURATION:6
+#EXT-X-MEDIA-SEQUENCE:0
+#EXTINF:6.0,
+seg_000.ts
+#EXTINF:6.0,
+seg_001.ts
+#EXTINF:6.0,
+seg_002.ts
+#EXT-X-ENDLIST`} title="stream.m3u8" />
+
+    <Callout type="success">
+        <strong>Listo para streaming:</strong> El stream HLS está disponible en <code>http://localhost:9999/stream/stream.m3u8</code> y puede reproducirse en cualquier reproductor HLS.
+    </Callout>
+</DocsLayout>

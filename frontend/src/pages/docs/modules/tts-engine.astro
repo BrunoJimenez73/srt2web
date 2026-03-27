@@ -1,0 +1,152 @@
+---
+import DocsLayout from '../../../components/docs/DocsLayout.astro';
+import ConfigTable from '../../../components/docs/ConfigTable.astro';
+import CodeBlock from '../../../components/docs/CodeBlock.astro';
+import Callout from '../../../components/docs/Callout.astro';
+---
+
+<DocsLayout title="TTS Engine Module" description="Text-to-speech with Microsoft Edge TTS">
+    <div class="breadcrumb">
+        <a href="/docs/getting-started">Docs</a>
+        <span class="breadcrumb-sep">/</span>
+        <a href="/docs/modules">Modules</a>
+        <span class="breadcrumb-sep">/</span>
+        <span>TTS Engine</span>
+    </div>
+
+    <div class="docs-hero">
+        <h1>TTS Engine</h1>
+        <p>Síntesis de voz natural usando Microsoft Edge TTS para doblaje automático.</p>
+    </div>
+
+    <h2>Descripción</h2>
+    <p>El módulo TTS Engine convierte el texto traducido a audio usando Edge-TTS (Microsoft), que ofrece voces neuronales de alta calidad sin costo. El audio generado puede mezclarse con el audio original para crear una experiencia de doblaje.</p>
+
+    <h2>Configuración</h2>
+
+    <ConfigTable entries={[
+        { path: "modules.tts_engine.enabled", type: "boolean", default: "false", description: "Habilitar síntesis de voz." },
+        { path: "modules.tts_engine.voice", type: "string", default: "es-ES-AlvaroNeural", description: "Voz Edge-TTS a usar." },
+        { path: "modules.tts_engine.speed", type: "float", default: "1.0", description: "Velocidad del habla (0.5 - 2.0)." },
+    ]} />
+
+    <h2>Voces Disponibles</h2>
+
+    <h3>Español</h3>
+    <table>
+        <thead>
+            <tr><th>Voz</th><th>Género</th><th>Notas</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><code>es-ES-AlvaroNeural</code></td><td>Male</td><td>Voz masculina estándar</td></tr>
+            <tr><td><code>es-ES-ElviraNeural</code></td><td>Female</td><td>Voz femenina estándar</td></tr>
+            <tr><td><code>es-MX-DaliaNeural</code></td><td>Female</td><td>Español mexicano</td></tr>
+            <tr><td><code>es-AR-TomasNeural</code></td><td>Male</td><td>Español argentino</td></tr>
+            <tr><td><code>es-CL-CatalinaNeural</code></td><td>Female</td><td>Español chileno</td></tr>
+            <tr><td><code>es-CO-GonzaloNeural</code></td><td>Male</td><td>Español colombiano</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Inglés</h3>
+    <table>
+        <thead>
+            <tr><th>Voz</th><th>Género</th><th>Notas</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><code>en-US-AriaNeural</code></td><td>Female</td><td>Voz femenina US</td></tr>
+            <tr><td><code>en-US-GuyNeural</code></td><td>Male</td><td>Voz masculina US</td></tr>
+            <tr><td><code>en-GB-SoniaNeural</code></td><td>Female</td><td>Inglés británico</td></tr>
+            <tr><td><code>en-AU-NatashaNeural</code></td><td>Female</td><td>Inglés australiano</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Otros Idiomas</h3>
+    <p>Edge-TTS soporta más de 140 voces en más de 50 idiomas. Puedes listar todas las voces disponibles:</p>
+
+    <CodeBlock lang="python" code={`import edge_tts
+import asyncio
+
+async def list_voices():
+    voices = await edge_tts.list_voices()
+    for v in voices:
+        print(f"{v['ShortName']} - {v['Locale']} - {v['Gender']}")
+
+asyncio.run(list_voices())`} title="Listar voces" showCopy={false} />
+
+    <h2>Dependencias</h2>
+
+    <div class="dependency-flow">
+        <h4>Habilita automáticamente:</h4>
+        <p><code>audio_mixer</code> — necesita TTS para mezclar</p>
+        <h4>Requiere que esté habilitado:</h4>
+        <p><code>translator</code> — consume el texto traducido</p>
+    </div>
+
+    <Callout type="warning">
+        TTS Engine requiere que <code>translator</code> esté habilitado. Si el traductor está deshabilitado, TTS también se deshabilitará.
+    </Callout>
+
+    <h2>Ejemplos</h2>
+
+    <h3>Básico — Español Masculino</h3>
+    <CodeBlock lang="yaml" code={`modules:
+  tts_engine:
+    enabled: true
+    voice: es-ES-AlvaroNeural
+    speed: 1.0`} title="config.yaml" />
+
+    <h3>Español Mexicano</h3>
+    <CodeBlock lang="yaml" code={`modules:
+  tts_engine:
+    enabled: true
+    voice: es-MX-DaliaNeural
+    speed: 0.95  # ligeramente más lento para claridad`} title="config.yaml" />
+
+    <h3>Inglés Británico con Velocidad Ajustada</h3>
+    <CodeBlock lang="yaml" code={`modules:
+  transcriber:
+    language: auto
+  translator:
+    enabled: true
+    source_lang: auto
+    target_lang: en
+  tts_engine:
+    enabled: true
+    voice: en-GB-SoniaNeural
+    speed: 1.05`} title="config.yaml" />
+
+    <h2>Métricas</h2>
+
+    <table>
+        <thead>
+            <tr><th>Métrica</th><th>Descripción</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><code>process_time</code></td><td>Tiempo de síntesis TTS (ms)</td></tr>
+            <tr><td><code>memory_usage</code></td><td>Memoria usada por el sintetizador</td></tr>
+            <tr><td><code>chunks_processed</code></td><td>Total de chunks procesados</td></tr>
+            <tr><td><code>audio_duration</code></td><td>Duración del audio TTS generado</td></tr>
+        </tbody>
+    </table>
+
+    <h2>Salida</h2>
+
+    <p>El módulo produce los siguientes campos en <code>PipelineData</code>:</p>
+
+    <CodeBlock lang="python" code={`{
+    "dubbed_audio_path": "./output/temp_tts/chunk_001.wav",
+    "metadata": {
+        "voice": "es-ES-AlvaroNeural",
+        "speed": 1.0,
+        "audio_duration": 5.8,
+        "text_length": 125
+    }
+}`} title="PipelineData" />
+
+    <Callout type="info">
+        <strong>Sincronización:</strong> El módulo sincroniza automáticamente el audio TTS con el chunk usando padding de silencio cuando es necesario.
+    </Callout>
+
+    <h2>Siguiente Módulo</h2>
+    <p><a href="/docs/modules/audio-mixer">Audio Mixer</a> — Mezcla el audio TTS con el original.</p>
+</DocsLayout>

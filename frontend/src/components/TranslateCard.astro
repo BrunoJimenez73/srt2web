@@ -1,0 +1,209 @@
+---
+---
+
+<div class="translate-card" id="card-translate">
+  <div class="process-header">
+    <span class="process-indicator" id="indicator-translate"></span>
+    <span class="process-title">🌐 TRADUCIR</span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="translator-enabled" onchange="window.toggleModule('translator', this.checked)" />
+      <span class="toggle-slider"></span>
+    </label>
+  </div>
+    <div class="process-content">
+      <div class="form-group">
+        <label class="form-label">Idioma Origen</label>
+        <select class="form-select" id="translator-source">
+          <option value="auto">Auto (Detectar)</option>
+          <option value="es">Español</option>
+          <option value="en">Inglés</option>
+          <option value="fr">Francés</option>
+          <option value="de">Alemán</option>
+          <option value="it">Italiano</option>
+          <option value="pt">Portugués</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Idioma Destino</label>
+        <select class="form-select" id="translator-target">
+          <option value="es" selected>Español</option>
+          <option value="en">Inglés</option>
+          <option value="fr">Francés</option>
+          <option value="de">Alemán</option>
+          <option value="it">Italiano</option>
+          <option value="pt">Portugués</option>
+        </select>
+      </div>
+      <div class="form-group" id="translator-metrics">
+        <label class="form-label">Métricas</label>
+        <div class="metrics-row">
+          <div class="metric-mini">
+            <span class="metric-label">Tiempo</span>
+            <span class="metric-value" id="module-time-translator">--</span>
+          </div>
+          <div class="metric-mini">
+            <span class="metric-label">Memoria</span>
+            <span class="metric-value" id="module-memory-translator">--</span>
+          </div>
+          <div class="metric-mini">
+            <span class="metric-label">Chunks</span>
+            <span class="metric-value" id="module-chunks-translator">--</span>
+          </div>
+        </div>
+      </div>
+    </div>
+</div>
+
+<style>
+  .translate-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    transition: all 0.3s ease;
+  }
+
+  .translate-card.active {
+    border-color: var(--success) !important;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.3) !important;
+  }
+
+  .process-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .process-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: all 0.3s ease;
+  }
+
+  .process-indicator.active {
+    background: #00ff00 !important;
+    box-shadow: 0 0 6px #00ff00, 0 0 12px #00ff00 !important;
+    animation: indicator-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes indicator-pulse {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; }
+  }
+
+  .process-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-prime);
+    flex: 1;
+  }
+
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+  }
+
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--text-dim);
+    transition: 0.3s;
+    border-radius: 20px;
+  }
+
+  .toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+  }
+
+  input:checked + .toggle-slider {
+    background-color: var(--success);
+  }
+
+  input:checked + .toggle-slider:before {
+    transform: translateX(16px);
+  }
+
+  .process-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .form-label {
+    font-size: 10px;
+    color: var(--text-sec);
+    font-weight: 500;
+  }
+
+  .form-select {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-sm);
+    color: var(--text-prime);
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .form-select:focus {
+    border-color: var(--accent);
+  }
+
+  .metrics-row {
+    display: flex;
+    gap: 12px;
+    padding: 8px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
+  }
+
+  .metric-mini {
+    flex: 1;
+    text-align: center;
+  }
+
+  .metric-mini .metric-label {
+    display: block;
+    font-size: 9px;
+    color: var(--text-sec);
+    margin-bottom: 2px;
+  }
+
+  .metric-mini .metric-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-prime);
+  }
+</style>

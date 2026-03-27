@@ -1,0 +1,59 @@
+---
+import CodeBlock from './CodeBlock.astro';
+
+interface Param {
+    name: string;
+    type: string;
+    description: string;
+}
+
+interface Props {
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+    path: string;
+    description: string;
+    params?: Param[];
+    body?: string;
+    response?: string;
+}
+
+const { method, path, description, params, body, response } = Astro.props;
+---
+
+<div class="api-endpoint">
+    <div class="api-endpoint-header">
+        <span class={`api-method ${method.toLowerCase()}`}>{method}</span>
+        <span class="api-path">{path}</span>
+    </div>
+    <div class="api-endpoint-body">
+        <p class="api-endpoint-desc">{description}</p>
+        {params && params.length > 0 && (
+            <div class="api-params">
+                {params.map((p) => (
+                    <div class="api-param">
+                        <span class="api-param-name">{p.name}</span>
+                        <span class="api-param-type">{p.type}</span>
+                        <span>{p.description}</span>
+                    </div>
+                ))}
+            </div>
+        )}
+        {body && (
+            <>
+                <h4 style="margin-top:16px;margin-bottom:8px">Request Body</h4>
+                <div class="code-block">
+                    <div class="code-block-header"><span class="code-block-lang">JSON</span></div>
+                    <pre><code set:html={body}></code></pre>
+                </div>
+            </>
+        )}
+        {response && (
+            <>
+                <h4 style="margin-top:16px;margin-bottom:8px">Response</h4>
+                <div class="code-block">
+                    <div class="code-block-header"><span class="code-block-lang">JSON</span></div>
+                    <pre><code set:html={response}></code></pre>
+                </div>
+            </>
+        )}
+    </div>
+</div>
