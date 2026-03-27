@@ -31,8 +31,6 @@ from modules.translator import Translator
 from modules.subtitle_generator import SubtitleGenerator
 from modules.tts_engine import TTSEngine
 from modules.audio_mixer import AudioMixer
-from modules.video_muxer import VideoMuxer
-from modules.io_wrappers import InputModuleWrapper, OutputModuleWrapper
 from server.app import create_app
 from server.ws_routes import log_broadcaster
 
@@ -87,13 +85,6 @@ def _shutdown():
             logger.info("Pipeline shutdown complete")
         except Exception as e:
             logger.error(f"Error during shutdown: {e}")
-
-    # Stop RTMP server if running
-    try:
-        from modules.rtmp_server import stop_rtmp_server
-        stop_rtmp_server()
-    except Exception as e:
-        logger.debug(f"RTMP server shutdown: {e}")
 
     _cleanup_orphan_processes()
 
@@ -199,33 +190,14 @@ def build_pipeline(config: ConfigManager, output_dir: str):
     # Auto-discover available inputs and outputs
     auto_discover()
 
-    # Get logger for this function
-    logger = logging.getLogger("srt2web.main")
-
     # Get input configuration
     input_config = config.get_section("input")
     input_type = input_config.get("type", "srt")
     type_config = input_config.get(input_type, {})
     type_config["chunk_duration_sec"] = config.get("pipeline.chunk_duration_sec", 15)
 
-    # Start RTMP server if using RTMP input
-    if input_type == "rtmp":
-        from modules.rtmp_server import start_rtmp_server
-        rtmp_mode = type_config.get("mode", "pull")
-        rtmp_listen = type_config.get("listen", False)
-        
-        # Start Node Media Server for both push and pull modes
-        # For push mode: OBS connects to NMS, NMS forwards to pipeline
-        # For pull mode: FFmpeg connects to NMS, NMS receives from OBS
-        logger.info("Starting Node Media Server for RTMP input...")
-        start_rtmp_server()
-        logger.info("Node Media Server started - OBS can connect to rtmp://localhost:1935/live/stream")
-        
-        # Update the RTMP URL to use the correct port if needed
-        if "localhost" in type_config.get("url", "") and ":1935" not in type_config.get("url", ""):
-            type_config["url"] = "rtmp://localhost:1935/live/stream"
-
     # Create input source
+    logger = logging.getLogger("srt2web.main")
     logger.info(f"Creating input source: {input_type}")
     input_source = InputFactory.create(input_type, type_config)
     input_source.set_output_dir(output_dir)
@@ -242,16 +214,6 @@ def build_pipeline(config: ConfigManager, output_dir: str):
 
     # Create pipeline with input/output
     pipeline = Pipeline(input_source, output_sink)
-    
-    # Wrap input source as a module
-    input_module_config = {"enabled": True}
-    input_module = InputModuleWrapper(f"{input_type}_input", input_source, input_module_config)
-    pipeline.register_module(input_module)
-    
-    # Wrap output sink as a module
-    output_module_config = {"enabled": True}
-    output_module = OutputModuleWrapper(f"{output_type}_output", output_sink, output_module_config)
-    pipeline.register_module(output_module)
 
     # Register processing modules (Execution Order Matters!)
 
@@ -287,10 +249,7 @@ def build_pipeline(config: ConfigManager, output_dir: str):
     audio_mixer = AudioMixer(config=mixer_config, output_dir=output_dir)
     pipeline.register_module(audio_mixer, mixer_config)
 
-    # 7. Mux video + audio into HLS format
-    video_muxer_config = config.get_module_config("video_muxer")
-    video_muxer = VideoMuxer(config=video_muxer_config, output_dir=output_dir)
-    pipeline.register_module(video_muxer, video_muxer_config)
+    # Note: Output (HLS muxing) is handled by OutputSink, not a pipeline module
 
     return pipeline, input_source
 

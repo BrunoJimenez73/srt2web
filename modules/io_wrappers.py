@@ -30,9 +30,6 @@ class InputModuleWrapper(BaseModule):
     The wrapper acts as an INPUT module that produces PipelineData.
     """
     
-    # Class property to identify input modules
-    is_input_module = True
-    
     def __init__(
         self,
         name: str,
@@ -139,9 +136,6 @@ class OutputModuleWrapper(BaseModule):
     
     The wrapper acts as an OUTPUT module that consumes PipelineData.
     """
-    
-    # Class property to identify output modules
-    is_output_module = True
     
     def __init__(
         self,

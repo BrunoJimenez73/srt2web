@@ -5,7 +5,7 @@ server:
   - http://localhost:*
   - http://127.0.0.1:*
   auth_token: ''
-  rate_limit_rpm: 360
+  rate_limit_rpm: 60
   max_request_size_mb: 10
 input:
   type: srt
@@ -14,21 +14,15 @@ input:
     mode: listener
     latency_ms: 1000
     caller_address: ''
-    chunk_duration_sec: 15
   file:
     path: ''
     loop: false
     speed: 1.0
   enabled: true
-  rtmp:
-    url: rtmp://localhost/live/stream
-    mode: pull
-    listen: false
-    chunk_duration_sec: 6
 output:
   type: web
   web:
-    segment_duration: 15
+    segment_duration: 4
     list_size: 6
     audio_offset_ms: 0
     encoder_mode: auto
@@ -55,7 +49,7 @@ modules:
     enabled: true
     engine: piper
     device: cuda
-    voice: es_ES-sharvard-medium
+    voice: es_ES-davefx-medium
     speed: 1.5
   audio_mixer:
     enabled: true
@@ -74,53 +68,52 @@ modules:
     audio_codec: aac
     audio_bitrate: 192k
     audio_samplerate: '48000'
+  srt_input:
+    enabled: true
+    type: srt
+    listen_port: 9000
+    mode: listener
+    latency_ms: 1000
+    caller_address: ''
+    chunk_duration_sec: 10
+  rtmp_input:
+    enabled: false
+    type: rtmp
+    url: rtmp://localhost/live/stream
+    mode: pull
+  file_input:
+    enabled: false
+    type: file
+    path: ./video.mp4
+    loop: false
+    speed: 1.0
+  webplayer_output:
+    enabled: true
+    type: webplayer
+    segment_duration: 4
+    list_size: 6
+    audio_offset_ms: 0
+    video_preset: medium
+    encoder_mode: auto
+    video_crf: 23
+  srt_output:
+    enabled: false
+    type: srt
+    output_port: 9001
+    mode: caller
+    latency_ms: 1000
+  rtmp_output:
+    enabled: false
+    type: rtmp
+    url: rtmp://localhost/live/output
+    video_bitrate: 2500k
+    audio_bitrate: 128k
+  file_output:
+    enabled: false
+    type: file
+    path: ./output/stream.mp4
+    format: mp4
+    video_codec: libx264
+    audio_codec: aac
 output_dir:
   directory: ./output
-srt_input:
-  enabled: true
-  type: srt
-  listen_port: 9000
-  mode: listener
-  latency_ms: 1000
-  caller_address: ''
-  chunk_duration_sec: 10
-rtmp_input:
-  enabled: true
-  type: rtmp
-  url: rtmp://localhost/live/stream
-  mode: pull
-  chunk_duration_sec: 6
-file_input:
-  enabled: false
-  type: file
-  path: ./video.mp4
-  loop: false
-  speed: 1.0
-webplayer_output:
-  enabled: true
-  type: webplayer
-  segment_duration: 4
-  list_size: 6
-  audio_offset_ms: 0
-  video_preset: medium
-  encoder_mode: auto
-  video_crf: 23
-srt_output:
-  enabled: false
-  type: srt
-  output_port: 9001
-  mode: caller
-  latency_ms: 1000
-rtmp_output:
-  enabled: false
-  type: rtmp
-  url: rtmp://localhost/live/output
-  video_bitrate: 2500k
-  audio_bitrate: 128k
-file_output:
-  enabled: false
-  type: file
-  path: ./output/stream.mp4
-  format: mp4
-  video_codec: libx264
-  audio_codec: aac

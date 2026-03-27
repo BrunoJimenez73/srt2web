@@ -14,7 +14,7 @@ from typing import List, Optional, Callable, Dict
 from core.module_base import BaseModule, PipelineData, ModuleState
 from core.input_source import InputSource
 from core.output_sink import OutputSink
-from core.output_multiplexer import OutputMultiplexer
+from modules.io_wrappers import InputModuleWrapper, OutputModuleWrapper
 
 logger = logging.getLogger("srt2web.pipeline")
 
@@ -54,7 +54,6 @@ class Pipeline:
         """
         self._input_source = input_source
         self._output_sink = output_sink
-        self._output_multiplexer = OutputMultiplexer()
         self._config_manager = None
         self._output_dir = ""
 
@@ -99,11 +98,6 @@ class Pipeline:
         """Register a module in the pipeline execution order."""
         self._modules.append(module)
         self._module_map[module.name] = module
-        
-        # If it's an output module, add to multiplexer
-        if hasattr(module, 'is_output_module') and module.is_output_module:
-            self._output_multiplexer.add_output(module)
-        
         if config:
             self._module_configs[module.name] = config.copy()
         logger.info(f"Registered module: {module.name} (enabled={module.enabled})")
@@ -363,21 +357,6 @@ class Pipeline:
             self._log("info", f"Output type changed to {new_output_type}, recreating...")
             self.recreate_output(new_output_type, type_config)
 
-    def _get_input_module(self):
-        """Get the first InputModuleWrapper in modules list."""
-        for module in self._modules:
-            if hasattr(module, 'is_input_module') and module.is_input_module:
-                return module
-        return None
-    
-    def _get_output_modules(self):
-        """Get all OutputModuleWrapper instances in modules list."""
-        output_modules = []
-        for module in self._modules:
-            if hasattr(module, 'is_output_module') and module.is_output_module:
-                output_modules.append(module)
-        return output_modules
-    
     def _log(self, level: str, message: str) -> None:
         """Log a message and notify callback."""
         getattr(logger, level, logger.info)(message)
@@ -434,12 +413,8 @@ class Pipeline:
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=10)
 
-        # Stop output sink first (if no output modules)
-        output_modules = self._get_output_modules()
-        if output_modules:
-            # Stop multiplexer (which will stop all output modules)
-            self._output_multiplexer.stop_all()
-        elif self._output_sink:
+        # Stop output sink first
+        if self._output_sink:
             try:
                 self._output_sink.stop()
             except Exception as e:
@@ -454,9 +429,8 @@ class Pipeline:
             except Exception as e:
                 self._log("error", f"Error stopping module {module.name}: {e}")
 
-        # Stop input source last (if no input module)
-        input_module = self._get_input_module()
-        if not input_module and self._input_source:
+        # Stop input source last
+        if self._input_source:
             try:
                 self._input_source.stop()
             except Exception as e:
@@ -469,9 +443,8 @@ class Pipeline:
         try:
             self._set_state(PipelineState.STARTING)
 
-            # Start input source (if no input module)
-            input_module = self._get_input_module()
-            if not input_module and self._input_source:
+            # Start input source
+            if self._input_source:
                 try:
                     self._log(
                         "info", f"Starting input source: {self._input_source.name}"
@@ -495,13 +468,8 @@ class Pipeline:
                         module._state = ModuleState.ERROR
                         module._error_message = str(e)
 
-            # Start output sink or multiplexer
-            output_modules = self._get_output_modules()
-            if output_modules:
-                # Start multiplexer (which will start all output modules)
-                self._output_multiplexer.start_all()
-            elif self._output_sink:
-                # Fallback to direct output sink
+            # Start output sink
+            if self._output_sink:
                 try:
                     self._log("info", f"Starting output sink: {self._output_sink.name}")
                     self._output_sink.start()
@@ -516,13 +484,7 @@ class Pipeline:
 
             # Determine data source
             data_source = None
-            input_module = self._get_input_module()
-            
-            if input_module:
-                # Use input module wrapper
-                data_source = lambda: input_module._do_process(PipelineData(b""))
-            elif self._input_source:
-                # Fallback to direct input source
+            if self._input_source:
                 data_source = self._input_source.get_next_chunk
             else:
                 self._log("warning", "No input source configured!")
@@ -567,14 +529,8 @@ class Pipeline:
                         module._error_message = str(e)
                         continue
 
-                # Write to output sink(s)
-                output_modules = self._get_output_modules()
-                
-                if output_modules:
-                    # Use multiplexer to write to all outputs
-                    self._output_multiplexer.write(data)
-                elif self._output_sink and data:
-                    # Fallback to direct output sink (compatibility)
+                # Write to output sink
+                if self._output_sink and data:
                     try:
                         self._output_sink.write(data)
                     except Exception as e:
@@ -591,9 +547,8 @@ class Pipeline:
         """Get full pipeline status including all components."""
         modules_status = [m.get_status().to_dict() for m in self._modules]
 
-        # Add output sink as a module (for frontend compatibility) if no output modules
-        output_modules = self._get_output_modules()
-        if not output_modules and self._output_sink:
+        # Add output sink as a module (for frontend compatibility)
+        if self._output_sink:
             output_module_status = self._get_output_module_status()
             if output_module_status:
                 modules_status.append(output_module_status)
@@ -608,32 +563,14 @@ class Pipeline:
             "system": self._get_system_metrics(),
         }
 
-        # Get input info from input module or input source
-        input_module = self._get_input_module()
-        if input_module:
-            status["input"] = {
-                "type": input_module._input_source.name,
-                "receiving": input_module.is_receiving(),
-                "info": input_module.get_connection_info(),
-            }
-        elif self._input_source:
+        if self._input_source:
             status["input"] = {
                 "type": self._input_source.name,
                 "receiving": self._input_source.is_receiving(),
                 "info": self._input_source.get_connection_info(),
             }
 
-        # Get output info from output modules or output sink
-        if output_modules:
-            # Use first output module for status
-            first_output = output_modules[0]
-            status["output"] = {
-                "type": first_output._output_sink.name,
-                "info": first_output.get_stream_info(),
-            }
-            # Add multiplexer status
-            status["output_multiplexer"] = self._output_multiplexer.get_status()
-        elif self._output_sink:
+        if self._output_sink:
             status["output"] = {
                 "type": self._output_sink.name,
                 "info": self._output_sink.get_stream_info(),
