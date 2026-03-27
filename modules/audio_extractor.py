@@ -67,6 +67,7 @@ class AudioExtractor(BaseModule):
         """
         input_path = data.video_chunk_path
         if not input_path or not os.path.exists(input_path):
+            self.logger.warning(f"[AudioExtractor] Missing input video chunk: {input_path}")
             return data
 
         # Output WAV filename
@@ -87,6 +88,8 @@ class AudioExtractor(BaseModule):
             output_path,
         ]
 
+        self.logger.info(f"[AudioExtractor] Processing chunk {data.chunk_index}: {input_path} -> {output_path}")
+
         try:
             result = subprocess.run(
                 cmd,
@@ -100,10 +103,12 @@ class AudioExtractor(BaseModule):
             if result.returncode != 0:
                 logger.error(f"FFmpeg audio extraction error: {result.stderr[-500:]}")
                 return data
-                
+
             if os.path.exists(output_path):
                 data.audio_chunk_path = output_path
-                self.logger.debug(f"Extracted audio for chunk {data.chunk_index}")
+                self.logger.debug(f"Extracted audio for chunk {data.chunk_index}: {output_path}")
+            else:
+                logger.error(f"FFmpeg audio extraction did not produce output file: {output_path}")
 
         except subprocess.TimeoutExpired:
             logger.error("FFmpeg audio extraction timed out")

@@ -96,6 +96,7 @@ class SRTInput(InputSource):
         # Crear directorio de chunks
         self._chunks_dir = os.path.join(self._output_dir or "./output", "chunks")
         os.makedirs(self._chunks_dir, exist_ok=True)
+        self.logger.info(f"SRT input chunks directory: {self._chunks_dir}")
 
         # Limpiar chunks antiguos
         for f in glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")):
@@ -146,6 +147,7 @@ class SRTInput(InputSource):
         ]
 
         self.logger.info(f"Starting SRT input: {' '.join(cmd)}")
+        self.logger.info(f"SRT input chunks will be written to: {self._chunks_dir}")
 
         # Iniciar proceso FFmpeg
         self._ffmpeg_proc = subprocess.Popen(

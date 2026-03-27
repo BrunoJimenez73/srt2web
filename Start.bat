@@ -6,12 +6,6 @@ color 0a
 set "SCRIPT_DIR=%~dp0"
 cd /d "%SCRIPT_DIR%"
 
-echo.
-echo ===============================================
-echo            INICIANDO SRT2Web
-echo ===============================================
-echo.
-
 if not exist "venv\Scripts\python.exe" (
     echo [ERROR] Entorno virtual no encontrado.
     echo Ejecuta Install.bat primero.
@@ -28,6 +22,7 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
+echo.
 echo [OK] Verificando FFmpeg...
 if exist "bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" (
     echo [OK] FFmpeg encontrado.
@@ -36,15 +31,10 @@ if exist "bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" (
 )
 
 echo.
-echo [OK] Iniciando servidor minimizado...
-echo [INFO] Dashboard: http://localhost:9999
-echo [INFO] Para detener: Stop.bat
+echo [OK] Iniciando servidor (ventana visible para logs)...
 echo.
+%PYTHON% -X utf8 main.py
 
-REM Start PowerShell minimized to run server
-powershell -WindowStyle Hidden -Command "Start-Process -FilePath '%PYTHON%' -ArgumentList '-X utf8', 'main.py' -WorkingDirectory '%SCRIPT_DIR%' -WindowStyle Minimized"
-
-timeout /t 2 >nul 2>&1
-
-echo [OK] Servidor iniciado.
-exit
+echo.
+echo [INFO] Servidor detenido.
+pause

@@ -18,10 +18,28 @@ VOICES_TO_DOWNLOAD = [
         "en_US-ryan-low",
         "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/low/en_US-ryan-low.onnx",
     ),
-    # Spanish (Female already has carlfm, adding mls_10246)
+    # Spanish (Spain)
     (
         "es_ES-mls_10246-low",
         "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/mls_10246/low/es_ES-mls_10246-low.onnx",
+    ),
+    (
+        "es_ES-davefx-medium",
+        "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/davefx/medium/es_ES-davefx-medium.onnx",
+    ),
+    (
+        "es_ES-sharvard-medium",
+        "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/sharvard/medium/es_ES-sharvard-medium.onnx",
+    ),
+    # Spanish (Mexico)
+    (
+        "es_MX-claude-high",
+        "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_MX/claude/high/es_MX-claude-high.onnx",
+    ),
+    # Spanish (Argentina)
+    (
+        "es_AR-daniela-high",
+        "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_AR/daniela/high/es_AR-daniela-high.onnx",
     ),
     # French
     (
@@ -101,17 +119,17 @@ def download_file(url, dest_path, voice_name):
                             end="",
                         )
 
-        print(f"\n  ✓ Downloaded: {dest_path}")
+        print(f"\n  [OK] Downloaded: {dest_path}")
         return True
 
     except urllib.error.HTTPError as e:
-        print(f"  ✗ HTTP Error {e.code}: {e.reason} for {url}")
+        print(f"  [ERROR] HTTP Error {e.code}: {e.reason} for {url}")
         return False
     except urllib.error.URLError as e:
-        print(f"  ✗ URL Error: {e.reason} for {url}")
+        print(f"  [ERROR] URL Error: {e.reason} for {url}")
         return False
     except Exception as e:
-        print(f"  ✗ Error: {e}")
+        print(f"  [ERROR] Error: {e}")
         return False
 
 
@@ -126,7 +144,7 @@ def download_model(voice_name, base_url):
     # Check if already exists
     if os.path.exists(onnx_path) and os.path.exists(json_path):
         size = os.path.getsize(onnx_path) // (1024 * 1024)
-        print(f"  ✓ Already exists: {voice_name} ({size}MB)")
+        print(f"  [OK] Already exists: {voice_name} ({size}MB)")
         return True
 
     print(f"\nDownloading {voice_name}...")
@@ -146,7 +164,7 @@ def download_model(voice_name, base_url):
             if not download_file(
                 json_url_alt, json_dest, f"{voice_name} (config - alt)"
             ):
-                print(f"  ⚠ Warning: Could not download config file for {voice_name}")
+                print(f"  [WARNING] Could not download config file for {voice_name}")
                 # Don't fail completely if config is missing
                 return True
 

@@ -25,3 +25,15 @@ export const PLAYER_CONFIG = {
     genericErrorRetry: 3,
   },
 };
+
+// Encoder display labels for GPU badge
+export const ENCODER_LABELS: Record<string, string> = {
+  'auto': 'Auto',
+  'cpu': 'CPU',
+  'gpu': 'GPU',
+  'gpu_nvenc': 'NVENC',
+  'gpu_amf': 'AMF',
+  'gpu_qsv': 'QSV',
+  'gpu_vaapi': 'VAAPI',
+  'gpu_videotoolbox': 'VideoToolbox',
+};

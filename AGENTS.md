@@ -394,7 +394,7 @@ python -m pytest tests/unit/ -v
 
 ```bash
 # Ejecutar servidor
-Arrancar_Servidor.bat
+Start.bat
 
 # Reconstruir frontend
 cd frontend && npm run build:local
