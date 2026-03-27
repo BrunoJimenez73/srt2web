@@ -173,7 +173,11 @@ class TestHLSPlayerErrorHandling:
             content = f.read()
 
         assert "errorCount" in content
-        assert "errorCount < 3" in content or "errorCount < 5" in content
+        # Check for either literal thresholds or config-based thresholds
+        has_literal_threshold = "errorCount < 3" in content or "errorCount < 5" in content
+        has_config_threshold = "PLAYER_CONFIG.ERROR_THRESHOLDS" in content
+        assert has_literal_threshold or has_config_threshold, \
+            "Player should track error count with either literal thresholds or PLAYER_CONFIG.ERROR_THRESHOLDS"
 
 
 class TestStopConfirmation:
