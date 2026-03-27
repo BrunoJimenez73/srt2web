@@ -8,7 +8,7 @@ server:
   rate_limit_rpm: 60
   max_request_size_mb: 10
 input:
-  type: rtmp
+  type: srt
   srt:
     listen_port: 9000
     mode: listener
