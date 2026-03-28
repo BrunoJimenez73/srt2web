@@ -41,18 +41,12 @@ class HLSOutput(OutputSink):
         circuit_breaker = None,
         retry_strategy = None,
     ):
-        super().__init__("web", config, circuit_breaker, retry_strategy)
-
-        # Configuración HLS
+        # Initialize default values first to avoid AttributeError in configure()
         self._segment_duration = 15
         self._list_size = 6
         self._audio_offset_ms = 0
-
-        # Configuración de subtítulos
         self._subtitle_language = "es"
         self._subtitle_language_name = "Spanish"
-
-        # Estado interno
         self._ffmpeg_path: Optional[str] = None
         self._hls_dir: str = ""
         self._segment_index: int = 0
@@ -60,6 +54,8 @@ class HLSOutput(OutputSink):
         self._gpu_info = {"nvenc": False, "qsv": False, "amf": False}
         self._total_duration_emitted: float = 0.0
         self._segment_durations: dict = {}
+        
+        super().__init__("web", config, circuit_breaker, retry_strategy)
 
         if config:
             self.configure(config)
@@ -95,12 +91,16 @@ class HLSOutput(OutputSink):
             "streaming": self.is_streaming(),
         }
 
-    def is_streaming(self) -> bool:
+    def _check_is_streaming(self) -> bool:
         """Check if HLS output is actively writing segments."""
         if not self._hls_dir or not os.path.isdir(self._hls_dir):
             return False
         segments = glob.glob(os.path.join(self._hls_dir, "seg_*.ts"))
         return len(segments) > 0
+
+    def is_streaming(self) -> bool:
+        """Check if the HLS output is streaming."""
+        return super().is_streaming()
 
     def start(self) -> None:
         """Iniciar salida HLS."""

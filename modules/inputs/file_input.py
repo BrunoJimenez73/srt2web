@@ -39,13 +39,13 @@ class FileInput(InputSource):
         circuit_breaker = None,
         retry_strategy = None,
     ):
-        super().__init__("file", config, circuit_breaker, retry_strategy)
-
-        # Configuración
+        # Initialize default values first
         self._file_path = ""
         self._loop = False
         self._speed = 1.0
         self._chunk_duration = 15
+        
+        super().__init__("file", config, circuit_breaker, retry_strategy)
 
         if config:
             self._file_path = config.get("path", self._file_path)
@@ -262,13 +262,17 @@ class FileInput(InputSource):
             video_chunk_path=chunk_path,
         )
 
-    def is_receiving(self) -> bool:
-        """Verificar si está procesando."""
+    def _check_is_receiving(self) -> bool:
+        """Check if file is still being processed."""
         if self._file_finished and not self._loop:
             return False
         if self._ffmpeg_proc is None:
             return False
         return self._ffmpeg_proc.poll() is None
+
+    def is_receiving(self) -> bool:
+        """Check if the file input is receiving data."""
+        return super().is_receiving()
 
     def _monitor_ffmpeg(self) -> None:
         """Monitorear stderr de FFmpeg."""

@@ -55,25 +55,7 @@ class Pipeline:
         self._on_log: Optional[Callable[[str, str], None]] = None
         self._on_state_change: Optional[Callable[[str], None]] = None
 
-    @property
-    def input_source(self) -> Optional[InputSource]:
-        """Get the input source."""
-        return self._input_source
 
-    @input_source.setter
-    def input_source(self, source: InputSource) -> None:
-        """Set the input source."""
-        self._input_source = source
-
-    @property
-    def output_sink(self) -> Optional[OutputSink]:
-        """Get the output sink."""
-        return self._output_sink
-
-    @output_sink.setter
-    def output_sink(self, sink: OutputSink) -> None:
-        """Set the output sink."""
-        self._output_sink = sink
 
     @property
     def state(self) -> PipelineState:
@@ -265,30 +247,10 @@ class Pipeline:
 
     def check_config_changes(self, config_manager) -> None:
         """
-        Check if input/output type changed in config and recreate if needed.
-        
-        This should be called periodically or when config is reloaded.
+        No longer needed as input/output are now regular modules.
+        Configuration changes are handled through the standard reconfigure method.
         """
-        # Check input type
-        input_config = config_manager.get_section("input")
-        new_input_type = input_config.get("type", "srt")
-        
-        if self._input_source and self._input_source.name != new_input_type:
-            type_config = input_config.get(new_input_type, {})
-            type_config["chunk_duration_sec"] = config_manager.get(
-                "pipeline.chunk_duration_sec", 15
-            )
-            self._log("info", f"Input type changed to {new_input_type}, recreating...")
-            self.recreate_input(new_input_type, type_config)
-        
-        # Check output type
-        output_config = config_manager.get_section("output")
-        new_output_type = output_config.get("type", "web")
-        
-        if self._output_sink and self._output_sink.name != new_output_type:
-            type_config = output_config.get(new_output_type, {})
-            self._log("info", f"Output type changed to {new_output_type}, recreating...")
-            self.recreate_output(new_output_type, type_config)
+        pass
 
     def _log(self, level: str, message: str) -> None:
         """Log a message and notify callback."""
@@ -414,89 +376,17 @@ class Pipeline:
         """Get full pipeline status including all components."""
         modules_status = [m.get_status().to_dict() for m in self._modules]
 
-        # Add output sink as a module (for frontend compatibility)
-        if self._output_sink:
-            output_module_status = self._get_output_module_status()
-            if output_module_status:
-                modules_status.append(output_module_status)
-
         status = {
             "state": self._state.value,
             "error": self._error_message,
             "chunks_processed": self._chunk_index,
-            "input": None,
-            "output": None,
             "modules": modules_status,
             "system": self._get_system_metrics(),
         }
 
-        if self._input_source:
-            status["input"] = {
-                "type": self._input_source.name,
-                "receiving": self._input_source.is_receiving(),
-                "info": self._input_source.get_connection_info(),
-            }
-
-        if self._output_sink:
-            status["output"] = {
-                "type": self._output_sink.name,
-                "info": self._output_sink.get_stream_info(),
-            }
-
         return status
 
-    def _get_output_module_status(self) -> dict:
-        """Get output sink status in module format for frontend."""
-        from core.module_base import ModuleState
 
-        # Determine state based on pipeline state
-        if self._state == PipelineState.RUNNING:
-            state = "running"
-        elif self._state == PipelineState.ERROR:
-            state = "error"
-        else:
-            state = "idle"
-
-        # Get encoder info from output sink
-        extra = {}
-        if hasattr(self._output_sink, "_encoder_config"):
-            encoder_config = self._output_sink._encoder_config
-            encoder_mode = encoder_config.encoder_mode
-
-            # Auto-detect encoder mode
-            if encoder_mode == "auto" and hasattr(self._output_sink, "_gpu_info"):
-                gpu_info = self._output_sink._gpu_info
-                if gpu_info.get("nvenc"):
-                    encoder_mode = "gpu_nvenc"
-                elif gpu_info.get("amf"):
-                    encoder_mode = "gpu_amf"
-                elif gpu_info.get("qsv"):
-                    encoder_mode = "gpu_qsv"
-                else:
-                    encoder_mode = "cpu"
-
-            extra["encoder_mode"] = encoder_mode
-            extra["using_gpu"] = encoder_mode.startswith("gpu_")
-            extra["gpu_available"] = getattr(self._output_sink, "_gpu_info", {})
-            extra["gpu_preset"] = (
-                encoder_config.gpu_preset
-                if hasattr(encoder_config, "gpu_preset")
-                else "p3"
-            )
-
-        return {
-            "name": "video_muxer",
-            "state": state,
-            "enabled": True,
-            "error_message": self._error_message
-            if self._state == PipelineState.ERROR
-            else None,
-            "processed_chunks": self._chunk_index,
-            "last_process_time_ms": 0.0,
-            "extra": extra,
-            "circuit_state": "closed",
-            "memory_mb": None,
-        }
 
     def _get_system_metrics(self) -> dict:
         """Get system metrics like CPU, memory, and GPU usage."""

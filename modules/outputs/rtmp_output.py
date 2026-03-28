@@ -215,13 +215,17 @@ class RTMPOutput(OutputSink):
         except Exception as e:
             logger.error(f"Error writing to RTMP: {e}")
 
-    def is_streaming(self) -> bool:
+    def _check_is_streaming(self) -> bool:
         """Check if RTMP streaming is active."""
         return (
             self._streaming
             and self._ffmpeg_proc is not None
             and self._ffmpeg_proc.poll() is None
         )
+
+    def is_streaming(self) -> bool:
+        """Check if the RTMP output is streaming."""
+        return super().is_streaming()
 
     def get_stream_info(self) -> dict:
         """Get RTMP stream information."""

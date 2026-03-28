@@ -41,13 +41,14 @@ class SRTInput(InputSource):
         circuit_breaker = None,
         retry_strategy = None,
     ):
-        super().__init__("srt", config, circuit_breaker, retry_strategy)
-
-        # Configuración SRT
+        # Initialize default values first
         self._srt_port = 9000
         self._srt_mode = "listener"
         self._srt_latency_ms = 1000
         self._srt_caller_address = ""
+        self._chunk_duration = 15
+        
+        super().__init__("srt", config, circuit_breaker, retry_strategy)
 
         if config:
             self._srt_port = config.get("listen_port", self._srt_port)
@@ -56,7 +57,7 @@ class SRTInput(InputSource):
             self._srt_caller_address = config.get(
                 "caller_address", self._srt_caller_address
             )
-        self._chunk_duration = config.get("chunk_duration_sec", self._chunk_duration)
+            self._chunk_duration = config.get("chunk_duration_sec", self._chunk_duration)
 
     def get_connection_info(self) -> dict:
         """Obtener información de conexión para el usuario."""
@@ -248,11 +249,15 @@ class SRTInput(InputSource):
             video_chunk_path=chunk_path,
         )
 
-    def is_receiving(self) -> bool:
-        """Verificar si el proceso FFmpeg está corriendo."""
+    def _check_is_receiving(self) -> bool:
+        """Check if the FFmpeg process is running."""
         if self._ffmpeg_proc is None:
             return False
         return self._ffmpeg_proc.poll() is None
+
+    def is_receiving(self) -> bool:
+        """Check if the SRT input is receiving data."""
+        return super().is_receiving()
 
     def _monitor_ffmpeg(self) -> None:
         """Monitorear stderr de FFmpeg para logs."""

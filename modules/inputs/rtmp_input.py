@@ -281,11 +281,15 @@ class RTMPInput(InputSource):
             video_chunk_path=chunk_path,
         )
 
-    def is_receiving(self) -> bool:
+    def _check_is_receiving(self) -> bool:
         """Check if RTMP stream is being received."""
         if self._ffmpeg_proc is None:
             return False
         return self._ffmpeg_proc.poll() is None and self._receiving
+
+    def is_receiving(self) -> bool:
+        """Check if the RTMP input is receiving data."""
+        return super().is_receiving()
 
     def get_connection_info(self) -> dict:
         """Get connection information."""
