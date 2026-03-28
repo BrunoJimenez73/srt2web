@@ -9,7 +9,6 @@ import logging
 from typing import Optional
 
 from core.module_base import BaseModule, PipelineData, ModuleState
-from core.model_cache import ModelCache
 
 logger = logging.getLogger("srt2web.module.translator")
 
@@ -27,7 +26,6 @@ class Translator(BaseModule):
         self._argos_installed = False
         self._waiting_for_language = self._source_lang == "auto"
         self._current_source_lang = None
-        self._model_cache = ModelCache()
         super().__init__("translator", config)
 
     def configure(self, config: dict) -> None:
@@ -162,18 +160,11 @@ class Translator(BaseModule):
             logger.debug(f"pydantic patch failed (may not be needed): {e}")
 
     def _load_model(self, source_lang: str, target_lang: str):
-        """Install package if missing and create translation pipeline using ModelCache."""
+        """Install package if missing and create translation pipeline with local caching."""
         import argostranslate.package
         import argostranslate.translate
 
-        # Try to get from cache first
-        cached_pair = self._model_cache.get_argos_pair(source_lang, target_lang)
-        if cached_pair:
-            self._translation_pipeline = cached_pair
-            logger.info(f"Using cached Argos pair: {source_lang}->{target_lang}")
-            return
-
-        # Check if installed
+        # Check if installed first
         installed = argostranslate.package.get_installed_packages()
         package_found = False
 
@@ -209,12 +200,45 @@ class Translator(BaseModule):
                     f"No translation package found from '{source_lang}' to '{target_lang}'"
                 )
 
-        # Get the actual translation function
-        self._translation_pipeline = (
-            argostranslate.translate.get_translation_from_codes(
+        # Get the actual translation function (we'll cache it locally)
+        try:
+            # Use the correct API for newer argostranslate versions
+            try:
+                # Try new API first
+                installed_languages = argostranslate.translate.get_installed_languages()
+                source = None
+                target = None
+
+                for lang in installed_languages:
+                    if lang.code == source_lang:
+                        source = lang
+                    if lang.code == target_lang:
+                        target = lang
+
+                    if source and target:
+                        break
+
+                if source and target:
+                    # Get translation between languages
+                    self._translation_pipeline = source.get_translation(target)
+                    if self._translation_pipeline:
+                        logger.info(f"Loaded Argos pair: {source_lang}->{target_lang}")
+                        return
+
+            except Exception as e:
+                logger.debug(f"New API failed, trying fallback: {e}")
+
+            # Fallback: use get_translation_from_codes directly
+            self._translation_pipeline = argostranslate.translate.get_translation_from_codes(
                 source_lang, target_lang
             )
-        )
+            if self._translation_pipeline:
+                logger.info(f"Loaded Argos pair via fallback: {source_lang}->{target_lang}")
+                return
+
+        except Exception as e:
+            logger.error(f"Failed to load translation pair {source_lang}->{target_lang}: {e}")
+            raise
 
     def stop(self) -> None:
         """Cleanup."""

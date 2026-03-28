@@ -10,7 +10,6 @@ import asyncio
 from typing import Optional
 
 from core.module_base import BaseModule, PipelineData, ModuleState, ModuleStatus
-from core.model_cache import ModelCache
 
 logger = logging.getLogger("srt2web.module.transcriber")
 
@@ -28,7 +27,6 @@ class Transcriber(BaseModule):
         self._model = None
         self._device = "cpu"
         self._compute_type = "int8"
-        self._model_cache = ModelCache()
         super().__init__("transcriber", config)
 
     def configure(self, config: dict) -> None:
@@ -41,11 +39,12 @@ class Transcriber(BaseModule):
         self._device_config = config.get("device", self._device_config)
 
     def start(self) -> None:
-        """Initialize and load the Whisper model using ModelCache."""
+        """Initialize and load the Whisper model directly."""
         self._state = ModuleState.STARTING
         
         try:
             import torch
+            from faster_whisper import WhisperModel
             
             # Determine device and compute type
             if self._device_config == "auto":
@@ -58,7 +57,7 @@ class Transcriber(BaseModule):
             else:
                 self._device = self._device_config
                 self._compute_type = "float16" if self._device == "cuda" else "int8"
-
+            
             logger.info(
                 f"Loading Whisper '{self._model_size}' model "
                 f"on {self._device.upper()} ({self._compute_type})..."
@@ -67,21 +66,25 @@ class Transcriber(BaseModule):
             # Avoid downloading logs spam
             os.environ["CT2_VERBOSE"] = "-1"
             
-            # Use ModelCache for shared model instances
-            self._model = self._model_cache.get_whisper_model(
-                model_size=self._model_size,
+            # Create model instance directly
+            self._model = WhisperModel(
+                self._model_size,
                 device=self._device,
-                compute_type=self._compute_type
+                compute_type=self._compute_type,
+                cpu_threads=4,
             )
             
             self._state = ModuleState.RUNNING
-            logger.info(f"Whisper model '{self._model_size}' loaded successfully on {self._device.upper()} (cached)")
+            logger.info(f"Whisper model '{self._model_size}' loaded successfully on {self._device.upper()}")
             
-        except ImportError:
-            self._state = ModuleState.ERROR
-            self._error_message = "faster-whisper package not installed"
-            logger.error(self._error_message)
-            self.enabled = False
+        except ImportError as e:
+            if "faster_whisper" in str(e):
+                self._state = ModuleState.ERROR
+                self._error_message = "faster-whisper package not installed"
+                logger.error(self._error_message)
+                self.enabled = False
+            else:
+                raise  # Re-raise if it's a different ImportError
         except Exception as e:
             self._state = ModuleState.ERROR
             self._error_message = f"Failed to load Whisper model: {e}"

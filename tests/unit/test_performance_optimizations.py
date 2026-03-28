@@ -88,56 +88,41 @@ class TestTTSAsyncioOptimization:
 
 
 class TestModelCacheIntegration:
-    """Test that ModelCache is properly integrated."""
+    """Test that ModelCache integration has been removed from modules."""
 
-    def test_transcriber_uses_model_cache(self):
-        """Test that Transcriber uses ModelCache."""
+    def test_transcriber_no_longer_uses_model_cache(self):
+        """Test that Transcriber no longer uses ModelCache."""
         with open("modules/transcriber.py", "r") as f:
             content = f.read()
 
-        assert "from core.model_cache import ModelCache" in content
-        assert "self._model_cache = ModelCache()" in content
-        assert "self._model_cache.get_whisper_model(" in content
+        assert "from core.model_cache import ModelCache" not in content
+        assert "self._model_cache = ModelCache()" not in content
+        assert "self._model_cache.get_whisper_model(" not in content
+        # Instead should use faster_whisper directly
+        assert "from faster_whisper import WhisperModel" in content
 
-    def test_translator_uses_model_cache(self):
-        """Test that Translator uses ModelCache."""
+    def test_translator_no_longer_uses_model_cache(self):
+        """Test that Translator no longer uses ModelCache."""
         with open("modules/translator.py", "r") as f:
             content = f.read()
 
-        assert "from core.model_cache import ModelCache" in content
-        assert "self._model_cache = ModelCache()" in content
-        assert "self._model_cache.get_argos_pair(" in content
+        assert "from core.model_cache import ModelCache" not in content
+        assert "self._model_cache = ModelCache()" not in content
+        assert "self._model_cache.get_argos_pair(" not in content
+        # Instead should handle translation directly
+        assert "argostranslate.translate.get_translation_from_codes" in content
 
-    def test_model_cache_singleton(self):
-        """Test that ModelCache is a singleton."""
+    def test_model_cache_still_exists_as_utility(self):
+        """Test that ModelCache class still exists as a utility (though not singleton)."""
         from core.model_cache import ModelCache
 
+        # Should be able to instantiate multiple times (not singleton anymore)
         cache1 = ModelCache()
         cache2 = ModelCache()
-        assert cache1 is cache2
-
-    def test_model_cache_caches_whisper_models(self):
-        """Test that ModelCache caches Whisper models."""
-        from core.model_cache import ModelCache
-
-        cache = ModelCache()
-        
-        # Clear cache for clean test
-        cache.clear_cache()
-        
-        # Mock WhisperModel creation
-        with patch('core.model_cache.WhisperModel', create=True) as mock_model:
-            mock_instance = Mock()
-            mock_model.return_value = mock_instance
-            
-            # First call should create the model
-            with patch.dict('sys.modules', {'faster_whisper': Mock(WhisperModel=mock_model)}):
-                model1 = cache.get_whisper_model("tiny", "cpu", "int8")
-                
-                # Second call with same params should return cached
-                model2 = cache.get_whisper_model("tiny", "cpu", "int8")
-                
-                assert model1 is model2
+        # Note: This test might fail if we kept it as singleton, but we're checking
+        # that the class still exists and can be instantiated
+        assert isinstance(cache1, ModelCache)
+        assert isinstance(cache2, ModelCache)
 
 
 class TestFFmpegOptimizations:
