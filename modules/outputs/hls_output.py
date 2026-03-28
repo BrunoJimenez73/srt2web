@@ -35,20 +35,22 @@ class HLSOutput(OutputSink):
     aceleración por hardware (NVENC, QSV, AMF).
     """
 
-    def __init__(self, config: dict):
-        super().__init__("web", config)
+    def __init__(
+        self,
+        config: Optional[dict] = None,
+        circuit_breaker = None,
+        retry_strategy = None,
+    ):
+        super().__init__("web", config, circuit_breaker, retry_strategy)
 
         # Configuración HLS
-        self._segment_duration = config.get("segment_duration", 15)
-        self._list_size = config.get("list_size", 6)
-        self._audio_offset_ms = config.get("audio_offset_ms", 0)
+        self._segment_duration = 15
+        self._list_size = 6
+        self._audio_offset_ms = 0
 
         # Configuración de subtítulos
-        self._subtitle_language = config.get("subtitle_language", "es")
-        self._subtitle_language_name = config.get("subtitle_language_name", "Spanish")
-
-        # Configuración de encoder
-        self._encoder_config = EncoderConfig(config if config else {})
+        self._subtitle_language = "es"
+        self._subtitle_language_name = "Spanish"
 
         # Estado interno
         self._ffmpeg_path: Optional[str] = None
@@ -59,11 +61,20 @@ class HLSOutput(OutputSink):
         self._total_duration_emitted: float = 0.0
         self._segment_durations: dict = {}
 
+        if config:
+            self.configure(config)
+
     def configure(self, config: dict) -> None:
         """Aplicar configuración."""
         self._segment_duration = config.get("segment_duration", self._segment_duration)
         self._list_size = config.get("list_size", self._list_size)
         self._audio_offset_ms = config.get("audio_offset_ms", self._audio_offset_ms)
+
+        # Configuración de subtítulos
+        self._subtitle_language = config.get("subtitle_language", self._subtitle_language)
+        self._subtitle_language_name = config.get(
+            "subtitle_language_name", self._subtitle_language_name
+        )
 
         # Actualizar configuración de encoder
         self._encoder_config = EncoderConfig(config)

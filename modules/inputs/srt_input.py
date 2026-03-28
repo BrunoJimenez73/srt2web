@@ -35,34 +35,27 @@ class SRTInput(InputSource):
     y escribir segmentos de duración fija.
     """
 
-    def __init__(self, config: dict):
-        super().__init__("srt", config)
+    def __init__(
+        self,
+        config: Optional[dict] = None,
+        circuit_breaker = None,
+        retry_strategy = None,
+    ):
+        super().__init__("srt", config, circuit_breaker, retry_strategy)
 
         # Configuración SRT
-        self._srt_port = config.get("listen_port", 9000)
-        self._srt_mode = config.get("mode", "listener")
-        self._srt_latency_ms = config.get("latency_ms", 1000)
-        self._srt_caller_address = config.get("caller_address", "")
+        self._srt_port = 9000
+        self._srt_mode = "listener"
+        self._srt_latency_ms = 1000
+        self._srt_caller_address = ""
 
-        # Configuración de chunks
-        self._chunk_duration = config.get("chunk_duration_sec", 15)
-
-        # Estado interno
-        self._ffmpeg_path: Optional[str] = None
-        self._ffmpeg_proc: Optional[subprocess.Popen] = None
-        self._monitor_thread: Optional[threading.Thread] = None
-        self._chunks_dir: str = ""
-        self._last_chunk_index: int = -1
-        self._cumulative_duration: float = 0.0  # Track cumulative duration for sync
-
-    def configure(self, config: dict) -> None:
-        """Aplicar configuración."""
-        self._srt_port = config.get("listen_port", self._srt_port)
-        self._srt_mode = config.get("mode", self._srt_mode)
-        self._srt_latency_ms = config.get("latency_ms", self._srt_latency_ms)
-        self._srt_caller_address = config.get(
-            "caller_address", self._srt_caller_address
-        )
+        if config:
+            self._srt_port = config.get("listen_port", self._srt_port)
+            self._srt_mode = config.get("mode", self._srt_mode)
+            self._srt_latency_ms = config.get("latency_ms", self._srt_latency_ms)
+            self._srt_caller_address = config.get(
+                "caller_address", self._srt_caller_address
+            )
         self._chunk_duration = config.get("chunk_duration_sec", self._chunk_duration)
 
     def get_connection_info(self) -> dict:

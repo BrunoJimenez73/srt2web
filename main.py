@@ -183,39 +183,39 @@ def setup_logging():
 
 def build_pipeline(config: ConfigManager, output_dir: str):
     """
-    Build the processing pipeline with modular input/output.
+    Build the processing pipeline with all components as modules.
 
-    Returns (pipeline, input_source).
+    Returns pipeline only.
     """
     # Auto-discover available inputs and outputs
     auto_discover()
 
-    # Get input configuration
+    # Create pipeline
+    pipeline = Pipeline()
+
+    # Create and register input source as first module
     input_config = config.get_section("input")
     input_type = input_config.get("type", "srt")
     type_config = input_config.get(input_type, {})
     type_config["chunk_duration_sec"] = config.get("pipeline.chunk_duration_sec", 15)
 
-    # Create input source
     logger = logging.getLogger("srt2web.main")
     logger.info(f"Creating input source: {input_type}")
     input_source = InputFactory.create(input_type, type_config)
     input_source.set_output_dir(output_dir)
+    pipeline.register_module(input_source)
 
-    # Get output configuration
+    # Create and register output sink as last module
     output_config = config.get_section("output")
     output_type = output_config.get("type", "web")
     type_config = output_config.get(output_type, {})
 
-    # Create output sink
     logger.info(f"Creating output sink: {output_type}")
     output_sink = OutputFactory.create(output_type, type_config)
     output_sink.set_output_dir(output_dir)
+    pipeline.register_module(output_sink)
 
-    # Create pipeline with input/output
-    pipeline = Pipeline(input_source, output_sink)
-
-    # Register processing modules (Execution Order Matters!)
+    # Register processing modules in execution order
 
     # 1. Extract audio from the video chunk
     audio_extractor_config = config.get_module_config("audio_extractor")
@@ -249,9 +249,7 @@ def build_pipeline(config: ConfigManager, output_dir: str):
     audio_mixer = AudioMixer(config=mixer_config, output_dir=output_dir)
     pipeline.register_module(audio_mixer, mixer_config)
 
-    # Note: Output (HLS muxing) is handled by OutputSink, not a pipeline module
-
-    return pipeline, input_source
+    return pipeline
 
 
 def validate_configuration(config):
@@ -410,7 +408,7 @@ def main():
         logger.warning("FFmpeg not found. Will attempt download on first use.")
 
     # Build pipeline
-    pipeline, input_source = build_pipeline(config, output_dir)
+    pipeline = build_pipeline(config, output_dir)
     pipeline.set_output_dir(output_dir)
 
     # Create shared context
@@ -418,7 +416,6 @@ def main():
     app_context = {
         "config": config,
         "pipeline": pipeline,
-        "input_source": input_source,
         "log_broadcast": log_broadcaster.broadcast,
     }
     _app_context = app_context

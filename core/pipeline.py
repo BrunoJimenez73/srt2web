@@ -12,9 +12,6 @@ from enum import Enum
 from typing import List, Optional, Callable, Dict
 
 from core.module_base import BaseModule, PipelineData, ModuleState
-from core.input_source import InputSource
-from core.output_sink import OutputSink
-from modules.io_wrappers import InputModuleWrapper, OutputModuleWrapper
 
 logger = logging.getLogger("srt2web.pipeline")
 
@@ -40,20 +37,10 @@ class Pipeline:
     The order of registered modules determines the processing flow.
     """
 
-    def __init__(
-        self,
-        input_source: Optional[InputSource] = None,
-        output_sink: Optional[OutputSink] = None,
-    ):
+    def __init__(self):
         """
-        Initialize pipeline with optional input/output.
-
-        Args:
-            input_source: Source of data (SRT, file, etc.)
-            output_sink: Destination for processed data (HLS, SRT, etc.)
+        Initialize pipeline orchestrator.
         """
-        self._input_source = input_source
-        self._output_sink = output_sink
         self._config_manager = None
         self._output_dir = ""
 
@@ -102,35 +89,17 @@ class Pipeline:
             self._module_configs[module.name] = config.copy()
         logger.info(f"Registered module: {module.name} (enabled={module.enabled})")
 
-    def register_input_module(
+    def register_module(
         self, module: BaseModule, config: Optional[dict] = None
     ) -> None:
         """
-        Register an input module.
-        
-        Input modules are registered at the beginning of the module list
-        so they produce data first in the pipeline.
-        """
-        self._modules.insert(0, module)
-        self._module_map[module.name] = module
-        if config:
-            self._module_configs[module.name] = config.copy()
-        logger.info(f"Registered input module: {module.name} (enabled={module.enabled})")
-
-    def register_output_module(
-        self, module: BaseModule, config: Optional[dict] = None
-    ) -> None:
-        """
-        Register an output module.
-        
-        Output modules are registered at the end of the module list
-        so they consume data last in the pipeline.
+        Register a module in the pipeline execution order.
         """
         self._modules.append(module)
         self._module_map[module.name] = module
         if config:
             self._module_configs[module.name] = config.copy()
-        logger.info(f"Registered output module: {module.name} (enabled={module.enabled})")
+        logger.info(f"Registered module: {module.name} (enabled={module.enabled})")
 
     def get_module(self, name: str) -> Optional[BaseModule]:
         """Get a module by name."""
@@ -141,55 +110,19 @@ class Pipeline:
         return list(self._modules)
 
     def get_all_components(self) -> dict:
-        """Get all pipeline components (input, output, modules)."""
-        components = {"input": None, "output": None, "modules": []}
-
-        if self._input_source:
-            components["input"] = {
-                "type": self._input_source.name,
-                "config": self._input_source.config,
-                "info": self._input_source.get_connection_info(),
-            }
-
-        if self._output_sink:
-            components["output"] = {
-                "type": self._output_sink.name,
-                "config": self._output_sink.config,
-                "info": self._output_sink.get_stream_info(),
-            }
+        """Get all pipeline components (modules only, as input/output are now modules)."""
+        components = {"modules": []}
 
         components["modules"] = [m.get_status().to_dict() for m in self._modules]
 
         return components
 
-    def reconfigure(self, config_manager) -> None:
-        """Update configuration for all components while running."""
+    def reconjecture(self, config_manager) -> None:
+        """Update configuration for all modules while running."""
         # Save config manager reference for future access
         self._config_manager = config_manager
 
-        # Reconfigure input
-        if self._input_source:
-            try:
-                input_config = config_manager.get_section("input")
-                input_type = input_config.get("type", "srt")
-                type_config = input_config.get(input_type, {})
-                self._input_source.configure(type_config)
-                self._log("info", f"Reconfigured input: {input_type}")
-            except Exception as e:
-                self._log("error", f"Failed to reconfigure input: {e}")
-
-        # Reconfigure output
-        if self._output_sink:
-            try:
-                output_config = config_manager.get_section("output")
-                output_type = output_config.get("type", "web")
-                type_config = output_config.get(output_type, {})
-                self._output_sink.configure(type_config)
-                self._log("info", f"Reconfigured output: {output_type}")
-            except Exception as e:
-                self._log("error", f"Failed to reconfigure output: {e}")
-
-        # Reconfigure modules
+        # Reconfigure all modules uniformly
         for module in self._modules:
             try:
                 mod_config = config_manager.get_module_config(module.name)
@@ -384,7 +317,7 @@ class Pipeline:
         """
         Start the pipeline in a background thread.
 
-        Uses the registered input_source and output_sink automatically.
+        All registered modules (including input/output) are started automatically.
         """
         if self._state == PipelineState.RUNNING:
             self._log("warning", "Pipeline is already running")
@@ -413,13 +346,6 @@ class Pipeline:
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=10)
 
-        # Stop output sink first
-        if self._output_sink:
-            try:
-                self._output_sink.stop()
-            except Exception as e:
-                self._log("error", f"Error stopping output sink: {e}")
-
         # Stop all modules
         for module in self._modules:
             try:
@@ -429,32 +355,12 @@ class Pipeline:
             except Exception as e:
                 self._log("error", f"Error stopping module {module.name}: {e}")
 
-        # Stop input source last
-        if self._input_source:
-            try:
-                self._input_source.stop()
-            except Exception as e:
-                self._log("error", f"Error stopping input source: {e}")
-
         self._set_state(PipelineState.IDLE)
 
     def _run_loop(self) -> None:
         """Main processing loop (runs in background thread)."""
         try:
             self._set_state(PipelineState.STARTING)
-
-            # Start input source
-            if self._input_source:
-                try:
-                    self._log(
-                        "info", f"Starting input source: {self._input_source.name}"
-                    )
-                    self._input_source.start()
-                except Exception as e:
-                    self._log("error", f"Failed to start input source: {e}")
-                    self._error_message = str(e)
-                    self._set_state(PipelineState.ERROR)
-                    return
 
             # Start all enabled modules
             for module in self._modules:
@@ -468,48 +374,16 @@ class Pipeline:
                         module._state = ModuleState.ERROR
                         module._error_message = str(e)
 
-            # Start output sink
-            if self._output_sink:
-                try:
-                    self._log("info", f"Starting output sink: {self._output_sink.name}")
-                    self._output_sink.start()
-                except Exception as e:
-                    self._log("error", f"Failed to start output sink: {e}")
-                    self._error_message = str(e)
-                    self._set_state(PipelineState.ERROR)
-                    return
-
             self._set_state(PipelineState.RUNNING)
             self._log("info", "Pipeline is running. Waiting for data...")
 
-            # Determine data source
-            data_source = None
-            if self._input_source:
-                data_source = self._input_source.get_next_chunk
-            else:
-                self._log("warning", "No input source configured!")
-
             # Main processing loop
             while not self._stop_event.is_set():
-                if data_source is None:
-                    time.sleep(0.5)
-                    continue
-
-                try:
-                    data = data_source()
-                except Exception as e:
-                    self._log("error", f"Data source error: {e}")
-                    time.sleep(1)
-                    continue
-
-                if data is None:
-                    time.sleep(0.1)
-                    continue
-
+                # Process through all enabled modules
+                data = PipelineData()
                 data.chunk_index = self._chunk_index
                 data.timestamp = time.time()
 
-                # Process through all enabled modules
                 for module in self._modules:
                     if self._stop_event.is_set():
                         break
@@ -528,13 +402,6 @@ class Pipeline:
                         module._state = ModuleState.ERROR
                         module._error_message = str(e)
                         continue
-
-                # Write to output sink
-                if self._output_sink and data:
-                    try:
-                        self._output_sink.write(data)
-                    except Exception as e:
-                        self._log("error", f"Output sink error: {e}")
 
                 self._chunk_index += 1
 

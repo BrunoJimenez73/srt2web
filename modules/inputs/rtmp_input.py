@@ -18,6 +18,7 @@ import threading
 from typing import Optional
 
 from core.input_source import InputSource
+from core.module_base import BaseModule
 from core.ffmpeg_utils import ensure_ffmpeg
 
 logger = logging.getLogger("srt2web.input.rtmp")
@@ -37,7 +38,13 @@ class RTMPInput(InputSource):
 
     name = "rtmp_input"
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(
+        self,
+        config: Optional[dict] = None,
+        circuit_breaker = None,
+        retry_strategy = None,
+    ):
+        super().__init__("rtmp_input", config, circuit_breaker, retry_strategy)
         self._ffmpeg_path: Optional[str] = None
         self._ffmpeg_proc: Optional[subprocess.Popen] = None
         self._monitor_thread: Optional[threading.Thread] = None
@@ -45,8 +52,6 @@ class RTMPInput(InputSource):
         self._chunks_dir: str = ""
         self._last_chunk_index = -1
         self._cumulative_duration: float = 0.0  # Track cumulative duration for sync
-
-        self._config: dict = config or {}
         self._url: str = ""
         self._mode: str = "pull"
         self._chunk_duration: int = 10

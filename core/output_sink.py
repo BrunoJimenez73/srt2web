@@ -1,86 +1,127 @@
 """
-Output Sink - Clase base abstracta para destinos de salida.
+Output Sink - Base class for output sinks that are also pipeline modules.
 
-Proporciona una interfaz común para diferentes tipos de destinos:
-- Web/HLS: Streaming via HLS para navegador
-- SRT: Protocolo SRT para re-transmisión
-- RTMP: Protocolo RTMP (YouTube, Twitch, etc.)
-- Audio: Solo salida de audio
+Provides a common interface for different types of output sinks that can
+be used as modules in the processing pipeline:
+- Web/HLS: Streaming via HLS for browser
+- SRT: SRT protocol for re-transmission
+- RTMP: RTMP protocol (YouTube, Twitch, etc.)
+- Audio: Audio-only output
 """
 
-from abc import ABC, abstractmethod
-from typing import Optional, Any
+from abc import abstractmethod
+from typing import Optional
 import logging
 
-from core.module_base import PipelineData
+from core.module_base import BaseModule, PipelineData
 
 
-class OutputSink(ABC):
+class OutputSink(BaseModule):
     """
-    Interfaz base para todos los destinos de salida.
+    Base class for all output sinks that are also pipeline modules.
 
     Attributes:
-        name: Identificador del tipo de output
-        config: Configuración específica del output
+        name: Identifier for the output type
+        config: Specific configuration for the output
     """
 
-    def __init__(self, name: str, config: dict):
-        self.name = name
-        self.config = config
+    def __init__(
+        self,
+        name: str,
+        config: Optional[dict] = None,
+        circuit_breaker = None,
+        retry_strategy = None,
+    ):
+        super().__init__(name, config, circuit_breaker, retry_strategy)
         self.logger = logging.getLogger(f"srt2web.output.{name}")
         self._output_dir: str = ""
+        self._is_writing = False
 
     @abstractmethod
     def start(self) -> None:
         """
-        Iniciar el destino de salida.
-        Debe inicializar recursos necesarios.
+        Start the output sink.
+        Must initialize necessary resources.
         """
         pass
 
     @abstractmethod
     def stop(self) -> None:
         """
-        Detener el destino de salida.
-        Debe liberar todos los recursos.
+        Stop the output sink.
+        Must release all resources.
         """
         pass
+
+    def _do_process(self, data: PipelineData) -> PipelineData:
+        """
+        Write data to the output sink.
+        
+        For output sinks, this method consumes data rather than producing it.
+        
+        Args:
+            data: PipelineData with the data to write
+            
+        Returns:
+            PipelineData (unchanged, pass-through)
+        """
+        if not self._is_writing or not data:
+            return data
+            
+        try:
+            self.write(data)
+        except Exception as e:
+            self.logger.error(f"Error writing to {self.name}: {e}")
+            
+        return data
 
     @abstractmethod
     def write(self, data: PipelineData) -> None:
         """
-        Escribir datos al destino.
+        Write data to the output destination.
 
         Args:
-            PipelineData con los datos a escribir.
+            PipelineData with the data to write.
         """
         pass
 
     def get_stream_info(self) -> dict:
         """
-        Obtener información del stream para el cliente.
+        Get stream information for the client.
 
         Returns:
-            Dict con URLs, puertos, etc.
+            Dict with URLs, ports, etc.
         """
         return {"type": self.name}
 
     def set_output_dir(self, output_dir: str) -> None:
-        """Establecer el directorio de salida."""
+        """Set the output directory."""
         self._output_dir = output_dir
 
     def is_streaming(self) -> bool:
         """
-        Verificar si el output está activamente streaming.
+        Check if the output is actively streaming.
 
         Returns:
-            True si está streaming, False en caso contrario.
+            True if streaming, False otherwise.
         """
-        return False
+        return self._is_writing and self._check_is_streaming()
+
+    @abstractmethod
+    def _check_is_streaming(self) -> bool:
+        """
+        Internal method to check if the output is actually streaming.
+        Must be implemented by subclasses.
+
+        Returns:
+            True if streaming, False otherwise.
+        """
+        pass
 
     def configure(self, config: dict) -> None:
         """
-        Aplicar configuración específica del output.
-        Override en subclases para manejar config específica.
+        Apply output-specific configuration.
+        Override in subclasses to handle specific configuration.
         """
+        super().configure(config)
         self.config = config

@@ -1,87 +1,129 @@
 """
-Input Source - Clase base abstracta para fuentes de entrada.
+Input Source - Base class for input sources that are also pipeline modules.
 
-Proporciona una interfaz común para diferentes tipos de fuentes de input:
-- SRT: Protocolo SRT para streams en tiempo real
-- File: Archivos de video locales
-- RTMP: Protocolo RTMP
-- Audio: Solo fuente de audio
+Provides a common interface for different types of input sources that can
+be used as modules in the processing pipeline:
+- SRT: SRT protocol for real-time streams
+- File: Local video files
+- RTMP: RTMP protocol
+- Audio: Audio-only source
 """
 
-from abc import ABC, abstractmethod
-from typing import Optional, Any
+from abc import abstractmethod
+from typing import Optional
 import logging
 
-from core.module_base import PipelineData
+from core.module_base import BaseModule, PipelineData
 
 
-class InputSource(ABC):
+class InputSource(BaseModule):
     """
-    Interfaz base para todas las fuentes de entrada.
+    Base class for all input sources that are also pipeline modules.
 
     Attributes:
-        name: Identificador del tipo de input
-        config: Configuración específica del input
+        name: Identifier for the input type
+        config: Specific configuration for the input
     """
 
-    def __init__(self, name: str, config: dict):
-        self.name = name
-        self.config = config
+    def __init__(
+        self,
+        name: str,
+        config: Optional[dict] = None,
+        circuit_breaker = None,
+        retry_strategy = None,
+    ):
+        super().__init__(name, config, circuit_breaker, retry_strategy)
         self.logger = logging.getLogger(f"srt2web.input.{name}")
         self._output_dir: str = ""
+        self._is_listening = False
 
     @abstractmethod
     def start(self) -> None:
         """
-        Iniciar la fuente de entrada.
-        Debe inicializar recursos (procesos FFmpeg, abrir archivos, etc.)
+        Start the input source.
+        Must initialize resources (FFmpeg processes, open files, etc.)
         """
         pass
 
     @abstractmethod
     def stop(self) -> None:
         """
-        Detener la fuente de entrada.
-        Debe liberar todos los recursos.
+        Stop the input source.
+        Must release all resources.
         """
         pass
+
+    def _do_process(self, data: PipelineData) -> PipelineData:
+        """
+        Get the next chunk of data from the input source.
+        
+        For input sources, this method produces data rather than processing it.
+        
+        Args:
+            data: PipelineData object (ignored for input sources)
+            
+        Returns:
+            PipelineData with the chunk data, or None if no data available
+        """
+        if not self._is_listening:
+            return data
+            
+        try:
+            chunk = self.get_next_chunk()
+            if chunk:
+                return chunk
+        except Exception as e:
+            self.logger.error(f"Error getting chunk from {self.name}: {e}")
+            
+        return data
 
     @abstractmethod
     def get_next_chunk(self) -> Optional[PipelineData]:
         """
-        Obtener el siguiente chunk de datos.
-
+        Obtain the next chunk of data from the input source.
+        
         Returns:
-            PipelineData con los datos del chunk, o None si no hay datos disponibles.
+            PipelineData with the chunk data, or None if no data available.
         """
         pass
 
-    @abstractmethod
     def is_receiving(self) -> bool:
         """
-        Verificar si la fuente está activa y recibiendo datos.
-
+        Check if the source is active and receiving data.
+        
         Returns:
-            True si está recibiendo datos, False en caso contrario.
+            True if receiving data, False otherwise.
+        """
+        return self._is_listening and self._check_is_receiving()
+
+    @abstractmethod
+    def _check_is_receiving(self) -> bool:
+        """
+        Internal method to check if the source is actually receiving data.
+        Must be implemented by subclasses.
+        
+        Returns:
+            True if receiving data, False otherwise.
         """
         pass
 
     def get_connection_info(self) -> dict:
         """
-        Obtener información de conexión para mostrar al usuario.
-
+        Get connection information for display to the user.
+        
         Returns:
-            Dict con información relevante (URL, puerto, etc.)
+            Dict with relevant information (URL, port, etc.)
         """
         return {"type": self.name}
 
     def set_output_dir(self, output_dir: str) -> None:
-        """Establecer el directorio de salida para archivos temporales."""
+        """Set the output directory for temporary files."""
         self._output_dir = output_dir
 
     def configure(self, config: dict) -> None:
         """
-        Aplicar configuración específica del input.
-        Override en subclases para manejar config específica.
+        Apply input-specific configuration.
+        Override in subclasses to handle specific configuration.
         """
+        super().configure(config)
         self.config = config

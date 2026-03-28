@@ -33,14 +33,25 @@ class FileInput(InputSource):
     Lee un archivo de video local y lo segmenta en chunks.
     """
 
-    def __init__(self, config: dict):
-        super().__init__("file", config)
+    def __init__(
+        self,
+        config: Optional[dict] = None,
+        circuit_breaker = None,
+        retry_strategy = None,
+    ):
+        super().__init__("file", config, circuit_breaker, retry_strategy)
 
         # Configuración
-        self._file_path = config.get("path", "")
-        self._loop = config.get("loop", False)
-        self._speed = config.get("speed", 1.0)
-        self._chunk_duration = config.get("chunk_duration_sec", 15)
+        self._file_path = ""
+        self._loop = False
+        self._speed = 1.0
+        self._chunk_duration = 15
+
+        if config:
+            self._file_path = config.get("path", self._file_path)
+            self._loop = config.get("loop", self._loop)
+            self._speed = config.get("speed", self._speed)
+            self._chunk_duration = config.get("chunk_duration_sec", self._chunk_duration)
 
         # Estado interno
         self._ffmpeg_path: Optional[str] = None
