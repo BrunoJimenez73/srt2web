@@ -160,6 +160,8 @@ class ConfigManager:
         """Persist current configuration to YAML file."""
         try:
             os.makedirs(os.path.dirname(self._config_path) or ".", exist_ok=True)
+            logger.info(f"[CONFIG] Saving to {self._config_path}")
+            logger.info(f"[CONFIG] Current output.web.segment_duration = {self._config.get('output', {}).get('web', {}).get('segment_duration')}")
             with open(self._config_path, "w", encoding="utf-8") as f:
                 yaml.dump(
                     self._config,
@@ -169,6 +171,9 @@ class ConfigManager:
                     sort_keys=False,
                 )
             logger.info(f"Configuration saved to {self._config_path}")
+            with open(self._config_path, "r", encoding="utf-8") as f:
+                saved_content = f.read()
+            logger.info(f"[CONFIG] Saved file content (first 200 chars): {saved_content[:200]}")
         except Exception as e:
             logger.error(f"Failed to save configuration: {e}")
             raise

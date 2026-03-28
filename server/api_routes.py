@@ -19,71 +19,33 @@ from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel, field_validator
 
 from core.security import sanitize_path, sanitize_module_name as _core_sanitize_module_name, PathTraversalError
+from core.constants import (
+    ALLOWED_WHISPER_MODELS,
+    ALLOWED_LANGUAGES,
+    ALLOWED_DEVICES,
+    ALLOWED_TTS_ENGINES,
+    ALLOWED_TTS_VOICES,
+    ALLOWED_SRT_MODES,
+    ALLOWED_GPU_PRESETS,
+    ALLOWED_FFMPEG_PRESETS,
+    VALID_INPUT_TYPES,
+    VALID_OUTPUT_TYPES,
+)
 
 logger = logging.getLogger("srt2web.api")
 
-# Whitelist of valid module names
-VALID_MODULE_NAMES = frozenset(
-    {
-        "audio_extractor",
-        "transcriber",
-        "translator",
-        "subtitle_generator",
-        "tts_engine",
-        "audio_mixer",
-    }
-)
+# Module names - imported from constants
+VALID_MODULE_NAMES = frozenset({
+    "audio_extractor",
+    "transcriber",
+    "translator",
+    "subtitle_generator",
+    "tts_engine",
+    "audio_mixer",
+})
 
-# Valid input/output types
-VALID_INPUT_TYPES = frozenset({"srt", "file", "rtmp", "audio"})
-VALID_OUTPUT_TYPES = frozenset({"web", "hls", "srt", "rtmp", "audio"})
-
-# Allowed values for specific config fields
-ALLOWED_WHISPER_MODELS = {"tiny", "small", "medium", "large-v2", "large-v3", "large"}
-ALLOWED_LANGUAGES = {"auto", "en", "es", "fr", "de", "it", "pt", "ja", "zh", "ko", "ru"}
-ALLOWED_DEVICES = {"auto", "cuda", "cpu"}
-ALLOWED_TTS_ENGINES = {"edge-tts", "piper"}
-ALLOWED_TTS_VOICES = {
-    # Edge-TTS voices
-    "es-ES-AlvaroNeural",
-    "es-ES-ElviraNeural",
-    "en-US-AriaNeural",
-    "en-US-GuyNeural",
-    "fr-FR-DeniseNeural",
-    "de-DE-ConradNeural",
-    # Piper voices - all available in models/piper/
-    "es_ES-carlfm-x_low",
-    "es_ES-davefx-medium",
-    "es_ES-sharvard-medium",
-    "es_ES-mls_10246-low",
-    "es_MX-claude-high",
-    "es_AR-daniela-high",
-    "en_US-lessac-medium",
-    "en_US-lessac-low",
-    "en_US-amy-low",
-    "en_US-ryan-low",
-    "fr_FR-gilles-low",
-    "fr_FR-siwis-medium",
-    "de_DE-eva_k-x_low",
-    "de_DE-thorsten-medium",
-    "it_IT-paola-medium",
-    "it_IT-riccardo-x_low",
-    "pt_BR-cadu-medium",
-    "pt_PT-tugao-medium",
-}
-ALLOWED_SRT_MODES = {"listener", "caller"}
-ALLOWED_VIDEO_PRESETS = {
-    "ultrafast",
-    "superfast",
-    "veryfast",
-    "faster",
-    "fast",
-    "medium",
-    "slow",
-    "slower",
-    "veryslow",
-}
-ALLOWED_GPU_PRESETS = {"p1", "p2", "p3", "p4", "p5", "p6", "p7"}
+# Video presets - imported from constants
+ALLOWED_VIDEO_PRESETS = ALLOWED_FFMPEG_PRESETS
 
 
 def sanitize_module_name(name: str) -> str:
@@ -605,6 +567,7 @@ def create_api_router() -> APIRouter:
         """Get current configuration (auth_token masked for security)."""
         ctx = _ctx(request)
         config_dict = ctx["config"].to_dict()
+        logger.info(f"GET /api/config: output.web.segment_duration = {config_dict.get('output', {}).get('web', {}).get('segment_duration')}")
         # Mask auth_token to prevent credential leakage
         if "server" in config_dict and "auth_token" in config_dict["server"]:
             token = config_dict["server"]["auth_token"]
@@ -627,8 +590,11 @@ def create_api_router() -> APIRouter:
             )
 
         try:
+            logger.info(f"PUT /api/config: updating with {body.config}")
             config.update_from_dict(body.config)
+            logger.info(f"PUT /api/config: config after update: output.web.segment_duration = {config.get('output.web.segment_duration')}")
             config.save()
+            logger.info(f"PUT /api/config: saved to {config._config_path}")
         except Exception as e:
             logger.error(f"Failed to save config: {e}")
             raise HTTPException(500, f"Failed to save configuration: {e}")

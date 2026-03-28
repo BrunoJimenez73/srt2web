@@ -214,10 +214,10 @@ class AudioMixer(BaseModule):
 
                 data.mixed_audio_path = mix_wav
 
-                # TEMPORARILY DISABLED: Cleanup to debug issue
-                # self._cleanup_temp_file(tts_audio)
-                # if data.dubbed_audio_path:
-                #     self._cleanup_temp_file(data.dubbed_audio_path)
+                # Clean up temporary TTS audio files
+                self._cleanup_temp_file(tts_audio)
+                if data.dubbed_audio_path:
+                    self._cleanup_temp_file(data.dubbed_audio_path)
                 
                 logger.info(f"[AudioMixer] Created mix file: {mix_wav}")
 

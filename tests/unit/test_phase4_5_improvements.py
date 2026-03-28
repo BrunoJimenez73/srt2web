@@ -173,7 +173,7 @@ class TestHLSPlayerErrorHandling:
             content = f.read()
 
         assert "errorCount" in content
-        assert "errorCount < 3" in content or "errorCount < 5" in content
+        assert "PLAYER_CONFIG.ERROR_THRESHOLDS" in content
 
 
 class TestStopConfirmation:

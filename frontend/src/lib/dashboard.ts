@@ -474,6 +474,13 @@ export function applyConfigToUI(cfg: Config): void {
   if (hlsList) hlsList.value = String(cfg.modules.video_muxer.hls_list_size);
   if (hlsEncoder) hlsEncoder.value = cfg.modules.video_muxer.encoder_mode;
   if (hlsCrf) hlsCrf.value = String(cfg.modules.video_muxer.video_crf);
+
+  const outputHlsDuration = document.getElementById('output-hls-duration') as HTMLInputElement;
+  if (outputHlsDuration) outputHlsDuration.value = String(cfg.output?.web?.segment_duration ?? 4);
+  const outputHlsList = document.getElementById('output-hls-list') as HTMLInputElement;
+  if (outputHlsList) outputHlsList.value = String(cfg.output?.web?.list_size ?? 6);
+  const outputEncoderMode = document.getElementById('output-encoder-mode') as HTMLSelectElement;
+  if (outputEncoderMode) outputEncoderMode.value = cfg.output?.web?.encoder_mode ?? 'auto';
 }
 
 export async function handleStart(): Promise<void> {

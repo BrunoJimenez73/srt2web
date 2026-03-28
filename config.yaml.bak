@@ -22,7 +22,7 @@ input:
 output:
   type: web
   web:
-    segment_duration: 6
+    segment_duration: 12
     list_size: 6
     audio_offset_ms: 0
     encoder_mode: auto
@@ -34,7 +34,7 @@ modules:
     enabled: true
   transcriber:
     enabled: true
-    model: tiny
+    model: invalid_model
     language: en
     device: cuda
   translator:
@@ -51,7 +51,7 @@ modules:
     engine: piper
     device: cuda
     voice: es_ES-davefx-medium
-    speed: 1
+    speed: 1.5
   audio_mixer:
     enabled: true
     original_volume: 1

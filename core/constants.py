@@ -60,6 +60,7 @@ ALLOWED_WHISPER_MODELS = frozenset([
 # TTS engines
 ALLOWED_TTS_ENGINES = frozenset([
     "edge",
+    "edge-tts",
     "piper",
 ])
 
@@ -106,13 +107,48 @@ ALLOWED_FFMPEG_PRESETS = frozenset([
 
 # Languages
 ALLOWED_LANGUAGES = frozenset([
-    "auto", "en", "es", "fr", "de", "it", "pt", "ru", "ja", "ko", "zh", "ar"
+    "auto", "en", "es", "fr", "de", "it", "pt", "ru", "ja", "ko", "zh", "ar", "nl", "hi", "tr", "pl", "cs", "sv", "da", "fi", "nb", "hu"
 ])
 
 # Devices
-ALLOWED_DEVICES = frozenset([
-    "auto", "cpu", "cuda"
+ALLOWED_DEVICES = frozenset(["auto", "cpu", "cuda"])
+
+# SRT modes
+ALLOWED_SRT_MODES = frozenset(["listener", "caller"])
+
+# TTS voices
+ALLOWED_TTS_VOICES = frozenset([
+    # Edge-TTS voices
+    "es-ES-AlvaroNeural",
+    "es-ES-ElviraNeural",
+    "en-US-AriaNeural",
+    "en-US-GuyNeural",
+    "fr-FR-DeniseNeural",
+    "de-DE-ConradNeural",
+    # Piper voices
+    "es_ES-carlfm-x_low",
+    "es_ES-davefx-medium",
+    "es_ES-sharvard-medium",
+    "es_ES-mls_10246-low",
+    "es_MX-claude-high",
+    "es_AR-daniela-high",
+    "en_US-lessac-medium",
+    "en_US-lessac-low",
+    "en_US-amy-low",
+    "en_US-ryan-low",
+    "fr_FR-gilles-low",
+    "fr_FR-siwis-medium",
+    "de_DE-eva_k-x_low",
+    "de_DE-thorsten-medium",
+    "it_IT-paola-medium",
+    "it_IT-riccardo-x_low",
+    "pt_BR-cadu-medium",
+    "pt_PT-tugao-medium",
 ])
+
+# Valid input/output types
+VALID_INPUT_TYPES = frozenset(["srt", "file", "rtmp", "audio"])
+VALID_OUTPUT_TYPES = frozenset(["web", "hls", "srt", "rtmp", "audio"])
 
 # Subtitle formats
 ALLOWED_SUBTITLE_FORMATS = frozenset([

@@ -36,15 +36,10 @@ if exist "bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" (
 )
 
 echo.
-echo [OK] Iniciando servidor minimizado...
-echo [INFO] Dashboard: http://localhost:9998
+echo [OK] Iniciando servidor...
+echo [INFO] Dashboard: http://localhost:9999
 echo [INFO] Para detener: Stop.bat
 echo.
 
-REM Start PowerShell minimized to run server
-powershell -WindowStyle Hidden -Command "Start-Process -FilePath '%PYTHON%' -ArgumentList '-X utf8', 'main.py' -WorkingDirectory '%SCRIPT_DIR%' -WindowStyle Minimized"
-
-timeout /t 2 >nul 2>&1
-
-echo [OK] Servidor iniciado.
-exit
+REM Start server in new window showing logs
+start "SRT2Web Server" cmd /k "cd /d "%SCRIPT_DIR%" && %PYTHON% -X utf8 main.py"

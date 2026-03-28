@@ -145,8 +145,9 @@ class TestSubtitleGeneratorTiming:
         assert gen._last_cumulative == 8.0
 
     def test_segments_timing_relative_to_chunk(self, temp_dir):
-        """Test that segment timestamps use cumulative_duration from data."""
+        """Test that segment timestamps use fixed chunk_index * duration for sync."""
         gen = SubtitleGenerator(output_dir=temp_dir)
+        gen._chunk_duration = 10  # Set fixed duration for test
         gen.start()
 
         # Process chunk 0
@@ -177,7 +178,7 @@ class TestSubtitleGeneratorTiming:
         with open(gen._vtt_path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        # cumulative_duration=20.0, segment at 0.5 → absolute 20.5
+        # chunk_index=2, chunk_duration=10, segment at 0.5 → absolute 20.5
         assert "00:00:20.500" in content
         # segment at 3.0 → absolute 23.0
         assert "00:00:23.000" in content
