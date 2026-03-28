@@ -111,7 +111,6 @@ def setup_logging():
         # Audio issues
         "Audio padding failed",  # Non-critical audio issues
         "Audio truncation failed",  # Non-critical audio issues
-        "Failed to process TTS audio",  # TTS audio issues
         # Connection issues (non-critical)
         "connection lost",  # Connection lost warnings
         "attempting reconnect",  # Reconnect attempts

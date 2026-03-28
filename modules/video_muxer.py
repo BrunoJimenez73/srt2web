@@ -127,7 +127,12 @@ class VideoMuxer(BaseModule):
 
         # Check if we have processed audio to mux in
         audio_input = data.mixed_audio_path or data.dubbed_audio_path
-        # No subtitles_path used here yet, but kept for future use if needed
+
+        # Check for subtitles to burn into video
+        subtitle_input = None
+        if data.subtitles_path and os.path.exists(data.subtitles_path):
+            subtitle_input = data.subtitles_path
+            logger.debug(f"[VideoMuxer] Burning subtitles from: {subtitle_input}")
 
         # CRITICAL: Use data.cumulative_duration for accurate sync
         # This is set by InputSource and validated throughout the pipeline
@@ -218,15 +223,25 @@ class VideoMuxer(BaseModule):
 
         # Build FFmpeg command
         cmd = [self._ffmpeg_path, "-y", "-i", input_path]
+
         if audio_input and os.path.exists(audio_input):
             audio_delay_sec = self._audio_offset_ms / 1000.0
             cmd.extend(["-itsoffset", str(audio_delay_sec), "-i", audio_input])
 
-        # If we had subtitles to burn in (Phase 2), we would add them here.
-        # But for stability, we are currently muxing them or burning them in elsewhere.
-        # Minimal implementation for stabilization.
+        # Add subtitles filter if we have subtitles
+        # The subtitles filter reads the VTT file directly (no need to add as input)
+        # Use charenc for VTT files (UTF-8) and force_style for appearance
+        video_filter = None
+        if subtitle_input:
+            video_filter = f"subtitles=filename={subtitle_input},charenc=utf-8,force_style='FontSize=24,MarginV=10,Outline=1'"
+
         cmd.extend(["-c:v", encoder, "-preset", preset])
         cmd.extend(extra_args)
+
+        # Apply video filter for subtitles if we have them
+        if video_filter:
+            cmd.extend(["-vf", video_filter])
+
         cmd.extend(common_args)
 
         try:
