@@ -149,10 +149,12 @@ echo [5/5] Voces Piper...
 
 if not exist "models\piper" mkdir models\piper
 
-if exist "models\piper\*.onnx" (
-    echo  [OK] Voces encontradas.
+echo  [INFO] Verificando voces Piper...
+%PYTHON% scripts/download_piper_voices.py
+if %errorlevel% equ 0 (
+    echo  [OK] Voces verificadas/descargadas.
 ) else (
-    echo  [INFO] Sin voces. Se descargaran al usar Piper.
+    echo  [WARNING] Error en la descarga de voces. Se descargaran al usar Piper.
 )
 
 echo.

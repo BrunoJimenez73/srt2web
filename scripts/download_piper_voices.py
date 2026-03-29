@@ -18,10 +18,30 @@ VOICES_TO_DOWNLOAD = [
         "en_US-ryan-low",
         "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/low/en_US-ryan-low.onnx",
     ),
-    # Spanish (Female already has carlfm, adding mls_10246)
+    # Spanish (Female already has carlfm, adding mls_10246 and sharvard)
     (
         "es_ES-mls_10246-low",
         "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/mls_10246/low/es_ES-mls_10246-low.onnx",
+    ),
+    (
+        "es_ES-sharvard-medium",
+        "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/sharvard/medium/es_ES-sharvard-medium.onnx",
+    ),
+    (
+        "es_ES-davefx-medium",
+        "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/davefx/medium/es_ES-davefx-medium.onnx",
+    ),
+    (
+        "es_MX-claude-high",
+        "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_MX/claude/high/es_MX-claude-high.onnx",
+    ),
+    (
+        "es_MX-ald-medium",
+        "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_MX/ald/medium/es_MX-ald-medium.onnx",
+    ),
+    (
+        "es_AR-daniela-high",
+        "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_AR/daniela/high/es_AR-daniela-high.onnx",
     ),
     # French
     (
@@ -57,7 +77,7 @@ VOICES_TO_DOWNLOAD = [
     ),
     (
         "pt_PT-tugao-medium",
-        "https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_PT/tug%C3%A3o/medium/pt_PT-tuga%C3%A3o-medium.onnx",
+        "https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_PT/tug%C3%A3o/medium/pt_PT-tug%C3%A3o-medium.onnx",
     ),
 ]
 
@@ -65,7 +85,9 @@ VOICES_TO_DOWNLOAD = [
 def get_models_dir():
     """Get the models directory path."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(script_dir, "models", "piper")
+    # Go up one level to project root
+    project_root = os.path.dirname(script_dir)
+    return os.path.join(project_root, "models", "piper")
 
 
 def download_file(url, dest_path, voice_name):
@@ -101,7 +123,7 @@ def download_file(url, dest_path, voice_name):
                             end="",
                         )
 
-        print(f"\n  ✓ Downloaded: {dest_path}")
+        print(f"\n  [OK] Downloaded: {dest_path}")
         return True
 
     except urllib.error.HTTPError as e:
@@ -123,32 +145,38 @@ def download_model(voice_name, base_url):
     onnx_path = os.path.join(models_dir, f"{voice_name}.onnx")
     json_path = os.path.join(models_dir, f"{voice_name}.onnx.json")
 
-    # Check if already exists
+    # Check if both files already exist
     if os.path.exists(onnx_path) and os.path.exists(json_path):
         size = os.path.getsize(onnx_path) // (1024 * 1024)
-        print(f"  ✓ Already exists: {voice_name} ({size}MB)")
+        print(f"  [OK] Already exists: {voice_name} ({size}MB)")
         return True
 
     print(f"\nDownloading {voice_name}...")
 
-    # Download .onnx file
-    onnx_url = base_url
-    if not download_file(onnx_url, onnx_path, voice_name):
-        return False
+    # Download .onnx file if missing
+    if not os.path.exists(onnx_path):
+        onnx_url = base_url
+        if not download_file(onnx_url, onnx_path, voice_name):
+            return False
+    else:
+        print(f"  [OK] ONNX already exists, skipping download")
 
-    # Download .onnx.json file
-    json_url = base_url + ".json"
-    json_dest = os.path.join(models_dir, f"{voice_name}.onnx.json")
-    if not download_file(json_url, json_dest, f"{voice_name} (config)"):
-        # If JSON fails, try alternate URL format
-        json_url_alt = base_url.replace(".onnx", ".onnx.json")
-        if json_url_alt != json_url:
-            if not download_file(
-                json_url_alt, json_dest, f"{voice_name} (config - alt)"
-            ):
-                print(f"  ⚠ Warning: Could not download config file for {voice_name}")
-                # Don't fail completely if config is missing
-                return True
+    # Download .onnx.json file if missing
+    if not os.path.exists(json_path):
+        json_url = base_url + ".json"
+        json_dest = json_path
+        if not download_file(json_url, json_dest, f"{voice_name} (config)"):
+            # If JSON fails, try alternate URL format
+            json_url_alt = base_url.replace(".onnx", ".onnx.json")
+            if json_url_alt != json_url:
+                if not download_file(
+                    json_url_alt, json_dest, f"{voice_name} (config - alt)"
+                ):
+                    print(f"  [!] Warning: Could not download config file for {voice_name}")
+                    # Don't fail completely if config is missing
+                    return True
+    else:
+        print(f"  [OK] Config already exists, skipping download")
 
     return True
 
