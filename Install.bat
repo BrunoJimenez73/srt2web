@@ -101,6 +101,49 @@ if %errorlevel% equ 0 (
     %PYTHON% -m pip install nvidia-cudnn-cu12 --quiet
 )
 
+REM Ensure torch uses CUDA
+%PYTHON% -c "import torch; print('CPU' if torch.version.cuda is None else 'CUDA')" > temp_torch_cuda.txt 2>nul
+set /p TORCH_CUDA=<temp_torch_cuda.txt
+del temp_torch_cuda.txt 2>nul
+
+if "%TORCH_CUDA%"=="CPU" (
+    echo  [INFO] Torch CPU detected. Installing CUDA version...
+    %PYTHON% -m pip uninstall torch -y --quiet
+    %PYTHON% -m pip install torch --index-url https://download.pytorch.org/whl/cu121 --quiet
+    echo  [OK] Torch CUDA installed.
+) else if "%TORCH_CUDA%"=="CUDA" (
+    echo  [OK] Torch CUDA already installed.
+) else (
+    echo  [INFO] Torch not installed. Installing CUDA version...
+    %PYTHON% -m pip install torch --index-url https://download.pytorch.org/whl/cu121 --quiet
+    echo  [OK] Torch CUDA installed.
+)
+
+REM Ensure onnxruntime-gpu is used (remove regular onnxruntime)
+%PYTHON% -c "import onnxruntime; print('gpu' if 'CUDAExecutionProvider' in onnxruntime.get_available_providers() else 'cpu')" > temp_ort_type.txt 2>nul
+set /p ORT_TYPE=<temp_ort_type.txt
+del temp_ort_type.txt 2>nul
+
+if "%ORT_TYPE%"=="cpu" (
+    echo  [INFO] onnxruntime CPU detected. Removing and ensuring GPU version...
+    %PYTHON% -m pip uninstall onnxruntime -y --quiet
+    %PYTHON% -m pip install onnxruntime-gpu --force-reinstall --quiet
+    echo  [OK] onnxruntime-gpu installed.
+) else (
+    echo  [OK] onnxruntime GPU already available.
+)
+
+REM Remove regular onnxruntime if present (even if GPU is working)
+%PYTHON% -c "import pkgutil; import sys; sys.exit(0 if pkgutil.find_loader('onnxruntime') is None else 1)" 2>nul
+if %errorlevel% equ 0 (
+    echo  [OK] onnxruntime regular no instalado.
+) else (
+    echo  [INFO] Eliminando onnxruntime regular...
+    %PYTHON% -m pip uninstall onnxruntime -y --quiet
+    echo  [OK] onnxruntime regular eliminado.
+)
+
+
 REM =============================================
 REM 3. Verificar/Descargar FFmpeg
 REM =============================================
