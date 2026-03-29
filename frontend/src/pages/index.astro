@@ -441,7 +441,9 @@ import Toast from '../components/Toast.astro';
     const urlStream = document.getElementById('url-stream');
     const urlPlayer = document.getElementById('url-player');
 
-    if (urlSrt) urlSrt.textContent = getSRTUrl(useIp, srtPort, srtMode);
+    // OBS always connects as caller to a listener server, so invert the mode for the displayed URL
+    const obsMode = srtMode === 'listener' ? 'caller' : 'listener';
+    if (urlSrt) urlSrt.textContent = getSRTUrl(useIp, srtPort, obsMode);
     if (urlStream) urlStream.textContent = getStreamUrl(useIp, port);
     if (urlPlayer) urlPlayer.href = getPlayerUrl(useIp, port);
     if (urlPlayer) urlPlayer.textContent = getPlayerUrl(useIp, port);

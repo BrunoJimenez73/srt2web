@@ -7,6 +7,15 @@ and opens the browser to the dashboard.
 
 import os
 import sys
+
+# Add CUDA/cuDNN paths for Windows - BEFORE any other imports
+import site
+site_packages = site.getsitepackages()[0] if site.getsitepackages() else None
+if site_packages:
+    cuda_bin = os.path.join(site_packages, "nvidia", "cudnn", "bin")
+    if os.path.exists(cuda_bin):
+        os.environ["PATH"] = cuda_bin + os.pathsep + os.environ.get("PATH", "")
+
 import asyncio
 import atexit
 import logging

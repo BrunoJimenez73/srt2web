@@ -121,12 +121,22 @@ def load_piper_model_subprocess(
         logger.info(f"[PIPER_DEBUG] Starting subprocess loader for {voice_name}")
         logger.info(f"[PIPER_DEBUG] Timeout: {timeout}s, Device: {device}")
         
+        # Add CUDA/cuDNN paths to subprocess environment
+        import site
+        env = os.environ.copy()
+        site_packages = site.getsitepackages()[0] if site.getsitepackages() else None
+        if site_packages:
+            cuda_bin = os.path.join(site_packages, "nvidia", "cudnn", "bin")
+            if os.path.exists(cuda_bin):
+                env["PATH"] = cuda_bin + os.pathsep + env.get("PATH", "")
+        
         # Run the subprocess
         result = subprocess.run(
             [sys.executable, script_path, voice_name, model_path, config_path, device],
             capture_output=True,
             text=True,
-            timeout=timeout
+            timeout=timeout,
+            env=env
         )
         
         elapsed = time.time() - start_time

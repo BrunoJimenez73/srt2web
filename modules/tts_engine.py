@@ -145,11 +145,20 @@ class TTSEngine(BaseModule):
         use_cuda = result.get("using_cuda", False)
         
         try:
+            logger.info(f"[PIPER_DEBUG] About to load PiperVoice in main process with use_cuda={use_cuda}")
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 voice = PiperVoice.load(model_path, config_path, use_cuda=use_cuda)
+            logger.info(f"[PIPER_DEBUG] PiperVoice.load() completed successfully")
             self._piper_voice = voice
             self._using_cuda = use_cuda
+        except Exception as cuda_error:
+            logger.warning(f"[PIPER_DEBUG] Failed to load with CUDA ({cuda_error}), falling back to CPU")
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                voice = PiperVoice.load(model_path, config_path, use_cuda=False)
+            self._piper_voice = voice
+            self._using_cuda = False
             logger.info(f"[PIPER_DEBUG] Voice loaded in main process (GPU: {use_cuda}, "
                        f"sample_rate: {result.get('sample_rate', 'unknown')})")
         except Exception as e:
