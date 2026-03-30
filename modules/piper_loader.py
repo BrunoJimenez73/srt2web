@@ -125,31 +125,22 @@ def load_piper_model_subprocess(
         import site
         env = os.environ.copy()
         
-        # Add all possible CUDA/cuDNN paths
+        # ONLY use project's local CUDA bin directory (CUDA 12.4 + cuDNN 8.x)
+        # Do NOT use system CUDA 13.2 to avoid conflicts
         cuda_paths = []
-        for sp in site.getsitepackages():
-            # cuDNN from nvidia package
-            cudnn_bin = os.path.join(sp, "nvidia", "cudnn", "bin")
-            if os.path.exists(cudnn_bin):
-                cuda_paths.append(cudnn_bin)
         
-        # Add Windows System32 (has CUDA runtime DLLs)
-        cuda_paths.append(os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "System32"))
+        project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        project_cuda_bin = os.path.join(project_dir, "bin", "cuda")
+        if os.path.exists(project_cuda_bin):
+            cuda_paths.append(project_cuda_bin)
+            logger.info(f"[PIPER_DEBUG] Using ONLY project CUDA: {project_cuda_bin}")
         
-        # Add CUDA Toolkit paths (v12.x is needed for onnxruntime-gpu 1.18.0)
-        cuda_toolkit_paths = [
-            "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.1\\bin",
-            "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.2\\bin", 
-            "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.2\\bin",
-        ]
-        for path in cuda_toolkit_paths:
-            if os.path.exists(path):
-                cuda_paths.append(path)
+        # Do NOT add System32 or CUDA Toolkit paths to avoid loading CUDA 13.2 DLLs
         
         # Add CUDA paths to front of PATH
         if cuda_paths:
             env["PATH"] = os.pathsep.join(cuda_paths) + os.pathsep + env.get("PATH", "")
-            logger.info(f"[PIPER_DEBUG] Added CUDA paths: {cuda_paths}")
+            logger.info(f"[PIPER_DEBUG] CUDA paths set to: {cuda_paths}")
         
         # Run the subprocess
         result = subprocess.run(
