@@ -125,17 +125,19 @@ def load_piper_model_subprocess(
         import site
         env = os.environ.copy()
         
-        # ONLY use project's local CUDA bin directory (CUDA 12.4 + cuDNN 8.x)
-        # Do NOT use system CUDA 13.2 to avoid conflicts
+        # NOTE: CUDA/cuDNN paths are already set by main.py
+        # (includes venv's nvidia/cudnn/bin with cuDNN 8.9.4 from pip)
+        # No need to add additional paths here - that was causing conflicts
         cuda_paths = []
         
-        project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        project_cuda_bin = os.path.join(project_dir, "bin", "cuda")
-        if os.path.exists(project_cuda_bin):
-            cuda_paths.append(project_cuda_bin)
-            logger.info(f"[PIPER_DEBUG] Using ONLY project CUDA: {project_cuda_bin}")
-        
-        # Do NOT add System32 or CUDA Toolkit paths to avoid loading CUDA 13.2 DLLs
+        # Add venv nvidia paths (ensure cuDNN 8 is used)
+        for sp in site.getsitepackages():
+            cudnn_bin = os.path.join(sp, "nvidia", "cudnn", "bin")
+            if os.path.exists(cudnn_bin):
+                cuda_paths.append(cudnn_bin)
+            cublas_bin = os.path.join(sp, "nvidia", "cublas_cu11", "bin")
+            if os.path.exists(cublas_bin):
+                cuda_paths.append(cublas_bin)
         
         # Add CUDA paths to front of PATH
         if cuda_paths:
