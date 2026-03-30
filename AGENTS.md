@@ -1,9 +1,76 @@
 # SRT2Web - Estado del Proyecto
 
 ## Información General
-- **Fecha sesión**: 2026-03-23
-- **Versión**: 0.6.0
+- **Fecha sesión**: 2026-03-30
+- **Versión**: 0.6.1
 - **Repositorio**: https://github.com/BrunoJimenez73/srt2web
+
+---
+
+## Sesión 30/03/2026 - Fix Pipeline Data Flow & Logging
+
+**Problema**: El pipeline procesaba chunks pero no generaba:
+- Archivos de audio (temp_audio vacío)
+- Archivos TTS (temp_tts vacío)
+- Segmentos HLS (.ts files)
+- Video muxer recibía datos pero no generaba output
+
+**Causa raíz**:
+- SRT Input creaba PipelineData con sintaxis incorrecta (dicts en vez de dataclass)
+- Audio extractor no encontraba `video_chunk_path` porque SRT Input usaba `video_path`
+- Pipeline procesaba pero output se perdía silenciosamente
+
+**Solución implementada**:
+
+| Archivo | Cambio |
+|---------|--------|
+| `modules/inputs/srt_input.py` | Corregido PipelineData creation: usa dataclass syntax en vez de dicts |
+| `main.py` | Agregado RotatingFileHandler para persistir logs en `logs/srt2web.log` |
+| `Start.bat` | Modificado para ejecutar servidor en consola visible (no ventana oculta) |
+| `Run.bat` | **Nuevo** - Script simplificado para ejecutar servidor |
+| `RunConsole.bat` | **Nuevo** - Script alternativo para consola |
+
+**Pipeline Data Fix** (antes/después):
+```python
+# ANTES (incorrecto - pasaba dicts):
+return PipelineData(
+    {"video_path": chunk_path, "audio_path": None},
+    {"source": "srt", "chunk_index": idx},
+)
+
+# DESPUÉS (correcto - dataclass syntax):
+return PipelineData(
+    video_chunk_path=chunk_path,
+    audio_chunk_path=None,
+    chunk_index=idx,
+    duration=actual_duration,
+    cumulative_duration=chunk_cumulative,
+    metadata={"source": "srt"}
+)
+```
+
+**Logging Persistente**:
+- Logs se guardan en `logs/srt2web.log`
+- RotatingFileHandler: 10MB max, 3 backups
+- Formato: timestamp + level + module + message
+- Captura TODO (DEBUG level) para diagnóstico de crashes
+
+**Test Results**:
+- ✅ FFmpeg HLS test: 3/4 passed (TS generation works)
+- ✅ Pipeline data flow: SRT → Audio Extractor → Whisper → Translator → Subtitle Generator
+- ⚠️ TTS Engine: Crashea con cuDNN error al cargar voz Piper en CUDA
+- ❌ Video Muxer: No genera .ts segments (bloqueado por TTS crash)
+
+**Crash Log** (TTS Engine):
+```
+Could not load symbol cudnnGetLibConfig. Error error 127
+```
+
+**Estado actual**:
+- Pipeline procesa chunks correctamente (audio, transcripción, traducción)
+- TTS crashea por cuDNN incompatibilidad
+- Video muxer no puede generar HLS sin TTS funcionando
+- Logs se guardan en disco para diagnóstico
 
 ---
 
@@ -199,6 +266,9 @@ python -m pytest tests/unit/test_security_middleware.py tests/unit/test_performa
 
 | Hash | Descripción |
 |------|-------------|
+| `18f57a8` | fix: Fix pipeline data flow and add logging persistence |
+| `89c9538` | Fix GPU detection and pipeline processing issues |
+| `e2d7472` | Build: Update static frontend files |
 | `4ff1b03` | fix: Fix argostranslate API compatibility |
 | `91985dd` | build: Update static frontend files |
 | `85f96d9` | feat: Change default TTS voice to es_ES-sharvard-medium |
