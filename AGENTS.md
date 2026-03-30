@@ -7,7 +7,7 @@
 
 ---
 
-## Sesión 30/03/2026 - Fix Pipeline Data Flow & Logging
+## Sesión 30/03/2026 - Fix Pipeline Data Flow & Logging & cuDNN Issue
 
 **Problema**: El pipeline procesaba chunks pero no generaba:
 - Archivos de audio (temp_audio vacío)
@@ -29,6 +29,7 @@
 | `Start.bat` | Modificado para ejecutar servidor en consola visible (no ventana oculta) |
 | `Run.bat` | **Nuevo** - Script simplificado para ejecutar servidor |
 | `RunConsole.bat` | **Nuevo** - Script alternativo para consola |
+| `frontend/src/pages/index.astro` | Actualizado versión a 0.6.1 |
 
 **Pipeline Data Fix** (antes/después):
 ```python
@@ -71,6 +72,12 @@ Could not load symbol cudnnGetLibConfig. Error error 127
 - TTS crashea por cuDNN incompatibilidad
 - Video muxer no puede generar HLS sin TTS funcionando
 - Logs se guardan en disco para diagnóstico
+
+**Próximos pasos**:
+- [ ] Investigar cuDNN compatibility para Piper TTS
+- [ ] Probar con `device: cpu` en configuración TTS
+- [ ] Verificar que todos los módulos generan output correcto
+- [ ] Probar pipeline completo con TTS deshabilitado
 
 ---
 
