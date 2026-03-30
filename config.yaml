@@ -44,7 +44,7 @@ modules:
   tts_engine:
     enabled: true
     engine: piper
-    device: cuda
+    device: cpu
     voice: es_ES-davefx-medium
     speed: 1
   audio_mixer:
