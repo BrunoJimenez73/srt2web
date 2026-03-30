@@ -153,15 +153,6 @@ class VideoMuxer(BaseModule):
             import traceback
             self._log("error", f"[VideoMuxer.write] Traceback: {traceback.format_exc()}")
             return data
-            else:
-                logger.info(f"[VideoMuxer] FFmpeg stdout: {result.stdout[-200:] if result.stdout else 'None'}")
-
-        except subprocess.TimeoutExpired:
-            logger.error("FFmpeg mux timed out")
-            return data
-        except Exception as e:
-            logger.error(f"FFmpeg mux exception: {e}")
-            return data
 
         # Update cumulative duration for next segment (for logging/validation)
         expected_next_cumulative = data.cumulative_duration + chunk_duration

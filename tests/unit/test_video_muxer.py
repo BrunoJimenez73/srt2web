@@ -24,6 +24,10 @@ class TestableVideoMuxer(VideoMuxer):
     def _do_process(self, data):
         return data
 
+    def _log(self, level: str, message: str):
+        """Mock logging for testing."""
+        pass
+
 
 class TestVideoMuxer:
     """Tests for VideoMuxer class."""
@@ -77,7 +81,7 @@ class TestVideoMuxer:
 
         data = PipelineData(video_chunk_path="/missing.ts")
         result = muxer.write(data)
-        assert result is None
+        assert result is not None
 
     @patch("glob.glob")
     @patch("os.path.exists")

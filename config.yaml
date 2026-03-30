@@ -30,7 +30,7 @@ modules:
     enabled: true
   transcriber:
     enabled: true
-    model: tiny
+    model: invalid_model
     language: en
     device: auto
   translator:
