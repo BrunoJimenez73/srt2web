@@ -29,9 +29,9 @@ for path in cuda_toolkit_paths:
     if os.path.exists(path):
         cuda_paths.append(path)
 
-# Add local bin/cuda folder (for portable CUDA DLLs)
+# Add local bin/cuda folder (for portable CUDA DLLs) ONLY if it exists
 local_cuda = os.path.join(os.path.dirname(__file__), "bin", "cuda")
-if os.path.exists(local_cuda):
+if os.path.exists(local_cuda) and os.listdir(local_cuda):  # Only if directory exists AND has files
     cuda_paths.insert(0, local_cuda)  # Prioritize local DLLs
 
 if cuda_paths:

@@ -157,24 +157,9 @@ class TTSEngine(BaseModule):
         import site
         use_cuda = result.get("using_cuda", False)
         
-        # Add CUDA paths to main process environment (same as subprocess)
-        if use_cuda:
-            cuda_paths = []
-            
-            # ONLY use project's local CUDA bin directory (CUDA 12.4 + cuDNN 8.x)
-            # Do NOT use system CUDA 13.2 to avoid conflicts
-            project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            project_cuda_bin = os.path.join(project_dir, "bin", "cuda")
-            if os.path.exists(project_cuda_bin):
-                cuda_paths.append(project_cuda_bin)
-                logger.info(f"[PIPER_DEBUG] Using ONLY project CUDA: {project_cuda_bin}")
-            
-            # Do NOT add System32 or CUDA Toolkit paths to avoid loading CUDA 13.2 DLLs
-            
-            # Add CUDA paths to front of PATH
-            if cuda_paths:
-                os.environ["PATH"] = os.pathsep.join(cuda_paths) + os.pathsep + os.environ.get("PATH", "")
-                logger.info(f"[PIPER_DEBUG] CUDA paths set to: {cuda_paths}")
+        # Note: CUDA DLL paths are already added in main.py at startup
+        # No need to add them again here - that was causing the crash
+        # because bin/cuda doesn't exist
         
         try:
             logger.info(f"[PIPER_DEBUG] About to load PiperVoice in main process with use_cuda={use_cuda}")
