@@ -29,6 +29,11 @@ for path in cuda_toolkit_paths:
     if os.path.exists(path):
         cuda_paths.append(path)
 
+# Add local cuDNN 8.x folder (for ONNX GPU - requires cuDNN 8.x, NOT 9.x!)
+local_cudnn8 = os.path.join(os.path.dirname(__file__), "bin", "cudnn8")
+if os.path.exists(local_cudnn8) and os.listdir(local_cudnn8):
+    cuda_paths.insert(0, local_cudnn8)  # Prioritize cuDNN 8.x
+
 # Add local bin/cuda folder (for portable CUDA DLLs) ONLY if it exists
 local_cuda = os.path.join(os.path.dirname(__file__), "bin", "cuda")
 if os.path.exists(local_cuda) and os.listdir(local_cuda):  # Only if directory exists AND has files
