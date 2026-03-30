@@ -71,8 +71,9 @@ echo [INFO] Dashboard: http://localhost:!PORT!
 echo [INFO] API: http://localhost:!PORT!/docs
 echo.
 
-REM Agregar bin\cuda al PATH para ONNX GPU
-set "PATH=%SCRIPT_DIR%bin\cuda;%SCRIPT_DIR%bin\ffmpeg-master-latest-win64-gpl\bin;%PATH%"
+REM NOTE: CUDA/cuDNN paths handled by main.py (from venv site-packages)
+REM Just add FFmpeg
+set "PATH=%SCRIPT_DIR%bin\ffmpeg-master-latest-win64-gpl\bin;%PATH%"
 
 REM Iniciar servidor DIRECTAMENTE en esta consola (no en ventana oculta)
 echo [INFO] Iniciando servidor en esta consola...
