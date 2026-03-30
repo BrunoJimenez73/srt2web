@@ -161,6 +161,13 @@ class TTSEngine(BaseModule):
         # No need to add them again here - that was causing the crash
         # because bin/cuda doesn't exist
         
+        # WORKAROUND: cuDNN 8.x has symbol loading issues in the main process
+        # Even when subprocess validates CUDA, loading in main process fails
+        # Force CPU for reliability - the subprocess validation proved the model works
+        if use_cuda:
+            logger.warning(f"[PIPER_DEBUG] cuDNN symbol issues detected in main process, using CPU for reliability")
+            use_cuda = False
+        
         try:
             logger.info(f"[PIPER_DEBUG] About to load PiperVoice in main process with use_cuda={use_cuda}")
             with warnings.catch_warnings():
@@ -170,22 +177,18 @@ class TTSEngine(BaseModule):
             self._piper_voice = voice
             self._using_cuda = use_cuda
         except Exception as e:
-            if use_cuda:
-                logger.warning(f"[PIPER_DEBUG] Failed to load with CUDA ({e}), falling back to CPU")
-                try:
-                    with warnings.catch_warnings():
-                        warnings.simplefilter("ignore")
-                        voice = PiperVoice.load(model_path, config_path, use_cuda=False)
-                    self._piper_voice = voice
-                    self._using_cuda = False
-                    logger.info(f"[PIPER_DEBUG] Voice loaded successfully with CPU fallback")
-                    return
-                except Exception as cpu_error:
-                    logger.error(f"[PIPER_DEBUG] CPU fallback also failed: {cpu_error}")
-                    raise RuntimeError(f"Failed to load Piper voice (CUDA: {e}, CPU: {cpu_error})")
-            else:
-                logger.error(f"[PIPER_DEBUG] Failed to load Piper voice: {e}")
-                raise RuntimeError(f"Failed to load Piper voice: {e}")
+            logger.warning(f"[PIPER_DEBUG] Failed to load with CPU ({e}), retrying...")
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    voice = PiperVoice.load(model_path, config_path, use_cuda=False)
+                self._piper_voice = voice
+                self._using_cuda = False
+                logger.info(f"[PIPER_DEBUG] Voice loaded successfully with CPU")
+                return
+            except Exception as cpu_error:
+                logger.error(f"[PIPER_DEBUG] CPU fallback also failed: {cpu_error}")
+                raise RuntimeError(f"Failed to load Piper voice: {cpu_error}")
 
     def get_status(self) -> ModuleStatus:
         """Get current status including device info."""
@@ -291,7 +294,11 @@ class TTSEngine(BaseModule):
 
     def _run_piper_tts(self, text: str, output_wav: str):
         """Run local Piper TTS generation (lazy loads voice on first use)."""
-        # Lazy load voice if not loaded yet
+        import wave
+        from piper.config import SynthesisConfig
+        import threading
+        import queue
+
         if not self._voice_loaded:
             logger.info(f"[Piper] Lazy loading voice: {self._voice_model}")
             self._init_piper()
@@ -301,26 +308,55 @@ class TTSEngine(BaseModule):
             logger.error("Piper voice not initialized")
             return
 
-        import wave
-        from piper.config import SynthesisConfig
+        result_queue = queue.Queue()
+        synthesis_done = threading.Event()
+
+        def synthesis_worker():
+            try:
+                length_scale = 1.0 / self._speed
+                logger.debug(
+                    f"Synthesizing text with Piper: '{text[:50]}...' ({len(text)} chars), "
+                    f"speed={self._speed}, length_scale={length_scale:.2f}"
+                )
+
+                syn_config = SynthesisConfig(length_scale=length_scale)
+
+                audio_data = []
+                sample_rate = self._piper_voice.config.sample_rate
+
+                for chunk in self._piper_voice.synthesize(text, syn_config=syn_config):
+                    audio_data.append(chunk.audio_int16_bytes)
+
+                result_queue.put(("success", audio_data, sample_rate))
+            except Exception as e:
+                result_queue.put(("error", str(e), None))
+            finally:
+                synthesis_done.set()
 
         try:
-            length_scale = 1.0 / self._speed
-            logger.debug(
-                f"Synthesizing text with Piper: '{text[:50]}...' ({len(text)} chars), "
-                f"speed={self._speed}, length_scale={length_scale:.2f}"
-            )
-
-            syn_config = SynthesisConfig(length_scale=length_scale)
-
+            thread = threading.Thread(target=synthesis_worker, daemon=True, name="piper-synthesis")
+            thread.start()
+            
+            timeout_sec = 30
+            if not synthesis_done.wait(timeout=timeout_sec):
+                logger.error(f"Piper synthesis timed out after {timeout_sec}s - cancelling synthesis")
+                return
+            
+            if thread.is_alive():
+                thread.join(timeout=5)
+            
+            status, data, sample_rate = result_queue.get_nowait()
+            
+            if status == "error":
+                logger.error(f"Piper synthesis error: {data}")
+                return
+            
             with wave.open(output_wav, "wb") as wav_file:
                 wav_file.setnchannels(1)
                 wav_file.setsampwidth(2)
-                wav_file.setframerate(self._piper_voice.config.sample_rate)
-
-                audio_chunks = self._piper_voice.synthesize(text, syn_config=syn_config)
-                for chunk in audio_chunks:
-                    wav_file.writeframes(chunk.audio_int16_bytes)
+                wav_file.setframerate(sample_rate)
+                for audio_bytes in data:
+                    wav_file.writeframes(audio_bytes)
 
             if os.path.exists(output_wav):
                 file_size = os.path.getsize(output_wav)
@@ -334,5 +370,7 @@ class TTSEngine(BaseModule):
             else:
                 logger.error(f"Piper TTS failed to generate output file: {output_wav}")
 
+        except queue.Empty:
+            logger.error("Piper synthesis: no result from worker thread")
         except Exception as e:
             logger.error(f"Error during Piper TTS synthesis: {e}", exc_info=True)

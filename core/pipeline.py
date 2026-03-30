@@ -384,8 +384,9 @@ class Pipeline:
                         continue
 
                     try:
-                        # Add timeout to module processing
+                        self._log("debug", f"Calling module {module.name}.process() for chunk {self._chunk_index}")
                         data = module.process(data)
+                        self._log("debug", f"Module {module.name} completed for chunk {self._chunk_index}")
                     except Exception as e:
                         self._log(
                             "error",
@@ -400,7 +401,9 @@ class Pipeline:
                 # Write to output sink
                 if self._output_sink and data:
                     try:
+                        self._log("debug", f"Writing chunk {self._chunk_index} to output sink")
                         self._output_sink.write(data)
+                        self._log("debug", f"Output sink write completed for chunk {self._chunk_index}")
                     except Exception as e:
                         self._log("error", f"Output sink error: {type(e).__name__}: {e}")
                         import traceback

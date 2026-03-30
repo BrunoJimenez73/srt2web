@@ -219,6 +219,19 @@ class SRTInput(InputSource):
         chunks = sorted(glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")))
 
         if not chunks:
+            self.logger.debug(f"SRT input: no chunks found in {self._chunks_dir}")
+            return None
+
+        # Excluir el último (可能 todav铆a escribiéndose)
+        if len(chunks) < 2:
+            self.logger.debug(f"SRT input: only {len(chunks)} chunk(s) found, need 2+ to process")
+            return None
+        
+        self.logger.debug(f"SRT input: found {len(chunks)} chunks, processing...")
+
+        chunks = sorted(glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")))
+
+        if not chunks:
             return None
 
         # Excluir el último (可能 todavía escribiéndose)
@@ -243,6 +256,8 @@ class SRTInput(InputSource):
         processable.sort()
         idx, chunk_path = processable[0]
         self._last_chunk_index = idx
+        
+        self.logger.debug(f"SRT input: returning chunk {idx}: {chunk_path}")
 
         # Medir duración real
         actual_duration = get_video_duration(chunk_path) or self._chunk_duration
