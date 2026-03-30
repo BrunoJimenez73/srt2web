@@ -11,15 +11,27 @@ import sys
 # Add CUDA/cuDNN paths for Windows - BEFORE any other imports
 import site
 cuda_paths = []
+
+# CRITICAL: Add local cuDNN 8.x FIRST (must be at front to avoid loading cuDNN 9.x)
+local_cudnn8 = os.path.join(os.path.dirname(__file__), "bin", "cudnn8")
+if os.path.exists(local_cudnn8) and os.listdir(local_cudnn8):
+    cuda_paths.append(local_cudnn8)  # Prioritize cuDNN 8.x
+
+# Add venv nvidia paths (cuDNN 8.9.4 from pip)
 for sp in site.getsitepackages():
     cudnn_bin = os.path.join(sp, "nvidia", "cudnn", "bin")
     if os.path.exists(cudnn_bin):
         cuda_paths.append(cudnn_bin)
+    cublas_bin = os.path.join(sp, "nvidia", "cublas_cu11", "bin")
+    if os.path.exists(cublas_bin):
+        cuda_paths.append(cublas_bin)
 
-# Add Windows System32 (has CUDA runtime)
-cuda_paths.append(os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "System32"))
+# Add local bin/cuda folder (for portable CUDA DLLs)
+local_cuda = os.path.join(os.path.dirname(__file__), "bin", "cuda")
+if os.path.exists(local_cuda) and os.listdir(local_cuda):
+    cuda_paths.append(local_cuda)
 
-# Add CUDA Toolkit paths
+# Add CUDA Toolkit paths LAST (less preferred)
 cuda_toolkit_paths = [
     "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.1\\bin",
     "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.2\\bin",
@@ -29,18 +41,19 @@ for path in cuda_toolkit_paths:
     if os.path.exists(path):
         cuda_paths.append(path)
 
-# Add local cuDNN 8.x folder (for ONNX GPU - requires cuDNN 8.x, NOT 9.x!)
-local_cudnn8 = os.path.join(os.path.dirname(__file__), "bin", "cudnn8")
-if os.path.exists(local_cudnn8) and os.listdir(local_cudnn8):
-    cuda_paths.insert(0, local_cudnn8)  # Prioritize cuDNN 8.x
-
-# Add local bin/cuda folder (for portable CUDA DLLs) ONLY if it exists
-local_cuda = os.path.join(os.path.dirname(__file__), "bin", "cuda")
-if os.path.exists(local_cuda) and os.listdir(local_cuda):  # Only if directory exists AND has files
-    cuda_paths.insert(0, local_cuda)  # Prioritize local DLLs
+# Add Windows System32 LAST (has CUDA runtime but may have incompatible cuDNN)
+cuda_paths.append(os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "System32"))
 
 if cuda_paths:
     os.environ["PATH"] = os.pathsep.join(cuda_paths) + os.pathsep + os.environ.get("PATH", "")
+    
+    # Add DLL directories for Python 3.8+ (required for proper DLL loading)
+    for path in cuda_paths:
+        if os.path.isdir(path):
+            try:
+                os.add_dll_directory(path)
+            except (AttributeError, OSError):
+                pass  # Not all paths support add_dll_directory
 
 import asyncio
 import atexit
