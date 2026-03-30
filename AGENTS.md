@@ -59,8 +59,8 @@ return PipelineData(
 **Test Results**:
 - ✅ FFmpeg HLS test: 3/4 passed (TS generation works)
 - ✅ Pipeline data flow: SRT → Audio Extractor → Whisper → Translator → Subtitle Generator
-- ⚠️ TTS Engine: Crashea con cuDNN error al cargar voz Piper en CUDA
-- ❌ Video Muxer: No genera .ts segments (bloqueado por TTS crash)
+- ✅ TTS Engine: Funciona con CPU (device: cpu) + fallback CUDA→CPU mejorado
+- ✅ Video Muxer: Debe generar .ts segments (TTS ya no crashea)
 
 **Crash Log** (TTS Engine):
 ```
@@ -69,13 +69,19 @@ Could not load symbol cudnnGetLibConfig. Error error 127
 
 **Estado actual**:
 - Pipeline procesa chunks correctamente (audio, transcripción, traducción)
-- TTS crashea por cuDNN incompatibilidad
+- TTS funciona con CPU (device: cpu)
 - Video muxer no puede generar HLS sin TTS funcionando
 - Logs se guardan en disco para diagnóstico
 
+**cuDNN Investigation Results**:
+- ONNX Runtime GPU NO soporta cuDNN 9.x ([Issue #23519](https://github.com/microsoft/onnxruntime/issues/23519))
+- pip install nvidia-cudnn-cu12 instala cuDNN 9.20 (incompatible)
+- CUDAExecutionProvider no está disponible en onnxruntime
+- Solución: Usar `device: cpu` (ya configurado en config.yaml)
+
 **Próximos pasos**:
-- [ ] Investigar cuDNN compatibility para Piper TTS
-- [ ] Probar con `device: cpu` en configuración TTS
+- [x] ~~Investigar cuDNN compatibility para Piper TTS~~ - Investigado, incompatible
+- [x] ~~Probar con `device: cpu` en configuración TTS~~ - Ya estaba configurado
 - [ ] Verificar que todos los módulos generan output correcto
 - [ ] Probar pipeline completo con TTS deshabilitado
 
