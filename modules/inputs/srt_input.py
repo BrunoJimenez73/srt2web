@@ -87,86 +87,104 @@ class SRTInput(InputSource):
 
     def start(self) -> None:
         """Iniciar receptor SRT."""
-        self._ensure_stopped()
-        time.sleep(0.5)
+        try:
+            self.logger.info("Starting SRT input...")
+            self._ensure_stopped()
+            time.sleep(0.5)
 
-        self._last_chunk_index = -1
-        self._ffmpeg_path = ensure_ffmpeg()
+            self._last_chunk_index = -1
+            self.logger.info("Getting FFmpeg path...")
+            self._ffmpeg_path = ensure_ffmpeg()
+            self.logger.info(f"FFmpeg path: {self._ffmpeg_path}")
 
-        # Crear directorio de chunks
-        self._chunks_dir = os.path.join(self._output_dir or "./output", "chunks")
-        os.makedirs(self._chunks_dir, exist_ok=True)
+            # Crear directorio de chunks
+            self._chunks_dir = os.path.join(self._output_dir or "./output", "chunks")
+            os.makedirs(self._chunks_dir, exist_ok=True)
+            self.logger.info(f"Chunks directory: {self._chunks_dir}")
 
-        # Limpiar chunks antiguos
-        for f in glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")):
-            try:
-                os.remove(f)
-            except OSError:
-                pass
+            # Limpiar chunks antiguos
+            for f in glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")):
+                try:
+                    os.remove(f)
+                except OSError:
+                    pass
 
-        # Reset cumulative duration tracking
-        self._cumulative_duration = 0.0
+            # Reset cumulative duration tracking
+            self._cumulative_duration = 0.0
 
-        # Construir URL SRT
-        latency_us = self._srt_latency_ms * 1000
-        if self._srt_mode == "caller" and self._srt_caller_address:
-            srt_url = f"srt://{self._srt_caller_address}:{self._srt_port}?mode=caller&latency={latency_us}"
-        else:
-            srt_url = (
-                f"srt://0.0.0.0:{self._srt_port}?mode=listener&latency={latency_us}"
+            # Construir URL SRT
+            latency_us = self._srt_latency_ms * 1000
+            if self._srt_mode == "caller" and self._srt_caller_address:
+                srt_url = f"srt://{self._srt_caller_address}:{self._srt_port}?mode=caller&latency={latency_us}"
+            else:
+                srt_url = (
+                    f"srt://0.0.0.0:{self._srt_port}?mode=listener&latency={latency_us}"
+                )
+            self.logger.info(f"SRT URL: {srt_url}")
+
+            # Comando FFmpeg para recepción segmentada
+            chunk_pattern = os.path.join(self._chunks_dir, "chunk_%06d.ts")
+
+            cmd = [
+                self._ffmpeg_path,
+                "-y",
+                "-i",
+                srt_url,
+                "-c",
+                "copy",
+                "-f",
+                "segment",
+                "-segment_time",
+                str(self._chunk_duration),
+                "-segment_format",
+                "mpegts",
+                "-reset_timestamps",
+                "1",
+                "-strftime",
+                "0",
+                "-max_muxing_queue_size",
+                "1024",
+                "-fflags",
+                "+genpts+discardcorrupt",
+                "-flush_packets",
+                "1",
+                chunk_pattern,
+            ]
+
+            self.logger.info(f"Starting SRT input: {' '.join(cmd)}")
+            self.logger.info("Starting FFmpeg process...")
+
+            # Iniciar proceso FFmpeg
+            self._ffmpeg_proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                creationflags=(
+                    subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                ),
             )
 
-        # Comando FFmpeg para recepción segmentada
-        chunk_pattern = os.path.join(self._chunks_dir, "chunk_%06d.ts")
+            if not self._ffmpeg_proc:
+                raise Exception("FFmpeg process is None")
 
-        cmd = [
-            self._ffmpeg_path,
-            "-y",
-            "-i",
-            srt_url,
-            "-c",
-            "copy",
-            "-f",
-            "segment",
-            "-segment_time",
-            str(self._chunk_duration),
-            "-segment_format",
-            "mpegts",
-            "-reset_timestamps",
-            "1",
-            "-strftime",
-            "0",
-            "-max_muxing_queue_size",
-            "1024",
-            "-fflags",
-            "+genpts+discardcorrupt",
-            "-flush_packets",
-            "1",
-            chunk_pattern,
-        ]
+            self.logger.info(f"FFmpeg process started with PID: {self._ffmpeg_proc.pid}")
 
-        self.logger.info(f"Starting SRT input: {' '.join(cmd)}")
+            # Hilo monitor
+            self._monitor_thread = threading.Thread(
+                target=self._monitor_ffmpeg,
+                daemon=True,
+                name="srt-input-monitor",
+            )
+            self._monitor_thread.start()
 
-        # Iniciar proceso FFmpeg
-        self._ffmpeg_proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            creationflags=(
-                subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            ),
-        )
-
-        # Hilo monitor
-        self._monitor_thread = threading.Thread(
-            target=self._monitor_ffmpeg,
-            daemon=True,
-            name="srt-input-monitor",
-        )
-        self._monitor_thread.start()
-
-        self.logger.info(f"SRT input started on port {self._srt_port}")
+            self.logger.info(f"SRT input started on port {self._srt_port}")
+            self.logger.info("SRT input started successfully")
+        except Exception as e:
+            self.logger.error(f"Failed to start SRT input: {type(e).__name__}: {e}")
+            import traceback
+            self.logger.error(f"SRT input traceback: {traceback.format_exc()}")
+            raise
 
     def stop(self) -> None:
         """Detener receptor SRT."""
@@ -247,12 +265,15 @@ class SRTInput(InputSource):
             f"New chunk: {chunk_path} (cumulative: {chunk_cumulative:.3f}s)"
         )
 
+        # Log first chunk specifically for debugging
+        if idx == 0:
+            self.logger.info("FIRST SRT CHUNK GENERATED BY FFMPEG")
+            self.logger.info(f"First chunk path: {chunk_path}")
+
+        # Create PipelineData with video chunk
         return PipelineData(
-            chunk_index=idx,
-            timestamp=time.time(),
-            duration=actual_duration,
-            cumulative_duration=chunk_cumulative,
-            video_chunk_path=chunk_path,
+            {"video_path": chunk_path, "audio_path": None},
+            {"source": "srt", "chunk_index": idx},
         )
 
     def is_receiving(self) -> bool:

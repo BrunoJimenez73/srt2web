@@ -10,11 +10,32 @@ import sys
 
 # Add CUDA/cuDNN paths for Windows - BEFORE any other imports
 import site
-site_packages = site.getsitepackages()[0] if site.getsitepackages() else None
-if site_packages:
-    cuda_bin = os.path.join(site_packages, "nvidia", "cudnn", "bin")
-    if os.path.exists(cuda_bin):
-        os.environ["PATH"] = cuda_bin + os.pathsep + os.environ.get("PATH", "")
+cuda_paths = []
+for sp in site.getsitepackages():
+    cudnn_bin = os.path.join(sp, "nvidia", "cudnn", "bin")
+    if os.path.exists(cudnn_bin):
+        cuda_paths.append(cudnn_bin)
+
+# Add Windows System32 (has CUDA runtime)
+cuda_paths.append(os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "System32"))
+
+# Add CUDA Toolkit paths
+cuda_toolkit_paths = [
+    "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.1\\bin",
+    "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.2\\bin",
+    "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.2\\bin",
+]
+for path in cuda_toolkit_paths:
+    if os.path.exists(path):
+        cuda_paths.append(path)
+
+# Add local bin/cuda folder (for portable CUDA DLLs)
+local_cuda = os.path.join(os.path.dirname(__file__), "bin", "cuda")
+if os.path.exists(local_cuda):
+    cuda_paths.insert(0, local_cuda)  # Prioritize local DLLs
+
+if cuda_paths:
+    os.environ["PATH"] = os.pathsep.join(cuda_paths) + os.pathsep + os.environ.get("PATH", "")
 
 import asyncio
 import atexit

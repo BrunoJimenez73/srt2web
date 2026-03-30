@@ -124,11 +124,32 @@ def load_piper_model_subprocess(
         # Add CUDA/cuDNN paths to subprocess environment
         import site
         env = os.environ.copy()
-        site_packages = site.getsitepackages()[0] if site.getsitepackages() else None
-        if site_packages:
-            cuda_bin = os.path.join(site_packages, "nvidia", "cudnn", "bin")
-            if os.path.exists(cuda_bin):
-                env["PATH"] = cuda_bin + os.pathsep + env.get("PATH", "")
+        
+        # Add all possible CUDA/cuDNN paths
+        cuda_paths = []
+        for sp in site.getsitepackages():
+            # cuDNN from nvidia package
+            cudnn_bin = os.path.join(sp, "nvidia", "cudnn", "bin")
+            if os.path.exists(cudnn_bin):
+                cuda_paths.append(cudnn_bin)
+        
+        # Add Windows System32 (has CUDA runtime DLLs)
+        cuda_paths.append(os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "System32"))
+        
+        # Add CUDA Toolkit paths (v12.x is needed for onnxruntime-gpu 1.18.0)
+        cuda_toolkit_paths = [
+            "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.1\\bin",
+            "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.2\\bin", 
+            "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.2\\bin",
+        ]
+        for path in cuda_toolkit_paths:
+            if os.path.exists(path):
+                cuda_paths.append(path)
+        
+        # Add CUDA paths to front of PATH
+        if cuda_paths:
+            env["PATH"] = os.pathsep.join(cuda_paths) + os.pathsep + env.get("PATH", "")
+            logger.info(f"[PIPER_DEBUG] Added CUDA paths: {cuda_paths}")
         
         # Run the subprocess
         result = subprocess.run(
@@ -168,9 +189,16 @@ def load_piper_model_subprocess(
                 error_msg += " (CUDA dependencies missing - using CPU instead)"
             return {"status": "error", "error": error_msg}
         
-        # Parse JSON result from stdout
+        # Parse JSON result from stdout (handle extra output before JSON)
         try:
-            data = json.loads(result.stdout.strip())
+            stdout = result.stdout.strip()
+            # Find JSON in stdout (may have EP errors before it)
+            json_start = stdout.find('{')
+            if json_start >= 0:
+                json_str = stdout[json_start:]
+                data = json.loads(json_str)
+            else:
+                data = json.loads(stdout)
             logger.info(f"[PIPER_DEBUG] Load result: {data}")
             return data
         except json.JSONDecodeError as e:

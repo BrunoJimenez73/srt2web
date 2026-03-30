@@ -19,6 +19,7 @@ from core.ffmpeg_utils import ensure_ffmpeg
 from core.encoder_config import EncoderConfig
 
 logger = logging.getLogger("srt2web.module.video_muxer")
+logger.setLevel(logging.INFO)
 
 
 class VideoMuxer(BaseModule):
@@ -106,132 +107,54 @@ class VideoMuxer(BaseModule):
         """Cleanup."""
         self._state = ModuleState.IDLE
 
-    def write(self, data: PipelineData) -> None:
+    def write(self, data: PipelineData) -> PipelineData:
         """
         Write chunk to HLS stream (called by AsyncPipeline as output_sink).
-        """
-        self.process(data)
-        return None
-        """
         Convert input chunk to HLS segment and update manifest.
         """
-        input_path = data.video_chunk_path
-        if not input_path or not os.path.exists(input_path):
-            logger.warning(f"No input video chunk for index {data.chunk_index}")
-            return data
-
-        # Output segment filename
-        segment_name = f"seg_{self._segment_index:06d}.ts"
-        segment_path = os.path.join(self._hls_dir, segment_name)
-
-        # Check if we have processed audio to mux in
-        audio_input = data.mixed_audio_path or data.dubbed_audio_path
-        # No subtitles_path used here yet, but kept for future use if needed
-
-        # CRITICAL: Use data.cumulative_duration for accurate sync
-        # This is set by InputSource and validated throughout the pipeline
-        offset_sec = f"{data.cumulative_duration:.3f}"
-        chunk_duration = data.duration or self._hls_segment_duration
-
-        # Save duration for manifest
-        self._segment_durations[self._segment_index] = chunk_duration
-
-        # Determine Encoder and Preset using EncoderConfig
-        encoder = "libx264"
-        preset = self._encoder_config.video_preset
-        extra_args = []
-
-        # Get encoder mode from configuration
-        encoder_mode = self._encoder_config.encoder_mode
-
-        # Auto-detect if configured to auto
-        if encoder_mode == "auto":
-            if self._gpu_info["nvenc"]:
-                encoder_mode = "gpu_nvenc"
-            elif self._gpu_info["amf"]:
-                encoder_mode = "gpu_amf"
-            elif self._gpu_info["qsv"]:
-                encoder_mode = "gpu_qsv"
-            elif self._gpu_info["vaapi"]:
-                encoder_mode = "gpu_vaapi"
-            else:
-                encoder_mode = "cpu"
-
-        # Configure encoder based on mode
-        if encoder_mode == "gpu_nvenc" and self._gpu_info["nvenc"]:
-            encoder = "h264_nvenc"
-            preset = self._encoder_config.gpu_preset
-            extra_args = self._encoder_config.get_gpu_nvenc_args()
-            logger.info(
-                f"[VideoMuxer] Using GPU encoder: h264_nvenc (preset: {preset})"
-            )
-        elif encoder_mode == "gpu_amf" and self._gpu_info["amf"]:
-            encoder = "h264_amf"
-            preset = self._encoder_config.video_preset
-            extra_args = self._encoder_config.get_gpu_amf_args()
-            logger.info(f"[VideoMuxer] Using GPU encoder: h264_amf (preset: {preset})")
-        elif encoder_mode == "gpu_qsv" and self._gpu_info["qsv"]:
-            encoder = "h264_qsv"
-            preset = self._encoder_config.video_preset
-            extra_args = self._encoder_config.get_gpu_qsv_args()
-            logger.info(f"[VideoMuxer] Using GPU encoder: h264_qsv (preset: {preset})")
-        elif encoder_mode == "gpu_vaapi" and self._gpu_info["vaapi"]:
-            encoder = "h264_vaapi"
-            extra_args = ["-vaapi_device", "/dev/dri/renderD128"]
-            logger.info(f"[VideoMuxer] Using GPU encoder: h264_vaapi")
+        self._log("info", f"[VideoMuxer.write] Received data chunk {getattr(data, 'chunk_index', 'None')}")
+        self._log("info", f"[VideoMuxer.write] Data type: {type(data)}")
+        if hasattr(data, '__dict__'):
+            self._log("info", f"[VideoMuxer.write] Data keys: {list(data.__dict__.keys())}")
+            for key, value in data.__dict__.items():
+                if 'path' in key.lower() or 'chunk' in key.lower():
+                    self._log("info", f"[VideoMuxer.write] {key}: {value} (exists: {os.path.exists(value) if isinstance(value, str) and value else 'N/A'})")
         else:
-            # CPU encoder
-            encoder = "libx264"
-            preset = self._encoder_config.video_preset
-            extra_args = self._encoder_config.get_cpu_args()
-            logger.info(f"[VideoMuxer] Using CPU encoder: libx264 (preset: {preset})")
-
-        # Get audio configuration from EncoderConfig
-        audio_args = self._encoder_config.get_audio_args()
-
-        common_args = [
-            "-map",
-            "0:v:0",
-            "-map",
-            "1:a:0" if audio_input else "0:a:0",
-        ]
-        common_args.extend(audio_args)
-        common_args.extend(
-            [
-                "-output_ts_offset",
-                offset_sec,
-                "-f",
-                "mpegts",
-                segment_path,
-            ]
-        )
-
-        # Build FFmpeg command
-        cmd = [self._ffmpeg_path, "-y", "-i", input_path]
-        if audio_input and os.path.exists(audio_input):
-            audio_delay_sec = self._audio_offset_ms / 1000.0
-            cmd.extend(["-itsoffset", str(audio_delay_sec), "-i", audio_input])
-
-        # If we had subtitles to burn in (Phase 2), we would add them here.
-        # But for stability, we are currently muxing them or burning them in elsewhere.
-        # Minimal implementation for stabilization.
-        cmd.extend(["-c:v", encoder, "-preset", preset])
-        cmd.extend(extra_args)
-        cmd.extend(common_args)
-
+            self._log("info", f"[VideoMuxer.write] No __dict__ attribute")
+        
+        # Ensure we have a video_chunk_path attribute for compatibility with the process method
+        if hasattr(data, 'video_path') and not hasattr(data, 'video_chunk_path'):
+            self._log("info", f"[VideoMuxer.write] Copying video_path to video_chunk_path for compatibility")
+            data.video_chunk_path = data.video_path
+        elif not hasattr(data, 'video_chunk_path'):
+            # Try to get it from a dict
+            if isinstance(data, dict) and 'video_path' in data:
+                self._log("info", f"[VideoMuxer.write] Getting video_path from dict for video_chunk_path")
+                data.video_chunk_path = data['video_path']
+        
+        # If we still don't have a video_chunk_path, we cannot process
+        if not hasattr(data, 'video_chunk_path') or not data.video_chunk_path:
+            self._log("warning", f"[VideoMuxer.write] No video_chunk_path available for chunk {getattr(data, 'chunk_index', 'None')}")
+            return data
+        
+        # Log the video chunk path for debugging
+        self._log("info", f"[VideoMuxer.write] video_chunk_path: {data.video_chunk_path}")
+        self._log("info", f"[VideoMuxer.write] video_chunk_path exists: {os.path.exists(data.video_chunk_path)}")
+        
+        # Process the data through the video muxer's process method
         try:
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=60,
-                creationflags=(
-                    subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-                ),
-            )
-            if result.returncode != 0:
-                logger.error(f"FFmpeg mux error: {result.stderr[-500:]}")
-                return data
+            result = self.process(data)
+            self._log("info", f"[VideoMuxer.write] process() returned: {type(result)}")
+            if result is not None:
+                self._log("info", f"[VideoMuxer.write] Result has video_chunk_path: {hasattr(result, 'video_chunk_path') and getattr(result, 'video_chunk_path', None)}")
+            return result
+        except Exception as e:
+            self._log("error", f"[VideoMuxer.write] Error in process method: {e}")
+            import traceback
+            self._log("error", f"[VideoMuxer.write] Traceback: {traceback.format_exc()}")
+            return data
+            else:
+                logger.info(f"[VideoMuxer] FFmpeg stdout: {result.stdout[-200:] if result.stdout else 'None'}")
 
         except subprocess.TimeoutExpired:
             logger.error("FFmpeg mux timed out")

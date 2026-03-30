@@ -289,14 +289,14 @@ class Pipeline:
         """Main processing loop (runs in background thread)."""
         try:
             self._set_state(PipelineState.STARTING)
+            self._log("info", "Pipeline starting...")
 
             # Start input source
             if self._input_source:
                 try:
-                    self._log(
-                        "info", f"Starting input source: {self._input_source.name}"
-                    )
+                    logger.info(f"Starting input source: {self._input_source.name}")
                     self._input_source.start()
+                    logger.info(f"Input source started: {self._input_source.name}")
                 except Exception as e:
                     self._log("error", f"Failed to start input source: {e}")
                     self._error_message = str(e)
@@ -310,6 +310,7 @@ class Pipeline:
                         self._log("info", f"Starting module: {module.name}")
                         module.start()
                         module._state = ModuleState.RUNNING
+                        self._log("info", f"Module started: {module.name}")
                     except Exception as e:
                         self._log("error", f"Failed to start module {module.name}: {e}")
                         module._state = ModuleState.ERROR
@@ -320,6 +321,7 @@ class Pipeline:
                 try:
                     self._log("info", f"Starting output sink: {self._output_sink.name}")
                     self._output_sink.start()
+                    self._log("info", f"Output sink started: {self._output_sink.name}")
                 except Exception as e:
                     self._log("error", f"Failed to start output sink: {e}")
                     self._error_message = str(e)
@@ -333,16 +335,27 @@ class Pipeline:
             data_source = None
             if self._input_source:
                 data_source = self._input_source.get_next_chunk
+                self._log("info", "Data source configured from input")
             else:
                 self._log("warning", "No input source configured!")
 
             # Main processing loop
+            chunk_counter = 0
+            last_log_time = time.time()
             while not self._stop_event.is_set():
+                current_time = time.time()
+                
+                # Log heartbeat every 5 seconds to show we're alive
+                if current_time - last_log_time > 5:
+                    self._log("info", f"Pipeline heartbeat - chunks processed: {self._chunk_index}")
+                    last_log_time = current_time
+
                 if data_source is None:
                     time.sleep(0.5)
                     continue
 
                 try:
+                    # Add timeout to data retrieval
                     data = data_source()
                 except Exception as e:
                     self._log("error", f"Data source error: {e}")
@@ -352,6 +365,11 @@ class Pipeline:
                 if data is None:
                     time.sleep(0.1)
                     continue
+
+                # Log first chunk arrival
+                if self._chunk_index == 0:
+                    self._log("info", "FIRST CHUNK RECEIVED FROM INPUT SOURCE")
+                    self._log("info", f"Data type: {type(data)}, size: {len(getattr(data, 'frames', [])) if hasattr(data, 'frames') else 'N/A'}")
 
                 data.chunk_index = self._chunk_index
                 data.timestamp = time.time()
@@ -366,12 +384,15 @@ class Pipeline:
                         continue
 
                     try:
+                        # Add timeout to module processing
                         data = module.process(data)
                     except Exception as e:
                         self._log(
                             "error",
-                            f"Module {module.name} error (chunk {self._chunk_index}): {e}",
+                            f"Module {module.name} error (chunk {self._chunk_index}): {type(e).__name__}: {e}",
                         )
+                        import traceback
+                        self._log("error", f"Traceback: {traceback.format_exc()}")
                         module._state = ModuleState.ERROR
                         module._error_message = str(e)
                         continue
@@ -381,14 +402,19 @@ class Pipeline:
                     try:
                         self._output_sink.write(data)
                     except Exception as e:
-                        self._log("error", f"Output sink error: {e}")
+                        self._log("error", f"Output sink error: {type(e).__name__}: {e}")
+                        import traceback
+                        self._log("error", f"Output sink traceback: {traceback.format_exc()}")
 
                 self._chunk_index += 1
+                chunk_counter += 1
 
         except Exception as e:
             self._error_message = str(e)
             self._set_state(PipelineState.ERROR)
-            self._log("error", f"Pipeline error: {e}")
+            self._log("error", f"Pipeline error: {type(e).__name__}: {e}")
+            import traceback
+            self._log("error", f"Pipeline traceback: {traceback.format_exc()}")
 
     def get_status(self) -> dict:
         """Get full pipeline status including all components."""
