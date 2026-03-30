@@ -188,11 +188,35 @@ def setup_logging():
         logging.Formatter("%(levelname)-5s │ %(name)s │ %(message)s")
     )
 
+    # File handler - persists logs to disk for debugging crashes
+    logs_dir = os.path.join(os.path.dirname(__file__), "logs")
+    os.makedirs(logs_dir, exist_ok=True)
+    log_file = os.path.join(logs_dir, "srt2web.log")
+    
+    from logging.handlers import RotatingFileHandler
+    file_handler = RotatingFileHandler(
+        log_file,
+        maxBytes=10*1024*1024,  # 10 MB per file
+        backupCount=3,           # Keep 3 backup files
+        encoding='utf-8'
+    )
+    file_handler.setLevel(logging.DEBUG)  # Capture everything to file
+    file_handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s │ %(levelname)-5s │ %(name)s │ %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+    )
+
     # Root logger
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
     root.addHandler(console)
     root.addHandler(broadcast)
+    root.addHandler(file_handler)  # Add file handler
+    
+    # Log startup message
+    logging.getLogger("srt2web.main").info(f"Logging to file: {log_file}")
 
     # Silence noisy libraries
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)

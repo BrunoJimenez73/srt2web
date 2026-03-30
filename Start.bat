@@ -74,37 +74,15 @@ echo.
 REM Agregar bin\cuda al PATH para ONNX GPU
 set "PATH=%SCRIPT_DIR%bin\cuda;%SCRIPT_DIR%bin\ffmpeg-master-latest-win64-gpl\bin;%PATH%"
 
-REM Iniciar servidor en nueva ventana
-start cmd /c "cd /d "%SCRIPT_DIR%" && "%PYTHON%" -X utf8 main.py"
+REM Iniciar servidor DIRECTAMENTE en esta consola (no en ventana oculta)
+echo [INFO] Iniciando servidor en esta consola...
+echo [INFO] Para detener: Ctrl+C
+echo.
 
-REM Esperar a que arranque
-timeout /t 3 >nul 2>&1
+"%PYTHON%" -X utf8 main.py
 
-REM Verificar si el servidor esta corriendo
-netstat -ano | findstr :!PORT! | findstr LISTENING >nul 2>&1
-if !errorlevel! equ 0 (
-    echo [OK] Servidor iniciado en puerto !PORT!
-) else (
-    echo [WARNING] Verificando con otro metodo...
-    timeout /t 2 >nul 2>&1
-    netstat -ano | findstr :!PORT! | findstr LISTENING >nul 2>&1
-    if !errorlevel! equ 0 (
-        echo [OK] Servidor iniciado en puerto !PORT!
-    ) else (
-        echo [WARNING] Servidor puede no haber arrancado. Revisa los logs.
-    )
-)
-
+REM Si el servidor termina, mostrar mensaje
 echo.
 echo ===============================================
-echo            SERVIDOR INICIADO
+echo            SERVIDOR DETENIDO
 echo ===============================================
-echo.
-echo  - Dashboard: http://localhost:!PORT!
-echo  - Detener: Stop.bat
-echo.
-echo [INFO] Presiona cualquier tecla para abrir el navegador...
-pause >nul
-
-REM Abrir navegador
-start http://localhost:!PORT!
