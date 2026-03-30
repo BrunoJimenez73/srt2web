@@ -119,6 +119,18 @@ class TTSEngine(BaseModule):
         load_time = time.time() - start_time
         logger.info(f"[PIPER_DEBUG] Model path resolved in {load_time:.1f}s")
         
+        # Skip CUDA path setup if device is CPU
+        if self._device == "cpu":
+            logger.info("[PIPER_DEBUG] Device is CPU, skipping CUDA setup entirely")
+            import warnings
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                voice = PiperVoice.load(model_path, config_path, use_cuda=False)
+            self._piper_voice = voice
+            self._using_cuda = False
+            logger.info(f"[PIPER_DEBUG] Voice loaded successfully with CPU")
+            return
+        
         # Load in subprocess (90 second timeout)
         logger.info(f"[PIPER_DEBUG] Starting subprocess loader for voice: {self._voice_model}")
         result = load_piper_model_subprocess(
@@ -142,7 +154,27 @@ class TTSEngine(BaseModule):
         logger.info(f"[PIPER_DEBUG] Subprocess validated model, now loading in main process...")
         
         import warnings
+        import site
         use_cuda = result.get("using_cuda", False)
+        
+        # Add CUDA paths to main process environment (same as subprocess)
+        if use_cuda:
+            cuda_paths = []
+            
+            # ONLY use project's local CUDA bin directory (CUDA 12.4 + cuDNN 8.x)
+            # Do NOT use system CUDA 13.2 to avoid conflicts
+            project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            project_cuda_bin = os.path.join(project_dir, "bin", "cuda")
+            if os.path.exists(project_cuda_bin):
+                cuda_paths.append(project_cuda_bin)
+                logger.info(f"[PIPER_DEBUG] Using ONLY project CUDA: {project_cuda_bin}")
+            
+            # Do NOT add System32 or CUDA Toolkit paths to avoid loading CUDA 13.2 DLLs
+            
+            # Add CUDA paths to front of PATH
+            if cuda_paths:
+                os.environ["PATH"] = os.pathsep.join(cuda_paths) + os.pathsep + os.environ.get("PATH", "")
+                logger.info(f"[PIPER_DEBUG] CUDA paths set to: {cuda_paths}")
         
         try:
             logger.info(f"[PIPER_DEBUG] About to load PiperVoice in main process with use_cuda={use_cuda}")
@@ -152,18 +184,23 @@ class TTSEngine(BaseModule):
             logger.info(f"[PIPER_DEBUG] PiperVoice.load() completed successfully")
             self._piper_voice = voice
             self._using_cuda = use_cuda
-        except Exception as cuda_error:
-            logger.warning(f"[PIPER_DEBUG] Failed to load with CUDA ({cuda_error}), falling back to CPU")
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                voice = PiperVoice.load(model_path, config_path, use_cuda=False)
-            self._piper_voice = voice
-            self._using_cuda = False
-            logger.info(f"[PIPER_DEBUG] Voice loaded in main process (GPU: {use_cuda}, "
-                       f"sample_rate: {result.get('sample_rate', 'unknown')})")
         except Exception as e:
-            logger.error(f"[PIPER_DEBUG] Failed to load in main process after subprocess validation: {e}")
-            raise RuntimeError(f"Failed to load Piper voice in main process: {e}")
+            if use_cuda:
+                logger.warning(f"[PIPER_DEBUG] Failed to load with CUDA ({e}), falling back to CPU")
+                try:
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        voice = PiperVoice.load(model_path, config_path, use_cuda=False)
+                    self._piper_voice = voice
+                    self._using_cuda = False
+                    logger.info(f"[PIPER_DEBUG] Voice loaded successfully with CPU fallback")
+                    return
+                except Exception as cpu_error:
+                    logger.error(f"[PIPER_DEBUG] CPU fallback also failed: {cpu_error}")
+                    raise RuntimeError(f"Failed to load Piper voice (CUDA: {e}, CPU: {cpu_error})")
+            else:
+                logger.error(f"[PIPER_DEBUG] Failed to load Piper voice: {e}")
+                raise RuntimeError(f"Failed to load Piper voice: {e}")
 
     def get_status(self) -> ModuleStatus:
         """Get current status including device info."""
