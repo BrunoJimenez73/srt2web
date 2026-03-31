@@ -251,14 +251,14 @@ class TestConfigFile:
 
     def test_config_yaml_exists(self):
         """Test that config.yaml exists."""
-        config_path = Path(__file__).parent.parent.parent / "config.yaml"
+        config_path = Path(__file__).parent.parent.parent / "config" / "config.yaml"
         assert config_path.exists(), f"config.yaml not found at {config_path}"
 
     def test_config_yaml_is_valid_yaml(self):
         """Test that config.yaml is valid YAML."""
         import yaml
 
-        config_path = Path(__file__).parent.parent.parent / "config.yaml"
+        config_path = Path(__file__).parent.parent.parent / "config" / "config.yaml"
         try:
             with open(config_path, "r", encoding="utf-8") as f:
                 yaml.safe_load(f)
@@ -269,7 +269,7 @@ class TestConfigFile:
         """Test that config.yaml has a valid SRT listen port."""
         import yaml
 
-        config_path = Path(__file__).parent.parent.parent / "config.yaml"
+        config_path = Path(__file__).parent.parent.parent / "config" / "config.yaml"
         with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
@@ -284,7 +284,7 @@ class TestConfigFile:
         """Test that config.yaml has a valid server port."""
         import yaml
 
-        config_path = Path(__file__).parent.parent.parent / "config.yaml"
+        config_path = Path(__file__).parent.parent.parent / "config" / "config.yaml"
         with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
@@ -298,7 +298,7 @@ class TestConfigFile:
         """Test that config.yaml has no port conflict."""
         import yaml
 
-        config_path = Path(__file__).parent.parent.parent / "config.yaml"
+        config_path = Path(__file__).parent.parent.parent / "config" / "config.yaml"
         with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 

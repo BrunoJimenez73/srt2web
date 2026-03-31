@@ -189,7 +189,7 @@ class TestConfigDefaults:
         
         # Also check config.yaml
         import yaml
-        with open("config.yaml", "r") as f:
+        with open("config/config.yaml", "r") as f:
             config = yaml.safe_load(f)
         
         has_in_config = "max_request_size_mb" in config.get("server", {})

@@ -23,6 +23,7 @@ DEFAULT_CONFIG = {
         "cors_origins": ["http://localhost:*", "http://127.0.0.1:*"],
         "auth_token": "",
         "rate_limit_rpm": 60,
+        "max_request_size_mb": 100,
     },
     "input": {
         "type": "srt",
@@ -123,18 +124,16 @@ class ConfigManager:
 
     def _find_config(self) -> str:
         """Find config.yaml relative to the project root."""
-        # Look relative to this file's location
         project_root = Path(__file__).parent.parent
         candidates = [
-            project_root / "config.yaml",
+            project_root / "config" / "config.yaml",
             project_root / "config.yml",
-            Path.cwd() / "config.yaml",
+            Path.cwd() / "config" / "config.yaml",
         ]
         for candidate in candidates:
             if candidate.exists():
                 return str(candidate)
-        # Default: create in project root
-        return str(project_root / "config.yaml")
+        return str(project_root / "config" / "config.yaml")
 
     def _load(self) -> None:
         """Load configuration from YAML file, merging with defaults."""

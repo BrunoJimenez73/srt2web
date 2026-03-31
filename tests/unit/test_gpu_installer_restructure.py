@@ -443,7 +443,7 @@ class TestProjectStructure:
 
     def test_config_yaml_exists(self):
         """Test that config.yaml exists."""
-        assert os.path.exists("config.yaml"), "config.yaml not found"
+        assert os.path.exists("config/config.yaml"), "config.yaml not found"
 
     def test_main_py_exists(self):
         """Test that main.py exists."""

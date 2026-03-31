@@ -59,36 +59,52 @@ class TestFindFFmpeg:
 
         assert result is not None
 
-    @pytest.mark.skip(reason="Mock complexity - tested via integration tests")
     @patch("core.ffmpeg_utils.get_project_bin_dir")
     @patch("core.ffmpeg_utils.platform.system")
     @patch("core.ffmpeg_utils.shutil.which")
     def test_finds_ffmpeg_in_path(self, mock_which, mock_platform, mock_bin_dir):
-        """Test that FFmpeg is found in system PATH."""
+        """Test that FFmpeg is found in system PATH when not in bin."""
         from core.ffmpeg_utils import find_ffmpeg
+        from pathlib import Path
 
         mock_platform.return_value = "Linux"
-        mock_bin_dir.return_value = MagicMock()
-        mock_bin_dir.return_value.exists.return_value = False
-        mock_bin_dir.return_value.rglob.return_value = []
+        
+        mock_bin_path = MagicMock(spec=Path)
+        mock_bin_path.exists.return_value = False
+        mock_bin_path.rglob.return_value = []
+        
+        mock_ffmpeg_path = MagicMock(spec=Path)
+        mock_ffmpeg_path.exists.return_value = False
+        
+        mock_bin_path.__truediv__ = lambda self, x: mock_ffmpeg_path
+        
+        mock_bin_dir.return_value = mock_bin_path
         mock_which.return_value = "/usr/bin/ffmpeg"
 
         result = find_ffmpeg()
 
         assert result == "/usr/bin/ffmpeg"
 
-    @pytest.mark.skip(reason="Mock complexity - tested via integration tests")
     @patch("core.ffmpeg_utils.get_project_bin_dir")
     @patch("core.ffmpeg_utils.platform.system")
     @patch("core.ffmpeg_utils.shutil.which")
     def test_returns_none_when_not_found(self, mock_which, mock_platform, mock_bin_dir):
         """Test that None is returned when FFmpeg is not found."""
         from core.ffmpeg_utils import find_ffmpeg
+        from pathlib import Path
 
         mock_platform.return_value = "Linux"
-        mock_bin_dir.return_value = MagicMock()
-        mock_bin_dir.return_value.exists.return_value = False
-        mock_bin_dir.return_value.rglob.return_value = []
+        
+        mock_bin_path = MagicMock(spec=Path)
+        mock_bin_path.exists.return_value = False
+        mock_bin_path.rglob.return_value = []
+        
+        mock_ffmpeg_path = MagicMock(spec=Path)
+        mock_ffmpeg_path.exists.return_value = False
+        
+        mock_bin_path.__truediv__ = lambda self, x: mock_ffmpeg_path
+        
+        mock_bin_dir.return_value = mock_bin_path
         mock_which.return_value = None
 
         result = find_ffmpeg()
@@ -120,16 +136,23 @@ class TestFindFFprobe:
 
         assert result is not None
 
-    @pytest.mark.skip(reason="Mock complexity - tested via integration tests")
     @patch("core.ffmpeg_utils.get_project_bin_dir")
     @patch("core.ffmpeg_utils.shutil.which")
     def test_returns_none_when_not_found(self, mock_which, mock_bin_dir):
         """Test that None is returned when FFprobe is not found."""
         from core.ffmpeg_utils import find_ffprobe
+        from pathlib import Path
 
-        mock_bin_dir.return_value = MagicMock()
-        mock_bin_dir.return_value.exists.return_value = False
-        mock_bin_dir.return_value.rglob.return_value = []
+        mock_bin_path = MagicMock(spec=Path)
+        mock_bin_path.exists.return_value = False
+        mock_bin_path.rglob.return_value = []
+        
+        mock_ffprobe_path = MagicMock(spec=Path)
+        mock_ffprobe_path.exists.return_value = False
+        
+        mock_bin_path.__truediv__ = lambda self, x: mock_ffprobe_path
+        
+        mock_bin_dir.return_value = mock_bin_path
         mock_which.return_value = None
 
         result = find_ffprobe()

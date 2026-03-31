@@ -47,17 +47,17 @@ class TestConfigYAMLValidity:
 
     def test_config_yaml_exists(self):
         """Test that config.yaml exists."""
-        assert os.path.exists("config.yaml"), "config.yaml not found"
+        assert os.path.exists("config/config.yaml"), "config.yaml not found"
 
     def test_config_yaml_is_valid_yaml(self):
         """Test that config.yaml is valid YAML."""
-        with open("config.yaml", "r", encoding="utf-8") as f:
+        with open("config/config.yaml", "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
         assert isinstance(config, dict), "config.yaml should be a dictionary"
 
     def test_config_server_section(self):
         """Test server configuration has valid values."""
-        with open("config.yaml", "r", encoding="utf-8") as f:
+        with open("config/config.yaml", "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         server = config.get("server", {})
@@ -76,22 +76,17 @@ class TestConfigYAMLValidity:
 
     def test_config_transcriber_valid_model(self):
         """Test that transcriber uses a valid Whisper model."""
-        with open("config.yaml", "r", encoding="utf-8") as f:
-            config = yaml.safe_load(f)
-
-        modules = config.get("modules", {})
-        transcriber = modules.get("transcriber", {})
-        model = transcriber.get("model", "")
+        from core.config_manager import ConfigManager
         
-        if model not in VALID_WHISPER_MODELS:
-            pytest.skip(
-                f"Config has invalid model '{model}' (transcriber disabled). "
-                f"Valid models: {VALID_WHISPER_MODELS}"
-            )
+        config = ConfigManager()
+        model = config.get("modules.transcriber.model", "")
+        
+        assert model in VALID_WHISPER_MODELS, \
+            f"Invalid model '{model}'. Valid models: {VALID_WHISPER_MODELS}"
 
     def test_config_transcriber_valid_language(self):
         """Test that transcriber uses a valid language code."""
-        with open("config.yaml", "r", encoding="utf-8") as f:
+        with open("config/config.yaml", "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         modules = config.get("modules", {})
@@ -103,7 +98,7 @@ class TestConfigYAMLValidity:
 
     def test_config_transcriber_valid_device(self):
         """Test that transcriber uses a valid device."""
-        with open("config.yaml", "r", encoding="utf-8") as f:
+        with open("config/config.yaml", "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         modules = config.get("modules", {})
@@ -115,7 +110,7 @@ class TestConfigYAMLValidity:
 
     def test_config_translator_valid_languages(self):
         """Test that translator uses valid language codes."""
-        with open("config.yaml", "r", encoding="utf-8") as f:
+        with open("config/config.yaml", "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         modules = config.get("modules", {})
@@ -130,7 +125,7 @@ class TestConfigYAMLValidity:
 
     def test_config_tts_valid_voice(self):
         """Test that TTS uses a valid voice."""
-        with open("config.yaml", "r", encoding="utf-8") as f:
+        with open("config/config.yaml", "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         modules = config.get("modules", {})
@@ -145,7 +140,7 @@ class TestConfigYAMLValidity:
 
     def test_config_tts_valid_device(self):
         """Test that TTS uses a valid device."""
-        with open("config.yaml", "r", encoding="utf-8") as f:
+        with open("config/config.yaml", "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         modules = config.get("modules", {})
@@ -157,7 +152,7 @@ class TestConfigYAMLValidity:
 
     def test_config_video_muxer_valid_preset(self):
         """Test that video muxer uses valid preset."""
-        with open("config.yaml", "r", encoding="utf-8") as f:
+        with open("config/config.yaml", "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         modules = config.get("modules", {})
@@ -169,7 +164,7 @@ class TestConfigYAMLValidity:
 
     def test_config_video_muxer_valid_encoder_mode(self):
         """Test that video muxer uses valid encoder mode."""
-        with open("config.yaml", "r", encoding="utf-8") as f:
+        with open("config/config.yaml", "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         modules = config.get("modules", {})
@@ -181,7 +176,7 @@ class TestConfigYAMLValidity:
 
     def test_config_ports_no_conflict(self):
         """Test that configured ports don't conflict."""
-        with open("config.yaml", "r", encoding="utf-8") as f:
+        with open("config/config.yaml", "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         server_port = config.get("server", {}).get("port", 0)
@@ -196,7 +191,7 @@ class TestConfigYAMLValidity:
 
     def test_config_directory_exists(self):
         """Test that output directory path is valid."""
-        with open("config.yaml", "r", encoding="utf-8") as f:
+        with open("config/config.yaml", "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         output_dir = config.get("output_dir", {}).get("directory", "")
@@ -221,11 +216,8 @@ class TestConfigManagerLoadsConfig:
         config = ConfigManager()
         model = config.get("modules.transcriber.model", "")
         
-        if model not in VALID_WHISPER_MODELS:
-            pytest.skip(
-                f"Config has invalid model '{model}' (transcriber disabled). "
-                f"Valid models: {VALID_WHISPER_MODELS}"
-            )
+        assert model in VALID_WHISPER_MODELS, \
+            f"Invalid model '{model}'. Valid models: {VALID_WHISPER_MODELS}"
 
     def test_config_manager_has_valid_model(self):
         """Test that ConfigManager has valid model configuration."""
@@ -234,8 +226,8 @@ class TestConfigManagerLoadsConfig:
         config = ConfigManager()
         model = config.get("modules.transcriber.model", "")
         
-        if model not in VALID_WHISPER_MODELS:
-            pytest.skip(f"Config has invalid model: {model}")
+        assert model in VALID_WHISPER_MODELS, \
+            f"Invalid model '{model}'. Valid: {VALID_WHISPER_MODELS}"
 
 
 class TestServerStartup:

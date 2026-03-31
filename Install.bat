@@ -103,28 +103,21 @@ if "%ONNX_STATUS%"=="CUDA" (
 )
 
 REM =============================================
-REM 5. Copiar DLLs de CUDA a bin/cuda
+REM 5. Descargar modelos de Whisper
 REM =============================================
 echo.
-echo [5/6] DLLs de CUDA...
+echo [5/7] Modelos Whisper...
 
-if not exist "bin\cuda" mkdir bin\cuda
-
-set "CUDA_DLLS=cudart64_12.dll cublas64_12.dll cublasLt64_12.dll cufft64_11.dll curand64_10.dll cusolver64_11.dll cusparse64_12.dll nvrtc64_120_0.dll nvrtc-builtins64_129.dll nvcuda.dll nvJitLink_120_0.dll"
-
-echo  [INFO] Copiando DLLs de CUDA...
-set "COPIED=0"
-for %%D in (%CUDA_DLLS%) do (
-    if exist "C:\Windows\System32\%%D" (
-        copy /Y "C:\Windows\System32\%%D" "bin\cuda\" >nul 2>&1
-        set /a COPIED+=1
+if not exist ".cache\srt2web\whisper\models--Systran--faster-whisper-tiny" (
+    echo  [INFO] Descargando modelo Whisper tiny...
+    %PYTHON% -c "from faster_whisper import WhisperModel; WhisperModel('tiny', device='cpu', download_root='.cache/srt2web/whisper')" 2>nul
+    if exist ".cache\srt2web\whisper\models--Systran--faster-whisper-tiny" (
+        echo  [OK] Modelo Whisper tiny descargado.
+    ) else (
+        echo  [WARNING] No se pudo descargar el modelo.
     )
-)
-
-if %COPIED% gtr 0 (
-    echo  [OK] %COPIED% DLLs copiadas a bin/cuda.
 ) else (
-    echo  [INFO] Usando DLLs del sistema.
+    echo  [OK] Modelo Whisper tiny ya existe.
 )
 
 REM =============================================

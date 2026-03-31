@@ -187,12 +187,18 @@ class TestApiRouter:
     """Tests for API router endpoints."""
 
     @pytest.fixture
-    def mock_ctx(self):
-        """Create a mock app context."""
+    def mock_ctx(self, tmp_path):
+        """Create a mock app context with temporary config file."""
+        import shutil
         from core.config_manager import ConfigManager
         from core.pipeline import Pipeline
 
-        config = ConfigManager()
+        # Copy the actual config to a temporary location
+        temp_config = tmp_path / "config.yaml"
+        shutil.copy2("config/config.yaml", temp_config)
+        
+        # Create config manager pointing to temp file
+        config = ConfigManager(str(temp_config))
         pipeline = Pipeline()
         input_source = Mock()
         input_source.is_receiving.return_value = True
@@ -202,13 +208,6 @@ class TestApiRouter:
             "mode": "listener",
             "latency_ms": 400,
             "obs_url": "srt://localhost:9000",
-        }
-
-        return {
-            "config": config,
-            "pipeline": pipeline,
-            "input_source": input_source,
-            "log_broadcast": Mock(),
         }
 
         return {
@@ -446,22 +445,25 @@ class TestApiRouterEdgeCases:
     """Edge case tests for API router."""
 
     @pytest.fixture
-    def mock_ctx(self):
-        """Create a mock app context."""
+    def mock_ctx(self, tmp_path):
+        """Create a mock app context with temporary config file."""
+        import shutil
         from core.config_manager import ConfigManager
         from core.pipeline import Pipeline
 
-        config = ConfigManager()
+        # Copy the actual config to a temporary location
+        temp_config = tmp_path / "config.yaml"
+        shutil.copy2("config/config.yaml", temp_config)
+        
+        # Create config manager pointing to temp file
+        config = ConfigManager(str(temp_config))
         pipeline = Pipeline()
         srt_ingest = Mock()
-        srt_ingest.is_receiving.return_value = False
-        srt_ingest.get_srt_url.return_value = "srt://localhost:9000"
 
         return {
             "config": config,
             "pipeline": pipeline,
             "srt_ingest": srt_ingest,
-            "log_broadcast": Mock(),
         }
 
     def test_config_update_empty_dict(self, mock_ctx):
@@ -621,12 +623,18 @@ class TestNetworkInfo:
     """Tests for network info endpoint."""
 
     @pytest.fixture
-    def mock_ctx(self):
-        """Create a mock app context."""
+    def mock_ctx(self, tmp_path):
+        """Create a mock app context with temporary config file."""
+        import shutil
         from core.config_manager import ConfigManager
         from core.pipeline import Pipeline
 
-        config = ConfigManager()
+        # Copy the actual config to a temporary location
+        temp_config = tmp_path / "config.yaml"
+        shutil.copy2("config/config.yaml", temp_config)
+        
+        # Create config manager pointing to temp file
+        config = ConfigManager(str(temp_config))
         pipeline = Pipeline()
         input_source = Mock()
         input_source.is_receiving.return_value = True
