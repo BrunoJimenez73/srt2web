@@ -141,6 +141,9 @@ class Pipeline:
                 input_config = config_manager.get_section("input")
                 input_type = input_config.get("type", "srt")
                 type_config = input_config.get(input_type, {})
+                # Inject chunk_duration_sec from pipeline section (same as main.py)
+                pipeline_config = config_manager.get_section("pipeline")
+                type_config["chunk_duration_sec"] = pipeline_config.get("chunk_duration_sec", 15)
                 self._input_source.configure(type_config)
                 self._log("info", f"Reconfigured input: {input_type}")
             except Exception as e:

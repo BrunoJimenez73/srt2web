@@ -222,25 +222,22 @@ class SRTInput(InputSource):
             self.logger.debug(f"SRT input: no chunks found in {self._chunks_dir}")
             return None
 
-        # Excluir el último (可能 todav铆a escribiéndose)
-        if len(chunks) < 2:
-            self.logger.debug(f"SRT input: only {len(chunks)} chunk(s) found, need 2+ to process")
-            return None
-        
-        self.logger.debug(f"SRT input: found {len(chunks)} chunks, processing...")
-
-        chunks = sorted(glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")))
-
-        if not chunks:
-            return None
-
-        # Excluir el último (可能 todavía escribiéndose)
-        if len(chunks) < 2:
+        # With 2+ chunks: exclude the latest (might still be writing)
+        # With 1 chunk: process it if old enough (FFmpeg has moved on)
+        if len(chunks) >= 2:
+            chunks = chunks[:-1]
+        elif len(chunks) == 1:
+            chunk_age = time.time() - os.path.getmtime(chunks[0])
+            if chunk_age < self._chunk_duration * 0.8:
+                self.logger.debug(f"SRT input: only 1 chunk, age={chunk_age:.1f}s < {self._chunk_duration * 0.8:.1f}s, waiting...")
+                return None
+            self.logger.debug(f"SRT input: single chunk old enough ({chunk_age:.1f}s), processing")
+        else:
             return None
 
         # Encontrar siguiente chunk no procesado
         processable = []
-        for chunk_path in chunks[:-1]:
+        for chunk_path in chunks:
             fname = os.path.basename(chunk_path)
             try:
                 idx = int(fname.replace("chunk_", "").replace(".ts", ""))

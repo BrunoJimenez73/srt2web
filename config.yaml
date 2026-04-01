@@ -12,7 +12,7 @@ input:
   srt:
     listen_port: 9000
     mode: listener
-    latency_ms: 1000
+    latency_ms: 200
     caller_address: ''
   file:
     path: ''
@@ -21,19 +21,20 @@ input:
 output:
   type: web
   web:
-    segment_duration: 15
-    list_size: 6
+    segment_duration: 4
+    list_size: 3
     audio_offset_ms: 0
 pipeline:
-  chunk_duration_sec: 15
+  chunk_duration_sec: 4
 modules:
   audio_extractor:
     enabled: true
   transcriber:
     enabled: true
     model: tiny
-    language: auto
-    device: auto
+    language: en
+    device: cuda
+    beam_size: 2
   translator:
     enabled: true
     source_lang: en
@@ -46,8 +47,8 @@ modules:
     enabled: true
     engine: piper
     device: cuda
-    voice: es_MX-claude-high
-    speed: 1.1
+    voice: es_AR-daniela-high
+    speed: 1
   audio_mixer:
     enabled: true
     original_volume: 0.7

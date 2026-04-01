@@ -227,7 +227,7 @@ class VideoMuxer(BaseModule):
             media_lines = [
                 "#EXTM3U",
                 "#EXT-X-VERSION:4",
-                f"#EXT-X-TARGETDURATION:{self._hls_segment_duration + 2}",
+                f"#EXT-X-TARGETDURATION:{self._hls_segment_duration + 1}",
                 f"#EXT-X-MEDIA-SEQUENCE:{media_seq}",
             ]
 

@@ -208,7 +208,7 @@ const pageTitle = "SRT2Web — Live Player";
             if (Hls.isSupported()) {
                 hls = new Hls({
                     enableWorker: false,
-                    lowLatencyMode: false,
+                    lowLatencyMode: true,
                     backBufferLength: 90,
                     subtitlesEnabled: true
                 });

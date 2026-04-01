@@ -25,6 +25,7 @@ class Transcriber(BaseModule):
         self._model_size = "small"
         self._language = "es"
         self._device_config = "auto"
+        self._beam_size = 5
         self._model = None
         self._device = "cpu"
         self._compute_type = "int8"
@@ -39,6 +40,7 @@ class Transcriber(BaseModule):
         self._language = None if lang.lower() == "auto" else lang
         
         self._device_config = config.get("device", self._device_config)
+        self._beam_size = config.get("beam_size", self._beam_size)
 
     def start(self) -> None:
         """Initialize and load the Whisper model using ModelCache."""
@@ -117,7 +119,7 @@ class Transcriber(BaseModule):
             segments_iter, info = self._model.transcribe(
                 data.audio_chunk_path,
                 language=self._language,
-                beam_size=5,
+                beam_size=self._beam_size,
                 vad_filter=True,
                 vad_parameters=dict(min_silence_duration_ms=500)
             )

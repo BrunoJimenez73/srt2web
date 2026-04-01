@@ -479,6 +479,8 @@ import Toast from '../components/Toast.astro';
 
     if (srtPort) srtPort.value = String(cfg.input.srt.listen_port);
     if (srtMode) srtMode.value = cfg.input.srt.mode;
+    const chunkDuration = document.getElementById('input-chunk-duration') as HTMLInputElement;
+    if (chunkDuration) chunkDuration.value = String(cfg.pipeline?.chunk_duration_sec ?? 4);
     if (whisperEnabled) whisperEnabled.checked = cfg.modules.transcriber.enabled;
     if (whisperModel) whisperModel.value = cfg.modules.transcriber.model;
     if (whisperLang) whisperLang.value = cfg.modules.transcriber.language;
@@ -531,6 +533,9 @@ import Toast from '../components/Toast.astro';
           listen_port: parseInt((document.getElementById('input-srt-port') as HTMLInputElement)?.value || '9000'),
           mode: (document.getElementById('input-srt-mode') as HTMLSelectElement)?.value || 'listener'
         }
+      },
+      pipeline: {
+        chunk_duration_sec: parseInt((document.getElementById('input-chunk-duration') as HTMLInputElement)?.value || '4')
       },
       modules: {
         transcriber: {
@@ -751,6 +756,11 @@ import Toast from '../components/Toast.astro';
 
     document.getElementById('input-srt-mode')?.addEventListener('change', (e) => {
       updateConfigField('input.srt.mode', (e.target as HTMLSelectElement).value);
+    });
+
+    document.getElementById('input-chunk-duration')?.addEventListener('change', (e) => {
+      const value = parseInt((e.target as HTMLInputElement).value);
+      if (!isNaN(value)) updateConfigField('pipeline.chunk_duration_sec', value);
     });
 
     document.getElementById('whisper-model')?.addEventListener('change', (e) => {
