@@ -34,6 +34,7 @@ import json
 import io
 import wave
 import warnings
+import base64
 
 def main():
     voice = None
