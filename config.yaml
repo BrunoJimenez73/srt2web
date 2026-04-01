@@ -22,7 +22,7 @@ output:
   type: web
   web:
     segment_duration: 10
-    list_size: 3
+    list_size: 2
     audio_offset_ms: 0
 pipeline:
   chunk_duration_sec: 10
@@ -47,13 +47,13 @@ modules:
     enabled: true
     engine: piper
     device: cuda
-    voice: es_MX-claude-high
+    voice: es_MX-ald-medium
     speed: 1.3
   audio_mixer:
     enabled: true
-    original_volume: 0.7
+    original_volume: 0.9
     dubbed_volume: 1.0
-    tts_volume: 1
+    tts_volume: 0.9
   video_muxer:
     enabled: true
     hls_segment_duration: 4
