@@ -36,6 +36,7 @@ class TTSEngine(BaseModule):
 
         # Piper specific
         self._piper_voice = None
+        self._piper_manager = None  # Persistent subprocess for GPU synthesis
 
         super().__init__("tts_engine", config)
 
@@ -52,6 +53,9 @@ class TTSEngine(BaseModule):
         if old_voice != self._voice_model:
             self._voice_loaded = False
             self._piper_voice = None
+            if self._piper_manager:
+                self._piper_manager.stop()
+                self._piper_manager = None
             logger.info(f"[Piper] Voice changed from {old_voice} to {self._voice_model}, will reload lazily")
         
         logger.info(
@@ -95,117 +99,79 @@ class TTSEngine(BaseModule):
             raise ValueError(f"Unknown TTS engine: {self._engine}")
 
     def _init_piper(self):
-        """Load offline Piper TTS model using subprocess (avoids blocking event loop)."""
-        import time
-        from modules.piper_loader import load_piper_model_subprocess, check_piper_environment
-        from piper import PiperVoice
-        
+        """
+        Initialize Piper TTS using a persistent subprocess with GPU support.
+
+        The subprocess loads Piper with CUDA (if available) and stays alive
+        to handle synthesis requests. This avoids the cuDNN 8.x crash that
+        occurs when loading CUDA in the main Python process.
+        """
+        from modules.piper_loader import PiperSubprocessManager, check_piper_environment
+
         start_time = time.time()
-        
-        # First check environment
+
+        # Check environment
         logger.info("[PIPER_DEBUG] Checking Piper environment...")
         env_info = check_piper_environment()
         logger.info(f"[PIPER_DEBUG] Environment: piper={env_info['piper_available']}, "
                     f"onnx={env_info['onnxruntime_available']}, "
                     f"cuda={env_info['cuda_available']}")
-        
+
         if not env_info["piper_available"]:
             raise RuntimeError(f"Piper not installed: {env_info.get('piper_error', 'unknown')}")
         if not env_info["onnxruntime_available"]:
             raise RuntimeError(f"ONNX Runtime not installed: {env_info.get('onnx_error', 'unknown')}")
-        
+
         # Get model paths
         model_path, config_path = self._ensure_piper_model(self._voice_model)
-        load_time = time.time() - start_time
-        logger.info(f"[PIPER_DEBUG] Model path resolved in {load_time:.1f}s")
-        
-        # Skip CUDA path setup if device is CPU
-        if self._device == "cpu":
-            logger.info("[PIPER_DEBUG] Device is CPU, skipping CUDA setup entirely")
-            import warnings
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                voice = PiperVoice.load(model_path, config_path, use_cuda=False)
-            self._piper_voice = voice
-            self._using_cuda = False
-            logger.info(f"[PIPER_DEBUG] Voice loaded successfully with CPU")
-            return
-        
-        # Load in subprocess (90 second timeout)
-        logger.info(f"[PIPER_DEBUG] Starting subprocess loader for voice: {self._voice_model}")
-        result = load_piper_model_subprocess(
-            voice_name=self._voice_model,
+        logger.info(f"[PIPER_DEBUG] Model path resolved in {time.time() - start_time:.1f}s")
+
+        # Start persistent subprocess with GPU
+        self._piper_manager = PiperSubprocessManager()
+        result = self._piper_manager.start(
             model_path=model_path,
             config_path=config_path,
             device=self._device,
-            timeout=90
         )
-        
+
         elapsed = time.time() - start_time
-        logger.info(f"[PIPER_DEBUG] Load attempt finished after {elapsed:.1f}s")
-        
+        logger.info(f"[PIPER_DEBUG] Persistent subprocess started after {elapsed:.1f}s")
+
         if result["status"] != "success":
             error_msg = result.get("error", "Unknown error")
-            logger.error(f"[PIPER_DEBUG] Failed to load Piper voice: {error_msg}")
+            logger.error(f"[PIPER_DEBUG] Failed to start Piper subprocess: {error_msg}")
             raise RuntimeError(f"Failed to load Piper voice: {error_msg}")
-        
-        # Load was successful in subprocess, now load in main process
-        # (the subprocess validated the model works, so this should be fast)
-        logger.info(f"[PIPER_DEBUG] Subprocess validated model, now loading in main process...")
-        
-        import warnings
-        import site
-        use_cuda = result.get("using_cuda", False)
-        
-        # Note: CUDA DLL paths are already added in main.py at startup
-        # No need to add them again here - that was causing the crash
-        # because bin/cuda doesn't exist
-        
-        # WORKAROUND: cuDNN 8.x has symbol loading issues in the main process
-        # Even when subprocess validates CUDA, loading in main process fails
-        # Force CPU for reliability - the subprocess validation proved the model works
-        if use_cuda:
-            logger.warning(f"[PIPER_DEBUG] cuDNN symbol issues detected in main process, using CPU for reliability")
-            use_cuda = False
-        
-        try:
-            logger.info(f"[PIPER_DEBUG] About to load PiperVoice in main process with use_cuda={use_cuda}")
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                voice = PiperVoice.load(model_path, config_path, use_cuda=use_cuda)
-            logger.info(f"[PIPER_DEBUG] PiperVoice.load() completed successfully")
-            self._piper_voice = voice
-            self._using_cuda = use_cuda
-        except Exception as e:
-            logger.warning(f"[PIPER_DEBUG] Failed to load with CPU ({e}), retrying...")
-            try:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    voice = PiperVoice.load(model_path, config_path, use_cuda=False)
-                self._piper_voice = voice
-                self._using_cuda = False
-                logger.info(f"[PIPER_DEBUG] Voice loaded successfully with CPU")
-                return
-            except Exception as cpu_error:
-                logger.error(f"[PIPER_DEBUG] CPU fallback also failed: {cpu_error}")
-                raise RuntimeError(f"Failed to load Piper voice: {cpu_error}")
+
+        self._using_cuda = self._piper_manager.using_cuda
+        logger.info(f"[PIPER_DEBUG] Piper ready: CUDA={self._using_cuda}, "
+                    f"sample_rate={self._piper_manager.sample_rate}")
 
     def get_status(self) -> ModuleStatus:
         """Get current status including actual runtime device info."""
         status = super().get_status()
         is_piper = self._engine == "piper"
-        actually_using_gpu = self._using_cuda if is_piper else False
+        actually_using_gpu = (
+            is_piper
+            and self._piper_manager is not None
+            and self._piper_manager.is_alive
+            and self._piper_manager.using_cuda
+        )
         status.extra["device"] = "cuda" if actually_using_gpu else "cpu"
         status.extra["using_gpu"] = actually_using_gpu
         status.extra["engine"] = self._engine
         status.extra["voice_loaded"] = self._voice_loaded
+        status.extra["subprocess_alive"] = (
+            self._piper_manager.is_alive if self._piper_manager else False
+        )
         return status
 
     def stop(self) -> None:
         """Cleanup TTS resources."""
         self._state = ModuleState.STOPPING
-        if self._piper_voice:
-            self._piper_voice = None
+        if self._piper_manager:
+            self._piper_manager.stop()
+            self._piper_manager = None
+        self._piper_voice = None
         self._state = ModuleState.IDLE
 
     def _ensure_piper_model(self, voice_name: str) -> tuple[str, str]:
@@ -296,84 +262,44 @@ class TTSEngine(BaseModule):
             os.remove(temp_mp3)
 
     def _run_piper_tts(self, text: str, output_wav: str):
-        """Run local Piper TTS generation (lazy loads voice on first use)."""
-        import wave
-        from piper.config import SynthesisConfig
-        import threading
-        import queue
-
+        """Run Piper TTS synthesis via persistent subprocess (GPU-enabled)."""
         if not self._voice_loaded:
             logger.info(f"[Piper] Lazy loading voice: {self._voice_model}")
             self._init_piper()
             self._voice_loaded = True
-        
-        if not self._piper_voice:
-            logger.error("Piper voice not initialized")
+
+        if not self._piper_manager or not self._piper_manager.is_alive:
+            logger.error("Piper subprocess not running")
             return
 
-        result_queue = queue.Queue()
-        synthesis_done = threading.Event()
-
-        def synthesis_worker():
-            try:
-                length_scale = 1.0 / self._speed
-                logger.debug(
-                    f"Synthesizing text with Piper: '{text[:50]}...' ({len(text)} chars), "
-                    f"speed={self._speed}, length_scale={length_scale:.2f}"
-                )
-
-                syn_config = SynthesisConfig(length_scale=length_scale)
-
-                audio_data = []
-                sample_rate = self._piper_voice.config.sample_rate
-
-                for chunk in self._piper_voice.synthesize(text, syn_config=syn_config):
-                    audio_data.append(chunk.audio_int16_bytes)
-
-                result_queue.put(("success", audio_data, sample_rate))
-            except Exception as e:
-                result_queue.put(("error", str(e), None))
-            finally:
-                synthesis_done.set()
-
         try:
-            thread = threading.Thread(target=synthesis_worker, daemon=True, name="piper-synthesis")
-            thread.start()
-            
-            timeout_sec = 30
-            if not synthesis_done.wait(timeout=timeout_sec):
-                logger.error(f"Piper synthesis timed out after {timeout_sec}s - cancelling synthesis")
+            logger.debug(
+                f"Synthesizing with Piper (CUDA={self._piper_manager.using_cuda}): "
+                f"'{text[:50]}...' ({len(text)} chars), speed={self._speed}"
+            )
+
+            # Synthesize via subprocess (runs on GPU if available)
+            wav_bytes = self._piper_manager.synthesize(
+                text=text,
+                speed=self._speed,
+                timeout=30.0,
+            )
+
+            if wav_bytes is None:
+                logger.error("Piper synthesis returned no data")
                 return
-            
-            if thread.is_alive():
-                thread.join(timeout=5)
-            
-            status, data, sample_rate = result_queue.get_nowait()
-            
-            if status == "error":
-                logger.error(f"Piper synthesis error: {data}")
-                return
-            
-            with wave.open(output_wav, "wb") as wav_file:
-                wav_file.setnchannels(1)
-                wav_file.setsampwidth(2)
-                wav_file.setframerate(sample_rate)
-                for audio_bytes in data:
-                    wav_file.writeframes(audio_bytes)
+
+            # Write WAV bytes to file
+            with open(output_wav, "wb") as f:
+                f.write(wav_bytes)
 
             if os.path.exists(output_wav):
                 file_size = os.path.getsize(output_wav)
-                logger.debug(
-                    f"Piper TTS generated audio file: {output_wav} ({file_size} bytes)"
-                )
+                logger.debug(f"Piper TTS generated: {output_wav} ({file_size} bytes)")
                 if file_size < 44:
-                    logger.warning(
-                        f"Generated WAV file is too small ({file_size} bytes), likely empty"
-                    )
+                    logger.warning(f"Generated WAV too small ({file_size} bytes), likely empty")
             else:
-                logger.error(f"Piper TTS failed to generate output file: {output_wav}")
+                logger.error(f"Piper TTS failed to generate: {output_wav}")
 
-        except queue.Empty:
-            logger.error("Piper synthesis: no result from worker thread")
         except Exception as e:
             logger.error(f"Error during Piper TTS synthesis: {e}", exc_info=True)
