@@ -355,12 +355,9 @@ import Toast from '../components/Toast.astro';
             const gpuBadge = document.getElementById('whisper-gpu-badge');
             const deviceEl = document.getElementById('module-device-transcriber');
             if (gpuBadge) {
-              if (module.extra.using_gpu) {
-                gpuBadge.style.display = 'inline';
-                gpuBadge.classList.toggle('active', isProcessing);
-              } else {
-                gpuBadge.style.display = 'none';
-              }
+              gpuBadge.style.display = 'inline';
+              gpuBadge.textContent = module.extra.using_gpu ? 'GPU' : 'CPU';
+              gpuBadge.classList.toggle('active', isProcessing && module.extra.using_gpu);
             }
             if (deviceEl) {
               deviceEl.textContent = module.extra.device ? module.extra.device.toUpperCase() : '--';
@@ -372,9 +369,11 @@ import Toast from '../components/Toast.astro';
             const gpuBadge = document.getElementById('tts-gpu-badge');
             const deviceEl = document.getElementById('module-device-tts_engine');
             if (gpuBadge) {
-              if (module.extra.using_gpu) {
+              const isPiper = module.extra.engine === 'piper';
+              if (isPiper) {
                 gpuBadge.style.display = 'inline';
-                gpuBadge.classList.toggle('active', isProcessing);
+                gpuBadge.textContent = module.extra.using_gpu ? 'GPU' : 'CPU';
+                gpuBadge.classList.toggle('active', isProcessing && module.extra.using_gpu);
               } else {
                 gpuBadge.style.display = 'none';
               }

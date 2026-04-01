@@ -191,11 +191,14 @@ class TTSEngine(BaseModule):
                 raise RuntimeError(f"Failed to load Piper voice: {cpu_error}")
 
     def get_status(self) -> ModuleStatus:
-        """Get current status including device info."""
+        """Get current status including actual runtime device info."""
         status = super().get_status()
-        status.extra["device"] = self._device
-        status.extra["using_gpu"] = self._using_cuda if self._engine == "piper" else False
+        is_piper = self._engine == "piper"
+        actually_using_gpu = self._using_cuda if is_piper else False
+        status.extra["device"] = "cuda" if actually_using_gpu else "cpu"
+        status.extra["using_gpu"] = actually_using_gpu
         status.extra["engine"] = self._engine
+        status.extra["voice_loaded"] = self._voice_loaded
         return status
 
     def stop(self) -> None:

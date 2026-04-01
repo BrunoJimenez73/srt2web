@@ -25,7 +25,7 @@ output:
     list_size: 3
     audio_offset_ms: 0
 pipeline:
-  chunk_duration_sec: 4
+  chunk_duration_sec: 6
 modules:
   audio_extractor:
     enabled: true
@@ -33,7 +33,7 @@ modules:
     enabled: true
     model: tiny
     language: en
-    device: cuda
+    device: auto
     beam_size: 2
   translator:
     enabled: true
