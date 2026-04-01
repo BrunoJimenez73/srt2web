@@ -106,9 +106,66 @@ class AudioMixer(BaseModule):
         if not tts_audio or not os.path.exists(tts_audio):
             logger.warning(f"[AudioMixer] No TTS audio for chunk {data.chunk_index}: {tts_audio}")
             data.mixed_audio_path = orig_audio
-            # Still measure and update duration from original audio
             data.duration = self._get_audio_duration(orig_audio)
             return data
+
+        mix_wav = os.path.join(self._mixer_dir, f"mix_{data.chunk_index:06d}.wav")
+        expected_duration = getattr(data, "duration", None) or self._get_audio_duration(orig_audio)
+        expected_duration = max(0.1, min(expected_duration, 60.0))
+
+        # ──────────────────────────────────────────────────────────
+        # SINGLE FFmpeg call: pad TTS + mix + enforce duration
+        # Replaces 3 separate FFmpeg calls (_prepare_tts + mix + enforce)
+        # ──────────────────────────────────────────────────────────
+        filter_complex = (
+            f"[1:a]apad=whole_dur={expected_duration:.3f},atrim=duration={expected_duration:.3f}[tts]; "
+            f"[0:a]volume={self._original_volume}[orig]; "
+            f"[tts]volume={self._tts_volume}[ttsv]; "
+            f"[orig][ttsv]amix=inputs=2:duration=first,"
+            f"atrim=duration={expected_duration:.3f},asetpts=PTS-STARTPTS"
+        )
+
+        cmd = [
+            self._ffmpeg_path, "-y",
+            "-i", orig_audio,
+            "-i", tts_audio,
+            "-filter_complex", filter_complex,
+            "-ac", "2", "-ar", "44100",
+            "-c:a", "pcm_s16le",
+            "-threads", "4",
+            "-loglevel", "error",
+            mix_wav,
+        ]
+
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=15,
+                creationflags=(
+                    subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                ),
+            )
+
+            if result.returncode != 0:
+                logger.error(f"FFmpeg audio mix error: {result.stderr[-300:]}")
+                data.mixed_audio_path = orig_audio
+                return data
+
+            if os.path.exists(mix_wav) and os.path.getsize(mix_wav) > 44:
+                data.duration = expected_duration
+                data.mixed_audio_path = mix_wav
+                logger.debug(f"[AudioMixer] Created mix: {mix_wav}")
+            else:
+                logger.error(f"[AudioMixer] Mix file missing or empty: {mix_wav}")
+                data.mixed_audio_path = orig_audio
+
+        except Exception as e:
+            logger.error(f"FFmpeg audio mixing exception: {e}")
+            data.mixed_audio_path = orig_audio
+
+        return data
 
         mix_wav = os.path.join(self._mixer_dir, f"mix_{data.chunk_index:06d}.wav")
 
