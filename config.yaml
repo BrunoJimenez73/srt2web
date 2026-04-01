@@ -47,7 +47,7 @@ modules:
     enabled: true
     engine: piper
     device: cuda
-    voice: es_AR-daniela-high
+    voice: es_MX-ald-medium
     speed: 1
   audio_mixer:
     enabled: true

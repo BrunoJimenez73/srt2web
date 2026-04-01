@@ -6,6 +6,7 @@ and 'piper' for fast, offline, and natural-sounding text-to-speech.
 """
 
 import os
+import time
 import json
 import asyncio
 import logging
