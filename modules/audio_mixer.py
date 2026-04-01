@@ -154,9 +154,18 @@ class AudioMixer(BaseModule):
                 return data
 
             if os.path.exists(mix_wav) and os.path.getsize(mix_wav) > 44:
-                data.duration = expected_duration
+                # Verify actual output duration matches expected (critical for A/V sync)
+                actual_duration = self._get_audio_duration(mix_wav)
+                if abs(actual_duration - expected_duration) > 0.05:
+                    logger.warning(
+                        f"[AudioMixer] Duration mismatch: got {actual_duration:.3f}s, "
+                        f"expected {expected_duration:.3f}s, enforcing..."
+                    )
+                    self._enforce_duration(mix_wav, expected_duration)
+                    actual_duration = self._get_audio_duration(mix_wav)
+                data.duration = actual_duration
                 data.mixed_audio_path = mix_wav
-                logger.debug(f"[AudioMixer] Created mix: {mix_wav}")
+                logger.debug(f"[AudioMixer] Created mix: {mix_wav} ({actual_duration:.3f}s)")
             else:
                 logger.error(f"[AudioMixer] Mix file missing or empty: {mix_wav}")
                 data.mixed_audio_path = orig_audio
