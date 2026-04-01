@@ -120,10 +120,21 @@ def main():
 
             try:
                 import struct
+                from piper.config import SynthesisConfig
+
+                # Use Piper's native length_scale for speed adjustment
+                # length_scale < 1.0 = faster, > 1.0 = slower
+                # Piper supports 0.5x to 2.0x natively
+                length_scale = 1.0 / speed if speed > 0 else 1.0
+                use_piper_speed = 0.5 <= length_scale <= 2.0
+
+                syn_config = SynthesisConfig(
+                    length_scale=length_scale if use_piper_speed else 1.0
+                )
 
                 # Collect raw audio bytes from Piper
                 audio_chunks = []
-                for chunk in voice.synthesize(text):
+                for chunk in voice.synthesize(text, syn_config=syn_config):
                     audio_chunks.append(chunk.audio_int16_bytes)
 
                 if not audio_chunks:
@@ -132,9 +143,20 @@ def main():
                     continue
 
                 raw_audio = b"".join(audio_chunks)
-                num_samples = len(raw_audio) // 2  # 16-bit = 2 bytes per sample
 
-                # Build WAV manually
+                # Fallback: numpy resampling for extreme speeds outside Piper range
+                if not use_piper_speed and speed != 1.0:
+                    try:
+                        import numpy as np
+                        samples = np.frombuffer(raw_audio, dtype=np.int16).astype(np.float64)
+                        new_length = max(1, int(len(samples) / speed))
+                        indices = np.linspace(0, len(samples) - 1, new_length)
+                        resampled = np.interp(indices, np.arange(len(samples)), samples)
+                        raw_audio = np.clip(resampled, -32768, 32767).astype(np.int16).tobytes()
+                    except Exception:
+                        pass  # Keep original if numpy fails
+
+                # Build WAV header
                 data_size = len(raw_audio)
                 header = struct.pack(
                     '<4sI4s4sIHHIIHH4sI',
@@ -144,46 +166,6 @@ def main():
                     b'data', data_size
                 )
                 wav_bytes = header + raw_audio
-
-                # Apply speed adjustment if needed
-                if speed != 1.0 and speed > 0:
-                    import subprocess as sp
-                    import tempfile as tf
-
-                    with tf.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_in:
-                        tmp_in.write(wav_bytes)
-                        tmp_in_path = tmp_in.name
-
-                    tmp_out_path = tmp_in_path.replace(".wav", "_sped.wav")
-
-                    try:
-                        # Use ffmpeg for speed adjustment (atempo filter)
-                        atempo_filters = []
-                        s = speed
-                        while s > 2.0:
-                            atempo_filters.append("atempo=2.0")
-                            s /= 2.0
-                        while s < 0.5:
-                            atempo_filters.append("atempo=0.5")
-                            s *= 2.0
-                        atempo_filters.append(f"atempo={s:.3f}")
-                        filter_str = ",".join(atempo_filters)
-
-                        ffmpeg = os.environ.get("FFMPEG_PATH", "ffmpeg")
-                        sp.run(
-                            [ffmpeg, "-y", "-i", tmp_in_path, "-filter:a", filter_str,
-                             "-c:a", "pcm_s16le", tmp_out_path],
-                            capture_output=True, timeout=10
-                        )
-                        if os.path.exists(tmp_out_path):
-                            with open(tmp_out_path, "rb") as f:
-                                wav_bytes = f.read()
-                    finally:
-                        for p in (tmp_in_path, tmp_out_path):
-                            try:
-                                os.unlink(p)
-                            except OSError:
-                                pass
 
                 audio_b64 = base64.b64encode(wav_bytes).decode("ascii")
                 resp = {
