@@ -33,7 +33,7 @@ modules:
     enabled: true
     model: tiny
     language: en
-    device: auto
+    device: cuda
     beam_size: 2
   translator:
     enabled: true
@@ -47,7 +47,7 @@ modules:
     enabled: true
     engine: piper
     device: cuda
-    voice: es_MX-ald-medium
+    voice: es_MX-claude-high
     speed: 1
   audio_mixer:
     enabled: true

@@ -121,15 +121,29 @@ def main():
             try:
                 import struct
 
-                # Synthesize to in-memory WAV
-                buf = io.BytesIO()
-                with wave.open(buf, "wb") as wav_file:
-                    wav_file.setnchannels(1)
-                    wav_file.setsampwidth(2)
-                    wav_file.setframerate(sample_rate)
-                    voice.synthesize(text, wav_file)
+                # Collect raw audio bytes from Piper
+                audio_chunks = []
+                for chunk in voice.synthesize(text):
+                    audio_chunks.append(chunk.audio_int16_bytes)
 
-                wav_bytes = buf.getvalue()
+                if not audio_chunks:
+                    resp = {"status": "error", "error": "Piper produced no audio"}
+                    print(json.dumps(resp), flush=True)
+                    continue
+
+                raw_audio = b"".join(audio_chunks)
+                num_samples = len(raw_audio) // 2  # 16-bit = 2 bytes per sample
+
+                # Build WAV manually
+                data_size = len(raw_audio)
+                header = struct.pack(
+                    '<4sI4s4sIHHIIHH4sI',
+                    b'RIFF', 36 + data_size, b'WAVE',
+                    b'fmt ', 16, 1, 1, sample_rate,
+                    sample_rate * 2, 2, 16,
+                    b'data', data_size
+                )
+                wav_bytes = header + raw_audio
 
                 # Apply speed adjustment if needed
                 if speed != 1.0 and speed > 0:
