@@ -21,11 +21,11 @@ input:
 output:
   type: web
   web:
-    segment_duration: 10
+    segment_duration: 2
     list_size: 3
     audio_offset_ms: 0
 pipeline:
-  chunk_duration_sec: 10
+  chunk_duration_sec: 2
 modules:
   audio_extractor:
     enabled: true
