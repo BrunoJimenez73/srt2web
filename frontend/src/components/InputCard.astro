@@ -275,10 +275,6 @@
     const rtmpSettings = document.getElementById('rtmp-settings');
     const fileSettings = document.getElementById('file-settings');
     
-    console.log('srt-settings found:', !!srtSettings);
-    console.log('rtmp-settings found:', !!rtmpSettings);
-    console.log('file-settings found:', !!fileSettings);
-    
     if (srtSettings) srtSettings.style.display = 'none';
     if (rtmpSettings) rtmpSettings.style.display = 'none';
     if (fileSettings) fileSettings.style.display = 'none';
@@ -306,9 +302,7 @@
     if (file) {
       const pathInput = document.getElementById('input-file-path') as HTMLInputElement;
       if (pathInput) {
-        // Store just the filename for display, full path will be handled by backend
         pathInput.value = file.name;
-        // Store file info in data attribute for backend
         pathInput.dataset.filePath = file.name;
         pathInput.dataset.fileSize = String(file.size);
         pathInput.dataset.fileType = file.type;
@@ -316,26 +310,26 @@
     }
   };
 
-  // Initialize on page load
-  window.addEventListener('load', () => {
-    // Small delay to ensure all elements are rendered
-    setTimeout(() => {
-      // Set initial state based on current type
-      const typeSelect = document.getElementById('input-type') as HTMLSelectElement;
-      if (typeSelect) {
-        window.handleInputTypeChange(typeSelect.value);
-      }
-      
-      // Add event listener for SRT mode change
-      const srtMode = document.getElementById('input-srt-mode') as HTMLSelectElement;
-      if (srtMode) {
-        srtMode.addEventListener('change', () => {
-          const typeSelect = document.getElementById('input-type') as HTMLSelectElement;
-          if (typeSelect?.value === 'srt') {
-            window.handleInputTypeChange('srt');
-          }
-        });
-      }
-    }, 100);
-  });
+  // Initialize immediately and on load
+  function initInputCard() {
+    const typeSelect = document.getElementById('input-type') as HTMLSelectElement;
+    if (typeSelect) {
+      window.handleInputTypeChange(typeSelect.value);
+    }
+    
+    const srtMode = document.getElementById('input-srt-mode') as HTMLSelectElement;
+    if (srtMode) {
+      srtMode.addEventListener('change', () => {
+        const typeSelect = document.getElementById('input-type') as HTMLSelectElement;
+        if (typeSelect?.value === 'srt') {
+          window.handleInputTypeChange('srt');
+        }
+      });
+    }
+  }
+
+  // Try to initialize now
+  initInputCard();
+  // Also on load as fallback
+  window.addEventListener('load', initInputCard);
 </script>

@@ -403,13 +403,16 @@
     }
   };
 
-  // Initialize on page load
-  window.addEventListener('load', () => {
-    setTimeout(() => {
-      const formatSelect = document.getElementById('output-format') as HTMLSelectElement;
-      if (formatSelect) {
-        window.handleOutputFormatChange(formatSelect.value);
-      }
-    }, 100);
-  });
+  // Initialize immediately and on load
+  function initOutputCard() {
+    const formatSelect = document.getElementById('output-format') as HTMLSelectElement;
+    if (formatSelect) {
+      window.handleOutputFormatChange(formatSelect.value);
+    }
+  }
+
+  // Try to initialize now
+  initOutputCard();
+  // Also on load as fallback
+  window.addEventListener('load', initOutputCard);
 </script>
