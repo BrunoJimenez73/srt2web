@@ -6,10 +6,6 @@
     <span class="process-indicator" id="indicator-input"></span>
     <span class="process-title">📥 INPUT</span>
     <span class="gpu-badge" id="input-gpu-badge" style="display: none;">GPU</span>
-    <label class="toggle-switch">
-      <input type="checkbox" id="input-enabled" />
-      <span class="toggle-slider"></span>
-    </label>
   </div>
   <div class="process-content">
     <div class="form-group">
@@ -272,12 +268,16 @@
 <script>
   // Expose functions to window
   window.handleInputTypeChange = function(type: string) {
-    console.log('Input type changed to:', type);
+    console.log('handleInputTypeChange called with:', type);
     
     // Hide all settings
     const srtSettings = document.getElementById('srt-settings');
     const rtmpSettings = document.getElementById('rtmp-settings');
     const fileSettings = document.getElementById('file-settings');
+    
+    console.log('srt-settings found:', !!srtSettings);
+    console.log('rtmp-settings found:', !!rtmpSettings);
+    console.log('file-settings found:', !!fileSettings);
     
     if (srtSettings) srtSettings.style.display = 'none';
     if (rtmpSettings) rtmpSettings.style.display = 'none';
@@ -317,7 +317,7 @@
   };
 
   // Initialize on page load
-  document.addEventListener('DOMContentLoaded', () => {
+  window.addEventListener('load', () => {
     // Small delay to ensure all elements are rendered
     setTimeout(() => {
       // Set initial state based on current type
@@ -333,16 +333,6 @@
           const typeSelect = document.getElementById('input-type') as HTMLSelectElement;
           if (typeSelect?.value === 'srt') {
             window.handleInputTypeChange('srt');
-          }
-        });
-      }
-      
-      // Add event listener for input enabled toggle
-      const inputEnabled = document.getElementById('input-enabled') as HTMLInputElement;
-      if (inputEnabled) {
-        inputEnabled.addEventListener('change', () => {
-          if (window.toggleModule) {
-            window.toggleModule('input', inputEnabled.checked);
           }
         });
       }
