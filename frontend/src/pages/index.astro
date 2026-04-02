@@ -115,7 +115,7 @@ import Toast from '../components/Toast.astro';
      tts_engine: 'card-tts',
      subtitle_generator: 'card-subtitle',
      audio_mixer: 'card-audio-mixer',
-     video_muxer: 'card-hls'
+      video_muxer: 'card-video-muxer'
    };
 
    const moduleToIndicator: Record<string, string> = {
@@ -126,7 +126,7 @@ import Toast from '../components/Toast.astro';
      tts_engine: 'indicator-tts',
      subtitle_generator: 'indicator-subtitle',
      audio_mixer: 'indicator-audio-mixer',
-     video_muxer: 'indicator-hls'
+      video_muxer: 'indicator-video-muxer'
    };
 
   let config: Config | null = null;
@@ -152,7 +152,7 @@ import Toast from '../components/Toast.astro';
     if (stopBtn) stopBtn.disabled = state !== 'running';
 
     // Card active state removed - only indicators show status
-    // ['card-input', 'card-whisper', 'card-translate', 'card-tts', 'card-subtitle', 'card-hls', 'card-output'].forEach(id => {
+    // ['card-input', 'card-whisper', 'card-translate', 'card-tts', 'card-subtitle', 'card-video-muxer', 'card-output'].forEach(id => {
     //   const el = document.getElementById(id);
     //   if (el) el.classList.toggle('active', state === 'running');
     // });
@@ -385,7 +385,7 @@ import Toast from '../components/Toast.astro';
 
           // GPU badge and encoder info for video_muxer (HLS Output)
           if (module.name === 'video_muxer') {
-            const gpuBadge = document.getElementById('hls-gpu-badge');
+            const gpuBadge = document.getElementById('video-muxer-gpu-badge');
             const encoderEl = document.getElementById('module-encoder-video_muxer');
             if (gpuBadge) {
               // Always show badge when module is active, color indicates GPU usage

@@ -1,63 +1,76 @@
 ---
 ---
 
-<div class="hls-card" id="card-hls">
+<div class="video-muxer-card" id="card-video-muxer">
   <div class="process-header">
-    <span class="process-indicator" id="indicator-hls"></span>
-    <span class="process-title">📦 HLS OUTPUT</span>
-    <span class="gpu-badge" id="hls-gpu-badge" style="display: none;">GPU</span>
+    <span class="process-indicator" id="indicator-video-muxer"></span>
+    <span class="process-title">📦 VIDEO MUXER</span>
+    <span class="gpu-badge" id="video-muxer-gpu-badge" style="display: none;">GPU</span>
+    <div class="engine-selector">
+      <label class="form-label">Motor</label>
+      <select class="form-select" id="video-muxer-engine" onchange="window.handleEngineChange(this.value)">
+        <option value="hls">HLS (Compatible)</option>
+        <option value="webrtc" disabled>WebRTC (Baja latencia) - Próximamente</option>
+      </select>
+    </div>
     <label class="toggle-switch">
       <input type="checkbox" id="muxer-enabled" onchange="window.toggleModule('video_muxer', this.checked)" />
       <span class="toggle-slider"></span>
     </label>
   </div>
   <div class="process-content">
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Segmento</label>
-        <input type="number" class="form-input" id="hls-segment" value="10" min="1" max="60" />
+    <div class="hls-settings">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Segmento</label>
+          <input type="number" class="form-input" id="hls-segment" value="10" min="1" max="60" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Lista</label>
+          <input type="number" class="form-input" id="hls-list" value="6" min="2" max="20" />
+        </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Lista</label>
-        <input type="number" class="form-input" id="hls-list" value="6" min="2" max="20" />
+        <label class="form-label">Encoder</label>
+        <select class="form-select" id="hls-encoder">
+          <option value="auto">Auto (GPU/CPU)</option>
+          <option value="cpu">CPU (libx264)</option>
+          <option value="gpu_nvenc">NVIDIA NVENC</option>
+          <option value="gpu_amf">AMD AMF</option>
+          <option value="gpu_qsv">Intel QSV</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">CRF: <span id="hls-crf-value">18</span></label>
+        <input type="range" class="form-range" id="hls-crf" min="0" max="51" value="18" 
+                oninput="document.getElementById('hls-crf-value').textContent = this.value" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Offset audio (ms)</label>
+        <input type="number" class="form-input" id="hls-audio-offset" value="0" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Audio Codec</label>
+        <select class="form-select" id="hls-audio-codec">
+          <option value="aac">AAC</option>
+          <option value="opus">Opus</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Bitrate</label>
+        <select class="form-select" id="hls-audio-bitrate">
+          <option value="64k">64 kbps</option>
+          <option value="96k">96 kbps</option>
+          <option value="128k">128 kbps</option>
+          <option value="192k">192 kbps</option>
+          <option value="256k">256 kbps</option>
+          <option value="320k">320 kbps</option>
+        </select>
       </div>
     </div>
-    <div class="form-group">
-      <label class="form-label">Encoder</label>
-      <select class="form-select" id="hls-encoder">
-        <option value="auto">Auto (GPU/CPU)</option>
-        <option value="cpu">CPU (libx264)</option>
-        <option value="gpu_nvenc">NVIDIA NVENC</option>
-        <option value="gpu_amf">AMD AMF</option>
-        <option value="gpu_qsv">Intel QSV</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">CRF: <span id="hls-crf-value">18</span></label>
-      <input type="range" class="form-range" id="hls-crf" min="0" max="51" value="18" 
-              oninput="document.getElementById('hls-crf-value').textContent = this.value" />
-    </div>
-    <div class="form-group">
-      <label class="form-label">Offset audio (ms)</label>
-      <input type="number" class="form-input" id="hls-audio-offset" value="0" />
-    </div>
-    <div class="form-group">
-      <label class="form-label">Audio Codec</label>
-      <select class="form-select" id="hls-audio-codec">
-        <option value="aac">AAC</option>
-        <option value="opus">Opus</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Bitrate</label>
-      <select class="form-select" id="hls-audio-bitrate">
-        <option value="64k">64 kbps</option>
-        <option value="96k">96 kbps</option>
-        <option value="128k">128 kbps</option>
-        <option value="192k">192 kbps</option>
-        <option value="256k">256 kbps</option>
-        <option value="320k">320 kbps</option>
-      </select>
+    <div class="webrtc-settings">
+      <p>⚙️ Configuración de WebRTC aparecerá aquí cuando esté implementado.</p>
+      <p>Características planificadas: baja latencia (&lt;2s), codecs VP8/VP9, adaptable a red.</p>
     </div>
     <div class="form-group" id="hls-metrics">
       <label class="form-label">Encoder Info</label>
@@ -80,7 +93,7 @@
 </div>
 
 <style>
-  .hls-card {
+  .video-muxer-card {
     background: var(--bg-card);
     border: 1px solid var(--border-dim);
     border-radius: var(--radius-md);
@@ -88,7 +101,7 @@
     transition: all 0.3s ease;
   }
 
-  .hls-card.active {
+  .video-muxer-card.active {
     border-color: var(--success) !important;
     box-shadow: 0 0 12px rgba(16, 185, 129, 0.3) !important;
   }
@@ -169,6 +182,25 @@
 
   input:checked + .toggle-slider:before {
     transform: translateX(16px);
+  }
+
+  .engine-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    margin: 0 8px;
+  }
+
+  .engine-selector .form-label {
+    font-size: 9px;
+    color: var(--text-sec);
+    margin: 0;
+  }
+
+  .engine-selector .form-select {
+    padding: 4px 8px;
+    font-size: 10px;
   }
 
   .process-content {
@@ -274,4 +306,57 @@
     background: linear-gradient(135deg, #76b900, #a8e600);
     color: #000;
   }
+
+  .hls-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .webrtc-settings {
+    display: none; /* Hidden until WebRTC implemented */
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
+    border: 1px dashed var(--border-dim);
+  }
+
+  .webrtc-settings p {
+    font-size: 11px;
+    color: var(--text-sec);
+    text-align: center;
+    margin: 0;
+  }
 </style>
+
+<script>
+  // Expose engine change handler to window
+  window.handleEngineChange = function(engine: string) {
+    console.log('Engine changed to:', engine);
+    
+    const hlsSettings = document.querySelector('.hls-settings') as HTMLElement;
+    const webrtcSettings = document.querySelector('.webrtc-settings') as HTMLElement;
+    
+    if (engine === 'hls') {
+      if (hlsSettings) hlsSettings.style.display = 'flex';
+      if (webrtcSettings) webrtcSettings.style.display = 'none';
+    } else if (engine === 'webrtc') {
+      if (hlsSettings) hlsSettings.style.display = 'none';
+      if (webrtcSettings) webrtcSettings.style.display = 'flex';
+    }
+    
+    // TODO: Update config with engine selection
+    // This should trigger config update to backend
+  };
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    // Set initial state based on current engine
+    const engineSelect = document.getElementById('video-muxer-engine') as HTMLSelectElement;
+    if (engineSelect) {
+      window.handleEngineChange(engineSelect.value);
+    }
+  });
+</script>
