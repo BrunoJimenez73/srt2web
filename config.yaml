@@ -8,22 +8,52 @@ server:
   rate_limit_rpm: 60
   max_request_size_mb: 100
 input:
-  type: srt
+  type: srt  # srt, file, rtmp
   srt:
     listen_port: 9000
-    mode: listener
+    mode: listener  # listener, caller
     latency_ms: 200
     caller_address: ''
   file:
     path: ''
     loop: false
     speed: 1.0
+  rtmp:
+    listen_port: 1935
+    app: live
+    stream_key: stream
 output:
-  type: web
+  type: web  # web, hls, rtmp, srt, file
   web:
     segment_duration: 10
     list_size: 2
     audio_offset_ms: 0
+  hls:  # alias para web
+    segment_duration: 10
+    list_size: 2
+    audio_offset_ms: 0
+  rtmp:
+    url: rtmp://localhost/live/stream
+    video_bitrate: 2500k
+    audio_bitrate: 128k
+    video_codec: libx264
+    preset: medium
+    audio_codec: aac
+  srt:
+    url: srt://localhost:9001
+    mode: caller  # caller, listener, rendezvous
+    latency_ms: 200
+    stream_id: ''
+    passphrase: ''
+    video_bitrate: 2500k
+    audio_bitrate: 128k
+    video_codec: libx264
+    preset: medium
+    audio_codec: aac
+  file:
+    save_video: true
+    save_audio: true
+    save_subtitles: true
 pipeline:
   chunk_duration_sec: 10
 modules:
