@@ -448,6 +448,70 @@ import Toast from '../components/Toast.astro';
     if (urlPlayer) urlPlayer.textContent = getPlayerUrl(useIp, port);
   }
 
+  // Input type handler - shows/hides SRT/RTMP/File settings
+  function handleInputTypeChange(type: string): void {
+    const srtSettings = document.getElementById('srt-settings') as HTMLElement;
+    const rtmpSettings = document.getElementById('rtmp-settings') as HTMLElement;
+    const fileSettings = document.getElementById('file-settings') as HTMLElement;
+    
+    if (srtSettings) srtSettings.style.display = 'none';
+    if (rtmpSettings) rtmpSettings.style.display = 'none';
+    if (fileSettings) fileSettings.style.display = 'none';
+    
+    const callerGroup = document.getElementById('input-caller-group') as HTMLElement;
+    const srtMode = document.getElementById('input-srt-mode') as HTMLSelectElement;
+    
+    if (type === 'srt') {
+      if (srtSettings) srtSettings.style.display = 'flex';
+      if (srtMode) {
+        const showCaller = srtMode.value === 'caller' || srtMode.value === 'rendezvous';
+        if (callerGroup) callerGroup.style.display = showCaller ? 'flex' : 'none';
+      }
+    } else if (type === 'rtmp') {
+      if (rtmpSettings) rtmpSettings.style.display = 'flex';
+    } else if (type === 'file') {
+      if (fileSettings) fileSettings.style.display = 'flex';
+    }
+  }
+  window.handleInputTypeChange = handleInputTypeChange;
+
+  // File select handler
+  function handleFileSelect(input: HTMLInputElement): void {
+    const file = input.files?.[0];
+    if (file) {
+      const pathInput = document.getElementById('input-file-path') as HTMLInputElement;
+      if (pathInput) {
+        pathInput.value = file.name;
+        pathInput.dataset.filePath = file.name;
+      }
+    }
+  }
+  window.handleFileSelect = handleFileSelect;
+
+  // Output format handler - shows/hides Web/SRT/RTMP/File settings
+  function handleOutputFormatChange(format: string): void {
+    const webSettings = document.getElementById('web-settings') as HTMLElement;
+    const srtSettings = document.getElementById('srt-settings') as HTMLElement;
+    const rtmpSettings = document.getElementById('rtmp-settings') as HTMLElement;
+    const fileSettings = document.getElementById('file-settings') as HTMLElement;
+    
+    if (webSettings) webSettings.style.display = 'none';
+    if (srtSettings) srtSettings.style.display = 'none';
+    if (rtmpSettings) rtmpSettings.style.display = 'none';
+    if (fileSettings) fileSettings.style.display = 'none';
+    
+    if (format === 'web') {
+      if (webSettings) webSettings.style.display = 'flex';
+    } else if (format === 'srt') {
+      if (srtSettings) srtSettings.style.display = 'flex';
+    } else if (format === 'rtmp') {
+      if (rtmpSettings) rtmpSettings.style.display = 'flex';
+    } else if (format === 'file') {
+      if (fileSettings) fileSettings.style.display = 'flex';
+    }
+  }
+  window.handleOutputFormatChange = handleOutputFormatChange;
+
   function applyConfigToUI(cfg: Config): void {
     const srtPort = document.getElementById('input-srt-port') as HTMLInputElement;
     const srtMode = document.getElementById('input-srt-mode') as HTMLSelectElement;
@@ -607,16 +671,6 @@ import Toast from '../components/Toast.astro';
         if (fileSubs && cfg.output.file.save_subtitles !== undefined) fileSubs.value = String(cfg.output.file.save_subtitles);
       }
     }
-    
-    // Retry after a delay to ensure Astro components have loaded their scripts
-    setTimeout(() => {
-      if (window.handleInputTypeChange && cfg.input?.type) {
-        window.handleInputTypeChange(cfg.input.type);
-      }
-      if (window.handleOutputFormatChange && cfg.output?.type) {
-        window.handleOutputFormatChange(cfg.output.type);
-      }
-    }, 500);
   }
 
   function collectConfigFromUI(): Partial<Config> {
@@ -879,13 +933,27 @@ import Toast from '../components/Toast.astro';
   }
 
   function setupAutoSaveFields(): void {
+    // Input type change handler
+    document.getElementById('input-type')?.addEventListener('change', (e) => {
+      const value = (e.target as HTMLSelectElement).value;
+      handleInputTypeChange(value);
+      updateConfigField('input.type', value);
+    });
+
+    // SRT mode change handler (affects caller group visibility)
+    document.getElementById('input-srt-mode')?.addEventListener('change', (e) => {
+      const value = (e.target as HTMLSelectElement).value;
+      updateConfigField('input.srt.mode', value);
+      // Re-apply input type to update caller group visibility
+      const inputType = document.getElementById('input-type') as HTMLSelectElement;
+      if (inputType?.value === 'srt') {
+        handleInputTypeChange('srt');
+      }
+    });
+
     document.getElementById('input-srt-port')?.addEventListener('change', (e) => {
       const value = parseInt((e.target as HTMLInputElement).value);
       if (!isNaN(value)) updateConfigField('input.srt.listen_port', value);
-    });
-
-    document.getElementById('input-srt-mode')?.addEventListener('change', (e) => {
-      updateConfigField('input.srt.mode', (e.target as HTMLSelectElement).value);
     });
 
     // New input type listener
@@ -1021,7 +1089,9 @@ import Toast from '../components/Toast.astro';
 
     // Output format listener
     document.getElementById('output-format')?.addEventListener('change', (e) => {
-      updateConfigField('output.type', (e.target as HTMLSelectElement).value);
+      const value = (e.target as HTMLSelectElement).value;
+      handleOutputFormatChange(value);
+      updateConfigField('output.type', value);
     });
 
     // SRT output listeners

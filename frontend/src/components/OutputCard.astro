@@ -374,28 +374,3 @@
     color: var(--text-prime);
   }
 </style>
-
-<script>
-  // Expose handler to window - initialization done by index.astro applyConfigToUI
-  window.handleOutputFormatChange = function(format: string) {
-    const webSettings = document.getElementById('web-settings');
-    const srtSettings = document.getElementById('srt-settings');
-    const rtmpSettings = document.getElementById('rtmp-settings');
-    const fileSettings = document.getElementById('file-settings');
-    
-    if (webSettings) webSettings.style.display = 'none';
-    if (srtSettings) srtSettings.style.display = 'none';
-    if (rtmpSettings) rtmpSettings.style.display = 'none';
-    if (fileSettings) fileSettings.style.display = 'none';
-    
-    if (format === 'web') {
-      if (webSettings) webSettings.style.display = 'flex';
-    } else if (format === 'srt') {
-      if (srtSettings) srtSettings.style.display = 'flex';
-    } else if (format === 'rtmp') {
-      if (rtmpSettings) rtmpSettings.style.display = 'flex';
-    } else if (format === 'file') {
-      if (fileSettings) fileSettings.style.display = 'flex';
-    }
-  };
-</script>
