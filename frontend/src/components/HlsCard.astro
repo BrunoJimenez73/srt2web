@@ -6,30 +6,23 @@
     <span class="process-indicator" id="indicator-video-muxer"></span>
     <span class="process-title">📦 VIDEO MUXER</span>
     <span class="gpu-badge" id="video-muxer-gpu-badge" style="display: none;">GPU</span>
-    <div class="engine-selector">
-      <label class="form-label">Motor</label>
-      <select class="form-select" id="video-muxer-engine" onchange="window.handleEngineChange(this.value)">
-        <option value="hls">HLS (Compatible)</option>
-        <option value="webrtc" disabled>WebRTC (Baja latencia) - Próximamente</option>
-      </select>
-    </div>
     <label class="toggle-switch">
       <input type="checkbox" id="muxer-enabled" onchange="window.toggleModule('video_muxer', this.checked)" />
       <span class="toggle-slider"></span>
     </label>
   </div>
   <div class="process-content">
+    <!-- Motor selector -->
+    <div class="form-group">
+      <label class="form-label">Motor</label>
+      <select class="form-select" id="video-muxer-engine" onchange="window.handleEngineChange(this.value)">
+        <option value="hls">HLS (Compatible)</option>
+        <option value="webrtc" disabled>WebRTC (Baja latencia) - Próximamente</option>
+      </select>
+    </div>
+    
+    <!-- HLS Settings -->
     <div class="hls-settings">
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Segmento</label>
-          <input type="number" class="form-input" id="hls-segment" value="10" min="1" max="60" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Lista</label>
-          <input type="number" class="form-input" id="hls-list" value="6" min="2" max="20" />
-        </div>
-      </div>
       <div class="form-group">
         <label class="form-label">Encoder</label>
         <select class="form-select" id="hls-encoder">
@@ -68,20 +61,24 @@
         </select>
       </div>
     </div>
+    
+    <!-- WebRTC Settings -->
     <div class="webrtc-settings">
       <p>⚙️ Configuración de WebRTC aparecerá aquí cuando esté implementado.</p>
       <p>Características planificadas: baja latencia (&lt;2s), codecs VP8/VP9, adaptable a red.</p>
     </div>
-    <div class="form-group" id="hls-metrics">
-      <label class="form-label">Encoder Info</label>
+    
+    <!-- Metrics -->
+    <div class="form-group" id="video-muxer-metrics">
+      <label class="form-label">Métricas</label>
       <div class="metrics-row">
-        <div class="metric-mini">
-          <span class="metric-label">Encoder</span>
-          <span class="metric-value" id="module-encoder-video_muxer">--</span>
-        </div>
         <div class="metric-mini">
           <span class="metric-label">Tiempo</span>
           <span class="metric-value" id="module-time-video_muxer">--</span>
+        </div>
+        <div class="metric-mini">
+          <span class="metric-label">Encoder</span>
+          <span class="metric-value" id="module-encoder-video_muxer">--</span>
         </div>
         <div class="metric-mini">
           <span class="metric-label">Chunks</span>
@@ -182,25 +179,6 @@
 
   input:checked + .toggle-slider:before {
     transform: translateX(16px);
-  }
-
-  .engine-selector {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    flex: 1;
-    margin: 0 8px;
-  }
-
-  .engine-selector .form-label {
-    font-size: 9px;
-    color: var(--text-sec);
-    margin: 0;
-  }
-
-  .engine-selector .form-select {
-    padding: 4px 8px;
-    font-size: 10px;
   }
 
   .process-content {

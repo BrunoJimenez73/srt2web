@@ -471,8 +471,6 @@ import Toast from '../components/Toast.astro';
     const subtitleFormat = document.getElementById('subtitle-format') as HTMLSelectElement;
     const subtitleUseTranslated = document.getElementById('subtitle-use-translated') as HTMLSelectElement;
     const muxerEnabled = document.getElementById('muxer-enabled') as HTMLInputElement;
-    const hlsSegment = document.getElementById('hls-segment') as HTMLInputElement;
-    const hlsList = document.getElementById('hls-list') as HTMLInputElement;
     const hlsEncoder = document.getElementById('hls-encoder') as HTMLSelectElement;
     const hlsCrf = document.getElementById('hls-crf') as HTMLInputElement;
 
@@ -558,8 +556,6 @@ import Toast from '../components/Toast.astro';
     if (ttsVolume) ttsVolume.value = String(cfg.modules.audio_mixer?.tts_volume ?? 1.0);
     const ttsValue = document.getElementById('audio-mixer-dubbed-value') as HTMLSpanElement;
     if (ttsValue) ttsValue.textContent = String(cfg.modules.audio_mixer?.tts_volume ?? 1.0);
-    if (hlsSegment) hlsSegment.value = String(cfg.modules.video_muxer.hls_segment_duration);
-    if (hlsList) hlsList.value = String(cfg.modules.video_muxer.hls_list_size);
     if (hlsEncoder) hlsEncoder.value = cfg.modules.video_muxer.encoder_mode;
     if (hlsCrf) hlsCrf.value = String(cfg.modules.video_muxer.video_crf);
   }
@@ -624,8 +620,6 @@ import Toast from '../components/Toast.astro';
         video_muxer: {
           enabled: (document.getElementById('muxer-enabled') as HTMLInputElement)?.checked ?? true,
           engine: (document.getElementById('video-muxer-engine') as HTMLSelectElement)?.value || 'hls',
-          hls_segment_duration: parseInt((document.getElementById('hls-segment') as HTMLInputElement)?.value || '10'),
-          hls_list_size: parseInt((document.getElementById('hls-list') as HTMLInputElement)?.value || '6'),
           audio_offset_ms: 0,
           encoder_mode: (document.getElementById('hls-encoder') as HTMLSelectElement)?.value || 'auto',
           video_quality: 'medium',
@@ -936,14 +930,6 @@ import Toast from '../components/Toast.astro';
       if (!isNaN(value)) updateConfigField('modules.audio_mixer.tts_volume', value);
     });
 
-    document.getElementById('hls-segment')?.addEventListener('change', (e) => {
-      const value = parseInt((e.target as HTMLInputElement).value);
-      if (!isNaN(value)) updateConfigField('modules.video_muxer.hls_segment_duration', value);
-    });
-    document.getElementById('hls-list')?.addEventListener('change', (e) => {
-      const value = parseInt((e.target as HTMLInputElement).value);
-      if (!isNaN(value)) updateConfigField('modules.video_muxer.hls_list_size', value);
-    });
     document.getElementById('hls-encoder')?.addEventListener('change', (e) => {
       updateConfigField('modules.video_muxer.encoder_mode', (e.target as HTMLSelectElement).value);
     });
