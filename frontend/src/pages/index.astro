@@ -569,6 +569,7 @@ import Toast from '../components/Toast.astro';
         },
         video_muxer: {
           enabled: (document.getElementById('muxer-enabled') as HTMLInputElement)?.checked ?? true,
+          engine: (document.getElementById('video-muxer-engine') as HTMLSelectElement)?.value || 'hls',
           hls_segment_duration: parseInt((document.getElementById('hls-segment') as HTMLInputElement)?.value || '10'),
           hls_list_size: parseInt((document.getElementById('hls-list') as HTMLInputElement)?.value || '6'),
           audio_offset_ms: 0,
