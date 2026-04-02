@@ -8,27 +8,31 @@ server:
   rate_limit_rpm: 60
   max_request_size_mb: 100
 input:
-  type: srt  # srt, file, rtmp
+  type: srt
   srt:
     listen_port: 9000
-    mode: listener  # listener, caller
+    mode: listener
     latency_ms: 200
     caller_address: ''
   file:
     path: ''
     loop: false
-    speed: 1.0
+    speed: 1
+    chunk_duration_sec: 10
   rtmp:
     listen_port: 1935
     app: live
     stream_key: stream
+    url: ''
+    port: 1935
+    chunk_duration_sec: 10
 output:
-  type: web  # web, hls, rtmp, srt, file
+  type: web
   web:
     segment_duration: 10
     list_size: 2
     audio_offset_ms: 0
-  hls:  # alias para web
+  hls:
     segment_duration: 10
     list_size: 2
     audio_offset_ms: 0
@@ -39,9 +43,10 @@ output:
     video_codec: libx264
     preset: medium
     audio_codec: aac
+    encoder_mode: auto
   srt:
     url: srt://localhost:9001
-    mode: caller  # caller, listener, rendezvous
+    mode: caller
     latency_ms: 200
     stream_id: ''
     passphrase: ''
@@ -54,6 +59,7 @@ output:
     save_video: true
     save_audio: true
     save_subtitles: true
+    path: ./output
 pipeline:
   chunk_duration_sec: 10
 modules:
@@ -61,7 +67,7 @@ modules:
     enabled: true
   transcriber:
     enabled: true
-    model: tiny
+    model: medium
     language: en
     device: cuda
     beam_size: 2
@@ -77,13 +83,12 @@ modules:
     enabled: true
     engine: piper
     device: cuda
-    voice: es_MX-ald-medium
-    speed: 1.3
+    voice: es_MX-claude-high
+    speed: 1.4
   audio_mixer:
     enabled: true
-    original_volume: 0.9
-    dubbed_volume: 1.0
-    tts_volume: 0.9
+    original_volume: 0.5
+    tts_volume: 1
   video_muxer:
     enabled: true
     hls_segment_duration: 4
@@ -95,5 +100,6 @@ modules:
     audio_codec: aac
     audio_bitrate: 192k
     audio_samplerate: '48000'
+    engine: hls
 output_dir:
   directory: ./output

@@ -312,6 +312,80 @@ import Toast from '../components/Toast.astro';
 
     // Update performance metrics display for modules
     function updateModulePerformanceMetrics(modules: any[]): void {
+      // Update aggregated INPUT metrics
+      const inputTimeEl = document.getElementById('module-time-input');
+      const inputChunksEl = document.getElementById('module-chunks-input');
+      
+      // Find input modules
+      const srtIngest = modules.find(m => m.name === 'srt_ingest');
+      const audioExtractor = modules.find(m => m.name === 'audio_extractor');
+      
+      if (inputTimeEl) {
+        // Use the last process time from either input module
+        const lastTime = Math.max(
+          srtIngest?.last_process_time_ms || 0,
+          audioExtractor?.last_process_time_ms || 0
+        );
+        
+        if (!srtIngest?.enabled && !audioExtractor?.enabled) {
+          inputTimeEl.textContent = 'DISABLED';
+          inputTimeEl.style.color = 'var(--text-dim)';
+        } else if (srtIngest?.state === 'running' || audioExtractor?.state === 'running') {
+          inputTimeEl.textContent = lastTime > 0 ? `${lastTime.toFixed(1)}ms` : 'RUNNING';
+          inputTimeEl.style.color = 'var(--success)';
+        } else if (srtIngest?.state === 'error' || audioExtractor?.state === 'error') {
+          inputTimeEl.textContent = 'ERROR';
+          inputTimeEl.style.color = 'var(--error)';
+        } else {
+          inputTimeEl.textContent = 'IDLE';
+          inputTimeEl.style.color = 'var(--text-sec)';
+        }
+      }
+      
+      if (inputChunksEl) {
+        // Show chunks processed by audio_extractor (more meaningful than srt_ingest)
+        const chunks = audioExtractor?.processed_chunks || srtIngest?.processed_chunks || 0;
+        inputChunksEl.textContent = String(chunks);
+      }
+      
+      // Update aggregated OUTPUT metrics (video_muxer)
+      const outputTimeEl = document.getElementById('module-time-output');
+      const outputChunksEl = document.getElementById('module-chunks-output');
+      const videoMuxer = modules.find(m => m.name === 'video_muxer');
+      
+      if (outputTimeEl && videoMuxer) {
+        if (!videoMuxer.enabled) {
+          outputTimeEl.textContent = 'DISABLED';
+          outputTimeEl.style.color = 'var(--text-dim)';
+        } else if (videoMuxer.state === 'running') {
+          outputTimeEl.textContent = videoMuxer.last_process_time_ms > 0 ? `${videoMuxer.last_process_time_ms.toFixed(1)}ms` : 'RUNNING';
+          outputTimeEl.style.color = 'var(--success)';
+        } else if (videoMuxer.state === 'error') {
+          outputTimeEl.textContent = 'ERROR';
+          outputTimeEl.style.color = 'var(--error)';
+        } else {
+          outputTimeEl.textContent = 'IDLE';
+          outputTimeEl.style.color = 'var(--text-sec)';
+        }
+      }
+      
+      if (outputChunksEl && videoMuxer) {
+        outputChunksEl.textContent = String(videoMuxer.processed_chunks || 0);
+      }
+      
+      // Update output format display
+      const outputFormatEl = document.getElementById('module-format-output');
+      if (outputFormatEl && config?.output?.type) {
+        const formatLabels: Record<string, string> = {
+          'web': 'HLS',
+          'srt': 'SRT',
+          'rtmp': 'RTMP',
+          'file': 'File'
+        };
+        outputFormatEl.textContent = formatLabels[config.output.type] || config.output.type;
+      }
+      
+      // Update per-module metrics
       modules.forEach(module => {
         // Update last process time
         const timeEl = document.getElementById(`module-time-${module.name}`);
@@ -450,9 +524,9 @@ import Toast from '../components/Toast.astro';
 
   // Input type handler - shows/hides SRT/RTMP/File settings
   function handleInputTypeChange(type: string): void {
-    const srtSettings = document.getElementById('srt-settings') as HTMLElement;
-    const rtmpSettings = document.getElementById('rtmp-settings') as HTMLElement;
-    const fileSettings = document.getElementById('file-settings') as HTMLElement;
+    const srtSettings = document.getElementById('input-srt-settings') as HTMLElement;
+    const rtmpSettings = document.getElementById('input-rtmp-settings') as HTMLElement;
+    const fileSettings = document.getElementById('input-file-settings') as HTMLElement;
     
     if (srtSettings) srtSettings.style.display = 'none';
     if (rtmpSettings) rtmpSettings.style.display = 'none';
@@ -491,9 +565,9 @@ import Toast from '../components/Toast.astro';
   // Output format handler - shows/hides Web/SRT/RTMP/File settings
   function handleOutputFormatChange(format: string): void {
     const webSettings = document.getElementById('web-settings') as HTMLElement;
-    const srtSettings = document.getElementById('srt-settings') as HTMLElement;
-    const rtmpSettings = document.getElementById('rtmp-settings') as HTMLElement;
-    const fileSettings = document.getElementById('file-settings') as HTMLElement;
+    const srtSettings = document.getElementById('output-srt-settings') as HTMLElement;
+    const rtmpSettings = document.getElementById('output-rtmp-settings') as HTMLElement;
+    const fileSettings = document.getElementById('output-file-settings') as HTMLElement;
     
     if (webSettings) webSettings.style.display = 'none';
     if (srtSettings) srtSettings.style.display = 'none';
@@ -543,11 +617,11 @@ import Toast from '../components/Toast.astro';
     
     // Apply input type and specific settings
     const inputType = document.getElementById('input-type') as HTMLSelectElement;
-    if (inputType && cfg.input.type) {
-      inputType.value = cfg.input.type;
+    if (inputType) {
+      inputType.value = cfg.input?.type || 'srt';
       // Trigger change handler to show correct settings
       if (window.handleInputTypeChange) {
-        window.handleInputTypeChange(cfg.input.type);
+        window.handleInputTypeChange(inputType.value);
       }
     }
     
@@ -626,10 +700,10 @@ import Toast from '../components/Toast.astro';
     // Output configuration
     if (cfg.output) {
       const outputFormat = document.getElementById('output-format') as HTMLSelectElement;
-      if (outputFormat && cfg.output.type) {
-        outputFormat.value = cfg.output.type;
+      if (outputFormat) {
+        outputFormat.value = cfg.output?.type || 'web';
         if (window.handleOutputFormatChange) {
-          window.handleOutputFormatChange(cfg.output.type);
+          window.handleOutputFormatChange(outputFormat.value);
         }
       }
       
@@ -956,10 +1030,7 @@ import Toast from '../components/Toast.astro';
       if (!isNaN(value)) updateConfigField('input.srt.listen_port', value);
     });
 
-    // New input type listener
-    document.getElementById('input-type')?.addEventListener('change', (e) => {
-      updateConfigField('input.type', (e.target as HTMLSelectElement).value);
-    });
+
 
     // SRT latency and caller
     document.getElementById('input-srt-latency')?.addEventListener('change', (e) => {

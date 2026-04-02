@@ -32,7 +32,7 @@ DEFAULT_MODULES = {
     "audio_mixer": {
         "enabled": True, # Forzamos enable
         "original_volume": 0.2,
-        "dubbed_volume": 1.0,
+        "tts_volume": 1.0,
     },
     "video_muxer": {
         "enabled": True,

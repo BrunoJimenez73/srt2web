@@ -368,13 +368,13 @@ def validate_configuration(config):
 
     # Validar volúmenes
     original_volume = config.get("modules.audio_mixer.original_volume", 0.7)
-    dubbed_volume = config.get("modules.audio_mixer.dubbed_volume", 1.3)
+    tts_volume = config.get("modules.audio_mixer.tts_volume", 1.3)
 
     if not (0.0 <= original_volume <= 2.0):
         errors.append(f"Volumen original fuera de rango: {original_volume}")
 
-    if not (0.0 <= dubbed_volume <= 2.0):
-        errors.append(f"Volumen doblado fuera de rango: {dubbed_volume}")
+    if not (0.0 <= tts_volume <= 2.0):
+        errors.append(f"Volumen TTS fuera de rango: {tts_volume}")
 
     # Validar rutas de directorios
     output_dir = config.get("output_dir.directory", "./output")

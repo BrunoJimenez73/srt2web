@@ -69,7 +69,7 @@ modules:
   audio_mixer:
     enabled: false
     original_volume: 0.2
-    dubbed_volume: 1.0
+    tts_volume: 1.0
   video_muxer:
     enabled: true
     hls_segment_duration: 4
