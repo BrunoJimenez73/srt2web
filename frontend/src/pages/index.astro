@@ -118,17 +118,16 @@ import Toast from '../components/Toast.astro';
       video_muxer: 'card-video-muxer'
    };
 
-    const moduleToIndicator: Record<string, string> = {
-      srt_ingest: 'indicator-input',
-      audio_extractor: 'indicator-input',
-      transcriber: 'indicator-whisper',
-      translator: 'indicator-translate',
-      tts_engine: 'indicator-tts',
-      subtitle_generator: 'indicator-subtitle',
-      audio_mixer: 'indicator-audio-mixer',
-      video_muxer: 'indicator-video-muxer',
-      input: 'indicator-input'
-    };
+   const moduleToIndicator: Record<string, string> = {
+     srt_ingest: 'indicator-input',
+     audio_extractor: 'indicator-input',
+     transcriber: 'indicator-whisper',
+     translator: 'indicator-translate',
+     tts_engine: 'indicator-tts',
+     subtitle_generator: 'indicator-subtitle',
+     audio_mixer: 'indicator-audio-mixer',
+      video_muxer: 'indicator-video-muxer'
+   };
 
   let config: Config | null = null;
   let status: Status | null = null;
@@ -364,52 +363,8 @@ import Toast from '../components/Toast.astro';
               deviceEl.textContent = module.extra.device ? module.extra.device.toUpperCase() : '--';
             }
           }
-          
-          // GPU badge for TTS
-          if (module.name === 'tts_engine') {
-            const gpuBadge = document.getElementById('tts-gpu-badge');
-            const deviceEl = document.getElementById('module-device-tts');
-            if (gpuBadge) {
-              gpuBadge.style.display = 'inline';
-              gpuBadge.textContent = module.extra.using_gpu ? 'GPU' : 'CPU';
-              gpuBadge.classList.toggle('active', isProcessing && module.extra.using_gpu);
-            }
-            if (deviceEl) {
-              deviceEl.textContent = module.extra.device ? module.extra.device.toUpperCase() : '--';
-            }
-          }
-          
-          // GPU badge for video_muxer
-          if (module.name === 'video_muxer') {
-            const gpuBadge = document.getElementById('video-muxer-gpu-badge');
-            const deviceEl = document.getElementById('module-device-video_muxer');
-            if (gpuBadge) {
-              gpuBadge.style.display = 'inline';
-              gpuBadge.textContent = module.extra.using_gpu ? 'GPU' : 'CPU';
-              gpuBadge.classList.toggle('active', isProcessing && module.extra.using_gpu);
-            }
-            if (deviceEl) {
-              deviceEl.textContent = module.extra.device ? module.extra.device.toUpperCase() : '--';
-            }
-          }
-          
-          // GPU badge for input (if it uses GPU for processing)
-          if (module.name === 'input') {
-            const gpuBadge = document.getElementById('input-gpu-badge');
-            const deviceEl = document.getElementById('module-device-input');
-            if (gpuBadge) {
-              gpuBadge.style.display = 'inline';
-              gpuBadge.textContent = module.extra.using_gpu ? 'GPU' : 'CPU';
-              gpuBadge.classList.toggle('active', isProcessing && module.extra.using_gpu);
-            }
-            if (deviceEl) {
-              deviceEl.textContent = module.extra.device ? module.extra.device.toUpperCase() : '--';
-            }
-           }
-         }
-       }
-       
-       // GPU badge for tts_engine (Doblar)
+
+          // GPU badge for tts_engine (Doblar)
           if (module.name === 'tts_engine') {
             const gpuBadge = document.getElementById('tts-gpu-badge');
             const deviceEl = document.getElementById('module-device-tts_engine');
