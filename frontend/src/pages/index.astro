@@ -478,6 +478,45 @@ import Toast from '../components/Toast.astro';
 
     if (srtPort) srtPort.value = String(cfg.input.srt.listen_port);
     if (srtMode) srtMode.value = cfg.input.srt.mode;
+    
+    // Apply input type and specific settings
+    const inputType = document.getElementById('input-type') as HTMLSelectElement;
+    if (inputType && cfg.input.type) {
+      inputType.value = cfg.input.type;
+      // Trigger change handler to show correct settings
+      if (window.handleInputTypeChange) {
+        window.handleInputTypeChange(cfg.input.type);
+      }
+    }
+    
+    // SRT specific settings
+    const srtLatency = document.getElementById('input-srt-latency') as HTMLInputElement;
+    const srtCaller = document.getElementById('input-srt-caller') as HTMLInputElement;
+    if (srtLatency && cfg.input.srt.latency_ms) srtLatency.value = String(cfg.input.srt.latency_ms);
+    if (srtCaller && cfg.input.srt.caller_address) srtCaller.value = cfg.input.srt.caller_address;
+    
+    // RTMP specific settings
+    const rtmpUrl = document.getElementById('input-rtmp-url') as HTMLInputElement;
+    const rtmpPort = document.getElementById('input-rtmp-port') as HTMLInputElement;
+    const rtmpKey = document.getElementById('input-rtmp-key') as HTMLInputElement;
+    const rtmpChunk = document.getElementById('input-rtmp-chunk') as HTMLInputElement;
+    if (rtmpUrl && cfg.input.rtmp?.url) rtmpUrl.value = cfg.input.rtmp.url;
+    if (rtmpPort && cfg.input.rtmp?.port) rtmpPort.value = String(cfg.input.rtmp.port);
+    if (rtmpKey && cfg.input.rtmp?.stream_key) rtmpKey.value = cfg.input.rtmp.stream_key;
+    if (rtmpChunk && cfg.input.rtmp?.chunk_duration_sec) rtmpChunk.value = String(cfg.input.rtmp.chunk_duration_sec);
+    
+    // File specific settings
+    const filePath = document.getElementById('input-file-path') as HTMLInputElement;
+    const fileLoop = document.getElementById('input-file-loop') as HTMLSelectElement;
+    const fileSpeed = document.getElementById('input-file-speed') as HTMLInputElement;
+    const fileChunk = document.getElementById('input-file-chunk') as HTMLInputElement;
+    if (filePath && cfg.input.file?.path) {
+      filePath.value = cfg.input.file.path;
+      filePath.dataset.filePath = cfg.input.file.path;
+    }
+    if (fileLoop && cfg.input.file?.loop !== undefined) fileLoop.value = String(cfg.input.file.loop);
+    if (fileSpeed && cfg.input.file?.speed) fileSpeed.value = String(cfg.input.file.speed);
+    if (fileChunk && cfg.input.file?.chunk_duration_sec) fileChunk.value = String(cfg.input.file.chunk_duration_sec);
     const chunkDuration = document.getElementById('input-chunk-duration') as HTMLInputElement;
     if (chunkDuration) chunkDuration.value = String(cfg.pipeline?.chunk_duration_sec ?? 4);
     if (whisperEnabled) whisperEnabled.checked = cfg.modules.transcriber.enabled;
@@ -528,9 +567,24 @@ import Toast from '../components/Toast.astro';
   function collectConfigFromUI(): Partial<Config> {
     return {
       input: {
+        type: (document.getElementById('input-type') as HTMLSelectElement)?.value || 'srt',
         srt: {
           listen_port: parseInt((document.getElementById('input-srt-port') as HTMLInputElement)?.value || '9000'),
-          mode: (document.getElementById('input-srt-mode') as HTMLSelectElement)?.value || 'listener'
+          mode: (document.getElementById('input-srt-mode') as HTMLSelectElement)?.value || 'listener',
+          latency_ms: parseInt((document.getElementById('input-srt-latency') as HTMLInputElement)?.value || '200'),
+          caller_address: (document.getElementById('input-srt-caller') as HTMLInputElement)?.value || ''
+        },
+        rtmp: {
+          url: (document.getElementById('input-rtmp-url') as HTMLInputElement)?.value || '',
+          port: parseInt((document.getElementById('input-rtmp-port') as HTMLInputElement)?.value || '1935'),
+          stream_key: (document.getElementById('input-rtmp-key') as HTMLInputElement)?.value || 'stream',
+          chunk_duration_sec: parseInt((document.getElementById('input-rtmp-chunk') as HTMLInputElement)?.value || '10')
+        },
+        file: {
+          path: (document.getElementById('input-file-path') as HTMLInputElement)?.dataset.filePath || (document.getElementById('input-file-path') as HTMLInputElement)?.value || '',
+          loop: (document.getElementById('input-file-loop') as HTMLSelectElement)?.value === 'true',
+          speed: parseFloat((document.getElementById('input-file-speed') as HTMLInputElement)?.value || '1.0'),
+          chunk_duration_sec: parseInt((document.getElementById('input-file-chunk') as HTMLInputElement)?.value || '10')
         }
       },
       pipeline: {
@@ -715,8 +769,9 @@ import Toast from '../components/Toast.astro';
 
   function updateInputFields(): void {
     const type = (document.getElementById('input-type') as HTMLSelectElement)?.value;
-    const portGroup = document.getElementById('input-port-group');
-    if (portGroup) portGroup.style.display = type === 'srt' ? 'block' : 'none';
+    if (window.handleInputTypeChange) {
+      window.handleInputTypeChange(type || 'srt');
+    }
   }
 
   function setupEventListeners(): void {
@@ -756,6 +811,60 @@ import Toast from '../components/Toast.astro';
 
     document.getElementById('input-srt-mode')?.addEventListener('change', (e) => {
       updateConfigField('input.srt.mode', (e.target as HTMLSelectElement).value);
+    });
+
+    // New input type listener
+    document.getElementById('input-type')?.addEventListener('change', (e) => {
+      updateConfigField('input.type', (e.target as HTMLSelectElement).value);
+    });
+
+    // SRT latency and caller
+    document.getElementById('input-srt-latency')?.addEventListener('change', (e) => {
+      const value = parseInt((e.target as HTMLInputElement).value);
+      if (!isNaN(value)) updateConfigField('input.srt.latency_ms', value);
+    });
+
+    document.getElementById('input-srt-caller')?.addEventListener('change', (e) => {
+      updateConfigField('input.srt.caller_address', (e.target as HTMLInputElement).value);
+    });
+
+    // RTMP fields
+    document.getElementById('input-rtmp-url')?.addEventListener('change', (e) => {
+      updateConfigField('input.rtmp.url', (e.target as HTMLInputElement).value);
+    });
+
+    document.getElementById('input-rtmp-port')?.addEventListener('change', (e) => {
+      const value = parseInt((e.target as HTMLInputElement).value);
+      if (!isNaN(value)) updateConfigField('input.rtmp.port', value);
+    });
+
+    document.getElementById('input-rtmp-key')?.addEventListener('change', (e) => {
+      updateConfigField('input.rtmp.stream_key', (e.target as HTMLInputElement).value);
+    });
+
+    document.getElementById('input-rtmp-chunk')?.addEventListener('change', (e) => {
+      const value = parseInt((e.target as HTMLInputElement).value);
+      if (!isNaN(value)) updateConfigField('input.rtmp.chunk_duration_sec', value);
+    });
+
+    // File fields
+    document.getElementById('input-file-path')?.addEventListener('change', (e) => {
+      const input = e.target as HTMLInputElement;
+      updateConfigField('input.file.path', input.dataset.filePath || input.value);
+    });
+
+    document.getElementById('input-file-loop')?.addEventListener('change', (e) => {
+      updateConfigField('input.file.loop', (e.target as HTMLSelectElement).value === 'true');
+    });
+
+    document.getElementById('input-file-speed')?.addEventListener('change', (e) => {
+      const value = parseFloat((e.target as HTMLInputElement).value);
+      if (!isNaN(value)) updateConfigField('input.file.speed', value);
+    });
+
+    document.getElementById('input-file-chunk')?.addEventListener('change', (e) => {
+      const value = parseInt((e.target as HTMLInputElement).value);
+      if (!isNaN(value)) updateConfigField('input.file.chunk_duration_sec', value);
     });
 
     document.getElementById('input-chunk-duration')?.addEventListener('change', (e) => {
