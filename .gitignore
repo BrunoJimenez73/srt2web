@@ -76,3 +76,10 @@ server/static/index.html
 server/static/player/
 server/static/favicon.ico
 server/static/favicon.svg
+
+# Temporary test files
+test_api.py
+test_*.txt
+*.log
+screenshot-*.png
+.playwright-mcp/
