@@ -126,3 +126,58 @@ export interface ModuleMapping {
   card: string;
   indicator: string;
 }
+
+// Module extra information from backend
+export interface ModuleExtra {
+  using_gpu?: boolean;
+  device?: string;
+  engine?: string;
+  encoder_mode?: string;
+  compute_type?: string;
+}
+
+// Extended ModuleStatus with extra field
+export interface ModuleStatusExtended extends ModuleStatus {
+  extra?: ModuleExtra;
+}
+
+// UI Element IDs
+export type CardId = 
+  | 'card-input' 
+  | 'card-whisper' 
+  | 'card-translate' 
+  | 'card-tts' 
+  | 'card-subtitle' 
+  | 'card-audio-mixer'
+  | 'card-video-muxer'
+  | 'card-output';
+
+export type IndicatorId = 
+  | 'indicator-input' 
+  | 'indicator-whisper' 
+  | 'indicator-translate' 
+  | 'indicator-tts' 
+  | 'indicator-subtitle'
+  | 'indicator-audio-mixer'
+  | 'indicator-video-muxer'
+  | 'indicator-output';
+
+// Toast notification types
+export type ToastType = 'success' | 'error' | 'info' | 'warning';
+
+export interface ToastMessage {
+  message: string;
+  type: ToastType;
+  duration?: number;
+}
+
+// Dashboard state
+export interface DashboardState {
+  config: Config | null;
+  status: Status | null;
+  localMode: 'local' | 'remote';
+  isConnected: boolean;
+}
+
+// Debounce timeout record
+export type ConfigUpdateTimeouts = Record<string, ReturnType<typeof setTimeout>>;

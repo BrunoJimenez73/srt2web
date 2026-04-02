@@ -1,0 +1,48 @@
+---
+import type { HTMLAttributes } from 'astro/types';
+
+type InputTypes = 'text' | 'number' | 'password' | 'email' | 'tel' | 'url';
+
+interface Props extends HTMLAttributes<'input'> {
+  type?: InputTypes;
+}
+
+const {
+  type = 'text',
+  class: className = '',
+  ...rest
+} = Astro.props;
+
+// Extract input-specific props with proper typing
+const {
+  placeholder = '',
+  value = '',
+  disabled = false,
+  readonly = false,
+  id,
+  name,
+  min,
+  max,
+  step,
+  ...inputRest
+} = rest as HTMLAttributes<'input'>;
+
+const baseClasses = 'w-full px-2.5 py-2 bg-deep border border-white/8 rounded-md text-surface-light text-xs outline-none transition-all duration-200 placeholder:text-surface-dimmer focus:border-accent focus:ring-2 focus:ring-accent/20';
+const disabledClasses = disabled || readonly ? 'opacity-50 cursor-not-allowed bg-surface' : '';
+const allClasses = `${baseClasses} ${disabledClasses} ${className}`.trim();
+---
+
+<input 
+  class={allClasses}
+  type={type}
+  placeholder={placeholder}
+  value={value}
+  disabled={disabled}
+  readonly={readonly}
+  id={id}
+  name={name}
+  min={min}
+  max={max}
+  step={step}
+  {...inputRest}
+/>

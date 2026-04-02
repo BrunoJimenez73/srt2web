@@ -1,0 +1,24 @@
+---
+import type { HTMLAttributes } from 'astro/types';
+
+interface Props extends HTMLAttributes<'div'> {
+  hoverable?: boolean;
+  active?: boolean;
+}
+
+const {
+  hoverable = false,
+  active = false,
+  class: className = '',
+  ...rest
+} = Astro.props as Props;
+
+const baseClasses = 'bg-card border border-white/8 rounded-lg p-3 transition-all duration-300';
+const hoverClasses = hoverable ? 'hover:border-white/12 hover:shadow-md' : '';
+const activeClasses = active ? 'border-success shadow-success/20' : '';
+const allClasses = `${baseClasses} ${hoverClasses} ${activeClasses} ${className}`.trim();
+---
+
+<div class={allClasses} {...rest}>
+  <slot />
+</div>

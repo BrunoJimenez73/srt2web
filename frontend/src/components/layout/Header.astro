@@ -1,0 +1,201 @@
+---
+import Button from '../ui/Button.astro';
+
+type HeaderProps = {
+  version?: string;
+};
+
+const { version = '0.6.1' }: HeaderProps = Astro.props;
+---
+
+<header class="flex justify-between items-center mb-4 pb-3 border-b border-white/8">
+  <div class="flex items-center gap-2.5">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" class="w-8 h-8">
+      <circle cx="16" cy="16" r="14" stroke="url(#grad)" stroke-width="2"/>
+      <path d="M10 20L16 10L22 20H10Z" fill="url(#grad)"/>
+      <defs>
+        <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#6366f1"/>
+          <stop offset="100%" stop-color="#a855f7"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    <span class="text-lg font-bold bg-gradient-to-r from-accent to-purple-400 bg-clip-text text-transparent">SRT2Web</span>
+    <span class="bg-card px-2 py-0.5 rounded-full text-xs text-surface-dim border border-white/8">{version}</span>
+  </div>
+  
+  <div class="flex items-center gap-2.5">
+    <a href="/docs/" class="text-surface-dim no-underline px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all border border-white/8 hover:bg-card hover:text-surface-light hover:border-accent" target="_blank">
+      📚 Docs
+    </a>
+    <div id="ws-status" class="ws-status disconnected">
+      <span class="ws-status-dot"></span>
+      <span>WS OFF</span>
+    </div>
+    
+    <!-- Security Toggle -->
+    <div class="relative">
+      <button id="btn-secure-toggle" class="flex items-center gap-1.5 bg-card border border-white/8 px-2.5 py-1.5 rounded-md text-xs text-surface-dim cursor-pointer transition-all hover:border-accent">
+        <span>🔐</span>
+        <span id="secure-label">Secure OFF</span>
+        <span id="secure-arrow" class="text-xs transition-transform">▾</span>
+      </button>
+      <div id="secure-panel" class="absolute top-[calc(100%+8px)] right-0 w-70 bg-card border border-white/8 rounded-lg p-3 shadow-xl z-50 hidden">
+        <div class="flex justify-between items-center mb-2.5 text-xs font-semibold text-surface-dim">
+          <span>Token de autenticación</span>
+          <button id="btn-close-secure" class="text-surface-dimmer cursor-pointer text-sm px-1 hover:text-surface-light">✕</button>
+        </div>
+        <div class="flex gap-1 mb-2.5">
+          <input type="password" id="secure-token-input" placeholder="Ingresa token..." class="flex-1 bg-deep border border-white/8 rounded-md px-2 py-1.5 text-xs text-surface-light font-mono outline-none focus:border-accent" />
+          <button id="btn-eye-token" title="Mostrar/Ocultar" class="bg-deep border border-white/8 rounded-md px-2 py-1.5 cursor-pointer text-xs">👁</button>
+        </div>
+        <div class="flex gap-1.5">
+          <button id="btn-gen-token" title="Generar token" class="bg-deep border border-white/8 rounded-md px-2.5 py-1.5 cursor-pointer text-sm transition-all hover:bg-card">🎲</button>
+          <button id="btn-save-secure" class="flex-1 bg-accent text-white border-none rounded-md px-2.5 py-1.5 text-xs font-semibold cursor-pointer transition-all hover:bg-accent-hover">💾 Guardar</button>
+        </div>
+      </div>
+    </div>
+    
+    <span id="live-clock" class="live-clock">--:--:--</span>
+    <Button id="btn-save-config" onclick="saveConfig()" aria-label="Guardar configuración actual">
+      <span class="btn-text">💾 Guardar Config</span>
+      <span class="btn-loading hidden" aria-hidden="true">⏳</span>
+    </Button>
+  </div>
+</header>
+
+<style>
+  .secure-panel {
+    animation: fadeIn 0.15s ease;
+  }
+  
+  .secure-panel.hidden {
+    display: none;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  .secure-arrow.open {
+    transform: rotate(180deg);
+  }
+  
+  .btn-save.loading .btn-text {
+    display: none;
+  }
+  
+  .btn-save.loading .btn-loading {
+    display: inline;
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  
+  @media (max-width: 768px) {
+    .btn-docs, .live-clock {
+      display: none;
+    }
+    .secure-label {
+      display: none;
+    }
+    .secure-panel {
+      width: 240px;
+    }
+  }
+</style>
+
+<script>
+  import { getAuthToken, setAuthToken } from '../../lib/api.ts';
+
+  const btnToggle = document.getElementById('btn-secure-toggle') as HTMLButtonElement;
+  const panel = document.getElementById('secure-panel') as HTMLDivElement;
+  const arrow = document.getElementById('secure-arrow') as HTMLSpanElement;
+  const label = document.getElementById('secure-label') as HTMLSpanElement;
+  const tokenInput = document.getElementById('secure-token-input') as HTMLInputElement;
+  const btnEye = document.getElementById('btn-eye-token') as HTMLButtonElement;
+  const btnGen = document.getElementById('btn-gen-token') as HTMLButtonElement;
+  const btnSave = document.getElementById('btn-save-secure') as HTMLButtonElement;
+  const btnClose = document.getElementById('btn-close-secure') as HTMLButtonElement;
+
+  function updateSecureState() {
+    const token = getAuthToken();
+    if (token) {
+      label.textContent = 'Secure ON';
+      btnToggle.classList.add('active');
+      tokenInput.value = token;
+    } else {
+      label.textContent = 'Secure OFF';
+      btnToggle.classList.remove('active');
+      tokenInput.value = '';
+    }
+  }
+
+  btnToggle?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    panel.classList.toggle('hidden');
+    arrow.classList.toggle('open');
+    if (!panel.classList.contains('hidden')) {
+      updateSecureState();
+    }
+  });
+
+  btnClose?.addEventListener('click', () => {
+    panel.classList.add('hidden');
+    arrow.classList.remove('open');
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!panel.contains(e.target as Node) && !btnToggle.contains(e.target as Node)) {
+      panel.classList.add('hidden');
+      arrow.classList.remove('open');
+    }
+  });
+
+  btnEye?.addEventListener('click', () => {
+    if (tokenInput.type === 'password') {
+      tokenInput.type = 'text';
+      btnEye.textContent = '🙈';
+    } else {
+      tokenInput.type = 'password';
+      btnEye.textContent = '👁';
+    }
+  });
+
+  btnGen?.addEventListener('click', () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const length = 32;
+    let token = '';
+    const array = new Uint32Array(length);
+    crypto.getRandomValues(array);
+    for (let i = 0; i < length; i++) {
+      token += chars[array[i] % chars.length];
+    }
+    tokenInput.value = token;
+    tokenInput.type = 'text';
+    btnEye.textContent = '🙈';
+  });
+
+  btnSave?.addEventListener('click', () => {
+    const token = tokenInput.value.trim();
+    setAuthToken(token);
+    updateSecureState();
+    
+    const toastEvent = new CustomEvent('toast', {
+      detail: { 
+        message: token ? '🔐 Token guardado. Recarga para aplicar.' : '🔓 Autenticación desactivada.',
+        type: token ? 'success' : 'info'
+      }
+    });
+    document.dispatchEvent(toastEvent);
+    
+    panel.classList.add('hidden');
+    arrow.classList.remove('open');
+  });
+
+  updateSecureState();
+</script>
