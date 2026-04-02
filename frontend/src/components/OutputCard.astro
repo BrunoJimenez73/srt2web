@@ -17,6 +17,23 @@
         <span class="stat-value" id="stat-state">idle</span>
       </div>
     </div>
+    <div class="form-group" id="output-metrics">
+      <label class="form-label">Métricas</label>
+      <div class="metrics-row">
+        <div class="metric-mini">
+          <span class="metric-label">Tiempo</span>
+          <span class="metric-value" id="module-time-output">--</span>
+        </div>
+        <div class="metric-mini">
+          <span class="metric-label">Chunks</span>
+          <span class="metric-value" id="module-chunks-output">--</span>
+        </div>
+        <div class="metric-mini">
+          <span class="metric-label">Device</span>
+          <span class="metric-value" id="module-device-output">--</span>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -95,6 +112,45 @@
 
   .stat-value {
     font-size: 14px;
+    font-weight: 600;
+    color: var(--text-prime);
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .form-label {
+    font-size: 10px;
+    color: var(--text-sec);
+    font-weight: 500;
+  }
+
+  .metrics-row {
+    display: flex;
+    gap: 12px;
+    padding: 8px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
+  }
+
+  .metric-mini {
+    flex: 1;
+    text-align: center;
+  }
+
+  .metric-mini .metric-label {
+    display: block;
+    font-size: 9px;
+    color: var(--text-sec);
+    margin-bottom: 2px;
+  }
+
+  .metric-mini .metric-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
     font-weight: 600;
     color: var(--text-prime);
   }

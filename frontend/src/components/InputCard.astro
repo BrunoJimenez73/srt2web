@@ -5,6 +5,11 @@
   <div class="process-header">
     <span class="process-indicator" id="indicator-input"></span>
     <span class="process-title">📥 INPUT</span>
+    <span class="gpu-badge" id="input-gpu-badge" style="display: none;">GPU</span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="input-enabled" onchange="window.toggleModule('input', this.checked)" />
+      <span class="toggle-slider"></span>
+    </label>
   </div>
   <div class="process-content">
     <div class="form-group">
@@ -96,6 +101,89 @@
         <input type="number" class="form-input" id="input-file-chunk" value="10" min="2" max="30" step="1" />
       </div>
     </div>
+    
+    <!-- Metrics -->
+    <div class="form-group" id="input-metrics">
+      <label class="form-label">Métricas</label>
+      <div class="metrics-row">
+        <div class="metric-mini">
+          <span class="metric-label">Tiempo</span>
+          <span class="metric-value" id="module-time-input">--</span>
+        </div>
+        <div class="metric-mini">
+          <span class="metric-label">Chunks</span>
+          <span class="metric-value" id="module-chunks-input">--</span>
+        </div>
+      </div>
+    </div>
+  </div>
+    
+    <!-- SRT Settings -->
+    <div class="input-settings" id="srt-settings">
+      <div class="form-group">
+        <label class="form-label">Puerto SRT</label>
+        <input type="number" class="form-input" id="input-srt-port" value="9000" min="1" max="65535" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Modo</label>
+          <select class="form-select" id="input-srt-mode">
+            <option value="listener">Listener</option>
+            <option value="caller">Caller</option>
+            <option value="rendezvous">Rendezvous</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Chunk (s)</label>
+          <input type="number" class="form-input" id="input-chunk-duration" value="10" min="2" max="30" step="1" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Latencia (ms)</label>
+        <input type="number" class="form-input" id="input-srt-latency" value="200" min="0" max="5000" step="10" />
+      </div>
+      <div class="form-group" id="input-caller-group" style="display: none;">
+        <label class="form-label">Dirección Caller (si aplica)</label>
+        <input type="text" class="form-input" id="input-srt-caller" placeholder="ip:puerto" />
+      </div>
+    </div>
+    
+    <!-- RTMP Settings -->
+    <div class="input-settings" id="rtmp-settings" style="display: none;">
+      <div class="form-group">
+        <label class="form-label">URL RTMP</label>
+        <input type="text" class="form-input" id="input-rtmp-url" placeholder="rtmp://server/live/stream" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Puerto</label>
+          <input type="number" class="form-input" id="input-rtmp-port" value="1935" min="1" max="65535" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stream Key</label>
+          <input type="text" class="form-input" id="input-rtmp-key" placeholder="stream" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Chunk (s)</label>
+        <input type="number" class="form-input" id="input-rtmp-chunk" value="10" min="2" max="30" step="1" />
+      </div>
+    </div>
+    
+    <!-- File Settings -->
+    <div class="form-group" id="input-metrics">
+      <label class="form-label">Métricas</label>
+      <div class="metrics-row">
+        <div class="metric-mini">
+          <span class="metric-label">Tiempo</span>
+          <span class="metric-value" id="module-time-input">--</span>
+        </div>
+        <div class="metric-mini">
+          <span class="metric-label">Chunks</span>
+          <span class="metric-value" id="module-chunks-input">--</span>
+        </div>
+      </div>
+      </div>
   </div>
 </form>
 
@@ -219,6 +307,33 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+
+  .metrics-row {
+    display: flex;
+    gap: 12px;
+    padding: 8px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
+  }
+
+  .metric-mini {
+    flex: 1;
+    text-align: center;
+  }
+
+  .metric-mini .metric-label {
+    display: block;
+    font-size: 9px;
+    color: var(--text-sec);
+    margin-bottom: 2px;
+  }
+
+  .metric-mini .metric-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-prime);
   }
 </style>
 
