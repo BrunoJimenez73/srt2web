@@ -7,14 +7,14 @@
     <span class="process-title">📥 INPUT</span>
     <span class="gpu-badge" id="input-gpu-badge" style="display: none;">GPU</span>
     <label class="toggle-switch">
-      <input type="checkbox" id="input-enabled" onchange="window.toggleModule('input', this.checked)" />
+      <input type="checkbox" id="input-enabled" />
       <span class="toggle-slider"></span>
     </label>
   </div>
   <div class="process-content">
     <div class="form-group">
       <label class="form-label">Tipo</label>
-      <select class="form-select" id="input-type" onchange="handleInputTypeChange(this.value)">
+      <select class="form-select" id="input-type" onchange="window.handleInputTypeChange(this.value)">
         <option value="srt">SRT</option>
         <option value="rtmp">RTMP</option>
         <option value="file">File (Video local)</option>
@@ -318,21 +318,34 @@
 
   // Initialize on page load
   document.addEventListener('DOMContentLoaded', () => {
-    // Set initial state based on current type
-    const typeSelect = document.getElementById('input-type') as HTMLSelectElement;
-    if (typeSelect) {
-      window.handleInputTypeChange(typeSelect.value);
-    }
-    
-    // Add event listener for SRT mode change
-    const srtMode = document.getElementById('input-srt-mode') as HTMLSelectElement;
-    if (srtMode) {
-      srtMode.addEventListener('change', () => {
-        const typeSelect = document.getElementById('input-type') as HTMLSelectElement;
-        if (typeSelect?.value === 'srt') {
-          window.handleInputTypeChange('srt');
-        }
-      });
-    }
+    // Small delay to ensure all elements are rendered
+    setTimeout(() => {
+      // Set initial state based on current type
+      const typeSelect = document.getElementById('input-type') as HTMLSelectElement;
+      if (typeSelect) {
+        window.handleInputTypeChange(typeSelect.value);
+      }
+      
+      // Add event listener for SRT mode change
+      const srtMode = document.getElementById('input-srt-mode') as HTMLSelectElement;
+      if (srtMode) {
+        srtMode.addEventListener('change', () => {
+          const typeSelect = document.getElementById('input-type') as HTMLSelectElement;
+          if (typeSelect?.value === 'srt') {
+            window.handleInputTypeChange('srt');
+          }
+        });
+      }
+      
+      // Add event listener for input enabled toggle
+      const inputEnabled = document.getElementById('input-enabled') as HTMLInputElement;
+      if (inputEnabled) {
+        inputEnabled.addEventListener('change', () => {
+          if (window.toggleModule) {
+            window.toggleModule('input', inputEnabled.checked);
+          }
+        });
+      }
+    }, 100);
   });
 </script>

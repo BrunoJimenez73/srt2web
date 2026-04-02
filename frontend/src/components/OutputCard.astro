@@ -6,7 +6,7 @@
     <span class="process-indicator" id="indicator-output"></span>
     <span class="process-title">🎬 OUTPUT</span>
     <label class="toggle-switch">
-      <input type="checkbox" id="output-enabled" onchange="window.toggleModule('output', this.checked)" />
+      <input type="checkbox" id="output-enabled" />
       <span class="toggle-slider"></span>
     </label>
   </div>
@@ -409,9 +409,21 @@
 
   // Initialize on page load
   document.addEventListener('DOMContentLoaded', () => {
-    const formatSelect = document.getElementById('output-format') as HTMLSelectElement;
-    if (formatSelect) {
-      window.handleOutputFormatChange(formatSelect.value);
-    }
+    setTimeout(() => {
+      const formatSelect = document.getElementById('output-format') as HTMLSelectElement;
+      if (formatSelect) {
+        window.handleOutputFormatChange(formatSelect.value);
+      }
+      
+      // Add event listener for output enabled toggle
+      const outputEnabled = document.getElementById('output-enabled') as HTMLInputElement;
+      if (outputEnabled) {
+        outputEnabled.addEventListener('change', () => {
+          if (window.toggleModule) {
+            window.toggleModule('output', outputEnabled.checked);
+          }
+        });
+      }
+    }, 100);
   });
 </script>
