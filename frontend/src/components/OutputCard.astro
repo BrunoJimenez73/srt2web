@@ -411,8 +411,15 @@
     }
   }
 
-  // Try to initialize now
-  initOutputCard();
+  // Wait for DOM to be ready using requestAnimationFrame
+  function waitForDOM() {
+    if (document.readyState === 'loading') {
+      requestAnimationFrame(waitForDOM);
+    } else {
+      initOutputCard();
+    }
+  }
+  waitForDOM();
   // Also on load as fallback
   window.addEventListener('load', initOutputCard);
 </script>
