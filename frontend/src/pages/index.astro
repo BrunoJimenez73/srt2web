@@ -607,6 +607,16 @@ import Toast from '../components/Toast.astro';
         if (fileSubs && cfg.output.file.save_subtitles !== undefined) fileSubs.value = String(cfg.output.file.save_subtitles);
       }
     }
+    
+    // Retry after a delay to ensure Astro components have loaded their scripts
+    setTimeout(() => {
+      if (window.handleInputTypeChange && cfg.input?.type) {
+        window.handleInputTypeChange(cfg.input.type);
+      }
+      if (window.handleOutputFormatChange && cfg.output?.type) {
+        window.handleOutputFormatChange(cfg.output.type);
+      }
+    }, 500);
   }
 
   function collectConfigFromUI(): Partial<Config> {

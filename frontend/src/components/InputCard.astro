@@ -266,11 +266,8 @@
 </style>
 
 <script>
-  // Expose functions to window
+  // Expose functions to window - initialization done by index.astro applyConfigToUI
   window.handleInputTypeChange = function(type: string) {
-    console.log('handleInputTypeChange called with:', type);
-    
-    // Hide all settings
     const srtSettings = document.getElementById('srt-settings');
     const rtmpSettings = document.getElementById('rtmp-settings');
     const fileSettings = document.getElementById('file-settings');
@@ -279,11 +276,9 @@
     if (rtmpSettings) rtmpSettings.style.display = 'none';
     if (fileSettings) fileSettings.style.display = 'none';
     
-    // Show caller field only for SRT caller/rendezvous modes
     const callerGroup = document.getElementById('input-caller-group');
     const srtMode = document.getElementById('input-srt-mode') as HTMLSelectElement;
     
-    // Show appropriate settings
     if (type === 'srt') {
       if (srtSettings) srtSettings.style.display = 'flex';
       if (srtMode) {
@@ -310,13 +305,8 @@
     }
   };
 
-  // Initialize immediately and on load
-  function initInputCard() {
-    const typeSelect = document.getElementById('input-type') as HTMLSelectElement;
-    if (typeSelect) {
-      window.handleInputTypeChange(typeSelect.value);
-    }
-    
+  // Add event listener for SRT mode change (needs to be here because srtMode is in this component)
+  document.addEventListener('DOMContentLoaded', () => {
     const srtMode = document.getElementById('input-srt-mode') as HTMLSelectElement;
     if (srtMode) {
       srtMode.addEventListener('change', () => {
@@ -326,17 +316,5 @@
         }
       });
     }
-  }
-
-  // Wait for DOM to be ready using requestAnimationFrame
-  function waitForDOM() {
-    if (document.readyState === 'loading') {
-      requestAnimationFrame(waitForDOM);
-    } else {
-      initInputCard();
-    }
-  }
-  waitForDOM();
-  // Also on load as fallback
-  window.addEventListener('load', initInputCard);
+  });
 </script>
