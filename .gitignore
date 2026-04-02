@@ -69,14 +69,6 @@ models/
 # External binaries
 bin/
 
-# Frontend build artifacts (generated)
-server/static/_astro/
-server/static/docs/
-server/static/index.html
-server/static/player/
-server/static/favicon.ico
-server/static/favicon.svg
-
 # Temporary test files
 test_api.py
 test_*.txt
