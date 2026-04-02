@@ -416,3 +416,156 @@ Arrancar_Servidor.bat
 - [ ] Mejoras responsive design
 - [ ] Keyboard shortcuts
 - [ ] Tests para GPU indicators
+
+---
+
+## Sesión 01-02/04/2026 - Latency Reduction & Performance Optimization
+
+**Objetivo**: Reducir latencia del pipeline de ~75s a ~15s y garantir aceleración GPU para Piper TTS.
+
+**Problemas identificados**:
+- Audio duplicado: mezcla incluía original sin reducir (volume 0.7 → 0.15)
+- Desync A/V: verificación de duración removida en optimization previa
+- Piper TTS bloqueaba event loop: modelo tarda 5+ segundos en cargar
+- Alta latencia FFmpeg: 3 llamadas + ffprobe = ~1.2s por chunk
+- Overhead speed adjustment: FFmpeg atempo añadía ~500ms
+- OBS constraint: mínimo keyframe interval ~10s limitaba chunk duración
+
+**Solución implementada**:
+
+| Archivo | Cambio |
+|---------|--------|
+| `modules/audio_mixer.py` | **Reescrito**: mezcla numpy (20ms vs 1.2s), 359 líneas eliminadas |
+| `modules/piper_loader.py` | **Nuevo**: `PiperSubprocessManager` para workers persistentes |
+| `modules/tts_engine.py` | Usa subprocess; GPU status tracking; `length_scale` speed control |
+| `core/pipeline.py` | Bug fix: `chunk_duration_sec` injection en reconfigure |
+| `modules/inputs/srt_input.py` | Procesa chunk único cuando `idx > 0` (no espera 2 chunks) |
+| `modules/transcriber.py` | `beam_size` configurable (default 2) |
+| `modules/outputs/hls_output.py` | `TARGETDURATION = seg + 1` |
+| `config.yaml` | chunk=10s, segment=10s, list_size=2, original_volume=0.15 |
+| `frontend/src/components/InputCard.astro` | Control de Chunk Duration |
+| `frontend/src/pages/index.astro` | Wire up chunk_duration; fix GPU badge logic |
+| `frontend/src/components/SubtitleCard.astro` | Sección metrics (Time, Chunks) |
+| `frontend/src/components/AudioMixerCard.astro` | Sección metrics (Time, Chunks) |
+| `tests/unit/test_audio_mixer.py` | **Reescrito** para numpy implementation |
+| `tests/unit/test_config_validation.py` | Fix: usa `PROJECT_ROOT` |
+| `tests/unit/test_gpu_installer_restructure.py` | Fix imports y config path |
+
+**Métricas de performance**:
+- Audio mixing: **1.2s → 20ms** (60x speedup)
+- Piper TTS: GPU via subprocess (no blocking event loop)
+- Speed adjustment: `length_scale` (0ms vs 500ms FFmpeg)
+- Latencia total: ~12-15s (con OBS keyframe 10s)
+
+**Configuración actual**:
+```yaml
+input:
+  chunk_duration_sec: 10
+  output:
+    segment_duration: 10
+    list_size: 2
+audio_mixer:
+  original_volume: 0.15
+  tts_volume: 1.0
+transcriber:
+  beam_size: 2
+tts:
+  engine: piper
+  speed: 1.3
+  device: cuda  # auto fallback a cpu
+```
+
+**GPU Status Tracking**:
+- Backend: `module.get_status()['extra']['using_gpu']`
+- Frontend: Badge verde cuando `enabled && state === 'running' && processed_chunks > 0`
+- Verdadero estado runtime (subprocess alive + CUDA in use), no solo config
+
+**Bug Fixes Criticos**:
+- Audio duplicado: `original_volume` 0.7 → 0.15 (previene overlap excesivo)
+- A/V desync: restaurada verificación de duración en `audio_mixer.py`
+- Piper WAV: struct packing manual fix (bytes → bytearray)
+- Pipeline reconfigure: injection de `chunk_duration_sec` en input config
+- Missing imports: `time`, `base64` añadidos
+
+**Test Results**:
+- ✅ `test_audio_mixer.py`: 6 tests (numpy implementation)
+- ✅ `test_config_validation.py`: todos pasan (PROJECT_ROOT fix)
+- ✅ `test_gpu_installer_restructure.py`: todos pasan (imports/config fixes)
+- ⏳ Suite completa pendiente (480 tests total)
+
+**Commits recientes**:
+```
+d8888f4 perf: Replace FFmpeg atempo with Piper native length_scale
+d154642 fix: Set HLS list_size to 2 (20s buffer)
+445bef0 fix: Set 10s chunks for stability
+0604cab perf: Replace FFmpeg with numpy for audio mixing (~100x faster)
+a703630 feat: Add metrics section to Subtitle and AudioMixer cards
+1b2d72e fix: Re-add duration verification in audio_mixer for A/V sync
+```
+
+**Limitaciones conocidas**:
+- OBS keyframe interval mínimo ~10s (no forzable a menos)
+- Chunk duration <10s causa "No input video chunk" hasta que keyframe disponible
+- Latencia floor ~10s (1 chunk) + procesamiento (~2-3s) = ~12-15s total
+- Si GPU no disponible: Piper usa CPU (latencia sube a ~20-25s)
+
+**Próximos pasos**:
+- [x] ~~Ejecutar suite completa de tests (480 tests)~~ - ✅ Completado: 498 passed, 1 skipped, 0 failures
+- [x] ~~Validar con usuario en OBS (keyframe 10s): sin tirones, audio/subs sync~~
+- [x] ~~Confirmar GPU badge verde durante síntesis~~
+- [x] ~~Completar documentación AGENTS.md (esta sección)~~
+
+---
+
+## Sesión Arreglos de Tests (02/04/2026)
+
+**Problema**: Suite de tests con fallos pre-existentes por:
+- Paths hardcodeados a `config/config.yaml` (debería usar `PROJECT_ROOT / "config.yaml"`)
+- Falta de `pytest-asyncio` para tests asíncronos
+- Tests nuevos con asunciones incorrectas sobre APIs privadas
+
+**Solución implementada**:
+
+| Archivo | Cambio |
+|---------|--------|
+| `tests/unit/test_performance_optimizations.py` | Agregado `PROJECT_ROOT`, fix path config |
+| `tests/unit/test_api_routes.py` | Agregado `PROJECT_ROOT`, fix 10+ paths |
+| `tests/pytest.ini` | Agregado `-p asyncio` para tests async |
+| `requirements.txt` | Agregado `pytest-asyncio` |
+| `tests/unit/test_latest_features.py` | **Nuevo** - 20 tests para features recientes |
+
+**Tests creados para nuevas funcionalidades**:
+- `TestPipelineDataFix` - Verifica dataclass syntax en SRT input
+- `TestPiperSubprocessManager` - Verifica existencia y uso del manager
+- `TestAudioMixerNumpy` - Verifica implementación numpy (no FFmpeg)
+- `TestPipelineReconfigure` - Verifica inyección de chunk_duration
+- `TestConfigValues` - Verifica config low-latency (10s chunks, list_size=2)
+- `TestSRTInputBehavior` - Verifica buffer de chunks
+- `TestAudioMixerDurationCheck` - Verifica A/V sync
+
+**Resultado final**:
+```
+498 passed, 1 skipped, 0 failures
+```
+
+**Cambios en config.yaml actual**:
+```yaml
+pipeline:
+  chunk_duration_sec: 10
+output:
+  web:
+    segment_duration: 10
+    list_size: 2
+modules:
+  audio_mixer:
+    original_volume: 0.9  # ducking (no 0.15 como antes)
+    tts_volume: 0.9
+  transcriber:
+    beam_size: 2
+  tts_engine:
+    engine: piper
+    speed: 1.3
+    device: cuda
+```
+
+---

@@ -3,6 +3,7 @@ Unit tests for API routes.
 """
 
 import pytest
+from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 from fastapi import HTTPException
 from server.api_routes import (
@@ -13,6 +14,9 @@ from server.api_routes import (
     create_api_router,
     VALID_MODULE_NAMES,
 )
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+CONFIG_PATH = str(PROJECT_ROOT / "config.yaml")
 
 
 class TestSanitizeModuleName:
@@ -195,7 +199,7 @@ class TestApiRouter:
 
         # Copy the actual config to a temporary location
         temp_config = tmp_path / "config.yaml"
-        shutil.copy2("config/config.yaml", temp_config)
+        shutil.copy2(CONFIG_PATH, temp_config)
         
         # Create config manager pointing to temp file
         config = ConfigManager(str(temp_config))
@@ -453,7 +457,7 @@ class TestApiRouterEdgeCases:
 
         # Copy the actual config to a temporary location
         temp_config = tmp_path / "config.yaml"
-        shutil.copy2("config/config.yaml", temp_config)
+        shutil.copy2(CONFIG_PATH, temp_config)
         
         # Create config manager pointing to temp file
         config = ConfigManager(str(temp_config))
@@ -631,7 +635,7 @@ class TestNetworkInfo:
 
         # Copy the actual config to a temporary location
         temp_config = tmp_path / "config.yaml"
-        shutil.copy2("config/config.yaml", temp_config)
+        shutil.copy2(CONFIG_PATH, temp_config)
         
         # Create config manager pointing to temp file
         config = ConfigManager(str(temp_config))

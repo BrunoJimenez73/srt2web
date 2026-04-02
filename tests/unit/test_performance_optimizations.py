@@ -5,7 +5,11 @@ Tests for performance optimizations (Phase 2).
 import os
 import pytest
 import tempfile
+from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+CONFIG_PATH = str(PROJECT_ROOT / "config.yaml")
 
 
 class TestAudioMixerDurationCache:
@@ -189,7 +193,7 @@ class TestConfigDefaults:
         
         # Also check config.yaml
         import yaml
-        with open("config/config.yaml", "r") as f:
+        with open(CONFIG_PATH, "r") as f:
             config = yaml.safe_load(f)
         
         has_in_config = "max_request_size_mb" in config.get("server", {})

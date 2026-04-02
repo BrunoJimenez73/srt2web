@@ -16,6 +16,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
+CONFIG_PATH = str(PROJECT_ROOT / "config.yaml")
 sys.path.insert(0, str(PROJECT_ROOT))
 
 
@@ -443,7 +444,7 @@ class TestProjectStructure:
 
     def test_config_yaml_exists(self):
         """Test that config.yaml exists."""
-        assert os.path.exists("config/config.yaml"), "config.yaml not found"
+        assert os.path.exists(CONFIG_PATH), "config.yaml not found"
 
     def test_main_py_exists(self):
         """Test that main.py exists."""

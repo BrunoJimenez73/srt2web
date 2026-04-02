@@ -14,6 +14,9 @@ import tempfile
 import yaml
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+CONFIG_PATH = str(PROJECT_ROOT / "config.yaml")
+
 
 # Valid values for config validation
 VALID_WHISPER_MODELS = [
@@ -47,17 +50,17 @@ class TestConfigYAMLValidity:
 
     def test_config_yaml_exists(self):
         """Test that config.yaml exists."""
-        assert os.path.exists("config/config.yaml"), "config.yaml not found"
+        assert os.path.exists(CONFIG_PATH), "config.yaml not found"
 
     def test_config_yaml_is_valid_yaml(self):
         """Test that config.yaml is valid YAML."""
-        with open("config/config.yaml", "r", encoding="utf-8") as f:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
         assert isinstance(config, dict), "config.yaml should be a dictionary"
 
     def test_config_server_section(self):
         """Test server configuration has valid values."""
-        with open("config/config.yaml", "r", encoding="utf-8") as f:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         server = config.get("server", {})
@@ -86,7 +89,7 @@ class TestConfigYAMLValidity:
 
     def test_config_transcriber_valid_language(self):
         """Test that transcriber uses a valid language code."""
-        with open("config/config.yaml", "r", encoding="utf-8") as f:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         modules = config.get("modules", {})
@@ -98,7 +101,7 @@ class TestConfigYAMLValidity:
 
     def test_config_transcriber_valid_device(self):
         """Test that transcriber uses a valid device."""
-        with open("config/config.yaml", "r", encoding="utf-8") as f:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         modules = config.get("modules", {})
@@ -110,7 +113,7 @@ class TestConfigYAMLValidity:
 
     def test_config_translator_valid_languages(self):
         """Test that translator uses valid language codes."""
-        with open("config/config.yaml", "r", encoding="utf-8") as f:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         modules = config.get("modules", {})
@@ -125,7 +128,7 @@ class TestConfigYAMLValidity:
 
     def test_config_tts_valid_voice(self):
         """Test that TTS uses a valid voice."""
-        with open("config/config.yaml", "r", encoding="utf-8") as f:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         modules = config.get("modules", {})
@@ -140,7 +143,7 @@ class TestConfigYAMLValidity:
 
     def test_config_tts_valid_device(self):
         """Test that TTS uses a valid device."""
-        with open("config/config.yaml", "r", encoding="utf-8") as f:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         modules = config.get("modules", {})
@@ -152,7 +155,7 @@ class TestConfigYAMLValidity:
 
     def test_config_video_muxer_valid_preset(self):
         """Test that video muxer uses valid preset."""
-        with open("config/config.yaml", "r", encoding="utf-8") as f:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         modules = config.get("modules", {})
@@ -164,7 +167,7 @@ class TestConfigYAMLValidity:
 
     def test_config_video_muxer_valid_encoder_mode(self):
         """Test that video muxer uses valid encoder mode."""
-        with open("config/config.yaml", "r", encoding="utf-8") as f:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         modules = config.get("modules", {})
@@ -176,7 +179,7 @@ class TestConfigYAMLValidity:
 
     def test_config_ports_no_conflict(self):
         """Test that configured ports don't conflict."""
-        with open("config/config.yaml", "r", encoding="utf-8") as f:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         server_port = config.get("server", {}).get("port", 0)
@@ -191,7 +194,7 @@ class TestConfigYAMLValidity:
 
     def test_config_directory_exists(self):
         """Test that output directory path is valid."""
-        with open("config/config.yaml", "r", encoding="utf-8") as f:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         output_dir = config.get("output_dir", {}).get("directory", "")
