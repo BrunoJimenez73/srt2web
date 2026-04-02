@@ -558,6 +558,55 @@ import Toast from '../components/Toast.astro';
     if (ttsValue) ttsValue.textContent = String(cfg.modules.audio_mixer?.tts_volume ?? 1.0);
     if (hlsEncoder) hlsEncoder.value = cfg.modules.video_muxer.encoder_mode;
     if (hlsCrf) hlsCrf.value = String(cfg.modules.video_muxer.video_crf);
+    
+    // Output configuration
+    if (cfg.output) {
+      const outputFormat = document.getElementById('output-format') as HTMLSelectElement;
+      if (outputFormat && cfg.output.type) {
+        outputFormat.value = cfg.output.type;
+        if (window.handleOutputFormatChange) {
+          window.handleOutputFormatChange(cfg.output.type);
+        }
+      }
+      
+      // SRT output
+      if (cfg.output.srt) {
+        const srtUrl = document.getElementById('output-srt-url') as HTMLInputElement;
+        const srtMode = document.getElementById('output-srt-mode') as HTMLSelectElement;
+        const srtLatency = document.getElementById('output-srt-latency') as HTMLInputElement;
+        const srtVideoBitrate = document.getElementById('output-srt-video-bitrate') as HTMLSelectElement;
+        const srtAudioBitrate = document.getElementById('output-srt-audio-bitrate') as HTMLSelectElement;
+        if (srtUrl && cfg.output.srt.url) srtUrl.value = cfg.output.srt.url;
+        if (srtMode && cfg.output.srt.mode) srtMode.value = cfg.output.srt.mode;
+        if (srtLatency && cfg.output.srt.latency_ms) srtLatency.value = String(cfg.output.srt.latency_ms);
+        if (srtVideoBitrate && cfg.output.srt.video_bitrate) srtVideoBitrate.value = cfg.output.srt.video_bitrate;
+        if (srtAudioBitrate && cfg.output.srt.audio_bitrate) srtAudioBitrate.value = cfg.output.srt.audio_bitrate;
+      }
+      
+      // RTMP output
+      if (cfg.output.rtmp) {
+        const rtmpUrl = document.getElementById('output-rtmp-url') as HTMLInputElement;
+        const rtmpVideoBitrate = document.getElementById('output-rtmp-video-bitrate') as HTMLSelectElement;
+        const rtmpAudioBitrate = document.getElementById('output-rtmp-audio-bitrate') as HTMLSelectElement;
+        const rtmpEncoder = document.getElementById('output-rtmp-encoder') as HTMLSelectElement;
+        if (rtmpUrl && cfg.output.rtmp.url) rtmpUrl.value = cfg.output.rtmp.url;
+        if (rtmpVideoBitrate && cfg.output.rtmp.video_bitrate) rtmpVideoBitrate.value = cfg.output.rtmp.video_bitrate;
+        if (rtmpAudioBitrate && cfg.output.rtmp.audio_bitrate) rtmpAudioBitrate.value = cfg.output.rtmp.audio_bitrate;
+        if (rtmpEncoder && cfg.output.rtmp.encoder_mode) rtmpEncoder.value = cfg.output.rtmp.encoder_mode;
+      }
+      
+      // File output
+      if (cfg.output.file) {
+        const filePath = document.getElementById('output-file-path') as HTMLInputElement;
+        const fileVideo = document.getElementById('output-file-video') as HTMLSelectElement;
+        const fileAudio = document.getElementById('output-file-audio') as HTMLSelectElement;
+        const fileSubs = document.getElementById('output-file-subs') as HTMLSelectElement;
+        if (filePath && cfg.output.file.path) filePath.value = cfg.output.file.path;
+        if (fileVideo && cfg.output.file.save_video !== undefined) fileVideo.value = String(cfg.output.file.save_video);
+        if (fileAudio && cfg.output.file.save_audio !== undefined) fileAudio.value = String(cfg.output.file.save_audio);
+        if (fileSubs && cfg.output.file.save_subtitles !== undefined) fileSubs.value = String(cfg.output.file.save_subtitles);
+      }
+    }
   }
 
   function collectConfigFromUI(): Partial<Config> {
@@ -627,6 +676,28 @@ import Toast from '../components/Toast.astro';
           audio_codec: 'aac',
           audio_bitrate: '192k',
           audio_samplerate: '48000'
+        }
+      },
+      output: {
+        type: (document.getElementById('output-format') as HTMLSelectElement)?.value || 'web',
+        srt: {
+          url: (document.getElementById('output-srt-url') as HTMLInputElement)?.value || '',
+          mode: (document.getElementById('output-srt-mode') as HTMLSelectElement)?.value || 'caller',
+          latency_ms: parseInt((document.getElementById('output-srt-latency') as HTMLInputElement)?.value || '200'),
+          video_bitrate: (document.getElementById('output-srt-video-bitrate') as HTMLSelectElement)?.value || '2500k',
+          audio_bitrate: (document.getElementById('output-srt-audio-bitrate') as HTMLSelectElement)?.value || '128k'
+        },
+        rtmp: {
+          url: (document.getElementById('output-rtmp-url') as HTMLInputElement)?.value || '',
+          video_bitrate: (document.getElementById('output-rtmp-video-bitrate') as HTMLSelectElement)?.value || '2500k',
+          audio_bitrate: (document.getElementById('output-rtmp-audio-bitrate') as HTMLSelectElement)?.value || '128k',
+          encoder_mode: (document.getElementById('output-rtmp-encoder') as HTMLSelectElement)?.value || 'auto'
+        },
+        file: {
+          path: (document.getElementById('output-file-path') as HTMLInputElement)?.value || './output',
+          save_video: (document.getElementById('output-file-video') as HTMLSelectElement)?.value === 'true',
+          save_audio: (document.getElementById('output-file-audio') as HTMLSelectElement)?.value === 'true',
+          save_subtitles: (document.getElementById('output-file-subs') as HTMLSelectElement)?.value === 'true'
         }
       }
     };
@@ -936,6 +1007,57 @@ import Toast from '../components/Toast.astro';
     document.getElementById('hls-crf')?.addEventListener('change', (e) => {
       const value = parseInt((e.target as HTMLInputElement).value);
       if (!isNaN(value)) updateConfigField('modules.video_muxer.video_crf', value);
+    });
+
+    // Output format listener
+    document.getElementById('output-format')?.addEventListener('change', (e) => {
+      updateConfigField('output.type', (e.target as HTMLSelectElement).value);
+    });
+
+    // SRT output listeners
+    document.getElementById('output-srt-url')?.addEventListener('change', (e) => {
+      updateConfigField('output.srt.url', (e.target as HTMLInputElement).value);
+    });
+    document.getElementById('output-srt-mode')?.addEventListener('change', (e) => {
+      updateConfigField('output.srt.mode', (e.target as HTMLSelectElement).value);
+    });
+    document.getElementById('output-srt-latency')?.addEventListener('change', (e) => {
+      const value = parseInt((e.target as HTMLInputElement).value);
+      if (!isNaN(value)) updateConfigField('output.srt.latency_ms', value);
+    });
+    document.getElementById('output-srt-video-bitrate')?.addEventListener('change', (e) => {
+      updateConfigField('output.srt.video_bitrate', (e.target as HTMLSelectElement).value);
+    });
+    document.getElementById('output-srt-audio-bitrate')?.addEventListener('change', (e) => {
+      updateConfigField('output.srt.audio_bitrate', (e.target as HTMLSelectElement).value);
+    });
+
+    // RTMP output listeners
+    document.getElementById('output-rtmp-url')?.addEventListener('change', (e) => {
+      updateConfigField('output.rtmp.url', (e.target as HTMLInputElement).value);
+    });
+    document.getElementById('output-rtmp-video-bitrate')?.addEventListener('change', (e) => {
+      updateConfigField('output.rtmp.video_bitrate', (e.target as HTMLSelectElement).value);
+    });
+    document.getElementById('output-rtmp-audio-bitrate')?.addEventListener('change', (e) => {
+      updateConfigField('output.rtmp.audio_bitrate', (e.target as HTMLSelectElement).value);
+    });
+    document.getElementById('output-rtmp-encoder')?.addEventListener('change', (e) => {
+      updateConfigField('output.rtmp.encoder_mode', (e.target as HTMLSelectElement).value);
+    });
+
+    // File output listeners
+    document.getElementById('output-file-path')?.addEventListener('change', (e) => {
+      updateConfigField('output.file.path', (e.target as HTMLInputElement).value);
+    });
+    document.getElementById('output-file-video')?.addEventListener('change', (e) => {
+      updateConfigField('output.file.save_video', (e.target as HTMLSelectElement).value === 'true');
+    });
+    document.getElementById('output-file-audio')?.addEventListener('change', (e) => {
+      updateConfigField('output.file.save_audio', (e.target as HTMLSelectElement).value === 'true');
+    });
+    document.getElementById('output-file-subs')?.addEventListener('change', (e) => {
+      updateConfigField('output.file.save_subtitles', (e.target as HTMLSelectElement).value === 'true');
     });
   }
 

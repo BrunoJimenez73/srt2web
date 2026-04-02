@@ -7,16 +7,147 @@
     <span class="process-title">🎬 OUTPUT</span>
   </div>
   <div class="process-content">
-    <div class="output-stats">
-      <div class="stat-item">
-        <span class="stat-label">Chunks</span>
-        <span class="stat-value" id="stat-chunks">0</span>
+    <!-- Formato selector -->
+    <div class="form-group">
+      <label class="form-label">Formato</label>
+      <select class="form-select" id="output-format" onchange="handleOutputFormatChange(this.value)">
+        <option value="web">Web Player (HLS)</option>
+        <option value="srt">SRT</option>
+        <option value="rtmp">RTMP</option>
+        <option value="file">File</option>
+      </select>
+    </div>
+    
+    <!-- Web Player Settings -->
+    <div class="output-settings" id="web-settings">
+      <div class="output-stats">
+        <div class="stat-item">
+          <span class="stat-label">Chunks</span>
+          <span class="stat-value" id="stat-chunks">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Estado</span>
+          <span class="stat-value" id="stat-state">idle</span>
+        </div>
       </div>
-      <div class="stat-item">
-        <span class="stat-label">Estado</span>
-        <span class="stat-value" id="stat-state">idle</span>
+      <div class="form-group">
+        <label class="form-label">URL del Player</label>
+        <div class="url-display">
+          <span id="url-player-display">http://localhost:9999/player</span>
+        </div>
       </div>
     </div>
+    
+    <!-- SRT Settings -->
+    <div class="output-settings" id="srt-settings" style="display: none;">
+      <div class="form-group">
+        <label class="form-label">URL SRT</label>
+        <input type="text" class="form-input" id="output-srt-url" placeholder="srt://localhost:9001" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Modo</label>
+          <select class="form-select" id="output-srt-mode">
+            <option value="caller">Caller</option>
+            <option value="listener">Listener</option>
+            <option value="rendezvous">Rendezvous</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Latencia (ms)</label>
+          <input type="number" class="form-input" id="output-srt-latency" value="200" min="0" max="5000" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Video Bitrate</label>
+          <select class="form-select" id="output-srt-video-bitrate">
+            <option value="1500k">1500 kbps</option>
+            <option value="2500k">2500 kbps</option>
+            <option value="4000k">4000 kbps</option>
+            <option value="6000k">6000 kbps</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Audio Bitrate</label>
+          <select class="form-select" id="output-srt-audio-bitrate">
+            <option value="96k">96 kbps</option>
+            <option value="128k">128 kbps</option>
+            <option value="192k">192 kbps</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    
+    <!-- RTMP Settings -->
+    <div class="output-settings" id="rtmp-settings" style="display: none;">
+      <div class="form-group">
+        <label class="form-label">URL RTMP</label>
+        <input type="text" class="form-input" id="output-rtmp-url" placeholder="rtmp://a.rtmp.youtube.com/live2/xxxx-xxxx-xxxx-xxxx" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Video Bitrate</label>
+          <select class="form-select" id="output-rtmp-video-bitrate">
+            <option value="1500k">1500 kbps</option>
+            <option value="2500k" selected>2500 kbps</option>
+            <option value="4000k">4000 kbps</option>
+            <option value="6000k">6000 kbps</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Audio Bitrate</label>
+          <select class="form-select" id="output-rtmp-audio-bitrate">
+            <option value="96k">96 kbps</option>
+            <option value="128k" selected>128 kbps</option>
+            <option value="192k">192 kbps</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Encoder</label>
+        <select class="form-select" id="output-rtmp-encoder">
+          <option value="auto">Auto (GPU/CPU)</option>
+          <option value="cpu">CPU (libx264)</option>
+          <option value="gpu_nvenc">NVIDIA NVENC</option>
+          <option value="gpu_amf">AMD AMF</option>
+          <option value="gpu_qsv">Intel QSV</option>
+        </select>
+      </div>
+    </div>
+    
+    <!-- File Settings -->
+    <div class="output-settings" id="file-settings" style="display: none;">
+      <div class="form-group">
+        <label class="form-label">Directorio de Salida</label>
+        <input type="text" class="form-input" id="output-file-path" value="./output" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Guardar Video</label>
+          <select class="form-select" id="output-file-video">
+            <option value="true">Sí</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Guardar Audio</label>
+          <select class="form-select" id="output-file-audio">
+            <option value="true">Sí</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Guardar Subtítulos</label>
+        <select class="form-select" id="output-file-subs">
+          <option value="true">Sí</option>
+          <option value="false">No</option>
+        </select>
+      </div>
+    </div>
+    
+    <!-- Metrics -->
     <div class="form-group" id="output-metrics">
       <label class="form-label">Métricas</label>
       <div class="metrics-row">
@@ -29,8 +160,8 @@
           <span class="metric-value" id="module-chunks-output">--</span>
         </div>
         <div class="metric-mini">
-          <span class="metric-label">Device</span>
-          <span class="metric-value" id="module-device-output">--</span>
+          <span class="metric-label">Formato</span>
+          <span class="metric-value" id="module-format-output">--</span>
         </div>
       </div>
     </div>
@@ -122,10 +253,52 @@
     gap: 4px;
   }
 
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
   .form-label {
     font-size: 10px;
     color: var(--text-sec);
     font-weight: 500;
+  }
+
+  .form-input, .form-select {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-sm);
+    color: var(--text-prime);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .form-input:focus, .form-select:focus {
+    border-color: var(--accent);
+  }
+
+  .form-select {
+    cursor: pointer;
+  }
+
+  .output-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .url-display {
+    background: var(--bg-surface);
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-prime);
+    word-break: break-all;
   }
 
   .metrics-row {
@@ -155,3 +328,40 @@
     color: var(--text-prime);
   }
 </style>
+
+<script>
+  // Expose handler to window
+  window.handleOutputFormatChange = function(format: string) {
+    console.log('Output format changed to:', format);
+    
+    // Hide all settings
+    const webSettings = document.getElementById('web-settings');
+    const srtSettings = document.getElementById('srt-settings');
+    const rtmpSettings = document.getElementById('rtmp-settings');
+    const fileSettings = document.getElementById('file-settings');
+    
+    if (webSettings) webSettings.style.display = 'none';
+    if (srtSettings) srtSettings.style.display = 'none';
+    if (rtmpSettings) rtmpSettings.style.display = 'none';
+    if (fileSettings) fileSettings.style.display = 'none';
+    
+    // Show appropriate settings
+    if (format === 'web') {
+      if (webSettings) webSettings.style.display = 'flex';
+    } else if (format === 'srt') {
+      if (srtSettings) srtSettings.style.display = 'flex';
+    } else if (format === 'rtmp') {
+      if (rtmpSettings) rtmpSettings.style.display = 'flex';
+    } else if (format === 'file') {
+      if (fileSettings) fileSettings.style.display = 'flex';
+    }
+  };
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    const formatSelect = document.getElementById('output-format') as HTMLSelectElement;
+    if (formatSelect) {
+      window.handleOutputFormatChange(formatSelect.value);
+    }
+  });
+</script>
