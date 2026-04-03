@@ -1,0 +1,88 @@
+---
+import type { HTMLAttributes } from 'astro/types';
+
+type StatusType = 'success' | 'warning' | 'error' | 'info' | 'default';
+type StatusSize = 'sm' | 'md' | 'lg';
+
+interface Props extends HTMLAttributes<'span'> {
+  status: StatusType;
+  label?: string;
+  size?: StatusSize;
+  animated?: boolean;
+  icon?: boolean;
+}
+
+const {
+  status,
+  label,
+  size = 'md',
+  animated = false,
+  icon = true,
+  class: className = '',
+  ...rest
+} = Astro.props;
+
+const statusConfig = {
+  success: {
+    bg: 'bg-success/20',
+    text: 'text-success',
+    border: 'border-success/30',
+    dot: 'bg-success',
+    icon: '✓',
+  },
+  warning: {
+    bg: 'bg-warning/20',
+    text: 'text-warning',
+    border: 'border-warning/30',
+    dot: 'bg-warning',
+    icon: '⚠',
+  },
+  error: {
+    bg: 'bg-error/20',
+    text: 'text-error',
+    border: 'border-error/30',
+    dot: 'bg-error',
+    icon: '✕',
+  },
+  info: {
+    bg: 'bg-accent/20',
+    text: 'text-accent',
+    border: 'border-accent/30',
+    dot: 'bg-accent',
+    icon: 'ℹ',
+  },
+  default: {
+    bg: 'bg-surface-dimmer/20',
+    text: 'text-surface-dim',
+    border: 'border-white/8',
+    dot: 'bg-surface-dimmer',
+    icon: '●',
+  },
+};
+
+const sizeClasses = {
+  sm: 'px-1.5 py-0.5 text-[9px]',
+  md: 'px-2 py-0.5 text-[10px]',
+  lg: 'px-3 py-1 text-xs',
+};
+
+const dotSizeClasses = {
+  sm: 'w-1.5 h-1.5',
+  md: 'w-2 h-2',
+  lg: 'w-2.5 h-2.5',
+};
+
+const config = statusConfig[status];
+const animationClass = animated ? 'animate-pulse' : '';
+const baseClasses = `inline-flex items-center gap-1.5 rounded-sm border font-semibold uppercase tracking-wider ${config.bg} ${config.text} ${config.border} ${sizeClasses[size]} ${className}`.trim();
+---
+
+<span class={baseClasses} {...rest}>
+  {icon && (
+    <span
+      class={`rounded-full ${config.dot} ${dotSizeClasses[size]} ${animationClass}`}
+      aria-hidden="true"
+    ></span>
+  )}
+  {label && <span>{label}</span>}
+</span>

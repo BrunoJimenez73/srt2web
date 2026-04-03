@@ -1,0 +1,71 @@
+---
+import type { HTMLAttributes } from 'astro/types';
+
+type MetricVariant = 'default' | 'success' | 'warning' | 'error' | 'critical';
+
+interface Props extends HTMLAttributes<'div'> {
+  label: string;
+  value: string | number;
+  unit?: string;
+  variant?: MetricVariant;
+  icon?: string;
+  progress?: number; // 0-100 percentage
+}
+
+const {
+  label,
+  value,
+  unit,
+  variant = 'default',
+  icon,
+  progress,
+  class: className = '',
+  ...rest
+} = Astro.props;
+
+const variantClasses = {
+  default: '',
+  success: 'text-success',
+  warning: 'text-warning',
+  error: 'text-error',
+  critical: 'text-error font-bold',
+};
+
+const progressBarColors = {
+  default: 'bg-accent',
+  success: 'bg-success',
+  warning: 'bg-warning',
+  error: 'bg-error',
+  critical: 'bg-error animate-pulse',
+};
+
+const valueClass = variant !== 'default' ? variantClasses[variant] : 'text-surface-light';
+const progressColor = progressBarColors[variant];
+---
+
+<div
+  class={`text-center p-2 bg-card rounded-sm ${className}`.trim()}
+  {...rest}
+>
+  <div class="flex items-center justify-center gap-1 mb-1">
+    {icon && <span class="text-xs" aria-hidden="true">{icon}</span>}
+    <span class="text-[10px] text-surface-dim uppercase tracking-wider">
+      {label}
+    </span>
+  </div>
+  <div class={`text-14 font-semibold font-mono ${valueClass}`}>
+    {value}{unit && <span class="text-xs ml-1">{unit}</span>}
+  </div>
+  {progress !== undefined && (
+    <div class="mt-2 h-1 bg-surface rounded-full overflow-hidden">
+      <div
+        class={`h-full ${progressColor} transition-all duration-300`}
+        style={`width: ${Math.min(Math.max(progress, 0), 100)}%`}
+        role="progressbar"
+        aria-valuenow={progress}
+        aria-valuemin="0"
+        aria-valuemax="100"
+      ></div>
+    </div>
+  )}
+</div>

@@ -4,9 +4,17 @@ import '../styles/components.css';
 
 interface Props {
   title: string;
+  description?: string;
+  canonicalUrl?: string;
+  ogImage?: string;
 }
 
-const { title } = Astro.props;
+const { 
+  title, 
+  description = 'SRT2Web - Sistema de traducción y doblaje en tiempo real vía SRT',
+  canonicalUrl = 'https://srt2web.com',
+  ogImage = '/og-image.png'
+} = Astro.props;
 ---
 
 <!DOCTYPE html>
@@ -14,15 +22,79 @@ const { title } = Astro.props;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title}</title>
+    <meta name="description" content={description}>
+    <meta name="theme-color" content="#0a0a0f">
+    <meta name="color-scheme" content="dark">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content={canonicalUrl}>
+    <meta property="og:title" content={title}>
+    <meta property="og:description" content={description}>
+    <meta property="og:image" content={ogImage}>
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content={canonicalUrl}>
+    <meta name="twitter:title" content={title}>
+    <meta name="twitter:description" content={description}>
+    <meta name="twitter:image" content={ogImage}>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href={canonicalUrl}>
+    
+    <!-- Preconnect to fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <title>{title}</title>
 </head>
-<body class="font-sans antialiased">
-    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
-    <main id="main-content">
+<body class="font-sans antialiased min-h-screen bg-deep text-surface-light">
+    <!-- Skip link for keyboard navigation -->
+    <a href="#main-content" class="skip-link sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-md focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-deep">
+        Saltar al contenido principal
+    </a>
+    
+    <!-- Main content area -->
+    <main id="main-content" tabindex="-1" role="main">
         <slot />
     </main>
+    
+    <!-- Footer with accessibility info -->
+    <footer class="sr-only">
+        <p>SRT2Web - Sistema de traducción y doblaje en tiempo real</p>
+        <p>Accesible vía protocolo SRT para transmisión de video con subtítulos y audio traducido</p>
+    </footer>
 </body>
 </html>
+
+<style is:global>
+    /* Screen reader only utility */
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+    }
+    
+    .sr-only:focus {
+        position: static;
+        width: auto;
+        height: auto;
+        padding: 0.5rem 1rem;
+        margin: 0;
+        overflow: visible;
+        clip: auto;
+        white-space: normal;
+    }
+</style>

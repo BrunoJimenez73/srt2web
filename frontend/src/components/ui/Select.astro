@@ -1,0 +1,62 @@
+---
+import type { HTMLAttributes } from 'astro/types';
+
+type SelectSize = 'sm' | 'md' | 'lg';
+
+interface Option {
+  value: string;
+  label: string;
+  disabled?: boolean;
+}
+
+interface Props extends HTMLAttributes<'select'> {
+  options: Option[];
+  size?: SelectSize;
+  label?: string;
+  error?: boolean;
+}
+
+const {
+  options = [],
+  size = 'md',
+  label,
+  error = false,
+  class: className = '',
+  id,
+  name,
+  disabled,
+  ...rest
+} = Astro.props;
+
+const sizeClasses = {
+  sm: 'px-2 py-1 text-xs',
+  md: 'px-3 py-1.5 text-xs',
+  lg: 'px-4 py-2 text-sm',
+};
+
+const baseClasses = `w-full bg-deep border rounded-sm text-surface-light font-size-12 outline-none transition-all duration-200 appearance-none cursor-pointer bg-[url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%238888a0'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")] bg-no-repeat bg-[right_8px_center] bg-[16px] pr-[32px]`;
+const disabledClasses = disabled ? 'opacity-50 cursor-not-allowed' : '';
+const errorClasses = error ? 'border-error focus:border-error focus:shadow-[0_0_0_3px_rgba(239,68,68,0.2)]' : 'border-white/8 focus:border-accent focus:shadow-[0_0_0_3px_rgba(99,102,241,0.2)]';
+const allClasses = `${baseClasses} ${sizeClasses[size]} ${disabledClasses} ${errorClasses} ${className}`.trim();
+---
+
+<div class="form-group">
+  {label && (
+    <label class="form-label" for={id}>
+      {label}
+    </label>
+  )}
+  <select
+    class={allClasses}
+    id={id}
+    name={name}
+    disabled={disabled}
+    {...rest}
+  >
+    {options.map((option) => (
+      <option value={option.value} disabled={option.disabled}>
+        {option.label}
+      </option>
+    ))}
+  </select>
+</div>
