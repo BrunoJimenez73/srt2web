@@ -5,7 +5,7 @@
 <div class="toast-container" id="toast-container" role="alert" aria-live="polite"></div>
 
 <script>
-  import { showToast } from '../../lib/modules/toast';
+  import { showToast } from '../lib/modules/toast';
   
   // Expose showToast globally for compatibility with existing code
   (window as unknown as { showToast: typeof showToast }).showToast = showToast;
