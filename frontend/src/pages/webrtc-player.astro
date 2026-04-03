@@ -15,6 +15,7 @@ const pageTitle = "SRT2Web — WebRTC Player";
 <body>
     <div id="video-container">
         <video id="video-player" controls autoplay playsinline></video>
+        <div id="subtitle-overlay" class="subtitle-overlay" style="display: none;"></div>
         <div id="waiting" class="waiting-text">Conectando WebRTC...</div>
         <div id="error-overlay" class="error-overlay" style="display: none;">
             <div class="error-content">
@@ -142,6 +143,24 @@ const pageTitle = "SRT2Web — WebRTC Player";
         font-size: 12px;
         font-family: monospace;
     }
+
+    .subtitle-overlay {
+        position: absolute;
+        bottom: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.75);
+        color: #fff;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-size: 18px;
+        font-family: 'Inter', sans-serif;
+        text-align: center;
+        max-width: 80%;
+        z-index: 10;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
 </style>
 
 <script is:inline>
@@ -156,10 +175,17 @@ class WebRTCPlayer {
         this.resolutionStat = document.getElementById('resolution-stat');
         this.bitrateStat = document.getElementById('bitrate-stat');
         
+        // Subtitle elements
+        this.subtitleOverlay = document.getElementById('subtitle-overlay');
+        
         this.pc = null;
         this.clientId = null;
         this.connectTime = null;
         this.statsInterval = null;
+        
+        // Subtitle state
+        this.currentSubtitle = null;
+        this.subtitleTimeout = null;
         
         this.init();
     }
@@ -217,6 +243,32 @@ class WebRTCPlayer {
             // Handle ICE connection state
             this.pc.oniceconnectionstatechange = () => {
                 console.log('ICE state:', this.pc.iceConnectionState);
+            };
+            
+            // Handle data channels for subtitles
+            this.pc.ondatachannel = (event) => {
+                console.log('Received data channel:', event.channel.label);
+                const channel = event.channel;
+                
+                if (channel.label === 'subtitles') {
+                    channel.onmessage = (e) => {
+                        try {
+                            const data = JSON.parse(e.data);
+                            if (data.type === 'subtitle') {
+                                this.showSubtitle(data.text, data.start, data.end);
+                            }
+                        } catch (err) {
+                            console.error('Error parsing subtitle data:', err);
+                        }
+                    };
+                    channel.onopen = () => {
+                        console.log('Subtitle channel opened');
+                    };
+                    channel.onclose = () => {
+                        console.log('Subtitle channel closed');
+                        this.hideSubtitle();
+                    };
+                }
             };
 
             // Create offer
@@ -287,6 +339,41 @@ class WebRTCPlayer {
             clearInterval(this.statsInterval);
             this.statsInterval = null;
         }
+    }
+    
+    showSubtitle(text: string, start: number, end: number) {
+        if (!text || !this.subtitleOverlay) return;
+        
+        // Clear any existing timeout
+        if (this.subtitleTimeout) {
+            clearTimeout(this.subtitleTimeout);
+        }
+        
+        // Show the subtitle
+        this.subtitleOverlay.textContent = text;
+        this.subtitleOverlay.style.display = 'block';
+        
+        // Calculate duration until subtitle should be hidden
+        const duration = (end - start) * 1000;
+        if (duration > 0) {
+            this.subtitleTimeout = setTimeout(() => {
+                this.hideSubtitle();
+            }, duration);
+        }
+        
+        this.currentSubtitle = { text, start, end };
+    }
+    
+    hideSubtitle() {
+        if (this.subtitleOverlay) {
+            this.subtitleOverlay.style.display = 'none';
+            this.subtitleOverlay.textContent = '';
+        }
+        if (this.subtitleTimeout) {
+            clearTimeout(this.subtitleTimeout);
+            this.subtitleTimeout = null;
+        }
+        this.currentSubtitle = null;
     }
 
     async updateStats() {

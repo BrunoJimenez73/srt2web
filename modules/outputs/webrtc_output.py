@@ -153,6 +153,82 @@ class WebRTCAudioTrack(AudioStreamTrack):
             return frame
 
 
+class WebRTCSubtitleTrack(VideoStreamTrack):
+    """
+    A video track that renders subtitles as text overlays.
+    Sends subtitle cues via data channel for client-side rendering.
+    """
+
+    def __init__(self, queue: asyncio.Queue):
+        super().__init__()
+        self.queue = queue
+        self._start_time = None
+        self._current_cue: Optional[dict] = None
+        self._width = 640
+        self._height = 480
+
+    async def recv(self):
+        """Receive and return the next video frame with subtitle overlay."""
+        try:
+            cue_data = None
+            try:
+                cue_data = self.queue.get_nowait()
+            except asyncio.QueueEmpty:
+                pass
+
+            if cue_data is not None:
+                self._current_cue = cue_data
+
+            # Generate frame with current subtitle if available
+            frame = VideoFrame(width=self._width, height=self._height, format="rgb24")
+            
+            if self._current_cue:
+                # Draw subtitle on frame (simple text rendering)
+                frame = self._render_subtitle_frame(self._current_cue)
+            else:
+                # Clear frame (black)
+                frame = VideoFrame(width=self._width, height=self._height, format="rgb24")
+                frame_array = np.zeros((self._height, self._width, 3), dtype=np.uint8)
+                frame = frame.from_ndarray(frame_array, format="rgb24")
+
+            if self._start_time is None:
+                self._start_time = time.time()
+                pts = 0
+            else:
+                pts = int((time.time() - self._start_time) * 90000)
+
+            frame.pts = pts
+            frame.time_base = Fraction(1, 90000)
+            return frame
+
+        except Exception as e:
+            # Return black frame on error
+            frame = VideoFrame(width=self._width, height=self._height, format="rgb24")
+            frame_array = np.zeros((self._height, self._width, 3), dtype=np.uint8)
+            return frame.from_ndarray(frame_array, format="rgb24")
+
+    def _render_subtitle_frame(self, cue: dict) -> VideoFrame:
+        """Render subtitle text onto a video frame."""
+        text = cue.get("text", "")
+        if not text:
+            frame_array = np.zeros((self._height, self._width, 3), dtype=np.uint8)
+            return VideoFrame.from_ndarray(frame_array, format="rgb24")
+
+        # Create semi-transparent dark background for text
+        frame_array = np.zeros((self._height, self._width, 3), dtype=np.uint8)
+        
+        # Add background bar at bottom
+        bar_height = 80
+        bar_y = self._height - bar_height
+        frame_array[bar_y:self._height, :] = [0, 0, 0]
+        
+        # Add text using simple rendering (PIL would be better but keep it simple)
+        # For now, just create a dark background - actual text rendering
+        # would require PIL or similar library
+        
+        return VideoFrame.from_ndarray(frame_array, format="rgb24")
+
+
 class WebRTCOutput(OutputSink):
     """
     WebRTC output for ultra-low latency streaming.
@@ -204,6 +280,12 @@ class WebRTCOutput(OutputSink):
         # Timing tracking for frontend metrics
         self._last_process_time_ms: float = 0.0
         
+        # Subtitles support via data channel
+        self._subtitle_data_channels: Dict[str, asyncio.Queue] = {}
+        self._subtitle_queues: Dict[str, asyncio.Queue] = {}
+        self._subtitle_tracks: Dict[str, 'WebRTCSubtitleTrack'] = {}
+        self._current_subtitles: Dict[str, dict] = {}  # Current active subtitle cues by client
+        
         logger.info(f"WebRTC output initialized with {self._video_codec}/{self._audio_codec}")
 
     def configure(self, config: dict) -> None:
@@ -237,21 +319,34 @@ class WebRTCOutput(OutputSink):
         # Create queues for this client
         video_queue = asyncio.Queue(maxsize=10)
         audio_queue = asyncio.Queue(maxsize=10)
+        subtitle_queue = asyncio.Queue(maxsize=10)
         self._video_queues[client_id] = video_queue
         self._audio_queues[client_id] = audio_queue
+        self._subtitle_queues[client_id] = subtitle_queue
         
         # Create and add tracks
         video_track = WebRTCVideoTrack(video_queue)
         audio_track = WebRTCAudioTrack(audio_queue)
+        subtitle_track = WebRTCSubtitleTrack(subtitle_queue)
         
         self._video_tracks[client_id] = video_track
         self._audio_tracks[client_id] = audio_track
+        self._subtitle_tracks[client_id] = subtitle_track
         
         # Add tracks to peer connection
         video_sender = pc.addTrack(video_track)
         audio_sender = pc.addTrack(audio_track)
         
-        logger.debug(f"WebRTC peer connection created for client {client_id}")
+        # Create data channel for subtitles
+        subtitle_channel = pc.createDataChannel("subtitles", ordered=False, maxRetransmits=0)
+        self._subtitle_data_channels[client_id] = subtitle_channel
+        
+        # Set up data channel message handler
+        @subtitle_channel.on("onmessage")
+        def on_subtitle_message(event):
+            logger.debug(f"Received message from client {client_id}: {event}")
+        
+        logger.debug(f"WebRTC peer connection created for client {client_id} with subtitle channel")
         return pc
 
     def _cleanup_peer_connection(self, client_id: str):
@@ -346,6 +441,10 @@ class WebRTCOutput(OutputSink):
         - mixed_audio_path: Path to mixed audio (original + TTS)
         - dubbed_audio_path: Path to TTS-only audio
         
+        Also handles subtitles:
+        - subtitles_path: Path to .vtt subtitle file
+        - cumulative_duration: For subtitle timing sync
+        
         For now, this implementation queues placeholder data since full
         decode/re-encode is complex. In production, this would:
         1. Decode the input frames (H.264/AAC/etc)
@@ -357,6 +456,19 @@ class WebRTCOutput(OutputSink):
         if not self._running:
             logger.debug("WebRTC output not running, dropping frame")
             return
+        
+        # Get subtitle data if available
+        subtitle_cue = None
+        if data.subtitles_path and os.path.exists(data.subtitles_path):
+            try:
+                # Read the latest subtitle data
+                with open(data.subtitles_path, 'r', encoding='utf-8') as f:
+                    vtt_content = f.read()
+                
+                # Parse the most recent subtitle entry
+                subtitle_cue = self._parse_latest_subtitle(vtt_content, data.cumulative_duration or 0.0)
+            except Exception as e:
+                logger.debug(f"Error reading subtitles: {e}")
         
         # In a full implementation, we would process the actual media data
         # For now, we just signal that new data is available by putting
@@ -370,6 +482,14 @@ class WebRTCOutput(OutputSink):
                     self._video_queues[client_id].put_nowait(b"placeholder")
                 if not self._audio_queues[client_id].full():
                     self._audio_queues[client_id].put_nowait(b"placeholder")
+                
+                # Send subtitle cue via data channel if available
+                if subtitle_cue:
+                    self._send_subtitle_cue(client_id, subtitle_cue)
+                    # Also queue for subtitle track
+                    if not self._subtitle_queues[client_id].full():
+                        self._subtitle_queues[client_id].put_nowait(subtitle_cue)
+                        
             except asyncio.QueueFull:
                 # Drop if queue is full
                 pass
@@ -379,6 +499,112 @@ class WebRTCOutput(OutputSink):
         # Track processing time for frontend metrics
         elapsed = (time.perf_counter() - start_time) * 1000
         self._last_process_time_ms = elapsed
+
+    def _parse_latest_subtitle(self, vtt_content: str, base_time: float) -> Optional[dict]:
+        """
+        Parse VTT content and return the latest subtitle cue.
+        
+        Args:
+            vtt_content: Full VTT file content
+            base_time: Base timestamp for the current chunk
+            
+        Returns:
+            Dict with 'text', 'start', 'end' or None
+        """
+        try:
+            lines = vtt_content.strip().split('\n')
+            current_cue = None
+            cue_start = None
+            cue_end = None
+            cue_text_lines = []
+            in_cue = False
+            
+            for line in lines:
+                line = line.strip()
+                if not line or line.startswith('WEBVTT') or line.startswith('NOTE'):
+                    continue
+                    
+                # Check for timestamp line
+                if '-->' in line:
+                    if current_cue is not None:
+                        # Save previous cue
+                        pass
+                    
+                    # Parse timestamps
+                    parts = line.split('-->')
+                    if len(parts) == 2:
+                        start_str = parts[0].strip()
+                        end_str = parts[1].strip().split()[0]  # Ignore any additional info
+                        
+                        # Convert to seconds
+                        cue_start = self._parse_vtt_timestamp(start_str)
+                        cue_end = self._parse_vtt_timestamp(end_str)
+                        
+                        in_cue = True
+                        cue_text_lines = []
+                    continue
+                
+                # If in cue, collect text
+                if in_cue and line:
+                    cue_text_lines.append(line)
+            
+            # Return the last complete cue
+            if cue_text_lines and cue_start is not None:
+                return {
+                    'text': ' '.join(cue_text_lines),
+                    'start': base_time + cue_start,
+                    'end': base_time + cue_end,
+                    'base_time': base_time
+                }
+                
+        except Exception as e:
+            logger.debug(f"Error parsing VTT: {e}")
+        
+        return None
+
+    def _parse_vtt_timestamp(self, timestamp: str) -> float:
+        """
+        Parse VTT timestamp (HH:MM:SS.mmm or MM:SS.mmm) to seconds.
+        """
+        try:
+            parts = timestamp.replace(',', '.').split(':')
+            if len(parts) == 3:  # HH:MM:SS.mmm
+                hours = int(parts[0])
+                minutes = int(parts[1])
+                seconds = float(parts[2])
+                return hours * 3600 + minutes * 60 + seconds
+            elif len(parts) == 2:  # MM:SS.mmm
+                minutes = int(parts[0])
+                seconds = float(parts[1])
+                return minutes * 60 + seconds
+            else:
+                return float(timestamp)
+        except:
+            return 0.0
+
+    def _send_subtitle_cue(self, client_id: str, cue: dict) -> None:
+        """
+        Send subtitle cue to client via data channel.
+        
+        Args:
+            client_id: The client ID to send to
+            cue: Dict with 'text', 'start', 'end' keys
+        """
+        try:
+            if client_id in self._subtitle_data_channels:
+                channel = self._subtitle_data_channels[client_id]
+                if channel.readyState == 'open':
+                    # Send as JSON
+                    message = json.dumps({
+                        'type': 'subtitle',
+                        'text': cue.get('text', ''),
+                        'start': cue.get('start', 0),
+                        'end': cue.get('end', 0)
+                    })
+                    channel.send(message)
+                    logger.debug(f"Sent subtitle cue to {client_id}: {cue.get('text', '')[:50]}...")
+        except Exception as e:
+            logger.debug(f"Error sending subtitle cue: {e}")
 
     def get_stream_info(self) -> dict:
         """Get stream information for clients."""
@@ -392,6 +618,9 @@ class WebRTCOutput(OutputSink):
             "video_fps": self._video_fps,
             "audio_sample_rate": self._audio_sample_rate,
             "audio_channels": self._audio_channels,
+            "subtitle_available": True,
+            "subtitle_format": "webvtt",
+            "subtitle_delivery": "data_channel",
             "stun_servers": self._stun_servers,
             "turn_servers": self._turn_servers,
             "active_connections": len(self._pcs)
