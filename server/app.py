@@ -16,6 +16,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 from server.api_routes import create_api_router
 from server.ws_routes import create_ws_router
+from server.webrtc_routes import create_webrtc_router
 from server.security import (
     AuthMiddleware,
     RateLimitMiddleware,
@@ -120,6 +121,9 @@ def create_app(app_context: dict) -> FastAPI:
     ws_router = create_ws_router()
     app.include_router(ws_router)
 
+    webrtc_router = create_webrtc_router()
+    app.include_router(webrtc_router)
+
     @app.get("/health")
     async def health():
         return {"status": "ok"}
@@ -156,5 +160,13 @@ def create_app(app_context: dict) -> FastAPI:
             return FileResponse(str(player_path), media_type="text/html")
 
         return {"error": "player.html not found"}
+
+    @app.get("/webrtc-player")
+    async def serve_webrtc_player():
+        player_path = FRONTEND_DIR / "webrtc-player" / "index.html"
+        if player_path.exists():
+            return FileResponse(str(player_path), media_type="text/html")
+
+        return {"error": "webrtc-player.html not found"}
 
     return app

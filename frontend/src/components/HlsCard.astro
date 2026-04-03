@@ -17,7 +17,7 @@
       <label class="form-label">Motor</label>
       <select class="form-select" id="video-muxer-engine" onchange="window.handleEngineChange(this.value)">
         <option value="hls">HLS (Compatible)</option>
-        <option value="webrtc" disabled>WebRTC (Baja latencia) - Próximamente</option>
+        <option value="webrtc">WebRTC (Baja latencia)</option>
       </select>
     </div>
     
@@ -64,8 +64,64 @@
     
     <!-- WebRTC Settings -->
     <div class="webrtc-settings">
-      <p>⚙️ Configuración de WebRTC aparecerá aquí cuando esté implementado.</p>
-      <p>Características planificadas: baja latencia (&lt;2s), codecs VP8/VP9, adaptable a red.</p>
+      <div class="form-group">
+        <label class="form-label">Video Codec</label>
+        <select class="form-select" id="webrtc-video-codec">
+          <option value="vp8">VP8</option>
+          <option value="vp9">VP9</option>
+          <option value="h264">H.264</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Video Bitrate</label>
+        <select class="form-select" id="webrtc-video-bitrate">
+          <option value="500k">500 kbps</option>
+          <option value="1000k">1000 kbps</option>
+          <option value="2000k">2000 kbps</option>
+          <option value="4000k">4000 kbps</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Video Resolution</label>
+        <select class="form-select" id="webrtc-video-resolution">
+          <option value="320x240">320x240</option>
+          <option value="640x480">640x480</option>
+          <option value="1280x720">1280x720</option>
+          <option value="1920x1080">1920x1080</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Video FPS</label>
+        <select class="form-select" id="webrtc-video-fps">
+          <option value="15">15 fps</option>
+          <option value="24">24 fps</option>
+          <option value="30">30 fps</option>
+          <option value="60">60 fps</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Audio Codec</label>
+        <select class="form-select" id="webrtc-audio-codec">
+          <option value="opus">Opus</option>
+          <option value="vorbis">Vorbis</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Audio Bitrate</label>
+        <select class="form-select" id="webrtc-audio-bitrate">
+          <option value="32k">32 kbps</option>
+          <option value="64k">64 kbps</option>
+          <option value="96k">96 kbps</option>
+          <option value="128k">128 kbps</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Audio Sample Rate</label>
+        <select class="form-select" id="webrtc-audio-sample-rate">
+          <option value="24000">24 kHz</option>
+          <option value="48000">48 kHz</option>
+        </select>
+      </div>
     </div>
     
     <!-- Metrics -->
@@ -324,9 +380,71 @@
       if (hlsSettings) hlsSettings.style.display = 'none';
       if (webrtcSettings) webrtcSettings.style.display = 'flex';
     }
+  };
+
+  // Update WebRTC settings when individual controls change
+  window.updateWebRTCConfig = function() {
+    // Get values from WebRTC controls
+    const videoCodec = document.getElementById('webrtc-video-codec') as HTMLSelectElement;
+    const videoBitrate = document.getElementById('webrtc-video-bitrate') as HTMLSelectElement;
+    const videoResolution = document.getElementById('webrtc-video-resolution') as HTMLSelectElement;
+    const videoFPS = document.getElementById('webrtc-video-fps') as HTMLSelectElement;
+    const audioCodec = document.getElementById('webrtc-audio-codec') as HTMLSelectElement;
+    const audioBitrate = document.getElementById('webrtc-audio-bitrate') as HTMLSelectElement;
+    const audioSampleRate = document.getElementById('webrtc-audio-sample-rate') as HTMLSelectElement;
     
-    // TODO: Update config with engine selection
-    // This should trigger config update to backend
+    // TODO: Send config update to backend
+    console.log('WebRTC config updated:', {
+      videoCodec: videoCodec?.value,
+      videoBitrate: videoBitrate?.value,
+      videoResolution: videoResolution?.value,
+      videoFPS: videoFPS?.value,
+      audioCodec: audioCodec?.value,
+      audioBitrate: audioBitrate?.value,
+      audioSampleRate: audioSampleRate?.value
+    });
+  };
+
+  // Update video muxer config (called when engine changes or settings updated)
+  window.updateVideoMuxerConfig = function() {
+    const engineSelect = document.getElementById('video-muxer-engine') as HTMLSelectElement;
+    const engine = engineSelect?.value;
+    
+    // Prepare config update
+    const configUpdate = {
+      engine: engine
+    };
+    
+    // Add engine-specific settings
+    if (engine === 'webrtc') {
+      const videoCodec = document.getElementById('webrtc-video-codec') as HTMLSelectElement;
+      const videoBitrate = document.getElementById('webrtc-video-bitrate') as HTMLSelectElement;
+      const videoResolution = document.getElementById('webrtc-video-resolution') as HTMLSelectElement;
+      const videoFPS = document.getElementById('webrtc-video-fps') as HTMLSelectElement;
+      const audioCodec = document.getElementById('webrtc-audio-codec') as HTMLSelectElement;
+      const audioBitrate = document.getElementById('webrtc-audio-bitrate') as HTMLSelectElement;
+      const audioSampleRate = document.getElementById('webrtc-audio-sample-rate') as HTMLSelectElement;
+      
+      configUpdate['video_codec'] = videoCodec?.value;
+      configUpdate['video_bitrate'] = videoBitrate?.value;
+      
+      // Parse resolution
+      if (videoResolution?.value) {
+        const [width, height] = videoResolution.value.split('x');
+        configUpdate['video_width'] = parseInt(width);
+        configUpdate['video_height'] = parseInt(height);
+      }
+      
+      configUpdate['video_fps'] = parseInt(videoFPS?.value);
+      configUpdate['audio_codec'] = audioCodec?.value;
+      configUpdate['audio_bitrate'] = audioBitrate?.value;
+      configUpdate['audio_sample_rate'] = parseInt(audioSampleRate?.value);
+    }
+    
+    // TODO: Send config update to backend via WebSocket or HTTP
+    console.log('Video muxer config update:', configUpdate);
+    
+    // For now, we'll just log it - in a real implementation this would update the backend
   };
 
   // Initialize on page load

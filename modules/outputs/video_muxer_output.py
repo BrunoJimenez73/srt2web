@@ -15,6 +15,7 @@ from typing import Optional
 from core.module_base import PipelineData
 from core.output_sink import OutputSink
 from modules.outputs.hls_output import HLSOutput
+from modules.outputs.webrtc_output import WebRTCOutput
 
 logger = logging.getLogger("srt2web.output.video_muxer")
 
@@ -25,7 +26,7 @@ class VideoMuxerOutput(OutputSink):
     
     Currently supports:
     - HLS engine (default): Compatible with all browsers
-    - WebRTC engine (planned): Ultra-low latency
+    - WebRTC engine: Ultra-low latency
     """
     
     def __init__(self, config: Optional[dict] = None):
@@ -51,13 +52,9 @@ class VideoMuxerOutput(OutputSink):
             self._engine = self._engines["hls"]
             self._engine.configure(config)
         elif self._engine_type == "webrtc":
-            # TODO: Implement WebRTC engine
-            # For now, fallback to HLS
-            logger.warning("WebRTC engine not yet implemented, using HLS")
-            self._engine_type = "hls"
-            if "hls" not in self._engines:
-                self._engines["hls"] = HLSOutput(config)
-            self._engine = self._engines["hls"]
+            if "webrtc" not in self._engines:
+                self._engines["webrtc"] = WebRTCOutput(config)
+            self._engine = self._engines["webrtc"]
             self._engine.configure(config)
         else:
             raise ValueError(f"Unknown engine type: {self._engine_type}")
@@ -98,9 +95,9 @@ class VideoMuxerOutput(OutputSink):
         """Get status of all engines."""
         return {
             "current_engine": self._engine_type,
-            "available_engines": ["hls"],  # webrtc when implemented
+            "available_engines": ["hls", "webrtc"],
             "hls": self._engines.get("hls").get_stream_info() if "hls" in self._engines else None,
-            "webrtc": None,  # TODO
+            "webrtc": self._engines.get("webrtc").get_stream_info() if "webrtc" in self._engines else None,
         }
 
 
@@ -111,8 +108,8 @@ def _register():
         from core.io_factory import OutputFactory
         OutputFactory.register("video_muxer", VideoMuxerOutput)
         # Keep aliases for backward compatibility
-        OutputFactory.register("web", VideoMuxerOutput)
-        OutputFactory.register("hls", VideoMuxerOutput)
+        # NOTE: Do NOT register as "web" or "hls" to avoid conflicts with HLSOutput
+        # The web/hls output type should use HLSOutput, not VideoMuxerOutput
     except ImportError:
         pass
 

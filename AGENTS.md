@@ -1,9 +1,84 @@
 # SRT2Web - Estado del Proyecto
 
 ## Información General
-- **Fecha sesión**: 2026-03-30
+- **Fecha sesión**: 2026-04-02
 - **Versión**: 0.6.1
 - **Repositorio**: https://github.com/BrunoJimenez73/srt2web
+
+---
+
+## Sesión 02/04/2026 - Refactoring Frontend (Tailwind CSS + Componentes UI)
+
+**Objetivo**: Mejorar mantenibilidad y legibilidad del código frontend.
+
+**Estado actual**:
+- ✅ Fase 1: Configuración Tailwind CSS completada
+- ✅ Fase 2: Componentes UI base creados
+- ✅ Fase 3: Reorganización completada
+- ✅ Fase 4: Modularización JavaScript completada
+- ✅ Fase 5: Mejoras TypeScript completadas
+
+**Cambios realizados**:
+
+| Archivo | Cambio |
+|---------|--------|
+| `frontend/tailwind.config.js` | **Nuevo** - Configuración Tailwind con colores del proyecto |
+| `frontend/postcss.config.js` | **Nuevo** - Configuración PostCSS |
+| `frontend/src/styles/globals.css` | **Nuevo** - Estilos globales con Tailwind |
+| `frontend/src/components/ui/Button.astro` | **Nuevo** - Componente botón reutilizable |
+| `frontend/src/components/ui/Input.astro` | **Nuevo** - Componente input reutilizable |
+| `frontend/src/components/ui/Toggle.astro` | **Nuevo** - Componente toggle switch |
+| `frontend/src/components/ui/Badge.astro` | **Nuevo** - Componente badge |
+| `frontend/src/components/ui/Card.astro` | **Nuevo** - Componente card |
+| `frontend/src/components/layout/Header.astro` | **Nuevo** - Header refactorizado con Tailwind |
+| `frontend/src/layouts/BaseLayout.astro` | Actualizado para usar Tailwind |
+| `frontend/src/pages/index.astro` | Simplificado (1272→35 líneas) |
+| `frontend/src/pages/player.astro` | Simplificado (358→30 líneas) + Fix cortes stream |
+| `frontend/src/lib/modules/ui.ts` | **Nuevo** - Módulo UI (~400 líneas) |
+| `frontend/src/lib/modules/config.ts` | **Nuevo** - Módulo configuración (~600 líneas) |
+| `frontend/src/lib/modules/events.ts` | **Nuevo** - Módulo eventos (~200 líneas) |
+| `frontend/src/lib/modules/player.ts` | **Nuevo** - Módulo HLS Player (~200 líneas) |
+| `frontend/src/lib/dashboard.ts` | **Nuevo** - Script principal (~150 líneas) |
+| `frontend/src/lib/types.ts` | Mejorado con tipos específicos |
+| `frontend/REFACTORING.md` | **Nuevo** - Documentación de cambios |
+
+**Dependencias nuevas**:
+```json
+{
+  "devDependencies": {
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/postcss": "^4.0.0",
+    "postcss": "^8.4.0",
+    "autoprefixer": "^10.4.0"
+  }
+}
+```
+
+**Estructura actual**:
+```
+frontend/src/
+├── components/
+│   ├── ui/ (nuevos componentes UI)
+│   │   ├── Button.astro
+│   │   ├── Input.astro
+│   │   ├── Toggle.astro
+│   │   ├── Badge.astro
+│   │   ├── Card.astro
+│   │   └── index.ts
+│   ├── layout/ (componentes de layout)
+│   │   └── Header.astro (refactorizado)
+│   └── [otros componentes existentes]
+├── styles/
+│   └── globals.css (nuevo - Tailwind + clases base)
+└── layouts/
+    └── BaseLayout.astro (actualizado)
+```
+
+**Próximos pasos**:
+1. Extraer JavaScript de index.astro a módulos
+2. Mejorar TypeScript en todos los componentes
+3. Refactorizar otros componentes (StatusCard, MetricsCard, etc.)
+4. Migrar docs.css a Tailwind
 
 ---
 

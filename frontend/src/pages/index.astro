@@ -17,6 +17,9 @@ import Toast from '../components/Toast.astro';
     <LogPanel />
   </div>
   <Toast />
+  <script>
+    import '../lib/dashboard.ts';
+  </script>
 </BaseLayout>
 
 <style>
@@ -27,7 +30,3 @@ import Toast from '../components/Toast.astro';
     min-height: calc(100vh - 32px);
   }
 </style>
-
-<script>
-  import '../lib/dashboard.ts';
-</script>

@@ -11,6 +11,7 @@ import glob
 import logging
 import subprocess
 import threading
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -112,6 +113,9 @@ class VideoMuxer(BaseModule):
         Write chunk to HLS stream (called by AsyncPipeline as output_sink).
         Convert input chunk to HLS segment and update manifest.
         """
+        # Track processing time
+        start_time = time.perf_counter()
+        
         self._log("info", f"[VideoMuxer.write] Received data chunk {getattr(data, 'chunk_index', 'None')}")
         self._log("info", f"[VideoMuxer.write] Data type: {type(data)}")
         if hasattr(data, '__dict__'):
@@ -147,6 +151,13 @@ class VideoMuxer(BaseModule):
             self._log("info", f"[VideoMuxer.write] process() returned: {type(result)}")
             if result is not None:
                 self._log("info", f"[VideoMuxer.write] Result has video_chunk_path: {hasattr(result, 'video_chunk_path') and getattr(result, 'video_chunk_path', None)}")
+            
+            # Track processing time
+            elapsed = (time.perf_counter() - start_time) * 1000
+            self._last_process_time_ms = elapsed
+            self._processed_chunks += 1
+            self._log("info", f"[VideoMuxer.write] Processed chunk in {elapsed:.1f}ms")
+            
             return result
         except Exception as e:
             self._log("error", f"[VideoMuxer.write] Error in process method: {e}")

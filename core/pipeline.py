@@ -504,7 +504,7 @@ class Pipeline:
             if self._state == PipelineState.ERROR
             else None,
             "processed_chunks": self._chunk_index,
-            "last_process_time_ms": 0.0,
+            "last_process_time_ms": getattr(self._output_sink, '_last_process_time_ms', 0.0) if self._output_sink else 0.0,
             "extra": extra,
             "circuit_state": "closed",
             "memory_mb": None,

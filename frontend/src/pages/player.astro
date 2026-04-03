@@ -1,6 +1,5 @@
 ---
 const pageTitle = "SRT2Web — Live Player";
-import '../lib/modules/player.ts';
 ---
 
 <!DOCTYPE html>
@@ -26,6 +25,10 @@ import '../lib/modules/player.ts';
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.1"></script>
+    <script>
+        import { initHlsPlayer } from '../lib/modules/player';
+        initHlsPlayer();
+    </script>
 </body>
 </html>
 

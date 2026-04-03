@@ -57,6 +57,8 @@ class HLSOutput(OutputSink):
         self._gpu_info = {"nvenc": False, "qsv": False, "amf": False}
         self._total_duration_emitted: float = 0.0
         self._segment_durations: dict = {}
+        # Timing tracking for frontend metrics
+        self._last_process_time_ms: float = 0.0
 
     def configure(self, config: dict) -> None:
         """Aplicar configuración."""
@@ -145,6 +147,9 @@ class HLSOutput(OutputSink):
         Args:
             PipelineData con video_chunk_path y opcionalmente audio paths.
         """
+        import time
+        start_time = time.perf_counter()
+        
         input_path = data.video_chunk_path
         if not input_path or not os.path.exists(input_path):
             self.logger.warning(f"No input video chunk for index {data.chunk_index}")
@@ -236,8 +241,12 @@ class HLSOutput(OutputSink):
 
         data.output_hls_path = os.path.join(self._hls_dir, "master.m3u8")
 
+        # Track processing time for frontend metrics
+        elapsed = (time.perf_counter() - start_time) * 1000
+        self._last_process_time_ms = elapsed
+
         self.logger.info(
-            f"HLS segment written: seg_{self._segment_index:06d}.ts (duration={chunk_duration:.3f}s)"
+            f"HLS segment written: seg_{self._segment_index:06d}.ts (duration={chunk_duration:.3f}s, process_time={elapsed:.1f}ms)"
         )
         self._segment_index += 1
 
