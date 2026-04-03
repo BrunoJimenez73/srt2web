@@ -201,12 +201,5 @@ class TestModelCacheWarmUp:
 
         with patch("faster_whisper.WhisperModel", return_value=mock_model):
             with patch("psutil.Process", MagicMock()):
-                with patch.dict("sys.modules", {"argostranslate": None}):
-                    with patch(
-                        "argostranslate.translate.get_available_languages", return_value=[]
-                    ):
-                        with patch(
-                            "argostranslate.translate.translate_pair", return_value=MagicMock()
-                        ):
-                            with patch("torch.cuda.is_available", return_value=False):
-                                mc.warm_up(config)
+                with patch("torch.cuda.is_available", return_value=False):
+                    mc.warm_up(config)

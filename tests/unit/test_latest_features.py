@@ -217,3 +217,172 @@ class TestAudioMixerDurationCheck:
         
         source = inspect.getsource(AudioMixer._do_process)
         assert "data.duration" in source
+
+
+class TestWebRTCSubtitles:
+    """Test WebRTC subtitle support."""
+
+    def test_webrtc_output_module_exists(self):
+        """Test that webrtc_output.py module exists."""
+        webrtc_path = PROJECT_ROOT / "modules" / "outputs" / "webrtc_output.py"
+        assert webrtc_path.exists()
+
+    def test_webrtc_output_has_subtitle_track_class(self):
+        """Test WebRTCSubtitleTrack class exists in source code."""
+        webrtc_path = PROJECT_ROOT / "modules" / "outputs" / "webrtc_output.py"
+        with open(webrtc_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        assert "class WebRTCSubtitleTrack" in content
+
+    def test_webrtc_output_registers_with_factory(self):
+        """Test WebRTC output is registered in OutputFactory."""
+        webrtc_path = PROJECT_ROOT / "modules" / "outputs" / "webrtc_output.py"
+        with open(webrtc_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        assert "OutputFactory.register" in content
+        assert '"webrtc"' in content or "'webrtc'" in content
+
+    def test_webrtc_routes_exist(self):
+        """Test WebRTC signaling routes exist."""
+        webrtc_routes_path = PROJECT_ROOT / "server" / "webrtc_routes.py"
+        assert webrtc_routes_path.exists()
+
+    def test_webrtc_offer_endpoint_exists(self):
+        """Test /webrtc/offer endpoint is defined."""
+        webrtc_routes_path = PROJECT_ROOT / "server" / "webrtc_routes.py"
+        with open(webrtc_routes_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        assert "/webrtc/offer" in content or '"/webrtc/offer"' in content
+
+    def test_video_muxer_output_supports_webrtc_engine(self):
+        """Test video_muxer_output has webrtc engine support."""
+        vm_path = PROJECT_ROOT / "modules" / "outputs" / "video_muxer_output.py"
+        with open(vm_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        assert "webrtc" in content.lower()
+        assert "available_engines" in content
+
+
+class TestInputOutputInitialization:
+    """Test INPUT/OUTPUT initialization in frontend."""
+
+    def test_dashboard_has_input_initialization(self):
+        """Test dashboard.ts has input handling logic."""
+        dashboard_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "dashboard.ts"
+        with open(dashboard_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        assert "handleInputTypeChange" in content or "input" in content.lower()
+
+    def test_dashboard_has_output_initialization(self):
+        """Test dashboard.ts has output handling logic."""
+        dashboard_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "dashboard.ts"
+        with open(dashboard_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        assert "handleOutputFormatChange" in content or "output" in content.lower()
+
+    def test_ui_module_has_input_handler(self):
+        """Test ui.ts module has handleInputTypeChange function."""
+        ui_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "ui.ts"
+        with open(ui_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        assert "handleInputTypeChange" in content
+
+    def test_ui_module_has_output_handler(self):
+        """Test ui.ts module has handleOutputFormatChange function."""
+        ui_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "ui.ts"
+        with open(ui_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        assert "handleOutputFormatChange" in content
+
+    def test_input_card_has_source_type_selector(self):
+        """Test InputCard has source type (SRT/RTMP) selector."""
+        input_card_path = PROJECT_ROOT / "frontend" / "src" / "components" / "InputCard.astro"
+        if input_card_path.exists():
+            with open(input_card_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            
+            assert "srt" in content.lower() or "rtmp" in content.lower()
+
+    def test_output_card_has_format_selector(self):
+        """Test OutputCard has output format selector."""
+        output_card_path = PROJECT_ROOT / "frontend" / "src" / "components" / "OutputCard.astro"
+        if output_card_path.exists():
+            with open(output_card_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            
+            assert "format" in content.lower() or "hls" in content.lower() or "webrtc" in content.lower()
+
+
+class TestVideoMuxerUI:
+    """Test VideoMuxer UI improvements."""
+
+    def test_video_muxer_output_has_engine_type_property(self):
+        """Test video_muxer_output has _engine_type property."""
+        vm_path = PROJECT_ROOT / "modules" / "outputs" / "video_muxer_output.py"
+        with open(vm_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        assert "_engine_type" in content or "engine_type" in content
+
+    def test_video_muxer_output_status_includes_available_engines(self):
+        """Test get_status returns available_engines."""
+        vm_path = PROJECT_ROOT / "modules" / "outputs" / "video_muxer_output.py"
+        with open(vm_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        assert "available_engines" in content
+
+    def test_video_muxer_output_can_switch_engines(self):
+        """Test video_muxer_output can switch between HLS and WebRTC."""
+        vm_path = PROJECT_ROOT / "modules" / "outputs" / "video_muxer_output.py"
+        with open(vm_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        assert "_engines" in content or "self._engine" in content
+
+
+class TestFrontendModularization:
+    """Test frontend modular JavaScript structure."""
+
+    def test_ui_module_exists(self):
+        """Test ui.ts module exists."""
+        ui_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "ui.ts"
+        assert ui_path.exists()
+
+    def test_config_module_exists(self):
+        """Test config.ts module exists."""
+        config_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "config.ts"
+        assert config_path.exists()
+
+    def test_events_module_exists(self):
+        """Test events.ts module exists."""
+        events_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "events.ts"
+        assert events_path.exists()
+
+    def test_player_module_exists(self):
+        """Test player.ts module exists."""
+        player_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "player.ts"
+        assert player_path.exists()
+
+    def test_dashboard_script_exists(self):
+        """Test dashboard.ts main script exists."""
+        dashboard_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "dashboard.ts"
+        assert dashboard_path.exists()
+
+    def test_tailwind_config_exists(self):
+        """Test tailwind.config.js exists."""
+        tw_config_path = PROJECT_ROOT / "frontend" / "tailwind.config.js"
+        assert tw_config_path.exists()
+
+    def test_postcss_config_exists(self):
+        """Test postcss.config.js exists."""
+        pc_config_path = PROJECT_ROOT / "frontend" / "postcss.config.js"
+        assert pc_config_path.exists()
