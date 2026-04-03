@@ -5,12 +5,12 @@
   <div class="process-header">
     <span class="process-indicator" id="indicator-input"></span>
     <span class="process-title">📥 INPUT</span>
-    <span class="gpu-badge" id="input-gpu-badge" style="display: none;">GPU</span>
+    <span class="gpu-badge" id="input-gpu-badge" style="display: none;" role="status" aria-label="Estado GPU">GPU</span>
   </div>
   <div class="process-content">
     <div class="form-group">
-      <label class="form-label">Tipo</label>
-      <select class="form-select" id="input-type" onchange="window.handleInputTypeChange(this.value)">
+      <label class="form-label" for="input-type">Tipo</label>
+      <select class="form-select" id="input-type" onchange="window.handleInputTypeChange(this.value)" aria-describedby="input-type-desc">
         <option value="srt">SRT</option>
         <option value="rtmp">RTMP</option>
         <option value="file">File (Video local)</option>
@@ -20,12 +20,12 @@
     <!-- SRT Settings -->
     <div class="input-settings" id="input-srt-settings">
       <div class="form-group">
-        <label class="form-label">Puerto SRT</label>
+        <label class="form-label" for="input-srt-port">Puerto SRT</label>
         <input type="number" class="form-input" id="input-srt-port" value="9000" min="1" max="65535" />
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Modo</label>
+          <label class="form-label" for="input-srt-mode">Modo</label>
           <select class="form-select" id="input-srt-mode">
             <option value="listener">Listener</option>
             <option value="caller">Caller</option>
@@ -33,16 +33,16 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Chunk (s)</label>
+          <label class="form-label" for="input-chunk-duration">Chunk (s)</label>
           <input type="number" class="form-input" id="input-chunk-duration" value="10" min="2" max="30" step="1" />
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Latencia (ms)</label>
+        <label class="form-label" for="input-srt-latency">Latencia (ms)</label>
         <input type="number" class="form-input" id="input-srt-latency" value="200" min="0" max="5000" step="10" />
       </div>
       <div class="form-group" id="input-caller-group" style="display: none;">
-        <label class="form-label">Dirección Caller (si aplica)</label>
+        <label class="form-label" for="input-srt-caller">Dirección Caller (si aplica)</label>
         <input type="text" class="form-input" id="input-srt-caller" placeholder="ip:puerto" />
       </div>
     </div>
@@ -50,21 +50,21 @@
     <!-- RTMP Settings -->
     <div class="input-settings" id="input-rtmp-settings" style="display: none;">
       <div class="form-group">
-        <label class="form-label">URL RTMP</label>
+        <label class="form-label" for="input-rtmp-url">URL RTMP</label>
         <input type="text" class="form-input" id="input-rtmp-url" placeholder="rtmp://server/live/stream" />
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Puerto</label>
+          <label class="form-label" for="input-rtmp-port">Puerto</label>
           <input type="number" class="form-input" id="input-rtmp-port" value="1935" min="1" max="65535" />
         </div>
         <div class="form-group">
-          <label class="form-label">Stream Key</label>
+          <label class="form-label" for="input-rtmp-key">Stream Key</label>
           <input type="text" class="form-input" id="input-rtmp-key" placeholder="stream" />
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Chunk (s)</label>
+        <label class="form-label" for="input-rtmp-chunk">Chunk (s)</label>
         <input type="number" class="form-input" id="input-rtmp-chunk" value="10" min="2" max="30" step="1" />
       </div>
     </div>
@@ -72,28 +72,28 @@
     <!-- File Settings -->
     <div class="input-settings" id="input-file-settings" style="display: none;">
       <div class="form-group">
-        <label class="form-label">Archivo de Video</label>
+        <label class="form-label" for="input-file-path">Archivo de Video</label>
         <div class="file-input-wrapper">
           <input type="text" class="form-input" id="input-file-path" placeholder="Ruta al archivo de video" readonly />
-          <button type="button" class="file-button" onclick="document.getElementById('input-file-select').click()">📁</button>
+          <button type="button" class="file-button" onclick="document.getElementById('input-file-select').click()" aria-label="Seleccionar archivo">📁</button>
           <input type="file" id="input-file-select" accept="video/*" style="display: none;" onchange="handleFileSelect(this)" />
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Loop</label>
+          <label class="form-label" for="input-file-loop">Loop</label>
           <select class="form-select" id="input-file-loop">
             <option value="false">No</option>
             <option value="true">Sí</option>
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Velocidad</label>
+          <label class="form-label" for="input-file-speed">Velocidad</label>
           <input type="number" class="form-input" id="input-file-speed" value="1.0" min="0.5" max="2.0" step="0.1" />
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Chunk (s)</label>
+        <label class="form-label" for="input-file-chunk">Chunk (s)</label>
         <input type="number" class="form-input" id="input-file-chunk" value="10" min="2" max="30" step="1" />
       </div>
     </div>
@@ -114,159 +114,3 @@
     </div>
   </div>
 </form>
-
-<style>
-  .input-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-dim);
-    border-radius: var(--radius-md);
-    padding: 12px;
-    transition: all 0.3s ease;
-  }
-
-  .input-card.active {
-    border-color: var(--success) !important;
-    box-shadow: 0 0 12px rgba(16, 185, 129, 0.3) !important;
-  }
-
-  .process-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-
-  .process-indicator {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--text-dim);
-    transition: all 0.3s ease;
-  }
-
-  .process-indicator.active {
-    background: #00ff00 !important;
-    box-shadow: 0 0 6px #00ff00, 0 0 12px #00ff00 !important;
-    animation: indicator-pulse 1.5s ease-in-out infinite;
-  }
-
-  @keyframes indicator-pulse {
-    0%, 100% { opacity: 0.8; }
-    50% { opacity: 1; }
-  }
-
-  .process-title {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-prime);
-    flex: 1;
-  }
-
-  .gpu-badge {
-    background: var(--success);
-    color: var(--bg-base);
-    font-size: 9px;
-    font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 4px;
-    text-transform: uppercase;
-  }
-
-  .process-content {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .form-label {
-    font-size: 10px;
-    color: var(--text-sec);
-    font-weight: 500;
-  }
-
-  .form-input, .form-select {
-    width: 100%;
-    padding: 8px 10px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border-dim);
-    border-radius: var(--radius-sm);
-    color: var(--text-prime);
-    font-size: 12px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  .form-input:focus, .form-select:focus {
-    border-color: var(--accent);
-  }
-
-  .form-select {
-    cursor: pointer;
-  }
-
-  .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  .input-settings {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .file-input-wrapper {
-    display: flex;
-    gap: 4px;
-  }
-
-  .file-input-wrapper .form-input {
-    flex: 1;
-  }
-
-  .file-button {
-    background: var(--bg-base);
-    border: 1px solid var(--border-dim);
-    border-radius: var(--radius-sm);
-    padding: 6px 10px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .file-button:hover {
-    background: var(--border-dim);
-  }
-
-  .metrics-row {
-    display: flex;
-    gap: 12px;
-    padding: 8px;
-    background: var(--bg-surface);
-    border-radius: var(--radius-sm);
-  }
-
-  .metric-mini {
-    flex: 1;
-    text-align: center;
-  }
-
-  .metric-mini .metric-label {
-    display: block;
-    font-size: 9px;
-    color: var(--text-sec);
-    margin-bottom: 2px;
-  }
-
-  .metric-value {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-prime);
-  }
-</style>
