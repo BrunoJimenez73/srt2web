@@ -12,6 +12,26 @@ echo.
 set "SCRIPT_DIR=%~dp0"
 cd /d "%SCRIPT_DIR%"
 
+REM =============================================
+REM Verificar drivers NVIDIA
+REM =============================================
+echo [INFO] Verificando NVIDIA...
+where nvidia-smi >nul 2>&1
+if %errorlevel% neq 0 (
+    echo.
+    echo  [WARNING] NVIDIA drivers no detectados!
+    echo.
+    echo  Para usar GPU, instala los drivers NVIDIA:
+    echo  1. Ve a: https://www.nvidia.com/Download/index.aspx
+    echo  2. Descarga los drivers para tu GPU
+    echo  3. Instala y reinicia el PC
+    echo.
+    echo  El servidor funcionara en modo CPU hasta entonces.
+    echo.
+) else (
+    echo  [OK] NVIDIA drivers detectados.
+)
+
 set "PYTHON=venv\Scripts\python.exe"
 set "NEED_VENV=0"
 
