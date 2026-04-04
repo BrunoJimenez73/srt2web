@@ -722,3 +722,88 @@ python -m pytest tests/unit/test_workspace_fixes.py -v
 ```
 
 ---
+
+## Sesión 04/04/2026 (Tarde) - Soporte Mac Silicon (Apple Silicon M1/M2/M3)
+
+**Objetivo**: Crear scripts y configuración para ejecutar SRT2Web en Mac Silicon.
+
+**Características Mac Silicon**:
+- Arquitectura ARM64 (no x86_64)
+- GPU: Metal Performance Shaders (MPS) para PyTorch
+- GPU: CoreML para ONNX Runtime
+- Video: VideoToolbox para hardware encoding
+- TTS: CPU (Piper no soporta MPS/CoreML)
+
+**Scripts Creados**:
+
+| Archivo | Descripción |
+|---------|-------------|
+| `install_Mac.sh` | Instalador para Mac Silicon (opcional Homebrew) |
+| `start_Mac.sh` | Script de inicio con variables MPS |
+| `stop_Mac.sh` | Script de parada graceful |
+| `scripts/check_mac_deps.py` | Verificador de dependencias |
+
+**Características de install_Mac.sh**:
+- Verifica arquitectura ARM64
+- Ofrece instalar Homebrew si no existe (opcional)
+- Instala FFmpeg y Node.js via Homebrew (si disponible)
+- Crea entorno virtual con Python 3.12
+- Instala PyTorch con soporte MPS
+- Instala ONNX Runtime con soporte CoreML
+- Descarga modelos Whisper
+- Verifica voces Piper
+
+**Características de start_Mac.sh**:
+- Activa entorno virtual
+- Configura variables MPS (`PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0`)
+- Verifica dependencias
+- Construye frontend si es necesario
+- Muestra información del sistema (arquitectura, macOS, GPU)
+- Inicia servidor en 127.0.0.1:9999
+
+**Características de stop_Mac.sh**:
+- Busca proceso por nombre o puerto
+- Intenta SIGTERM primero (graceful)
+- Usa SIGKILL si es necesario
+- Verifica y libera puerto 9999
+
+**Características de check_mac_deps.py**:
+- Verifica arquitectura y versión de macOS
+- Comprueba Homebrew, Python, FFmpeg, Node.js
+- Verifica PyTorch con MPS
+- Verifica ONNX Runtime con CoreML
+- Comprueba entorno virtual y configuración
+- Muestra resumen con estado de dependencias
+
+**Uso en Mac Silicon**:
+```bash
+# 1. Instalar (primera vez)
+chmod +x install_Mac.sh start_Mac.sh stop_Mac.sh
+./install_Mac.sh
+
+# 2. Verificar dependencias
+python scripts/check_mac_deps.py
+
+# 3. Iniciar servidor
+./start_Mac.sh
+
+# 4. Detener servidor
+./stop_Mac.sh
+```
+
+**Comandos Útiles para Mac**:
+```bash
+# Verificar dependencias
+python scripts/check_mac_deps.py
+
+# Ver estado MPS
+python -c "import torch; print('MPS:', torch.backends.mps.is_available())"
+
+# Ver estado CoreML
+python -c "import onnxruntime as ort; print('CoreML:', 'CoreMLExecutionProvider' in ort.get_available_providers())"
+
+# Ver VideoToolbox en FFmpeg
+ffmpeg -encoders | grep videotoolbox
+```
+
+---
