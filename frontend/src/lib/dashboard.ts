@@ -31,8 +31,9 @@ function initDashboard(): void {
   // Conectar WebSocket
   connectWebSocket();
 
-  // Cargar configuración inicial
+  // Cargar configuración inicial y estado
   loadInitialConfig();
+  loadInitialStatus();
 
   console.log('✅ Dashboard inicializado');
 }
@@ -193,6 +194,22 @@ async function loadInitialConfig(): Promise<void> {
     }
   } catch (error) {
     console.error('Error cargando configuración:', error);
+  }
+}
+
+/**
+ * Carga el estado inicial del pipeline
+ */
+async function loadInitialStatus(): Promise<void> {
+  try {
+    const response = await fetch('/api/status');
+    if (response.ok) {
+      const status = await response.json();
+      store.setStatus(status);
+      updateStatus(status);
+    }
+  } catch (error) {
+    console.error('Error cargando estado:', error);
   }
 }
 
