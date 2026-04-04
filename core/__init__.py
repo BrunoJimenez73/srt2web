@@ -43,10 +43,13 @@ from core.types import (
     HLSConfig,
 )
 
+# Interfaz de módulos (nueva arquitectura)
+from core.module_interface import BaseModule as BaseModuleInterface, ProcessingModule
+
 # Configuración y gestión
 from core.config_manager import ConfigManager
 
-# Pipeline y módulos
+# Pipeline y módulos (legacy - para compatibilidad)
 from core.pipeline import Pipeline
 from core.module_base import BaseModule
 
