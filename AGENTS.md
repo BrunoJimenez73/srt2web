@@ -1,9 +1,10 @@
 # SRT2Web - Estado del Proyecto
 
 ## Información General
-- **Fecha sesión**: 2026-04-02
-- **Versión**: 0.6.1
+- **Fecha última sesión**: 2026-04-04
+- **Versión**: 0.6.2
 - **Repositorio**: https://github.com/BrunoJimenez73/srt2web
+- **Tests**: 541 passing ✅
 
 ---
 
@@ -641,6 +642,83 @@ modules:
     engine: piper
     speed: 1.3
     device: cuda
+```
+
+---
+
+## Sesión 04/04/2026 - Fix Workspace Errors & TypeScript Module Resolution
+
+**Problema**: El workspace de VS Code mostraba múltiples errores de TypeScript relacionados con:
+- Imports de módulos no resueltos (`../api`, `../utils`)
+- Type declarations faltantes para archivos `.astro`
+- Configuración TypeScript obsoleta (`baseUrl` deprecated)
+- Errores de tipos en funciones y variables
+
+**Causa raíz**:
+- Faltaban archivos de módulo creados durante el refactoring (`api.ts`, `utils/index.ts`, `dashboard.ts`)
+- Falta de type declarations globales para `.astro` files
+- `@types/node` no instalado para imports de Node.js en astro.config.mjs
+
+**Solución implementada**:
+
+| Archivo | Cambio |
+|---------|--------|
+| `frontend/src/lib/api.ts` | **Creado** - Funciones de API, autenticación, WebSocket |
+| `frontend/src/lib/utils/index.ts` | **Creado** - Barrel export para utilidades |
+| `frontend/src/lib/dashboard.ts` | **Creado** - Script principal del dashboard |
+| `frontend/src/astro.d.ts` | **Creado** - Type declarations globales para `.astro` |
+| `frontend/src/lib/types.ts` | **Actualizado** - Agregué ModuleExtra, Window extensions, ConfigUpdateTimeouts |
+| `frontend/src/lib/utils/performance.ts` | **Fix** - Corregido setTimeout type shadowing |
+| `frontend/src/lib/modules/ui.ts` | **Fix** - Corregido href en HTMLElement |
+| `frontend/src/lib/modules/events.ts` | **Fix** - Null check en applyConfigToUI |
+| `frontend/tsconfig.json` | **Actualizado** - `ignoreDeprecations: "5.0"` |
+| `frontend/astro.config.mjs` | **Fix** - Usar `node:url`, `node:path`, outDir en top level |
+| `frontend/src/components/LogPanel.astro` | **Actualizado** - Estilos CSS y lógica de filtrado inline |
+| `frontend/package.json` | **Actualizado** - Agregado `@types/node` como devDependency |
+
+**Nuevas Funcionalidades en api.ts**:
+```typescript
+// Autenticación
+export function getAuthToken(): string | null
+export function setAuthToken(token: string | null): void
+export function clearAuthToken(): void  // NUEVO
+
+// URLs
+export function getApiBaseUrl(): string
+export function getWebSocketUrl(path?: string): string  // Ahora incluye ?token=
+
+// API calls
+export async function fetchWithAuth(url: string, options?: RequestInit): Promise<Response>
+export async function apiCall(method, path, body?): Promise<unknown>
+export async function getConfig(): Promise<Config | null>
+export async function startPipeline(): Promise<Status>
+export async function stopPipeline(): Promise<Status>
+```
+
+**Tests Creados** (`tests/unit/test_workspace_fixes.py`):
+- `TestTypeScriptModuleResolution` (4 tests) - Verifica existencia de módulos
+- `TestAuthenticationTokenManagement` (3 tests) - Verifica auth token functions
+- `TestDashboardInputOutputHandlers` (2 tests) - Verifica input/output handlers
+- `TestLogPanelSearchFilter` (4 tests) - Verifica búsqueda y filtrado de logs
+- `TestTypeScriptConfiguration` (2 tests) - Verifica tsconfig.json
+- `TestAstroConfiguration` (2 tests) - Verifica astro.config.mjs
+- `TestFrontendTypes` (3 tests) - Verifica type definitions
+
+**Resultado Tests**:
+```
+541 passed, 2 warnings, 0 failures
+```
+
+**Comandos Útiles Actualizados**:
+```bash
+# Verificar TypeScript
+cd frontend && npx tsc --noEmit
+
+# Ejecutar tests
+python -m pytest tests/unit/ -v
+
+# Ver solo nuevos tests
+python -m pytest tests/unit/test_workspace_fixes.py -v
 ```
 
 ---

@@ -2,6 +2,7 @@
 
 /* ============================================
    TEMA DE COLORES - SRT2Web Dark Theme
+   @theme is a Tailwind CSS v4 directive
    ============================================ */
 @theme {
   /* Colores principales */
@@ -681,6 +682,7 @@
 
   /* Number inputs */
   input[type="number"] {
+    appearance: none;
     -moz-appearance: textfield;
   }
 

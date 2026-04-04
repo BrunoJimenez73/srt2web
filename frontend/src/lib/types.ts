@@ -6,6 +6,8 @@ export interface ServerConfig {
 export interface InputSRTConfig {
   listen_port: number;
   mode: string;
+  latency_ms?: number;
+  caller_address?: string;
 }
 
 export interface InputConfig {
@@ -65,10 +67,44 @@ export interface ModulesConfig {
   video_muxer: VideoMuxerConfig;
 }
 
+export interface OutputConfig {
+  type?: string;
+  srt?: {
+    url?: string;
+    mode?: string;
+    latency_ms?: number;
+    video_bitrate?: string;
+    audio_bitrate?: string;
+  };
+  rtmp?: {
+    url?: string;
+    video_bitrate?: string;
+    audio_bitrate?: string;
+    encoder_mode?: string;
+  };
+  file?: {
+    path?: string;
+    save_video?: boolean;
+    save_audio?: boolean;
+    save_subtitles?: boolean;
+  };
+  web?: {
+    segment_duration?: number;
+    list_size?: number;
+  };
+}
+
+export interface PipelineConfig {
+  chunk_duration_sec?: number;
+  enabled_modules?: string[];
+}
+
 export interface Config {
   server: ServerConfig;
   input: InputConfig;
   modules: ModulesConfig;
+  output?: OutputConfig;
+  pipeline?: PipelineConfig;
 }
 
 export interface ModuleStatus {
@@ -80,6 +116,7 @@ export interface ModuleStatus {
   last_process_time_ms: number;
   circuit_state?: string;
   memory_mb?: number;
+  extra?: ModuleExtra;
 }
 
 export interface NetworkInfo {
@@ -177,6 +214,19 @@ export interface DashboardState {
   status: Status | null;
   localMode: 'local' | 'remote';
   isConnected: boolean;
+}
+
+// Window interface extensions
+declare global {
+  interface Window {
+    handleEngineChange?: (engine: string) => void;
+    handleInputTypeChange: (type: string) => void;
+    handleOutputFormatChange: (format: string) => void;
+    saveConfig: () => void;
+    updateInputFields: () => void;
+    toggleModule: (moduleName: string, enabled: boolean) => Promise<void>;
+    showToast: (message: string, type?: 'success' | 'error' | 'info', duration?: number) => void;
+  }
 }
 
 // Debounce timeout record

@@ -70,23 +70,27 @@ export function lazyLoadImages(): void {
 /**
  * Request Idle Callback polyfill
  */
-export function requestIdleCallback(
+export function requestIdleCallbackPolyfill(
   callback: (deadline: { timeRemaining: () => number; didTimeout: boolean }) => void,
   options?: { timeout: number }
 ): number {
   if ('requestIdleCallback' in window) {
-    return window.requestIdleCallback(callback, options);
+    return window.requestIdleCallback(callback, options as IdleRequestOptions);
   }
   
-  // Polyfill
+  // Polyfill using globalThis to avoid type shadowing
   const start = Date.now();
-  return window.setTimeout(() => {
+  // Cast to number for browser compatibility (NodeJS.Timeout is not a number)
+  return Number(globalThis.setTimeout(() => {
     callback({
       timeRemaining: () => Math.max(0, 50 - (Date.now() - start)),
       didTimeout: false,
     });
-  }, 1);
+  }, 1));
 }
+
+// Re-export with the original name for backward compatibility
+export { requestIdleCallbackPolyfill as requestIdleCallback };
 
 /**
  * Measure rendering performance
