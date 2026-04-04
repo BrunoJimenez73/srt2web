@@ -144,17 +144,42 @@ echo ""
 echo -e "${BLUE}[4/8] Instalando dependencias Python...${NC}"
 
 # Actualizar pip
-python -m pip install --upgrade pip wheel setuptools --quiet
+echo -e "${BLUE} Actualizando pip...${NC}"
+python -m pip install --upgrade pip wheel setuptools
 
-# Instalar dependencias del proyecto
-echo -e "${BLUE} Instalando dependencias del proyecto...${NC}"
-python -m pip install -r config/requirements.txt --quiet 2>/dev/null
+# Instalar dependencias del proyecto (versión Mac Silicon)
+echo -e "${BLUE} Instalando dependencias del proyecto (FastAPI, Uvicorn, etc.)...${NC}"
+
+# Usar requirements_mac.txt que no incluye onnxruntime-gpu (no disponible para Mac)
+if [ -f "config/requirements_mac.txt" ]; then
+    echo -e "${BLUE} Usando config/requirements_mac.txt (optimizado para Mac Silicon)...${NC}"
+    python -m pip install -r config/requirements_mac.txt
+else
+    echo -e "${YELLOW} ⚠️  No se encontró requirements_mac.txt, usando requirements.txt...${NC}"
+    python -m pip install -r config/requirements.txt
+fi
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN} ✓ Dependencias instaladas${NC}"
 else
-    echo -e "${YELLOW} ⚠️  Error instalando dependencias. Verifica requirements.txt${NC}"
+    echo -e "${RED} ✗ Error instalando dependencias${NC}"
+    echo -e "${YELLOW} Verifica el archivo config/requirements.txt${NC}"
+    exit 1
 fi
+
+# Verificar Uvicorn específicamente
+echo -e "${BLUE} Verificando Uvicorn...${NC}"
+python -c "import uvicorn; print('  Uvicorn version:', uvicorn.__version__)" 2>/dev/null
+if [ $? -ne 0 ]; then
+    echo -e "${RED} ✗ Uvicorn no se instaló correctamente${NC}"
+    echo -e "${BLUE} Intentando instalar Uvicorn manualmente...${NC}"
+    python -m pip install "uvicorn[standard]>=0.24.0"
+    if [ $? -ne 0 ]; then
+        echo -e "${RED} ✗ No se pudo instalar Uvicorn${NC}"
+        exit 1
+    fi
+fi
+echo -e "${GREEN} ✓ Uvicorn verificado${NC}"
 
 # =============================================
 # 5. Instalar PyTorch con MPS (Metal Performance Shaders)
@@ -169,13 +194,18 @@ if [ "$MPS_AVAILABLE" = "MPS" ]; then
     echo -e "${GREEN} ✓ PyTorch con MPS ya disponible${NC}"
 else
     echo -e "${BLUE} Instalando PyTorch con soporte MPS...${NC}"
-    python -m pip install torch torchvision torchaudio --quiet 2>/dev/null
+    python -m pip install torch torchvision torchaudio
     
     if [ $? -eq 0 ]; then
         echo -e "${GREEN} ✓ PyTorch instalado${NC}"
+        # Verificar MPS después de instalar
+        MPS_AVAILABLE=$(python -c "import torch; print('MPS' if torch.backends.mps.is_available() else 'CPU')" 2>/dev/null || echo "CPU")
+        if [ "$MPS_AVAILABLE" = "MPS" ]; then
+            echo -e "${GREEN} ✓ MPS (Metal Performance Shaders) activado${NC}"
+        fi
     else
         echo -e "${YELLOW} ⚠️  Fallback a PyTorch CPU${NC}"
-        python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu --quiet 2>/dev/null
+        python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
     fi
 fi
 
@@ -192,11 +222,22 @@ if [ "$ONNX_STATUS" = "CoreML" ]; then
     echo -e "${GREEN} ✓ ONNX Runtime con CoreML ya disponible${NC}"
 else
     echo -e "${BLUE} Instalando onnxruntime-silicon para CoreML...${NC}"
-    python -m pip install onnxruntime-silicon --quiet 2>/dev/null || \
-    python -m pip install onnxruntime --quiet 2>/dev/null
+    # Intentar instalar onnxruntime-silicon primero (optimizado para Apple Silicon)
+    python -m pip install onnxruntime-silicon
+    if [ $? -ne 0 ]; then
+        echo -e "${YELLOW} ⚠️  onnxruntime-silicon no disponible, instalando onnxruntime estándar...${NC}"
+        python -m pip install onnxruntime
+    fi
     
     if [ $? -eq 0 ]; then
         echo -e "${GREEN} ✓ ONNX Runtime instalado${NC}"
+        # Verificar CoreML después de instalar
+        ONNX_STATUS=$(python -c "import onnxruntime as ort; print('CoreML' if 'CoreMLExecutionProvider' in ort.get_available_providers() else 'CPU')" 2>/dev/null || echo "CPU")
+        if [ "$ONNX_STATUS" = "CoreML" ]; then
+            echo -e "${GREEN} ✓ CoreML Execution Provider activado${NC}"
+        else
+            echo -e "${YELLOW} ⚠️  Usando CPU (CoreML no disponible)${NC}"
+        fi
     else
         echo -e "${YELLOW} ⚠️  Fallback a CPU${NC}"
     fi
