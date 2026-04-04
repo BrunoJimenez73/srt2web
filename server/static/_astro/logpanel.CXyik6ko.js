@@ -1,0 +1,8 @@
+function m(n){return new Date(n).toLocaleTimeString()}let e=null,g=null,l=null,r=null,d=null;const u=500;let s="",i=!0;function p(){g&&(i=!i,g.classList.toggle("collapsed",i),d&&(d.textContent=i?"▶":"▼"))}function f(n){const o=document.createElement("div");return o.textContent=n,o.innerHTML}function y(n,o,a){if(!e){console.error("Log content element not found");return}l&&l.parentElement===e&&(l.remove(),l=null);const t=document.createElement("div");t.className="log-entry",t.setAttribute("role","listitem"),t.dataset.level=n,t.dataset.message=o.toLowerCase();const c=a?m(a):new Date().toLocaleTimeString("es-ES");for(t.innerHTML=`
+    <span class="log-timestamp">${c}</span>
+    <span class="log-level ${n}">[${n.toUpperCase()}]</span>
+    <span class="log-message">${f(o)}</span>
+  `,s&&!t.dataset.message.includes(s.toLowerCase())&&(t.style.display="none"),e.appendChild(t);e.children.length>u;)e.firstChild&&e.removeChild(e.firstChild);e.scrollTop=e.scrollHeight}function L(n){s=n.toLowerCase(),e?.querySelectorAll(".log-entry")?.forEach(a=>{const t=a;if(s){const c=t.dataset.message?.includes(s);t.style.display=c?"":"none"}else t.style.display=""})}function h(){e&&(e.innerHTML="",l=document.createElement("div"),l.className="log-empty",l.id="log-empty",l.innerHTML=`
+    <span class="log-empty-icon">📝</span>
+    <span class="log-empty-text">Sin registros aún</span>
+  `,e.appendChild(l),s="",r&&(r.value=""))}function C(){e=document.getElementById("log-content"),g=document.querySelector(".log-panel"),l=document.getElementById("log-empty"),r=document.getElementById("log-search"),d=document.getElementById("log-collapse-icon"),r?.addEventListener("input",n=>{const o=n.target.value;L(o)}),window.addLog=y,window.toggleLogPanel=p,window.clearLogs=h}export{C as i};
