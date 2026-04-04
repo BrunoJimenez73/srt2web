@@ -238,6 +238,13 @@ function applyConfigToUI(config: Config): void {
     whisperModelSelect.value = whisperModel;
   }
 
+  // Whisper enabled
+  const whisperEnabled = config.modules?.transcriber?.enabled ?? true;
+  const whisperEnabledCheckbox = document.getElementById('whisper-enabled') as HTMLInputElement;
+  if (whisperEnabledCheckbox) {
+    whisperEnabledCheckbox.checked = whisperEnabled;
+  }
+
   // Translator enabled
   const translatorEnabled = config.modules?.translator?.enabled || false;
   const translatorCheckbox = document.getElementById('translator-enabled') as HTMLInputElement;
@@ -264,6 +271,13 @@ function applyConfigToUI(config: Config): void {
   const mixerCheckbox = document.getElementById('audio-mixer-enabled') as HTMLInputElement;
   if (mixerCheckbox) {
     mixerCheckbox.checked = mixerEnabled;
+  }
+
+  // Video muxer enabled
+  const videoMuxerEnabled = config.modules?.video_muxer?.enabled ?? true;
+  const videoMuxerCheckbox = document.getElementById('video-muxer-enabled') as HTMLInputElement;
+  if (videoMuxerCheckbox) {
+    videoMuxerCheckbox.checked = videoMuxerEnabled;
   }
 }
 
@@ -460,6 +474,14 @@ function collectConfigFromUI(): Partial<Config> {
       original_volume: parseFloat(mixerOriginalVolume.value) || 0.3,
       tts_volume: parseFloat(mixerDubbedVolume?.value || '1.0'),
       enabled: mixerEnabled?.checked ?? false
+    };
+  }
+
+  // Video muxer
+  const videoMuxerEnabled = document.getElementById('video-muxer-enabled') as HTMLInputElement;
+  if (videoMuxerEnabled !== null) {
+    config.modules.video_muxer = {
+      enabled: videoMuxerEnabled?.checked ?? true
     };
   }
 
