@@ -350,8 +350,7 @@ def create_api_router() -> APIRouter:
 
         return status
 
-    @router.post("/start")
-    async def start_pipeline(request: Request):
+    async def _start_pipeline_handler(request: Request):
         """Start the processing pipeline."""
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
@@ -386,8 +385,27 @@ def create_api_router() -> APIRouter:
 
         return {"status": "started", "input": input_info}
 
+    @router.post("/start")
+    async def start_pipeline(request: Request):
+        """Start the processing pipeline."""
+        return await _start_pipeline_handler(request)
+
+    @router.post("/pipeline/start")
+    async def start_pipeline_legacy(request: Request):
+        """Start the processing pipeline (legacy alias)."""
+        return await _start_pipeline_handler(request)
+
     @router.post("/stop")
     async def stop_pipeline(request: Request):
+        """Stop the processing pipeline and clean up temporary files."""
+        return await _stop_pipeline_handler(request)
+
+    @router.post("/pipeline/stop")
+    async def stop_pipeline_legacy(request: Request):
+        """Stop the processing pipeline and clean up temporary files (legacy alias)."""
+        return await _stop_pipeline_handler(request)
+
+    async def _stop_pipeline_handler(request: Request):
         """Stop the processing pipeline and clean up temporary files."""
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
