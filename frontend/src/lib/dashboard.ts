@@ -471,7 +471,7 @@ function collectConfigFromUI(): Partial<Config> {
 /**
  * Actualiza el estado del pipeline
  */
-function updateStatus(status: Status): void {
+function updateStatus(status: any): void {
   store.setStatus(status);
   
   // Actualizar UI según estado
@@ -480,18 +480,56 @@ function updateStatus(status: Status): void {
   const btnStart = document.getElementById('btn-start');
   const btnStop = document.getElementById('btn-stop');
   
+  // Determine if pipeline is running
+  const isRunning = status.state === 'running';
+  
   if (statusText && statusDot) {
-    if (status.state === 'running') {
-      statusText.textContent = 'ENCENDIDO';
-      statusDot.classList.add('active');
-      if (btnStart) btnStart.style.display = 'none';
-      if (btnStop) btnStop.style.display = 'inline-flex';
-    } else {
-      statusText.textContent = 'APAGADO';
-      statusDot.classList.remove('active');
-      if (btnStart) btnStart.style.display = 'inline-flex';
-      if (btnStop) btnStop.style.display = 'none';
-    }
+    statusText.textContent = isRunning ? 'ENCENDIDO' : 'APAGADO';
+    statusDot.classList.toggle('active', isRunning);
+  }
+  
+  // Update button visibility
+  if (btnStart && btnStop) {
+    const stopBtn = btnStop as HTMLButtonElement;
+    btnStart.style.display = isRunning ? 'none' : 'inline-flex';
+    btnStop.style.display = isRunning ? 'inline-flex' : 'none';
+    stopBtn.disabled = !isRunning;
+  }
+  
+  // Update URLs from status
+  updateUrls(status);
+}
+
+/**
+ * Actualiza las URLs de SRT, Stream y Player
+ */
+function updateUrls(status: any): void {
+  const host = window.location.hostname || 'localhost';
+  const port = 9999; // Default port
+  
+  // Get SRT port from config or status
+  let srtPort = 9000;
+  if (status.input?.info?.port) {
+    srtPort = status.input.info.port;
+  }
+  
+  // Update SRT URL
+  const urlSrt = document.getElementById('url-srt');
+  if (urlSrt) {
+    urlSrt.textContent = `srt://${host}:${srtPort}`;
+  }
+  
+  // Update Stream URL
+  const urlStream = document.getElementById('url-stream');
+  if (urlStream) {
+    urlStream.textContent = `http://${host}:${port}/hls/stream.m3u8`;
+  }
+  
+  // Update Player URL
+  const urlPlayer = document.getElementById('url-player') as HTMLAnchorElement;
+  if (urlPlayer) {
+    urlPlayer.textContent = `http://${host}:${port}/player`;
+    urlPlayer.href = `/player`;
   }
 }
 
