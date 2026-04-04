@@ -145,7 +145,12 @@ echo -e "${BLUE}[4/8] Instalando dependencias Python...${NC}"
 
 # Actualizar pip
 echo -e "${BLUE} Actualizando pip...${NC}"
-python -m pip install --upgrade pip wheel setuptools
+python -m pip install --upgrade pip wheel
+
+# Actualizar setuptools pero mantener compatibilidad con torch
+# torch 2.11.0 requiere setuptools<82
+echo -e "${BLUE} Actualizando setuptools (version compatible con torch)...${NC}"
+python -m pip install "setuptools<82" --upgrade
 
 # Instalar dependencias del proyecto (versión Mac Silicon)
 echo -e "${BLUE} Instalando dependencias del proyecto (FastAPI, Uvicorn, etc.)...${NC}"
