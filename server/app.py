@@ -132,6 +132,11 @@ def create_app(app_context: dict) -> FastAPI:
     hls_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/hls", StaticFiles(directory=str(hls_dir)), name="hls")
 
+    # Serve subtitles from output directory
+    subtitles_dir = OUTPUT_DIR / "subtitles"
+    subtitles_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/subtitles", StaticFiles(directory=str(subtitles_dir)), name="subtitles")
+
     if FRONTEND_DIR.exists():
         app.mount(
             "/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend"

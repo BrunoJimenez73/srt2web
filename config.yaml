@@ -29,9 +29,10 @@ input:
 output:
   type: web
   web:
-    segment_duration: 10
-    list_size: 2
+    segment_duration: 4
+    list_size: 6
     audio_offset_ms: 0
+    encoder_mode: auto
   hls:
     segment_duration: 10
     list_size: 2
@@ -69,7 +70,7 @@ modules:
     enabled: true
     model: tiny
     language: en
-    device: cuda
+    device: auto
     beam_size: 2
   translator:
     enabled: true
@@ -82,7 +83,7 @@ modules:
   tts_engine:
     enabled: true
     engine: piper
-    device: cuda
+    device: auto
     voice: es_AR-daniela-high
     speed: 1.3
   audio_mixer:
@@ -91,14 +92,14 @@ modules:
     tts_volume: 1
   video_muxer:
     enabled: true
-    hls_segment_duration: 4
+    hls_segment_duration: 10
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
     hls_list_size: 6
     video_quality: medium
     video_crf: 26
-    audio_codec: opus
-    audio_bitrate: 32k
+    audio_codec: aac
+    audio_bitrate: 192k
     audio_samplerate: '48000'
     engine: webrtc
     video_bitrate: 2000k
