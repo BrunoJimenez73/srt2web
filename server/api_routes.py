@@ -358,9 +358,9 @@ def create_api_router() -> APIRouter:
         input_source = ctx.get("input_source")
         log_broadcast = ctx.get("log_broadcast")
 
-        from core.pipeline import PipelineState
-
-        if pipeline.state == PipelineState.RUNNING:
+        # Check if pipeline is already running (handle both string and enum)
+        pipeline_state = getattr(pipeline, 'state', 'idle')
+        if pipeline_state in ('running', 'RUNNING') or (hasattr(pipeline_state, 'value') and pipeline_state.value == 'running'):
             raise HTTPException(400, "Pipeline is already running")
 
         def on_log(level, message):

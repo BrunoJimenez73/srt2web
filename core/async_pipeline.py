@@ -77,6 +77,7 @@ class AsyncPipeline:
         self._input_source = None
         self._output_sink = None
         self._modules: List[BaseModule] = []
+        self._chunk_index = 0  # For compatibility with frontend
 
         self._chunk_queue: queue.Queue = queue.Queue(maxsize=buffer_size)
         self._output_queue: queue.Queue = queue.Queue(maxsize=buffer_size)
@@ -98,6 +99,16 @@ class AsyncPipeline:
 
         self._on_log: Optional[Callable[[str, str], None]] = None
         self._on_state_change: Optional[Callable[[str], None]] = None
+
+    @property
+    def input_source(self):
+        """Get the input data source."""
+        return self._input_source
+
+    @property
+    def output_sink(self):
+        """Get the output data sink."""
+        return self._output_sink
 
     def set_input_source(self, input_source) -> None:
         """Set the input data source."""
@@ -355,6 +366,7 @@ class AsyncPipeline:
 
                     self._output_queue.task_done()
                     self._chunks_processed += 1
+                    self._chunk_index += 1  # Update for compatibility
                     self._next_expected_index += 1
 
                 # Log warning if we have pending chunks out of order
@@ -376,9 +388,11 @@ class AsyncPipeline:
         return "running" if self._running else "idle"
 
     def get_status(self) -> dict:
-        """Get pipeline status."""
-        return {
+        """Get pipeline status including module information."""
+        # Get basic pipeline status
+        status = {
             "running": self._running,
+            "state": self.state,
             "buffer_size": self.buffer_size,
             "chunks_queued": self._chunk_queue.qsize(),
             "chunks_output_queued": self._output_queue.qsize(),
@@ -386,6 +400,52 @@ class AsyncPipeline:
             "chunks_output": self._chunks_output,
             "pending_chunks": len(self._results),
         }
+        
+        # Add module status information
+        modules_status = []
+        for module in self._modules:
+            try:
+                module_status = module.get_status()
+                modules_status.append({
+                    "name": module.name,
+                    "enabled": module.enabled,
+                    "state": str(module.state) if hasattr(module, 'state') else str(getattr(module, '_state', 'unknown')),
+                    "processed_chunks": getattr(module, '_processed_chunks', 0),
+                    "last_process_time_ms": getattr(module, '_last_process_time_ms', 0),
+                    "error_message": getattr(module, '_error_message', ''),
+                })
+            except Exception:
+                modules_status.append({
+                    "name": module.name,
+                    "enabled": module.enabled,
+                    "state": "error",
+                    "processed_chunks": 0,
+                    "last_process_time_ms": 0,
+                    "error_message": "Failed to get status",
+                })
+        
+        status["modules"] = modules_status
+        return status
+
+    def get_modules(self) -> list:
+        """Get list of registered modules."""
+        return self._modules
+
+    def get_module(self, name: str) -> object:
+        """Get a specific module by name."""
+        for module in self._modules:
+            if module.name == name:
+                return module
+        return None
+
+    def reconfigure(self, config) -> None:
+        """Reconfigure all modules with new configuration."""
+        for module in self._modules:
+            try:
+                module_config = config.get_module_config(module.name)
+                module.configure(module_config)
+            except Exception as e:
+                logger.error(f"Failed to reconfigure {module.name}: {e}")
 
 
 class OptimizedPipeline(AsyncPipeline):
