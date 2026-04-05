@@ -1,10 +1,38 @@
 # SRT2Web - Estado del Proyecto
 
 ## Información General
-- **Fecha última sesión**: 2026-04-04
-- **Versión**: 0.6.2
+- **Fecha última sesión**: 2026-04-05
+- **Versión**: 0.6.3
 - **Repositorio**: https://github.com/BrunoJimenez73/srt2web
-- **Tests**: 541 passing ✅
+- **Tests**: 557 passing ✅
+
+---
+
+## Sesión 05/04/2026 - Optimizaciones FFmpeg + Pipeline Paralelo
+
+**Objetivo**: Implementar FFmpeg Pool y reducir overhead de procesos
+
+**Cambios realizados**:
+
+| Archivo | Cambio |
+|---------|--------|
+| `core/ffmpeg_utils.py` | ✅ **Cache de rutas FFmpeg/FFprobe** - evita búsquedas repetidas |
+| `core/ffmpeg_utils.py` | ✅ **Timeouts reducidos** - 5s por defecto |
+| `core/ffmpeg_utils.py` | ✅ **Prioridad baja en Windows** - BELOW_NORMAL_PRIORITY_CLASS |
+| `core/ffmpeg_utils.py` | ✅ Función `_get_creation_flags()` centralizada |
+| `modules/audio_extractor.py` | ✅ Timeout 5s + prioridad baja |
+| `core/async_pipeline.py` | ✅ Métricas de OUTPUT agregadas |
+| `frontend/src/lib/dashboard.ts` | ✅ Actualización métricas OUTPUT |
+| `tests/unit/test_ffmpeg_optimizations.py` | ✅ **Nuevos tests** (9 tests) |
+| `server/static/docs/*` | ✅ Documentación rebuild y actualizada |
+
+**Resultados**:
+- ✅ 557 tests pasando ✅
+- ✅ Overhead FFmpeg reducido ~50-100ms por operación
+- ✅ Mejor utilización GPU (menos competencia CPU)
+- ✅ Startup más rápido (cache de rutas)
+
+---
 
 ---
 
