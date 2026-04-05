@@ -254,14 +254,19 @@ export function updateSystemMetrics(status: Status): void {
 
 export function updateModulePerformanceMetrics(modules: any[]): void {
   // Update input metrics separately (input is not in modules list)
+  // Calculate average processing time from throughput
   const inputTimeEl = document.getElementById('module-time-input');
   const inputChunksEl = document.getElementById('module-chunks-input');
-  if (inputTimeEl && status && status.state === 'running') {
-    inputTimeEl.textContent = 'RUNNING';
-    inputTimeEl.style.color = 'var(--success)';
-  } else if (inputTimeEl) {
-    inputTimeEl.textContent = 'IDLE';
-    inputTimeEl.style.color = 'var(--text-sec)';
+  if (inputTimeEl && status) {
+    if (status.state === 'running' && throughputHistory.length > 0) {
+      const avgThroughput = throughputHistory.reduce((a, b) => a + b, 0) / throughputHistory.length;
+      const avgTimeMs = avgThroughput > 0 ? (1000 / avgThroughput).toFixed(0) : '--';
+      inputTimeEl.textContent = `${avgTimeMs}ms`;
+      inputTimeEl.style.color = 'var(--success)';
+    } else {
+      inputTimeEl.textContent = 'IDLE';
+      inputTimeEl.style.color = 'var(--text-sec)';
+    }
   }
   if (inputChunksEl && status) {
     inputChunksEl.textContent = String(status.chunks_processed ?? 0);
@@ -271,8 +276,10 @@ export function updateModulePerformanceMetrics(modules: any[]): void {
   const videoMuxerTimeEl = document.getElementById('module-time-video_muxer');
   const videoMuxerChunksEl = document.getElementById('module-chunks-video_muxer');
   if (videoMuxerTimeEl && status) {
-    if (status.state === 'running') {
-      videoMuxerTimeEl.textContent = 'RUNNING';
+    if (status.state === 'running' && throughputHistory.length > 0) {
+      const avgThroughput = throughputHistory.reduce((a, b) => a + b, 0) / throughputHistory.length;
+      const avgTimeMs = avgThroughput > 0 ? (1000 / avgThroughput).toFixed(0) : '--';
+      videoMuxerTimeEl.textContent = `${avgTimeMs}ms`;
       videoMuxerTimeEl.style.color = 'var(--success)';
     } else {
       videoMuxerTimeEl.textContent = 'IDLE';
