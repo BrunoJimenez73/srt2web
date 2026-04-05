@@ -47,6 +47,7 @@ export interface AudioMixerConfig {
 
 export interface VideoMuxerConfig {
   enabled: boolean;
+  engine?: string; // 'hls' | 'webrtc'
   hls_segment_duration: number;
   hls_list_size: number;
   audio_offset_ms: number;
@@ -56,6 +57,13 @@ export interface VideoMuxerConfig {
   audio_codec: string;
   audio_bitrate: string;
   audio_samplerate: string;
+  // WebRTC specific settings
+  video_codec?: string;
+  video_bitrate?: string;
+  video_width?: number;
+  video_height?: number;
+  video_fps?: number;
+  audio_sample_rate?: number;
 }
 
 export interface ModulesConfig {
