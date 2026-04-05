@@ -3,6 +3,9 @@ Configuration manager for SRT2Web.
 
 Loads config.yaml, validates it, provides defaults, and supports
 runtime updates from the GUI.
+
+VALIDACIÓN ESTRICTA: Ahora usa esquema Pydantic definido en config_schema.py
+Todos los campos se validan automáticamente al cargar y guardar.
 """
 
 import os
@@ -13,83 +16,9 @@ from typing import Any, Optional
 
 import yaml
 
-logger = logging.getLogger("srt2web.config")
+from core.config_schema import SRT2WebConfig
 
-# Default configuration - used as fallback for missing keys
-DEFAULT_CONFIG = {
-    "server": {
-        "host": "127.0.0.1",
-        "port": 8080,
-        "cors_origins": ["http://localhost:*", "http://127.0.0.1:*"],
-        "auth_token": "",
-        "rate_limit_rpm": 60,
-        "max_request_size_mb": 100,
-    },
-    "input": {
-        "type": "srt",
-        "srt": {
-            "listen_port": 9000,
-            "mode": "listener",
-            "latency_ms": 1000,
-            "caller_address": "",
-        },
-        "file": {
-            "path": "",
-            "loop": False,
-            "speed": 1.0,
-        },
-    },
-    "output": {
-        "type": "web",
-        "web": {
-            "segment_duration": 15,
-            "list_size": 6,
-            "audio_offset_ms": 0,
-        },
-    },
-    "pipeline": {
-        "chunk_duration_sec": 15,
-    },
-    "modules": {
-        "audio_extractor": {"enabled": True},
-        "transcriber": {
-            "enabled": True,
-            "model": "tiny",
-            "language": "auto",
-            "device": "auto",
-        },
-        "translator": {
-            "enabled": True,
-            "source_lang": "en",
-            "target_lang": "es",
-        },
-        "subtitle_generator": {
-            "enabled": True,
-            "format": "webvtt",
-            "use_translated": True,
-        },
-        "tts_engine": {
-            "enabled": False,
-            "engine": "edge-tts",
-            "device": "auto",
-            "voice": "es-ES-ElviraNeural",
-            "speed": 1.0,
-        },
-        "audio_mixer": {
-            "enabled": False,
-            "original_volume": 0.2,
-            "tts_volume": 1.0,
-        },
-        "video_muxer": {
-            "enabled": True,
-            "hls_segment_duration": 4,
-            "audio_offset_ms": 0,
-        },
-    },
-    "output_dir": {
-        "directory": "./output",
-    },
-}
+logger = logging.getLogger("srt2web.config")
 
 
 def _deep_merge(base: dict, override: dict) -> dict:
@@ -119,7 +48,7 @@ class ConfigManager:
 
     def __init__(self, config_path: Optional[str] = None):
         self._config_path = config_path or self._find_config()
-        self._config: dict = copy.deepcopy(DEFAULT_CONFIG)
+        self._config: dict = {}
         self._load()
 
     def _find_config(self) -> str:
@@ -137,26 +66,40 @@ class ConfigManager:
 
     def _load(self) -> None:
         """Load configuration from YAML file, merging with defaults."""
+        # Cargar defaults desde esquema Pydantic
+        default_config = SRT2WebConfig().to_dict()
+        
         if os.path.exists(self._config_path):
             try:
                 with open(self._config_path, "r", encoding="utf-8") as f:
                     file_config = yaml.safe_load(f) or {}
-                self._config = _deep_merge(DEFAULT_CONFIG, file_config)
-                logger.info(f"Configuration loaded from {self._config_path}")
+                
+                # Merge con defaults
+                merged_config = _deep_merge(default_config, file_config)
+                
+                # Validar con esquema Pydantic
+                validated_config = SRT2WebConfig.from_dict(merged_config)
+                self._config = validated_config.to_dict()
+                
+                logger.info(f"Configuration loaded and validated from {self._config_path}")
             except Exception as e:
                 logger.warning(
-                    f"Failed to load {self._config_path}: {e}. Using defaults."
+                    f"Failed to load/validate {self._config_path}: {e}. Using defaults."
                 )
-                self._config = copy.deepcopy(DEFAULT_CONFIG)
+                self._config = default_config
         else:
             logger.info(
                 f"Config file not found at {self._config_path}. Using defaults."
             )
-            self._config = copy.deepcopy(DEFAULT_CONFIG)
+            self._config = default_config
 
     def save(self) -> None:
         """Persist current configuration to YAML file."""
         try:
+            # Validar antes de guardar
+            validated_config = SRT2WebConfig.from_dict(self._config)
+            self._config = validated_config.to_dict()
+            
             os.makedirs(os.path.dirname(self._config_path) or ".", exist_ok=True)
             with open(self._config_path, "w", encoding="utf-8") as f:
                 yaml.dump(
@@ -166,7 +109,7 @@ class ConfigManager:
                     allow_unicode=True,
                     sort_keys=False,
                 )
-            logger.info(f"Configuration saved to {self._config_path}")
+            logger.info(f"Configuration validated and saved to {self._config_path}")
         except Exception as e:
             logger.error(f"Failed to save configuration: {e}")
             raise

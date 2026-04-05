@@ -1,286 +1,273 @@
 """
-Excepciones personalizadas para SRT2Web.
+Excepciones estandarizadas para SRT2Web.
 
-Este módulo define una jerarquía de excepciones específicas para cada componente
-del pipeline, facilitando el manejo de errores y el debugging.
+Todas las excepciones del proyecto heredan de SRT2WebException
+para permitir manejo centralizado y logging consistente.
+
+Jerarquía de excepciones:
+✅ SRT2WebException (base)
+  ├─ ConfigurationError
+  ├─ PipelineError
+  │  ├─ PipelineStateError
+  │  ├─ ModuleProcessingError
+  │  └─ ChunkProcessingError
+  ├─ InputSourceError
+  │  ├─ SRTConnectionError
+  │  └─ RTMPConnectionError
+  ├─ OutputSinkError
+  │  ├─ HLSMuxerError
+  │  └─ WebRTCError
+  ├─ ModuleError
+  │  ├─ TranscriberError
+  │  ├─ TranslatorError
+  │  ├─ TTSError
+  │  └─ AudioMixerError
+  └─ InfrastructureError
+     ├─ FFmpegError
+     ├─ CUDAError
+     └─ ResourceExhaustedError
 """
 
-from typing import Any, Dict, Optional
+from typing import Optional, Dict, Any
 
 
 class SRT2WebError(Exception):
     """
-    Error base para todas las excepciones de SRT2Web.
+    Clase base para TODAS las excepciones de SRT2Web.
     
-    Attributes:
-        message: Descripción del error
-        module: Nombre del módulo que generó el error
-        context: Información adicional sobre el contexto del error
+    Atributos:
+        code: Código de error único
+        message: Mensaje descriptivo
+        details: Diccionario con detalles adicionales
+        recoverable: Indica si el error es recuperable
     """
-    
+    code: str = "ERR_UNKNOWN"
+    message: str = "Unknown error occurred"
+    recoverable: bool = False
+
     def __init__(
-        self, 
-        message: str, 
-        module: Optional[str] = None, 
-        context: Optional[Dict[str, Any]] = None
+        self,
+        message: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None,
+        recoverable: Optional[bool] = None,
+        cause: Optional[Exception] = None,
     ):
-        self.message = message
-        self.module = module
-        self.context = context or {}
+        self.details = details or {}
+        self.cause = cause
         
-        # Construir mensaje completo
-        full_message = message
-        if module:
-            full_message = f"[{module}] {message}"
-        if context:
-            full_message += f" (context: {context})"
-        
-        super().__init__(full_message)
+        if message is not None:
+            self.message = message
+            
+        if recoverable is not None:
+            self.recoverable = recoverable
+            
+        super().__init__(self.message)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convertir excepción a diccionario serializable."""
+        return {
+            "code": self.code,
+            "message": self.message,
+            "recoverable": self.recoverable,
+            "details": self.details,
+        }
+
+    def __str__(self) -> str:
+        base = f"[{self.code}] {self.message}"
+        if self.details:
+            base += f" | Details: {self.details}"
+        if self.cause:
+            base += f" | Caused by: {type(self.cause).__name__}: {str(self.cause)}"
+        return base
 
 
-# ============================================================================
+# -----------------------------------------------------------------------------
 # Errores de Configuración
-# ============================================================================
+# -----------------------------------------------------------------------------
 
-class ConfigError(SRT2WebError):
+class ConfigurationError(SRT2WebError):
     """Error en la configuración del sistema."""
-    
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, module="config", **kwargs)
+    code = "ERR_CONFIG"
+    message = "Invalid configuration"
 
 
-class ValidationError(ConfigError):
-    """Error de validación de configuración."""
-    pass
+class ConfigurationValidationError(ConfigurationError):
+    """Error de validación de campos de configuración."""
+    code = "ERR_CONFIG_VALIDATION"
+    message = "Configuration validation failed"
 
 
-# ============================================================================
-# Errores de Pipeline
-# ============================================================================
+# -----------------------------------------------------------------------------
+# Errores del Pipeline
+# -----------------------------------------------------------------------------
 
 class PipelineError(SRT2WebError):
-    """Error en el pipeline principal."""
-    
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, module="pipeline", **kwargs)
+    """Error general en el pipeline de procesamiento."""
+    code = "ERR_PIPELINE"
+    message = "Pipeline processing error"
 
 
 class PipelineStateError(PipelineError):
-    """Error en el estado del pipeline (ej: iniciar cuando ya está corriendo)."""
-    pass
+    """Operación inválida para el estado actual del pipeline."""
+    code = "ERR_PIPELINE_STATE"
+    message = "Invalid pipeline state for operation"
 
 
-class PipelineDataError(PipelineError):
-    """Error en los datos del pipeline (ej: datos faltantes o inválidos)."""
-    pass
+class ModuleProcessingError(PipelineError):
+    """Error en el procesamiento de un módulo."""
+    code = "ERR_MODULE_PROCESSING"
+    message = "Module processing failed"
+    recoverable = True
 
 
-# ============================================================================
+class ChunkProcessingError(PipelineError):
+    """Error procesando un chunk específico."""
+    code = "ERR_CHUNK_PROCESSING"
+    message = "Chunk processing failed"
+    recoverable = True
+
+
+# -----------------------------------------------------------------------------
+# Errores de Fuente de Entrada
+# -----------------------------------------------------------------------------
+
+class InputSourceError(SRT2WebError):
+    """Error en la fuente de entrada."""
+    code = "ERR_INPUT"
+    message = "Input source error"
+    recoverable = True
+
+
+class SRTConnectionError(InputSourceError):
+    """Error de conexión SRT."""
+    code = "ERR_INPUT_SRT_CONNECTION"
+    message = "SRT connection error"
+
+
+class RTMPConnectionError(InputSourceError):
+    """Error de conexión RTMP."""
+    code = "ERR_INPUT_RTMP_CONNECTION"
+    message = "RTMP connection error"
+
+
+# -----------------------------------------------------------------------------
+# Errores de Salida
+# -----------------------------------------------------------------------------
+
+class OutputSinkError(SRT2WebError):
+    """Error en el destino de salida."""
+    code = "ERR_OUTPUT"
+    message = "Output sink error"
+
+
+class HLSMuxerError(OutputSinkError):
+    """Error en el muxer HLS."""
+    code = "ERR_OUTPUT_HLS"
+    message = "HLS muxer error"
+    recoverable = True
+
+
+class WebRTCError(OutputSinkError):
+    """Error en la conexión WebRTC."""
+    code = "ERR_OUTPUT_WEBRTC"
+    message = "WebRTC connection error"
+    recoverable = True
+
+
+# -----------------------------------------------------------------------------
 # Errores de Módulos
-# ============================================================================
+# -----------------------------------------------------------------------------
 
 class ModuleError(SRT2WebError):
-    """Error base para errores de módulos."""
-    
-    def __init__(self, message: str, module: str, **kwargs):
-        super().__init__(message, module=module, **kwargs)
-
-
-class ModuleInitializationError(ModuleError):
-    """Error al inicializar un módulo."""
-    pass
-
-
-class ModuleProcessingError(ModuleError):
-    """Error al procesar datos en un módulo."""
-    pass
-
-
-class ModuleShutdownError(ModuleError):
-    """Error al cerrar/liberar recursos de un módulo."""
-    pass
-
-
-# ============================================================================
-# Errores de Input
-# ============================================================================
-
-class InputError(ModuleError):
-    """Error base para errores de input."""
-    
-    def __init__(self, message: str, module: str = "input", **kwargs):
-        super().__init__(message, module=module, **kwargs)
-
-
-class SRTInputError(InputError):
-    """Error en la ingestión SRT."""
-    
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, module="srt_input", **kwargs)
-
-
-class RTMPInputError(InputError):
-    """Error en la ingestión RTMP."""
-    
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, module="rtmp_input", **kwargs)
-
-
-class FileInputError(InputError):
-    """Error en la lectura de archivo."""
-    
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, module="file_input", **kwargs)
-
-
-# ============================================================================
-# Errores de Procesamiento
-# ============================================================================
-
-class AudioExtractorError(ModuleError):
-    """Error al extraer audio del video."""
-    
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, module="audio_extractor", **kwargs)
+    """Error específico de un módulo de procesamiento."""
+    code = "ERR_MODULE"
+    message = "Module error"
 
 
 class TranscriberError(ModuleError):
-    """Error en la transcripción de audio a texto."""
-    
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, module="transcriber", **kwargs)
+    """Error en el transcriptor Whisper."""
+    code = "ERR_MODULE_TRANSCRIBER"
+    message = "Transcriber processing error"
 
 
 class TranslatorError(ModuleError):
-    """Error en la traducción de texto."""
-    
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, module="translator", **kwargs)
-
-
-class SubtitleGeneratorError(ModuleError):
-    """Error en la generación de subtítulos."""
-    
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, module="subtitle_generator", **kwargs)
+    """Error en el traductor."""
+    code = "ERR_MODULE_TRANSLATOR"
+    message = "Translator processing error"
 
 
 class TTSError(ModuleError):
-    """Error en la generación de TTS (text-to-speech)."""
-    
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, module="tts_engine", **kwargs)
+    """Error en el motor TTS."""
+    code = "ERR_MODULE_TTS"
+    message = "TTS processing error"
 
 
 class AudioMixerError(ModuleError):
-    """Error en la mezcla de audio."""
+    """Error en el mezclador de audio."""
+    code = "ERR_MODULE_AUDIO_MIXER"
+    message = "Audio mixer error"
+
+
+# -----------------------------------------------------------------------------
+# Errores de Infraestructura
+# -----------------------------------------------------------------------------
+
+class InfrastructureError(SRT2WebError):
+    """Error en la infraestructura subyacente."""
+    code = "ERR_INFRASTRUCTURE"
+    message = "Infrastructure error"
+
+
+class FFmpegError(InfrastructureError):
+    """Error en proceso FFmpeg."""
+    code = "ERR_FFMPEG"
+    message = "FFmpeg execution error"
+    recoverable = True
+
+
+class CUDAError(InfrastructureError):
+    """Error de aceleración CUDA/GPU."""
+    code = "ERR_CUDA"
+    message = "CUDA/GPU acceleration error"
+
+
+class ResourceExhaustedError(InfrastructureError):
+    """Recursos del sistema agotados."""
+    code = "ERR_RESOURCE_EXHAUSTED"
+    message = "System resources exhausted"
+    recoverable = True
+
+
+# -----------------------------------------------------------------------------
+# Funciones utilitarias
+# -----------------------------------------------------------------------------
+
+def wrap_exception(
+    exc: Exception,
+    target_exception: SRT2WebError,
+    details: Optional[Dict[str, Any]] = None,
+) -> SRT2WebError:
+    """
+    Envuelve una excepción externa en una excepción estandarizada de SRT2Web.
     
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, module="audio_mixer", **kwargs)
-
-
-class VideoMuxerError(ModuleError):
-    """Error en el muxing de video."""
+    Args:
+        exc: Excepción original
+        target_exception: Excepción SRT2Web para envolver
+        details: Detalles adicionales
+        
+    Returns:
+        Excepción SRT2Web estandarizada
+    """
+    if isinstance(exc, SRT2WebError):
+        return exc
+        
+    if details is None:
+        details = {}
+        
+    details["original_exception"] = type(exc).__name__
+    details["original_message"] = str(exc)
     
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, module="video_muxer", **kwargs)
-
-
-# ============================================================================
-# Errores de Output
-# ============================================================================
-
-class OutputError(ModuleError):
-    """Error base para errores de output."""
-    
-    def __init__(self, message: str, module: str = "output", **kwargs):
-        super().__init__(message, module=module, **kwargs)
-
-
-class HLSOutputError(OutputError):
-    """Error en la generación de HLS."""
-    
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, module="hls_output", **kwargs)
-
-
-class WebRTCOutputError(OutputError):
-    """Error en la generación de WebRTC."""
-    
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, module="webrtc_output", **kwargs)
-
-
-# ============================================================================
-# Errores de Servidor
-# ============================================================================
-
-class ServerError(SRT2WebError):
-    """Error base para errores del servidor."""
-    
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, module="server", **kwargs)
-
-
-class APIError(ServerError):
-    """Error en la API REST."""
-    pass
-
-
-class WebSocketError(ServerError):
-    """Error en la conexión WebSocket."""
-    pass
-
-
-class SecurityError(ServerError):
-    """Error de seguridad (auth, rate limiting, etc)."""
-    pass
-
-
-# ============================================================================
-# Errores de Recursos
-# ============================================================================
-
-class ResourceError(SRT2WebError):
-    """Error en la gestión de recursos (memoria, disco, GPU)."""
-    
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, module="resource", **kwargs)
-
-
-class MemoryError(ResourceError):
-    """Error de memoria insuficiente."""
-    pass
-
-
-class DiskSpaceError(ResourceError):
-    """Error de espacio en disco insuficiente."""
-    pass
-
-
-class GPUError(ResourceError):
-    """Error relacionado con GPU (CUDA, MPS, etc)."""
-    pass
-
-
-# ============================================================================
-# Errores de Dependencias Externas
-# ============================================================================
-
-class DependencyError(SRT2WebError):
-    """Error en dependencia externa (FFmpeg, modelos, etc)."""
-    pass
-
-
-class FFmpegError(DependencyError):
-    """Error en la ejecución de FFmpeg."""
-    
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, module="ffmpeg", **kwargs)
-
-
-class ModelError(DependencyError):
-    """Error al cargar/ejecutar modelo (Whisper, TTS, etc)."""
-    
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, module="model", **kwargs)
+    return target_exception(
+        details=details,
+        cause=exc,
+    )

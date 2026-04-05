@@ -70,7 +70,7 @@ PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.config_manager import ConfigManager
-from core.async_pipeline import AsyncPipeline
+from core.unified_pipeline import UnifiedPipeline, PipelineMode
 from core.ffmpeg_utils import find_ffmpeg, ensure_ffmpeg
 from core.io_factory import InputFactory, OutputFactory, auto_discover
 from modules.audio_extractor import AudioExtractor
@@ -273,10 +273,15 @@ def build_pipeline(config: ConfigManager, output_dir: str):
     output_sink = OutputFactory.create(output_type, type_config)
     output_sink.set_output_dir(output_dir)
 
-    # Create async pipeline with parallel processing
-    # buffer_size=5: keeps 5 chunks in flight for maximum throughput
-    # num_workers=3: 3 worker threads for parallel processing
-    pipeline = AsyncPipeline(buffer_size=5, num_workers=3)
+    # Create unified pipeline with parallel processing (THREAD_PARALLEL mode)
+    # Mismatch mode = THREAD_PARALLEL (default) con workers=3, buffer=5
+    pipeline = UnifiedPipeline(
+        mode=PipelineMode.THREAD_PARALLEL,
+        max_concurrent_chunks=3,
+        buffer_size=5,
+        retry_attempts=2,
+        retry_delay=1.0
+    )
     pipeline.set_input_source(input_source)
     pipeline.set_output_sink(output_sink)
 

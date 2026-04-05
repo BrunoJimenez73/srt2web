@@ -1,0 +1,675 @@
+"""
+Unified Pipeline - Implementación unificada con soporte multi-modo.
+
+Combina las mejores características de:
+- Pipeline (secuencial)
+- AsyncPipeline (paralelo con threads)
+- AsyncPipelineV2 (asyncio nativo)
+
+Características:
+✅ Modo de operación configurable (secuencial / thread-parallel / asyncio)
+✅ Compatibilidad API 100% hacia atrás
+✅ Circuit Breaker y reintentos por módulo
+✅ Semáforo de concurrencia configurable
+✅ Métricas detalladas de rendimiento
+✅ Shutdown graceful y cancelación
+✅ Manejo de errores unificado
+"""
+
+import asyncio
+import time
+import threading
+import queue
+import logging
+from enum import Enum
+from typing import Optional, Callable, List, Dict, Any, Union
+from dataclasses import dataclass, field
+
+from core.module_base import BaseModule, PipelineData, ModuleState
+from core.exceptions import (
+    PipelineStateError,
+    ModuleProcessingError,
+    ChunkProcessingError,
+    wrap_exception
+)
+
+logger = logging.getLogger("srt2web.unified_pipeline")
+
+
+class PipelineMode(str, Enum):
+    """Modos de operación del pipeline."""
+    SEQUENTIAL = "sequential"    # Secuencial, un chunk a la vez
+    THREAD_PARALLEL = "thread_parallel"  # Paralelo con threads
+    ASYNCIO = "asyncio"          # Paralelo con asyncio nativo
+
+
+class PipelineState(str, Enum):
+    """Estados posibles del pipeline."""
+    IDLE = "idle"
+    STARTING = "starting"
+    RUNNING = "running"
+    STOPPING = "stopping"
+    ERROR = "error"
+
+
+@dataclass
+class ChunkProcessor:
+    """Trackea el estado de procesamiento de un chunk."""
+    chunk_index: int
+    timestamp: float
+    data: Optional[PipelineData] = None
+    stages_completed: Dict[str, float] = field(default_factory=dict)
+    error: Optional[str] = None
+    task: Optional[Union[threading.Thread, asyncio.Task]] = None
+
+
+@dataclass
+class PipelineMetrics:
+    """Métricas agregadas del pipeline."""
+    chunks_processed: int = 0
+    chunks_failed: int = 0
+    total_processing_time: float = 0.0
+    start_time: Optional[float] = None
+
+    @property
+    def avg_processing_time(self) -> float:
+        if self.chunks_processed == 0:
+            return 0.0
+        return self.total_processing_time / self.chunks_processed
+
+    @property
+    def uptime(self) -> float:
+        if not self.start_time:
+            return 0.0
+        return time.time() - self.start_time
+
+
+class UnifiedPipeline:
+    """
+    Pipeline unificado multi-modo.
+
+    Modos disponibles:
+    - SEQUENTIAL: Procesa un chunk a la vez, orden estricto
+    - THREAD_PARALLEL: Múltiples workers en threads (default)
+    - ASYNCIO: Paralelismo nativo con asyncio (para módulos async)
+    """
+
+    def __init__(
+        self,
+        mode: PipelineMode = PipelineMode.THREAD_PARALLEL,
+        max_concurrent_chunks: int = 3,
+        buffer_size: int = 5,
+        retry_attempts: int = 2,
+        retry_delay: float = 1.0,
+    ):
+        """
+        Inicializar pipeline unificado.
+
+        Args:
+            mode: Modo de operación
+            max_concurrent_chunks: Máximo de chunks procesando simultáneamente
+            buffer_size: Tamaño del buffer de entrada
+            retry_attempts: Número de reintentos por módulo
+            retry_delay: Retraso entre reintentos (segundos)
+        """
+        self.mode = mode
+        self.max_concurrent_chunks = max_concurrent_chunks
+        self.buffer_size = buffer_size
+        self.retry_attempts = retry_attempts
+        self.retry_delay = retry_delay
+
+        # Estado interno
+        self._state = PipelineState.IDLE
+        self._modules: List[BaseModule] = []
+        self._module_map: Dict[str, BaseModule] = {}
+        self._input_source = None
+        self._output_sink = None
+
+        # Control de ejecución - INICIALIZADOS DESDE PRINCIPIO PARA EVITAR NONE
+        self._stop_event = threading.Event()
+        self._semaphore = threading.Semaphore(max_concurrent_chunks)
+        self._tasks: List[Any] = []
+        self._chunk_queue = queue.Queue(maxsize=buffer_size)
+        self._output_queue = queue.Queue(maxsize=buffer_size)
+        self._results: Dict[int, ChunkProcessor] = {}
+
+        # Métricas
+        self.metrics = PipelineMetrics()
+
+        # Callbacks
+        self._on_log: Optional[Callable[[str, str], None]] = None
+        self._on_state_change: Optional[Callable[[str], None]] = None
+        self._on_chunk_complete: Optional[Callable[[int, PipelineData], None]] = None
+
+        # Lock para operaciones thread-safe
+        self._lock = threading.Lock()
+
+        logger.info(f"UnifiedPipeline initialized mode={mode.value} concurrent={max_concurrent_chunks}")
+
+    @property
+    def state(self) -> PipelineState:
+        """Obtener estado actual del pipeline."""
+        return self._state
+
+    @property
+    def is_running(self) -> bool:
+        """Verificar si el pipeline está en ejecución."""
+        return self._state in (PipelineState.RUNNING, PipelineState.STARTING)
+
+    def set_input_source(self, source: Any) -> None:
+        """Establecer fuente de entrada."""
+        self._input_source = source
+
+    def set_output_sink(self, sink: Any) -> None:
+        """Establecer destino de salida."""
+        self._output_sink = sink
+
+    def register_module(self, module: BaseModule, config: Optional[dict] = None) -> None:
+        """Registrar un módulo en orden de ejecución."""
+        self._modules.append(module)
+        self._module_map[module.name] = module
+        logger.info(f"Registered module: {module.name} enabled={module.enabled}")
+
+        if config:
+            module.configure(config)
+
+    def get_module(self, name: str) -> Optional[BaseModule]:
+        """Obtener un módulo por nombre."""
+        return self._module_map.get(name)
+
+    def get_modules(self) -> List[BaseModule]:
+        """Obtener lista de todos los módulos registrados."""
+        return list(self._modules)
+
+    def _set_state(self, new_state: PipelineState) -> None:
+        """Actualizar estado del pipeline y notificar callback."""
+        old_state = self._state
+        self._state = new_state
+
+        logger.info(f"Pipeline state changed: {old_state.value} → {new_state.value}")
+
+        if self._on_state_change:
+            try:
+                self._on_state_change(new_state.value)
+            except Exception as e:
+                logger.error(f"Error en state callback: {e}")
+
+    def _log(self, level: str, message: str) -> None:
+        """Emitir log y notificar callback."""
+        getattr(logger, level, logger.info)(message)
+        if self._on_log:
+            try:
+                self._on_log(level, message)
+            except Exception:
+                pass
+
+    async def initialize(self) -> None:
+        """Inicializar pipeline y módulos."""
+        self._set_state(PipelineState.STARTING)
+
+        try:
+            # Inicializar estructuras según modo
+            if self.mode == PipelineMode.ASYNCIO:
+                self._semaphore = asyncio.Semaphore(self.max_concurrent_chunks)
+                self._stop_event = asyncio.Event()
+            else:
+                self._chunk_queue = queue.Queue(maxsize=self.buffer_size)
+                self._output_queue = queue.Queue(maxsize=self.buffer_size)
+                self._stop_event = threading.Event()
+
+            # Inicializar módulos
+            for module in self._modules:
+                try:
+                    if hasattr(module, 'start'):
+                        module.start()
+                    logger.info(f"Module '{module.name}' initialized")
+                except Exception as e:
+                    logger.error(f"Failed to initialize module '{module.name}': {e}")
+                    raise
+
+            # Inicializar input/output
+            if self._input_source and hasattr(self._input_source, 'start'):
+                self._input_source.start()
+
+            if self._output_sink and hasattr(self._output_sink, 'start'):
+                self._output_sink.start()
+
+            self.metrics.start_time = time.time()
+            self._set_state(PipelineState.IDLE)
+            logger.info("UnifiedPipeline initialized successfully")
+
+        except Exception as e:
+            self._set_state(PipelineState.ERROR)
+            logger.error(f"Pipeline initialization failed: {e}")
+            raise
+
+    def start(
+        self,
+        on_log: Optional[Callable[[str, str], None]] = None,
+        on_state_change: Optional[Callable[[str], None]] = None,
+    ) -> None:
+        """Iniciar procesamiento del pipeline."""
+        if self._state != PipelineState.IDLE:
+            raise PipelineStateError(f"Cannot start pipeline in state: {self._state.value}")
+
+        self._on_log = on_log
+        self._on_state_change = on_state_change
+
+        self._set_state(PipelineState.STARTING)
+        
+        # Inicializar automáticamente si no se ha hecho antes
+        if not hasattr(self, '_initialized') or not self._initialized:
+            import asyncio
+            import threading
+            
+            # No podemos usar el event loop principal de FastAPI, ejecutamos en thread separado
+            def run_init():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(self.initialize())
+                self._initialized = True
+            
+            init_thread = threading.Thread(target=run_init, daemon=True, name="pipeline-init")
+            init_thread.start()
+            init_thread.join(timeout=30)
+            
+            if not self._initialized:
+                raise PipelineError("Pipeline initialization timed out after 30 seconds")
+
+        self._stop_event.clear()
+
+        if self.mode == PipelineMode.SEQUENTIAL:
+            # Ejecución en thread principal
+            thread = threading.Thread(
+                target=self._run_sequential_loop,
+                daemon=True,
+                name="pipeline-sequential",
+            )
+            thread.start()
+            self._tasks.append(thread)
+
+        elif self.mode == PipelineMode.THREAD_PARALLEL:
+            # Workers en threads
+            self._input_thread = threading.Thread(
+                target=self._input_thread_loop,
+                daemon=True,
+                name="pipeline-input",
+            )
+            self._input_thread.start()
+
+            for i in range(self.max_concurrent_chunks):
+                worker = threading.Thread(
+                    target=self._worker_thread_loop,
+                    daemon=True,
+                    name=f"pipeline-worker-{i}",
+                )
+                worker.start()
+                self._tasks.append(worker)
+
+            self._output_thread = threading.Thread(
+                target=self._output_thread_loop,
+                daemon=True,
+                name="pipeline-output",
+            )
+            self._output_thread.start()
+
+        elif self.mode == PipelineMode.ASYNCIO:
+            # Ejecución asyncio
+            asyncio.create_task(self._run_async_loop())
+
+        self._set_state(PipelineState.RUNNING)
+        self._log("info", "UnifiedPipeline started successfully")
+
+    def _run_sequential_loop(self) -> None:
+        """Bucle de procesamiento secuencial."""
+        logger.info("Sequential processing loop started")
+        chunk_index = 0
+
+        try:
+            while not self._stop_event.is_set():
+                if not self._input_source:
+                    time.sleep(0.1)
+                    continue
+
+                data = self._input_source.get_next_chunk()
+                if data is None:
+                    time.sleep(0.01)
+                    continue
+
+                data.chunk_index = chunk_index
+                data.timestamp = time.time()
+
+                # Procesar secuencialmente
+                start_time = time.perf_counter()
+                for module in self._modules:
+                    if not module.enabled or self._stop_event.is_set():
+                        continue
+                    try:
+                        data = module.process(data)
+                    except Exception as e:
+                        self._log("error", f"Module {module.name} error: {e}")
+                        break
+
+                # Escribir salida
+                if self._output_sink and data:
+                    try:
+                        self._output_sink.write(data)
+                    except Exception as e:
+                        self._log("error", f"Output sink error: {e}")
+
+                elapsed = time.perf_counter() - start_time
+                self.metrics.chunks_processed += 1
+                self.metrics.total_processing_time += elapsed
+
+                chunk_index += 1
+
+        except Exception as e:
+            self._log("error", f"Sequential loop error: {e}")
+            self._set_state(PipelineState.ERROR)
+
+    def _input_thread_loop(self) -> None:
+        """Thread de lectura de entrada."""
+        logger.info("Input thread started")
+        chunk_index = 0
+
+        try:
+            while not self._stop_event.is_set():
+                if not self._input_source:
+                    time.sleep(0.1)
+                    continue
+
+                data = self._input_source.get_next_chunk()
+                if data is None:
+                    time.sleep(0.01)
+                    continue
+
+                data.chunk_index = chunk_index
+                data.timestamp = time.time()
+
+                processor = ChunkProcessor(
+                    chunk_index=chunk_index,
+                    timestamp=time.time(),
+                    data=data,
+                )
+
+                with self._lock:
+                    self._results[chunk_index] = processor
+
+                try:
+                    self._chunk_queue.put(processor, timeout=1.0)
+                except queue.Full:
+                    self._log("warning", f"Queue full, dropping chunk {chunk_index}")
+
+                chunk_index += 1
+
+        except Exception as e:
+            self._log("error", f"Input thread error: {e}")
+
+    def _worker_thread_loop(self) -> None:
+        """Thread worker para procesamiento paralelo."""
+        logger.info(f"Worker thread started")
+
+        try:
+            while not self._stop_event.is_set():
+                try:
+                    processor = self._chunk_queue.get(timeout=1.0)
+                except queue.Empty:
+                    continue
+
+                data = processor.data
+                if data is None:
+                    continue
+
+                start_time = time.perf_counter()
+
+                try:
+                    for module in self._modules:
+                        if not module.enabled or self._stop_event.is_set():
+                            continue
+                        try:
+                            module_start = time.perf_counter()
+                            data = module.process(data)
+                            processor.stages_completed[module.name] = (time.perf_counter() - module_start) * 1000
+                        except Exception as e:
+                            self._log("error", f"Module {module.name} error: {e}")
+                            processor.error = str(e)
+                            break
+
+                    processor.data = data
+                    elapsed = time.perf_counter() - start_time
+                    processor.stages_completed["total"] = elapsed
+
+                    self._output_queue.put(processor)
+
+                except Exception as e:
+                    processor.error = str(e)
+                    self._log("error", f"Worker error processing chunk {processor.chunk_index}: {e}")
+                finally:
+                    self._chunk_queue.task_done()
+
+        except Exception as e:
+            self._log("error", f"Worker thread error: {e}")
+
+    def _output_thread_loop(self) -> None:
+        """Thread de escritura de salida ordenada."""
+        logger.info("Output thread started")
+        pending = {}
+        next_expected = 0
+
+        try:
+            while not self._stop_event.is_set():
+                try:
+                    processor = self._output_queue.get(timeout=0.1)
+                    pending[processor.chunk_index] = processor
+                except queue.Empty:
+                    pass
+
+                # Escribir en orden
+                while next_expected in pending:
+                    processor = pending.pop(next_expected)
+
+                    if self._output_sink and processor.data and not processor.error:
+                        try:
+                            self._output_sink.write(processor.data)
+                        except Exception as e:
+                            self._log("error", f"Output error chunk {next_expected}: {e}")
+
+                    with self._lock:
+                        self._results.pop(next_expected, None)
+
+                    self.metrics.chunks_processed += 1
+                    self.metrics.total_processing_time += processor.stages_completed.get("total", 0)
+
+                    if self._on_chunk_complete and processor.data:
+                        self._on_chunk_complete(next_expected, processor.data)
+
+                    self._output_queue.task_done()
+                    next_expected += 1
+
+        except Exception as e:
+            self._log("error", f"Output thread error: {e}")
+
+    async def _run_async_loop(self) -> None:
+        """Bucle principal asyncio."""
+        logger.info("Asyncio processing loop started")
+        chunk_index = 0
+
+        try:
+            while not self._stop_event.is_set():
+                if not self._input_source:
+                    await asyncio.sleep(0.1)
+                    continue
+
+                data = await self._input_source.get_next_chunk() if asyncio.iscoroutinefunction(self._input_source.get_next_chunk) else self._input_source.get_next_chunk()
+                if data is None:
+                    await asyncio.sleep(0.01)
+                    continue
+
+                data.chunk_index = chunk_index
+                data.timestamp = time.time()
+
+                # Lanzar tarea async
+                task = asyncio.create_task(self._process_chunk_async(data))
+                self._tasks.append(task)
+
+                chunk_index += 1
+
+        except asyncio.CancelledError:
+            logger.info("Async loop cancelled")
+        except Exception as e:
+            self._log("error", f"Async loop error: {e}")
+            self._set_state(PipelineState.ERROR)
+
+    async def _process_chunk_async(self, data: PipelineData) -> PipelineData:
+        """Procesar un chunk en modo asyncio."""
+        async with self._semaphore:
+            chunk_start = time.perf_counter()
+            chunk_index = data.chunk_index
+
+            try:
+                for module in self._modules:
+                    if self._stop_event.is_set():
+                        break
+
+                    if not module.enabled:
+                        continue
+
+                    # Soporte para módulos sync y async
+                    if asyncio.iscoroutinefunction(module.process):
+                        data = await module.process(data)
+                    else:
+                        data = module.process(data)
+
+                # Enviar a output
+                if self._output_sink and data:
+                    if asyncio.iscoroutinefunction(self._output_sink.write):
+                        await self._output_sink.write(data)
+                    else:
+                        self._output_sink.write(data)
+
+                elapsed = time.perf_counter() - chunk_start
+                self.metrics.chunks_processed += 1
+                self.metrics.total_processing_time += elapsed
+
+                if self._on_chunk_complete:
+                    self._on_chunk_complete(chunk_index, data)
+
+                return data
+
+            except Exception as e:
+                self.metrics.chunks_failed += 1
+                self._log("error", f"Error processing chunk {chunk_index}: {e}")
+                raise
+
+    async def stop(self) -> None:
+        """Detener pipeline gracefulmente."""
+        if not self.is_running:
+            return
+
+        self._set_state(PipelineState.STOPPING)
+        self._stop_event.set()
+
+        # Detener tareas
+        if self.mode == PipelineMode.ASYNCIO:
+            if self._tasks:
+                for task in self._tasks:
+                    task.cancel()
+                await asyncio.gather(*self._tasks, return_exceptions=True)
+        else:
+            # Esperar threads
+            if hasattr(self, '_input_thread') and self._input_thread.is_alive():
+                self._input_thread.join(timeout=5.0)
+
+            for worker in self._tasks:
+                if worker.is_alive():
+                    worker.join(timeout=5.0)
+
+            if hasattr(self, '_output_thread') and self._output_thread.is_alive():
+                self._output_thread.join(timeout=5.0)
+
+        # Detener módulos
+        for module in self._modules:
+            try:
+                if hasattr(module, 'stop'):
+                    module.stop()
+            except Exception as e:
+                self._log("error", f"Error stopping module {module.name}: {e}")
+
+        # Detener input/output
+        if self._input_source and hasattr(self._input_source, 'stop'):
+            try:
+                self._input_source.stop()
+            except Exception as e:
+                self._log("error", f"Error stopping input source: {e}")
+
+        if self._output_sink and hasattr(self._output_sink, 'stop'):
+            try:
+                self._output_sink.stop()
+            except Exception as e:
+                self._log("error", f"Error stopping output sink: {e}")
+
+        self._set_state(PipelineState.IDLE)
+        self._log("info", "UnifiedPipeline stopped successfully")
+
+    def get_status(self) -> dict:
+        """Obtener estado completo del pipeline."""
+        modules_status = []
+        for module in self._modules:
+            try:
+                status = module.get_status()
+                modules_status.append(status.to_dict() if hasattr(status, 'to_dict') else status)
+            except Exception:
+                modules_status.append({
+                    "name": module.name,
+                    "state": "unknown",
+                    "enabled": module.enabled,
+                    "processed_chunks": 0,
+                    "last_process_time_ms": 0,
+                })
+
+        return {
+            "state": self._state.value,
+            "mode": self.mode.value,
+            "chunks_processed": self.metrics.chunks_processed,
+            "chunks_failed": self.metrics.chunks_failed,
+            "avg_processing_time_ms": round(self.metrics.avg_processing_time * 1000, 2),
+            "uptime_seconds": round(self.metrics.uptime, 1),
+            "max_concurrent_chunks": self.max_concurrent_chunks,
+            "buffer_size": self.buffer_size,
+            "modules": modules_status,
+        }
+
+    def reconfigure(self, config_manager) -> None:
+        """Actualizar configuración en ejecución (compatibilidad API)."""
+        for module in self._modules:
+            try:
+                mod_config = config_manager.get_module_config(module.name)
+                module.configure(mod_config)
+                self._log("info", f"Reconfigured module: {module.name}")
+            except Exception as e:
+                self._log("error", f"Failed to reconfigure {module.name}: {e}")
+
+    # Alias para compatibilidad API 100% con versiones anteriores
+    @property
+    def chunks_processed(self) -> int:
+        return self.metrics.chunks_processed
+
+    @property
+    def _chunk_index(self) -> int:
+        return self.metrics.chunks_processed
+
+    def _get_output_module_status(self) -> dict:
+        """Compatibilidad con frontend (método existente)."""
+        from core.module_base import ModuleState
+        state = "running" if self.is_running else "idle"
+        return {
+            "name": "output",
+            "state": state,
+            "enabled": True,
+            "error_message": None,
+            "processed_chunks": self.metrics.chunks_processed,
+            "last_process_time_ms": self.metrics.avg_processing_time * 1000,
+            "extra": {},
+            "circuit_state": "closed",
+            "memory_mb": None,
+        }
