@@ -123,10 +123,29 @@ if "%ONNX_STATUS%"=="CUDA" (
 )
 
 REM =============================================
-REM 5. Descargar modelos de Whisper
+REM 5. Instalar aiortc para WebRTC
 REM =============================================
 echo.
-echo [5/7] Modelos Whisper...
+echo [5/8] aiortc para WebRTC...
+
+%PYTHON% -c "import aiortc" >nul 2>&1
+if %errorlevel% equ 0 (
+    echo  [OK] aiortc ya instalado.
+) else (
+    echo  [INFO] Instalando aiortc para WebRTC...
+    %PYTHON% -m pip install aiortc --quiet 2>nul
+    if %errorlevel% equ 0 (
+        echo  [OK] aiortc instalado.
+    ) else (
+        echo  [WARNING] No se pudo instalar aiortc. WebRTC no disponible.
+    )
+)
+
+REM =============================================
+REM 6. Descargar modelos de Whisper
+REM =============================================
+echo.
+echo [6/8] Modelos Whisper...
 
 if not exist ".cache\srt2web\whisper\models--Systran--faster-whisper-tiny" (
     echo  [INFO] Descargando modelo Whisper tiny...
@@ -141,10 +160,10 @@ if not exist ".cache\srt2web\whisper\models--Systran--faster-whisper-tiny" (
 )
 
 REM =============================================
-REM 6. Verificar/Descargar FFmpeg con NVENC
+REM 7. Verificar/Descargar FFmpeg con NVENC
 REM =============================================
 echo.
-echo [6/6] FFmpeg con NVENC...
+echo [7/8] FFmpeg con NVENC...
 
 if exist "bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" (
     echo  [OK] FFmpeg ya existe.
@@ -183,10 +202,10 @@ if exist "bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" (
 )
 
 REM =============================================
-REM 7. Verificar voces Piper
+REM 8. Verificar/Descargar voces Piper
 REM =============================================
 echo.
-echo [7/7] Voces Piper...
+echo [8/8] Voces Piper...
 
 if not exist "models\piper" mkdir models\piper
 

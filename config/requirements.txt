@@ -20,5 +20,8 @@ piper-tts>=1.2.0
 # Ejemplo instalación: pip install nvidia-cudnn-cu11==8.9.4.25
 onnxruntime-gpu>=1.19.0
 
+# WebRTC Support
+aiortc>=1.14.0
+
 # TTS Engines
 edge-tts>=6.1.0

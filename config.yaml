@@ -62,7 +62,7 @@ output:
     save_subtitles: true
     path: ./output
 pipeline:
-  chunk_duration_sec: 5  # Optimized for lower latency
+  chunk_duration_sec: 5
 modules:
   audio_extractor:
     enabled: true
@@ -93,12 +93,12 @@ modules:
     dubbed_volume: 1
   video_muxer:
     enabled: true
-    hls_segment_duration: 5
+    hls_segment_duration: 10
     audio_offset_ms: 0
-    encoder_mode: auto
+    encoder_mode: gpu_nvenc
     hls_list_size: 6
-    video_quality: fast  # Optimized for speed
-    video_crf: 28  # Slightly lower quality for faster encoding
+    video_quality: medium
+    video_crf: 28
     audio_codec: aac
     audio_bitrate: 64k
     audio_samplerate: '48000'
@@ -111,7 +111,7 @@ modules:
     video_height: 1080
     webrtc_audio_codec: opus
     webrtc_audio_bitrate: 32k
-    gpu_preset: p7  # Faster GPU preset (was p3)
-    video_preset: fast  # Faster CPU preset
+    gpu_preset: p7
+    video_preset: fast
 output_dir:
   directory: ./output

@@ -70,7 +70,7 @@ PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.config_manager import ConfigManager
-from core.pipeline import Pipeline
+from core.async_pipeline import AsyncPipeline
 from core.ffmpeg_utils import find_ffmpeg, ensure_ffmpeg
 from core.io_factory import InputFactory, OutputFactory, auto_discover
 from modules.audio_extractor import AudioExtractor
@@ -273,8 +273,12 @@ def build_pipeline(config: ConfigManager, output_dir: str):
     output_sink = OutputFactory.create(output_type, type_config)
     output_sink.set_output_dir(output_dir)
 
-    # Create pipeline with input/output
-    pipeline = Pipeline(input_source, output_sink)
+    # Create async pipeline with parallel processing
+    # buffer_size=5: keeps 5 chunks in flight for maximum throughput
+    # num_workers=3: 3 worker threads for parallel processing
+    pipeline = AsyncPipeline(buffer_size=5, num_workers=3)
+    pipeline.set_input_source(input_source)
+    pipeline.set_output_sink(output_sink)
 
     # Register processing modules (Execution Order Matters!)
 
@@ -298,19 +302,20 @@ def build_pipeline(config: ConfigManager, output_dir: str):
     # 4. Generate subtitles
     subs_config = config.get_module_config("subtitle_generator")
     subtitle_generator = SubtitleGenerator(config=subs_config, output_dir=output_dir)
-    pipeline.register_module(subtitle_generator, subs_config)
+    pipeline.register_module(subtitle_generator)
 
     # 5. Generate Text-to-Speech audio
     tts_config = config.get_module_config("tts_engine")
     tts_engine = TTSEngine(config=tts_config, output_dir=output_dir)
-    pipeline.register_module(tts_engine, tts_config)
+    pipeline.register_module(tts_engine)
 
     # 6. Mix original audio with TTS audio (ducking)
     mixer_config = config.get_module_config("audio_mixer")
     audio_mixer = AudioMixer(config=mixer_config, output_dir=output_dir)
-    pipeline.register_module(audio_mixer, mixer_config)
+    pipeline.register_module(audio_mixer)
 
-    # Note: Output (HLS muxing) is handled by OutputSink, not a pipeline module
+    logger.info(f"Async pipeline created: buffer_size=5, num_workers=3")
+    logger.info("Parallel processing enabled - expected 3-4x throughput improvement")
 
     return pipeline, input_source
 
