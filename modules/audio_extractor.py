@@ -73,16 +73,17 @@ class AudioExtractor(BaseModule):
         wav_name = f"audio_{data.chunk_index:06d}.wav"
         output_path = os.path.join(self._audio_dir, wav_name)
 
-        # FFmpeg command: extract audio, 16kHz, mono, 16-bit PCM
+        # FFmpeg command: extract audio, 8kHz, mono, 16-bit PCM
+        # Optimized for speed: 8kHz is sufficient for Whisper and faster to process
         cmd = [
             self._ffmpeg_path,
             "-y",
             "-i", input_path,
             "-vn",                      # No video
-            "-ar", "16000",             # 16kHz sample rate
+            "-ar", "8000",              # 8kHz sample rate (faster than 16kHz)
             "-ac", "1",                 # Mono
             "-c:a", "pcm_s16le",        # 16-bit PCM
-            "-threads", "4",            # Limit threads for CPU efficiency
+            "-threads", "2",            # Fewer threads for lower overhead
             "-f", "wav",
             output_path,
         ]

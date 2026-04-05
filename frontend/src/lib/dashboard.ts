@@ -19,6 +19,7 @@ export const moduleToCard: Record<string, string> = {
   subtitle_generator: 'card-subtitle',
   audio_mixer: 'card-audio-mixer',
   video_muxer: 'card-video-muxer',
+  output: 'card-video-muxer', // OutputSink se muestra como video_muxer
   webplayer_output: 'card-output',
   srt_output: 'card-output',
   rtmp_output: 'card-output',
@@ -36,6 +37,7 @@ export const moduleToIndicator: Record<string, string> = {
   subtitle_generator: 'indicator-subtitle',
   audio_mixer: 'indicator-audio-mixer',
   video_muxer: 'indicator-video-muxer',
+  output: 'indicator-video-muxer', // OutputSink se muestra como video_muxer
   webplayer_output: 'indicator-output',
   srt_output: 'indicator-output',
   rtmp_output: 'indicator-output',
@@ -355,7 +357,7 @@ export function updateModulePerformanceMetrics(modules: any[]): void {
         }
       }
 
-      if (module.name === 'video_muxer') {
+      if (module.name === 'video_muxer' || module.name === 'output') {
         const gpuBadge = document.getElementById('hls-gpu-badge');
         const encoderEl = document.getElementById('module-encoder-video_muxer');
         if (gpuBadge) {
