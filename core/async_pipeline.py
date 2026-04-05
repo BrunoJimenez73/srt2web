@@ -370,6 +370,11 @@ class AsyncPipeline:
             except Exception as e:
                 self._log("error", f"Output loop error: {e}")
 
+    @property
+    def state(self) -> str:
+        """Get current pipeline state as string."""
+        return "running" if self._running else "idle"
+
     def get_status(self) -> dict:
         """Get pipeline status."""
         return {
