@@ -496,15 +496,19 @@ class Pipeline:
                 else "p3"
             )
 
+        # Get output-specific metrics
+        output_processed_chunks = getattr(self._output_sink, '_segment_index', 0) if self._output_sink else 0
+        output_last_process_time_ms = getattr(self._output_sink, '_last_process_time_ms', 0.0) if self._output_sink else 0.0
+
         return {
-            "name": "video_muxer",
+            "name": "output",
             "state": state,
             "enabled": True,
             "error_message": self._error_message
             if self._state == PipelineState.ERROR
             else None,
-            "processed_chunks": self._chunk_index,
-            "last_process_time_ms": getattr(self._output_sink, '_last_process_time_ms', 0.0) if self._output_sink else 0.0,
+            "processed_chunks": output_processed_chunks,
+            "last_process_time_ms": output_last_process_time_ms,
             "extra": extra,
             "circuit_state": "closed",
             "memory_mb": None,

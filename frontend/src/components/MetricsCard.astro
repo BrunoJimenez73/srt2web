@@ -103,14 +103,14 @@ const { title = 'System Metrics' } = Astro.props;
   }
 
   .metric-item {
-    background: var(--bg-surface);
+    background: var(--bg-card) !important;
     border-radius: var(--radius-sm);
-    padding: 10px;
+    padding: 10px !important;
     transition: all 0.3s ease;
   }
 
   .metric-item:hover {
-    background: var(--bg-card-hover);
+    background: var(--bg-card-hover) !important;
   }
 
   .metric-info {
@@ -145,6 +145,7 @@ const { title = 'System Metrics' } = Astro.props;
     border-radius: 3px;
     transition: width 0.5s ease, background-color 0.3s ease;
     position: relative;
+    min-width: 4px;
   }
 
   .metric-bar::after {
@@ -154,8 +155,8 @@ const { title = 'System Metrics' } = Astro.props;
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%);
-    animation: shimmer 2s infinite;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
+    animation: shimmer 3s ease-in-out infinite;
   }
 
   @keyframes shimmer {

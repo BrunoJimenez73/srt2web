@@ -3,6 +3,11 @@ import { getSRTUrl, getStreamUrl, getPlayerUrl, isLocalhost, copyToClipboard, sh
 import { ENCODER_LABELS } from './utils';
 import type { Config, Status, LogMessage, ModuleName } from './types';
 
+// Import toast from modules
+function showNotification(message: string, type: 'success' | 'error' | 'info' = 'info'): void {
+  showToast(message, type);
+}
+
 export const moduleToCard: Record<string, string> = {
   srt_input: 'card-input',
   rtmp_input: 'card-input',
@@ -89,6 +94,19 @@ export function updateUrls(localIp?: string): void {
     const playerUrl = getPlayerUrl(config);
     urlPlayer.textContent = playerUrl;
     urlPlayer.href = playerUrl;
+  }
+  
+  // Also update the player URL in OutputCard based on engine mode
+  const outputPlayerDisplay = document.getElementById('url-player-display');
+  if (outputPlayerDisplay) {
+    const engine = config.modules.video_muxer?.engine || 'hls';
+    if (engine === 'webrtc') {
+      // WebRTC player URL
+      outputPlayerDisplay.textContent = `${window.location.origin}/webrtc-player`;
+    } else {
+      // HLS player URL
+      outputPlayerDisplay.textContent = getPlayerUrl(config);
+    }
   }
 }
 
@@ -243,6 +261,7 @@ export function updateSystemMetrics(status: Status): void {
 
 export function updateModulePerformanceMetrics(modules: any[]): void {
   modules.forEach(module => {
+    // Update main module metrics
     const timeEl = document.getElementById(`module-time-${module.name}`);
     if (timeEl) {
       if (!module.enabled) {
@@ -486,8 +505,8 @@ export function applyConfigToUI(cfg: Config): void {
   if (webrtcVideoFPS && cfg.modules.video_muxer.video_fps) {
     webrtcVideoFPS.value = String(cfg.modules.video_muxer.video_fps);
   }
-  if (webrtcAudioCodec) webrtcAudioCodec.value = cfg.modules.video_muxer.audio_codec || 'opus';
-  if (webrtcAudioBitrate) webrtcAudioBitrate.value = cfg.modules.video_muxer.audio_bitrate || '64k';
+  if (webrtcAudioCodec) webrtcAudioCodec.value = cfg.modules.video_muxer.webrtc_audio_codec || cfg.modules.video_muxer.audio_codec || 'opus';
+  if (webrtcAudioBitrate) webrtcAudioBitrate.value = cfg.modules.video_muxer.webrtc_audio_bitrate || cfg.modules.video_muxer.audio_bitrate || '64k';
   if (webrtcAudioSampleRate && cfg.modules.video_muxer.audio_sample_rate) {
     webrtcAudioSampleRate.value = String(cfg.modules.video_muxer.audio_sample_rate);
   }
@@ -662,6 +681,8 @@ export function collectConfigFromUI(): Partial<Config> {
         audio_sample_rate: (document.getElementById('webrtc-audio-sample-rate') as HTMLSelectElement)
           ? parseInt((document.getElementById('webrtc-audio-sample-rate') as HTMLSelectElement).value)
           : undefined,
+        webrtc_audio_codec: (document.getElementById('webrtc-audio-codec') as HTMLSelectElement)?.value,
+        webrtc_audio_bitrate: (document.getElementById('webrtc-audio-bitrate') as HTMLSelectElement)?.value,
         // Parse resolution from webrtc-video-resolution (format: "WIDTHxHEIGHT")
         ...((): { video_width?: number; video_height?: number } => {
           const resEl = document.getElementById('webrtc-video-resolution') as HTMLSelectElement;
@@ -748,5 +769,62 @@ export function init(): void {
 (window as unknown as { toggleModule: typeof toggleModule }).toggleModule = toggleModule;
 (window as unknown as { updateInputFields: typeof updateInputFields }).updateInputFields = updateInputFields;
 (window as unknown as { updateOutputFields: typeof updateOutputFields }).updateOutputFields = updateOutputFields;
+
+// Copy URL functionality
+function setupCopyButtons(): void {
+  // SRT URL copy button
+  document.getElementById('btn-copy-srt')?.addEventListener('click', () => {
+    const urlEl = document.getElementById('url-srt');
+    if (urlEl && urlEl.textContent) {
+      copyToClipboard(urlEl.textContent).then(() => {
+        showNotification('URL SRT copiada', 'success');
+      }).catch(() => {
+        showNotification('Error al copiar URL', 'error');
+      });
+    }
+  });
+
+  // Stream URL copy button
+  document.getElementById('btn-copy-stream')?.addEventListener('click', () => {
+    const urlEl = document.getElementById('url-stream');
+    if (urlEl && urlEl.textContent) {
+      copyToClipboard(urlEl.textContent).then(() => {
+        showNotification('URL del stream copiada', 'success');
+      }).catch(() => {
+        showNotification('Error al copiar URL', 'error');
+      });
+    }
+  });
+
+  // Player URL copy button
+  document.getElementById('btn-copy-player')?.addEventListener('click', () => {
+    const urlEl = document.getElementById('url-player');
+    if (urlEl) {
+      const url = urlEl.getAttribute('href') || urlEl.textContent;
+      if (url) {
+        copyToClipboard(url).then(() => {
+          showNotification('URL del player copiada', 'success');
+        }).catch(() => {
+          showNotification('Error al copiar URL', 'error');
+        });
+      }
+    }
+  });
+}
+
+// Override init to include copy buttons setup
+const originalInit = init;
+init = function() {
+  setupEventListeners();
+  setupCopyButtons();
+  initDashboard();
+
+  setInterval(() => {
+    const clock = document.getElementById('live-clock');
+    if (clock) {
+      clock.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+    }
+  }, 1000);
+};
 
 document.addEventListener('DOMContentLoaded', init);

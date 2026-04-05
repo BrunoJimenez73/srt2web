@@ -216,7 +216,19 @@ export function initHlsPlayer(): void {
     stopSubtitlePolling();
   });
 
-  connect();
+  // Wait for HLS library to be loaded before connecting
+  function waitForHlsAndConnect(): void {
+    // Check if HLS script has loaded
+    if (typeof Hls === 'undefined') {
+      console.log('Waiting for HLS library to load...');
+      setTimeout(waitForHlsAndConnect, 100);
+      return;
+    }
+    connect();
+  }
+
+  // Start connection after HLS is ready
+  waitForHlsAndConnect();
 }
 
 declare global {

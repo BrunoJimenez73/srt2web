@@ -1,0 +1,119 @@
+
+===============================================
+           INICIANDO SRT2Web
+===============================================
+
+[INFO] Puerto del servidor: 1935
+
+[OK] FFmpeg encontrado.
+[OK] NVENC disponible (video GPU)
+
+GPU: No disponible
+ONNX: CPU
+
+[OK] Iniciando servidor...
+[INFO] Dashboard: http://localhost:1935
+[INFO] API: http://localhost:1935/docs
+
+[INFO] Iniciando servidor en esta consola...
+[INFO] Para detener: Ctrl+C
+
+20:13:53 │ INFO  │ srt2web.main │ Logging to file: C:\Users\bruno\Documents\programacion\Antigravity\srt2web\logs\srt2web.log
+20:13:53 │ INFO  │ srt2web.config │ Configuration loaded from C:\Users\bruno\Documents\programacion\Antigravity\srt2web\config.yaml
+20:13:55 │ INFO  │ srt2web.config │ faster-whisper disponible
+20:13:55 │ INFO  │ srt2web.config │ Argos Translate disponible
+20:13:55 │ INFO  │ srt2web.config │ Edge TTS disponible
+20:13:55 │ INFO  │ srt2web.config │ Configuración validada exitosamente
+20:13:55 │ INFO  │ srt2web.main │ Configuration loaded and validated
+20:13:55 │ INFO  │ srt2web.main │ Checking FFmpeg availability...
+20:13:55 │ INFO  │ srt2web.ffmpeg │ Found FFmpeg in project bin: C:\Users\bruno\Documents\programacion\Antigravity\srt2web\bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe
+20:13:55 │ INFO  │ srt2web.main │ ✓ FFmpeg found: C:\Users\bruno\Documents\programacion\Antigravity\srt2web\bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe
+20:13:55 │ INFO  │ srt2web.factory │ Registered input source: srt
+20:13:55 │ INFO  │ srt2web.factory │ Registered input source: file
+20:13:55 │ INFO  │ srt2web.factory │ Registered input source: srt
+20:13:55 │ INFO  │ srt2web.factory │ Registered input source: file
+20:13:55 │ INFO  │ srt2web.factory │ Registered input source: rtmp
+20:13:55 │ INFO  │ srt2web.factory │ Registered output sink: web
+20:13:55 │ INFO  │ srt2web.factory │ Registered output sink: hls
+20:13:55 │ INFO  │ srt2web.factory │ Registered output sink: file
+20:13:55 │ INFO  │ srt2web.factory │ Registered output sink: srt
+20:13:55 │ INFO  │ srt2web.factory │ Registered output sink: hls
+20:13:55 │ INFO  │ srt2web.factory │ Registered output sink: rtmp
+20:13:55 │ INFO  │ srt2web.factory │ Registered output sink: file
+20:13:55 │ INFO  │ srt2web.factory │ Registered output sink: srt
+20:13:55 │ INFO  │ srt2web.factory │ Registered output sink: video_muxer
+20:13:55 │ INFO  │ srt2web.factory │ Registered output sink: web
+20:13:55 │ INFO  │ srt2web.factory │ Registered output sink: hls
+20:13:55 │ INFO  │ srt2web.factory │ Available inputs: ['srt', 'file', 'rtmp']
+20:13:55 │ INFO  │ srt2web.factory │ Available outputs: ['web', 'hls', 'file', 'srt', 'rtmp', 'video_muxer']
+20:13:55 │ INFO  │ srt2web.main │ Creating input source: srt
+20:13:55 │ INFO  │ srt2web.main │ Creating output sink: web
+20:13:55 │ INFO  │ srt2web.output.web │ HLS output reconfigured: segment=10s, list_size=2, encoder_mode=auto, video_preset=medium
+20:13:55 │ INFO  │ srt2web.output.video_muxer │ VideoMuxer configured with engine: hls
+20:13:55 │ INFO  │ srt2web.pipeline │ Registered module: audio_extractor (enabled=True)
+20:13:55 │ INFO  │ srt2web.pipeline │ Registered module: transcriber (enabled=True)
+20:13:55 │ INFO  │ srt2web.pipeline │ Registered module: translator (enabled=True)
+20:13:55 │ INFO  │ srt2web.pipeline │ Registered module: subtitle_generator (enabled=True)
+20:13:55 │ INFO  │ srt2web.module.tts_engine │ [Piper] Voice changed from en-US-AriaNeural to es_MX-claude-high, will reload lazily
+20:13:55 │ INFO  │ srt2web.module.tts_engine │ TTS configured: voice=es_MX-claude-high, speed=1.4, engine=piper, device=auto
+20:13:55 │ INFO  │ srt2web.pipeline │ Registered module: tts_engine (enabled=True)
+20:13:55 │ INFO  │ srt2web.pipeline │ Registered module: audio_mixer (enabled=True)
+20:13:55 │ INFO  │ srt2web.main │ Dashboard: http://localhost:8080
+20:13:55 │ INFO  │ srt2web.main │ Input:    SRT (srt://0.0.0.0:9000?mode=listener&latency=200000)
+20:13:55 │ INFO  │ srt2web.main │ Stream:   http://localhost:8080/hls/stream.m3u8
+INFO:     Started server process [164732]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8080 (Press CTRL+C to quit)
+20:13:57 │ INFO  │ srt2web.main │ Opening browser at http://localhost:8080
+
+  +====================================+
+  |      SRT2Web - Stream Processor   |
+  |         v0.4.0 - Modular          |
+  +====================================+
+
+
+INFO:     127.0.0.1:50613 - "GET / HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:50613 - "GET /_astro/index%40_%40astro.OKP-_C2S.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:50613 - "GET /_astro/Header.astro_astro_type_script_index_0_lang.BhO8yHwD.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:50613 - "GET /_astro/LogPanel.astro_astro_type_script_index_0_lang.D-GXH6Ft.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:50613 - "GET /_astro/index.astro_astro_type_script_index_0_lang.CQuokpUn.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:50613 - "GET /_astro/api.PsOMAuV8.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:50613 - "GET /_astro/index._YAOS0KV.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:50613 - "GET /api/config HTTP/1.1" 200 OK
+20:13:58 │ INFO  │ srt2web.network │ Public IP detected: 47.63.70.209
+INFO:     127.0.0.1:50613 - "GET /api/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62194 - "GET / HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:62194 - "GET /_astro/index%40_%40astro.OKP-_C2S.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:62194 - "GET /_astro/Header.astro_astro_type_script_index_0_lang.BhO8yHwD.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:62194 - "GET /_astro/LogPanel.astro_astro_type_script_index_0_lang.D-GXH6Ft.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:62194 - "GET /_astro/index.astro_astro_type_script_index_0_lang.CQuokpUn.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:62194 - "GET /_astro/api.PsOMAuV8.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:62194 - "GET /_astro/index._YAOS0KV.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:62194 - "GET /api/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62194 - "GET /api/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62194 - "GET / HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:62194 - "GET /api/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62194 - "GET /api/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54876 - "GET / HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:54876 - "GET /_astro/index%40_%40astro.OKP-_C2S.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:54876 - "GET /_astro/Header.astro_astro_type_script_index_0_lang.BhO8yHwD.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:54876 - "GET /_astro/LogPanel.astro_astro_type_script_index_0_lang.D-GXH6Ft.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:54876 - "GET /_astro/index.astro_astro_type_script_index_0_lang.CQuokpUn.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:54876 - "GET /_astro/api.PsOMAuV8.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:54876 - "GET /_astro/index._YAOS0KV.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:54876 - "GET /api/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54876 - "GET /api/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59939 - "GET / HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:59939 - "GET /api/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59939 - "GET /api/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55901 - "GET / HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55901 - "GET /api/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55901 - "GET /api/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55901 - "GET / HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55901 - "GET /api/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55901 - "GET /api/status HTTP/1.1" 200 OK
+
+===============================================
+           SERVIDOR DETENIDO
+===============================================
