@@ -292,6 +292,29 @@ export function updateModulePerformanceMetrics(modules: any[]): void {
     videoMuxerChunksEl.textContent = String(status.chunks_processed ?? 0);
   }
 
+  // Update output metrics (output is also an OutputSink)
+  const outputTimeEl = document.getElementById('module-time-output');
+  const outputChunksEl = document.getElementById('module-chunks-output');
+  const outputFormatEl = document.getElementById('module-format-output');
+  if (outputTimeEl && status) {
+    if (status.state === 'running' && throughputHistory.length > 0) {
+      const avgThroughput = throughputHistory.reduce((a, b) => a + b, 0) / throughputHistory.length;
+      const avgTimeMs = avgThroughput > 0 ? (1000 / avgThroughput).toFixed(0) : '--';
+      outputTimeEl.textContent = `${avgTimeMs}ms`;
+      outputTimeEl.style.color = 'var(--success)';
+    } else {
+      outputTimeEl.textContent = 'IDLE';
+      outputTimeEl.style.color = 'var(--text-sec)';
+    }
+  }
+  if (outputChunksEl && status) {
+    outputChunksEl.textContent = String(status.chunks_processed ?? 0);
+  }
+  if (outputFormatEl && config) {
+    const outputType = config.output?.type === 'web' ? 'Web' : (config.output?.type || 'Web').toUpperCase();
+    outputFormatEl.textContent = outputType;
+  }
+
   modules.forEach(module => {
     // Update main module metrics
     const timeEl = document.getElementById(`module-time-${module.name}`);
