@@ -109,14 +109,19 @@ class AudioExtractor(BaseModule):
         ])
 
         try:
+            # Optimized subprocess call:
+            # - Timeout reduced to 5s (chunks are short)
+            # - BELOW_NORMAL_PRIORITY_CLASS on Windows for better GPU utilization
+            creationflags = 0
+            if sys.platform == "win32":
+                creationflags = subprocess.CREATE_NO_WINDOW | subprocess.BELOW_NORMAL_PRIORITY_CLASS
+            
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=10,
-                creationflags=(
-                    subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-                ),
+                timeout=5,  # Reduced from 10s
+                creationflags=creationflags,
             )
             if result.returncode != 0:
                 logger.error(f"FFmpeg audio extraction error: {result.stderr[-500:]}")
@@ -127,7 +132,7 @@ class AudioExtractor(BaseModule):
                 self.logger.debug(f"Extracted audio for chunk {data.chunk_index}")
 
         except subprocess.TimeoutExpired:
-            logger.error("FFmpeg audio extraction timed out")
+            logger.error("FFmpeg audio extraction timed out after 5s")
         except Exception as e:
             logger.error(f"FFmpeg audio extraction exception: {e}")
 

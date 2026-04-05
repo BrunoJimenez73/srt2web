@@ -19,6 +19,10 @@ from typing import Optional, List
 
 logger = logging.getLogger("srt2web.ffmpeg")
 
+# Cached FFmpeg path to avoid repeated lookups
+_cached_ffmpeg_path: Optional[str] = None
+_cached_ffprobe_path: Optional[str] = None
+
 # FFmpeg download URLs for pre-built binaries
 FFMPEG_URLS = {
     "Windows": "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip",
@@ -34,11 +38,18 @@ def get_project_bin_dir() -> Path:
 def find_ffmpeg() -> Optional[str]:
     """
     Find the FFmpeg binary. Checks in order:
-    1. Project bin/ directory
-    2. System PATH
+    1. Cached path (if already found)
+    2. Project bin/ directory
+    3. System PATH
     
     Returns the full path to ffmpeg, or None if not found.
     """
+    global _cached_ffmpeg_path
+    
+    # Return cached path if available
+    if _cached_ffmpeg_path and os.path.exists(_cached_ffmpeg_path):
+        return _cached_ffmpeg_path
+    
     # Check project bin/ directory first
     bin_dir = get_project_bin_dir()
     if platform.system() == "Windows":
@@ -60,6 +71,7 @@ def find_ffmpeg() -> Optional[str]:
     system_ffmpeg = shutil.which("ffmpeg")
     if system_ffmpeg:
         logger.info(f"Found FFmpeg in PATH: {system_ffmpeg}")
+        _cached_ffmpeg_path = system_ffmpeg
         return system_ffmpeg
 
     logger.warning("FFmpeg not found")
@@ -68,6 +80,12 @@ def find_ffmpeg() -> Optional[str]:
 
 def find_ffprobe() -> Optional[str]:
     """Find the FFprobe binary (same search logic as FFmpeg)."""
+    global _cached_ffprobe_path
+    
+    # Return cached path if available
+    if _cached_ffprobe_path and os.path.exists(_cached_ffprobe_path):
+        return _cached_ffprobe_path
+    
     bin_dir = get_project_bin_dir()
     exe = "ffprobe.exe" if platform.system() == "Windows" else "ffprobe"
 
@@ -81,6 +99,7 @@ def find_ffprobe() -> Optional[str]:
 
     system = shutil.which("ffprobe")
     if system:
+        _cached_ffprobe_path = system
         return system
 
     return None
@@ -93,7 +112,8 @@ def get_ffmpeg_version(ffmpeg_path: str) -> Optional[str]:
             [ffmpeg_path, "-version"],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=5,  # Reduced timeout
+            creationflags=_get_creation_flags(),
         )
         first_line = result.stdout.split("\n")[0]
         return first_line
@@ -111,6 +131,7 @@ def check_gpu_support(ffmpeg_path: str) -> dict:
             capture_output=True,
             text=True,
             timeout=5,
+            creationflags=_get_creation_flags(),
         )
         output = result.stdout.lower()
         results["nvenc"] = "h264_nvenc" in output or "hevc_nvenc" in output
@@ -125,7 +146,6 @@ def check_gpu_support(ffmpeg_path: str) -> dict:
 def get_video_duration(file_path: str, ffprobe_path: Optional[str] = None) -> float:
     """Get the exact duration of a video/audio file using ffprobe."""
     if ffprobe_path is None:
-        from core.ffmpeg_utils import find_ffprobe
         ffprobe_path = find_ffprobe()
     
     if not ffprobe_path:
@@ -139,7 +159,13 @@ def get_video_duration(file_path: str, ffprobe_path: Optional[str] = None) -> fl
             "-of", "default=noprint_wrappers=1:nokey=1",
             file_path
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+        result = subprocess.run(
+            cmd, 
+            capture_output=True, 
+            text=True, 
+            timeout=3,  # Reduced timeout for duration check
+            creationflags=_get_creation_flags(),
+        )
         return float(result.stdout.strip())
     except Exception:
         return 0.0
@@ -152,7 +178,8 @@ def check_srt_support(ffmpeg_path: str) -> bool:
             [ffmpeg_path, "-protocols"],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=5,  # Reduced timeout
+            creationflags=_get_creation_flags(),
         )
         return "srt" in result.stdout.lower()
     except Exception:
@@ -252,6 +279,23 @@ def ensure_ffmpeg(progress_callback=None) -> str:
     )
 
 
+def _get_creation_flags() -> int:
+    """
+    Get platform-specific creation flags for subprocess.
+    
+    On Windows:
+    - CREATE_NO_WINDOW: Hide console window
+    - BELOW_NORMAL_PRIORITY_CLASS: Lower priority for better GPU utilization
+    
+    Returns:
+        Creation flags integer
+    """
+    if sys.platform == "win32":
+        # Combine flags for Windows
+        return subprocess.CREATE_NO_WINDOW | subprocess.BELOW_NORMAL_PRIORITY_CLASS
+    return 0
+
+
 def run_ffmpeg(
     args: List[str],
     ffmpeg_path: Optional[str] = None,
@@ -264,7 +308,7 @@ def run_ffmpeg(
     Args:
         args: Arguments to pass to FFmpeg (without the ffmpeg binary itself)
         ffmpeg_path: Path to FFmpeg binary (auto-detected if None)
-        timeout: Command timeout in seconds
+        timeout: Command timeout in seconds (default: 5s)
         capture_output: Whether to capture stdout/stderr
     
     Returns:
@@ -280,8 +324,8 @@ def run_ffmpeg(
         cmd,
         capture_output=capture_output,
         text=True,
-        timeout=timeout,
-        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+        timeout=timeout or 5,  # Default 5s timeout
+        creationflags=_get_creation_flags(),
     )
 
 
@@ -310,7 +354,7 @@ def start_ffmpeg_process(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+        creationflags=_get_creation_flags(),
     )
 
 
