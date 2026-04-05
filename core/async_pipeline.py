@@ -406,22 +406,35 @@ class AsyncPipeline:
         for module in self._modules:
             try:
                 module_status = module.get_status()
+                # Get state as lowercase string for frontend compatibility
+                state_value = getattr(module, 'state', None)
+                if state_value is not None:
+                    # Handle both enum and string states
+                    if hasattr(state_value, 'value'):
+                        state_str = state_value.value.lower()
+                    else:
+                        state_str = str(state_value).lower()
+                else:
+                    state_str = 'idle'
+                    
                 modules_status.append({
                     "name": module.name,
                     "enabled": module.enabled,
-                    "state": str(module.state) if hasattr(module, 'state') else str(getattr(module, '_state', 'unknown')),
+                    "state": state_str,
                     "processed_chunks": getattr(module, '_processed_chunks', 0),
                     "last_process_time_ms": getattr(module, '_last_process_time_ms', 0),
                     "error_message": getattr(module, '_error_message', ''),
+                    "extra": getattr(module_status, 'extra', {}),
                 })
-            except Exception:
+            except Exception as e:
                 modules_status.append({
                     "name": module.name,
                     "enabled": module.enabled,
-                    "state": "error",
+                    "state": "idle",
                     "processed_chunks": 0,
                     "last_process_time_ms": 0,
-                    "error_message": "Failed to get status",
+                    "error_message": str(e),
+                    "extra": {},
                 })
         
         status["modules"] = modules_status
