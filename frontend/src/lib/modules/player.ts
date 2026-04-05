@@ -2,6 +2,44 @@
  * Módulo para el reproductor HLS con subtítulos dinámicos
  */
 
+// HLS.js type declarations - must be before usage
+declare const Hls: HlsStatic | undefined;
+
+interface HlsStatic {
+  new (config?: Partial<HlsConfig>): HlsInstance;
+  isSupported(): boolean;
+  Events: typeof HlsEvents;
+  ErrorTypes: typeof HlsErrorTypes;
+}
+
+interface HlsInstance {
+  loadSource(url: string): void;
+  attachMedia(media: HTMLMediaElement): void;
+  startLoad(): void;
+  recoverMediaError(): void;
+  destroy(): void;
+  on(event: string, callback: (...args: any[]) => void): void;
+}
+
+interface HlsConfig {
+  debug: boolean;
+  enableWorker: boolean;
+  lowLatencyMode: boolean;
+  backBufferLength: number;
+}
+
+// HLS Events enum
+const HlsEvents = {
+  MANIFEST_PARSED: 'hlsManifestParsed',
+  ERROR: 'hlsError',
+};
+
+// HLS Error Types enum
+const HlsErrorTypes = {
+  NETWORK_ERROR: 'networkError',
+  MEDIA_ERROR: 'mediaError',
+};
+
 interface SubtitleCue {
   start: number;
   end: number;
@@ -22,7 +60,7 @@ export function initHlsPlayer(): void {
 
   const streamUrl = `${window.location.origin}/hls/stream.m3u8`;
   const subtitlesUrl = `${window.location.origin}/subtitles/subs.vtt`;
-  let hls: Hls | null = null;
+  let hls: HlsInstance | null = null;
   let subtitleInterval: number | null = null;
   let lastSubtitleContent = '';
 
@@ -158,22 +196,22 @@ export function initHlsPlayer(): void {
       hls.loadSource(streamUrl);
       hls.attachMedia(video);
 
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      hls.on(HlsEvents.MANIFEST_PARSED, () => {
         if (waitingEl) waitingEl.style.display = 'none';
         video.play().catch(console.error);
         // Start loading subtitles once video is ready
         startSubtitlePolling();
       });
 
-      hls.on(Hls.Events.ERROR, (_event, data) => {
+      hls.on(HlsEvents.ERROR, (_event, data) => {
         if (data.fatal) {
           showError('Error de conexión con el stream');
           stopSubtitlePolling();
           switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
+            case HlsErrorTypes.NETWORK_ERROR:
               hls?.startLoad();
               break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
+            case HlsErrorTypes.MEDIA_ERROR:
               hls?.recoverMediaError();
               break;
             default:
@@ -231,26 +269,3 @@ export function initHlsPlayer(): void {
   waitForHlsAndConnect();
 }
 
-declare global {
-  interface Window {
-    Hls: typeof Hls;
-  }
-}
-
-interface Hls {
-  new (config?: Partial<HlsConfig>): Hls;
-  isSupported(): boolean;
-  loadSource(url: string): void;
-  attachMedia(media: HTMLMediaElement): void;
-  startLoad(): void;
-  recoverMediaError(): void;
-  destroy(): void;
-  on(event: string, callback: (...args: any[]) => void): void;
-}
-
-interface HlsConfig {
-  debug: boolean;
-  enableWorker: boolean;
-  lowLatencyMode: boolean;
-  backBufferLength: number;
-}

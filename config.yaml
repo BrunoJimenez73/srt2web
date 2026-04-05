@@ -90,6 +90,7 @@ modules:
     enabled: true
     original_volume: 0.5
     tts_volume: 1
+    dubbed_volume: 1
   video_muxer:
     enabled: true
     hls_segment_duration: 10

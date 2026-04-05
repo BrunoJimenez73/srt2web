@@ -18,7 +18,7 @@ export const moduleToCard: Record<string, string> = {
   tts_engine: 'card-tts',
   subtitle_generator: 'card-subtitle',
   audio_mixer: 'card-audio-mixer',
-  video_muxer: 'card-hls',
+  video_muxer: 'card-video-muxer',
   webplayer_output: 'card-output',
   srt_output: 'card-output',
   rtmp_output: 'card-output',
@@ -35,7 +35,7 @@ export const moduleToIndicator: Record<string, string> = {
   tts_engine: 'indicator-tts',
   subtitle_generator: 'indicator-subtitle',
   audio_mixer: 'indicator-audio-mixer',
-  video_muxer: 'indicator-hls',
+  video_muxer: 'indicator-video-muxer',
   webplayer_output: 'indicator-output',
   srt_output: 'indicator-output',
   rtmp_output: 'indicator-output',
@@ -93,7 +93,10 @@ export function updateUrls(localIp?: string): void {
   if (urlPlayer) {
     const playerUrl = getPlayerUrl(config);
     urlPlayer.textContent = playerUrl;
-    urlPlayer.href = playerUrl;
+    // Only set href if element is an anchor
+    if (urlPlayer instanceof HTMLAnchorElement) {
+      urlPlayer.href = playerUrl;
+    }
   }
   
   // Also update the player URL in OutputCard based on engine mode
@@ -126,16 +129,30 @@ export function updateModuleStatus(status: Status): void {
   });
 
   const inputIndicator = document.getElementById('indicator-input');
-  if (inputIndicator) {
+  if (inputIndicator && status.input_receiving !== undefined) {
     const receiving = status.input_receiving === true;
     inputIndicator.classList.toggle('active', receiving);
   }
 
   const outputIndicator = document.getElementById('indicator-output');
   if (outputIndicator) {
-    const outputInfo = status.output_info as any;
-    const streaming = outputInfo?.streaming === true;
-    outputIndicator.classList.toggle('active', streaming);
+    // Output indicator: active if streaming or pipeline is running
+    const streaming = status.output_info?.streaming === true;
+    const chunksProcessed = status.chunks_processed ?? 0;
+    outputIndicator.classList.toggle('active', streaming || (isRunning && chunksProcessed > 0));
+  }
+
+  // Video muxer indicator: active if pipeline is running and processing chunks
+  const videoMuxerIndicator = document.getElementById('indicator-video-muxer');
+  if (videoMuxerIndicator) {
+    const videoMuxerModule = status.modules.find(m => m.name === 'video_muxer');
+    if (videoMuxerModule) {
+      videoMuxerIndicator.classList.toggle('active', isRunning && videoMuxerModule.enabled);
+    } else {
+      // Video muxer is an OutputSink, not a module - use pipeline state as proxy
+      const chunksProcessed = status.chunks_processed ?? 0;
+      videoMuxerIndicator.classList.toggle('active', isRunning && chunksProcessed > 0);
+    }
   }
 
   const statChunks = document.getElementById('stat-chunks');
@@ -146,32 +163,8 @@ export function updateModuleStatus(status: Status): void {
   updateSystemMetrics(status);
   updateModulePerformanceMetrics(status.modules);
   
-  // Update input metrics from status
-  const inputChunksEl = document.getElementById('input-chunks');
-  const inputReceivingEl = document.getElementById('input-receiving');
-  const inputPortEl = document.getElementById('input-port');
-  
-  if (inputChunksEl) {
-    inputChunksEl.textContent = String(status.chunks_processed ?? 0);
-  }
-  if (inputReceivingEl) {
-    const isReceiving = status.input_receiving === true;
-    inputReceivingEl.textContent = isReceiving ? '✓' : '✗';
-    inputReceivingEl.classList.toggle('active', isReceiving);
-  }
-  if (inputPortEl && status.input_info) {
-    const inputInfo = status.input_info as any;
-    if (inputInfo.port) {
-      inputPortEl.textContent = String(inputInfo.port);
-    } else if (inputInfo.listen_port) {
-      inputPortEl.textContent = String(inputInfo.listen_port);
-    } else if (inputInfo.type === 'file' && inputInfo.path) {
-      const filename = inputInfo.path.split(/[/\\]/).pop() || '';
-      inputPortEl.textContent = filename.length > 10 ? filename.slice(0, 10) + '...' : filename;
-    } else {
-      inputPortEl.textContent = inputInfo.type?.toUpperCase() || '--';
-    }
-  }
+  // Note: Input metrics are updated via updateModulePerformanceMetrics using module-time-input and module-chunks-input
+  // The input indicator is updated above based on input_receiving status
 }
 
 let lastChunksProcessed = 0;
@@ -260,6 +253,36 @@ export function updateSystemMetrics(status: Status): void {
 }
 
 export function updateModulePerformanceMetrics(modules: any[]): void {
+  // Update input metrics separately (input is not in modules list)
+  const inputTimeEl = document.getElementById('module-time-input');
+  const inputChunksEl = document.getElementById('module-chunks-input');
+  if (inputTimeEl && status && status.state === 'running') {
+    inputTimeEl.textContent = 'RUNNING';
+    inputTimeEl.style.color = 'var(--success)';
+  } else if (inputTimeEl) {
+    inputTimeEl.textContent = 'IDLE';
+    inputTimeEl.style.color = 'var(--text-sec)';
+  }
+  if (inputChunksEl && status) {
+    inputChunksEl.textContent = String(status.chunks_processed ?? 0);
+  }
+
+  // Update video muxer metrics separately (video_muxer is an OutputSink, not in modules list)
+  const videoMuxerTimeEl = document.getElementById('module-time-video_muxer');
+  const videoMuxerChunksEl = document.getElementById('module-chunks-video_muxer');
+  if (videoMuxerTimeEl && status) {
+    if (status.state === 'running') {
+      videoMuxerTimeEl.textContent = 'RUNNING';
+      videoMuxerTimeEl.style.color = 'var(--success)';
+    } else {
+      videoMuxerTimeEl.textContent = 'IDLE';
+      videoMuxerTimeEl.style.color = 'var(--text-sec)';
+    }
+  }
+  if (videoMuxerChunksEl && status) {
+    videoMuxerChunksEl.textContent = String(status.chunks_processed ?? 0);
+  }
+
   modules.forEach(module => {
     // Update main module metrics
     const timeEl = document.getElementById(`module-time-${module.name}`);
@@ -472,9 +495,9 @@ export function applyConfigToUI(cfg: Config): void {
   if (originalValue) originalValue.textContent = String(cfg.modules.audio_mixer?.original_volume ?? 0.3);
   
   const ttsVolume = document.getElementById('audio-mixer-dubbed-volume') as HTMLInputElement;
-  if (ttsVolume) ttsVolume.value = String(cfg.modules.audio_mixer?.tts_volume ?? 1.0);
+  if (ttsVolume) ttsVolume.value = String(cfg.modules.audio_mixer?.tts_volume ?? cfg.modules.audio_mixer?.dubbed_volume ?? 1.0);
   const ttsValue = document.getElementById('audio-mixer-dubbed-value') as HTMLSpanElement;
-  if (ttsValue) ttsValue.textContent = String(cfg.modules.audio_mixer?.tts_volume ?? 1.0);
+  if (ttsValue) ttsValue.textContent = String(cfg.modules.audio_mixer?.tts_volume ?? cfg.modules.audio_mixer?.dubbed_volume ?? 1.0);
   if (hlsSegment) hlsSegment.value = String(cfg.modules.video_muxer.hls_segment_duration);
   if (hlsList) hlsList.value = String(cfg.modules.video_muxer.hls_list_size);
   if (hlsEncoder) hlsEncoder.value = cfg.modules.video_muxer.encoder_mode;
@@ -626,10 +649,7 @@ export function collectConfigFromUI(): Partial<Config> {
     };
   }
   
-  return {
-    input: inputConfig,
-    output: outputConfig,
-    modules: {
+  const configModules: any = {
       transcriber: {
         enabled: (document.getElementById('whisper-enabled') as HTMLInputElement)?.checked ?? true,
         model: (document.getElementById('whisper-model') as HTMLSelectElement)?.value || 'tiny',
@@ -643,8 +663,6 @@ export function collectConfigFromUI(): Partial<Config> {
       },
       tts_engine: {
         enabled: (document.getElementById('tts-enabled') as HTMLInputElement)?.checked ?? true,
-        engine: (document.getElementById('tts-engine') as HTMLSelectElement)?.value || 'edge-tts',
-        device: (document.getElementById('tts-device') as HTMLSelectElement)?.value || 'auto',
         voice: (document.getElementById('tts-engine') as HTMLSelectElement)?.value === 'piper'
           ? (document.getElementById('tts-voice-piper') as HTMLSelectElement)?.value || 'es_ES-sharvard-medium'
           : (document.getElementById('tts-voice-edge') as HTMLSelectElement)?.value || 'es-ES-ElviraNeural',
@@ -658,7 +676,7 @@ export function collectConfigFromUI(): Partial<Config> {
       audio_mixer: {
         enabled: (document.getElementById('audio-mixer-enabled') as HTMLInputElement)?.checked ?? false,
         original_volume: parseFloat((document.getElementById('audio-mixer-original-volume') as HTMLInputElement)?.value || '0.3'),
-        tts_volume: parseFloat((document.getElementById('audio-mixer-dubbed-volume') as HTMLInputElement)?.value || '1.0')
+        dubbed_volume: parseFloat((document.getElementById('audio-mixer-dubbed-volume') as HTMLInputElement)?.value || '1.0')
       },
       video_muxer: {
         enabled: (document.getElementById('muxer-enabled') as HTMLInputElement)?.checked ?? true,
@@ -681,8 +699,6 @@ export function collectConfigFromUI(): Partial<Config> {
         audio_sample_rate: (document.getElementById('webrtc-audio-sample-rate') as HTMLSelectElement)
           ? parseInt((document.getElementById('webrtc-audio-sample-rate') as HTMLSelectElement).value)
           : undefined,
-        webrtc_audio_codec: (document.getElementById('webrtc-audio-codec') as HTMLSelectElement)?.value,
-        webrtc_audio_bitrate: (document.getElementById('webrtc-audio-bitrate') as HTMLSelectElement)?.value,
         // Parse resolution from webrtc-video-resolution (format: "WIDTHxHEIGHT")
         ...((): { video_width?: number; video_height?: number } => {
           const resEl = document.getElementById('webrtc-video-resolution') as HTMLSelectElement;
@@ -693,7 +709,12 @@ export function collectConfigFromUI(): Partial<Config> {
           return {};
         })()
       }
-    }
+    };
+
+  return {
+    input: inputConfig,
+    output: outputConfig,
+    modules: configModules,
   };
 }
 
@@ -813,8 +834,8 @@ function setupCopyButtons(): void {
 }
 
 // Override init to include copy buttons setup
-const originalInit = init;
-init = function() {
+const _originalInit = init;
+(window as any).init = function() {
   setupEventListeners();
   setupCopyButtons();
   initDashboard();

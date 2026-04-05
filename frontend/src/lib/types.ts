@@ -11,7 +11,17 @@ export interface InputSRTConfig {
 }
 
 export interface InputConfig {
-  srt: InputSRTConfig;
+  srt?: InputSRTConfig;
+  type?: string; // 'srt' | 'rtmp' | 'file'
+  rtmp?: {
+    url?: string;
+    mode?: string;
+  };
+  file?: {
+    path?: string;
+    loop?: boolean;
+    speed?: number;
+  };
 }
 
 export interface TranscriberConfig {
@@ -37,12 +47,15 @@ export interface TTSEngineConfig {
   enabled: boolean;
   voice: string;
   speed: number;
+  engine?: string; // 'edge-tts' | 'piper'
+  device?: string; // 'auto' | 'cuda' | 'cpu'
 }
 
 export interface AudioMixerConfig {
   enabled: boolean;
   original_volume: number;
   dubbed_volume: number;
+  tts_volume?: number;
 }
 
 export interface VideoMuxerConfig {
@@ -64,6 +77,8 @@ export interface VideoMuxerConfig {
   video_height?: number;
   video_fps?: number;
   audio_sample_rate?: number;
+  webrtc_audio_codec?: string;
+  webrtc_audio_bitrate?: string;
 }
 
 export interface ModulesConfig {
@@ -147,6 +162,18 @@ export interface Status {
   modules?: ModuleStatus[];
   chunks_processed?: number;
   system?: SystemMetrics;
+  input_receiving?: boolean;
+  output_info?: {
+    streaming?: boolean;
+    [key: string]: any;
+  };
+  input_info?: {
+    port?: number;
+    listen_port?: number;
+    type?: string;
+    path?: string;
+    [key: string]: any;
+  };
 }
 
 export type LogLevel = 'info' | 'warning' | 'error' | 'success';
