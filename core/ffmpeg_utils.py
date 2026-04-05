@@ -59,12 +59,14 @@ def find_ffmpeg() -> Optional[str]:
 
     if local_ffmpeg.exists():
         logger.info(f"Found FFmpeg in project bin: {local_ffmpeg}")
+        _cached_ffmpeg_path = str(local_ffmpeg)
         return str(local_ffmpeg)
 
     # Also check inside extracted folder structure
     for candidate in bin_dir.rglob("ffmpeg*"):
         if candidate.is_file() and candidate.stem == "ffmpeg":
             logger.info(f"Found FFmpeg in project bin: {candidate}")
+            _cached_ffmpeg_path = str(candidate)
             return str(candidate)
 
     # Check system PATH
@@ -91,10 +93,12 @@ def find_ffprobe() -> Optional[str]:
 
     local = bin_dir / exe
     if local.exists():
+        _cached_ffprobe_path = str(local)
         return str(local)
 
     for candidate in bin_dir.rglob("ffprobe*"):
         if candidate.is_file() and candidate.stem == "ffprobe":
+            _cached_ffprobe_path = str(candidate)
             return str(candidate)
 
     system = shutil.which("ffprobe")
