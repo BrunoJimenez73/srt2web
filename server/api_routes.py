@@ -394,7 +394,7 @@ def create_api_router() -> APIRouter:
         output_dir = ctx.get("output_dir", "./output")
 
         try:
-            pipeline.stop()
+            await pipeline.stop()
         except Exception as e:
             logger.error(f"Error stopping pipeline: {e}")
             pass
@@ -458,7 +458,7 @@ def create_api_router() -> APIRouter:
         config = ctx["config"]
 
         try:
-            pipeline.stop()
+            await pipeline.stop()
         except Exception as e:
             logger.error(f"Error stopping pipeline: {e}")
 
