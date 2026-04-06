@@ -298,24 +298,65 @@ class VideoMuxer(BaseModule):
         status = super().get_status()
         # Determine actual encoder being used
         encoder_mode = self._encoder_config.encoder_mode
-
-        # Show what encoder WILL be used based on config (even if not started yet)
+        
+        # Get real encoder name
+        actual_encoder = "libx264"
+        encoder_label = "CPU"
+        
+        # Determine what encoder IS BEING USED (not just configured)
         if encoder_mode == "auto":
-            # Check if any GPU is available (from config or detected)
-            gpu_available = any(self._gpu_info.values())
+            # Check detected GPU support
             if self._gpu_info["nvenc"]:
-                encoder_mode = "gpu_nvenc"
+                actual_encoder = "h264_nvenc"
+                encoder_label = "GPU (NVENC)"
             elif self._gpu_info["amf"]:
-                encoder_mode = "gpu_amf"
+                actual_encoder = "h264_amf"
+                encoder_label = "GPU (AMF)"
             elif self._gpu_info["qsv"]:
-                encoder_mode = "gpu_qsv"
+                actual_encoder = "h264_qsv"
+                encoder_label = "GPU (QSV)"
             elif self._gpu_info["vaapi"]:
-                encoder_mode = "gpu_vaapi"
-            else:
-                encoder_mode = "cpu"
+                actual_encoder = "h264_vaapi"
+                encoder_label = "GPU (VAAPI)"
+        elif encoder_mode == "gpu_nvenc" and self._gpu_info["nvenc"]:
+            actual_encoder = "h264_nvenc"
+            encoder_label = "GPU (NVENC)"
+        elif encoder_mode == "gpu_amf" and self._gpu_info["amf"]:
+            actual_encoder = "h264_amf"
+            encoder_label = "GPU (AMF)"
+        elif encoder_mode == "gpu_qsv" and self._gpu_info["qsv"]:
+            actual_encoder = "h264_qsv"
+            encoder_label = "GPU (QSV)"
 
+        # Determine if actually using GPU
+        using_gpu = actual_encoder != "libx264"
+        
+        # Report both configured mode and actual encoder
         status.extra["encoder_mode"] = encoder_mode
-        status.extra["using_gpu"] = encoder_mode.startswith("gpu_")
+        status.extra["actual_encoder"] = actual_encoder
+        status.extra["using_gpu"] = using_gpu
         status.extra["gpu_available"] = self._gpu_info
         status.extra["gpu_preset"] = self._encoder_config.gpu_preset
+        
+        # Custom label with codec info
+        if using_gpu:
+            if actual_encoder == "h264_nvenc":
+                status.extra["encoder_label"] = "H.264 NVENC"
+            elif actual_encoder == "h264_amf":
+                status.extra["encoder_label"] = "H.264 AMF"
+            elif actual_encoder == "h264_qsv":
+                status.extra["encoder_label"] = "H.264 QSV"
+            elif actual_encoder == "h264_vaapi":
+                status.extra["encoder_label"] = "H.264 VAAPI"
+            else:
+                status.extra["encoder_label"] = f"H.264 GPU"
+        else:
+            status.extra["encoder_label"] = "H.264 CPU"
+        
+        # WebRTC specific: always report CPU for now (WebRTC uses browser encoder)
+        if hasattr(self, '_engine') and self._engine == 'webrtc':
+            status.extra["using_gpu"] = False
+            status.extra["encoder_label"] = "CPU (WebRTC)"
+            status.extra["actual_encoder"] = "webrtc"
+            
         return status

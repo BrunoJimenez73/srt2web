@@ -28,6 +28,7 @@ VALID_MODULE_NAMES = frozenset(
         "subtitle_generator",
         "tts_engine",
         "audio_mixer",
+        "video_muxer",
     }
 )
 

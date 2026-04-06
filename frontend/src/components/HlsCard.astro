@@ -62,16 +62,26 @@
       </div>
     </div>
     
-    <!-- WebRTC Settings -->
-    <div class="webrtc-settings">
-      <div class="form-group">
-        <label class="form-label">Video Codec</label>
-        <select class="form-select" id="webrtc-video-codec" onchange="window.updateWebRTCConfig()">
-          <option value="vp8">VP8</option>
-          <option value="vp9">VP9</option>
-          <option value="h264">H.264</option>
-        </select>
-      </div>
+     <!-- WebRTC Settings -->
+     <div class="webrtc-settings">
+       <div class="form-group">
+         <label class="form-label">Encoder</label>
+         <select class="form-select" id="webrtc-encoder" onchange="window.updateWebRTCConfig()">
+           <option value="auto">Auto (GPU/CPU)</option>
+           <option value="cpu">CPU (libx264)</option>
+           <option value="gpu_nvenc">NVIDIA NVENC</option>
+           <option value="gpu_amf">AMD AMF</option>
+           <option value="gpu_qsv">Intel QSV</option>
+         </select>
+       </div>
+       <div class="form-group">
+         <label class="form-label">Video Codec</label>
+         <select class="form-select" id="webrtc-video-codec" onchange="window.updateWebRTCConfig()">
+           <option value="h264">H.264 (NVENC soportado)</option>
+           <option value="vp8">VP8</option>
+           <option value="vp9">VP9</option>
+         </select>
+       </div>
       <div class="form-group">
         <label class="form-label">Video Bitrate</label>
         <select class="form-select" id="webrtc-video-bitrate" onchange="window.updateWebRTCConfig()">
@@ -385,6 +395,7 @@
   // Update WebRTC settings when individual controls change
   window.updateWebRTCConfig = function() {
     // Get values from WebRTC controls
+    const webrtcEncoder = document.getElementById('webrtc-encoder') as HTMLSelectElement;
     const videoCodec = document.getElementById('webrtc-video-codec') as HTMLSelectElement;
     const videoBitrate = document.getElementById('webrtc-video-bitrate') as HTMLSelectElement;
     const videoResolution = document.getElementById('webrtc-video-resolution') as HTMLSelectElement;
@@ -395,6 +406,7 @@
     
     // Send config update to backend
     const configUpdate = {
+      encoder_mode: webrtcEncoder?.value,
       video_codec: videoCodec?.value,
       video_bitrate: videoBitrate?.value,
       video_resolution: videoResolution?.value,

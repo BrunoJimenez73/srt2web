@@ -130,6 +130,20 @@ REM Limpiar logs antiguos
 del /q "server_*.log" 2>nul
 del /q "server.log" 2>nul
 
+REM LIMPIAR CACHE PYTHON COMPLETA
+echo  [OK] Borrando cache __pycache__...
+rmdir /s /q "__pycache__" 2>nul
+rmdir /s /q "core\__pycache__" 2>nul
+rmdir /s /q "modules\__pycache__" 2>nul
+rmdir /s /q "server\__pycache__" 2>nul
+rmdir /s /q "modules\inputs\__pycache__" 2>nul
+rmdir /s /q "modules\outputs\__pycache__" 2>nul
+rmdir /s /q "scripts\__pycache__" 2>nul
+rmdir /s /q "tests\__pycache__" 2>nul
+
+REM Matar TODOS los procesos python que queden abiertos
+taskkill /F /IM python.exe /T 2>nul
+
 REM =============================================
 REM 5. Verificar estado final
 REM =============================================

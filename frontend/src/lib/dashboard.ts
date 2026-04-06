@@ -178,7 +178,7 @@ export function updateSystemMetrics(status: Status): void {
   const cpuBar = document.getElementById('metric-cpu-bar');
   const cpuValue = document.getElementById('metric-cpu-value');
   const cpuItem = document.getElementById('metric-cpu');
-  if (cpuBar && cpuValue && cpuItem && system?.available) {
+  if (cpuBar && cpuValue && cpuItem && system?.cpu_percent !== undefined) {
     const cpu = system.cpu_percent;
     cpuBar.style.width = `${Math.min(cpu, 100)}%`;
     cpuValue.textContent = `${cpu.toFixed(1)}%`;
@@ -195,7 +195,7 @@ export function updateSystemMetrics(status: Status): void {
   const memValue = document.getElementById('metric-memory-value');
   const memPercent = document.getElementById('metric-memory-percent');
   const memItem = document.getElementById('metric-memory');
-  if (memBar && memValue && memPercent && memItem && system?.available) {
+  if (memBar && memValue && memPercent && memItem && system?.memory_percent !== undefined) {
     const memMb = system.memory_mb;
     const memPct = system.memory_percent;
     memBar.style.width = `${Math.min(memPct, 100)}%`;
@@ -380,22 +380,55 @@ export function updateModulePerformanceMetrics(modules: any[]): void {
         }
       }
 
-      if (module.name === 'video_muxer' || module.name === 'output') {
+      // SOLUCION PARPADEO: solo actualizar cuando sea el módulo real, no ambos
+      // Evitamos que 'output' y 'video_muxer' sobreescriban el mismo elemento
+      if (module.name === 'video_muxer') {
         const gpuBadge = document.getElementById('hls-gpu-badge');
         const encoderEl = document.getElementById('module-encoder-video_muxer');
+        
         if (gpuBadge) {
           if (module.enabled) {
             gpuBadge.style.display = 'inline';
-            gpuBadge.classList.toggle('active', isProcessing && module.extra.using_gpu);
-            gpuBadge.textContent = module.extra.using_gpu ? 'GPU' : 'CPU';
+            // Estado ABSOLUTAMENTE ESTABLE: no cambia por cada actualización
+            const isGpuActive = module.extra.using_gpu === true;
+            gpuBadge.classList.toggle('active', isProcessing && isGpuActive);
+            gpuBadge.textContent = isGpuActive ? 'GPU' : 'CPU';
           } else {
             gpuBadge.style.display = 'none';
           }
         }
+        
         if (encoderEl) {
-          const encoderMode = module.extra.encoder_mode || 'cpu';
-          encoderEl.textContent = ENCODER_LABELS[encoderMode] || encoderMode;
+          // Usar label del backend (nunca cambia aleatoriamente)
+          const label = module.extra.encoder_label || (module.extra.using_gpu ? 'GPU' : 'CPU');
+          encoderEl.textContent = label;
         }
+      }
+      
+      // Actualizar métricas del módulo OUTPUT
+      if (module.name === 'output') {
+        const outputTimeEl = document.getElementById('module-time-output');
+        if (outputTimeEl) {
+          if (!module.enabled) {
+            outputTimeEl.textContent = 'DISABLED';
+            outputTimeEl.style.color = 'var(--text-dim)';
+          } else if (module.state === 'running') {
+            const lastProcessTime = module.last_process_time_ms > 0 
+              ? `${module.last_process_time_ms.toFixed(1)}ms` 
+              : 'RUNNING';
+            outputTimeEl.textContent = lastProcessTime;
+            outputTimeEl.style.color = 'var(--success)';
+          } else if (module.state === 'error') {
+            outputTimeEl.textContent = 'ERROR';
+            outputTimeEl.style.color = 'var(--error)';
+          } else {
+            outputTimeEl.textContent = 'IDLE';
+            outputTimeEl.style.color = 'var(--text-sec)';
+          }
+        }
+        
+        // No hacemos nada más para output
+        return;
       }
     }
   });
@@ -543,16 +576,19 @@ export function applyConfigToUI(cfg: Config): void {
   if (hlsAudioCodec) hlsAudioCodec.value = cfg.modules.video_muxer.audio_codec || 'aac';
   if (hlsAudioBitrate) hlsAudioBitrate.value = cfg.modules.video_muxer.audio_bitrate || '192k';
   
-  // Apply WebRTC settings
-  const webrtcVideoCodec = document.getElementById('webrtc-video-codec') as HTMLSelectElement;
-  const webrtcVideoBitrate = document.getElementById('webrtc-video-bitrate') as HTMLSelectElement;
-  const webrtcVideoResolution = document.getElementById('webrtc-video-resolution') as HTMLSelectElement;
-  const webrtcVideoFPS = document.getElementById('webrtc-video-fps') as HTMLSelectElement;
-  const webrtcAudioCodec = document.getElementById('webrtc-audio-codec') as HTMLSelectElement;
-  const webrtcAudioBitrate = document.getElementById('webrtc-audio-bitrate') as HTMLSelectElement;
-  const webrtcAudioSampleRate = document.getElementById('webrtc-audio-sample-rate') as HTMLSelectElement;
+   // Apply WebRTC settings
+   const webrtcEncoder = document.getElementById('webrtc-encoder') as HTMLSelectElement;
+   const webrtcVideoCodec = document.getElementById('webrtc-video-codec') as HTMLSelectElement;
+   const webrtcVideoBitrate = document.getElementById('webrtc-video-bitrate') as HTMLSelectElement;
+   const webrtcVideoResolution = document.getElementById('webrtc-video-resolution') as HTMLSelectElement;
+   const webrtcVideoFPS = document.getElementById('webrtc-video-fps') as HTMLSelectElement;
+   const webrtcAudioCodec = document.getElementById('webrtc-audio-codec') as HTMLSelectElement;
+   const webrtcAudioBitrate = document.getElementById('webrtc-audio-bitrate') as HTMLSelectElement;
+   const webrtcAudioSampleRate = document.getElementById('webrtc-audio-sample-rate') as HTMLSelectElement;
+   
+   if (webrtcEncoder) webrtcEncoder.value = cfg.modules.video_muxer.encoder_mode || 'auto';
   
-  if (webrtcVideoCodec) webrtcVideoCodec.value = cfg.modules.video_muxer.video_codec || 'vp8';
+  if (webrtcVideoCodec) webrtcVideoCodec.value = cfg.modules.video_muxer.video_codec || 'h264';
   if (webrtcVideoBitrate) webrtcVideoBitrate.value = cfg.modules.video_muxer.video_bitrate || '1000k';
   if (webrtcVideoResolution && cfg.modules.video_muxer.video_width && cfg.modules.video_muxer.video_height) {
     webrtcVideoResolution.value = `${cfg.modules.video_muxer.video_width}x${cfg.modules.video_muxer.video_height}`;

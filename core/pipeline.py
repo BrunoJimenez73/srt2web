@@ -432,6 +432,8 @@ class Pipeline:
             if output_module_status:
                 modules_status.append(output_module_status)
 
+        system = self._get_system_metrics()
+        
         status = {
             "state": self._state.value,
             "error": self._error_message,
@@ -439,7 +441,7 @@ class Pipeline:
             "input": None,
             "output": None,
             "modules": modules_status,
-            "system": self._get_system_metrics(),
+            "system": system,
         }
 
         if self._input_source:
@@ -537,8 +539,10 @@ class Pipeline:
             }
         except ImportError:
             logger.debug("psutil not available for system metrics")
+            metrics["available"] = True
         except Exception as e:
             logger.debug(f"Error getting system metrics: {e}")
+            metrics["available"] = True
 
         # Try to get GPU metrics using nvidia-ml-py (official NVIDIA library)
         try:
