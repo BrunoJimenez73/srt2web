@@ -638,14 +638,27 @@ class UnifiedPipeline:
         # Métricas del sistema
         system_metrics = {
             "cpu_usage": 0,
+            "cpu_percent": 0,
             "memory_usage": 0,
+            "memory_percent": 0,
+            "memory_mb": 0,
             "gpu_usage": 0,
-            "gpu_memory_usage": 0
+            "gpu_percent": 0,
+            "gpu_memory_usage": 0,
+            "gpu_memory_mb": 0,
+            "gpu_available": False
         }
 
         try:
-            system_metrics["cpu_usage"] = psutil.cpu_percent()
-            system_metrics["memory_usage"] = psutil.virtual_memory().percent
+            cpu_percent = psutil.cpu_percent()
+            memory_percent = psutil.virtual_memory().percent
+            memory_mb = psutil.virtual_memory().used / (1024 * 1024)
+            
+            system_metrics["cpu_usage"] = cpu_percent
+            system_metrics["cpu_percent"] = cpu_percent
+            system_metrics["memory_usage"] = memory_percent
+            system_metrics["memory_percent"] = memory_percent
+            system_metrics["memory_mb"] = memory_mb
         except Exception:
             pass
 
@@ -655,8 +668,15 @@ class UnifiedPipeline:
             handle = pynvml.nvmlDeviceGetHandleByIndex(0)
             util = pynvml.nvmlDeviceGetUtilizationRates(handle)
             mem = pynvml.nvmlDeviceGetMemoryInfo(handle)
-            system_metrics["gpu_usage"] = util.gpu
+            
+            gpu_percent = util.gpu
+            gpu_memory_mb = mem.used / (1024 * 1024)
+            
+            system_metrics["gpu_usage"] = gpu_percent
+            system_metrics["gpu_percent"] = gpu_percent
             system_metrics["gpu_memory_usage"] = int(mem.used / mem.total * 100)
+            system_metrics["gpu_memory_mb"] = gpu_memory_mb
+            system_metrics["gpu_available"] = True
             pynvml.nvmlShutdown()
         except Exception:
             pass
@@ -671,6 +691,7 @@ class UnifiedPipeline:
             "max_concurrent_chunks": self.max_concurrent_chunks,
             "buffer_size": self.buffer_size,
             "modules": modules_status,
+            "system": system_metrics,
             "system_metrics": system_metrics
         }
 
