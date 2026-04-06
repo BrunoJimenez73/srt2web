@@ -14,18 +14,18 @@ input:
     mode: listener
     latency_ms: 200
     caller_address: ''
-  file:
-    path: ''
-    loop: false
-    speed: 1
-    chunk_duration_sec: 10
   rtmp:
     listen_port: 1935
     app: live
     stream_key: stream
     url: ''
-    port: 1935
-    chunk_duration_sec: 10
+    mode: listener
+    chunk_duration_sec: 5
+  file:
+    path: ''
+    loop: false
+    speed: 1.0
+    chunk_duration_sec: 5
 output:
   type: web
   web:
@@ -37,11 +37,12 @@ output:
     segment_duration: 10
     list_size: 2
     audio_offset_ms: 0
+    encoder_mode: auto
   rtmp:
     url: rtmp://localhost/live/stream
     video_bitrate: 2500k
     audio_bitrate: 128k
-    video_codec: libx264
+    video_codec: h264
     preset: medium
     audio_codec: aac
     encoder_mode: auto
@@ -53,7 +54,7 @@ output:
     passphrase: ''
     video_bitrate: 2500k
     audio_bitrate: 128k
-    video_codec: libx264
+    video_codec: h264
     preset: medium
     audio_codec: aac
   file:
@@ -63,14 +64,20 @@ output:
     path: ./output
 pipeline:
   chunk_duration_sec: 5
+  mode: thread_parallel
+  max_concurrent_chunks: 3
+  buffer_size: 5
+  retry_attempts: 2
+  retry_delay: 1.0
 modules:
   audio_extractor:
     enabled: true
   transcriber:
     enabled: true
-    model: small
+    model: tiny
     language: en
-    device: auto
+    device: cuda
+    beam_size: 2
   translator:
     enabled: true
     source_lang: en
@@ -79,38 +86,37 @@ modules:
     enabled: true
     format: webvtt
     use_translated: true
-    chunk_duration: 10
+    chunk_duration: 5
   tts_engine:
     enabled: true
     engine: piper
     device: cuda
     voice: es_ES-davefx-medium
-    speed: 1
+    speed: 1.0
   audio_mixer:
     enabled: true
     original_volume: 0.5
-    tts_volume: 1
-    dubbed_volume: 1
+    tts_volume: 1.0
+    dubbed_volume: 1.0
   video_muxer:
     enabled: true
+    engine: webrtc
     hls_segment_duration: 10
+    hls_list_size: 6
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
-    hls_list_size: 6
     video_quality: medium
     video_crf: 28
     audio_codec: aac
     audio_bitrate: 64k
     audio_samplerate: '48000'
-    engine: webrtc
     video_bitrate: 1000k
     video_fps: 30
-    audio_sample_rate: 24000
-    video_codec: vp8
     video_width: 1920
     video_height: 1080
     webrtc_audio_codec: opus
     webrtc_audio_bitrate: 32k
+    audio_sample_rate: 24000
     gpu_preset: p7
     video_preset: fast
 output_dir:

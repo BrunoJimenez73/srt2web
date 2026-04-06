@@ -58,20 +58,23 @@ REM =============================================
 echo.
 echo [2/4] Deteniendo procesos...
 
-REM FFmpeg
+REM FFmpeg (matar TODOS los procesos FFmpeg)
 taskkill /F /IM ffmpeg.exe >nul 2>&1
+taskkill /F /IM ffprobe.exe >nul 2>&1
 echo  [OK] FFmpeg detenido.
 
-REM Python del proyecto
-for /f "tokens=2" %%P in ('wmic process where "name='python.exe'" get commandline^,processid 2^>nul') do (
-    echo %%P | findstr /I "main.py" >nul 2>&1
-    if !errorlevel! equ 0 (
-        for /f "tokens=2" %%I in ('wmic process where "name='python.exe' and commandline like '%%main.py%%'" get processid 2^>nul') do (
-            taskkill /F /PID %%I >nul 2>&1
-        )
-    )
-)
+REM Python del proyecto (matar TODOS los python.exe que ejecutan main.py)
+wmic process where "name='python.exe' and commandline like '%%main.py%%'" call terminate >nul 2>&1
+timeout /t 1 /nobreak >nul
+taskkill /F /IM python.exe /FI "COMMANDLINE like %%main.py%%" >nul 2>&1
 echo  [OK] Python detenido.
+
+REM Matar cualquier proceso que siga usando el puerto 9000 y 8080
+for /f "tokens=5" %%A in ('netstat -ano ^| findstr :9000 ^| findstr LISTENING') do taskkill /F /PID %%A >nul 2>&1
+for /f "tokens=5" %%A in ('netstat -ano ^| findstr :8080 ^| findstr LISTENING') do taskkill /F /PID %%A >nul 2>&1
+for /f "tokens=5" %%A in ('netstat -ano ^| findstr :9999 ^| findstr LISTENING') do taskkill /F /PID %%A >nul 2>&1
+
+timeout /t 2 /nobreak >nul
 
 REM =============================================
 REM 4. Limpiar archivos temporales

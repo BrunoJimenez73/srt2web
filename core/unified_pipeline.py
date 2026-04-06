@@ -21,6 +21,7 @@ import time
 import threading
 import queue
 import logging
+import psutil
 from enum import Enum
 from typing import Optional, Callable, List, Dict, Any, Union
 from dataclasses import dataclass, field
@@ -627,6 +628,39 @@ class UnifiedPipeline:
                     "last_process_time_ms": 0,
                 })
 
+        # Agregar status del output sink al final de la lista
+        try:
+            output_status = self._get_output_module_status()
+            modules_status.append(output_status)
+        except Exception:
+            pass
+
+        # Métricas del sistema
+        system_metrics = {
+            "cpu_usage": 0,
+            "memory_usage": 0,
+            "gpu_usage": 0,
+            "gpu_memory_usage": 0
+        }
+
+        try:
+            system_metrics["cpu_usage"] = psutil.cpu_percent()
+            system_metrics["memory_usage"] = psutil.virtual_memory().percent
+        except Exception:
+            pass
+
+        try:
+            import pynvml
+            pynvml.nvmlInit()
+            handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+            util = pynvml.nvmlDeviceGetUtilizationRates(handle)
+            mem = pynvml.nvmlDeviceGetMemoryInfo(handle)
+            system_metrics["gpu_usage"] = util.gpu
+            system_metrics["gpu_memory_usage"] = int(mem.used / mem.total * 100)
+            pynvml.nvmlShutdown()
+        except Exception:
+            pass
+
         return {
             "state": self._state.value,
             "mode": self.mode.value,
@@ -637,6 +671,7 @@ class UnifiedPipeline:
             "max_concurrent_chunks": self.max_concurrent_chunks,
             "buffer_size": self.buffer_size,
             "modules": modules_status,
+            "system_metrics": system_metrics
         }
 
     def reconfigure(self, config_manager) -> None:
@@ -662,14 +697,32 @@ class UnifiedPipeline:
         """Compatibilidad con frontend (método existente)."""
         from core.module_base import ModuleState
         state = "running" if self.is_running else "idle"
+        
+        # Obtener estado real del video muxer si existe
+        video_muxer = self._module_map.get("video_muxer")
+        extra = {}
+        processed_chunks = self.metrics.chunks_processed
+        last_process_time_ms = 0
+        
+        if video_muxer:
+            try:
+                status = video_muxer.get_status()
+                if hasattr(status, 'to_dict'):
+                    status_dict = status.to_dict()
+                    processed_chunks = status_dict.get('processed_chunks', processed_chunks)
+                    last_process_time_ms = status_dict.get('last_process_time_ms', last_process_time_ms)
+                    extra = status_dict.get('extra', {})
+            except Exception:
+                pass
+        
         return {
             "name": "output",
             "state": state,
             "enabled": True,
             "error_message": None,
-            "processed_chunks": self.metrics.chunks_processed,
-            "last_process_time_ms": self.metrics.avg_processing_time * 1000,
-            "extra": {},
+            "processed_chunks": processed_chunks,
+            "last_process_time_ms": last_process_time_ms,
+            "extra": extra,
             "circuit_state": "closed",
             "memory_mb": None,
         }

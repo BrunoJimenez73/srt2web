@@ -124,7 +124,7 @@ class ServerConfig(BaseModel):
     port: int = Field(default=9999, ge=1, le=65535, description="Puerto del servidor")
     cors_origins: List[str] = Field(default_factory=lambda: ["http://localhost:*", "http://127.0.0.1:*"], description="Orígenes CORS permitidos")
     auth_token: str = Field(default="", description="Token de autenticación")
-    rate_limit_rpm: int = Field(default=60, ge=1, le=1000, description="Límite de peticiones por minuto")
+    rate_limit_rpm: int = Field(default=600, ge=1, le=10000, description="Límite de peticiones por minuto")
     max_request_size_mb: int = Field(default=100, ge=1, le=1000, description="Tamaño máximo de request en MB")
 
 
