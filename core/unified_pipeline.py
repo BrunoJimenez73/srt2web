@@ -260,9 +260,6 @@ class UnifiedPipeline:
         
         # Inicializar automáticamente si no se ha hecho antes
         if not hasattr(self, '_initialized') or not self._initialized:
-            import asyncio
-            import threading
-            
             # No podemos usar el event loop principal de FastAPI, ejecutamos en thread separado
             def run_init():
                 loop = asyncio.new_event_loop()
