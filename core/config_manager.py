@@ -13,6 +13,7 @@ import copy
 import logging
 from pathlib import Path
 from typing import Any, Optional
+from pydantic import ValidationError
 
 import yaml
 
@@ -78,14 +79,17 @@ class ConfigManager:
                 merged_config = _deep_merge(default_config, file_config)
                 
                 # Validar con esquema Pydantic
-                validated_config = SRT2WebConfig.from_dict(merged_config)
-                self._config = validated_config.to_dict()
-                
-                logger.info(f"Configuration loaded and validated from {self._config_path}")
+                try:
+                    validated_config = SRT2WebConfig.from_dict(merged_config)
+                    self._config = validated_config.to_dict()
+                    logger.info(f"Configuration loaded and validated from {self._config_path}")
+                except ValidationError as ve:
+                    logger.error(f"Configuration validation error in {self._config_path}:\n{ve}")
+                    logger.warning("Using defaults due to validation failure.")
+                    self._config = default_config
             except Exception as e:
-                logger.warning(
-                    f"Failed to load/validate {self._config_path}: {e}. Using defaults."
-                )
+                logger.error(f"Error loading configuration file: {e}")
+                logger.warning("Using defaults due to load failure.")
                 self._config = default_config
         else:
             logger.info(
@@ -159,8 +163,15 @@ class ConfigManager:
         return copy.deepcopy(self._config)
 
     def update_from_dict(self, data: dict) -> None:
-        """Update configuration from a dictionary (partial update)."""
-        self._config = _deep_merge(self._config, data)
+        """Update configuration from a dictionary (partial update) with validation."""
+        new_config = _deep_merge(self._config, data)
+        try:
+            # Validar que el resultado del merge sigue siendo válido
+            validated_config = SRT2WebConfig.from_dict(new_config)
+            self._config = validated_config.to_dict()
+        except ValidationError as ve:
+            logger.error(f"Invalid configuration update attempt:\n{ve}")
+            raise ValueError(f"Configuration update failed: {ve}")
 
     def reload(self) -> None:
         """Reload configuration from file."""

@@ -12,13 +12,14 @@ import logging
 import subprocess
 from typing import Optional
 
-from core.module_base import BaseModule, PipelineData, ModuleState
-from core.ffmpeg_utils import ensure_ffmpeg, check_gpu_support
+from core.module_base import PipelineData, ModuleState
+from core.ffmpeg_wrapper import FFmpegModule
+from core.ffmpeg_utils import check_gpu_support
 
 logger = logging.getLogger("srt2web.module.audio_extractor")
 
 
-class AudioExtractor(BaseModule):
+class AudioExtractor(FFmpegModule):
     """
     Extracts the audio track from the incoming video chunk
     and converts it to a format suitable for speech recognition
@@ -26,7 +27,6 @@ class AudioExtractor(BaseModule):
     """
 
     def __init__(self, config: Optional[dict] = None, output_dir: str = "./output"):
-        self._ffmpeg_path: Optional[str] = None
         self._output_dir = output_dir
         self._audio_dir = ""
         self._gpu_info = {"nvenc": False, "nvdec": False}
@@ -38,17 +38,12 @@ class AudioExtractor(BaseModule):
     def start(self) -> None:
         """Initialize the audio extraction directory."""
         self._state = ModuleState.STARTING
-        self._ffmpeg_path = ensure_ffmpeg()
 
         # Check GPU support for faster processing
-        self._gpu_info = check_gpu_support(self._ffmpeg_path)
+        self._gpu_info = check_gpu_support(self.ffmpeg.ffmpeg_path)
         # Also check for NVDEC (decoder) support
         try:
-            result = subprocess.run(
-                [self._ffmpeg_path, "-decoders"],
-                capture_output=True, text=True, timeout=5,
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            )
+            result = self.ffmpeg.run_command(["-decoders"], timeout=5)
             self._gpu_info["nvdec"] = "h264_cuvid" in result.stdout.lower()
         except Exception:
             self._gpu_info["nvdec"] = False
@@ -91,7 +86,7 @@ class AudioExtractor(BaseModule):
         # FFmpeg command: extract audio, 8kHz, mono, 16-bit PCM
         # Optimized for speed: 8kHz is sufficient for Whisper and faster to process
         # Uses GPU decoding (NVDEC) when available for ~30-40% speedup
-        cmd = [self._ffmpeg_path, "-y"]
+        cmd = ["-y"]
         
         # GPU acceleration for decoding (if available)
         if self._gpu_info.get("nvdec"):
@@ -109,20 +104,8 @@ class AudioExtractor(BaseModule):
         ])
 
         try:
-            # Optimized subprocess call:
-            # - Timeout reduced to 5s (chunks are short)
-            # - BELOW_NORMAL_PRIORITY_CLASS on Windows for better GPU utilization
-            creationflags = 0
-            if sys.platform == "win32":
-                creationflags = subprocess.CREATE_NO_WINDOW | subprocess.BELOW_NORMAL_PRIORITY_CLASS
-            
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=5,  # Reduced from 10s
-                creationflags=creationflags,
-            )
+            # Use wrapper to run command with project-wide defaults (priority, window flags)
+            result = self.ffmpeg.run_command(cmd, timeout=5)
             if result.returncode != 0:
                 logger.error(f"FFmpeg audio extraction error: {result.stderr[-500:]}")
                 return data

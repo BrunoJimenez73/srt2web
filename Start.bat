@@ -80,10 +80,23 @@ echo [INFO] Iniciando servidor en esta consola...
 echo [INFO] Para detener: Ctrl+C
 echo.
 
-"%PYTHON%" -X utf8 main.py
+"%PYTHON%" -X utf8 main.py 2>&1
 
-REM Si el servidor termina, mostrar mensaje
+REM Si llegamos aqui, el servidor se cerro
+set EXIT_CODE=%errorlevel%
+
 echo.
 echo ===============================================
 echo            SERVIDOR DETENIDO
 echo ===============================================
+echo.
+if %EXIT_CODE% neq 0 (
+    echo [ERROR] El servidor fallo con codigo de error: %EXIT_CODE%
+    echo.
+    echo Verifica los logs en logs/srt2web.log para mas detalles.
+) else (
+    echo [OK] Servidor cerrado correctamente.
+)
+echo.
+echo Presiona cualquier tecla para cerrar esta ventana...
+pause >nul
