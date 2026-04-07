@@ -358,7 +358,7 @@
   }
 
   .webrtc-settings {
-    display: none; /* Hidden until WebRTC implemented */
+    display: none;
     flex-direction: column;
     gap: 8px;
     padding: 12px;
@@ -444,6 +444,7 @@
       const audioBitrate = document.getElementById('webrtc-audio-bitrate') as HTMLSelectElement;
       const audioSampleRate = document.getElementById('webrtc-audio-sample-rate') as HTMLSelectElement;
       
+      configUpdate['engine'] = 'webrtc';
       configUpdate['video_codec'] = videoCodec?.value;
       configUpdate['video_bitrate'] = videoBitrate?.value;
       

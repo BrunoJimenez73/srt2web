@@ -4,7 +4,7 @@ Unit tests for ConfigManager.
 
 import os
 import pytest
-from core.config_manager import ConfigManager, DEFAULT_CONFIG, _deep_merge
+from core.config_manager import ConfigManager, _deep_merge
 
 
 class TestDeepMerge:

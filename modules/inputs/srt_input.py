@@ -25,6 +25,7 @@ from typing import Optional
 from core.input_source import InputSource
 from core.module_base import PipelineData
 from core.ffmpeg_utils import ensure_ffmpeg, get_video_duration
+from core.watchdog import FFmpegWatchdog
 
 
 class SRTInput(InputSource):
@@ -33,6 +34,9 @@ class SRTInput(InputSource):
 
     Utiliza FFmpeg como subprocess para recibir el stream SRT
     y escribir segmentos de duración fija.
+
+    Incluye FFmpegWatchdog para detectar crashes/hangs y reiniciar
+    automáticamente el proceso.
     """
 
     def __init__(self, config: dict):
@@ -55,6 +59,14 @@ class SRTInput(InputSource):
         self._last_chunk_index: int = -1
         self._cumulative_duration: float = 0.0  # Track cumulative duration for sync
 
+        # Watchdog para detección de crashes/hangs
+        self._watchdog: Optional[FFmpegWatchdog] = None
+        self._watchdog_enabled = config.get("watchdog_enabled", True)
+        self._watchdog_check_interval = config.get("watchdog_check_interval", 5.0)
+        self._watchdog_hang_timeout = config.get("watchdog_hang_timeout", 60.0)
+        self._watchdog_max_restarts = config.get("watchdog_max_restarts", 10)
+        self._is_restarting = False  # Flag para evitar restarts concurrentes
+
     def configure(self, config: dict) -> None:
         """Aplicar configuración."""
         self._srt_port = config.get("listen_port", self._srt_port)
@@ -64,6 +76,12 @@ class SRTInput(InputSource):
             "caller_address", self._srt_caller_address
         )
         self._chunk_duration = config.get("chunk_duration_sec", self._chunk_duration)
+        
+        # Watchdog config
+        self._watchdog_enabled = config.get("watchdog_enabled", self._watchdog_enabled)
+        self._watchdog_check_interval = config.get("watchdog_check_interval", self._watchdog_check_interval)
+        self._watchdog_hang_timeout = config.get("watchdog_hang_timeout", self._watchdog_hang_timeout)
+        self._watchdog_max_restarts = config.get("watchdog_max_restarts", self._watchdog_max_restarts)
 
     def get_connection_info(self) -> dict:
         """Obtener información de conexión para el usuario."""
@@ -170,13 +188,17 @@ class SRTInput(InputSource):
 
             self.logger.info(f"FFmpeg process started with PID: {self._ffmpeg_proc.pid}")
 
-            # Hilo monitor
+            # Hilo monitor para logs stderr
             self._monitor_thread = threading.Thread(
                 target=self._monitor_ffmpeg,
                 daemon=True,
                 name="srt-input-monitor",
             )
             self._monitor_thread.start()
+
+            # Iniciar watchdog si está habilitado
+            if self._watchdog_enabled:
+                self._start_watchdog()
 
             self.logger.info(f"SRT input started on port {self._srt_port}")
             self.logger.info("SRT input started successfully")
@@ -186,8 +208,135 @@ class SRTInput(InputSource):
             self.logger.error(f"SRT input traceback: {traceback.format_exc()}")
             raise
 
-    def stop(self) -> None:
-        """Detener receptor SRT."""
+    def _start_watchdog(self) -> None:
+        """Iniciar el watchdog para monitorear el proceso FFmpeg."""
+        if self._watchdog is not None:
+            self._watchdog.stop()
+            self._watchdog = None
+
+        self._watchdog = FFmpegWatchdog(
+            check_interval=self._watchdog_check_interval,
+            hang_timeout=self._watchdog_hang_timeout,
+            max_restarts=self._watchdog_max_restarts,
+            restart_delay=2.0,
+        )
+
+        self._watchdog.attach_process(
+            process=self._ffmpeg_proc,
+            process_name="SRT-FFmpeg",
+            restart_callback=self._on_ffmpeg_restart,
+        )
+        self._watchdog.start()
+        self.logger.info(
+            f"SRT watchdog started (check_interval={self._watchdog_check_interval}s, "
+            f"hang_timeout={self._watchdog_hang_timeout}s, "
+            f"max_restarts={self._watchdog_max_restarts})"
+        )
+
+    def _on_ffmpeg_restart(self) -> None:
+        """Callback llamado por el watchdog cuando necesita reiniciar FFmpeg."""
+        if self._is_restarting:
+            self.logger.warning("Restart already in progress, skipping")
+            return
+
+        self._is_restarting = True
+        try:
+            self.logger.info("Watchdog requesting FFmpeg restart...")
+
+            # Detener proceso actual
+            self._kill_ffmpeg_process()
+
+            # Esperar un poco antes de reiniciar
+            time.sleep(1.0)
+
+            # Reiniciar el proceso
+            self.logger.info("Restarting SRT input...")
+            self._start_ffmpeg_process()
+
+            # Re-attach al watchdog con el nuevo proceso
+            if self._watchdog:
+                self._watchdog.attach_process(
+                    process=self._ffmpeg_proc,
+                    process_name="SRT-FFmpeg",
+                    restart_callback=self._on_ffmpeg_restart,
+                )
+                self.logger.info("FFmpeg restarted and re-attached to watchdog")
+            else:
+                self.logger.warning("Watchdog not available after restart")
+
+        except Exception as e:
+            self.logger.error(f"Failed to restart FFmpeg: {type(e).__name__}: {e}")
+            import traceback
+            self.logger.error(f"Restart traceback: {traceback.format_exc()}")
+        finally:
+            self._is_restarting = False
+
+    def _start_ffmpeg_process(self) -> None:
+        """Crear y iniciar el proceso FFmpeg (para reinicios)."""
+        # Construir URL SRT
+        latency_us = self._srt_latency_ms * 1000
+        if self._srt_mode == "caller" and self._srt_caller_address:
+            srt_url = f"srt://{self._srt_caller_address}:{self._srt_port}?mode=caller&latency={latency_us}"
+        else:
+            srt_url = f"srt://0.0.0.0:{self._srt_port}?mode=listener&latency={latency_us}"
+
+        # Comando FFmpeg para recepción segmentada
+        chunk_pattern = os.path.join(self._chunks_dir, "chunk_%06d.ts")
+
+        cmd = [
+            self._ffmpeg_path,
+            "-y",
+            "-i",
+            srt_url,
+            "-c",
+            "copy",
+            "-f",
+            "segment",
+            "-segment_time",
+            str(self._chunk_duration),
+            "-segment_format",
+            "mpegts",
+            "-reset_timestamps",
+            "1",
+            "-strftime",
+            "0",
+            "-max_muxing_queue_size",
+            "1024",
+            "-fflags",
+            "+genpts+discardcorrupt",
+            "-flush_packets",
+            "1",
+            chunk_pattern,
+        ]
+
+        self.logger.info(f"Restarting SRT input: {' '.join(cmd)}")
+
+        # Iniciar proceso FFmpeg
+        self._ffmpeg_proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            creationflags=(
+                subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            ),
+        )
+
+        if not self._ffmpeg_proc:
+            raise Exception("FFmpeg process restart failed (process is None)")
+
+        self.logger.info(f"FFmpeg process restarted with PID: {self._ffmpeg_proc.pid}")
+
+        # Reiniciar hilo monitor
+        self._monitor_thread = threading.Thread(
+            target=self._monitor_ffmpeg,
+            daemon=True,
+            name="srt-input-monitor",
+        )
+        self._monitor_thread.start()
+
+    def _kill_ffmpeg_process(self) -> None:
+        """Matar el proceso FFmpeg actual de forma segura."""
         if self._ffmpeg_proc:
             try:
                 if sys.platform == "win32":
@@ -203,6 +352,16 @@ class SRTInput(InputSource):
                 self.logger.debug(f"Process cleanup: {e}")
             finally:
                 self._ffmpeg_proc = None
+
+    def stop(self) -> None:
+        """Detener receptor SRT."""
+        # Detener watchdog primero
+        if self._watchdog:
+            self._watchdog.stop()
+            self._watchdog = None
+
+        # Detener proceso FFmpeg
+        self._kill_ffmpeg_process()
 
         self.logger.info("SRT input stopped")
 
@@ -282,6 +441,10 @@ class SRTInput(InputSource):
             self.logger.info("FIRST SRT CHUNK GENERATED BY FFMPEG")
             self.logger.info(f"First chunk path: {chunk_path}")
 
+        # Notify watchdog of activity
+        if self._watchdog:
+            self._watchdog.notify_activity()
+
         # Create PipelineData with video chunk (using correct dataclass syntax)
         return PipelineData(
             video_chunk_path=chunk_path,
@@ -298,6 +461,28 @@ class SRTInput(InputSource):
             return False
         return self._ffmpeg_proc.poll() is None
 
+    def is_healthy(self) -> bool:
+        """Verificar si el watchdog está saludable (si está habilitado)."""
+        if self._watchdog:
+            return self._watchdog.is_healthy
+        return self.is_receiving()
+
+    def get_watchdog_status(self) -> dict:
+        """Obtener estado del watchdog para debugging."""
+        if self._watchdog:
+            return {
+                "enabled": self._watchdog_enabled,
+                "healthy": self._watchdog.is_healthy,
+                "restart_count": self._watchdog.restart_count,
+                "max_restarts": self._watchdog_max_restarts,
+            }
+        return {
+            "enabled": self._watchdog_enabled,
+            "healthy": self.is_receiving(),
+            "restart_count": 0,
+            "max_restarts": self._watchdog_max_restarts,
+        }
+
     def _monitor_ffmpeg(self) -> None:
         """Monitorear stderr de FFmpeg para logs."""
         if not self._ffmpeg_proc or not self._ffmpeg_proc.stderr:
@@ -313,13 +498,22 @@ class SRTInput(InputSource):
                         self.logger.warning(f"[FFmpeg] {line}")
                     else:
                         self.logger.debug(f"[FFmpeg] {line}")
+                    
+                    # Notificar actividad al watchdog
+                    if self._watchdog:
+                        self._watchdog.notify_activity()
         except Exception:
             pass
 
     def _ensure_stopped(self) -> None:
         """Asegurar que cualquier proceso anterior esté detenido."""
-        # Esto es para limpieza en Windows
-        pass
+        # Detener watchdog
+        if self._watchdog:
+            self._watchdog.stop()
+            self._watchdog = None
+
+        # Detener proceso
+        self._kill_ffmpeg_process()
 
 
 # Auto-registro en factory

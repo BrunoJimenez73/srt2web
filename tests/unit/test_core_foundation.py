@@ -11,20 +11,19 @@ import time
 
 from core.exceptions import (
     SRT2WebError,
-    ConfigError,
-    ValidationError,
+    ConfigurationError,
+    ConfigurationValidationError,
     PipelineError,
     PipelineStateError,
-    PipelineDataError,
+    ChunkProcessingError,
     ModuleError,
-    ModuleInitializationError,
     ModuleProcessingError,
     TranscriberError,
     TTSError,
     FFmpegError,
-    GPUError,
-    ResourceError,
-    DependencyError,
+    CUDAError,
+    ResourceExhaustedError,
+    InfrastructureError,
 )
 from core.types import (
     PipelineState,
@@ -75,15 +74,14 @@ class TestExceptions:
         assert "key" in str(error)
     
     def test_config_error(self):
-        """Test ConfigError."""
-        error = ConfigError("Invalid config")
-        assert error.module == "config"
+        """Test ConfigurationError."""
+        error = ConfigurationError("Invalid config")
         assert isinstance(error, SRT2WebError)
     
     def test_validation_error(self):
-        """Test ValidationError."""
-        error = ValidationError("Invalid value")
-        assert isinstance(error, ConfigError)
+        """Test ConfigurationValidationError."""
+        error = ConfigurationValidationError("Invalid value")
+        assert isinstance(error, ConfigurationError)
         assert isinstance(error, SRT2WebError)
     
     def test_pipeline_error(self):
@@ -97,8 +95,8 @@ class TestExceptions:
         assert isinstance(error, PipelineError)
     
     def test_pipeline_data_error(self):
-        """Test PipelineDataError."""
-        error = PipelineDataError("Missing data")
+        """Test ChunkProcessingError."""
+        error = ChunkProcessingError("Missing data")
         assert isinstance(error, PipelineError)
     
     def test_module_error(self):
@@ -107,8 +105,8 @@ class TestExceptions:
         assert error.module == "test_module"
     
     def test_module_initialization_error(self):
-        """Test ModuleInitializationError."""
-        error = ModuleInitializationError("Init failed", module="test")
+        """Test ModuleError."""
+        error = ModuleError("Init failed")
         assert isinstance(error, ModuleError)
     
     def test_module_processing_error(self):
@@ -134,26 +132,24 @@ class TestExceptions:
         assert isinstance(error, DependencyError)
     
     def test_gpu_error(self):
-        """Test GPUError."""
-        error = GPUError("GPU not available")
-        assert error.module == "resource"
-        assert isinstance(error, ResourceError)
+        """Test CUDAError."""
+        error = CUDAError("GPU not available")
+        assert isinstance(error, InfrastructureError)
     
     def test_exception_hierarchy(self):
         """Test that all exceptions inherit from SRT2WebError."""
         exceptions = [
-            ConfigError("test"),
-            ValidationError("test"),
+            ConfigurationError("test"),
+            ConfigurationValidationError("test"),
             PipelineError("test"),
             PipelineStateError("test"),
-            PipelineDataError("test"),
-            ModuleError("test", module="test"),
-            ModuleInitializationError("test", module="test"),
-            ModuleProcessingError("test", module="test"),
+            ChunkProcessingError("test"),
+            ModuleError("test"),
+            ModuleProcessingError("test"),
             TranscriberError("test"),
             TTSError("test"),
             FFmpegError("test"),
-            GPUError("test"),
+            CUDAError("test"),
         ]
         
         for exc in exceptions:

@@ -14,7 +14,7 @@
     <div class="process-content">
       <div class="form-group">
         <label class="form-label">Motor</label>
-        <select class="form-select" id="tts-engine">
+        <select class="form-select" id="tts-engine" onchange="window.handleTtsEngineChange(this.value)">
           <option value="edge-tts">Edge-TTS (Cloud)</option>
           <option value="piper">Piper (Local)</option>
         </select>

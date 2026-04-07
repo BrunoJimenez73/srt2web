@@ -188,7 +188,7 @@ export function updateSystemMetrics(status: Status): void {
     else if (cpu < 80) cpuBar.classList.add('medium');
     else cpuBar.classList.add('high');
     
-    cpuItem.className = cpu > 90 ? 'metric-item critical' : cpu > 70 ? 'metric-item warning' : '';
+    cpuItem.className = cpu > 90 ? 'metric-item critical' : cpu > 70 ? 'metric-item warning' : 'metric-item';
   }
   
   const memBar = document.getElementById('metric-memory-bar');
@@ -207,7 +207,7 @@ export function updateSystemMetrics(status: Status): void {
     else if (memPct < 80) memBar.classList.add('medium');
     else memBar.classList.add('high');
     
-    memItem.className = memPct > 90 ? 'metric-item critical' : memPct > 70 ? 'metric-item warning' : '';
+    memItem.className = memPct > 90 ? 'metric-item critical' : memPct > 70 ? 'metric-item warning' : 'metric-item';
   }
   
   const gpuBar = document.getElementById('metric-gpu-bar');
@@ -227,7 +227,7 @@ export function updateSystemMetrics(status: Status): void {
       else if (gpuPct < 80) gpuBar.classList.add('medium');
       else gpuBar.classList.add('high');
       
-      gpuItem.className = gpuPct > 90 ? 'metric-item critical' : gpuPct > 70 ? 'metric-item warning' : '';
+       gpuItem.className = gpuPct > 90 ? 'metric-item critical' : gpuPct > 70 ? 'metric-item warning' : 'metric-item';
     } else {
       gpuBar.style.width = '0%';
       gpuValue.textContent = 'N/A';
@@ -380,9 +380,9 @@ export function updateModulePerformanceMetrics(modules: any[]): void {
         }
       }
 
-      // SOLUCION PARPADEO: solo actualizar cuando sea el módulo real, no ambos
-      // Evitamos que 'output' y 'video_muxer' sobreescriban el mismo elemento
-      if (module.name === 'video_muxer') {
+      // Actualizar badge GPU tanto para video_muxer como para output
+      // Ambos representan el mismo componente en la UI
+      if (module.name === 'video_muxer' || module.name === 'output') {
         const gpuBadge = document.getElementById('hls-gpu-badge');
         const encoderEl = document.getElementById('module-encoder-video_muxer');
         
@@ -473,6 +473,22 @@ export function updateOutputFields(): void {
   if (srtConfig) srtConfig.style.display = outputType === 'srt' ? 'flex' : 'none';
   if (rtmpConfig) rtmpConfig.style.display = outputType === 'rtmp' ? 'flex' : 'none';
   if (fileConfig) fileConfig.style.display = outputType === 'file' ? 'flex' : 'none';
+}
+
+export function handleTtsEngineChange(engine: string): void {
+  const ttsDeviceGroup = document.getElementById('tts-device-group');
+  const ttsVoiceEdgeGroup = document.getElementById('tts-voice-edge-group');
+  const ttsVoicePiperGroup = document.getElementById('tts-voice-piper-group');
+  
+  if (ttsDeviceGroup) {
+    ttsDeviceGroup.style.display = engine === 'piper' ? 'block' : 'none';
+  }
+  
+  if (ttsVoiceEdgeGroup && ttsVoicePiperGroup) {
+    const isEdge = engine === 'edge-tts';
+    ttsVoiceEdgeGroup.style.display = isEdge ? 'block' : 'none';
+    ttsVoicePiperGroup.style.display = isEdge ? 'none' : 'block';
+  }
 }
 
 export function applyConfigToUI(cfg: Config): void {
@@ -596,7 +612,7 @@ export function applyConfigToUI(cfg: Config): void {
   if (webrtcVideoFPS && cfg.modules.video_muxer.video_fps) {
     webrtcVideoFPS.value = String(cfg.modules.video_muxer.video_fps);
   }
-  if (webrtcAudioCodec) webrtcAudioCodec.value = cfg.modules.video_muxer.webrtc_audio_codec || cfg.modules.video_muxer.audio_codec || 'opus';
+  if (webrtcAudioCodec) webrtcAudioCodec.value = cfg.modules.video_muxer.audio_codec || 'opus';
   if (webrtcAudioBitrate) webrtcAudioBitrate.value = cfg.modules.video_muxer.webrtc_audio_bitrate || cfg.modules.video_muxer.audio_bitrate || '64k';
   if (webrtcAudioSampleRate && cfg.modules.video_muxer.audio_sample_rate) {
     webrtcAudioSampleRate.value = String(cfg.modules.video_muxer.audio_sample_rate);
@@ -731,10 +747,12 @@ export function collectConfigFromUI(): Partial<Config> {
       },
       tts_engine: {
         enabled: (document.getElementById('tts-enabled') as HTMLInputElement)?.checked ?? true,
+        engine: (document.getElementById('tts-engine') as HTMLSelectElement)?.value || 'edge-tts',
         voice: (document.getElementById('tts-engine') as HTMLSelectElement)?.value === 'piper'
           ? (document.getElementById('tts-voice-piper') as HTMLSelectElement)?.value || 'es_ES-sharvard-medium'
           : (document.getElementById('tts-voice-edge') as HTMLSelectElement)?.value || 'es-ES-ElviraNeural',
-        speed: parseFloat((document.getElementById('tts-speed') as HTMLInputElement)?.value || '1.0')
+        speed: parseFloat((document.getElementById('tts-speed') as HTMLInputElement)?.value || '1.0'),
+        device: (document.getElementById('tts-device') as HTMLSelectElement)?.value || 'auto'
       },
       subtitle_generator: {
         enabled: (document.getElementById('subtitle-enabled') as HTMLInputElement)?.checked ?? true,
@@ -755,7 +773,9 @@ export function collectConfigFromUI(): Partial<Config> {
         encoder_mode: (document.getElementById('hls-encoder') as HTMLSelectElement)?.value || 'auto',
         video_quality: 'medium',
         video_crf: parseInt((document.getElementById('hls-crf') as HTMLInputElement)?.value || '18'),
-        audio_codec: (document.getElementById('hls-audio-codec') as HTMLSelectElement)?.value || 'aac',
+        audio_codec: (document.getElementById('video-muxer-engine') as HTMLSelectElement)?.value === 'webrtc' 
+          ? (document.getElementById('webrtc-audio-codec') as HTMLSelectElement)?.value || 'opus'
+          : (document.getElementById('hls-audio-codec') as HTMLSelectElement)?.value || 'aac',
         audio_bitrate: (document.getElementById('hls-audio-bitrate') as HTMLSelectElement)?.value || '192k',
         audio_samplerate: '48000',
         // WebRTC specific settings
@@ -858,6 +878,7 @@ export function init(): void {
 (window as unknown as { toggleModule: typeof toggleModule }).toggleModule = toggleModule;
 (window as unknown as { updateInputFields: typeof updateInputFields }).updateInputFields = updateInputFields;
 (window as unknown as { updateOutputFields: typeof updateOutputFields }).updateOutputFields = updateOutputFields;
+(window as unknown as { handleTtsEngineChange: typeof handleTtsEngineChange }).handleTtsEngineChange = handleTtsEngineChange;
 
 // Copy URL functionality
 function setupCopyButtons(): void {

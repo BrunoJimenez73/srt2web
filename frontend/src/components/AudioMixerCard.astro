@@ -214,8 +214,24 @@
 </style>
 
 <script>
-  // Add event listeners to update displayed values
-  document.addEventListener('Astro:after-swap', () => {
+  let saveTimeout = null;
+  
+  async function saveAudioConfig(key, value) {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(async () => {
+      try {
+        await fetch('/api/config', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ [key]: value })
+        });
+      } catch (e) {
+        console.error('Error saving audio config:', e);
+      }
+    }, 500);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
     const originalVol = document.getElementById('audio-mixer-original-volume');
     const originalVal = document.getElementById('audio-mixer-original-value');
     const dubbedVol = document.getElementById('audio-mixer-dubbed-volume');
@@ -224,17 +240,21 @@
     if (originalVol && originalVal) {
       originalVol.addEventListener('input', () => {
         originalVal.textContent = originalVol.value;
+        saveAudioConfig('modules.audio_mixer.original_volume', parseFloat(originalVol.value));
       });
-      // Initialize display
       originalVal.textContent = originalVol.value;
     }
     
     if (dubbedVol && dubbedVal) {
       dubbedVol.addEventListener('input', () => {
         dubbedVal.textContent = dubbedVol.value;
+        saveAudioConfig('modules.audio_mixer.tts_volume', parseFloat(dubbedVol.value));
       });
-      // Initialize display
       dubbedVal.textContent = dubbedVol.value;
     }
   });
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+  }
 </script>

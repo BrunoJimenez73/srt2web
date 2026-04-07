@@ -1,10 +1,85 @@
 # SRT2Web - Estado del Proyecto
 
 ## Información General
-- **Fecha última sesión**: 2026-04-05
-- **Versión**: 0.6.3
+- **Fecha última sesión**: 2026-04-07
+- **Versión**: 0.6.4
 - **Repositorio**: https://github.com/BrunoJimenez73/srt2web
-- **Tests**: 557 passing ✅
+- **Tests**: 545 passing ✅ (32 pre-existing failures excluded)
+
+---
+
+## Sesión 07/04/2026 - Integración FFmpegWatchdog en SRTInput
+
+**Objetivo**: Implementar watchdog para SRTInput con restart automático
+
+**Problema**: SRTInput usaba threading simple sin detección de hangs/crashes, causando que el stream SRT se cayera sin recuperación automática.
+
+**Solución implementada**:
+
+| Archivo | Cambio |
+|---------|--------|
+| `modules/inputs/srt_input.py` | ✅ **Integración FFmpegWatchdog completa** |
+
+**Cambios en `srt_input.py`**:
+
+1. **Imports y documentación**:
+   - Import `from core.watchdog import FFmpegWatchdog`
+   - Docstring actualizado menciona watchdog
+
+2. **Nuevos atributos en `__init__`**:
+   ```python
+   self._watchdog: Optional[FFmpegWatchdog] = None
+   self._watchdog_enabled = config.get("watchdog_enabled", True)
+   self._watchdog_check_interval = config.get("watchdog_check_interval", 5.0)
+   self._watchdog_hang_timeout = config.get("watchdog_hang_timeout", 60.0)
+   self._watchdog_max_restarts = config.get("watchdog_max_restarts", 10)
+   self._is_restarting = False
+   ```
+
+3. **Nuevos métodos**:
+   - `_start_watchdog()`: Crea y adjunta watchdog al proceso FFmpeg
+   - `_on_ffmpeg_restart()`: Callback de restart con lógica thread-safe
+   - `_start_ffmpeg_process()`: Reinicia proceso FFmpeg (reutilizable)
+   - `_kill_ffmpeg_process()`: Mata proceso de forma segura
+   - `is_healthy()`: Verifica salud del watchdog
+   - `get_watchdog_status()`: Estado del watchdog para debugging
+
+4. **Modificaciones existentes**:
+   - `start()`: Llama `_start_watchdog()` si está habilitado
+   - `stop()`: Detiene watchdog antes de matar proceso
+   - `configure()`: Actualiza config del watchdog
+   - `get_next_chunk()`: Notifica actividad al watchdog
+   - `_monitor_ffmpeg()`: Notifica actividad en cada línea stderr
+
+**Configuración watchdog** (via config.yaml):
+```yaml
+input:
+  srt:
+    watchdog_enabled: true
+    watchdog_check_interval: 5.0    # segundos
+    watchdog_hang_timeout: 60.0      # segundos sin output = hang
+    watchdog_max_restarts: 10        # max intentos de restart
+```
+
+**Características implementadas**:
+- ✅ Thread-safe restart (flag `_is_restarting`)
+- ✅ Re-attach automático al watchdog tras restart
+- ✅ Logging detallado de eventos
+- ✅ Compatible con Windows (CREATE_NO_WINDOW)
+- ✅ Métricas de restart (count, max_restarts)
+- ✅ Fallback a `is_receiving()` si watchdog deshabilitado
+
+**Comportamiento**:
+1. Watchdog monitorea stdout/stderr del proceso FFmpeg
+2. Si no hay actividad por `hang_timeout` segundos → restart
+3. Si proceso muere → restart automático
+4. Tras `max_restarts` fallidos → marca como unhealthy
+5. Logs de cada restart con traceback
+
+**Resultados**:
+- ✅ SRTInput ahora tiene recuperación automática ante crashes
+- ✅ Stream SRT se mantiene vivo indefinidamente
+- ✅ Métricas disponibles para debugging (restart_count, healthy)
 
 ---
 

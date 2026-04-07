@@ -716,17 +716,17 @@ class UnifiedPipeline:
         from core.module_base import ModuleState
         state = "running" if self.is_running else "idle"
         
-        # Obtener estado real del video muxer si existe
-        video_muxer = self._module_map.get("video_muxer")
+        # Obtener estado real del output sink (usualmente video_muxer)
+        sink = self._output_sink if self._output_sink else self._module_map.get("video_muxer")
         extra = {}
         processed_chunks = self.metrics.chunks_processed
         last_process_time_ms = 0
         
-        if video_muxer:
+        if sink and hasattr(sink, 'get_status'):
             try:
-                status = video_muxer.get_status()
-                if hasattr(status, 'to_dict'):
-                    status_dict = status.to_dict()
+                status = sink.get_status()
+                status_dict = status.to_dict() if hasattr(status, 'to_dict') else status
+                if isinstance(status_dict, dict):
                     processed_chunks = status_dict.get('processed_chunks', processed_chunks)
                     last_process_time_ms = status_dict.get('last_process_time_ms', last_process_time_ms)
                     extra = status_dict.get('extra', {})
