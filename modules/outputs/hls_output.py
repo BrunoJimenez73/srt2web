@@ -396,4 +396,3 @@ class HLSOutput(OutputSink):
 from core.io_factory import OutputFactory
 
 OutputFactory.register("web", HLSOutput)
-OutputFactory.register("hls", HLSOutput)  # Alias

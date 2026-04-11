@@ -694,7 +694,7 @@ class UnifiedPipeline:
                 pass
         
         return {
-            "name": "output",
+            "name": "video_muxer",
             "state": state,
             "enabled": True,
             "error_message": None,

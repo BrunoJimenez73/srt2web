@@ -61,21 +61,21 @@ def find_ffmpeg() -> Optional[str]:
         logger.info(f"Found FFmpeg in project bin: {local_ffmpeg}")
         _cached_ffmpeg_path = str(local_ffmpeg)
         return str(local_ffmpeg)
-
+    
     # Also check inside extracted folder structure
     for candidate in bin_dir.rglob("ffmpeg*"):
         if candidate.is_file() and candidate.stem == "ffmpeg":
             logger.info(f"Found FFmpeg in project bin: {candidate}")
             _cached_ffmpeg_path = str(candidate)
             return str(candidate)
-
+    
     # Check system PATH
     system_ffmpeg = shutil.which("ffmpeg")
     if system_ffmpeg:
         logger.info(f"Found FFmpeg in PATH: {system_ffmpeg}")
         _cached_ffmpeg_path = system_ffmpeg
         return system_ffmpeg
-
+    
     logger.warning("FFmpeg not found")
     return None
 
@@ -90,22 +90,22 @@ def find_ffprobe() -> Optional[str]:
     
     bin_dir = get_project_bin_dir()
     exe = "ffprobe.exe" if platform.system() == "Windows" else "ffprobe"
-
+    
     local = bin_dir / exe
     if local.exists():
         _cached_ffprobe_path = str(local)
         return str(local)
-
+    
     for candidate in bin_dir.rglob("ffprobe*"):
         if candidate.is_file() and candidate.stem == "ffprobe":
             _cached_ffprobe_path = str(candidate)
             return str(candidate)
-
+    
     system = shutil.which("ffprobe")
     if system:
         _cached_ffprobe_path = system
         return system
-
+    
     return None
 
 
@@ -137,12 +137,18 @@ def check_gpu_support(ffmpeg_path: str) -> dict:
             timeout=5,
             creationflags=_get_creation_flags(),
         )
-        output = result.stdout.lower()
+        # FFmpeg imprime la lista de encoders por stderr, NO por stdout
+        output = (result.stderr + result.stdout).lower()
+        
+        if result.returncode != 0:
+            logger.warning(f"FFmpeg -encoders command failed (RC={result.returncode}). Stderr: {result.stderr}")
+
         results["nvenc"] = "h264_nvenc" in output or "hevc_nvenc" in output
         results["qsv"] = "h264_qsv" in output or "hevc_qsv" in output
         results["amf"] = "h264_amf" in output or "hevc_amf" in output
         results["vaapi"] = "h264_vaapi" in output or "hevc_vaapi" in output
-    except Exception:
+    except Exception as e:
+        logger.error(f"Exception during GPU check: {e}")
         pass
     return results
 
@@ -207,26 +213,26 @@ def download_ffmpeg(progress_callback=None) -> Optional[str]:
             "Please install FFmpeg manually."
         )
         return None
-
+    
     url = FFMPEG_URLS[system]
     bin_dir = get_project_bin_dir()
     bin_dir.mkdir(parents=True, exist_ok=True)
-
+    
     try:
         logger.info(f"Downloading FFmpeg from {url}...")
-
+        
         # Download with progress
         archive_path = bin_dir / ("ffmpeg_download.zip" if system == "Windows" else "ffmpeg_download.zip")
-
+        
         def _reporthook(block_num, block_size, total_size):
             if progress_callback and total_size > 0:
                 downloaded = block_num * block_size
                 progress_callback(downloaded, total_size)
-
+        
         urllib.request.urlretrieve(url, str(archive_path), _reporthook)
-
+        
         logger.info("Extracting FFmpeg...")
-
+        
         # Extract
         if str(archive_path).endswith(".zip"):
             with zipfile.ZipFile(archive_path, "r") as zf:
@@ -234,10 +240,10 @@ def download_ffmpeg(progress_callback=None) -> Optional[str]:
         elif str(archive_path).endswith((".tar.gz", ".tar.xz")):
             with tarfile.open(archive_path, "r:*") as tf:
                 tf.extractall(bin_dir)
-
+        
         # Clean up archive
         archive_path.unlink(missing_ok=True)
-
+        
         # Find the extracted binary
         ffmpeg_path = find_ffmpeg()
         if ffmpeg_path:
@@ -252,7 +258,7 @@ def download_ffmpeg(progress_callback=None) -> Optional[str]:
         else:
             logger.error("FFmpeg binary not found after extraction")
             return None
-
+    
     except Exception as e:
         logger.error(f"Failed to download FFmpeg: {e}")
         return None
@@ -271,12 +277,12 @@ def ensure_ffmpeg(progress_callback=None) -> str:
     path = find_ffmpeg()
     if path:
         return path
-
+    
     logger.info("FFmpeg not found. Attempting to download...")
     path = download_ffmpeg(progress_callback)
     if path:
         return path
-
+    
     raise RuntimeError(
         "FFmpeg is required but could not be found or downloaded. "
         "Please install FFmpeg manually: https://ffmpeg.org/download.html"
@@ -320,10 +326,10 @@ def run_ffmpeg(
     """
     if ffmpeg_path is None:
         ffmpeg_path = ensure_ffmpeg()
-
+    
     cmd = [ffmpeg_path] + args
     logger.debug(f"Running: {' '.join(cmd)}")
-
+    
     return subprocess.run(
         cmd,
         capture_output=capture_output,
@@ -349,10 +355,10 @@ def start_ffmpeg_process(
     """
     if ffmpeg_path is None:
         ffmpeg_path = ensure_ffmpeg()
-
+    
     cmd = [ffmpeg_path] + args
     logger.info(f"Starting FFmpeg process: {' '.join(cmd)}")
-
+    
     return subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
@@ -367,9 +373,9 @@ def cleanup_ffmpeg_processes():
     import subprocess
     import platform
     import time
-
+    
     logger = logging.getLogger("srt2web.ffmpeg")
-
+    
     try:
         if platform.system() == "Windows":
             # Use taskkill to kill FFmpeg processes

@@ -33,8 +33,9 @@ class InputFactory:
         """Registrar una nueva fuente de entrada."""
         if not issubclass(input_class, InputSource):
             raise TypeError(f"{input_class} must inherit from InputSource")
-        cls._inputs[name] = input_class
-        logger.info(f"Registered input source: {name}")
+        if name not in cls._inputs:
+            cls._inputs[name] = input_class
+            logger.info(f"Registered input source: {name}")
 
     @classmethod
     def create(cls, input_type: str, config: dict) -> InputSource:
@@ -77,13 +78,15 @@ class InputFactory:
     @classmethod
     def _auto_register(cls) -> None:
         """Auto-registrar todos los inputs del paquete modules/inputs."""
+        loaded = set()
         try:
             import modules.inputs
 
             for importer, modname, ispkg in pkgutil.iter_modules(
                 modules.inputs.__path__
             ):
-                if modname.endswith("_input") and not modname.startswith("base"):
+                if modname.endswith("_input") and not modname.startswith("base") and modname not in loaded:
+                    loaded.add(modname)
                     try:
                         module = importlib.import_module(f"modules.inputs.{modname}")
                         # El módulo debe auto-registrarse en su __init__.py
@@ -111,8 +114,13 @@ class OutputFactory:
         """Registrar un nuevo destino de salida."""
         if not issubclass(output_class, OutputSink):
             raise TypeError(f"{output_class} must inherit from OutputSink")
-        cls._outputs[name] = output_class
-        logger.info(f"Registered output sink: {name}")
+        # Bloquear explicitamente hls ya que es modulo interno del videomuxer
+        if name == "hls":
+            logger.debug(f"Ignored internal output sink: {name}")
+            return
+        if name not in cls._outputs:
+            cls._outputs[name] = output_class
+            logger.info(f"Registered output sink: {name}")
 
     @classmethod
     def create(cls, output_type: str, config: dict) -> OutputSink:
@@ -155,13 +163,15 @@ class OutputFactory:
     @classmethod
     def _auto_register(cls) -> None:
         """Auto-registrar todos los outputs del paquete modules/outputs."""
+        loaded = set()
         try:
             import modules.outputs
 
             for importer, modname, ispkg in pkgutil.iter_modules(
                 modules.outputs.__path__
             ):
-                if modname.endswith("_output") and not modname.startswith("base"):
+                if modname.endswith("_output") and not modname.startswith("base") and modname not in loaded and modname != "hls_output":
+                    loaded.add(modname)
                     try:
                         module = importlib.import_module(f"modules.outputs.{modname}")
                         # El módulo debe auto-registrarse en su __init__.py
