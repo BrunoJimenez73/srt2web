@@ -746,17 +746,19 @@ def create_api_router() -> APIRouter:
             health_status = "unhealthy"
 
         input_health = {"receiving": False}
-        if pipeline.input_source:
+        input_src = pipeline.get_input_source()
+        if input_src:
             input_health = {
-                "receiving": pipeline.input_source.is_receiving(),
-                "type": pipeline.input_source.name,
+                "receiving": input_src.is_receiving() if hasattr(input_src, 'is_receiving') else False,
+                "type": getattr(input_src, 'name', 'unknown'),
             }
 
         output_health = {"streaming": False}
-        if pipeline.output_sink:
+        output_snk = pipeline.get_output_sink()
+        if output_snk:
             output_health = {
-                "streaming": pipeline.output_sink.is_streaming(),
-                "type": pipeline.output_sink.name,
+                "streaming": output_snk.is_streaming() if hasattr(output_snk, 'is_streaming') else False,
+                "type": getattr(output_snk, 'name', 'unknown'),
             }
 
         return {

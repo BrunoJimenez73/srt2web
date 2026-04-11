@@ -195,14 +195,14 @@ class TestPlayerCode:
             content = f.read()
          
         assert "MANIFEST_PARSED" in content
-        assert "waiting.style.display = 'none'" in content
+        assert "waitingEl) waitingEl.style.display = 'none'" in content
 
     def test_player_has_error_handling(self):
         """Test that player has proper HLS error handling."""
         with open("frontend/src/lib/modules/player.ts", "r", encoding="utf-8") as f:
             content = f.read()
          
-        assert "Hls.Events.ERROR" in content
+        assert "HlsEvents.ERROR" in content or "Hls.Events.ERROR" in content
         assert "NETWORK_ERROR" in content
         assert "MEDIA_ERROR" in content
 

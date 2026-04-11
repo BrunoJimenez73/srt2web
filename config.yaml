@@ -121,15 +121,3 @@ modules:
     video_preset: medium
 output_dir:
   directory: ./output
-</write_to_file>
-<task_progress>
-- [x] Check encoder configuration in video_muxer.py
-- [x] Verify FFmpeg path and NVENC support
-- [x] Test NVENC encoding with FFmpeg command
-- [x] Check hardware_monitor for GPU detection
-- [x] Review logs for encoding errors
-- [x] Modify config.yaml to force GPU detection
-- [x] Rebuild frontend after config change
-- [ ] Verify GPU metrics in video_muxer status
-</task_progress>
-</write_to_file>

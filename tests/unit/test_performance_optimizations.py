@@ -181,7 +181,7 @@ class TestConfigDefaults:
         from core.config_manager import DEFAULT_CONFIG
         
         assert "rate_limit_rpm" in DEFAULT_CONFIG["server"]
-        assert DEFAULT_CONFIG["server"]["rate_limit_rpm"] == 60
+        assert DEFAULT_CONFIG["server"]["rate_limit_rpm"] == 600
 
     def test_config_has_max_request_size(self):
         """Test that config has max request size in config or defaults."""

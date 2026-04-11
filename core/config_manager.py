@@ -21,6 +21,8 @@ from core.config_schema import SRT2WebConfig
 
 logger = logging.getLogger("srt2web.config")
 
+DEFAULT_CONFIG = SRT2WebConfig().to_dict()
+
 
 def _deep_merge(base: dict, override: dict) -> dict:
     """

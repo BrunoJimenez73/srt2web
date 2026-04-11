@@ -163,9 +163,17 @@ class UnifiedPipeline:
         """Establecer fuente de entrada."""
         self._input_source = source
 
+    def get_input_source(self) -> Optional[Any]:
+        """Obtener fuente de entrada."""
+        return self._input_source
+
     def set_output_sink(self, sink: Any) -> None:
         """Establecer destino de salida."""
         self._output_sink = sink
+
+    def get_output_sink(self) -> Optional[Any]:
+        """Obtener destino de salida."""
+        return self._output_sink
 
     def register_module(self, module: BaseModule, config: Optional[dict] = None) -> None:
         """Registrar un módulo en orden de ejecución."""

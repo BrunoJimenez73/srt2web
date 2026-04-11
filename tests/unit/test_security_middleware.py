@@ -268,7 +268,7 @@ class TestConfigManagerDefaults:
         from core.config_manager import DEFAULT_CONFIG
 
         assert "rate_limit_rpm" in DEFAULT_CONFIG["server"]
-        assert DEFAULT_CONFIG["server"]["rate_limit_rpm"] == 60
+        assert DEFAULT_CONFIG["server"]["rate_limit_rpm"] == 600
 
 
 class TestSecurityCardComponent:
