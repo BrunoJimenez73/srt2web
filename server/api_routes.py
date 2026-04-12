@@ -509,6 +509,8 @@ def create_api_router() -> APIRouter:
         try:
             config.update_from_dict(body.config)
             config.save()
+            # Hot reload: force reload from disk to avoid stale cache
+            config.reload()
         except ValueError as e:
             logger.warning(f"Invalid config but accepting anyway: {e}")
             return {"status": "updated", "config": config.to_dict(), "warning": str(e)}

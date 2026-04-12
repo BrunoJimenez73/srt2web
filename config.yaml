@@ -14,13 +14,14 @@ input:
     mode: listener
     latency_ms: 200
     caller_address: ''
+    chunk_duration_sec: 5
   rtmp:
     listen_port: 1935
     app: live
     stream_key: stream
     url: ''
     mode: listener
-    chunk_duration_sec: 10
+    chunk_duration_sec: 5
   file:
     path: ''
     loop: false
@@ -63,7 +64,7 @@ output:
     save_subtitles: true
     path: ./output
 pipeline:
-  chunk_duration_sec: 10
+  chunk_duration_sec: 5
   mode: thread_parallel
   max_concurrent_chunks: 3
   buffer_size: 5
@@ -86,7 +87,7 @@ modules:
     enabled: true
     format: webvtt
     use_translated: true
-    chunk_duration: 10
+    chunk_duration: 5
   tts_engine:
     enabled: true
     engine: piper
@@ -101,8 +102,8 @@ modules:
   video_muxer:
     enabled: true
     engine: hls
-    hls_segment_duration: 10
-    hls_list_size: 6
+    hls_segment_duration: 5
+    hls_list_size: 2
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
     video_quality: medium
