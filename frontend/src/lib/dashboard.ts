@@ -432,6 +432,28 @@ export function updateModulePerformanceMetrics(modules: any[]): void {
         // No hacemos nada más para output
         return;
       }
+      
+      // INPUT GPU badge - show when using hardware acceleration
+      if (module.name === 'input' || module.name === 'srt_input' || module.name === 'rtmp_input' || module.name === 'file_input') {
+        const inputGpuBadge = document.getElementById('input-gpu-badge');
+        const inputEncoderEl = document.getElementById('module-encoder-input');
+        
+        if (inputGpuBadge) {
+          const isGpuActive = module.extra?.using_gpu === true;
+          if (module.enabled && isGpuActive) {
+            inputGpuBadge.style.display = 'inline';
+            inputGpuBadge.classList.toggle('active', isProcessing);
+            inputGpuBadge.textContent = isGpuActive ? 'GPU' : 'CPU';
+          } else {
+            inputGpuBadge.style.display = 'none';
+          }
+        }
+        
+        if (inputEncoderEl) {
+          const label = module.extra?.encoder_label || (module.extra?.using_gpu ? 'GPU' : 'CPU');
+          inputEncoderEl.textContent = label;
+        }
+      }
     }
   });
 }

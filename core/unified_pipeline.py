@@ -642,6 +642,18 @@ class UnifiedPipeline:
             modules_status.append(output_status)
         except Exception:
             pass
+        
+        # Agregar status del input source al inicio de la lista
+        try:
+            if self._input_source and hasattr(self._input_source, 'get_status'):
+                input_status = self._input_source.get_status()
+                if isinstance(input_status, dict):
+                    # Ensure it has the right name for the frontend
+                    if 'name' not in input_status:
+                        input_status['name'] = 'input'
+                    modules_status.insert(0, input_status)
+        except Exception:
+            pass
 
         # Métricas del sistema
         system_metrics = self._hardware_monitor.get_system_metrics()

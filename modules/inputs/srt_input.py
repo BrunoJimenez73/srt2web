@@ -518,6 +518,22 @@ class SRTInput(InputSource):
             "max_restarts": self._watchdog_max_restarts,
         }
 
+    def get_status(self) -> dict:
+        """Get status including GPU acceleration info."""
+        return {
+            "name": "input",
+            "state": "running" if self.is_receiving() else "idle",
+            "enabled": True,
+            "processed_chunks": self._last_chunk_index + 1 if self._last_chunk_index >= 0 else 0,
+            "last_process_time_ms": 0,
+            "extra": {
+                "using_gpu": self._hwaccel_enabled,
+                "gpu_info": self._gpu_info,
+                "encoder_label": "NVDEC" if self._gpu_info.get("nvenc") else "QSV" if self._gpu_info.get("qsv") else "VAAPI" if self._gpu_info.get("vaapi") else "CPU",
+                "hwaccel": self._hwaccel_enabled,
+            }
+        }
+
     def _monitor_ffmpeg(self) -> None:
         """Monitorear stderr de FFmpeg para logs."""
         if not self._ffmpeg_proc or not self._ffmpeg_proc.stderr:
