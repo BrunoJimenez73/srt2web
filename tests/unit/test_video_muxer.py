@@ -50,10 +50,21 @@ class TestVideoMuxer:
         
         assert muxer.state == ModuleState.IDLE
 
-    @pytest.mark.skip(reason="VideoMuxer uses FFmpeg from different path")
     def test_get_status_has_extra(self):
         """Test get_status includes extra info."""
-        pass
+        from modules.video_muxer import VideoMuxer
+
+        class Testable(VideoMuxer):
+            def _do_process(self, data):
+                return data
+
+        with patch("modules.video_muxer.ensure_ffmpeg", return_value="/bin/ffmpeg"):
+            with patch("core.ffmpeg_utils.check_gpu_support", return_value={"nvenc": False, "qsv": False, "amf": False, "vaapi": False}):
+                muxer = Testable(output_dir="/tmp")
+                muxer.start()
+                
+                status = muxer.get_status()
+                assert "encoder_mode" in status.extra
 
     def test_process_with_none_input(self):
         """Test process handles None input."""
@@ -64,7 +75,16 @@ class TestVideoMuxer:
         
         assert result is not None
 
-    @pytest.mark.skip(reason="VideoMuxer uses FFmpeg from different path")
     def test_hls_directory_created(self):
         """Test HLS directory is set."""
-        pass
+        from modules.video_muxer import VideoMuxer
+
+        class Testable(VideoMuxer):
+            def _do_process(self, data):
+                return data
+
+        with patch("modules.video_muxer.ensure_ffmpeg", return_value="/bin/ffmpeg"):
+            with patch("core.ffmpeg_utils.check_gpu_support", return_value={"nvenc": False}):
+                muxer = Testable(output_dir="/tmp")
+                muxer.start()
+                assert muxer._hls_dir is not None
