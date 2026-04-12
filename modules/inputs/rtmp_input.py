@@ -155,7 +155,7 @@ class RTMPInput(InputSource):
             "-flush_packets",
             "1",
             chunk_pattern,
-        ]
+        ])
 
         logger.info(f"Starting RTMP input: {' '.join(cmd[:6])}...")
 
