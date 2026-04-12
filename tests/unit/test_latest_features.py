@@ -147,15 +147,15 @@ class TestConfigValues:
         with open(CONFIG_PATH, "r") as f:
             config = yaml.safe_load(f)
         
-        assert config['pipeline']['chunk_duration_sec'] >= 5
+        assert config['pipeline']['chunk_duration_sec'] >= 1
         assert config['pipeline']['chunk_duration_sec'] <= 10
 
     def test_hls_segment_duration_is_valid(self):
-        """Test output.web.segment_duration = 10."""
+        """Test output.web.segment_duration = 2 (low latency)."""
         with open(CONFIG_PATH, "r") as f:
             config = yaml.safe_load(f)
         
-        assert config['output']['web']['segment_duration'] == 5
+        assert config['output']['web']['segment_duration'] == 2
 
     def test_hls_list_size_is_2(self):
         """Test output.web.list_size = 2 (20s buffer)."""
