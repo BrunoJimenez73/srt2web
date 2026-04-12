@@ -619,6 +619,25 @@ export function applyConfigToUI(cfg: Config): void {
     inputTypeSelect.value = inputType;
     updateInputFields();
   }
+  
+  // Load chunk duration from config
+  const srtChunkInput = document.getElementById('input-chunk-duration') as HTMLInputElement;
+  const rtmpChunkInput = document.getElementById('input-rtmp-chunk') as HTMLInputElement;
+  const fileChunkInput = document.getElementById('input-file-chunk') as HTMLInputElement;
+  
+  const srtConfig = cfg.input?.srt;
+  const rtmpConfig = cfg.input?.rtmp;
+  const fileConfig = cfg.input?.file;
+  
+  if (srtChunkInput && srtConfig?.chunk_duration_sec) {
+    srtChunkInput.value = String(srtConfig.chunk_duration_sec);
+  }
+  if (rtmpChunkInput && rtmpConfig?.chunk_duration_sec) {
+    rtmpChunkInput.value = String(rtmpConfig.chunk_duration_sec);
+  }
+  if (fileChunkInput && fileConfig?.chunk_duration_sec) {
+    fileChunkInput.value = String(fileConfig.chunk_duration_sec);
+  }
 
   const outputType = cfg.output?.type === 'web' ? 'webplayer' : (cfg.output?.type || 'webplayer');
   if (outputTypeSelect) {
@@ -800,17 +819,20 @@ export function collectConfigFromUI(): Partial<Config> {
       listen_port: parseInt((document.getElementById('input-srt-port') as HTMLInputElement)?.value || '9000'),
       mode: (document.getElementById('input-srt-mode') as HTMLSelectElement)?.value || 'listener',
       latency_ms: parseInt((document.getElementById('input-srt-latency') as HTMLInputElement)?.value || '1000'),
+      chunk_duration_sec: parseInt((document.getElementById('input-chunk-duration') as HTMLInputElement)?.value || '10'),
     };
   } else if (inputType === 'rtmp') {
     inputConfig.rtmp = {
       url: (document.getElementById('input-rtmp-url') as HTMLInputElement)?.value || 'rtmp://localhost/live/stream',
       mode: (document.getElementById('input-rtmp-mode') as HTMLSelectElement)?.value || 'pull',
+      chunk_duration_sec: parseInt((document.getElementById('input-rtmp-chunk') as HTMLInputElement)?.value || '10'),
     };
   } else if (inputType === 'file') {
     inputConfig.file = {
       path: (document.getElementById('input-file-path') as HTMLInputElement)?.value || '',
       loop: (document.getElementById('input-file-loop') as HTMLSelectElement)?.value === 'true',
       speed: parseFloat((document.getElementById('input-file-speed') as HTMLInputElement)?.value || '1.0'),
+      chunk_duration_sec: parseInt((document.getElementById('input-file-chunk') as HTMLInputElement)?.value || '10'),
     };
   }
   
