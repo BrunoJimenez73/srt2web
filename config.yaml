@@ -74,7 +74,7 @@ modules:
     enabled: true
   transcriber:
     enabled: true
-    model: medium
+    model: tiny
     language: en
     device: cuda
     beam_size: 2

@@ -258,12 +258,28 @@ export function updateSystemMetrics(status: Status): void {
 
 export function updateModulePerformanceMetrics(modules: any[]): void {
   // Update input metrics separately (input is not in modules list)
-  // Calculate average processing time from throughput
+  // Find input module in modules array for timing info
+  const inputModule = modules?.find(m => 
+    m.name === 'input' || m.name === 'srt_input' || 
+    m.name === 'rtmp_input' || m.name === 'file_input'
+  );
+  
   const inputTimeEl = document.getElementById('module-time-input');
   const inputChunksEl = document.getElementById('module-chunks-input');
-  if (inputTimeEl && status) {
-    if (status.state === 'running') {
-      if (throughputHistory.length > 0) {
+  
+  // Use input module's timing if available, otherwise use global status
+  const moduleStatus = inputModule || status;
+  
+  if (inputTimeEl && moduleStatus) {
+    if (!moduleStatus.enabled) {
+      inputTimeEl.textContent = 'DISABLED';
+      inputTimeEl.style.color = 'var(--text-dim)';
+    } else if (moduleStatus.state === 'running') {
+      // Use the module's last_process_time_ms if available
+      if (inputModule?.last_process_time_ms > 0) {
+        inputTimeEl.textContent = `${inputModule.last_process_time_ms.toFixed(1)}ms`;
+        inputTimeEl.style.color = 'var(--success)';
+      } else if (throughputHistory.length > 0) {
         const avgThroughput = throughputHistory.reduce((a, b) => a + b, 0) / throughputHistory.length;
         const avgTimeMs = avgThroughput > 0 ? (1000 / avgThroughput).toFixed(0) : '--';
         inputTimeEl.textContent = `${avgTimeMs}ms`;
@@ -272,13 +288,16 @@ export function updateModulePerformanceMetrics(modules: any[]): void {
         inputTimeEl.textContent = '--';
         inputTimeEl.style.color = 'var(--text-sec)';
       }
+    } else if (moduleStatus.state === 'error') {
+      inputTimeEl.textContent = 'ERROR';
+      inputTimeEl.style.color = 'var(--error)';
     } else {
       inputTimeEl.textContent = 'IDLE';
       inputTimeEl.style.color = 'var(--text-sec)';
     }
   }
-  if (inputChunksEl && status) {
-    inputChunksEl.textContent = String(status.chunks_processed ?? 0);
+  if (inputChunksEl && moduleStatus) {
+    inputChunksEl.textContent = String(moduleStatus.processed_chunks ?? 0);
   }
 
   // Update video muxer metrics separately (video_muxer is an OutputSink, not in modules list)
@@ -323,6 +342,12 @@ export function updateModulePerformanceMetrics(modules: any[]): void {
   }
 
   modules.forEach(module => {
+    // Skip INPUT modules - they are handled separately in this function
+    if (module.name === 'input' || module.name === 'srt_input' || 
+        module.name === 'rtmp_input' || module.name === 'file_input') {
+      return;
+    }
+    
     // Update main module metrics
     const timeEl = document.getElementById(`module-time-${module.name}`);
     if (timeEl) {
@@ -330,7 +355,7 @@ export function updateModulePerformanceMetrics(modules: any[]): void {
         timeEl.textContent = 'DISABLED';
         timeEl.style.color = 'var(--text-dim)';
       } else if (module.state === 'running') {
-        const lastProcessTime = module.last_process_time_ms > 0 ? `${module.last_process_time_ms.toFixed(1)}ms` : 'RUNNING';
+        const lastProcessTime = module.last_process_time_ms > 0 ? `${module.last_process_time_ms.toFixed(1)}ms` : '--';
         timeEl.textContent = lastProcessTime;
         timeEl.style.color = 'var(--success)';
       } else if (module.state === 'error') {
@@ -422,7 +447,7 @@ export function updateModulePerformanceMetrics(modules: any[]): void {
           } else if (module.state === 'running') {
             const lastProcessTime = module.last_process_time_ms > 0 
               ? `${module.last_process_time_ms.toFixed(1)}ms` 
-              : 'RUNNING';
+              : '--';
             outputTimeEl.textContent = lastProcessTime;
             outputTimeEl.style.color = 'var(--success)';
           } else if (module.state === 'error') {
