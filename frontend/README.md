@@ -1,43 +1,104 @@
-# Astro Starter Kit: Minimal
+# SRT2Web - Frontend
 
-```sh
-npm create astro@latest -- --template minimal
+Interfaz web para streaming de video en tiempo real con subtítulos traducidos.
+
+## Estructura
+
 ```
-
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
-
-## 🚀 Project Structure
-
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
-/
-├── public/
+frontend/
 ├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+│   ├── components/       # Componentes UI
+│   │   ├── layout/      # Header, Footer
+│   │   └── ui/          # Button, Input, Toggle, Badge, Card
+│   ├── lib/             # Módulos JavaScript
+│   │   ├── api.ts       # API client
+│   │   ├── dashboard.ts # Dashboard principal
+│   │   ├── modules/    # Módulos por área
+│   │   │   ├── events.ts
+│   │   │   ├── player.ts
+│   │   │   ├── ui.ts
+│   │   │   └── config.ts
+│   │   └── utils/       # Utilidades
+│   ├── pages/           # Páginas Astro
+│   │   ├── index.astro  # Dashboard
+│   │   └── player.astro # Reproductor HLS
+│   └── styles/         # Estilos CSS
+├── public/              # Assets estáticos
+├── tailwind.config.js   # Configuración Tailwind
+└── astro.config.mjs    # Configuración Astro
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## Tecnologías
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+- **Astro** 6.x - Framework web
+- **Tailwind CSS** 4.x - Estilos
+- **TypeScript** - Tipos
 
-Any static assets, like images, can be placed in the `public/` directory.
+## Comandos
 
-## 🧞 Commands
+```bash
+cd frontend
+npm install
+npm run dev      # Desarrollo localhost:4321
+npm run build    # Build a server/static
+```
 
-All commands are run from the root of the project, from a terminal:
+## Módulos JavaScript
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+### api.ts
+```typescript
+getAuthToken()    // Obtener token
+setAuthToken()     // Guardar token
+clearAuthToken()   // Limpiar token
+getWebSocketUrl()  // WebSocket URL con auth
+apiCall()          // Llamadas API
+getConfig()        // Obtener config
+startPipeline()    // Iniciar pipeline
+stopPipeline()     // Detener pipeline
+```
 
-## 👀 Want to learn more?
+### dashboard.ts
+```typescript
+initDashboard()              // Inicializar dashboard
+initWebSocket()           // Conectar WebSocket
+handleInputTypeChange()    // Cambio tipo input
+handleOutputFormatChange() // Cambio formato output
+```
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+---
+
+## Estado del Proyecto (2026-04-12)
+
+**Versión**: 0.6.5  
+**Tests**: 527 passing ✅
+
+### Módulos del Pipeline
+
+1. **SRTInput** - Entrada SRT (puerto 9000)
+2. **AudioExtractor** - Extrae audio del video
+3. **Transcriber** - Whisper (tiny~large)
+4. **Translator** - Argos Translate
+5. **TTSEngine** - Piper TTS
+6. **AudioMixer** - Mezcla audio original + TTS
+7. **VideoMuxer** - Salida HLS (WebRTC opcional)
+8. **SubtitleGenerator** - VTT subtitles
+
+### Configuración Low-Latency
+
+```yaml
+pipeline:
+  chunk_duration_sec: 10
+output:
+  web:
+    segment_duration: 10
+    list_size: 2
+```
+
+### Características
+
+- ✅ Recover automático SRT (FFmpegWatchdog)
+- ✅ Pool de procesos FFmpeg
+- ✅ GPU acceleration (NVENC, QSV, AMF)
+- ✅ WebSocket en tiempo real
+- ✅ Subtítulos traduzidos en vivo
+- ✅ 527 tests passing
