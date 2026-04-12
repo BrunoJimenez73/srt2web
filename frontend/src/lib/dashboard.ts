@@ -78,22 +78,24 @@ export function updateUrls(localIp?: string): void {
   const ip = localIp || '127.0.0.1';
   const useIp = isLocalhost(ip) ? '127.0.0.1' : ip;
   
+  const srtPort = config.input?.srt?.listen_port || 9000;
+  
   const urlSrt = document.getElementById('url-srt');
   const urlStream = document.getElementById('url-stream');
   const urlPlayer = document.getElementById('url-player');
   
   if (urlSrt) {
-    const srtUrl = getSRTUrl(config);
+    const srtUrl = getSRTUrl(useIp, srtPort);
     urlSrt.textContent = srtUrl;
   }
   
   if (urlStream) {
-    const streamUrl = getStreamUrl(config);
+    const streamUrl = getStreamUrl(useIp);
     urlStream.textContent = streamUrl;
   }
   
   if (urlPlayer) {
-    const playerUrl = getPlayerUrl(config);
+    const playerUrl = getPlayerUrl(useIp);
     urlPlayer.textContent = playerUrl;
     // Only set href if element is an anchor
     if (urlPlayer instanceof HTMLAnchorElement) {
@@ -110,7 +112,7 @@ export function updateUrls(localIp?: string): void {
       outputPlayerDisplay.textContent = `${window.location.origin}/webrtc-player`;
     } else {
       // HLS player URL
-      outputPlayerDisplay.textContent = getPlayerUrl(config);
+      outputPlayerDisplay.textContent = getPlayerUrl(useIp);
     }
   }
 }
