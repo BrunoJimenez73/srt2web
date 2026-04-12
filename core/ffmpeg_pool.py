@@ -37,7 +37,7 @@ class FFmpegPool:
     - Better resource management
     """
 
-    def __init__(self, max_size: int = 4, idle_timeout: float = 30.0):
+    def __init__(self, max_size: int = 8, idle_timeout: float = 30.0):
         """
         Initialize FFmpeg pool.
 

@@ -91,7 +91,7 @@ modules:
     enabled: true
     engine: piper
     device: cuda
-    voice: es_MX-ald-medium
+    voice: es_AR-daniela-high
     speed: 1.0
   audio_mixer:
     enabled: true
@@ -100,7 +100,7 @@ modules:
     dubbed_volume: 1.0
   video_muxer:
     enabled: true
-    engine: hls
+    engine: webrtc
     hls_segment_duration: 10
     hls_list_size: 6
     audio_offset_ms: 0

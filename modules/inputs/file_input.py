@@ -51,6 +51,11 @@ class FileInput(InputSource):
         self._file_finished: bool = False
         self._cumulative_duration: float = 0.0  # Track cumulative duration for sync
 
+        # GPU info for hwaccel
+        self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
+        self._hwaccel_enabled = False
+        self._hwaccel_device = "0"
+
     def configure(self, config: dict) -> None:
         """Aplicar configuración."""
         self._file_path = config.get("path", self._file_path)
@@ -87,6 +92,20 @@ class FileInput(InputSource):
         self._chunks_dir = os.path.join(self._output_dir or "./output", "chunks")
         os.makedirs(self._chunks_dir, exist_ok=True)
 
+        # Detectar soporte GPU para hwaccel
+        from core.ffmpeg_utils import check_gpu_support
+        self._gpu_info = check_gpu_support(self._ffmpeg_path)
+
+        # Habilitar hwaccel si hay GPU disponible
+        if self._gpu_info.get("nvenc"):
+            self._hwaccel_enabled = True
+        elif self._gpu_info.get("qsv"):
+            self._hwaccel_enabled = True
+        elif self._gpu_info.get("vaapi"):
+            self._hwaccel_enabled = True
+        else:
+            self._hwaccel_enabled = False
+
         # Limpiar chunks antiguos
         for f in glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")):
             try:
@@ -100,11 +119,21 @@ class FileInput(InputSource):
         # Comando FFmpeg para segmentar archivo
         chunk_pattern = os.path.join(self._chunks_dir, "chunk_%06d.ts")
 
-        cmd = [
-            self._ffmpeg_path,
-            "-y",
-            "-i",
-            self._file_path,
+        # Construir comando con soporte hwaccel
+        cmd = [self._ffmpeg_path, "-y"]
+
+        # Añadir hwaccel si hay GPU disponible
+        if self._hwaccel_enabled:
+            if self._gpu_info.get("nvenc"):
+                cmd.extend(["-hwaccel", "cuda", "-hwaccel_device", self._hwaccel_device])
+            elif self._gpu_info.get("qsv"):
+                cmd.extend(["-hwaccel", "qsv", "-hwaccel_device", self._hwaccel_device])
+            elif self._gpu_info.get("vaapi"):
+                cmd.extend(["-hwaccel", "vaapi"])
+
+        # Resto del comando
+        cmd.extend([
+            "-i", self._file_path,
             "-c",
             "copy",
             "-f",
@@ -117,7 +146,7 @@ class FileInput(InputSource):
             "1",
             "-strftime",
             "0",
-        ]
+        ])
 
         if self._loop:
             cmd.extend(["-stream_loop", "-1"])

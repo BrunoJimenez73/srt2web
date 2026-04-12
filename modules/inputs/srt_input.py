@@ -67,6 +67,11 @@ class SRTInput(InputSource):
         self._watchdog_max_restarts = config.get("watchdog_max_restarts", 10)
         self._is_restarting = False  # Flag para evitar restarts concurrentes
 
+        # GPU info for hwaccel (detect once at init)
+        self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
+        self._hwaccel_enabled = False
+        self._hwaccel_device = "0"
+
     def configure(self, config: dict) -> None:
         """Aplicar configuración."""
         self._srt_port = config.get("listen_port", self._srt_port)
@@ -120,6 +125,26 @@ class SRTInput(InputSource):
             os.makedirs(self._chunks_dir, exist_ok=True)
             self.logger.info(f"Chunks directory: {self._chunks_dir}")
 
+            # Detectar soporte GPU para hwaccel
+            from core.ffmpeg_utils import check_gpu_support
+            self._gpu_info = check_gpu_support(self._ffmpeg_path)
+            self.logger.info(f"Input GPU support: {self._gpu_info}")
+
+            # Habilitar hwaccel si hay GPU disponible
+            if self._gpu_info.get("nvenc"):
+                self._hwaccel_enabled = True
+                self.logger.info("Input: Using NVDEC hardware acceleration")
+            elif self._gpu_info.get("qsv"):
+                self._hwaccel_enabled = True
+                self._hwaccel_device = "0"
+                self.logger.info("Input: Using QSV hardware acceleration")
+            elif self._gpu_info.get("vaapi"):
+                self._hwaccel_enabled = True
+                self.logger.info("Input: Using VAAPI hardware acceleration")
+            else:
+                self._hwaccel_enabled = False
+                self.logger.info("Input: No GPU acceleration available, using CPU")
+
             # Limpiar chunks antiguos
             for f in glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")):
                 try:
@@ -143,11 +168,21 @@ class SRTInput(InputSource):
             # Comando FFmpeg para recepción segmentada
             chunk_pattern = os.path.join(self._chunks_dir, "chunk_%06d.ts")
 
-            cmd = [
-                self._ffmpeg_path,
-                "-y",
-                "-i",
-                srt_url,
+            # Construir comando con soporte hwaccel (GPU acceleration)
+            cmd = [self._ffmpeg_path, "-y"]
+
+            # Añadir hwaccel si hay GPU disponible
+            if self._hwaccel_enabled:
+                if self._gpu_info.get("nvenc"):
+                    cmd.extend(["-hwaccel", "cuda", "-hwaccel_device", self._hwaccel_device])
+                elif self._gpu_info.get("qsv"):
+                    cmd.extend(["-hwaccel", "qsv", "-hwaccel_device", self._hwaccel_device])
+                elif self._gpu_info.get("vaapi"):
+                    cmd.extend(["-hwaccel", "vaapi"])
+
+            # Resto del comando
+            cmd.extend([
+                "-i", srt_url,
                 "-c",
                 "copy",
                 "-f",
@@ -167,7 +202,7 @@ class SRTInput(InputSource):
                 "-flush_packets",
                 "1",
                 chunk_pattern,
-            ]
+            ])
 
             self.logger.info(f"Starting SRT input: {' '.join(cmd)}")
             self.logger.info("Starting FFmpeg process...")

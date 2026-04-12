@@ -25,14 +25,16 @@ class EncoderConfig:
     }
 
     # Presets de GPU (NVENC) con valores CQ asociados
+    # Mayor CQ = menor calidad pero más rápido
     GPU_PRESETS = {
-        "p1": {"cq": 23, "description": "Máxima velocidad"},
-        "p2": {"cq": 23, "description": "Muy rápida"},
-        "p3": {"cq": 20, "description": "Equilibrada"},
-        "p4": {"cq": 20, "description": "Lenta"},
-        "p5": {"cq": 17, "description": "Más lenta"},
-        "p6": {"cq": 17, "description": "Alta calidad"},
+        "p1": {"cq": 28, "description": "Ultra velocidad"},
+        "p2": {"cq": 26, "description": "Muy rápida"},
+        "p3": {"cq": 24, "description": "Rápida"},
+        "p4": {"cq": 22, "description": "Equilibrada"},
+        "p5": {"cq": 20, "description": "Calidad"},
+        "p6": {"cq": 18, "description": "Alta calidad"},
         "p7": {"cq": 17, "description": "Máxima calidad"},
+        "p8": {"cq": 15, "description": "Ultra calidad"},
     }
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):

@@ -53,6 +53,11 @@ class RTMPInput(InputSource):
         self._receiving: bool = False
         self._watchdog: Optional[any] = None
 
+        # GPU info for hwaccel
+        self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
+        self._hwaccel_enabled = False
+        self._hwaccel_device = "0"
+
         if config:
             self.configure(config)
 
@@ -86,6 +91,25 @@ class RTMPInput(InputSource):
         self._chunks_dir = os.path.join(self._output_dir, "chunks")
         os.makedirs(self._chunks_dir, exist_ok=True)
 
+        # Detectar soporte GPU para hwaccel
+        from core.ffmpeg_utils import check_gpu_support
+        self._gpu_info = check_gpu_support(self._ffmpeg_path)
+        logger.info(f"RTMP Input GPU support: {self._gpu_info}")
+
+        # Habilitar hwaccel si hay GPU disponible
+        if self._gpu_info.get("nvenc"):
+            self._hwaccel_enabled = True
+            logger.info("RTMP Input: Using NVDEC hardware acceleration")
+        elif self._gpu_info.get("qsv"):
+            self._hwaccel_enabled = True
+            logger.info("RTMP Input: Using QSV hardware acceleration")
+        elif self._gpu_info.get("vaapi"):
+            self._hwaccel_enabled = True
+            logger.info("RTMP Input: Using VAAPI hardware acceleration")
+        else:
+            self._hwaccel_enabled = False
+            logger.info("RTMP Input: No GPU acceleration available, using CPU")
+
         for f in glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")):
             try:
                 os.remove(f)
@@ -97,11 +121,21 @@ class RTMPInput(InputSource):
 
         chunk_pattern = os.path.join(self._chunks_dir, "chunk_%06d.ts")
 
-        cmd = [
-            self._ffmpeg_path,
-            "-y",
-            "-i",
-            self._url,
+        # Construir comando con soporte hwaccel
+        cmd = [self._ffmpeg_path, "-y"]
+
+        # Añadir hwaccel si hay GPU disponible
+        if self._hwaccel_enabled:
+            if self._gpu_info.get("nvenc"):
+                cmd.extend(["-hwaccel", "cuda", "-hwaccel_device", self._hwaccel_device])
+            elif self._gpu_info.get("qsv"):
+                cmd.extend(["-hwaccel", "qsv", "-hwaccel_device", self._hwaccel_device])
+            elif self._gpu_info.get("vaapi"):
+                cmd.extend(["-hwaccel", "vaapi"])
+
+        # Resto del comando
+        cmd.extend([
+            "-i", self._url,
             "-c",
             "copy",
             "-f",
