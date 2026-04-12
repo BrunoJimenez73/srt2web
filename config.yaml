@@ -21,12 +21,12 @@ input:
     stream_key: stream
     url: ''
     mode: listener
-    chunk_duration_sec: 10
+    chunk_duration_sec: 5
   file:
     path: ''
     loop: false
     speed: 1.0
-    chunk_duration_sec: 10
+    chunk_duration_sec: 5
 output:
   type: web
   web:
