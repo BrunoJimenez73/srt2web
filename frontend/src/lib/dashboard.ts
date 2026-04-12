@@ -931,7 +931,6 @@ export function handleOutputFormatChange(format: string): void {
   console.log('Output format changed:', format);
 }
 
-const _originalInit = init;
 (window as any).init = function() {
   setupEventListeners();
   setupCopyButtons();
@@ -945,4 +944,6 @@ const _originalInit = init;
   }, 1000);
 };
 
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+  (window as any).init();
+});
