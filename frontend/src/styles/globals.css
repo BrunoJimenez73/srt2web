@@ -494,7 +494,7 @@
     grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     gap: 8px;
     padding: 10px;
-    background-color: var(--color-deep);
+    background-color: #191921;
     border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.08);
   }

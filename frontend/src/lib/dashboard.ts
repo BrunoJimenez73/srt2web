@@ -262,11 +262,16 @@ export function updateModulePerformanceMetrics(modules: any[]): void {
   const inputTimeEl = document.getElementById('module-time-input');
   const inputChunksEl = document.getElementById('module-chunks-input');
   if (inputTimeEl && status) {
-    if (status.state === 'running' && throughputHistory.length > 0) {
-      const avgThroughput = throughputHistory.reduce((a, b) => a + b, 0) / throughputHistory.length;
-      const avgTimeMs = avgThroughput > 0 ? (1000 / avgThroughput).toFixed(0) : '--';
-      inputTimeEl.textContent = `${avgTimeMs}ms`;
-      inputTimeEl.style.color = 'var(--success)';
+    if (status.state === 'running') {
+      if (throughputHistory.length > 0) {
+        const avgThroughput = throughputHistory.reduce((a, b) => a + b, 0) / throughputHistory.length;
+        const avgTimeMs = avgThroughput > 0 ? (1000 / avgThroughput).toFixed(0) : '--';
+        inputTimeEl.textContent = `${avgTimeMs}ms`;
+        inputTimeEl.style.color = 'var(--success)';
+      } else {
+        inputTimeEl.textContent = '--';
+        inputTimeEl.style.color = 'var(--text-sec)';
+      }
     } else {
       inputTimeEl.textContent = 'IDLE';
       inputTimeEl.style.color = 'var(--text-sec)';

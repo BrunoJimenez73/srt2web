@@ -74,7 +74,7 @@ modules:
     enabled: true
   transcriber:
     enabled: true
-    model: tiny
+    model: medium
     language: en
     device: cuda
     beam_size: 2
@@ -91,16 +91,16 @@ modules:
     enabled: true
     engine: piper
     device: cuda
-    voice: es_AR-daniela-high
-    speed: 1.0
+    voice: es_ES-davefx-medium
+    speed: 0.9
   audio_mixer:
     enabled: true
-    original_volume: 0.7
+    original_volume: 0.6
     tts_volume: 1.0
     dubbed_volume: 1.0
   video_muxer:
     enabled: true
-    engine: webrtc
+    engine: hls
     hls_segment_duration: 10
     hls_list_size: 6
     audio_offset_ms: 0
