@@ -20,17 +20,17 @@ input:
     stream_key: stream
     url: ''
     mode: listener
-    chunk_duration_sec: 2
+    chunk_duration_sec: 15
   file:
     path: ''
     loop: false
     speed: 1.0
-    chunk_duration_sec: 2
+    chunk_duration_sec: 15
 output:
   type: web
   web:
-    segment_duration: 2
-    list_size: 2
+    segment_duration: 4
+    list_size: 6
     audio_offset_ms: 0
     encoder_mode: auto
   hls:
@@ -63,7 +63,7 @@ output:
     save_subtitles: true
     path: ./output
 pipeline:
-  chunk_duration_sec: 2
+  chunk_duration_sec: 15
   mode: thread_parallel
   max_concurrent_chunks: 4
   buffer_size: 5
@@ -86,7 +86,7 @@ modules:
     enabled: true
     format: webvtt
     use_translated: true
-    chunk_duration: 2
+    chunk_duration: 15
   tts_engine:
     enabled: true
     engine: piper
@@ -100,9 +100,9 @@ modules:
     dubbed_volume: 1.0
   video_muxer:
     enabled: true
-    engine: webrtc
-    hls_segment_duration: 2
-    hls_list_size: 2
+    engine: hls
+    hls_segment_duration: 10
+    hls_list_size: 6
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
     video_quality: medium

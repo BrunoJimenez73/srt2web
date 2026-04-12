@@ -143,12 +143,12 @@ class TestConfigValues:
     """Test config.yaml has correct low-latency settings."""
 
     def test_chunk_duration_is_valid(self):
-        """Test pipeline.chunk_duration_sec is between 5 and 10 (low latency)."""
+        """Test pipeline.chunk_duration_sec is between 1 and 15 (OBS keyframe constraint)."""
         with open(CONFIG_PATH, "r") as f:
             config = yaml.safe_load(f)
         
         assert config['pipeline']['chunk_duration_sec'] >= 1
-        assert config['pipeline']['chunk_duration_sec'] <= 10
+        assert config['pipeline']['chunk_duration_sec'] <= 15
 
     def test_hls_segment_duration_is_valid(self):
         """Test output.web.segment_duration = 2 (low latency)."""
