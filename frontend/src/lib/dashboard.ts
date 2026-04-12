@@ -620,23 +620,47 @@ export function applyConfigToUI(cfg: Config): void {
     updateInputFields();
   }
   
-  // Load chunk duration from config
+  // Load chunk duration from config - use pipeline.chunk_duration_sec as fallback
   const srtChunkInput = document.getElementById('input-chunk-duration') as HTMLInputElement;
   const rtmpChunkInput = document.getElementById('input-rtmp-chunk') as HTMLInputElement;
   const fileChunkInput = document.getElementById('input-file-chunk') as HTMLInputElement;
   
-  const srtConfig = cfg.input?.srt;
-  const rtmpConfig = cfg.input?.rtmp;
-  const fileConfig = cfg.input?.file;
+  const inputSrtConfig = cfg.input?.srt;
+  const inputRtmpConfig = cfg.input?.rtmp;
+  const inputFileConfig = cfg.input?.file;
+  const pipelineChunkDuration = cfg.pipeline?.chunk_duration_sec;
   
-  if (srtChunkInput && srtConfig?.chunk_duration_sec) {
-    srtChunkInput.value = String(srtConfig.chunk_duration_sec);
+  console.log('[DEBUG] applyConfigToUI - cfg.input:', cfg.input);
+  console.log('[DEBUG] applyConfigToUI - pipeline.chunk_duration_sec:', pipelineChunkDuration);
+  
+  // Use input-specific chunk_duration, fallback to pipeline value
+  const chunkDuration = pipelineChunkDuration || 5;
+  
+  if (srtChunkInput) {
+    const srtChunk = inputSrtConfig?.chunk_duration_sec;
+    if (srtChunk) {
+      srtChunkInput.value = String(srtChunk);
+      console.log('[DEBUG] Set SRT chunk to input-specific:', srtChunk);
+    } else {
+      srtChunkInput.value = String(chunkDuration);
+      console.log('[DEBUG] Set SRT chunk to pipeline fallback:', chunkDuration);
+    }
   }
-  if (rtmpChunkInput && rtmpConfig?.chunk_duration_sec) {
-    rtmpChunkInput.value = String(rtmpConfig.chunk_duration_sec);
+  if (rtmpChunkInput) {
+    const rtmpChunk = inputRtmpConfig?.chunk_duration_sec;
+    if (rtmpChunk) {
+      rtmpChunkInput.value = String(rtmpChunk);
+    } else {
+      rtmpChunkInput.value = String(chunkDuration);
+    }
   }
-  if (fileChunkInput && fileConfig?.chunk_duration_sec) {
-    fileChunkInput.value = String(fileConfig.chunk_duration_sec);
+  if (fileChunkInput) {
+    const fileChunk = inputFileConfig?.chunk_duration_sec;
+    if (fileChunk) {
+      fileChunkInput.value = String(fileChunk);
+    } else {
+      fileChunkInput.value = String(chunkDuration);
+    }
   }
 
   const outputType = cfg.output?.type === 'web' ? 'webplayer' : (cfg.output?.type || 'webplayer');

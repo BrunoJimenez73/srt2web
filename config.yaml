@@ -14,14 +14,13 @@ input:
     mode: listener
     latency_ms: 200
     caller_address: ''
-    chunk_duration_sec: 5
   rtmp:
     listen_port: 1935
     app: live
     stream_key: stream
     url: ''
     mode: listener
-    chunk_duration_sec: 5
+    chunk_duration_sec: 10
   file:
     path: ''
     loop: false
