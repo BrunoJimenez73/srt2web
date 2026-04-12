@@ -100,7 +100,7 @@ modules:
     dubbed_volume: 1.0
   video_muxer:
     enabled: true
-    engine: webrtc
+    engine: hls
     hls_segment_duration: 10
     hls_list_size: 6
     audio_offset_ms: 0

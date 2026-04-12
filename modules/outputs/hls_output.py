@@ -391,6 +391,56 @@ class HLSOutput(OutputSink):
             except Exception as e:
                 self.logger.error(f"Failed to write master playlist: {e}")
 
+    def get_status(self) -> dict:
+        """Get status including GPU encoder info."""
+        using_gpu = False
+        actual_encoder = "libx264"
+        encoder_label = "CPU"
+        
+        encoder_mode = self._encoder_config.encoder_mode
+        
+        if self._ffmpeg_path and encoder_mode in ["auto", "gpu_nvenc", "gpu_amf", "gpu_qsv", "gpu_vaapi"]:
+            if encoder_mode == "gpu_nvenc" and self._gpu_info["nvenc"]:
+                using_gpu = True
+                actual_encoder = "h264_nvenc"
+                encoder_label = "H.264 NVENC"
+            elif encoder_mode == "gpu_nvenc" and not self._gpu_info["nvenc"]:
+                using_gpu = True
+                actual_encoder = "h264_nvenc"
+                encoder_label = "H.264 NVENC (ASSUMED)"
+            elif self._gpu_info["nvenc"]:
+                using_gpu = True
+                actual_encoder = "h264_nvenc"
+                encoder_label = "H.264 NVENC"
+            elif self._gpu_info["amf"]:
+                using_gpu = True
+                actual_encoder = "h264_amf"
+                encoder_label = "H.264 AMF"
+            elif self._gpu_info["qsv"]:
+                using_gpu = True
+                actual_encoder = "h264_qsv"
+                encoder_label = "H.264 QSV"
+        
+        if not using_gpu:
+            actual_encoder = "libx264"
+            encoder_label = "H.264 CPU"
+        
+        return {
+            "name": "video_muxer",
+            "state": "running" if self._hls_dir else "idle",
+            "enabled": True,
+            "processed_chunks": self._segment_index,
+            "last_process_time_ms": self._last_process_time_ms,
+            "extra": {
+                "encoder_mode": encoder_mode,
+                "actual_encoder": actual_encoder,
+                "using_gpu": using_gpu,
+                "gpu_available": self._gpu_info,
+                "gpu_preset": self._encoder_config.gpu_preset,
+                "encoder_label": encoder_label,
+            }
+        }
+
 
 # Auto-registro en factory
 from core.io_factory import OutputFactory

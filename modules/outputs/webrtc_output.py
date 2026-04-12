@@ -80,6 +80,23 @@ class WebRTCOutput(OutputSink):
         """Get the underlying WebRTC engine."""
         return self._engine
 
+    def get_status(self) -> dict:
+        """Get status including WebRTC info."""
+        return {
+            "name": "video_muxer",
+            "state": "running" if self._running else "idle",
+            "enabled": True,
+            "processed_chunks": 0,
+            "last_process_time_ms": 0,
+            "extra": {
+                "encoder_mode": "webrtc",
+                "actual_encoder": "webrtc",
+                "using_gpu": False,
+                "gpu_available": {},
+                "encoder_label": "CPU (WebRTC)",
+            }
+        }
+
 
 # Auto-register in factory
 from core.io_factory import OutputFactory
