@@ -266,10 +266,14 @@ export function updateModulePerformanceMetrics(modules: any[]): void {
   
   const inputTimeEl = document.getElementById('module-time-input');
   const inputChunksEl = document.getElementById('module-chunks-input');
+  const inputGpuBadge = document.getElementById('input-gpu-badge');
+  const inputEncoderEl = document.getElementById('module-encoder-input');
   
   // Use input module's timing if available, otherwise use global status
   const moduleStatus = inputModule || status;
+  const isProcessing = moduleStatus?.state === 'running' && (moduleStatus?.chunks_processed ?? 0) > 0;
   
+  // Update INPUT metrics
   if (inputTimeEl && moduleStatus) {
     if (!moduleStatus.enabled) {
       inputTimeEl.textContent = 'DISABLED';
@@ -298,6 +302,22 @@ export function updateModulePerformanceMetrics(modules: any[]): void {
   }
   if (inputChunksEl && moduleStatus) {
     inputChunksEl.textContent = String(moduleStatus.processed_chunks ?? 0);
+  }
+  
+  // Update INPUT GPU badge
+  if (inputGpuBadge && inputModule) {
+    const isGpuActive = inputModule.extra?.using_gpu === true;
+    if (inputModule.enabled && isGpuActive) {
+      inputGpuBadge.style.display = 'inline';
+      inputGpuBadge.classList.toggle('active', isProcessing);
+      inputGpuBadge.textContent = isGpuActive ? 'GPU' : 'CPU';
+    } else {
+      inputGpuBadge.style.display = 'none';
+    }
+  }
+  if (inputEncoderEl && inputModule) {
+    const label = inputModule.extra?.encoder_label || (inputModule.extra?.using_gpu ? 'GPU' : 'CPU');
+    inputEncoderEl.textContent = label;
   }
 
   // Update video muxer metrics separately (video_muxer is an OutputSink, not in modules list)
