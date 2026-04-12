@@ -29,8 +29,8 @@ input:
 output:
   type: web
   web:
-    segment_duration: 4
-    list_size: 6
+    segment_duration: 10
+    list_size: 2
     audio_offset_ms: 0
     encoder_mode: auto
   hls:
