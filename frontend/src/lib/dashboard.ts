@@ -304,12 +304,13 @@ export function updateModulePerformanceMetrics(modules: any[]): void {
     inputChunksEl.textContent = String(moduleStatus.processed_chunks ?? 0);
   }
   
-  // Update INPUT GPU badge
+  // Update INPUT GPU badge - show green when actively processing input chunks
   if (inputGpuBadge && inputModule) {
     const isGpuActive = inputModule.extra?.using_gpu === true;
+    const isActiveProcessing = moduleStatus?.state === 'running' && (inputModule.processed_chunks ?? 0) > 0;
     if (inputModule.enabled && isGpuActive) {
       inputGpuBadge.style.display = 'inline';
-      inputGpuBadge.classList.toggle('active', isProcessing);
+      inputGpuBadge.classList.toggle('active', isActiveProcessing);
       inputGpuBadge.textContent = isGpuActive ? 'GPU' : 'CPU';
     } else {
       inputGpuBadge.style.display = 'none';
