@@ -842,13 +842,6 @@ export async function initDashboard(): Promise<void> {
       }
     });
     wsClient.connect();
-}
-
-export function initWebSocket(): void {
-  if (wsClient) {
-    wsClient.connect();
-  }
-}
 
     statusPollInterval = setInterval(async () => {
       try {
@@ -870,7 +863,7 @@ export function initWebSocket(): void {
   }
 }
 
-export function init(): void {
+export function initWebSocket(): void {
   setupEventListeners();
   initDashboard();
 
