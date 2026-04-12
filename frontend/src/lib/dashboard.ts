@@ -437,11 +437,9 @@ export function updateModulePerformanceMetrics(modules: any[]): void {
 export async function toggleModule(moduleName: string, enabled: boolean): Promise<void> {
   try {
     if (moduleName === 'input') {
-      await apiCall('PUT', '/input/toggle', { enabled });
-    } else if (moduleName === 'output') {
-      await apiCall('PUT', '/output/toggle', { enabled });
-    } else {
-      await apiCall('PUT', `/modules/${moduleName}/toggle`, { enabled });
+      await apiCall('PUT', 'input/toggle', { enabled });
+      await apiCall('PUT', 'output/toggle', { enabled });
+      await apiCall('PUT', `modules/${moduleName}/toggle`, { enabled });
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -677,7 +675,7 @@ export async function handleSaveConfig(): Promise<void> {
     }
     
     const newConfig = collectConfigFromUI();
-    await apiCall('PUT', '/config', { config: newConfig });
+    await apiCall('PUT', 'config', { config: newConfig });
     config = await getConfig();
     applyConfigToUI(config);
     showToast('Configuración guardada', 'success');
@@ -822,7 +820,7 @@ export async function initDashboard(): Promise<void> {
     config = await getConfig();
     applyConfigToUI(config);
 
-    status = await apiCall<Status>('GET', '/status');
+    status = await apiCall<Status>('GET', 'status');
     updatePipelineUI(status.state);
     updateModuleStatus(status);
 
@@ -845,7 +843,7 @@ export async function initDashboard(): Promise<void> {
 
     statusPollInterval = setInterval(async () => {
       try {
-        status = await apiCall<Status>('GET', '/status');
+        status = await apiCall<Status>('GET', 'status');
         updatePipelineUI(status.state);
         updateModuleStatus(status);
         
