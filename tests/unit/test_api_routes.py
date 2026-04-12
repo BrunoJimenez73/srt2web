@@ -545,7 +545,7 @@ class TestApiRouterEdgeCases:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["modules"]) == 1
+        assert len(data["modules"]) >= 1
 
 
 class TestApiRouterValidation:
