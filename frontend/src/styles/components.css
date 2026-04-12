@@ -593,8 +593,8 @@
 }
 
 .gpu-badge {
-  background: var(--success);
-  color: var(--bg-base);
+  background: var(--text-dim);
+  color: var(--text-sec);
   font-size: 9px;
   font-weight: 700;
   padding: 2px 6px;
@@ -603,6 +603,8 @@
 }
 
 .gpu-badge.active {
+  background: linear-gradient(135deg, #76b900, #a8e600);
+  color: #000;
   animation: pulse-success 1.5s ease-in-out infinite;
 }
 

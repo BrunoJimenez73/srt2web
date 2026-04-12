@@ -429,6 +429,26 @@ export function updateModulePerformanceMetrics(modules: any[]): void {
           }
         }
         
+        // OUTPUT GPU badge
+        const outputGpuBadge = document.getElementById('output-gpu-badge');
+        const outputEncoderEl = document.getElementById('module-encoder-output');
+        
+        if (outputGpuBadge) {
+          const isGpuActive = module.extra?.using_gpu === true;
+          if (module.enabled && isGpuActive) {
+            outputGpuBadge.style.display = 'inline';
+            outputGpuBadge.classList.toggle('active', isProcessing);
+            outputGpuBadge.textContent = isGpuActive ? 'GPU' : 'CPU';
+          } else {
+            outputGpuBadge.style.display = 'none';
+          }
+        }
+        
+        if (outputEncoderEl) {
+          const label = module.extra?.encoder_label || (module.extra?.using_gpu ? 'GPU' : 'CPU');
+          outputEncoderEl.textContent = label;
+        }
+        
         // No hacemos nada más para output
         return;
       }
