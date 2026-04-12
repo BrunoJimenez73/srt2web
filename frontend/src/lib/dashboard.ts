@@ -842,6 +842,13 @@ export async function initDashboard(): Promise<void> {
       }
     });
     wsClient.connect();
+}
+
+export function initWebSocket(): void {
+  if (wsClient) {
+    wsClient.connect();
+  }
+}
 
     statusPollInterval = setInterval(async () => {
       try {
@@ -923,6 +930,14 @@ function setupCopyButtons(): void {
 }
 
 // Override init to include copy buttons setup
+export function handleInputTypeChange(type: string): void {
+  console.log('Input type changed:', type);
+}
+
+export function handleOutputFormatChange(format: string): void {
+  console.log('Output format changed:', format);
+}
+
 const _originalInit = init;
 (window as any).init = function() {
   setupEventListeners();

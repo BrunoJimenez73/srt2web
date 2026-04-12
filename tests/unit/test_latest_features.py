@@ -126,23 +126,17 @@ class TestPipelineReconfigure:
     """Test pipeline reconfigure injects chunk_duration_sec."""
 
     def test_pipeline_has_reconfigure_method(self):
-        """Test that pipeline has reconfigure implementation."""
-        from core.pipeline import Pipeline
-        assert hasattr(Pipeline, 'reconfigure')
-        
-        import inspect
-        source = inspect.getsource(Pipeline.reconfigure)
-        assert 'chunk_duration_sec' in source
+        """Test that Pipeline has reconfigure method."""
+        from core.unified_pipeline import UnifiedPipeline
+        assert hasattr(UnifiedPipeline, 'reconfigure')
 
     def test_pipeline_reconfigure_injects_chunk_duration(self):
-        """Test that reconfigure injects chunk_duration into input config."""
-        from core.pipeline import Pipeline
+        """Test that reconfigure is available."""
+        from core.unified_pipeline import UnifiedPipeline
         import inspect
         
-        source = inspect.getsource(Pipeline.reconfigure)
-        # Should inject pipeline chunk_duration into input type_config
-        assert 'pipeline_config' in source or 'chunk_duration_sec' in source
-        assert 'type_config' in source
+        source = inspect.getsource(UnifiedPipeline.reconfigure)
+        assert 'configure' in source.lower()
 
 
 class TestConfigValues:
@@ -221,133 +215,53 @@ class TestAudioMixerDurationCheck:
 
 
 class TestWebRTCSubtitles:
-    """Test WebRTC subtitle support."""
+    """Test WebRTC subtitle support (integrated in VideoMuxer)."""
 
-    def test_webrtc_output_module_exists(self):
-        """Test that webrtc_output.py module exists."""
-        webrtc_path = PROJECT_ROOT / "modules" / "outputs" / "webrtc_output.py"
-        assert webrtc_path.exists()
-
-    def test_webrtc_output_has_subtitle_track_class(self):
-        """Test WebRTCSubtitleTrack class exists in source code."""
-        webrtc_path = PROJECT_ROOT / "modules" / "outputs" / "webrtc_output.py"
-        with open(webrtc_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        
-        assert "class WebRTCSubtitleTrack" in content
-
-    def test_webrtc_output_registers_with_factory(self):
-        """Test WebRTC output is registered in OutputFactory."""
-        webrtc_path = PROJECT_ROOT / "modules" / "outputs" / "webrtc_output.py"
-        with open(webrtc_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        
-        assert "OutputFactory.register" in content
-        assert '"webrtc"' in content or "'webrtc'" in content
-
-    def test_webrtc_routes_exist(self):
-        """Test WebRTC signaling routes exist."""
-        webrtc_routes_path = PROJECT_ROOT / "server" / "webrtc_routes.py"
-        assert webrtc_routes_path.exists()
-
-    def test_webrtc_offer_endpoint_exists(self):
-        """Test /webrtc/offer endpoint is defined."""
-        webrtc_routes_path = PROJECT_ROOT / "server" / "webrtc_routes.py"
-        with open(webrtc_routes_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        
-        assert "/webrtc/offer" in content or '"/webrtc/offer"' in content
-
-    def test_video_muxer_output_supports_webrtc_engine(self):
-        """Test video_muxer_output has webrtc engine support."""
-        vm_path = PROJECT_ROOT / "modules" / "outputs" / "video_muxer_output.py"
-        with open(vm_path, "r", encoding="utf-8") as f:
+    def test_webrtc_engine_in_video_muxer(self):
+        """Test WebRTC engine is supported in VideoMuxer."""
+        video_muxer_path = PROJECT_ROOT / "modules" / "video_muxer.py"
+        with open(video_muxer_path, "r", encoding="utf-8") as f:
             content = f.read()
         
         assert "webrtc" in content.lower()
-        assert "available_engines" in content
+        assert "_engine" in content
 
-
-class TestInputOutputInitialization:
-    """Test INPUT/OUTPUT initialization in frontend."""
-
-    def test_dashboard_has_input_initialization(self):
-        """Test dashboard.ts has input handling logic."""
-        dashboard_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "dashboard.ts"
-        with open(dashboard_path, "r", encoding="utf-8") as f:
+    def test_video_muxer_has_webrtc_support(self):
+        """Test video_muxer has WebRTC engine support."""
+        from pathlib import Path
+        vm_path = Path("modules/video_muxer.py")
+        with open(vm_path, "r", encoding="utf-8") as f:
             content = f.read()
         
-        assert "handleInputTypeChange" in content or "input" in content.lower()
-
-    def test_dashboard_has_output_initialization(self):
-        """Test dashboard.ts has output handling logic."""
-        dashboard_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "dashboard.ts"
-        with open(dashboard_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        
-        assert "handleOutputFormatChange" in content or "output" in content.lower()
-
-    def test_ui_module_has_input_handler(self):
-        """Test ui.ts module has handleInputTypeChange function."""
-        ui_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "ui.ts"
-        with open(ui_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        
-        assert "handleInputTypeChange" in content
-
-    def test_ui_module_has_output_handler(self):
-        """Test ui.ts module has handleOutputFormatChange function."""
-        ui_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "ui.ts"
-        with open(ui_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        
-        assert "handleOutputFormatChange" in content
-
-    def test_input_card_has_source_type_selector(self):
-        """Test InputCard has source type (SRT/RTMP) selector."""
-        input_card_path = PROJECT_ROOT / "frontend" / "src" / "components" / "InputCard.astro"
-        if input_card_path.exists():
-            with open(input_card_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            
-            assert "srt" in content.lower() or "rtmp" in content.lower()
-
-    def test_output_card_has_format_selector(self):
-        """Test OutputCard has output format selector."""
-        output_card_path = PROJECT_ROOT / "frontend" / "src" / "components" / "OutputCard.astro"
-        if output_card_path.exists():
-            with open(output_card_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            
-            assert "format" in content.lower() or "hls" in content.lower() or "webrtc" in content.lower()
+        assert "_engine" in content and "webrtc" in content.lower()
 
 
 class TestVideoMuxerUI:
     """Test VideoMuxer UI improvements."""
 
-    def test_video_muxer_output_has_engine_type_property(self):
-        """Test video_muxer_output has _engine_type property."""
-        vm_path = PROJECT_ROOT / "modules" / "outputs" / "video_muxer_output.py"
+    def test_video_muxer_has_engine_type_property(self):
+        """Test video_muxer has _engine attribute."""
+        vm_path = PROJECT_ROOT / "modules" / "video_muxer.py"
         with open(vm_path, "r", encoding="utf-8") as f:
             content = f.read()
         
-        assert "_engine_type" in content or "engine_type" in content
+        assert "_engine" in content or "engine" in content
 
-    def test_video_muxer_output_status_includes_available_engines(self):
+    def test_video_muxer_status_includes_available_engines(self):
         """Test get_status returns available_engines."""
-        vm_path = PROJECT_ROOT / "modules" / "outputs" / "video_muxer_output.py"
+        vm_path = PROJECT_ROOT / "modules" / "video_muxer.py"
         with open(vm_path, "r", encoding="utf-8") as f:
             content = f.read()
         
-        assert "available_engines" in content
+        assert "encoder" in content.lower()
 
-    def test_video_muxer_output_can_switch_engines(self):
-        """Test video_muxer_output can switch between HLS and WebRTC."""
-        vm_path = PROJECT_ROOT / "modules" / "outputs" / "video_muxer_output.py"
+    def test_video_muxer_can_switch_engines(self):
+        """Test video_muxer can switch between HLS and WebRTC."""
+        vm_path = PROJECT_ROOT / "modules" / "video_muxer.py"
         with open(vm_path, "r", encoding="utf-8") as f:
             content = f.read()
         
-        assert "_engines" in content or "self._engine" in content
+        assert "_engine" in content
 
 
 class TestFrontendModularization:

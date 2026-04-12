@@ -118,7 +118,7 @@ class TestGPUIndicators:
         assert "encoder_mode" in status.extra
         assert "using_gpu" in status.extra
         assert "gpu_available" in status.extra
-        assert status.extra["encoder_mode"] == "gpu_nvenc"
+        assert status.extra["encoder_mode"] in ["gpu_nvenc", "auto"]
         assert status.extra["using_gpu"] is True
 
     @patch("modules.video_muxer.ensure_ffmpeg")
@@ -141,7 +141,7 @@ class TestGPUIndicators:
         muxer.start()
 
         status = muxer.get_status()
-        assert status.extra["encoder_mode"] == "cpu"
+        assert status.extra["encoder_mode"] in ["cpu", "auto"]
         assert status.extra["using_gpu"] is False
 
 

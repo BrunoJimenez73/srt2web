@@ -29,13 +29,13 @@ input:
 output:
   type: web
   web:
-    segment_duration: 4
-    list_size: 6
+    segment_duration: 10
+    list_size: 2
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
   hls:
-    segment_duration: 4
-    list_size: 6
+    segment_duration: 10
+    list_size: 2
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
   rtmp:
@@ -63,7 +63,7 @@ output:
     save_subtitles: true
     path: ./output
 pipeline:
-  chunk_duration_sec: 15
+  chunk_duration_sec: 10
   mode: thread_parallel
   max_concurrent_chunks: 3
   buffer_size: 5
