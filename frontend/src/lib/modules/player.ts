@@ -58,6 +58,9 @@ interface SubtitleCue {
 // Health check state
 let healthCheckInterval: ReturnType<typeof setInterval> | null = null;
 let consecutiveErrors = 0;
+let initialLoadAttempts = 0;
+let hasShownWaiting = false;
+const INITIAL_LOAD_TIMEOUT = 15000; // 15 seconds to wait for first chunk
 const MAX_CONSECUTIVE_ERRORS = 5;
 
 export function initHlsPlayer(): void {
@@ -80,15 +83,17 @@ export function initHlsPlayer(): void {
   let isConnected = false;
   let lastManifestTime = 0;
 
-  function showError(message: string) {
+  function showError(message: string, showRetry = true) {
     if (errorOverlay) errorOverlay.style.display = 'flex';
     if (errorMessage) errorMessage.textContent = message;
     if (waitingEl) waitingEl.style.display = 'none';
+    if (btnRetry) btnRetry.style.display = showRetry ? 'block' : 'none';
     isConnected = false;
   }
 
   function hideError() {
     if (errorOverlay) errorOverlay.style.display = 'none';
+    if (btnRetry) btnRetry.style.display = 'none';
   }
 
   // Health check - monitor stream availability
@@ -227,9 +232,16 @@ export function initHlsPlayer(): void {
 
   function connect() {
     hideError();
-    if (waitingEl) waitingEl.style.display = 'block';
+    if (waitingEl) {
+      waitingEl.style.display = 'block';
+      waitingEl.textContent = 'Esperando stream...';
+    }
     isConnected = false;
     consecutiveErrors = 0;
+    initialLoadAttempts = 0;
+
+    // If we already showed waiting, don't show error immediately
+    hasShownWaiting = false;
 
     if (typeof Hls !== 'undefined' && Hls.isSupported()) {
       if (hls) {
@@ -241,7 +253,7 @@ export function initHlsPlayer(): void {
         enableWorker: true,
         lowLatencyMode: true,
         backBufferLength: 30,
-        maxLoadingDelay: 3,
+        maxLoadingDelay: 3, 
         maxBufferLength: 10,
         maxMaxBufferLength: 20,
         liveSyncMaxLatency: 4,
@@ -253,6 +265,7 @@ export function initHlsPlayer(): void {
 
       hls.on(HlsEvents.MANIFEST_PARSED, () => {
         if (waitingEl) waitingEl.style.display = 'none';
+        hasShownWaiting = true;
         isConnected = true;
         lastManifestTime = Date.now();
         video.play().catch(console.error);
@@ -263,11 +276,28 @@ export function initHlsPlayer(): void {
       hls.on(HlsEvents.ERROR, (_event, data) => {
         console.warn('[HLS Error]', data.type, data.fatal, data.details);
         
+        // Don't show error immediately - just retry
         if (data.fatal) {
           switch (data.type) {
             case HlsErrorTypes.NETWORK_ERROR:
-              showError('Error de red - intentando reconectar...');
-              hls?.startLoad();
+              if (isConnected) {
+                // Was connected, lost stream - reconnect attempt
+                console.log('[HLS] Lost stream, attempting reconnect...');
+                hls?.startLoad();
+              } else {
+                // First connect - show waiting, not error
+                if (waitingEl) {
+                  waitingEl.textContent = 'Esperando stream...';
+                  waitingEl.style.display = 'block';
+                }
+                // Auto-retry without showing error
+                initialLoadAttempts++;
+                if (initialLoadAttempts > 3) {
+                  showError('No se puede conectar al stream. Haz clic en Reintentar.');
+                } else {
+                  setTimeout(() => hls?.startLoad(), 2000);
+                }
+              }
               break;
             case HlsErrorTypes.MEDIA_ERROR:
               hls?.recoverMediaError();

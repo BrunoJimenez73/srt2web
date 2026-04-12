@@ -16,7 +16,11 @@ const pageTitle = "SRT2Web — Live Player";
     <div id="video-container">
         <video id="video-player" controls autoplay playsinline crossorigin="anonymous">
         </video>
-        <div id="waiting" class="waiting-text">Esperando stream...</div>
+        <div id="waiting" class="waiting-text">
+            <span class="loading-spinner"></span>
+            <span class="waiting-message">Esperando stream...</span>
+            <span class="waiting-hint">Inicia OBS y el pipeline para comenzar</span>
+        </div>
         <div id="error-overlay" class="error-overlay" style="display: none;">
             <div class="error-content">
                 <span class="error-icon">⚠️</span>
@@ -87,6 +91,33 @@ const pageTitle = "SRT2Web — Live Player";
         text-align: center;
         pointer-events: none;
         font-size: 18px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(255,255,255,0.2);
+        border-top-color: #6366f1;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .waiting-message {
+        font-size: 18px;
+        color: rgba(255,255,255,0.8);
+    }
+
+    .waiting-hint {
+        font-size: 13px;
+        color: rgba(255,255,255,0.4);
     }
 
     .error-overlay {
