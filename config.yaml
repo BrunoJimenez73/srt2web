@@ -29,12 +29,12 @@ input:
 output:
   type: web
   web:
-    segment_duration: 10
+    segment_duration: 5
     list_size: 2
     audio_offset_ms: 0
     encoder_mode: auto
   hls:
-    segment_duration: 10
+    segment_duration: 5
     list_size: 2
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc

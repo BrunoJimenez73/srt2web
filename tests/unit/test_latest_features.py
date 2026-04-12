@@ -155,7 +155,7 @@ class TestConfigValues:
         with open(CONFIG_PATH, "r") as f:
             config = yaml.safe_load(f)
         
-        assert config['output']['web']['segment_duration'] == 10
+        assert config['output']['web']['segment_duration'] == 5
 
     def test_hls_list_size_is_2(self):
         """Test output.web.list_size = 2 (20s buffer)."""
