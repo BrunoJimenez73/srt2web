@@ -506,6 +506,9 @@ def create_api_router() -> APIRouter:
                 + "\n• ".join(dependency_errors),
             )
 
+        import json
+        logger.info(f"[CONFIG] PUT receives: {json.dumps(body.config, indent=2)[:500]}")
+        
         try:
             config.update_from_dict(body.config)
             config.save()
