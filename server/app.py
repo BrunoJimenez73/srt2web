@@ -48,7 +48,12 @@ def create_app(app_context: dict) -> FastAPI:
         title="SRT2Web",
         description="Modular SRT Stream Processor",
         version="0.4.0",
+        docs_url="/api/docs",
+        redoc_url="/api/redoc",
+        openapi_url="/api/openapi.json",
     )
+
+    # Enable Swagger UI at /docs (after static files)
 
     config = app_context.get("config")
 
