@@ -1,3 +1,47 @@
 ---
-return Astro.redirect('/docs/getting-started');
+title: "SRT2Web Documentation"
+description: "Documentation for SRT2Web, covering setup, usage, and API reference."
 ---
+
+# 📚 SRT2Web Documentation
+
+¡Bienvenido a la documentación de SRT2Web! Este repositorio está diseñado para convertir archivos SRT en contenido multimedia sincronizado.
+
+## 🚀 Inicio Rápido
+
+Para empezar a usar SRT2Web, sigue nuestra guía de inicio rápido. Aquí encontrarás los pasos para configurar el entorno, ejecutar el servidor y probar el pipeline.
+
+➡️ [Ir a Guía de Inicio Rápido](/docs/guides/quick-start)
+
+## ⚙️ Configuración
+
+Ajusta el comportamiento del pipeline (chunk size, volúmenes, modelos, etc.) desde el panel de configuración.
+
+➡️ [Configuración del Sistema](/docs/configuration)
+
+## 🛠️ Uso del Sistema
+
+Explora cómo interactuar con los diferentes componentes del sistema:
+
+*   **Pipeline:** Controla el ciclo de procesamiento (Iniciar, Detener, Reiniciar). ➡️ [Control del Pipeline](/docs/modules/system-control)
+*   **Módulos:** Revisa el estado y habilita/deshabilita componentes individuales (Whisper, TTS, etc.). ➡️ [Módulos y Estado](/docs/modules/index)
+*   **Logs:** Monitorea el proceso en tiempo real. ➡️ [Logs](/docs/modules/index)
+
+## 🌐 API Reference
+
+Para interactuar programáticamente con SRT2Web, utiliza nuestra API RESTful.
+
+**Acceso a la documentación técnica (Swagger/OpenAPI):**
+<div style="border: 2px solid #4CAF50; padding: 15px; border-radius: 8px; background-color: #e8f5e9;">
+    <h3 style="color: #2e7d32;">🔗 Documentación Interactiva (Swagger UI)</h3>
+    <p>El servidor expone la documentación completa de la API generada automáticamente por FastAPI. Usa este enlace para ver todos los endpoints, esquemas de datos y ejemplos de uso.</p>
+    <a href="http://localhost:9999/docs/" target="_blank" style="display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;">Abrir Docs de FastAPI</a>
+</div>
+
+<p>Además de la documentación interactiva, puedes consultar la referencia manual aquí:</p>
+➡️ [Referencia REST API](/docs/api)
+
+## 🧩 Guías Avanzadas
+
+*   [Troubleshooting](/docs/guides/troubleshooting)
+*   [Configuración para OBS](/docs/guides/obs-setup)
