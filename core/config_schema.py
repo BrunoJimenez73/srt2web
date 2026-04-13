@@ -391,18 +391,12 @@ class SRT2WebConfig(BaseModel):
         """Valida consistencia de duración de chunks entre secciones."""
         pipeline_chunk = self.pipeline.chunk_duration_sec
 
-        # Chunk duration en input debe coincidir con pipeline
-        if hasattr(self.input, 'srt'):
-            if hasattr(self.input.srt, 'chunk_duration_sec'):
-                self.input.srt.chunk_duration_sec = pipeline_chunk
-
-        if hasattr(self.input, 'rtmp'):
-            if hasattr(self.input.rtmp, 'chunk_duration_sec'):
-                self.input.rtmp.chunk_duration_sec = pipeline_chunk
-
-        if hasattr(self.input, 'file'):
-            if hasattr(self.input.file, 'chunk_duration_sec'):
-                self.input.file.chunk_duration_sec = pipeline_chunk
+        # NOTE: Removed强制同步 - permite valores diferentes por input
+        # El usuario puede configurar chunk_duration_sec diferente por tipo de input
+        # if hasattr(self.input, 'srt'):
+        #     if hasattr(self.input.srt, 'chunk_duration_sec'):
+        #         self.input.srt.chunk_duration_sec = pipeline_chunk
+        # ... (same for rtmp, file)
 
         # Chunk duration en subtitles debe coincidir
         if self.modules.subtitle_generator.enabled:

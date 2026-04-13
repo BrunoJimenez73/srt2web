@@ -9,51 +9,8 @@ import os
 import sys
 
 # Add CUDA/cuDNN paths for Windows - BEFORE any other imports
-import site
-cuda_paths = []
-
-# CRITICAL: Add local cuDNN 8.x FIRST (must be at front to avoid loading cuDNN 9.x)
-local_cudnn8 = os.path.join(os.path.dirname(__file__), "bin", "cudnn8")
-if os.path.exists(local_cudnn8) and os.listdir(local_cudnn8):
-    cuda_paths.append(local_cudnn8)  # Prioritize cuDNN 8.x
-
-# Add venv nvidia paths (cuDNN 8.9.4 from pip)
-for sp in site.getsitepackages():
-    cudnn_bin = os.path.join(sp, "nvidia", "cudnn", "bin")
-    if os.path.exists(cudnn_bin):
-        cuda_paths.append(cudnn_bin)
-    cublas_bin = os.path.join(sp, "nvidia", "cublas_cu11", "bin")
-    if os.path.exists(cublas_bin):
-        cuda_paths.append(cublas_bin)
-
-# Add local bin/cuda folder (for portable CUDA DLLs)
-local_cuda = os.path.join(os.path.dirname(__file__), "bin", "cuda")
-if os.path.exists(local_cuda) and os.listdir(local_cuda):
-    cuda_paths.append(local_cuda)
-
-# Add CUDA Toolkit paths LAST (less preferred)
-cuda_toolkit_paths = [
-    "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.1\\bin",
-    "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.2\\bin",
-    "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.2\\bin",
-]
-for path in cuda_toolkit_paths:
-    if os.path.exists(path):
-        cuda_paths.append(path)
-
-# Add Windows System32 LAST (has CUDA runtime but may have incompatible cuDNN)
-cuda_paths.append(os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "System32"))
-
-if cuda_paths:
-    os.environ["PATH"] = os.pathsep.join(cuda_paths) + os.pathsep + os.environ.get("PATH", "")
-    
-    # Add DLL directories for Python 3.8+ (required for proper DLL loading)
-    for path in cuda_paths:
-        if os.path.isdir(path):
-            try:
-                os.add_dll_directory(path)
-            except (AttributeError, OSError):
-                pass  # Not all paths support add_dll_directory
+from core.cuda_paths import setup_cuda_environment
+setup_cuda_environment()
 
 import asyncio
 import atexit
@@ -127,119 +84,12 @@ def _shutdown():
 
 
 def setup_logging():
-    """Configure logging with both console and broadcaster output."""
-
-    # Patterns to filter from frontend logs (noisy but non-critical)
-    FILTER_PATTERNS = [
-        # FFmpeg related
-        "[FFmpeg]",  # FFmpeg stderr noise
-        "[FFmpeg RTMP]",  # RTMP output warnings
-        # GPU/CPU fallback
-        "CUDA not available",  # GPU fallback messages
-        "falling back to CPU",  # CPU fallback messages
-        "using CPU for",  # CPU usage info
-        # Timing
-        "Duration drift",  # Timing drift warnings
-        # WebSocket
-        "Heartbeat timeout",  # WebSocket heartbeat
-        "[WS] Reconnecting",  # WebSocket reconnect messages
-        # Missing data
-        "No input video chunk",  # Missing video chunk (normal at start)
-        # Audio issues
-        "Audio padding failed",  # Non-critical audio issues
-        "Audio truncation failed",  # Non-critical audio issues
-        "Failed to process TTS audio",  # TTS audio issues
-        # Connection issues (non-critical)
-        "connection lost",  # Connection lost warnings
-        "attempting reconnect",  # Reconnect attempts
-        # Subtitle warnings
-        "Duration drift in subtitle timing",  # Subtitle timing
-        # SRT/RTMP input warnings
-        "srt_input",  # SRT input warnings (by logger name)
-        "rtmp_input",  # RTMP input warnings (by logger name)
-        # Security warnings (informational only)
-        "SECURITY:",  # Security token warnings
-        "auth_token not configured",  # Token not configured
-    ]
-
-    class BroadcastHandler(logging.Handler):
-        """Custom handler that sends logs to WebSocket subscribers."""
-
-        def emit(self, record):
-            try:
-                msg = self.format(record)
-                # Filter out noisy non-critical messages
-                for pattern in FILTER_PATTERNS:
-                    if pattern in msg or pattern in record.name:
-                        return
-                log_broadcaster.broadcast(record.levelname.lower(), msg)
-            except Exception:
-                pass
-
-    class ConsoleFilter(logging.Filter):
-        """Filter out security warnings from console output."""
-
-        SECURITY_PATTERNS = ["SECURITY:", "auth_token not configured"]
-
-        def filter(self, record):
-            msg = record.getMessage()
-            for pattern in self.SECURITY_PATTERNS:
-                if pattern in msg:
-                    return False  # Suppress this record
-            return True
-
-    # Console handler
-    console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    console.setFormatter(
-        logging.Formatter(
-            "%(asctime)s │ %(levelname)-5s │ %(name)s │ %(message)s",
-            datefmt="%H:%M:%S",
-        )
-    )
-    console.addFilter(ConsoleFilter())
-
-    # Broadcast handler (sends to WebSocket clients)
-    broadcast = BroadcastHandler()
-    broadcast.setLevel(logging.DEBUG)  # Capture all, filter in emit()
-    broadcast.setFormatter(
-        logging.Formatter("%(levelname)-5s │ %(name)s │ %(message)s")
-    )
-
-    # File handler - persists logs to disk for debugging crashes
-    logs_dir = os.path.join(os.path.dirname(__file__), "logs")
-    os.makedirs(logs_dir, exist_ok=True)
-    log_file = os.path.join(logs_dir, "srt2web.log")
-    
-    from logging.handlers import RotatingFileHandler
-    file_handler = RotatingFileHandler(
-        log_file,
-        maxBytes=10*1024*1024,  # 10 MB per file
-        backupCount=3,           # Keep 3 backup files
-        encoding='utf-8'
-    )
-    file_handler.setLevel(logging.DEBUG)  # Capture everything to file
-    file_handler.setFormatter(
-        logging.Formatter(
-            "%(asctime)s │ %(levelname)-5s │ %(name)s │ %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-    )
-
-    # Root logger
-    root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
-    root.addHandler(console)
-    root.addHandler(broadcast)
-    root.addHandler(file_handler)  # Add file handler
-    
-    # Log startup message
-    logging.getLogger("srt2web.main").info(f"Logging to file: {log_file}")
-
-    # Silence noisy libraries
-    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-    logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
-    logging.getLogger("asyncio").setLevel(logging.CRITICAL)
+    """Configure logging - delegates to core.logging_setup."""
+    from core.logging_setup import setup_logging as _setup
+    from server.ws_routes import log_broadcaster
+    _setup(log_broadcaster=log_broadcaster)
+    import logging
+    logging.getLogger("srt2web.main").info("Logging initialized")
 
 
 def build_pipeline(config: ConfigManager, output_dir: str):

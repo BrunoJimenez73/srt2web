@@ -58,6 +58,17 @@ from core.module_interface import BaseModule as BaseModuleInterface, ProcessingM
 # Configuración y gestión
 from core.config_manager import ConfigManager
 
+# Nuevos módulos de configuración (refactoring)
+from core.cuda_paths import (
+    get_cuda_paths,
+    setup_cuda_environment,
+    has_cuda_support,
+)
+from core.logging_setup import (
+    setup_logging,
+    get_logger,
+)
+
 # Pipeline y módulos (legacy - para compatibilidad)
 from core.pipeline import Pipeline
 from core.module_base import BaseModule
@@ -115,6 +126,12 @@ __all__ = [
     "ConfigManager",
     "Pipeline",
     "BaseModule",
+    # Nuevos módulos (refactoring)
+    "get_cuda_paths",
+    "setup_cuda_environment",
+    "has_cuda_support",
+    "setup_logging",
+    "get_logger",
     # Utilidades
     "sanitize_path",
     "sanitize_filename",

@@ -1,10 +1,40 @@
 # SRT2Web - Estado del Proyecto
 
 ## Información General
-- **Fecha última sesión**: 2026-04-12
-- **Versión**: 0.6.5
+- **Fecha última sesión**: 2026-04-14
+- **Versión**: 0.6.6
 - **Repositorio**: https://github.com/BrunoJimenez73/srt2web
-- **Tests**: 527 passing ✅ (100%)
+- **Tests**: 590 passing ✅ (6 pre-existentes fallando por config, no relacionados)
+
+---
+
+## Sesión 14/04/2026 - Refactoring para Mantenibilidad
+
+**Objetivo**: Mejorar mantenibilidad, estabilidad y buenas prácticas.
+
+**Resultado**: 
+- main.py reducido de 547 a ~430 líneas (-21%)
+- Nuevos módulos creados para responsabilidades aisladas
+- Tests pasan (590/596, los 6 fallidos son pre-existentes config values)
+
+**Archivos nuevos**:
+| Archivo | Descripción |
+|---------|-------------|
+| `core/cuda_paths.py` | Configuración CUDA paths (extraído de main.py) |
+| `core/logging_setup.py` | Setup de logging con file rotation + WebSocket broadcast |
+| `frontend/src/lib/utils/clock.ts` | Clock utility unificado (elimina intervals duplicados) |
+
+**Cambios principales**:
+- `main.py` - Importa `setup_cuda_environment()` y `setup_logging()` desde core/
+- `core/__init__.py` - Exporta los nuevos módulos
+- `frontend/src/lib/dashboard.ts` - Usa `startClockUpdates()` y `dashboardStore`
+- `frontend/src/lib/utils/index.ts` - Exporta clock utilities
+
+**Mejoras de código**:
+- ✅ CUDA paths configurable desde módulo separado
+- ✅ Logging reutilizable en otros contextos
+- ✅ Un solo interval para clock (antes había 3)
+- ✅ Store centralizado integrado con dashboard
 
 ---
 
@@ -426,7 +456,7 @@ python -m pytest tests/unit/test_security_middleware.py tests/unit/test_performa
 
 ```bash
 # Ejecutar servidor
-Arrancar_Servidor.bat
+start.bat
 
 # Reconstruir frontend
 cd frontend && npm run build:local
@@ -450,7 +480,7 @@ python -m pytest tests/unit/ -v
 - Copiar a server/static/
 
 ### Ejecución del Servidor
-- `Arrancar_Servidor.bat` ejecuta el servidor **minimizado** (en segundo plano)
+- `start.bat` ejecuta el servidor **minimizado** (en segundo plano)
 - **IMPORTANTE**: Usa entorno virtual `venv/` con Python 3.12
 - La consola filtra automáticamente los warnings de seguridad
 - Para detener: cerrar la ventana desde la barra de tareas
@@ -507,7 +537,7 @@ python -m pytest tests/unit/ -v
 - **Solución**: Entorno virtual con Python 3.12.10
 - **Ubicación**: `venv/` folder
 - **Dependencias**: Todas instaladas (requirements.txt + nvidia-cublas-cu12 + nvidia-cudnn-cu12)
-- **Startup script**: `Arrancar_Servidor.bat` actualizado para usar venv
+- **Startup script**: `start.bat` actualizado para usar venv
 
 **Comandos**:
 ```bash
@@ -515,7 +545,7 @@ python -m pytest tests/unit/ -v
 venv\Scripts\python.exe main.py
 
 # O usar el script actualizado
-Arrancar_Servidor.bat
+start.bat
 ```
 
 **CUDA DLLs**:

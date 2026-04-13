@@ -1,6 +1,7 @@
 import { apiCall, getConfig, startPipeline, stopPipeline, WSClient } from './api';
-import { getSRTUrl, getStreamUrl, getPlayerUrl, isLocalhost, copyToClipboard, showToast } from './utils';
+import { getSRTUrl, getStreamUrl, getPlayerUrl, isLocalhost, copyToClipboard, showToast, startClockUpdates } from './utils';
 import { ENCODER_LABELS } from './utils';
+import { dashboardStore } from './store';
 import type { Config, Status, LogMessage, ModuleName } from './types';
 
 // Import toast from modules
@@ -65,11 +66,6 @@ export function updatePipelineUI(state: Status['state']): void {
   if (text) text.textContent = state === 'running' ? 'ACTIVO' : 'APAGADO';
   if (startBtn) startBtn.disabled = state === 'running';
   if (stopBtn) stopBtn.disabled = state !== 'running';
-
-  const clock = document.getElementById('live-clock');
-  if (clock) {
-    clock.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
-  }
 }
 
 export function updateUrls(localIp?: string): void {
@@ -815,6 +811,7 @@ export async function handleSaveConfig(): Promise<void> {
     const newConfig = collectConfigFromUI();
     await apiCall('PUT', 'config', { config: newConfig });
     config = await getConfig();
+    dashboardStore.setConfig(config);  // Update centralized store
     applyConfigToUI(config);
     showToast('Configuración guardada', 'success');
     addLog('info', 'Configuración guardada');
@@ -959,11 +956,13 @@ export async function initDashboard(): Promise<void> {
 
   try {
     config = await getConfig();
+    dashboardStore.setConfig(config);  // Update centralized store
     applyConfigToUI(config);
 
     status = await apiCall<Status>('GET', 'status');
     updatePipelineUI(status.state);
     updateModuleStatus(status);
+    dashboardStore.setStatus(status);  // Update centralized store
 
     if (status.network?.local_ip) {
       updateUrls(status.network.local_ip);
@@ -972,10 +971,12 @@ export async function initDashboard(): Promise<void> {
     wsClient = new WSClient({
       onLog: (msg: LogMessage) => addLog(msg.level, msg.message),
       onConnectionChange: (connected: boolean) => {
+        dashboardStore.setWsConnected(connected);
         if (!connected) addLog('error', 'WebSocket desconectado');
       },
       onStatus: (newStatus: Status) => {
         status = newStatus;
+        dashboardStore.setStatus(newStatus);  // Update store
         updatePipelineUI(newStatus.state);
         updateModuleStatus(newStatus);
       }
@@ -985,6 +986,7 @@ export async function initDashboard(): Promise<void> {
     statusPollInterval = setInterval(async () => {
       try {
         status = await apiCall<Status>('GET', 'status');
+        dashboardStore.setStatus(status);  // Update store on poll
         updatePipelineUI(status.state);
         updateModuleStatus(status);
         
@@ -1005,13 +1007,7 @@ export async function initDashboard(): Promise<void> {
 export function initWebSocket(): void {
   setupEventListeners();
   initDashboard();
-
-  setInterval(() => {
-    const clock = document.getElementById('live-clock');
-    if (clock) {
-      clock.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
-    }
-  }, 1000);
+  startClockUpdates();
 }
 
 (window as unknown as { toggleModule: typeof toggleModule }).toggleModule = toggleModule;
@@ -1074,13 +1070,7 @@ export function handleOutputFormatChange(format: string): void {
   setupEventListeners();
   setupCopyButtons();
   initDashboard();
-
-  setInterval(() => {
-    const clock = document.getElementById('live-clock');
-    if (clock) {
-      clock.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
-    }
-  }, 1000);
+  startClockUpdates();
 };
 
 document.addEventListener('DOMContentLoaded', () => {
