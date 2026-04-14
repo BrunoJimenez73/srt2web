@@ -30,8 +30,8 @@ input:
 output:
   type: web
   web:
-    segment_duration: 2
-    list_size: 2
+    segment_duration: 4
+    list_size: 6
     audio_offset_ms: 0
     encoder_mode: auto
   hls:
@@ -101,7 +101,7 @@ modules:
     dubbed_volume: 1.0
   video_muxer:
     enabled: true
-    engine: webrtc
+    engine: hls
     hls_segment_duration: 10
     hls_list_size: 6
     audio_offset_ms: 0
