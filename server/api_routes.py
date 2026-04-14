@@ -364,6 +364,15 @@ def create_api_router() -> APIRouter:
         pipeline_state = getattr(pipeline, 'state', 'idle')
         if pipeline_state in ('running', 'RUNNING') or (hasattr(pipeline_state, 'value') and pipeline_state.value == 'running'):
             raise HTTPException(400, "Pipeline is already running")
+        
+        # If pipeline is in error state, reset to idle before starting again
+        if pipeline_state in ('error', 'ERROR'):
+            try:
+                from core.unified_pipeline import PipelineState
+                pipeline._set_state(PipelineState.IDLE)
+                logger.info("Pipeline state reset from error to idle")
+            except Exception as e:
+                logger.warning(f"Could not reset pipeline state: {e}")
 
         # RTMP input setup - no external server needed, FFmpeg listens for connections
         input_type = config.get("input.type", "srt") if config else "srt"
