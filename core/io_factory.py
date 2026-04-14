@@ -188,3 +188,125 @@ def auto_discover() -> None:
     OutputFactory._ensure_initialized()
     logger.info(f"Available inputs: {InputFactory.available()}")
     logger.info(f"Available outputs: {OutputFactory.available()}")
+
+class OutputFactory:
+    """
+    Factory para crear destinos de salida.
+
+    Usage:
+        OutputFactory.register("hls", HLSOutput)
+        output_sink = OutputFactory.create("hls", config)
+    """
+
+    _outputs: Dict[str, Type[OutputSink]] = {}
+    _initialized: bool = False
+
+    @classmethod
+    def register(cls, name: str, output_class: Type[OutputSink]) -> None:
+        """Registrar un nuevo destino de salida."""
+        if not issubclass(output_class, OutputSink):
+            raise TypeError(f"{output_class} must inherit from OutputSink")
+        # Bloquear explicitamente hls ya que es modulo interno del videomuxer
+        if name == "hls":
+            logger.debug(f"Ignored internal output sink: {name}")
+            return
+        if name not in cls._outputs:
+            cls._outputs[name] = output_class
+            logger.info(f"Registered output sink: {name}")
+
+    @classmethod
+    def create(cls, output_type: str, config: dict) -> OutputSink:
+        """
+        Crear un destino de salida por tipo.
+
+        Args:
+            output_type: Tipo de output a crear ("web", "srt", etc.)
+            config: Configuración para el output
+
+        Returns:
+            Instancia del OutputSink
+
+        Raises:
+            ValueError: Si el tipo no está registrado
+        """
+        cls._ensure_initialized()
+
+        if output_type not in cls._outputs:
+            available = ", ".join(cls._outputs.keys()) if cls._outputs else "none"
+            raise ValueError(
+                f"Unknown output type: '{output_type}'. Available: {available}"
+            )
+
+        return cls._outputs[output_type](config)
+
+    @classmethod
+    def create_multiple(cls, output_configs: List[dict]) -> List[OutputSink]:
+        """
+        Crear múltiples destinos de salida a partir de configuraciones.
+
+        Args:
+            output_configs: Lista de diccionarios de configuración
+
+        Returns:
+            Lista de instancias de OutputSink
+
+        Raises:
+            ValueError: Si algún tipo no está registrado
+        """
+        outputs = []
+
+        for i, config in enumerate(output_configs):
+            output_type = config.get("type")
+            output_name = config.get("name")
+
+            # Generar nombre automático si no se proporciona
+            if not output_name:
+                output_name = f"{output_type}_{i+1}"
+                # Verificar que el nombre sea único
+                base_name = output_name
+                counter = 1
+                while any(o.name == output_name for o in outputs):
+                    output_name = f"{base_name}_{counter}"
+                    counter += 1
+
+            # Crear la salida
+            output = cls.create(output_type, config)
+            output.name = output_name
+
+            outputs.append(output)
+
+        return outputs
+
+    @classmethod
+    def available(cls) -> List[str]:
+        """Listar tipos de output disponibles."""
+        cls._ensure_initialized()
+        return list(cls._outputs.keys())
+
+    @classmethod
+    def _ensure_initialized(cls) -> None:
+        """Inicializar auto-registro si no se ha hecho."""
+        if not cls._initialized:
+            cls._auto_register()
+            cls._initialized = True
+
+    @classmethod
+    def _auto_register(cls) -> None:
+        """Auto-registrar todos los outputs del paquete modules/outputs."""
+        loaded = set()
+        try:
+            import modules.outputs
+
+            for importer, modname, ispkg in pkgutil.iter_modules(
+                modules.outputs.__path__
+            ):
+                if modname.endswith("_output") and not modname.startswith("base") and modname not in loaded and modname != "hls_output":
+                    loaded.add(modname)
+                    try:
+                        module = importlib.import_module(f"modules.outputs.{modname}")
+                        # El módulo debe auto-registrarse en su __init__.py
+                        logger.debug(f"Loaded output module: {modname}")
+                    except Exception as e:
+                        logger.warning(f"Failed to load output module {modname}: {e}")
+        except ImportError as e:
+            logger.debug(f"No outputs package found: {e}")
