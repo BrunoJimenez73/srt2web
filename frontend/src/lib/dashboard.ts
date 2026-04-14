@@ -1,5 +1,5 @@
 import { apiCall, getConfig, startPipeline, stopPipeline, WSClient } from './api';
-import { getSRTUrl, getStreamUrl, getPlayerUrl, isLocalhost, copyToClipboard, showToast, startClockUpdates } from './utils';
+import { getSRTUrl, getRTMPUrl, getStreamUrl, getPlayerUrl, isLocalhost, copyToClipboard, showToast, startClockUpdates } from './utils';
 import { ENCODER_LABELS } from './utils';
 import { dashboardStore } from './store';
 import type { Config, Status, LogMessage, ModuleName } from './types';
@@ -74,15 +74,25 @@ export function updateUrls(localIp?: string): void {
   const ip = localIp || '127.0.0.1';
   const useIp = isLocalhost(ip) ? '127.0.0.1' : ip;
   
-  const srtPort = config.input?.srt?.listen_port || 9000;
-  
-  const urlSrt = document.getElementById('url-srt');
+  const inputType = config.input?.type || 'srt';
+  const urlEmisionLabel = document.getElementById('url-emision-label');
+  const urlEmision = document.getElementById('url-emision');
   const urlStream = document.getElementById('url-stream');
   const urlPlayer = document.getElementById('url-player');
   
-  if (urlSrt) {
-    const srtUrl = getSRTUrl(useIp, srtPort);
-    urlSrt.textContent = srtUrl;
+  // Update emission URL based on input type
+  if (urlEmisionLabel && urlEmision) {
+    if (inputType === 'rtmp') {
+      const rtmpPort = config.input?.rtmp?.listen_port || 1935;
+      const rtmpApp = config.input?.rtmp?.app || 'live';
+      const rtmpKey = config.input?.rtmp?.stream_key || 'stream';
+      urlEmisionLabel.textContent = 'RTMP:';
+      urlEmision.textContent = getRTMPUrl(useIp, rtmpPort, rtmpApp, rtmpKey);
+    } else {
+      const srtPort = config.input?.srt?.listen_port || 9000;
+      urlEmisionLabel.textContent = 'SRT:';
+      urlEmision.textContent = getSRTUrl(useIp, srtPort);
+    }
   }
   
   if (urlStream) {
@@ -1055,12 +1065,12 @@ export function initWebSocket(): void {
 
 // Copy URL functionality
 function setupCopyButtons(): void {
-  // SRT URL copy button
-  document.getElementById('btn-copy-srt')?.addEventListener('click', () => {
-    const urlEl = document.getElementById('url-srt');
+  // Emission URL copy button (SRT or RTMP)
+  document.getElementById('btn-copy-emision')?.addEventListener('click', () => {
+    const urlEl = document.getElementById('url-emision');
     if (urlEl && urlEl.textContent) {
       copyToClipboard(urlEl.textContent).then(() => {
-        showNotification('URL SRT copiada', 'success');
+        showNotification('URL de emisión copiada', 'success');
       }).catch(() => {
         showNotification('Error al copiar URL', 'error');
       });
@@ -1163,8 +1173,9 @@ export function updateConnectionInfoDisplay(): void {
   const inputType = inputTypeSelect?.value || 'srt';
   
   // Update SRT/RTMP/File URL display
-  const urlSrtEl = document.getElementById('url-srt');
-  if (urlSrtEl) {
+  const urlEmisionEl = document.getElementById('url-emision');
+  const urlEmisionLabelEl = document.getElementById('url-emision-label');
+  if (urlEmisionEl) {
     let connectionInfo = '';
     if (inputType === 'srt') {
       const srtPortInput = document.getElementById('input-srt-port') as HTMLInputElement;
@@ -1172,15 +1183,18 @@ export function updateConnectionInfoDisplay(): void {
       const srtPort = srtPortInput?.value || '9000';
       const srtMode = srtModeInput?.value || 'listener';
       connectionInfo = `srt://${useIp}:${srtPort}?mode=${srtMode}`;
+      if (urlEmisionLabelEl) urlEmisionLabelEl.textContent = 'SRT:';
     } else if (inputType === 'rtmp') {
       const rtmpUrlInput = document.getElementById('input-rtmp-url') as HTMLInputElement;
-      connectionInfo = rtmpUrlInput?.value || 'rtmp://127.0.0.1/live/stream';
+      connectionInfo = rtmpUrlInput?.value || 'rtmp://127.0.0.1:1935/live/stream';
+      if (urlEmisionLabelEl) urlEmisionLabelEl.textContent = 'RTMP:';
     } else if (inputType === 'file') {
       const filePathInput = document.getElementById('input-file-path') as HTMLInputElement;
       const filePath = filePathInput?.value || '(no file selected)';
       connectionInfo = `file://${filePath}`;
+      if (urlEmisionLabelEl) urlEmisionLabelEl.textContent = 'FILE:';
     }
-    urlSrtEl.textContent = connectionInfo;
+    urlEmisionEl.textContent = connectionInfo;
   }
   
   // Update stream URL (always the same for HLS output)
