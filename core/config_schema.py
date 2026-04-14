@@ -389,17 +389,21 @@ class SRT2WebConfig(BaseModel):
 
     @model_validator(mode='after')
     def validate_chunk_duration_consistency(self) -> 'SRT2WebConfig':
-        """Valida consistencia de duración de chunks entre secciones."""
+        """Valida consistencia - usa pipeline como fallback si input no tiene valor."""
         pipeline_chunk = self.pipeline.chunk_duration_sec
 
-        # NOTE: Removed强制同步 - permite valores diferentes por input
-        # El usuario puede configurar chunk_duration_sec diferente por tipo de input
-        # if hasattr(self.input, 'srt'):
-        #     if hasattr(self.input.srt, 'chunk_duration_sec'):
-        #         self.input.srt.chunk_duration_sec = pipeline_chunk
-        # ... (same for rtmp, file)
+        # Fallback: si input no tiene chunk_duration, usar el de pipeline
+        # Los objetos input siempre existen (default_factory), verificamos valor
+        if self.input.srt.chunk_duration_sec is None or self.input.srt.chunk_duration_sec == 0:
+            self.input.srt.chunk_duration_sec = pipeline_chunk
 
-        # Chunk duration en subtitles debe coincidir
+        if self.input.rtmp.chunk_duration_sec is None or self.input.rtmp.chunk_duration_sec == 0:
+            self.input.rtmp.chunk_duration_sec = pipeline_chunk
+
+        if self.input.file.chunk_duration_sec is None or self.input.file.chunk_duration_sec == 0:
+            self.input.file.chunk_duration_sec = pipeline_chunk
+
+        # Subtitle generator usa pipeline como source of truth
         if self.modules.subtitle_generator.enabled:
             self.modules.subtitle_generator.chunk_duration = pipeline_chunk
 
