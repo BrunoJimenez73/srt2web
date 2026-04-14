@@ -383,9 +383,12 @@ def main():
     # Register atexit handler for cleanup
     atexit.register(_shutdown)
 
-    # Create FastAPI app
-    app = create_app(app_context)
-
+    # Create FastAPI app using factory
+    from server.app import create_app
+    
+    def app_factory():
+        return create_app(app_context)
+    
     # Server configuration
     host = config.get("server.host", "0.0.0.0")
     port = config.get("server.port", 9999)
@@ -421,13 +424,21 @@ def main():
     logger.info(f"Stream:   http://localhost:{port}/hls/stream.m3u8")
     print()
 
-    uvicorn.run(
-        app,
+    # Run with factory - create wrapper that passes context
+    from server.app import create_app
+    
+    def app_factory():
+        return create_app(app_context)
+    
+    config = uvicorn.Config(
+        app_factory,
         host=host,
         port=port,
         log_level="info",
         access_log=True,
     )
+    server = uvicorn.Server(config)
+    server.run()
 
 
 if __name__ == "__main__":
