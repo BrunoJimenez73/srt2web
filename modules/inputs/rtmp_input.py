@@ -96,6 +96,9 @@ class RTMPInput(InputSource):
         self._gpu_info = check_gpu_support(self._ffmpeg_path)
         logger.info(f"RTMP Input GPU support: {self._gpu_info}")
 
+        logger.info(f"RTMP Input URL being used: {self._url}")
+        logger.info(f"RTMP Input mode: {self._mode}")
+
         # Habilitar hwaccel si hay GPU disponible
         if self._gpu_info.get("nvenc"):
             self._hwaccel_enabled = True
@@ -133,41 +136,57 @@ class RTMPInput(InputSource):
             elif self._gpu_info.get("vaapi"):
                 cmd.extend(["-hwaccel", "vaapi"])
 
-        # Resto del comando
+        # Resto del comando - use listen mode for server
         cmd.extend([
-            "-i", self._url,
-            "-c",
-            "copy",
-            "-f",
-            "segment",
-            "-segment_time",
-            str(self._chunk_duration),
-            "-segment_format",
-            "mpegts",
-            "-reset_timestamps",
-            "1",
-            "-strftime",
-            "0",
-            "-max_muxing_queue_size",
-            "1024",
-            "-fflags",
-            "+genpts+discardcorrupt",
-            "-flush_packets",
-            "1",
+            "-rtmp_listen", "1",  # FFmpeg acts as RTMP server
+            "-i", self._url.split("?")[0],  # Use URL without query params
+            "-fflags", "nobuffer",
+            "-analyzeduration", "10000000",
+            "-probesize", "10000000",
+            "-c:v", "copy",
+            "-c:a", "copy",
+            "-bsf:v", "h264_mp4toannexb",  # Convert from MP4 to AnnexB for TS
+            "-f", "segment",
+            "-segment_time", str(self._chunk_duration),
+            "-segment_format", "mpegts",
+            "-reset_timestamps", "1",
+            "-max_muxing_queue_size", "8192",
             chunk_pattern,
         ])
 
-        logger.info(f"Starting RTMP input: {' '.join(cmd[:6])}...")
+        logger.info(f"Starting RTMP input in LISTEN mode: {self._url}")
 
+        # Debug: log the full command
+        logger.info(f"FFmpeg command: {' '.join(cmd)}")
+
+        # Use CREATE_NO_WINDOW on Windows to avoid console popup
+        creation_flags = 0
+        if sys.platform == "win32":
+            creation_flags = subprocess.CREATE_NO_WINDOW
+
+        # Capture stdout/stderr to see what FFmpeg outputs
         self._ffmpeg_proc = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.STDOUT,  # Merge stderr into stdout
             text=True,
-            creationflags=(
-                subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            ),
+            creationflags=creation_flags
         )
+
+        logger.info(f"FFmpeg started with PID {self._ffmpeg_proc.pid}, URL: {self._url}")
+
+        # Small delay to let FFmpeg start
+        time.sleep(0.5)
+
+        # Check if process is still running
+        if self._ffmpeg_proc.poll() is not None:
+            # Process exited immediately - try to read output
+            try:
+                output = self._ffmpeg_proc.stdout.read(2000)
+                logger.error(f"FFmpeg exited immediately. Output: {output}")
+            except:
+                logger.error(f"FFmpeg exited immediately with code {self._ffmpeg_proc.returncode}")
+            # Continue anyway - the process might work if we give it time
 
         self._monitor_thread = threading.Thread(
             target=self._monitor_ffmpeg,
@@ -178,27 +197,16 @@ class RTMPInput(InputSource):
 
         self._receiving = True
 
-        try:
-            from core.watchdog import FFmpegWatchdog
-
-            self._watchdog = FFmpegWatchdog(
-                hang_timeout=60,
-                max_restarts=10,
-            )
-            self._watchdog.attach_process(
-                self._ffmpeg_proc,
-                "RTMP Input",
-                restart_callback=self._restart,
-            )
-            self._watchdog.start()
-        except ImportError:
-            pass
+        # Disable watchdog for now - it causes thread join issues on restart
+        # The pipeline will handle error detection
+        self._watchdog = None
+        logger.info("RTMP input started (watchdog disabled)")
 
     def _restart(self) -> None:
-        """Restart the RTMP receiver."""
+        """Restart the RTMP receiver (called from watchdog thread)."""
         logger.info("Restarting RTMP receiver...")
         self._ffmpeg_proc = None
-        self.start()
+        # Don't call self.start() from watchdog thread - it will be called externally
 
     def stop(self) -> None:
         """Stop FFmpeg RTMP receiver."""
@@ -228,29 +236,45 @@ class RTMPInput(InputSource):
         self._receiving = False
 
     def _monitor_ffmpeg(self) -> None:
-        """Monitor FFmpeg stderr for log output."""
-        if not self._ffmpeg_proc or not self._ffmpeg_proc.stderr:
+        """Monitor FFmpeg stdout for log output."""
+        if not self._ffmpeg_proc or not self._ffmpeg_proc.stdout:
             return
 
         try:
-            for line in self._ffmpeg_proc.stderr:
+            while True:
+                # Check if process is still running
+                if self._ffmpeg_proc.poll() is not None:
+                    break
+                    
+                # Read available stdout
+                line = self._ffmpeg_proc.stdout.readline()
+                if not line:
+                    # Check if process ended
+                    if self._ffmpeg_proc.poll() is not None:
+                        break
+                    time.sleep(0.1)
+                    continue
+                
                 line = line.strip()
                 if line:
-                    if "error" in line.lower():
+                    if "error" in line.lower() or "Error" in line:
                         logger.error(f"[FFmpeg] {line}")
-                    elif "warning" in line.lower():
+                    elif "warning" in line.lower() or "Warning" in line:
                         logger.warning(f"[FFmpeg] {line}")
+                    elif "input" in line.lower() or "output" in line.lower() or "stream" in line.lower() or "listening" in line.lower():
+                        logger.info(f"[FFmpeg] {line}")
                     else:
                         logger.debug(f"[FFmpeg] {line}")
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Error in monitor: {e}")
             pass
 
+        # Final check
         if self._ffmpeg_proc:
             returncode = self._ffmpeg_proc.poll()
             if returncode is not None:
                 self._receiving = False
-                if returncode != 0:
-                    logger.error(f"FFmpeg exited with code {returncode}")
+                logger.error(f"FFmpeg exited with code {returncode}")
 
     def get_next_chunk(self):
         """Get next available chunk."""

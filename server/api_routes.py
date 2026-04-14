@@ -357,12 +357,31 @@ def create_api_router() -> APIRouter:
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
         input_source = ctx.get("input_source")
+        config = ctx.get("config")
         log_broadcast = ctx.get("log_broadcast")
 
         # Check if pipeline is already running (handle both string and enum)
         pipeline_state = getattr(pipeline, 'state', 'idle')
         if pipeline_state in ('running', 'RUNNING') or (hasattr(pipeline_state, 'value') and pipeline_state.value == 'running'):
             raise HTTPException(400, "Pipeline is already running")
+
+        # RTMP input setup - no external server needed, FFmpeg listens for connections
+        input_type = config.get("input.type", "srt") if config else "srt"
+        logger.info(f"Starting pipeline with input type: {input_type}")
+        
+        if input_type == "rtmp" and input_source:
+            rtmp_config = config.get("input.rtmp", {}) if config else {}
+            logger.info(f"RTMP config: {rtmp_config}")
+            # Configure RTMP input with listen port from config
+            if hasattr(input_source, 'configure'):
+                rtmp_port = rtmp_config.get("listen_port", 1935)
+                app_name = rtmp_config.get("app", "live")
+                stream_key = rtmp_config.get("stream_key", "stream")
+                # URL without listen param - it's set via -rtmp_listen option in FFmpeg
+                listen_url = f"rtmp://127.0.0.1:{rtmp_port}/{app_name}/{stream_key}"
+                new_config = {**rtmp_config, "url": listen_url}
+                input_source.configure(new_config)
+                logger.info(f"RTMP input configured in listen mode: {listen_url}")
 
         def on_log(level, message):
             if log_broadcast:
@@ -399,6 +418,12 @@ def create_api_router() -> APIRouter:
         except Exception as e:
             logger.error(f"Error stopping pipeline: {e}")
             pass
+
+        # Stop MediaMTX if running
+        global _mediamtx_manager
+        if _mediamtx_manager and _mediamtx_manager.is_running:
+            _mediamtx_manager.stop()
+            logger.info("MediaMTX stopped")
 
         # Clean up temporary files
         cleanup_dirs = [

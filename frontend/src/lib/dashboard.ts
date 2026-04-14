@@ -541,9 +541,9 @@ export async function toggleModule(moduleName: string, enabled: boolean): Promis
 export function updateInputFields(): void {
   const inputType = (document.getElementById('input-type') as HTMLSelectElement)?.value || 'srt';
   
-  const srtConfig = document.getElementById('input-srt-config');
-  const rtmpConfig = document.getElementById('input-rtmp-config');
-  const fileConfig = document.getElementById('input-file-config');
+  const srtConfig = document.getElementById('input-srt-settings');
+  const rtmpConfig = document.getElementById('input-rtmp-settings');
+  const fileConfig = document.getElementById('input-file-settings');
   
   if (srtConfig) srtConfig.style.display = inputType === 'srt' ? 'flex' : 'none';
   if (rtmpConfig) rtmpConfig.style.display = inputType === 'rtmp' ? 'flex' : 'none';
@@ -649,6 +649,34 @@ export function applyConfigToUI(cfg: Config): void {
     } else {
       rtmpChunkInput.value = String(chunkDuration);
     }
+  }
+  
+  // Load RTMP config fields
+  const rtmpUrlInput = document.getElementById('input-rtmp-url') as HTMLInputElement;
+  const rtmpModeSelect = document.getElementById('input-rtmp-mode') as HTMLSelectElement;
+  const rtmpAppInput = document.getElementById('input-rtmp-app') as HTMLInputElement;
+  if (rtmpUrlInput && inputRtmpConfig?.url) {
+    rtmpUrlInput.value = inputRtmpConfig.url;
+  }
+  if (rtmpModeSelect && inputRtmpConfig?.mode) {
+    rtmpModeSelect.value = inputRtmpConfig.mode;
+  }
+  if (rtmpAppInput && inputRtmpConfig?.app) {
+    rtmpAppInput.value = inputRtmpConfig.app;
+  }
+  
+  // Load File config fields
+  const filePathInput = document.getElementById('input-file-path') as HTMLInputElement;
+  const fileLoopSelect = document.getElementById('input-file-loop') as HTMLSelectElement;
+  const fileSpeedInput = document.getElementById('input-file-speed') as HTMLInputElement;
+  if (filePathInput && inputFileConfig?.path) {
+    filePathInput.value = inputFileConfig.path;
+  }
+  if (fileLoopSelect && inputFileConfig?.loop !== undefined) {
+    fileLoopSelect.value = inputFileConfig.loop ? 'true' : 'false';
+  }
+  if (fileSpeedInput && inputFileConfig?.speed) {
+    fileSpeedInput.value = String(inputFileConfig.speed);
   }
   if (fileChunkInput) {
     const fileChunk = inputFileConfig?.chunk_duration_sec;
@@ -842,13 +870,14 @@ export function collectConfigFromUI(): Partial<Config> {
       latency_ms: parseInt((document.getElementById('input-srt-latency') as HTMLInputElement)?.value || '1000'),
       chunk_duration_sec: parseInt((document.getElementById('input-chunk-duration') as HTMLInputElement)?.value || '10'),
     };
-  } else if (inputType === 'rtmp') {
-    inputConfig.rtmp = {
-      url: (document.getElementById('input-rtmp-url') as HTMLInputElement)?.value || 'rtmp://localhost/live/stream',
-      mode: (document.getElementById('input-rtmp-mode') as HTMLSelectElement)?.value || 'pull',
-      chunk_duration_sec: parseInt((document.getElementById('input-rtmp-chunk') as HTMLInputElement)?.value || '10'),
-    };
-  } else if (inputType === 'file') {
+   } else if (inputType === 'rtmp') {
+     inputConfig.rtmp = {
+       url: (document.getElementById('input-rtmp-url') as HTMLInputElement)?.value || 'rtmp://localhost/live/stream',
+       mode: (document.getElementById('input-rtmp-mode') as HTMLSelectElement)?.value || 'pull',
+       app: (document.getElementById('input-rtmp-app') as HTMLInputElement)?.value || 'live',
+       chunk_duration_sec: parseInt((document.getElementById('input-rtmp-chunk') as HTMLInputElement)?.value || '10'),
+     };
+   } else if (inputType === 'file') {
     inputConfig.file = {
       path: (document.getElementById('input-file-path') as HTMLInputElement)?.value || '',
       loop: (document.getElementById('input-file-loop') as HTMLSelectElement)?.value === 'true',
@@ -958,6 +987,12 @@ export async function initDashboard(): Promise<void> {
     config = await getConfig();
     dashboardStore.setConfig(config);  // Update centralized store
     applyConfigToUI(config);
+    
+    // Initialize RTMP URL after config is loaded
+    const inputTypeSelect = document.getElementById('input-type') as HTMLSelectElement;
+    if (inputTypeSelect?.value === 'rtmp') {
+      updateRtmpUrl();
+    }
 
     status = await apiCall<Status>('GET', 'status');
     updatePipelineUI(status.state);
@@ -1014,6 +1049,9 @@ export function initWebSocket(): void {
 (window as unknown as { updateInputFields: typeof updateInputFields }).updateInputFields = updateInputFields;
 (window as unknown as { updateOutputFields: typeof updateOutputFields }).updateOutputFields = updateOutputFields;
 (window as unknown as { handleTtsEngineChange: typeof handleTtsEngineChange }).handleTtsEngineChange = handleTtsEngineChange;
+(window as unknown as { handleInputTypeChange: typeof handleInputTypeChange }).handleInputTypeChange = handleInputTypeChange;
+(window as any).updateRtmpUrl = updateRtmpUrl;
+(window as any).copyRtmpUrl = copyRtmpUrl;
 
 // Copy URL functionality
 function setupCopyButtons(): void {
@@ -1060,11 +1098,123 @@ function setupCopyButtons(): void {
 // Override init to include copy buttons setup
 export function handleInputTypeChange(type: string): void {
   console.log('Input type changed:', type);
+  updateInputFields();
+  
+  // Auto-populate RTMP URL when switching to RTMP
+  if (type === 'rtmp') {
+    updateRtmpUrl();
+  }
+  
+  // Update input process title
+  const inputTitle = document.getElementById('input-process-title');
+  if (inputTitle) {
+    switch (type) {
+      case 'srt':
+        inputTitle.textContent = '📥 INPUT (SRT)';
+        break;
+      case 'rtmp':
+        inputTitle.textContent = '📥 INPUT (RTMP)';
+        break;
+      case 'file':
+        inputTitle.textContent = '📥 INPUT (File)';
+        break;
+      default:
+        inputTitle.textContent = '📥 INPUT';
+    }
+  }
+  
+  // Update connection info display
+  updateConnectionInfoDisplay();
+}
+
+export function updateRtmpUrl(): void {
+  const rtmpUrlInput = document.getElementById('input-rtmp-url') as HTMLInputElement;
+  if (!rtmpUrlInput) return;
+  
+  const portInput = document.getElementById('input-rtmp-port') as HTMLInputElement;
+  const appInput = document.getElementById('input-rtmp-app') as HTMLInputElement;
+  const keyInput = document.getElementById('input-rtmp-key') as HTMLInputElement;
+  
+  const port = portInput?.value || '1935';
+  const app = appInput?.value || 'live';
+  const key = keyInput?.value || 'stream';
+  
+  rtmpUrlInput.value = `rtmp://127.0.0.1:${port}/${app}/${key}`;
+  updateConnectionInfoDisplay();
+}
+
+export function copyRtmpUrl(): void {
+  const rtmpUrlInput = document.getElementById('input-rtmp-url') as HTMLInputElement;
+  if (!rtmpUrlInput || !rtmpUrlInput.value) return;
+  
+  navigator.clipboard.writeText(rtmpUrlInput.value).then(() => {
+    showToast('URL copiada al portapapeles', 'success');
+  }).catch(err => {
+    console.error('Error copying:', err);
+    showToast('Error al copiar URL', 'error');
+  });
+}
+
+export function updateConnectionInfoDisplay(): void {
+  const useIp = '127.0.0.1'; // Always use localhost for display
+  
+  // Get current input type from dropdown (not config, as it may not be saved yet)
+  const inputTypeSelect = document.getElementById('input-type') as HTMLSelectElement;
+  const inputType = inputTypeSelect?.value || 'srt';
+  
+  // Update SRT/RTMP/File URL display
+  const urlSrtEl = document.getElementById('url-srt');
+  if (urlSrtEl) {
+    let connectionInfo = '';
+    if (inputType === 'srt') {
+      const srtPortInput = document.getElementById('input-srt-port') as HTMLInputElement;
+      const srtModeInput = document.getElementById('input-srt-mode') as HTMLSelectElement;
+      const srtPort = srtPortInput?.value || '9000';
+      const srtMode = srtModeInput?.value || 'listener';
+      connectionInfo = `srt://${useIp}:${srtPort}?mode=${srtMode}`;
+    } else if (inputType === 'rtmp') {
+      const rtmpUrlInput = document.getElementById('input-rtmp-url') as HTMLInputElement;
+      connectionInfo = rtmpUrlInput?.value || 'rtmp://127.0.0.1/live/stream';
+    } else if (inputType === 'file') {
+      const filePathInput = document.getElementById('input-file-path') as HTMLInputElement;
+      const filePath = filePathInput?.value || '(no file selected)';
+      connectionInfo = `file://${filePath}`;
+    }
+    urlSrtEl.textContent = connectionInfo;
+  }
+  
+  // Update stream URL (always the same for HLS output)
+  const urlStreamEl = document.getElementById('url-stream');
+  const serverPort = config?.server?.port || 9999;
+  if (urlStreamEl) {
+    urlStreamEl.textContent = `http://${useIp}:${serverPort}/hls/stream.m3u8`;
+  }
+  
+  // Update player URL (always the same)
+  const urlPlayerEl = document.getElementById('url-player');
+  if (urlPlayerEl) {
+    urlPlayerEl.textContent = `http://${useIp}:${serverPort}/player`;
+    // Also update href if it's an anchor
+    if (urlPlayerEl instanceof HTMLAnchorElement) {
+      urlPlayerEl.href = `http://${useIp}:${serverPort}/player`;
+    }
+  }
 }
 
 export function handleOutputFormatChange(format: string): void {
   console.log('Output format changed:', format);
 }
+
+// Expose functions to window for inline event handlers
+(window as any).toggleModule = toggleModule;
+(window as any).updateInputFields = updateInputFields;
+(window as any).updateOutputFields = updateOutputFields;
+(window as any).handleTtsEngineChange = handleTtsEngineChange;
+(window as any).handleInputTypeChange = handleInputTypeChange;
+(window as any).updateRtmpUrl = updateRtmpUrl;
+(window as any).copyRtmpUrl = copyRtmpUrl;
+(window as any).handleOutputFormatChange = handleOutputFormatChange;
+(window as any).saveConfig = handleSaveConfig;
 
 (window as any).init = function() {
   setupEventListeners();

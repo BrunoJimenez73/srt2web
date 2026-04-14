@@ -2,11 +2,11 @@
 ---
 
 <form class="input-card" id="card-input">
-  <div class="process-header">
-    <span class="process-indicator" id="indicator-input"></span>
-    <span class="process-title">📥 INPUT</span>
-    <span class="gpu-badge" id="input-gpu-badge" style="display: none;" role="status" aria-label="Estado GPU">GPU</span>
-  </div>
+    <div class="process-header">
+      <span class="process-indicator" id="indicator-input"></span>
+      <span class="process-title" id="input-process-title">📥 INPUT</span>
+      <span class="gpu-badge" id="input-gpu-badge" style="display: none;" role="status" aria-label="Estado GPU">GPU</span>
+    </div>
   <div class="process-content">
     <div class="form-group">
       <label class="form-label" for="input-type">Tipo</label>
@@ -47,26 +47,35 @@
       </div>
     </div>
     
-    <!-- RTMP Settings -->
+<!-- RTMP Settings -->
     <div class="input-settings" id="input-rtmp-settings" style="display: none;">
       <div class="form-group">
-        <label class="form-label" for="input-rtmp-url">URL RTMP</label>
-        <input type="text" class="form-input" id="input-rtmp-url" placeholder="rtmp://server/live/stream" />
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label" for="input-rtmp-port">Puerto</label>
-          <input type="number" class="form-input" id="input-rtmp-port" value="1935" min="1" max="65535" />
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="input-rtmp-key">Stream Key</label>
-          <input type="text" class="form-input" id="input-rtmp-key" placeholder="stream" />
+        <label class="form-label" for="input-rtmp-url">URL para OBS (RTMP Listen)</label>
+        <div class="copy-input-wrapper">
+          <input type="text" class="form-input" id="input-rtmp-url" readonly placeholder="rtmp://127.0.0.1:1935/live/stream" />
+          <button type="button" class="copy-button" onclick="copyRtmpUrl()" aria-label="Copiar URL">📋</button>
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label" for="input-rtmp-chunk">Chunk (s)</label>
-        <input type="number" class="form-input" id="input-rtmp-chunk" value="2" min="1" max="30" step="1" />
-      </div>
+       <div class="form-row">
+         <div class="form-group">
+           <label class="form-label" for="input-rtmp-port">Puerto</label>
+           <input type="number" class="form-input" id="input-rtmp-port" value="1935" min="1" max="65535" onchange="updateRtmpUrl()" />
+         </div>
+         <div class="form-group">
+           <label class="form-label" for="input-rtmp-app">App</label>
+           <input type="text" class="form-input" id="input-rtmp-app" value="live" onchange="updateRtmpUrl()" />
+         </div>
+       </div>
+       <div class="form-row">
+         <div class="form-group">
+           <label class="form-label" for="input-rtmp-key">Stream Key</label>
+           <input type="text" class="form-input" id="input-rtmp-key" placeholder="stream" onchange="updateRtmpUrl()" />
+         </div>
+         <div class="form-group">
+           <label class="form-label" for="input-rtmp-chunk">Chunk (s)</label>
+           <input type="number" class="form-input" id="input-rtmp-chunk" value="2" min="1" max="30" step="1" />
+         </div>
+       </div>
     </div>
     
     <!-- File Settings -->
@@ -220,6 +229,36 @@
     display: flex;
     gap: 6px;
     align-items: center;
+  }
+
+  .copy-input-wrapper {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .copy-input-wrapper input {
+    flex: 1;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--bg-surface);
+    color: var(--success);
+    font-weight: 600;
+  }
+
+  .copy-button {
+    background: var(--bg-card);
+    border: 1px solid var(--success);
+    border-radius: var(--radius-sm);
+    padding: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+
+  .copy-button:hover {
+    background: var(--success);
+    color: var(--bg-surface);
   }
 
   .file-button {

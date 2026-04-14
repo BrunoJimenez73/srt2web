@@ -259,6 +259,8 @@ declare global {
     handleOutputFormatChange: (format: string) => void;
     saveConfig: () => void;
     updateInputFields: () => void;
+    updateRtmpUrl: () => void;
+    copyRtmpUrl: () => void;
     toggleModule: (moduleName: string, enabled: boolean) => Promise<void>;
     showToast: (message: string, type?: 'success' | 'error' | 'info', duration?: number) => void;
   }
