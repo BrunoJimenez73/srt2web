@@ -295,6 +295,42 @@ def validate_configuration(config):
     logger.info("Configuración validada exitosamente")
 
 
+def create_app(app_context: dict) -> FastAPI:
+    """Crear instancia de la aplicación FastAPI."""
+    app = FastAPI(
+        title="SRT2Web",
+        description="Sistema de transcripción y traducción en tiempo real",
+        version="0.6.6",
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
+        access_log=True
+    )
+
+    # Configurar múltiples salidas si está habilitado en config.yaml
+    config = app_context.get("config")
+    if config.get("output", {}).get("outputs"):
+        # Crear composite output
+        from core.io_factory import OutputFactory
+        from modules.outputs.composite_output import CompositeOutput
+
+        output_configs = config["output"]["outputs"]
+        outputs = OutputFactory.create_multiple(output_configs)
+        composite = CompositeOutput({})
+        for output in outputs:
+            composite.add_output(output.name, output)
+        composite.start()
+
+        # Configurar pipeline con composite output
+        app_context["pipeline"].set_output_sinks(output_configs)
+    else:
+        # Configuración de salida única (compatibilidad)
+        output_config = config.get("output", {})
+        app_context["pipeline"].set_output_sink(output_config)
+
+    return app
+
+
 def main():
     """Main entry point."""
     setup_logging()
@@ -318,7 +354,7 @@ def main():
 
     # Ensure output directory exists
     output_dir = config.get("output_dir.directory", "./output")
-    if not os.path.isabs(output_dir):
+    if not os.isabs(output_dir):
         output_dir = str(PROJECT_ROOT / output_dir)
     os.makedirs(output_dir, exist_ok=True)
 

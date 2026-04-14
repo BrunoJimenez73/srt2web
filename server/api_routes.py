@@ -357,7 +357,6 @@ def create_api_router() -> APIRouter:
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
         input_source = ctx.get("input_source")
-        config = ctx.get("config")
         log_broadcast = ctx.get("log_broadcast")
 
         # Check if pipeline is already running (handle both string and enum)
@@ -418,12 +417,6 @@ def create_api_router() -> APIRouter:
         except Exception as e:
             logger.error(f"Error stopping pipeline: {e}")
             pass
-
-        # Stop MediaMTX if running
-        global _mediamtx_manager
-        if _mediamtx_manager and _mediamtx_manager.is_running:
-            _mediamtx_manager.stop()
-            logger.info("MediaMTX stopped")
 
         # Clean up temporary files
         cleanup_dirs = [

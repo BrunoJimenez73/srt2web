@@ -88,6 +88,22 @@
           <input type="file" id="input-file-select" accept="video/*" style="display: none;" onchange="handleFileSelect(this)" />
         </div>
       </div>
+      
+      <!-- File Player Controls -->
+      <div class="file-player-controls" id="file-player-controls" style="display: none;">
+        <div class="player-buttons">
+          <button type="button" class="player-btn" id="btn-file-play" aria-label="Reproducir">▶</button>
+          <button type="button" class="player-btn" id="btn-file-pause" aria-label="Pausar" style="display: none;">⏸</button>
+          <button type="button" class="player-btn" id="btn-file-restart" aria-label="Reiniciar">⏮</button>
+        </div>
+        <div class="player-slider">
+          <input type="range" class="player-range" id="input-file-position" min="0" max="100" value="0" />
+          <span class="player-time" id="file-time-current">0:00</span>
+          <span class="player-time-sep">/</span>
+          <span class="player-time" id="file-time-total">0:00</span>
+        </div>
+      </div>
+      
       <div class="form-row">
         <div class="form-group">
           <label class="form-label" for="input-file-loop">Loop</label>
@@ -316,5 +332,70 @@
   .gpu-badge.active {
     background: linear-gradient(135deg, #76b900, #a8e600);
     color: #000;
+  }
+
+  .file-player-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-dim);
+  }
+
+  .player-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .player-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+
+  .player-btn:hover {
+    background: var(--accent);
+    color: var(--bg-surface);
+  }
+
+  .player-slider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .player-range {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    background: var(--border-dim);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  .player-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  .player-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-sec);
+  }
+
+  .player-time-sep {
+    color: var(--text-dim);
   }
 </style>

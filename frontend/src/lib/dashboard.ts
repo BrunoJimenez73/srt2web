@@ -554,10 +554,22 @@ export function updateInputFields(): void {
   const srtConfig = document.getElementById('input-srt-settings');
   const rtmpConfig = document.getElementById('input-rtmp-settings');
   const fileConfig = document.getElementById('input-file-settings');
+  const playerControls = document.getElementById('file-player-controls');
   
   if (srtConfig) srtConfig.style.display = inputType === 'srt' ? 'flex' : 'none';
   if (rtmpConfig) rtmpConfig.style.display = inputType === 'rtmp' ? 'flex' : 'none';
   if (fileConfig) fileConfig.style.display = inputType === 'file' ? 'flex' : 'none';
+  
+  // Hide player controls by default when switching to file mode (until file is selected)
+  // But if there's already a file path, show them
+  const filePathInput = document.getElementById('input-file-path') as HTMLInputElement;
+  const hasFile = filePathInput && filePathInput.value && filePathInput.value.length > 0;
+  
+  if (playerControls && inputType === 'file' && hasFile) {
+    playerControls.style.display = 'flex';
+  } else if (playerControls) {
+    playerControls.style.display = 'none';
+  }
 }
 
 export function updateOutputFields(): void {
@@ -1012,6 +1024,9 @@ export async function initDashboard(): Promise<void> {
     if (status.network?.local_ip) {
       updateUrls(status.network.local_ip);
     }
+    
+    // Update connection info display (SRT/RTMP/FILE URL)
+    updateConnectionInfoDisplay();
 
     wsClient = new WSClient({
       onLog: (msg: LogMessage) => addLog(msg.level, msg.message),
@@ -1062,6 +1077,7 @@ export function initWebSocket(): void {
 (window as unknown as { handleInputTypeChange: typeof handleInputTypeChange }).handleInputTypeChange = handleInputTypeChange;
 (window as any).updateRtmpUrl = updateRtmpUrl;
 (window as any).copyRtmpUrl = copyRtmpUrl;
+(window as any).handleFileSelect = handleFileSelect;
 
 // Copy URL functionality
 function setupCopyButtons(): void {
@@ -1115,6 +1131,16 @@ export function handleInputTypeChange(type: string): void {
     updateRtmpUrl();
   }
   
+  // Show player controls if there's already a file selected
+  if (type === 'file') {
+    const filePathInput = document.getElementById('input-file-path') as HTMLInputElement;
+    const playerControls = document.getElementById('file-player-controls');
+    if (filePathInput && filePathInput.value && playerControls) {
+      playerControls.style.display = 'flex';
+      setupFilePlayerControls(filePathInput.value);
+    }
+  }
+  
   // Update input process title
   const inputTitle = document.getElementById('input-process-title');
   if (inputTitle) {
@@ -1151,6 +1177,85 @@ export function updateRtmpUrl(): void {
   
   rtmpUrlInput.value = `rtmp://127.0.0.1:${port}/${app}/${key}`;
   updateConnectionInfoDisplay();
+}
+
+export function handleFileSelect(input: HTMLInputElement): void {
+  const filePathInput = document.getElementById('input-file-path') as HTMLInputElement;
+  if (!filePathInput || !input.files || input.files.length === 0) return;
+  
+  // Get the file path
+  const file = input.files[0];
+  const filePath = (file as unknown as { path?: string }).path || file.name;
+  
+  // Update the input field
+  filePathInput.value = filePath;
+  
+  console.log('File selected:', filePath);
+  
+  // Update connection info display
+  updateConnectionInfoDisplay();
+  
+  // Show notification
+  showToast(`Archivo seleccionado: ${file.name}`, 'success');
+  
+  // Show player controls
+  const playerControls = document.getElementById('file-player-controls');
+  if (playerControls) {
+    playerControls.style.display = 'flex';
+  }
+  
+  // Setup player controls
+  setupFilePlayerControls(filePath);
+}
+
+let currentFileDuration = 0;
+
+export function setupFilePlayerControls(filePath: string): void {
+  // This would need actual video element to get duration
+  // For now, just set up the event handlers
+  const playBtn = document.getElementById('btn-file-play');
+  const pauseBtn = document.getElementById('btn-file-pause');
+  const restartBtn = document.getElementById('btn-file-restart');
+  const positionSlider = document.getElementById('input-file-position') as HTMLInputElement;
+  
+  if (playBtn) {
+    playBtn.onclick = () => {
+      playBtn.style.display = 'none';
+      if (pauseBtn) pauseBtn.style.display = 'inline';
+      showToast('Reproduciendo: ' + filePath.split('/').pop(), 'info');
+    };
+  }
+  
+  if (pauseBtn) {
+    pauseBtn.onclick = () => {
+      pauseBtn.style.display = 'none';
+      if (playBtn) playBtn.style.display = 'inline';
+    };
+  }
+  
+  if (restartBtn) {
+    restartBtn.onclick = () => {
+      if (positionSlider) positionSlider.value = '0';
+      showToast('Reiniciando video', 'info');
+    };
+  }
+  
+  if (positionSlider) {
+    positionSlider.oninput = () => {
+      const percent = positionSlider.value;
+      const currentEl = document.getElementById('file-time-current');
+      if (currentEl && currentFileDuration > 0) {
+        const currentSec = Math.floor((parseInt(percent) / 100) * currentFileDuration);
+        currentEl.textContent = formatTime(currentSec);
+      }
+    };
+  }
+}
+
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
 export function copyRtmpUrl(): void {
@@ -1191,7 +1296,7 @@ export function updateConnectionInfoDisplay(): void {
     } else if (inputType === 'file') {
       const filePathInput = document.getElementById('input-file-path') as HTMLInputElement;
       const filePath = filePathInput?.value || '(no file selected)';
-      connectionInfo = `file://${filePath}`;
+      connectionInfo = filePath || 'file://(no file selected)';
       if (urlEmisionLabelEl) urlEmisionLabelEl.textContent = 'FILE:';
     }
     urlEmisionEl.textContent = connectionInfo;
