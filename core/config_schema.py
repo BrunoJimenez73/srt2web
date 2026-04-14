@@ -134,6 +134,7 @@ class SRTInputConfig(BaseModel):
     mode: Literal["listener", "caller"] = Field(default="listener", description="Modo SRT")
     latency_ms: int = Field(default=200, ge=0, le=5000, description="Latencia SRT en ms")
     caller_address: str = Field(default="", description="Dirección del caller en modo caller")
+    chunk_duration_sec: int = Field(default=10, ge=1, le=60, description="Duración de chunk en segundos")
 
 
 class RTMPInputConfig(BaseModel):
