@@ -382,6 +382,14 @@ def create_api_router() -> APIRouter:
                 new_config = {**rtmp_config, "url": listen_url}
                 input_source.configure(new_config)
                 logger.info(f"RTMP input configured in listen mode: {listen_url}")
+        
+        # File input setup
+        if input_type == "file" and input_source:
+            file_config = config.get("input.file", {}) if config else {}
+            logger.info(f"File config: {file_config}")
+            if hasattr(input_source, 'configure'):
+                input_source.configure(file_config)
+                logger.info(f"File input configured with path: {file_config.get('path', '')}")
 
         def on_log(level, message):
             if log_broadcast:
