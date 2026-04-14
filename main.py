@@ -21,6 +21,7 @@ import signal
 from pathlib import Path
 
 import uvicorn
+from fastapi import FastAPI
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent
@@ -353,8 +354,8 @@ def main():
     logger.info("Configuration loaded and validated")
 
     # Ensure output directory exists
-    output_dir = config.get("output_dir.directory", "./output")
-    if not os.isabs(output_dir):
+    output_dir = config.get("output_dir", {}).get("directory", "./output")
+    if not os.path.isabs(output_dir):
         output_dir = str(PROJECT_ROOT / output_dir)
     os.makedirs(output_dir, exist_ok=True)
 
