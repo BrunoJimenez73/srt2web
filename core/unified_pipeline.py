@@ -172,29 +172,29 @@ class UnifiedPipeline:
         """Obtener fuente de entrada."""
         return self._input_source
 
-def set_output_sinks(self, output_configs: List[dict]) -> None:
-    """Establecer múltiples destinos de salida."""
-    from core.io_factory import OutputFactory
+    def set_output_sinks(self, output_configs: List[dict]) -> None:
+        """Establecer múltiples destinos de salida."""
+        from core.io_factory import OutputFactory
 
-    # Crear múltiples salidas
-    outputs = OutputFactory.create_multiple(output_configs)
+        # Crear múltiples salidas
+        outputs = OutputFactory.create_multiple(output_configs)
 
-    # Crear composite output
-    self._output_sink = CompositeOutput({})
-    for output in outputs:
-        self._output_sink.add_output(output.name, output)
+        # Crear composite output
+        self._output_sink = CompositeOutput({})
+        for output in outputs:
+            self._output_sink.add_output(output.name, output)
 
-def set_output_sink(self, sink: Any) -> None:
-    """Establecer destino de salida (para compatibilidad)."""
-    self._output_sink = sink
+    def set_output_sink(self, sink: Any) -> None:
+        """Establecer destino de salida (para compatibilidad)."""
+        self._output_sink = sink
 
-def get_output_sink(self) -> Optional[Any]:
-    """Obtener destino de salida (para compatibilidad)."""
-    return self._output_sink
+    def get_output_sink(self) -> Optional[Any]:
+        """Obtener destino de salida (para compatibilidad)."""
+        return self._output_sink
 
-def get_output_sinks(self) -> Optional[CompositeOutput]:
-    """Obtener composite output con múltiples salidas."""
-    return self._output_sink if isinstance(self._output_sink, CompositeOutput) else None
+    def get_output_sinks(self) -> Optional[CompositeOutput]:
+        """Obtener composite output con múltiples salidas."""
+        return self._output_sink if isinstance(self._output_sink, CompositeOutput) else None
 
     def register_module(self, module: BaseModule, config: Optional[dict] = None) -> None:
         """Registrar un módulo en orden de ejecución."""
