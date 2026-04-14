@@ -532,10 +532,6 @@ def create_api_router() -> APIRouter:
 
         return {"status": "updated", "config": config.to_dict()}
 
-    # Verificar qué devuelve to_dict()
-    import json
-    logger.info(f"[CONFIG] RETURN config.input.srt: {json.dumps(config.to_dict().get('input', {}).get('srt', {}), indent=2)}")
-
     # ── Module Management ─────────────────────────────────
 
     @router.get("/modules")
