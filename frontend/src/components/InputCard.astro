@@ -81,12 +81,13 @@
     <!-- File Settings -->
     <div class="input-settings" id="input-file-settings" style="display: none;">
       <div class="form-group">
-        <label class="form-label" for="input-file-path">Archivo de Video</label>
+        <label class="form-label" for="input-file-path">Archivo de Video (ruta completa)</label>
         <div class="file-input-wrapper">
-          <input type="text" class="form-input" id="input-file-path" placeholder="Ruta al archivo de video" readonly />
+          <input type="text" class="form-input" id="input-file-path" placeholder="C:\Users\bruno\Desktop\video.mp4" />
           <button type="button" class="file-button" onclick="document.getElementById('input-file-select').click()" aria-label="Seleccionar archivo">📁</button>
           <input type="file" id="input-file-select" accept="video/*" style="display: none;" onchange="handleFileSelect(this)" />
         </div>
+        <small class="form-hint">Selecciona un archivo o escribe la ruta completa manualmente</small>
       </div>
       
       <!-- File Player Controls -->

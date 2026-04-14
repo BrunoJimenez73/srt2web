@@ -1183,14 +1183,20 @@ export function handleFileSelect(input: HTMLInputElement): void {
   const filePathInput = document.getElementById('input-file-path') as HTMLInputElement;
   if (!filePathInput || !input.files || input.files.length === 0) return;
   
-  // Get the file path
+  // Get the file name (browsers don't give full path for security)
   const file = input.files[0];
-  const filePath = (file as unknown as { path?: string }).path || file.name;
+  const fileName = file.name;
   
-  // Update the input field
-  filePathInput.value = filePath;
+  // Update the input field with placeholder hint
+  filePathInput.placeholder = `Ej: C:\\Users\\bruno\\Desktop\\${fileName}`;
   
-  console.log('File selected:', filePath);
+  // Show notification with instructions
+  showToast(`Archivo: ${fileName}. Ahora ingresa la RUTA COMPLETA manualmente.`, 'info');
+  
+  // Focus the input for manual entry
+  filePathInput.focus();
+  
+  console.log('File selected:', fileName, '- Please enter full path manually');
   
   // Update connection info display
   updateConnectionInfoDisplay();
@@ -1204,13 +1210,13 @@ export function handleFileSelect(input: HTMLInputElement): void {
     playerControls.style.display = 'flex';
   }
   
-  // Setup player controls
-  setupFilePlayerControls(filePath);
+  // Setup player controls - pass fileName since we don't have full path
+  setupFilePlayerControls(fileName);
 }
 
 let currentFileDuration = 0;
 
-export function setupFilePlayerControls(filePath: string): void {
+export function setupFilePlayerControls(fileName: string): void {
   // This would need actual video element to get duration
   // For now, just set up the event handlers
   const playBtn = document.getElementById('btn-file-play');
