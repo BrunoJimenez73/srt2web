@@ -70,8 +70,19 @@ from core.logging_setup import (
 )
 
 # Pipeline y módulos (legacy - para compatibilidad)
-from core.pipeline import Pipeline
+from core.unified_pipeline import UnifiedPipeline as Pipeline
 from core.module_base import BaseModule
+
+# Nuevas estrategias de pipeline (refactoring)
+from core.pipeline import (
+    PipelineStrategy,
+    PipelineMode,
+    create_pipeline,
+    get_available_modes,
+    SequentialPipeline,
+    ParallelPipeline,
+    AsyncPipeline,
+)
 
 # Seguridad y utilidades
 from core.security import (
