@@ -507,7 +507,8 @@ def create_api_router() -> APIRouter:
             )
 
         import json
-        logger.info(f"[CONFIG] PUT receives: {json.dumps(body.config, indent=2)[:500]}")
+        logger.info(f"[CONFIG] PUT receives: {json.dumps(body.config, indent=2)[:1000]}")
+        logger.info(f"[CONFIG] PUT body keys: {list(body.config.keys())}")
         
         try:
             config.update_from_dict(body.config)
