@@ -358,6 +358,7 @@ def create_api_router() -> APIRouter:
         pipeline = ctx["pipeline"]
         input_source = ctx.get("input_source")
         log_broadcast = ctx.get("log_broadcast")
+        config = ctx["config"]
 
         # Check if pipeline is already running (handle both string and enum)
         pipeline_state = getattr(pipeline, 'state', 'idle')
