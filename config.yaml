@@ -23,7 +23,7 @@ input:
     mode: pull
     chunk_duration_sec: 15
   file:
-    path: We-Have-to-Talk-About-Anthropic-s-Mythos_Media_oBZ5W758y4o_001_1080p.mp4
+    path: ""
     loop: false
     speed: 1.0
     chunk_duration_sec: 5
