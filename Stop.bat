@@ -52,6 +52,17 @@ if !errorlevel! equ 0 (
     echo  [INFO] Puerto 9000 ya libre.
 )
 
+REM Puerto RTMP
+netstat -ano | findstr :1935 | findstr LISTENING >nul 2>&1
+if !errorlevel! equ 0 (
+    for /f "tokens=5" %%A in ('netstat -ano ^| findstr :1935 ^| findstr LISTENING') do (
+        taskkill /F /PID %%A >nul 2>&1
+    )
+    echo  [OK] Puerto 1935 liberado.
+) else (
+    echo  [INFO] Puerto 1935 ya libre.
+)
+
 REM =============================================
 REM 3. Detener procesos relacionados
 REM =============================================
