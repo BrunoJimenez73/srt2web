@@ -672,6 +672,60 @@ def create_api_router() -> APIRouter:
 
         return input_source.get_connection_info()
 
+    # ── File Input Playback Controls ────────────────────────
+
+    class SeekPosition(BaseModel):
+        """Request body for seek position."""
+        position: float  # Position in seconds
+
+    @router.post("/input/control/play")
+    async def input_play(request: Request):
+        """Resume file playback (for file input type)."""
+        ctx = _ctx(request)
+        input_source = ctx.get("input_source")
+        
+        if not input_source:
+            raise HTTPException(400, "No input source configured")
+        
+        # Check if input source has play method (FileInput)
+        if hasattr(input_source, 'play'):
+            input_source.play()
+            return {"status": "playing", "message": "Playback resumed"}
+        else:
+            raise HTTPException(400, "Input source does not support play control")
+
+    @router.post("/input/control/pause")
+    async def input_pause(request: Request):
+        """Pause file playback (for file input type)."""
+        ctx = _ctx(request)
+        input_source = ctx.get("input_source")
+        
+        if not input_source:
+            raise HTTPException(400, "No input source configured")
+        
+        # Check if input source has pause method (FileInput)
+        if hasattr(input_source, 'pause'):
+            input_source.pause()
+            return {"status": "paused", "message": "Playback paused"}
+        else:
+            raise HTTPException(400, "Input source does not support pause control")
+
+    @router.post("/input/control/seek")
+    async def input_seek(request: Request, body: SeekPosition):
+        """Seek to a specific position in the file (for file input type)."""
+        ctx = _ctx(request)
+        input_source = ctx.get("input_source")
+        
+        if not input_source:
+            raise HTTPException(400, "No input source configured")
+        
+        # Check if input source has seek method (FileInput)
+        if hasattr(input_source, 'seek'):
+            input_source.seek(body.position)
+            return {"status": "seeked", "position": body.position, "message": f"Seeked to {body.position}s"}
+        else:
+            raise HTTPException(400, "Input source does not support seek control")
+
     @router.get("/output-info")
     async def output_info(request: Request):
         """Get output sink information."""

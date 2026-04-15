@@ -50,6 +50,9 @@ class FileInput(InputSource):
         self._last_chunk_index: int = -1
         self._file_finished: bool = False
         self._cumulative_duration: float = 0.0  # Track cumulative duration for sync
+        self._is_paused: bool = False
+        self._current_position: float = 0.0  # Current playback position in seconds
+        self._file_duration: float = 0.0  # Total file duration
 
         # GPU info for hwaccel
         self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
@@ -64,14 +67,145 @@ class FileInput(InputSource):
         self._chunk_duration = config.get("chunk_duration_sec", self._chunk_duration)
 
     def get_connection_info(self) -> dict:
-        """Obtener información del archivo."""
+        """Obtener información del archivo incluyendo duración y posición actual."""
+        # Obtener duración del archivo si aún no la tenemos
+        if self._file_duration == 0.0 and self._file_path and os.path.exists(self._file_path):
+            self._file_duration = get_video_duration(self._file_path) or 0.0
+            
         return {
             "type": "file",
             "path": self._file_path,
             "loop": self._loop,
             "speed": self._speed,
             "exists": os.path.exists(self._file_path) if self._file_path else False,
+            "duration": self._file_duration,
+            "position": self._current_position,
+            "is_paused": self._is_paused,
+            "is_playing": self.is_receiving() and not self._is_paused,
         }
+
+    def pause(self) -> None:
+        """Pausar la reproducción del archivo."""
+        if self._ffmpeg_proc and not self._is_paused:
+            # Enviar señal SIGSTOP para pausar el proceso FFmpeg
+            try:
+                import signal
+                if sys.platform == "win32":
+                    # En Windows no hay SIGSTOP, usamos otro método
+                    # Para simplificar, detenemos y reiniciamos en la posición actual
+                    self._stop_current()
+                    self._is_paused = True
+                    self.logger.info(f"File playback paused at {self._current_position:.2f}s")
+                else:
+                    os.kill(self._ffmpeg_proc.pid, signal.SIGSTOP)
+                    self._is_paused = True
+                    self.logger.info(f"File playback paused at {self._current_position:.2f}s")
+            except Exception as e:
+                self.logger.error(f"Failed to pause: {e}")
+
+    def play(self) -> None:
+        """Reanudar la reproducción del archivo."""
+        if self._is_paused:
+            if sys.platform == "win32":
+                # En Windows, reiniciamos desde la posición actual
+                self._restart_from_position(self._current_position)
+            else:
+                import signal
+                try:
+                    if self._ffmpeg_proc:
+                        os.kill(self._ffmpeg_proc.pid, signal.SIGCONT)
+                    self._is_paused = False
+                    self.logger.info("File playback resumed")
+                except Exception as e:
+                    self.logger.error(f"Failed to resume: {e}")
+            self._is_paused = False
+
+    def seek(self, position: float) -> None:
+        """Mover la reproducción a una posición específica (en segundos)."""
+        if not self._file_path or not os.path.exists(self._file_path):
+            self.logger.error("Cannot seek: file not configured or not found")
+            return
+            
+        # Obtener duración si no la tenemos
+        if self._file_duration == 0.0:
+            self._file_duration = get_video_duration(self._file_path) or 0.0
+            
+        # Validar posición
+        position = max(0, min(position, self._file_duration))
+        self._current_position = position
+        
+        # Reiniciar desde la nueva posición
+        self._restart_from_position(position)
+        self.logger.info(f"Seeked to position: {position:.2f}s")
+
+    def _restart_from_position(self, position: float) -> None:
+        """Reiniciar FFmpeg desde una posición específica."""
+        self._stop_current()
+        time.sleep(0.5)
+        
+        # Limpiar chunks antiguos
+        if self._chunks_dir:
+            for f in glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")):
+                try:
+                    os.remove(f)
+                except OSError:
+                    pass
+        
+        self._last_chunk_index = -1
+        self._cumulative_duration = position  # Ajustar duración acumulada
+        self._file_finished = False
+        
+        # Reconstruir comando FFmpeg con -ss para start time
+        chunk_pattern = os.path.join(self._chunks_dir, "chunk_%06d.ts")
+        cmd = [self._ffmpeg_path, "-y"]
+        
+        # Añadir hwaccel
+        if self._hwaccel_enabled:
+            if self._gpu_info.get("nvenc"):
+                cmd.extend(["-hwaccel", "cuda", "-hwaccel_device", self._hwaccel_device])
+            elif self._gpu_info.get("qsv"):
+                cmd.extend(["-hwaccel", "qsv", "-hwaccel_device", self._hwaccel_device])
+            elif self._gpu_info.get("vaapi"):
+                cmd.extend(["-hwaccel", "vaapi"])
+        
+        # Input con seek position
+        cmd.extend([
+            "-ss", str(position),  # Seek al inicio
+            "-i", self._file_path,
+            "-c", "copy",
+            "-f", "segment",
+            "-segment_time", str(self._chunk_duration),
+            "-segment_format", "mpegts",
+            "-reset_timestamps", "1",
+            "-strftime", "0",
+        ])
+        
+        if self._loop:
+            cmd.extend(["-stream_loop", "-1"])
+        
+        if self._speed != 1.0:
+            cmd.extend(["-filter:v", f"setpts={1.0 / self._speed}*PTS"])
+        
+        cmd.append(chunk_pattern)
+        
+        self.logger.info(f"Restarting file input from {position:.2f}s: {self._file_path}")
+        
+        self._ffmpeg_proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            creationflags=(
+                subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            ),
+        )
+        
+        self._monitor_thread = threading.Thread(
+            target=self._monitor_ffmpeg,
+            daemon=True,
+            name="file-input-monitor",
+        )
+        self._monitor_thread.start()
 
     def start(self) -> None:
         """Iniciar lectura del archivo."""
@@ -268,8 +402,11 @@ class FileInput(InputSource):
         # Update cumulative for next chunk
         self._cumulative_duration += actual_duration
 
+        # Update current position based on cumulative duration
+        self._current_position = chunk_cumulative + actual_duration
+
         self.logger.debug(
-            f"New chunk from file: {chunk_path} (cumulative: {chunk_cumulative:.3f}s)"
+            f"New chunk from file: {chunk_path} (cumulative: {chunk_cumulative:.3f}s, position: {self._current_position:.3f}s)"
         )
 
         return PipelineData(

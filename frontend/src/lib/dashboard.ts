@@ -567,8 +567,13 @@ export function updateInputFields(): void {
   
   if (playerControls && inputType === 'file' && hasFile) {
     playerControls.style.display = 'flex';
+    setupFilePlayerControls();
   } else if (playerControls) {
     playerControls.style.display = 'none';
+    // Stop polling if switching away from file input
+    if (inputType !== 'file') {
+      stopFileInfoPolling();
+    }
   }
 }
 
@@ -1137,7 +1142,7 @@ export function handleInputTypeChange(type: string): void {
     const playerControls = document.getElementById('file-player-controls');
     if (filePathInput && filePathInput.value && playerControls) {
       playerControls.style.display = 'flex';
-      setupFilePlayerControls(filePathInput.value);
+      setupFilePlayerControls();
     }
   }
   
@@ -1210,52 +1215,178 @@ export function handleFileSelect(input: HTMLInputElement): void {
     playerControls.style.display = 'flex';
   }
   
-  // Setup player controls - pass fileName since we don't have full path
-  setupFilePlayerControls(fileName);
+  // Setup player controls - no longer needs fileName parameter
+  setupFilePlayerControls();
 }
 
-let currentFileDuration = 0;
+// ── File Input Playback Controls ────────────────────────
 
-export function setupFilePlayerControls(fileName: string): void {
-  // This would need actual video element to get duration
-  // For now, just set up the event handlers
-  const playBtn = document.getElementById('btn-file-play');
-  const pauseBtn = document.getElementById('btn-file-pause');
-  const restartBtn = document.getElementById('btn-file-restart');
-  const positionSlider = document.getElementById('input-file-position') as HTMLInputElement;
-  
-  if (playBtn) {
-    playBtn.onclick = () => {
-      playBtn.style.display = 'none';
-      if (pauseBtn) pauseBtn.style.display = 'inline';
-      showToast('Reproduciendo: ' + filePath.split('/').pop(), 'info');
-    };
+let currentFileDuration = 0;
+let filePollingInterval: ReturnType<typeof setInterval> | null = null;
+
+export async function fileInputPlay(): Promise<void> {
+  try {
+    await apiCall('POST', 'input/control/play');
+    showToast('Reproducción reanudada', 'success');
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    showToast(`Error al reproducir: ${msg}`, 'error');
   }
-  
-  if (pauseBtn) {
-    pauseBtn.onclick = () => {
-      pauseBtn.style.display = 'none';
-      if (playBtn) playBtn.style.display = 'inline';
-    };
+}
+
+export async function fileInputPause(): Promise<void> {
+  try {
+    await apiCall('POST', 'input/control/pause');
+    showToast('Reproducción pausada', 'success');
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    showToast(`Error al pausar: ${msg}`, 'error');
   }
-  
-  if (restartBtn) {
-    restartBtn.onclick = () => {
-      if (positionSlider) positionSlider.value = '0';
-      showToast('Reiniciando video', 'info');
-    };
+}
+
+export async function fileInputSeek(position: number): Promise<void> {
+  try {
+    await apiCall('POST', 'input/control/seek', { position });
+    // No toast for seek to avoid spam
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    showToast(`Error al buscar posición: ${msg}`, 'error');
   }
-  
-  if (positionSlider) {
-    positionSlider.oninput = () => {
-      const percent = positionSlider.value;
-      const currentEl = document.getElementById('file-time-current');
-      if (currentEl && currentFileDuration > 0) {
-        const currentSec = Math.floor((parseInt(percent) / 100) * currentFileDuration);
-        currentEl.textContent = formatTime(currentSec);
+}
+
+async function fetchFileInfo(): Promise<{ duration: number; position: number; is_playing: boolean } | null> {
+  try {
+    const response = await fetch(`${window.location.origin}/api/input-info`, {
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (data.type === 'file') {
+      return {
+        duration: data.duration || 0,
+        position: data.position || 0,
+        is_playing: data.is_playing || false
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function startFileInfoPolling(): void {
+  if (filePollingInterval) {
+    clearInterval(filePollingInterval);
+  }
+
+  const positionSlider = document.getElementById('input-file-position') as HTMLInputElement | null;
+  const currentDisplay = document.getElementById('file-time-current') as HTMLSpanElement | null;
+  const totalDisplay = document.getElementById('file-time-total') as HTMLSpanElement | null;
+  const playBtn = document.getElementById('btn-file-play') as HTMLButtonElement | null;
+  const pauseBtn = document.getElementById('btn-file-pause') as HTMLButtonElement | null;
+
+  function formatTime(seconds: number): string {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  filePollingInterval = setInterval(() => {
+    fetchFileInfo().then(info => {
+      if (!info) return;
+
+      // Update slider
+      if (positionSlider && info.duration > 0) {
+        const percent = (info.position / info.duration) * 100;
+        positionSlider.value = percent.toString();
       }
-    };
+
+      // Update time displays
+      if (currentDisplay) {
+        currentDisplay.textContent = formatTime(info.position);
+      }
+      if (totalDisplay) {
+        totalDisplay.textContent = formatTime(info.duration);
+      }
+
+      // Update button states
+      if (playBtn && pauseBtn) {
+        if (info.is_playing) {
+          playBtn.style.display = 'none';
+          pauseBtn.style.display = 'inline';
+        } else {
+          playBtn.style.display = 'inline';
+          pauseBtn.style.display = 'none';
+        }
+      }
+    });
+  }, 500); // Update every 500ms
+}
+
+export function stopFileInfoPolling(): void {
+  if (filePollingInterval) {
+    clearInterval(filePollingInterval);
+    filePollingInterval = null;
   }
+}
+
+export function setupFilePlayerControls(): void {
+  const playBtn = document.getElementById('btn-file-play') as HTMLButtonElement | null;
+  const pauseBtn = document.getElementById('btn-file-pause') as HTMLButtonElement | null;
+  const restartBtn = document.getElementById('btn-file-restart') as HTMLButtonElement | null;
+  const positionSlider = document.getElementById('input-file-position') as HTMLInputElement | null;
+
+  if (!playBtn || !pauseBtn || !restartBtn || !positionSlider) {
+    console.error('[File Player] Missing UI elements');
+    return;
+  }
+
+  // Play button
+  playBtn.addEventListener('click', () => {
+    fileInputPlay().then(() => {
+      playBtn.style.display = 'none';
+      pauseBtn.style.display = 'inline';
+    });
+  });
+
+  // Pause button
+  pauseBtn.addEventListener('click', () => {
+    fileInputPause().then(() => {
+      pauseBtn.style.display = 'none';
+      playBtn.style.display = 'inline';
+    });
+  });
+
+  // Restart button - seek to position 0
+  restartBtn.addEventListener('click', () => {
+    fileInputSeek(0).then(() => {
+      positionSlider.value = '0';
+      // Auto-play after restart
+      fileInputPlay().then(() => {
+        playBtn.style.display = 'none';
+        pauseBtn.style.display = 'inline';
+      });
+    });
+  });
+
+  // Slider - seek on change (debounced)
+  let seekTimeout: ReturnType<typeof setTimeout> | null = null;
+  positionSlider.addEventListener('input', () => {
+    if (seekTimeout) clearTimeout(seekTimeout);
+    const percent = parseInt(positionSlider.value);
+    
+    seekTimeout = setTimeout(() => {
+      fetchFileInfo().then(info => {
+        if (info && info.duration) {
+          const position = (percent / 100) * info.duration;
+          fileInputSeek(position);
+        }
+      });
+    }, 100);
+  });
+
+  // Start polling for file info
+  startFileInfoPolling();
 }
 
 function formatTime(seconds: number): string {

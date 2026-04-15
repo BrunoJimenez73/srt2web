@@ -1,0 +1,58 @@
+# Ejemplo de configuración para múltiples salidas simultáneas
+# Este archivo muestra cómo configurar SRT2Web para emitir a múltiples destinos
+
+output:
+  # Habilitar modo de múltiples salidas
+  outputs:
+    # Salida SRT 1 - Emisión principal
+    - type: srt
+      name: srt_main
+      url: srt://localhost:9001
+      mode: caller
+      latency_ms: 200
+      stream_id: main_stream
+      video_bitrate: "2500k"
+      audio_bitrate: "128k"
+      video_codec: "h264"
+      preset: "medium"
+      audio_codec: "aac"
+
+    # Salida SRT 2 - Backup o streaming adicional
+    - type: srt
+      name: srt_backup
+      url: srt://backup-server:9002
+      mode: caller
+      latency_ms: 300
+      stream_id: backup_stream
+      video_bitrate: "2000k"
+      audio_bitrate: "96k"
+      video_codec: "h264"
+      preset: "fast"
+      audio_codec: "aac"
+
+    # Salida de Archivo - Grabación local
+    - type: file
+      name: local_recording
+      save_video: true
+      save_audio: true
+      save_subtitles: true
+      path: "./recordings"
+
+    # Salida RTMP - Streaming a plataforma externa
+    - type: rtmp
+      name: rtmp_stream
+      url: "rtmp://rtmp-server/live/stream"
+      video_bitrate: "3000k"
+      audio_bitrate: "128k"
+      video_codec: "h264"
+      preset: "fast"
+      audio_codec: "aac"
+      encoder_mode: "gpu_nvenc"
+
+    # Salida Web/HLS - Streaming HTTP
+    - type: web
+      name: hls_stream
+      segment_duration: 4
+      list_size: 6
+      audio_offset_ms: 0
+      encoder_mode: "auto"

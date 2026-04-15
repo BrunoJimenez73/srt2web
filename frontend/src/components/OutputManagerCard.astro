@@ -1,0 +1,112 @@
+---
+import OutputStatusCard from './OutputStatusCard.astro';
+import OutputConfigForm from './OutputConfigForm.astro';
+
+interface Props {
+  outputs: any[];
+  errors: Record<string, string>;
+  onAddOutput: (config: any) => void;
+  onRemoveOutput: (name: string) => void;
+  onReconnectOutput: (name: string) => void;
+  onEnableOutput: (name: string, enable: boolean) => void;
+}
+
+const { outputs, errors, onAddOutput, onRemoveOutput, onReconnectOutput, onEnableOutput } = Astro.props;
+
+// Filtrar salidas por tipo
+const getSrtOutputs = () => outputs.filter(o => o.type === 'srt');
+const getFileOutputs = () => outputs.filter(o => o.type === 'file');
+const getRtmpOutputs = () => outputs.filter(o => o.type === 'rtmp');
+const getWebOutputs = () => outputs.filter(o => o.type === 'web');
+---
+<div class="bg-white rounded-lg border border-gray-200 p-4">
+  <h4 class="font-medium text-gray-900 mb-4">Gestión de Salidas</h4>
+
+  <!-- Formulario de configuración -->
+  <div class="mb-6">
+    <OutputConfigForm onAddOutput={onAddOutput} />
+  </div>
+
+  <!-- Salidas SRT -->
+  {getSrtOutputs().length > 0 && (
+    <div class="mb-6">
+      <h5 class="font-medium text-gray-700 mb-3">Salidas SRT</h5>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {getSrtOutputs().map(output => (
+          <OutputStatusCard
+            key={output.name}
+            output={output}
+            error={errors[output.name]}
+            onRemove={() => onRemoveOutput(output.name)}
+            onReconnect={() => onReconnectOutput(output.name)}
+            onEnable={(enable) => onEnableOutput(output.name, enable)}
+          />
+        ))}
+      </div>
+    </div>
+  )}
+
+  <!-- Salidas de Archivo -->
+  {getFileOutputs().length > 0 && (
+    <div class="mb-6">
+      <h5 class="font-medium text-gray-700 mb-3">Salidas de Archivo</h5>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {getFileOutputs().map(output => (
+          <OutputStatusCard
+            key={output.name}
+            output={output}
+            error={errors[output.name]}
+            onRemove={() => onRemoveOutput(output.name)}
+            onReconnect={() => onReconnectOutput(output.name)}
+            onEnable={(enable) => onEnableOutput(output.name, enable)}
+          />
+        ))}
+      </div>
+    </div>
+  )}
+
+  <!-- Salidas RTMP -->
+  {getRtmpOutputs().length > 0 && (
+    <div class="mb-6">
+      <h5 class="font-medium text-gray-700 mb-3">Salidas RTMP</h5>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {getRtmpOutputs().map(output => (
+          <OutputStatusCard
+            key={output.name}
+            output={output}
+            error={errors[output.name]}
+            onRemove={() => onRemoveOutput(output.name)}
+            onReconnect={() => onReconnectOutput(output.name)}
+            onEnable={(enable) => onEnableOutput(output.name, enable)}
+          />
+        ))}
+      </div>
+    </div>
+  )}
+
+  <!-- Salidas Web/HLS -->
+  {getWebOutputs().length > 0 && (
+    <div class="mb-6">
+      <h5 class="font-medium text-gray-700 mb-3">Salidas Web/HLS</h5>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {getWebOutputs().map(output => (
+          <OutputStatusCard
+            key={output.name}
+            output={output}
+            error={errors[output.name]}
+            onRemove={() => onRemoveOutput(output.name)}
+            onReconnect={() => onReconnectOutput(output.name)}
+            onEnable={(enable) => onEnableOutput(output.name, enable)}
+          />
+        ))}
+      </div>
+    </div>
+  )}
+
+  <!-- Sin salidas -->
+  {outputs.length === 0 && (
+    <div class="text-center py-8 text-gray-500">
+      <p>No hay salidas configuradas. Utiliza el formulario de arriba para añadir una nueva salida.</p>
+    </div>
+  )}
+</div>
