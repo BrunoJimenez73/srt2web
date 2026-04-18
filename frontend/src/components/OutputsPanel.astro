@@ -1,0 +1,624 @@
+---
+interface OutputStatus {
+  name: string;
+  type: string;
+  state: string;
+  enabled: boolean;
+  processed_chunks: number;
+  last_process_time_ms: number;
+  extra?: Record<string, any>;
+  stream_info?: Record<string, any>;
+  error?: string;
+}
+---
+
+<div class="outputs-panel" id="card-outputs">
+  <div class="process-header">
+    <span class="process-indicator" id="indicator-outputs"></span>
+    <span class="process-title">📤 OUTPUTS</span>
+    <button class="btn-add-output" id="btn-add-output" title="Añadir salida">+</button>
+  </div>
+  
+  <div class="outputs-list" id="outputs-list">
+    <div class="empty-state" id="outputs-empty">
+      <span class="empty-icon">📭</span>
+      <span class="empty-text">Sin salidas configuradas</span>
+      <button class="btn-add-first" id="btn-add-first-output">Añadir Salida</button>
+    </div>
+  </div>
+  
+  <div class="output-form-container" id="output-form-container" style="display: none;">
+    <div class="form-header">
+      <span class="form-title">Nueva Salida</span>
+      <button class="btn-close-form" id="btn-close-output-form">✕</button>
+    </div>
+    <div class="form-content" id="output-form-content">
+      <!-- Output type selector -->
+      <div class="form-group">
+        <label class="form-label">Tipo de Salida</label>
+        <select class="form-select" id="new-output-type">
+          <option value="web">Web Player (HLS)</option>
+          <option value="recording">Grabación</option>
+          <option value="srt">SRT</option>
+          <option value="rtmp">RTMP</option>
+        </select>
+      </div>
+      
+      <!-- Web/HLS settings -->
+      <div class="output-type-settings" id="settings-web">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Segmentos (seg)</label>
+            <input type="number" class="form-input" id="output-web-segment" value="4" min="1" max="30" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Lista</label>
+            <input type="number" class="form-input" id="output-web-list" value="6" min="2" max="30" />
+          </div>
+        </div>
+      </div>
+      
+      <!-- Recording settings -->
+      <div class="output-type-settings" id="settings-recording" style="display: none;">
+        <div class="form-group">
+          <label class="form-label">Archivo</label>
+          <input type="text" class="form-input" id="output-recording-path" value="./output/recording.mp4" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Formato</label>
+            <select class="form-select" id="output-recording-format">
+              <option value="mp4">MP4</option>
+              <option value="mkv">MKV</option>
+              <option value="webm">WebM</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Codec</label>
+            <select class="form-select" id="output-recording-codec">
+              <option value="copy">Copiar (sin re-encode)</option>
+              <option value="h264_nvenc">NVIDIA H.264</option>
+              <option value="libx264">CPU H.264</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Calidad</label>
+            <select class="form-select" id="output-recording-quality">
+              <option value="cbr">CBR (bitrate)</option>
+              <option value="crf">CRF (calidad)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" id="recording-bitrate-label">Bitrate</label>
+            <input type="text" class="form-input" id="output-recording-bitrate" value="5000k" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dividir</label>
+          <select class="form-select" id="output-recording-split">
+            <option value="none">Sin dividir</option>
+            <option value="time">Por tiempo</option>
+            <option value="size">Por tamaño</option>
+          </select>
+        </div>
+        <div class="form-group" id="recording-split-value-group" style="display: none;">
+          <label class="form-label" id="recording-split-label">Minutos</label>
+          <input type="number" class="form-input" id="output-recording-split-value" value="10" min="1" />
+        </div>
+      </div>
+      
+      <!-- SRT settings -->
+      <div class="output-type-settings" id="settings-srt" style="display: none;">
+        <div class="form-group">
+          <label class="form-label">URL</label>
+          <input type="text" class="form-input" id="output-srt-url" value="srt://localhost:9001" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Modo</label>
+            <select class="form-select" id="output-srt-mode">
+              <option value="caller">Caller</option>
+              <option value="listener">Listener</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Latencia (ms)</label>
+            <input type="number" class="form-input" id="output-srt-latency" value="200" min="0" max="5000" />
+          </div>
+        </div>
+      </div>
+      
+      <!-- RTMP settings -->
+      <div class="output-type-settings" id="settings-rtmp" style="display: none;">
+        <div class="form-group">
+          <label class="form-label">URL</label>
+          <input type="text" class="form-input" id="output-rtmp-url" value="rtmp://localhost/live/stream" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Video Bitrate</label>
+            <select class="form-select" id="output-rtmp-vbitrate">
+              <option value="1500k">1500 kbps</option>
+              <option value="2500k" selected>2500 kbps</option>
+              <option value="4000k">4000 kbps</option>
+              <option value="6000k">6000 kbps</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Audio Bitrate</label>
+            <select class="form-select" id="output-rtmp-abitrate">
+              <option value="96k">96 kbps</option>
+              <option value="128k" selected>128 kbps</option>
+              <option value="192k">192 kbps</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      <div class="form-actions">
+        <button class="btn-cancel" id="btn-cancel-output">Cancelar</button>
+        <button class="btn-save" id="btn-save-output">Añadir</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .outputs-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-md);
+    padding: 12px;
+  }
+  
+  .process-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  
+  .process-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+  }
+  
+  .process-indicator.active {
+    background: #00ff00;
+    box-shadow: 0 0 6px #00ff00;
+  }
+  
+  .process-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-prime);
+    flex: 1;
+  }
+  
+  .btn-add-output {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid var(--border-dim);
+    background: var(--bg-surface);
+    color: var(--text-prime);
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .btn-add-output:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  
+  .outputs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .empty-state {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-sec);
+  }
+  
+  .empty-icon {
+    display: block;
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+  
+  .empty-text {
+    display: block;
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+  
+  .btn-add-first {
+    padding: 8px 16px;
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  
+  .output-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-dim);
+  }
+  
+  .output-item.active {
+    border-color: var(--success);
+  }
+  
+  .output-icon {
+    font-size: 16px;
+  }
+  
+  .output-info {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .output-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-prime);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .output-type {
+    font-size: 9px;
+    color: var(--text-sec);
+    text-transform: uppercase;
+  }
+  
+  .output-stats {
+    font-size: 9px;
+    color: var(--text-sec);
+    display: flex;
+    gap: 8px;
+  }
+  
+  .output-toggle {
+    position: relative;
+    width: 36px;
+    height: 20px;
+  }
+  
+  .output-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  
+  .output-toggle .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--text-dim);
+    transition: 0.3s;
+    border-radius: 20px;
+  }
+  
+  .output-toggle .slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+  }
+  
+  .output-toggle input:checked + .slider {
+    background-color: var(--success);
+  }
+  
+  .output-toggle input:checked + .slider:before {
+    transform: translateX(16px);
+  }
+  
+  .output-form-container {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-dim);
+  }
+  
+  .form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  
+  .form-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-prime);
+  }
+  
+  .btn-close-form {
+    background: none;
+    border: none;
+    color: var(--text-sec);
+    cursor: pointer;
+    font-size: 14px;
+  }
+  
+  .form-group {
+    margin-bottom: 8px;
+  }
+  
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  
+  .form-label {
+    display: block;
+    font-size: 10px;
+    color: var(--text-sec);
+    margin-bottom: 4px;
+  }
+  
+  .form-input, .form-select {
+    width: 100%;
+    padding: 6px 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-sm);
+    color: var(--text-prime);
+    font-size: 11px;
+  }
+  
+  .form-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  
+  .btn-cancel, .btn-save {
+    flex: 1;
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    cursor: pointer;
+  }
+  
+  .btn-cancel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    color: var(--text-sec);
+  }
+  
+  .btn-save {
+    background: var(--accent);
+    border: none;
+    color: white;
+  }
+</style>
+
+<script>
+  import { fetchOutputs, addOutput, toggleOutput, removeOutput, getOutputIcon, formatOutputState } from '../lib/modules/outputs';
+  import type { OutputStatus } from '../lib/modules/outputs';
+
+  const outputIcon = getOutputIcon;
+  const formatState = formatOutputState;
+
+  function renderOutputs(outputs: OutputStatus[]): void {
+    const listEl = document.getElementById('outputs-list');
+    const emptyEl = document.getElementById('outputs-empty');
+    
+    if (!listEl) return;
+    
+    if (outputs.length === 0) {
+      if (emptyEl) emptyEl.style.display = 'block';
+      listEl.querySelectorAll('.output-item').forEach(el => el.remove());
+      return;
+    }
+    
+    if (emptyEl) emptyEl.style.display = 'none';
+    
+    listEl.querySelectorAll('.output-item').forEach(el => el.remove());
+    
+    outputs.forEach(output => {
+      const item = document.createElement('div');
+      item.className = `output-item${output.state === 'running' ? ' active' : ''}`;
+      item.dataset.name = output.name;
+      
+      item.innerHTML = `
+        <span class="output-icon">${outputIcon(output.type)}</span>
+        <div class="output-info">
+          <div class="output-name">${output.name}</div>
+          <div class="output-type">${output.type.toUpperCase()}</div>
+          <div class="output-stats">
+            <span>${formatState(output)}</span>
+            <span>${output.processed_chunks} chunks</span>
+          </div>
+        </div>
+        <label class="output-toggle">
+          <input type="checkbox" ${output.enabled ? 'checked' : ''} data-output-toggle="${output.name}" />
+          <span class="slider"></span>
+        </label>
+        <button class="btn-remove-output" data-output-remove="${output.name}" title="Eliminar">✕</button>
+      `;
+      
+      listEl.appendChild(item);
+    });
+    
+    setupOutputEventListeners();
+  }
+  
+  function setupOutputEventListeners(): void {
+    document.querySelectorAll('[data-output-toggle]').forEach(toggle => {
+      toggle.addEventListener('change', async (e) => {
+        const name = (e.target as HTMLElement).dataset.outputToggle;
+        const enabled = (e.target as HTMLInputElement).checked;
+        await toggleOutput(name!, enabled);
+      });
+    });
+    
+    document.querySelectorAll('[data-output-remove]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const name = (e.target as HTMLElement).dataset.outputRemove;
+        if (confirm(`¿Eliminar salida "${name}"?`)) {
+          await removeOutput(name!);
+        }
+      });
+    });
+  }
+  
+  function showOutputForm(): void {
+    const form = document.getElementById('output-form-container');
+    if (form) form.style.display = 'block';
+  }
+  
+  function hideOutputForm(): void {
+    const form = document.getElementById('output-form-container');
+    if (form) form.style.display = 'none';
+  }
+  
+  function updateOutputTypeSettings(type: string): void {
+    document.querySelectorAll('.output-type-settings').forEach(el => {
+      (el as HTMLElement).style.display = 'none';
+    });
+    
+    const settingsEl = document.getElementById(`settings-${type}`);
+    if (settingsEl) {
+      (settingsEl as HTMLElement).style.display = 'block';
+    }
+    
+    const qualitySelect = document.getElementById('output-recording-quality') as HTMLSelectElement;
+    const bitrateLabel = document.getElementById('recording-bitrate-label');
+    const bitrateInput = document.getElementById('output-recording-bitrate') as HTMLInputElement;
+    
+    if (qualitySelect && bitrateLabel && bitrateInput) {
+      if (qualitySelect.value === 'crf') {
+        bitrateLabel.textContent = 'CRF (18-28)';
+        bitrateInput.value = '23';
+      } else {
+        bitrateLabel.textContent = 'Bitrate';
+        bitrateInput.value = '5000k';
+      }
+    }
+    
+    const splitSelect = document.getElementById('output-recording-split') as HTMLSelectElement;
+    const splitGroup = document.getElementById('recording-split-value-group') as HTMLElement;
+    const splitLabel = document.getElementById('recording-split-label');
+    
+    if (splitSelect && splitGroup && splitLabel) {
+      if (splitSelect.value === 'none') {
+        splitGroup.style.display = 'none';
+      } else {
+        splitGroup.style.display = 'block';
+        splitLabel.textContent = splitSelect.value === 'time' ? 'Minutos' : 'MB';
+      }
+    }
+  }
+  
+  async function handleSaveOutput(): Promise<void> {
+    const type = (document.getElementById('new-output-type') as HTMLSelectElement)?.value || 'web';
+    
+    let config: Record<string, any> = { type };
+    
+    if (type === 'web') {
+      config = {
+        type: 'web',
+        segment_duration: parseInt((document.getElementById('output-web-segment') as HTMLInputElement)?.value || '4'),
+        list_size: parseInt((document.getElementById('output-web-list') as HTMLInputElement)?.value || '6'),
+        audio_offset_ms: 0,
+        encoder_mode: 'auto'
+      };
+    } else if (type === 'recording') {
+      const quality = (document.getElementById('output-recording-quality') as HTMLSelectElement)?.value || 'cbr';
+      config = {
+        type: 'recording',
+        output_path: (document.getElementById('output-recording-path') as HTMLInputElement)?.value || './output/recording.mp4',
+        format: (document.getElementById('output-recording-format') as HTMLSelectElement)?.value || 'mp4',
+        codec: (document.getElementById('output-recording-codec') as HTMLSelectElement)?.value || 'copy',
+        quality_mode: quality,
+        video_bitrate: quality === 'cbr' ? (document.getElementById('output-recording-bitrate') as HTMLInputElement)?.value : undefined,
+        video_crf: quality === 'crf' ? parseInt((document.getElementById('output-recording-bitrate') as HTMLInputElement)?.value || '23') : undefined,
+        audio_codec: 'copy',
+        split_mode: (document.getElementById('output-recording-split') as HTMLSelectElement)?.value || 'none',
+        split_value: (document.getElementById('output-recording-split-value') as HTMLInputElement)?.value ? parseInt((document.getElementById('output-recording-split-value') as HTMLInputElement).value) : undefined,
+        subtitles: 'none'
+      };
+    } else if (type === 'srt') {
+      config = {
+        type: 'srt',
+        url: (document.getElementById('output-srt-url') as HTMLInputElement)?.value || 'srt://localhost:9001',
+        mode: (document.getElementById('output-srt-mode') as HTMLSelectElement)?.value || 'caller',
+        latency_ms: parseInt((document.getElementById('output-srt-latency') as HTMLInputElement)?.value || '200'),
+        video_bitrate: '2500k',
+        audio_bitrate: '128k'
+      };
+    } else if (type === 'rtmp') {
+      config = {
+        type: 'rtmp',
+        url: (document.getElementById('output-rtmp-url') as HTMLInputElement)?.value || 'rtmp://localhost/live/stream',
+        video_bitrate: (document.getElementById('output-rtmp-vbitrate') as HTMLSelectElement)?.value || '2500k',
+        audio_bitrate: (document.getElementById('output-rtmp-abitrate') as HTMLSelectElement)?.value || '128k',
+        encoder_mode: 'auto'
+      };
+    }
+    
+    const success = await addOutput({ type, config });
+    if (success) {
+      hideOutputForm();
+      const outputs = await fetchOutputs();
+      renderOutputs(outputs);
+    }
+  }
+  
+  document.getElementById('btn-add-output')?.addEventListener('click', showOutputForm);
+  document.getElementById('btn-add-first-output')?.addEventListener('click', showOutputForm);
+  document.getElementById('btn-close-output-form')?.addEventListener('click', hideOutputForm);
+  document.getElementById('btn-cancel-output')?.addEventListener('click', hideOutputForm);
+  document.getElementById('btn-save-output')?.addEventListener('click', handleSaveOutput);
+  
+  document.getElementById('new-output-type')?.addEventListener('change', (e) => {
+    updateOutputTypeSettings((e.target as HTMLSelectElement).value);
+  });
+  
+  document.getElementById('output-recording-quality')?.addEventListener('change', () => {
+    updateOutputTypeSettings('recording');
+  });
+  
+  document.getElementById('output-recording-split')?.addEventListener('change', () => {
+    updateOutputTypeSettings('recording');
+  });
+  
+  fetchOutputs().then(renderOutputs);
+  
+  (window as unknown as { refreshOutputs: () => Promise<void> }).refreshOutputs = async () => {
+    const outputs = await fetchOutputs();
+    renderOutputs(outputs);
+  };
+</script>

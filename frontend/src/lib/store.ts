@@ -11,6 +11,7 @@
  */
 
 import type { Config, Status, LogMessage } from './types';
+import type { OutputStatus } from './modules/outputs';
 
 export interface DashboardState {
   config: Config | null;
@@ -20,6 +21,7 @@ export interface DashboardState {
   logs: LogMessage[];
   isLoading: boolean;
   error: string | null;
+  outputs: OutputStatus[];
 }
 
 type StateListener = (state: DashboardState) => void;
@@ -33,6 +35,7 @@ const INITIAL_STATE: DashboardState = {
   logs: [],
   isLoading: false,
   error: null,
+  outputs: [],
 };
 
 class DashboardStore {
@@ -153,6 +156,10 @@ class DashboardStore {
 
   setError(error: string | null): void {
     this.setState({ error, isLoading: false });
+  }
+
+  setOutputs(outputs: OutputStatus[]): void {
+    this.setState({ outputs });
   }
 
   clearLogs(): void {

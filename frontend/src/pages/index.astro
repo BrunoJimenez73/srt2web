@@ -4,21 +4,24 @@ import Header from '../components/layout/Header.astro';
 import StatusCard from '../components/StatusCard.astro';
 import MetricsCard from '../components/MetricsCard.astro';
 import ProcessGrid from '../components/ProcessGrid.astro';
+import OutputsPanel from '../components/OutputsPanel.astro';
 import LogPanel from '../components/LogPanel.astro';
 import Toast from '../components/Toast.astro';
 ---
 
 <BaseLayout title="SRT2Web Dashboard">
   <div class="dashboard">
-    <Header version="0.6.1" />
+    <Header version="0.6.7" />
     <StatusCard />
     <MetricsCard />
     <ProcessGrid />
+    <OutputsPanel />
     <LogPanel />
   </div>
   <Toast />
   <script>
     import '../lib/dashboard.ts';
+    import '../lib/modules/outputs.ts';
   </script>
 </BaseLayout>
 
