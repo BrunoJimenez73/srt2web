@@ -18,6 +18,7 @@ const getSrtOutputs = () => outputs.filter(o => o.type === 'srt');
 const getFileOutputs = () => outputs.filter(o => o.type === 'file');
 const getRtmpOutputs = () => outputs.filter(o => o.type === 'rtmp');
 const getWebOutputs = () => outputs.filter(o => o.type === 'web');
+const getRecordingOutputs = () => outputs.filter(o => o.type === 'recording');
 ---
 <div class="bg-white rounded-lg border border-gray-200 p-4">
   <h4 class="font-medium text-gray-900 mb-4">Gestión de Salidas</h4>
@@ -90,6 +91,25 @@ const getWebOutputs = () => outputs.filter(o => o.type === 'web');
       <h5 class="font-medium text-gray-700 mb-3">Salidas Web/HLS</h5>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {getWebOutputs().map(output => (
+          <OutputStatusCard
+            key={output.name}
+            output={output}
+            error={errors[output.name]}
+            onRemove={() => onRemoveOutput(output.name)}
+            onReconnect={() => onReconnectOutput(output.name)}
+            onEnable={(enable) => onEnableOutput(output.name, enable)}
+          />
+        ))}
+      </div>
+    </div>
+  )}
+
+  <!-- Salidas de Grabación -->
+  {getRecordingOutputs().length > 0 && (
+    <div class="mb-6">
+      <h5 class="font-medium text-gray-700 mb-3">Grabaciones</h5>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {getRecordingOutputs().map(output => (
           <OutputStatusCard
             key={output.name}
             output={output}

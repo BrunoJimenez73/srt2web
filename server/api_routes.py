@@ -744,6 +744,125 @@ def create_api_router() -> APIRouter:
 
         return output_sink.get_stream_info()
 
+    # ── Output Management ───────────────────────────────────────
+
+    @router.get("/outputs")
+    async def list_outputs(request: Request):
+        """List all configured outputs and their status."""
+        ctx = _ctx(request)
+        pipeline = ctx["pipeline"]
+
+        output_sink = pipeline.get_output_sinks()
+        if not output_sink:
+            output_sink = pipeline.get_output_sink()
+            if output_sink:
+                return {
+                    "outputs": [{
+                        "name": output_sink.name,
+                        "type": output_sink.name,
+                        "state": "running",
+                        "enabled": True,
+                        "status": output_sink.get_status() if hasattr(output_sink, 'get_status') else {},
+                        "stream_info": output_sink.get_stream_info() if hasattr(output_sink, 'get_stream_info') else {},
+                    }]
+                }
+            return {"outputs": [], "error": "No output sink configured"}
+
+        return {
+            "outputs": output_sink.get_all_output_statuses()
+        }
+
+    @router.get("/outputs/available")
+    async def get_available_outputs(request: Request):
+        """Get available output types."""
+        from core.io_factory import OutputFactory
+        return {"available_types": OutputFactory.available()}
+
+    @router.post("/outputs")
+    async def add_output(request: Request, body: dict):
+        """Add a new output to the pipeline."""
+        ctx = _ctx(request)
+        pipeline = ctx["pipeline"]
+
+        output_type = body.get("type")
+        output_config = body.get("config", {})
+        output_name = body.get("name", output_type)
+
+        if not output_type:
+            raise HTTPException(400, "Output type is required")
+
+        from core.io_factory import OutputFactory
+        try:
+            output = OutputFactory.create(output_type, output_config)
+            output.name = output_name
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+
+        composite = pipeline.get_output_sinks()
+        if composite:
+            composite.add_output(output_name, output)
+            composite.start()
+        else:
+            pipeline.set_output_sink(output)
+
+        return {"status": "added", "name": output_name, "type": output_type}
+
+    @router.put("/outputs/{output_name}")
+    async def update_output(request: Request, output_name: str, body: dict):
+        """Update an output configuration."""
+        ctx = _ctx(request)
+        pipeline = ctx["pipeline"]
+
+        composite = pipeline.get_output_sinks()
+        if not composite:
+            raise HTTPException(404, "No composite output configured")
+
+        output = composite.get_output_by_name(output_name)
+        if not output:
+            raise HTTPException(404, f"Output '{output_name}' not found")
+
+        if "config" in body:
+            output.configure(body["config"])
+
+        if "enabled" in body:
+            composite.enable_output(output_name, body["enabled"])
+
+        return {"status": "updated", "name": output_name}
+
+    @router.delete("/outputs/{output_name}")
+    async def remove_output(request: Request, output_name: str):
+        """Remove an output from the pipeline."""
+        ctx = _ctx(request)
+        pipeline = ctx["pipeline"]
+
+        composite = pipeline.get_output_sinks()
+        if not composite:
+            raise HTTPException(404, "No composite output configured")
+
+        if not composite.remove_output(output_name):
+            raise HTTPException(404, f"Output '{output_name}' not found")
+
+        return {"status": "removed", "name": output_name}
+
+    @router.post("/outputs/{output_name}/toggle")
+    async def toggle_output(request: Request, output_name: str, body: dict = None):
+        """Toggle an output enabled/disabled."""
+        ctx = _ctx(request)
+        pipeline = ctx["pipeline"]
+
+        composite = pipeline.get_output_sinks()
+        if not composite:
+            raise HTTPException(404, "No composite output configured")
+
+        output = composite.get_output_by_name(output_name)
+        if not output:
+            raise HTTPException(404, f"Output '{output_name}' not found")
+
+        enabled = body.get("enabled", not composite.is_output_enabled(output_name)) if body else not composite.is_output_enabled(output_name)
+        composite.enable_output(output_name, enabled)
+
+        return {"status": "toggled", "name": output_name, "enabled": enabled}
+
     @router.get("/available")
     async def get_available(request: Request):
         """Get available input and output types."""

@@ -12,7 +12,7 @@ let wsUrl = getWebSocketUrl('logs');
 let authToken = getAuthToken();
 
 // Estado del formulario
-let outputType = 'srt';
+let outputType = 'web';
 let outputName = '';
 let url = 'srt://localhost:9001';
 let mode = 'caller';
@@ -32,6 +32,18 @@ let segmentDuration = '4';
 let listSize = '6';
 let audioOffset = '0';
 let encoderMode = 'auto';
+
+// Recording specific
+let recordingPath = './output/recording.mp4';
+let recordingFormat = 'mp4';
+let recordingCodec = 'copy';
+let recordingQualityMode = 'cbr';
+let recordingVideoCrf = '23';
+let recordingAudioCodec = 'copy';
+let recordingSplitMode = 'none';
+let recordingSplitValue = '600';
+let recordingSubtitles = 'none';
+let recordingPreset = 'fast';
 
 // Manejadores de eventos
 const handleAddOutput = () => {
@@ -70,6 +82,20 @@ const handleAddOutput = () => {
       list_size: parseInt(listSize),
       audio_offset_ms: parseInt(audioOffset),
       encoder_mode: encoderMode
+    }),
+    ...(outputType === 'recording' && {
+      output_path: recordingPath,
+      format: recordingFormat,
+      codec: recordingCodec,
+      quality_mode: recordingQualityMode,
+      video_bitrate: videoBitrate,
+      video_crf: parseInt(recordingVideoCrf),
+      audio_codec: recordingAudioCodec,
+      audio_bitrate: audioBitrate,
+      split_mode: recordingSplitMode,
+      split_value: recordingSplitMode !== 'none' ? parseInt(recordingSplitValue) : undefined,
+      subtitles: recordingSubtitles,
+      video_preset: recordingPreset
     })
   };
 
@@ -98,7 +124,7 @@ const handleAddOutput = () => {
 };
 
 const generateOutputName = (type: string) => {
-  const baseName = type === 'srt' ? 'srt_output' : type === 'file' ? 'file_output' : type === 'rtmp' ? 'rtmp_output' : 'web_output';
+  const baseName = type === 'srt' ? 'srt_output' : type === 'file' ? 'file_output' : type === 'rtmp' ? 'rtmp_output' : type === 'recording' ? 'recording' : 'web_output';
   return baseName;
 };
 
@@ -136,6 +162,17 @@ const handleTypeChange = (e: Event) => {
     listSize = '6';
     audioOffset = '0';
     encoderMode = 'auto';
+  } else if (outputType === 'recording') {
+    recordingPath = './output/recording.mp4';
+    recordingFormat = 'mp4';
+    recordingCodec = 'copy';
+    recordingQualityMode = 'cbr';
+    recordingVideoCrf = '23';
+    recordingAudioCodec = 'copy';
+    recordingSplitMode = 'none';
+    recordingSplitValue = '600';
+    recordingSubtitles = 'none';
+    recordingPreset = 'fast';
   }
 };
 ---
@@ -151,10 +188,11 @@ const handleTypeChange = (e: Event) => {
         value={outputType}
         onchange={handleTypeChange}
       >
+        <option value="web">Web/HLS (Player)</option>
+        <option value="recording">Grabación (Recording)</option>
         <option value="srt">SRT</option>
-        <option value="file">Archivo</option>
         <option value="rtmp">RTMP</option>
-        <option value="web">Web/HLS</option>
+        <option value="file">Archivo (Chunks)</option>
       </select>
     </div>
 
@@ -439,6 +477,98 @@ const handleTypeChange = (e: Event) => {
       </div>
     )}
 
+    {outputType === 'recording' && (
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Archivo de Salida</label>
+          <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md" 
+            value={recordingPath} oninput={(e) => recordingPath = (e.target as HTMLInputElement).value} 
+            placeholder="./output/recording.mp4" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Formato</label>
+          <select class="w-full px-3 py-2 border border-gray-300 rounded-md"
+            value={recordingFormat} oninput={(e) => recordingFormat = (e.target as HTMLSelectElement).value}>
+            <option value="mp4">MP4</option>
+            <option value="mkv">MKV</option>
+            <option value="webm">WebM</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Codec de Video</label>
+          <select class="w-full px-3 py-2 border border-gray-300 rounded-md"
+            value={recordingCodec} oninput={(e) => recordingCodec = (e.target as HTMLSelectElement).value}>
+            <option value="copy">Copiar (Sin re-encoding)</option>
+            <option value="h264_nvenc">NVIDIA H.264</option>
+            <option value="h265_nvenc">NVIDIA H.265</option>
+            <option value="libx264">CPU H.264</option>
+          </select>
+        </div>
+        {recordingCodec !== 'copy' && (
+          <>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Modo de Calidad</label>
+              <select class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                value={recordingQualityMode} oninput={(e) => recordingQualityMode = (e.target as HTMLSelectElement).value}>
+                <option value="cbr">CBR (Bitrate constante)</option>
+                <option value="crf">CRF (Calidad constante)</option>
+              </select>
+            </div>
+            {recordingQualityMode === 'cbr' ? (
+              <div><label class="block text-sm font-medium text-gray-700 mb-1">Video Bitrate</label>
+              <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                value={videoBitrate} oninput={(e) => videoBitrate = (e.target as HTMLInputElement).value} placeholder="5000k" /></div>
+            ) : (
+              <div><label class="block text-sm font-medium text-gray-700 mb-1">CRF (18=mejor, 28=peor)</label>
+              <input type="number" class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                value={recordingVideoCrf} oninput={(e) => recordingVideoCrf = (e.target as HTMLInputElement).value} min="18" max="28" /></div>
+            )}
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Preset</label>
+              <select class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                value={recordingPreset} oninput={(e) => recordingPreset = (e.target as HTMLSelectElement).value}>
+                <option value="fast">Fast</option>
+                <option value="medium">Medium</option>
+                <option value="slow">Slow</option>
+              </select>
+            </div>
+          </>
+        )}
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Codec de Audio</label>
+          <select class="w-full px-3 py-2 border border-gray-300 rounded-md"
+            value={recordingAudioCodec} oninput={(e) => recordingAudioCodec = (e.target as HTMLSelectElement).value}>
+            <option value="copy">Copiar</option>
+            <option value="aac">AAC</option>
+            <option value="opus">Opus</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Dividir Archivo</label>
+          <select class="w-full px-3 py-2 border border-gray-300 rounded-md"
+            value={recordingSplitMode} oninput={(e) => recordingSplitMode = (e.target as HTMLSelectElement).value}>
+            <option value="none">Sin dividir</option>
+            <option value="time">Por tiempo</option>
+            <option value="size">Por tamaño</option>
+          </select>
+        </div>
+        {recordingSplitMode !== 'none' && (
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">{recordingSplitMode === 'time' ? 'Minutos' : 'MB'}</label>
+          <input type="number" class="w-full px-3 py-2 border border-gray-300 rounded-md"
+            value={recordingSplitValue} oninput={(e) => recordingSplitValue = (e.target as HTMLInputElement).value} min="1" /></div>
+        )}
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Subtítulos</label>
+          <select class="w-full px-3 py-2 border border-gray-300 rounded-md"
+            value={recordingSubtitles} oninput={(e) => recordingSubtitles = (e.target as HTMLSelectElement).value}>
+            <option value="none">Sin subtítulos</option>
+            <option value="burnt">Incustrados en video</option>
+            <option value="vtt">Archivo VTT</option>
+          </select>
+        </div>
+      </div>
+    )}
+
     <div class="mt-4 flex justify-end space-x-3">
       <button
         onclick={handleAddOutput}
@@ -468,6 +598,16 @@ const handleTypeChange = (e: Event) => {
           listSize = '6';
           audioOffset = '0';
           encoderMode = 'auto';
+          recordingPath = './output/recording.mp4';
+          recordingFormat = 'mp4';
+          recordingCodec = 'copy';
+          recordingQualityMode = 'cbr';
+          recordingVideoCrf = '23';
+          recordingAudioCodec = 'copy';
+          recordingSplitMode = 'none';
+          recordingSplitValue = '600';
+          recordingSubtitles = 'none';
+          recordingPreset = 'fast';
         }}
         class="px-4 py-2 text-gray-700 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
       >

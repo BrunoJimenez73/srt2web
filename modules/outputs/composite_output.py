@@ -176,32 +176,36 @@ class CompositeOutput(BaseOutput):
                     error=str(e)
                 )
 
-    def get_all_output_statuses(self) -> List[OutputStatus]:
-        """Obtener estado de todas las salidas."""
+    def get_all_output_statuses(self) -> List[dict]:
+        """Obtener estado de todas las salidas como diccionarios."""
         with self._lock:
             statuses = []
             for name, output in self._outputs.items():
                 try:
                     output_status = output.get_status()
-                    statuses.append(OutputStatus(
-                        name=name,
-                        state=output_status.get("state", "unknown"),
-                        enabled=output_status.get("enabled", True),
-                        error=self._errors.get(name),
-                        processed_chunks=output_status.get("processed_chunks", 0),
-                        last_process_time_ms=output_status.get("last_process_time_ms", 0),
-                        extra=output_status.get("extra", {})
-                    ))
+                    statuses.append({
+                        "name": name,
+                        "type": getattr(output, 'name', type(output).__name__.lower().replace('output', '')),
+                        "state": output_status.get("state", "unknown"),
+                        "enabled": output_status.get("enabled", True),
+                        "error": self._errors.get(name),
+                        "processed_chunks": output_status.get("processed_chunks", 0),
+                        "last_process_time_ms": output_status.get("last_process_time_ms", 0),
+                        "extra": output_status.get("extra", {}),
+                        "stream_info": output.get_stream_info() if hasattr(output, 'get_stream_info') else {},
+                    })
                 except Exception as e:
-                    statuses.append(OutputStatus(
-                        name=name,
-                        state="error",
-                        enabled=getattr(output, 'enabled', True),
-                        error=f"Error al obtener estado: {str(e)}",
-                        processed_chunks=0,
-                        last_process_time_ms=0.0,
-                        extra={}
-                    ))
+                    statuses.append({
+                        "name": name,
+                        "type": type(output).__name__.lower().replace('output', ''),
+                        "state": "error",
+                        "enabled": getattr(output, 'enabled', True),
+                        "error": f"Error al obtener estado: {str(e)}",
+                        "processed_chunks": 0,
+                        "last_process_time_ms": 0.0,
+                        "extra": {},
+                        "stream_info": {},
+                    })
             return statuses
 
     def is_output_enabled(self, name: str) -> bool:

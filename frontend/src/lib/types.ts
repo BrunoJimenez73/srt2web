@@ -9,6 +9,23 @@ export interface BaseOutputConfig {
   enabled?: boolean;
 }
 
+// Configuración específica para Recording (grabación continua)
+export interface RecordingOutputConfig extends BaseOutputConfig {
+  type: 'recording';
+  output_path: string;
+  format: 'mp4' | 'mkv' | 'webm';
+  codec: 'copy' | 'h264_nvenc' | 'h265_nvenc' | 'libx264' | 'libx265';
+  video_bitrate?: string;
+  video_crf?: number;
+  quality_mode: 'cbr' | 'crf';
+  audio_codec: 'copy' | 'aac' | 'opus';
+  audio_bitrate?: string;
+  split_mode: 'none' | 'time' | 'size';
+  split_value?: number;
+  subtitles: 'none' | 'burnt' | 'vtt';
+  video_preset?: string;
+}
+
 // Configuración específica para SRT
 export interface SrtOutputConfig extends BaseOutputConfig {
   type: 'srt';
@@ -55,7 +72,7 @@ export interface WebOutputConfig extends BaseOutputConfig {
 }
 
 // Tipo unión para todas las configuraciones de salida
-export type OutputConfig = SrtOutputConfig | FileOutputConfig | RtmpOutputConfig | WebOutputConfig;
+export type OutputConfig = RecordingOutputConfig | SrtOutputConfig | FileOutputConfig | RtmpOutputConfig | WebOutputConfig;
 
 // Estado de una salida
 export interface OutputStatus {

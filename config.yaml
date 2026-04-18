@@ -122,3 +122,61 @@ modules:
     video_preset: medium
 output_dir:
   directory: ./output
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MULTI-OUTPUT CONFIGURATION (Ejemplo de configuración de múltiples salidas)
+# ══════════════════════════════════════════════════════════════════════════════
+# Para usar múltiples salidas simultáneamente, descomenta y configura la sección
+# "outputs" abajo. Cada salida es independiente y puede tener su propia config.
+#
+# Tipos disponibles: web, recording, srt, rtmp, file
+#
+# Ejemplo de configuración con Web Player + Grabación continua:
+# output:
+#   outputs:
+#     - type: web
+#       enabled: true
+#       name: web_player
+#       segment_duration: 4
+#       list_size: 6
+#       audio_offset_ms: 0
+#       encoder_mode: auto
+#     - type: recording
+#       enabled: true
+#       name: recording
+#       output_path: ./output/recording.mp4
+#       format: mp4
+#       codec: copy
+#       quality_mode: cbr
+#       audio_codec: copy
+#       split_mode: time
+#       split_value: 600
+#       subtitles: vtt
+#
+# Ejemplo con todas las salidas:
+# output:
+#   outputs:
+#     - type: web
+#       enabled: true
+#     - type: recording
+#       enabled: false
+#       output_path: ./output/stream.mp4
+#       format: mp4
+#       codec: h264_nvenc
+#       quality_mode: cbr
+#       video_bitrate: 5000k
+#       audio_codec: aac
+#       audio_bitrate: 128k
+#       split_mode: time
+#       split_value: 600
+#       subtitles: burnt
+#     - type: srt
+#       enabled: false
+#       url: srt://localhost:9001
+#       mode: caller
+#       latency_ms: 200
+#     - type: rtmp
+#       enabled: false
+#       url: rtmp://localhost/live/stream
+#       video_bitrate: 2500k
+#       audio_bitrate: 128k

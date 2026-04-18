@@ -75,3 +75,16 @@ class OutputSink(ABC):
         Override en subclases para manejar config específica.
         """
         self.config = config
+
+    def get_status(self) -> dict:
+        """
+        Obtener estado del output.
+        Override en subclases para proporcionar estado específico.
+        """
+        return {
+            "state": "idle",
+            "enabled": True,
+            "processed_chunks": 0,
+            "last_process_time_ms": 0.0,
+            "extra": {},
+        }
