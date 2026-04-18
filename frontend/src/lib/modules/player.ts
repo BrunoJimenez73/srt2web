@@ -41,6 +41,8 @@ const HlsEvents = {
   ERROR: 'hlsError',
   FRAG_BUFFERED: 'hlsFragBuffered',
   LEVEL_SWITCH: 'hlsLevelSwitch',
+  FRAG_LOADED: 'hlsFragLoaded',
+  FRAG_LOADED_APPENDING: 'hlsFragLoadedAppending',
 };
 
 // HLS Error Types enum
@@ -53,6 +55,7 @@ interface SubtitleCue {
   start: number;
   end: number;
   text: string;
+  chunkStart: number;  // When this chunk started in absolute time
 }
 
 // Health check state
@@ -60,8 +63,10 @@ let healthCheckInterval: ReturnType<typeof setInterval> | null = null;
 let consecutiveErrors = 0;
 let initialLoadAttempts = 0;
 let hasShownWaiting = false;
-const INITIAL_LOAD_TIMEOUT = 15000; // 15 seconds to wait for first chunk
-const MAX_CONSECUTIVE_ERRORS = 5;
+let lastFragmentTime = 0;
+const INITIAL_LOAD_TIMEOUT = 30000; // 30 seconds to wait for first chunk
+const MAX_CONSECUTIVE_ERRORS = 10; // More tolerant
+const FRAGMENT_TIMEOUT = 30000; // 30s timeout for fragments (with 4s segments + buffer)
 
 export function initHlsPlayer(): void {
   const video = document.getElementById('video-player') as HTMLVideoElement;
@@ -102,6 +107,25 @@ export function initHlsPlayer(): void {
     consecutiveErrors = 0;
     
     healthCheckInterval = setInterval(async () => {
+      const now = Date.now();
+      
+      // Check for fragment stall (no new fragment in FRAGMENT_TIMEOUT ms)
+      if (isConnected && lastFragmentTime > 0 && (now - lastFragmentTime) > FRAGMENT_TIMEOUT) {
+        console.warn('[Health] Fragment stall detected, last fragment was', (now - lastFragmentTime) / 1000, 'seconds ago');
+        consecutiveErrors++;
+        lastFragmentTime = now; // Reset to avoid spam
+        
+        if (consecutiveErrors >= 3) {
+          console.log('[Health] Multiple stalls, attempting stream recovery...');
+          try {
+            hls?.startLoad();
+          } catch (e) {
+            console.error('[Health] Failed to restart load:', e);
+          }
+          consecutiveErrors = 0;
+        }
+      }
+      
       try {
         const response = await fetch(streamUrl, { method: 'HEAD', cache: 'no-cache' });
         
@@ -126,7 +150,7 @@ export function initHlsPlayer(): void {
         showError('Stream no disponible. Haz clic en Reintentar para conectar.');
         consecutiveErrors = 0;
       }
-    }, 10000); // Check every 10 seconds
+    }, 5000); // Check every 5 seconds for better responsiveness
   }
 
   function stopHealthCheck() {
@@ -141,24 +165,44 @@ export function initHlsPlayer(): void {
     const cues: SubtitleCue[] = [];
     const lines = vttContent.split('\n');
     const timeRegex = /(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})/;
+    const chunkStartRegex = /chunk_start:\s*([\d.]+)/;
+    
+    let currentChunkStart = 0;
     
     for (let i = 0; i < lines.length; i++) {
+      // Check for chunk_start NOTE
+      const chunkMatch = lines[i].match(chunkStartRegex);
+      if (chunkMatch) {
+        currentChunkStart = parseFloat(chunkMatch[1]);
+        continue;
+      }
+      
       const match = lines[i].match(timeRegex);
       if (match) {
-        const start = parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + 
+        // Relative timestamps from VTT
+        const relStart = parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + 
                      parseInt(match[3]) + parseInt(match[4]) / 1000;
-        const end = parseInt(match[5]) * 3600 + parseInt(match[6]) * 60 + 
+        const relEnd = parseInt(match[5]) * 3600 + parseInt(match[6]) * 60 + 
                    parseInt(match[7]) + parseInt(match[8]) / 1000;
         
         let text = '';
         let j = i + 1;
         while (j < lines.length && lines[j].trim() !== '') {
-          text += (text ? '\n' : '') + lines[j].trim();
+          // Skip NOTE lines in text
+          if (!lines[j].startsWith('NOTE')) {
+            text += (text ? '\n' : '') + lines[j].trim();
+          }
           j++;
         }
         
-        if (text) {
-          cues.push({ start, end, text });
+        if (text && currentChunkStart > 0) {
+          // Store relative time + chunk start for dynamic offset calculation
+          cues.push({ 
+            start: relStart, 
+            end: relEnd, 
+            text: text,
+            chunkStart: currentChunkStart 
+          });
         }
       }
     }
@@ -183,12 +227,29 @@ export function initHlsPlayer(): void {
       
       const content = await response.text();
       
-      if (content === lastSubtitleContent) return;
-      lastSubtitleContent = content;
+      // Don't skip if content looks similar - always parse and update
+      // This ensures we catch all changes from the rolling window
+      if (!content || content.length < 10) return;
       
+      // Check if we have new content by comparing cue count
       const cues = parseVTT(content);
       
-      if (!cues || cues.length === 0) return;
+      if (!cues || cues.length === 0) {
+        // Clear existing track if no cues available
+        if (video.textTracks.length > 0) {
+          const track = video.textTracks[0];
+          if (track.cues) {
+            const cuesToRemove = Array.from(track.cues);
+            for (const cue of cuesToRemove) {
+              track.removeCue(cue);
+            }
+          }
+        }
+        return;
+      }
+      
+      // Get current video time for dynamic offset calculation
+      const videoTime = video.currentTime;
       
       let track: TextTrack | null = null;
       if (video.textTracks.length > 0) {
@@ -207,11 +268,27 @@ export function initHlsPlayer(): void {
       
       if (track) {
         for (const cue of cues) {
-          const vttCue = new VTTCue(cue.start, cue.end, cue.text);
-          track.addCue(vttCue);
+          // Dynamic offset: adjust cue times based on video position
+          // The VTT has relative times (0-based), we adjust by finding
+          // which chunk is currently playing
+          const chunkStart = cue.chunkStart;
+          const offset = videoTime - chunkStart;
+          
+          // Only show cues that are relevant to current video position
+          // Allow some buffer (5 seconds before/after chunk)
+          const adjustedStart = cue.start + offset;
+          const adjustedEnd = cue.end + offset;
+          
+          // Only add if within visible range (with 10s buffer)
+          if (adjustedEnd >= videoTime - 10 && adjustedStart <= videoTime + 10) {
+            const vttCue = new VTTCue(adjustedStart, adjustedEnd, cue.text);
+            track.addCue(vttCue);
+          }
         }
       }
       
+      // Update last content to avoid duplicate logs
+      lastSubtitleContent = content.substring(0, 500);
       console.log(`Loaded ${cues.length} subtitle cues`);
     } catch (error) {
       console.warn('Error loading subtitles:', error);
@@ -220,13 +297,60 @@ export function initHlsPlayer(): void {
 
   function startSubtitlePolling() {
     loadSubtitles();
-    subtitleInterval = setInterval(loadSubtitles, 2000);
+    subtitleInterval = setInterval(loadSubtitles, 1000); // Poll every 1s for faster updates
+    // Also poll for input state to pause/resume video
+    startInputStatePolling();
   }
 
   function stopSubtitlePolling() {
     if (subtitleInterval) {
       clearInterval(subtitleInterval);
       subtitleInterval = null;
+    }
+    stopInputStatePolling();
+  }
+
+  // Poll input state to pause/resume video when user pauses input
+  let inputStateInterval: ReturnType<typeof setInterval> | null = null;
+  let lastInputPaused = false;
+
+  async function checkInputState() {
+    try {
+      const response = await fetch(`${window.location.origin}/api/input-info`, {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      
+      if (data.type === 'file') {
+        const isPaused = data.is_paused === true;
+        
+        // If input paused state changed, update video
+        if (isPaused !== lastInputPaused) {
+          lastInputPaused = isPaused;
+          if (isPaused && !video.paused) {
+            console.log('[Player] Input paused - pausing video');
+            video.pause();
+          } else if (!isPaused && video.paused) {
+            console.log('[Player] Input resumed - resuming video');
+            video.play().catch(console.error);
+          }
+        }
+      }
+    } catch {
+      // Ignore errors
+    }
+  }
+
+  function startInputStatePolling() {
+    checkInputState(); // Check immediately
+    inputStateInterval = setInterval(checkInputState, 1000);
+  }
+
+  function stopInputStatePolling() {
+    if (inputStateInterval) {
+      clearInterval(inputStateInterval);
+      inputStateInterval = null;
     }
   }
 
@@ -251,13 +375,13 @@ export function initHlsPlayer(): void {
       hls = new Hls({
         debug: false,
         enableWorker: true,
-        lowLatencyMode: true,
-        backBufferLength: 30,
-        maxLoadingDelay: 3, 
-        maxBufferLength: 10,
-        maxMaxBufferLength: 20,
-        liveSyncMaxLatency: 4,
-        liveDurationInfinity: false,
+        lowLatencyMode: false, // Disable low latency for smoother playback
+        backBufferLength: 60, // 60s buffer
+        maxLoadingDelay: 8, // Allow up to 8s delay for segments
+        maxBufferLength: 30, // 30s buffer before pausing load
+        maxMaxBufferLength: 60, // Max 60s buffer
+        liveSyncMaxLatency: 10, // Allow up to 10s latency
+        liveDurationInfinity: true,
       });
 
       hls.loadSource(streamUrl);
@@ -268,9 +392,20 @@ export function initHlsPlayer(): void {
         hasShownWaiting = true;
         isConnected = true;
         lastManifestTime = Date.now();
-        video.play().catch(console.error);
+        lastFragmentTime = Date.now();
+        // Don't autoplay - user controls playback
         startSubtitlePolling();
         startHealthCheck();
+      });
+
+      // Track fragment loading to detect stalls
+      hls.on(HlsEvents.FRAG_LOADED, () => {
+        lastFragmentTime = Date.now();
+        consecutiveErrors = 0; // Reset errors on successful fragment
+      });
+
+      hls.on(HlsEvents.FRAG_LOADED_APPENDING, () => {
+        lastFragmentTime = Date.now();
       });
 
       hls.on(HlsEvents.ERROR, (_event, data) => {

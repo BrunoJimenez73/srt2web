@@ -1020,6 +1020,15 @@ export async function initDashboard(): Promise<void> {
     if (inputTypeSelect?.value === 'rtmp') {
       updateRtmpUrl();
     }
+    
+    // Setup file player controls if input type is file
+    if (inputTypeSelect?.value === 'file') {
+      const filePathInput = document.getElementById('input-file-path') as HTMLInputElement;
+      const hasFile = filePathInput && filePathInput.value && filePathInput.value.length > 0;
+      if (hasFile) {
+        setupFilePlayerControls();
+      }
+    }
 
     status = await apiCall<Status>('GET', 'status');
     updatePipelineUI(status.state);
@@ -1225,21 +1234,27 @@ let currentFileDuration = 0;
 let filePollingInterval: ReturnType<typeof setInterval> | null = null;
 
 export async function fileInputPlay(): Promise<void> {
+  console.log('[Dashboard] fileInputPlay() called');
   try {
-    await apiCall('POST', 'input/control/play');
+    const result = await apiCall('POST', 'input/control/play');
+    console.log('[Dashboard] fileInputPlay() result:', result);
     showToast('Reproducción reanudada', 'success');
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    console.error('[Dashboard] fileInputPlay() error:', msg);
     showToast(`Error al reproducir: ${msg}`, 'error');
   }
 }
 
 export async function fileInputPause(): Promise<void> {
+  console.log('[Dashboard] fileInputPause() called');
   try {
-    await apiCall('POST', 'input/control/pause');
+    const result = await apiCall('POST', 'input/control/pause');
+    console.log('[Dashboard] fileInputPause() result:', result);
     showToast('Reproducción pausada', 'success');
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    console.error('[Dashboard] fileInputPause() error:', msg);
     showToast(`Error al pausar: ${msg}`, 'error');
   }
 }
@@ -1336,13 +1351,20 @@ export function setupFilePlayerControls(): void {
   const restartBtn = document.getElementById('btn-file-restart') as HTMLButtonElement | null;
   const positionSlider = document.getElementById('input-file-position') as HTMLInputElement | null;
 
+  console.log('[File Player] setupFilePlayerControls called', { playBtn: !!playBtn, pauseBtn: !!pauseBtn, restartBtn: !!restartBtn, positionSlider: !!positionSlider });
+
   if (!playBtn || !pauseBtn || !restartBtn || !positionSlider) {
     console.error('[File Player] Missing UI elements');
     return;
   }
 
+  // Ensure correct initial state
+  playBtn.style.display = 'inline';
+  pauseBtn.style.display = 'none';
+
   // Play button
   playBtn.addEventListener('click', () => {
+    console.log('[File Player] Play clicked');
     fileInputPlay().then(() => {
       playBtn.style.display = 'none';
       pauseBtn.style.display = 'inline';
@@ -1351,6 +1373,7 @@ export function setupFilePlayerControls(): void {
 
   // Pause button
   pauseBtn.addEventListener('click', () => {
+    console.log('[File Player] Pause clicked');
     fileInputPause().then(() => {
       pauseBtn.style.display = 'none';
       playBtn.style.display = 'inline';

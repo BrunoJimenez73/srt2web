@@ -41,8 +41,8 @@ class SubtitleGenerator(BaseModule):
 
         # Rolling window for VTT entries (prevent unbounded growth)
         self._vtt_entries: list[dict] = []
-        self._max_vtt_entries = 50  # Keep last 50 subtitle entries
-        self._vtt_max_age_seconds = 60.0  # Remove entries older than 60 seconds
+        self._max_vtt_entries = 200  # Keep last 200 subtitle entries (~400s of video)
+        self._vtt_max_age_seconds = 300.0  # Remove entries older than 300 seconds (5 min)
 
         self._history = []
         self._max_history = 10
@@ -54,8 +54,8 @@ class SubtitleGenerator(BaseModule):
         self._format = config.get("format", self._format)
         self._chunk_duration = config.get("chunk_duration", 4)
         # Rolling window settings
-        self._max_vtt_entries = config.get("max_vtt_entries", 50)
-        self._vtt_max_age_seconds = config.get("vtt_max_age_seconds", 60.0)
+        self._max_vtt_entries = config.get("max_vtt_entries", 200)
+        self._vtt_max_age_seconds = config.get("vtt_max_age_seconds", 300.0)
 
     def start(self) -> None:
         """Initialize subtitle files."""
@@ -124,6 +124,9 @@ class SubtitleGenerator(BaseModule):
                 for entry in self._vtt_entries:
                     start_str = self._format_timestamp(entry["start"], "vtt")
                     end_str = self._format_timestamp(entry["end"], "vtt")
+                    # Include chunk_start in VTT for offset calculation
+                    chunk_start = entry.get("chunk_start", 0)
+                    f.write(f"NOTE chunk_start: {chunk_start:.3f}\n")
                     f.write(f"{start_str} --> {end_str}\n")
                     f.write(f"{entry['text']}\n\n")
         except Exception as e:
@@ -152,7 +155,19 @@ class SubtitleGenerator(BaseModule):
         chunk_start_time = getattr(data, "cumulative_duration", 0.0)
 
         # Validate sequential processing (detect out-of-order chunks)
-        if (
+        # Handle pause loop: same chunk_index is OK, just skip subtitle re-add
+        is_loop = data.metadata.get("is_loop", False)
+        if is_loop:
+            # This is a pause loop - same chunk being replayed
+            # Don't re-add subtitles, just pass through existing ones
+            logger.debug(f"[SubtitleGen] Pause loop detected - chunk {data.chunk_index} replaying, skipping subtitle re-add")
+            data.subtitles_path = self._vtt_path
+            return data
+        elif data.chunk_index == self._last_chunk_index and self._last_chunk_index >= 0:
+            # Duplicate chunk but not marked as loop - skip subtitle re-add
+            data.subtitles_path = self._vtt_path
+            return data
+        elif (
             data.chunk_index != self._last_chunk_index + 1
             and self._last_chunk_index >= 0
         ):
@@ -186,12 +201,15 @@ class SubtitleGenerator(BaseModule):
         if not segments and text:
             segments = [{"start": 0.0, "end": duration * 0.9, "text": text}]
 
-        # 1. Update rolling VTT for the HLS player (absolute timing)
+        # 1. Update rolling VTT for the HLS player (relative timing for seek support)
         try:
             with self._lock:
+                # Store relative timestamps (0-based for each chunk)
+                # This allows seeking without desync - frontend adds video offset
                 for seg in segments:
-                    abs_start = chunk_start_time + seg.get("start", 0)
-                    abs_end = chunk_start_time + seg.get("end", duration)
+                    # Relative timestamps (0-based)
+                    rel_start = seg.get("start", 0)
+                    rel_end = seg.get("end", duration)
 
                     clean_text = seg.get("text", "").replace("\n", " ").strip()
                     if clean_text:
@@ -200,11 +218,12 @@ class SubtitleGenerator(BaseModule):
                         except:
                             pass
 
-                        # Add to rolling window
+                        # Store relative time + chunk start for reference
                         self._vtt_entries.append({
-                            "start": abs_start,
-                            "end": abs_end,
-                            "text": clean_text
+                            "start": rel_start,  # Relative: 0, 1, 2...
+                            "end": rel_end,
+                            "text": clean_text,
+                            "chunk_start": chunk_start_time  # Store for frontend reference
                         })
 
                         logger.info(f"[SUB] {clean_text}")

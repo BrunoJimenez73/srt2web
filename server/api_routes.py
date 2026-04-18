@@ -687,9 +687,12 @@ def create_api_router() -> APIRouter:
         if not input_source:
             raise HTTPException(400, "No input source configured")
         
+        logger.info(f"[API] input/control/play called - input_source type: {type(input_source).__name__}")
+        
         # Check if input source has play method (FileInput)
         if hasattr(input_source, 'play'):
             input_source.play()
+            logger.info("[API] input_source.play() executed successfully")
             return {"status": "playing", "message": "Playback resumed"}
         else:
             raise HTTPException(400, "Input source does not support play control")
@@ -703,9 +706,12 @@ def create_api_router() -> APIRouter:
         if not input_source:
             raise HTTPException(400, "No input source configured")
         
+        logger.info(f"[API] input/control/pause called - input_source type: {type(input_source).__name__}")
+        
         # Check if input source has pause method (FileInput)
         if hasattr(input_source, 'pause'):
             input_source.pause()
+            logger.info("[API] input_source.pause() executed successfully")
             return {"status": "paused", "message": "Playback paused"}
         else:
             raise HTTPException(400, "Input source does not support pause control")

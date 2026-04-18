@@ -50,9 +50,12 @@ class FileInput(InputSource):
         self._last_chunk_index: int = -1
         self._file_finished: bool = False
         self._cumulative_duration: float = 0.0  # Track cumulative duration for sync
-        self._is_paused: bool = False
+        self._is_paused: bool = True  # Start in paused state (wait for user to click play)
+        self._has_started: bool = False  # Track if FFmpeg has ever been started
         self._current_position: float = 0.0  # Current playback position in seconds
         self._file_duration: float = 0.0  # Total file duration
+        self._last_chunk_path: str = ""  # Path to last chunk for pause looping
+        self._last_chunk_duration: float = 0.0  # Duration of last chunk for pause looping
 
         # GPU info for hwaccel
         self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
@@ -85,40 +88,20 @@ class FileInput(InputSource):
         }
 
     def pause(self) -> None:
-        """Pausar la reproducción del archivo."""
-        if self._ffmpeg_proc and not self._is_paused:
-            # Enviar señal SIGSTOP para pausar el proceso FFmpeg
-            try:
-                import signal
-                if sys.platform == "win32":
-                    # En Windows no hay SIGSTOP, usamos otro método
-                    # Para simplificar, detenemos y reiniciamos en la posición actual
-                    self._stop_current()
-                    self._is_paused = True
-                    self.logger.info(f"File playback paused at {self._current_position:.2f}s")
-                else:
-                    os.kill(self._ffmpeg_proc.pid, signal.SIGSTOP)
-                    self._is_paused = True
-                    self.logger.info(f"File playback paused at {self._current_position:.2f}s")
-            except Exception as e:
-                self.logger.error(f"Failed to pause: {e}")
+        """Pausar la reproducción - marca como pausado para detener envío de chunks."""
+        self._is_paused = True
+        self.logger.info(f"[FILE INPUT] PAUSE called - is_paused={self._is_paused}, position={self._current_position:.2f}s")
 
     def play(self) -> None:
-        """Reanudar la reproducción del archivo."""
-        if self._is_paused:
-            if sys.platform == "win32":
-                # En Windows, reiniciamos desde la posición actual
-                self._restart_from_position(self._current_position)
-            else:
-                import signal
-                try:
-                    if self._ffmpeg_proc:
-                        os.kill(self._ffmpeg_proc.pid, signal.SIGCONT)
-                    self._is_paused = False
-                    self.logger.info("File playback resumed")
-                except Exception as e:
-                    self.logger.error(f"Failed to resume: {e}")
+        """Reanudar la reproducción."""
+        # If this is the first time or FFmpeg never started, start it now
+        if not self._has_started or self._ffmpeg_proc is None:
+            self._has_started = True
+            self.logger.info("[FILE INPUT] First play - starting FFmpeg")
+            self._start_ffmpeg()
+        else:
             self._is_paused = False
+            self.logger.info(f"[FILE INPUT] PLAY called - is_paused={self._is_paused}")
 
     def seek(self, position: float) -> None:
         """Mover la reproducción a una posición específica (en segundos)."""
@@ -141,19 +124,27 @@ class FileInput(InputSource):
     def _restart_from_position(self, position: float) -> None:
         """Reiniciar FFmpeg desde una posición específica."""
         self._stop_current()
-        time.sleep(0.5)
+        time.sleep(0.3)
+        
+        # Ensure chunks directory exists
+        if not self._chunks_dir:
+            self._chunks_dir = os.path.join(self._output_dir or "./output", "chunks")
+        os.makedirs(self._chunks_dir, exist_ok=True)
         
         # Limpiar chunks antiguos
-        if self._chunks_dir:
-            for f in glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")):
-                try:
-                    os.remove(f)
-                except OSError:
-                    pass
+        for f in glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")):
+            try:
+                os.remove(f)
+            except OSError:
+                pass
         
         self._last_chunk_index = -1
         self._cumulative_duration = position  # Ajustar duración acumulada
         self._file_finished = False
+        
+        # Ensure FFmpeg path is set
+        if not self._ffmpeg_path:
+            self._ffmpeg_path = ensure_ffmpeg()
         
         # Reconstruir comando FFmpeg con -ss para start time
         chunk_pattern = os.path.join(self._chunks_dir, "chunk_%06d.ts")
@@ -172,6 +163,7 @@ class FileInput(InputSource):
         cmd.extend([
             "-ss", str(position),  # Seek al inicio
             "-i", self._file_path,
+            "-force_key_frames", f"expr:gte(t,n*{self._chunk_duration})",
             "-c", "copy",
             "-f", "segment",
             "-segment_time", str(self._chunk_duration),
@@ -215,12 +207,28 @@ class FileInput(InputSource):
         if not os.path.exists(self._file_path):
             raise FileNotFoundError(f"File not found: {self._file_path}")
 
+        # If this is the first start, keep paused (wait for user to click play)
+        if not self._has_started:
+            self._is_paused = True
+            self._has_started = True
+            self.logger.info("File input started in paused state - waiting for user to press play")
+
+        # If not paused, start FFmpeg normally
+        if not self._is_paused:
+            self._start_ffmpeg()
+
+        self._file_finished = False
+
+    def _start_ffmpeg(self) -> None:
+        """Start FFmpeg process for file reading."""
+        self.logger.info("[FILE INPUT] _start_ffmpeg() called - initializing FFmpeg")
+        
         self._stop_current()
-        time.sleep(0.5)
+        time.sleep(0.3)
 
         self._last_chunk_index = -1
-        self._file_finished = False
         self._ffmpeg_path = ensure_ffmpeg()
+        self._is_paused = False
 
         # Crear directorio de chunks
         self._chunks_dir = os.path.join(self._output_dir or "./output", "chunks")
@@ -268,6 +276,7 @@ class FileInput(InputSource):
         # Resto del comando
         cmd.extend([
             "-i", self._file_path,
+            "-force_key_frames", f"expr:gte(t,n*{self._chunk_duration})",
             "-c",
             "copy",
             "-f",
@@ -290,7 +299,7 @@ class FileInput(InputSource):
 
         cmd.append(chunk_pattern)
 
-        self.logger.info(f"Starting file input: {self._file_path}")
+        self.logger.info(f"[FILE INPUT] Starting FFmpeg: {self._file_path}")
 
         # Iniciar proceso FFmpeg
         self._ffmpeg_proc = subprocess.Popen(
@@ -311,7 +320,7 @@ class FileInput(InputSource):
         )
         self._monitor_thread.start()
 
-        self.logger.info(f"File input started: {self._file_path}")
+        self.logger.info(f"[FILE INPUT] FFmpeg started successfully - PID: {self._ffmpeg_proc.pid}")
 
     def stop(self) -> None:
         """Detener lectura."""
@@ -338,6 +347,30 @@ class FileInput(InputSource):
 
     def get_next_chunk(self) -> Optional[PipelineData]:
         """Obtener siguiente chunk del archivo."""
+        # Check if paused - loop last processed chunk to maintain signal
+        if self._is_paused:
+            # Return the last chunk again to keep sending the frozen frame
+            if self._last_chunk_path and os.path.exists(self._last_chunk_path):
+                # Re-process the last chunk to keep the pipeline flowing
+                chunk_path = self._last_chunk_path
+                idx = self._last_chunk_index
+                actual_duration = self._last_chunk_duration or self._chunk_duration
+                chunk_cumulative = self._cumulative_duration - actual_duration
+                
+                self.logger.debug(f"[FILE INPUT] Paused - looping last chunk {idx} for frozen frame")
+                
+                return PipelineData(
+                    chunk_index=idx,
+                    timestamp=time.time(),
+                    duration=actual_duration,
+                    cumulative_duration=chunk_cumulative,
+                    video_chunk_path=chunk_path,
+                    metadata={"is_loop": True}  # Mark as loop for modules
+                )
+            else:
+                self.logger.debug(f"[FILE INPUT] Paused - no last chunk available yet")
+            return None
+            
         if not self._chunks_dir:
             return None
 
@@ -405,6 +438,10 @@ class FileInput(InputSource):
         # Update current position based on cumulative duration
         self._current_position = chunk_cumulative + actual_duration
 
+        # Store last chunk info for pause looping
+        self._last_chunk_path = chunk_path
+        self._last_chunk_duration = actual_duration
+
         self.logger.debug(
             f"New chunk from file: {chunk_path} (cumulative: {chunk_cumulative:.3f}s, position: {self._current_position:.3f}s)"
         )
@@ -422,8 +459,12 @@ class FileInput(InputSource):
         if self._file_finished and not self._loop:
             return False
         if self._ffmpeg_proc is None:
+            self.logger.debug("[FILE INPUT] is_receiving: _ffmpeg_proc is None")
             return False
-        return self._ffmpeg_proc.poll() is None
+        if self._ffmpeg_proc.poll() is not None:
+            self.logger.debug(f"[FILE INPUT] is_receiving: FFmpeg process ended with code {self._ffmpeg_proc.poll()}")
+            return False
+        return True
 
     def get_status(self) -> dict:
         """Get status including GPU acceleration info."""
