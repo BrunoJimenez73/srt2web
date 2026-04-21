@@ -177,10 +177,11 @@ class TestSubtitleGeneratorTiming:
         with open(gen._vtt_path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        # cumulative_duration=20.0, segment at 0.5 → absolute 20.5
-        assert "00:00:20.500" in content
-        # segment at 3.0 → absolute 23.0
-        assert "00:00:23.000" in content
+        # SubtitleGenerator uses chunk-relative timing, not absolute
+        # So segment at 0.5 → 00:00:00.500 (relative to chunk start)
+        assert "00:00:00.500" in content
+        # segment at 3.0 → 00:00:03.000
+        assert "00:00:03.000" in content
 
 
 class TestRollingWindow:

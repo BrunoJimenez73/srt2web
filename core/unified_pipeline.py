@@ -193,8 +193,10 @@ class UnifiedPipeline:
         return self._output_sink
 
     def get_output_sinks(self) -> Optional[CompositeOutput]:
-        """Obtener composite output con múltiples salidas."""
-        return self._output_sink if isinstance(self._output_sink, CompositeOutput) else None
+        """Obtener el CompositeOutput si el sink actual es uno."""
+        if CompositeOutput and isinstance(self._output_sink, CompositeOutput):
+            return self._output_sink
+        return None
 
     def register_module(self, module: BaseModule, config: Optional[dict] = None) -> None:
         """Registrar un módulo en orden de ejecución."""
@@ -480,16 +482,20 @@ class UnifiedPipeline:
             self._log("error", f"Worker thread error: {e}")
 
     def _output_thread_loop(self) -> None:
-        """Thread de escritura de salida ordenada."""
+        """Thread de escritura de salida ordenada con timeout para chunks perdidos."""
         logger.info("Output thread started")
         pending = {}
         next_expected = 0
+        # Cuándo llegó el último chunk al pending dict (para detectar chunks perdidos)
+        _last_pending_time: float = 0.0
+        _LOST_CHUNK_TIMEOUT = 30.0  # segundos antes de descartar un chunk perdido
 
         try:
             while not self._stop_event.is_set():
                 try:
                     processor = self._output_queue.get(timeout=0.1)
                     pending[processor.chunk_index] = processor
+                    _last_pending_time = time.time()
                 except queue.Empty:
                     pass
 
@@ -514,6 +520,24 @@ class UnifiedPipeline:
 
                     self._output_queue.task_done()
                     next_expected += 1
+                    _last_pending_time = time.time()
+
+                # Detectar chunk perdido: hay items en pending pero el siguiente
+                # esperado nunca llegó y pasó demasiado tiempo
+                if (
+                    pending
+                    and _last_pending_time > 0
+                    and (time.time() - _last_pending_time) > _LOST_CHUNK_TIMEOUT
+                ):
+                    self._log(
+                        "warning",
+                        f"Chunk {next_expected} appears lost after {_LOST_CHUNK_TIMEOUT}s — skipping to unblock output.",
+                    )
+                    with self._lock:
+                        self._results.pop(next_expected, None)
+                    self.metrics.chunks_failed += 1
+                    next_expected += 1
+                    _last_pending_time = time.time()
 
         except Exception as e:
             self._log("error", f"Output thread error: {e}")
@@ -643,11 +667,24 @@ class UnifiedPipeline:
 
     def get_status(self) -> dict:
         """Obtener estado completo del pipeline."""
+        # Leer memoria del proceso UNA SOLA VEZ para todos los módulos
+        process_memory_mb: Optional[float] = None
+        try:
+            process_memory_mb = round(
+                psutil.Process().memory_info().rss / 1024 / 1024, 1
+            )
+        except Exception:
+            pass
+
         modules_status = []
         for module in self._modules:
             try:
                 status = module.get_status()
-                modules_status.append(status.to_dict() if hasattr(status, 'to_dict') else status)
+                status_dict = status.to_dict() if hasattr(status, 'to_dict') else status
+                # Inyectar memoria centralizada en cada módulo
+                if isinstance(status_dict, dict) and process_memory_mb is not None:
+                    status_dict["memory_mb"] = process_memory_mb
+                modules_status.append(status_dict)
             except Exception:
                 modules_status.append({
                     "name": module.name,

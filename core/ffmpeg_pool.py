@@ -1,218 +1,128 @@
 """
-FFmpeg Process Pool - Reutiliza procesos FFmpeg para mejor rendimiento.
+FFmpeg Process Pool - Gestiona slots de concurrencia para operaciones FFmpeg.
 
-En vez de crear un nuevo proceso FFmpeg para cada operación,
-este pool mantiene procesos vivos y los reutiliza.
+En vez de intentar reutilizar procesos FFmpeg individuales (lo que no es
+posible de forma genérica ya que cada invocación tiene argumentos distintos),
+este pool actúa como un semáforo con seguimiento de jobs activos, evitando
+saturar el sistema con demasiados procesos FFmpeg simultáneos.
+
+Mejora respecto a la versión anterior:
+- Ya no lanza procesos "ffmpeg -version" inútilmente al adquirir un slot.
+- El pool es un semáforo de concurrencia + registro de jobs activos.
+- Útil para limitar paralelismo en audio_extractor, audio_mixer, video_muxer.
 """
 
-import subprocess
+import time
 import threading
 import logging
-import queue
-from typing import Optional, Dict, List
-from dataclasses import dataclass
-from pathlib import Path
+from typing import Optional, Dict
+from dataclasses import dataclass, field
 
 logger = logging.getLogger("srt2web.ffmpeg_pool")
 
 
 @dataclass
-class PooledProcess:
-    """Wrapper for a pooled FFmpeg process."""
-
-    process: subprocess.Popen
-    ffmpeg_path: str
-    last_used: float
-    busy: bool = False
-    job_id: Optional[str] = None
+class JobSlot:
+    """Registro de un job activo en el pool."""
+    job_id: str
+    acquired_at: float = field(default_factory=time.time)
+    description: str = ""
 
 
 class FFmpegPool:
     """
-    Pool of FFmpeg processes for reusable encoding/muxing operations.
+    Pool de concurrencia para operaciones FFmpeg.
 
-    Benefits:
-    - Avoid process creation overhead
-    - Reuse FFmpeg initialization
-    - Better resource management
+    Controla cuántos procesos FFmpeg pueden correr en paralelo, evitando
+    saturar CPU/GPU. No reutiliza procesos (FFmpeg no es un servidor);
+    en cambio, limita la cantidad de invocaciones simultáneas.
     """
 
-    def __init__(self, max_size: int = 8, idle_timeout: float = 30.0):
-        """
-        Initialize FFmpeg pool.
-
-        Args:
-            max_size: Maximum number of processes in pool
-            idle_timeout: Seconds before idle process is terminated
-        """
+    def __init__(self, max_size: int = 4, idle_timeout: float = 30.0):
         self.max_size = max_size
-        self.idle_timeout = idle_timeout
-        self._pool: Dict[str, PooledProcess] = {}  # job_id -> PooledProcess
-        self._available: queue.Queue = queue.Queue()
+        self.idle_timeout = idle_timeout  # conservado por compatibilidad de API
+        self._semaphore = threading.Semaphore(max_size)
+        self._active: Dict[str, JobSlot] = {}
         self._lock = threading.Lock()
-        self._cleanup_thread: Optional[threading.Thread] = None
         self._running = True
+        logger.info(f"FFmpegPool initialized (max_concurrent={max_size})")
 
-        # Start cleanup thread
-        self._cleanup_thread = threading.Thread(
-            target=self._cleanup_loop, daemon=True, name="ffmpeg-pool-cleanup"
-        )
-        self._cleanup_thread.start()
-
-        logger.info(
-            f"FFmpeg pool initialized (max_size={max_size}, idle_timeout={idle_timeout}s)"
-        )
-
-    def acquire(self, ffmpeg_path: str, job_id: str) -> Optional[subprocess.Popen]:
+    def acquire(self, ffmpeg_path: str, job_id: str, timeout: float = 30.0) -> bool:
         """
-        Acquire an FFmpeg process for a job.
+        Adquirir un slot de concurrencia para un job FFmpeg.
 
         Args:
-            ffmpeg_path: Path to FFmpeg executable
-            job_id: Unique identifier for the job
+            ffmpeg_path: Ruta al ejecutable FFmpeg (no se usa aquí, por API compat).
+            job_id: Identificador único del job.
+            timeout: Tiempo máximo de espera en segundos.
 
         Returns:
-            Popen object or None if pool is full
+            True si se adquirió el slot, False si se agotó el timeout.
         """
-        import time
+        acquired = self._semaphore.acquire(timeout=timeout)
+        if not acquired:
+            logger.warning(f"FFmpegPool: timeout waiting for slot (job={job_id})")
+            return False
 
         with self._lock:
-            # Check if we already have a process for this job
-            if job_id in self._pool:
-                pp = self._pool[job_id]
-                if not pp.busy:
-                    pp.busy = True
-                    pp.last_used = time.time()
-                    pp.job_id = job_id
-                    logger.debug(f"Reusing existing process for job {job_id}")
-                    return pp.process
+            self._active[job_id] = JobSlot(job_id=job_id)
 
-            # Check pool size
-            if len(self._pool) >= self.max_size:
-                # Try to find an idle process to reuse
-                for jid, pp in list(self._pool.items()):
-                    if not pp.busy:
-                        # Terminate idle process and create new one
-                        self._terminate_process(pp)
-                        del self._pool[jid]
-                        break
-                else:
-                    logger.warning(
-                        f"FFmpeg pool full ({self.max_size}), cannot create new process"
-                    )
-                    return None
+        logger.debug(f"FFmpegPool: slot acquired for job={job_id} (active={len(self._active)}/{self.max_size})")
+        return True
 
-            # Create new process
-            try:
-                process = subprocess.Popen(
-                    [ffmpeg_path, "-version"],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    creationflags=subprocess.CREATE_NO_WINDOW
-                    if hasattr(subprocess, "CREATE_NO_WINDOW")
-                    else 0,
-                )
-                process.wait(timeout=5)
-
-                pp = PooledProcess(
-                    process=process,
-                    ffmpeg_path=ffmpeg_path,
-                    last_used=time.time(),
-                    busy=True,
-                    job_id=job_id,
-                )
-                self._pool[job_id] = pp
-
-                logger.debug(f"Created new FFmpeg process for job {job_id}")
-                return process
-
-            except Exception as e:
-                logger.error(f"Failed to create FFmpeg process: {e}")
-                return None
-
-    def release(self, job_id: str):
-        """Release a process back to the pool."""
+    def release(self, job_id: str) -> None:
+        """Liberar el slot de concurrencia de un job."""
         with self._lock:
-            if job_id in self._pool:
-                pp = self._pool[job_id]
-                pp.busy = False
-                pp.job_id = None
-                import time
+            if job_id not in self._active:
+                logger.debug(f"FFmpegPool: release called for unknown job={job_id}")
+                return
+            elapsed = time.time() - self._active[job_id].acquired_at
+            del self._active[job_id]
 
-                pp.last_used = time.time()
-                logger.debug(f"Released process for job {job_id}")
+        self._semaphore.release()
+        logger.debug(f"FFmpegPool: slot released for job={job_id} (held {elapsed:.1f}s, active={len(self._active)}/{self.max_size})")
 
     def get_stats(self) -> Dict:
-        """Get pool statistics."""
+        """Estadísticas actuales del pool."""
         with self._lock:
-            total = len(self._pool)
-            busy = sum(1 for pp in self._pool.values() if pp.busy)
-            return {
-                "total_processes": total,
-                "busy_processes": busy,
-                "available_processes": total - busy,
-                "max_size": self.max_size,
-            }
+            active_count = len(self._active)
+            active_jobs = list(self._active.keys())
+        return {
+            "total_slots": self.max_size,
+            "active_slots": active_count,
+            "free_slots": self.max_size - active_count,
+            "active_jobs": active_jobs,
+        }
 
-    def shutdown(self):
-        """Shutdown the pool and terminate all processes."""
+    def shutdown(self) -> None:
+        """Marcar el pool como cerrado."""
         self._running = False
         with self._lock:
-            for pp in self._pool.values():
-                self._terminate_process(pp)
-            self._pool.clear()
-        logger.info("FFmpeg pool shut down")
-
-    def _terminate_process(self, pp: PooledProcess):
-        """Safely terminate a process."""
-        try:
-            if pp.process.poll() is None:
-                pp.process.terminate()
-                pp.process.wait(timeout=5)
-        except Exception:
-            try:
-                pp.process.kill()
-            except Exception:
-                pass
-
-    def _cleanup_loop(self):
-        """Background thread to cleanup idle processes."""
-        import time
-
-        while self._running:
-            time.sleep(10)  # Check every 10 seconds
-            if not self._running:
-                break
-
-            with self._lock:
-                now = time.time()
-                to_remove = []
-
-                for job_id, pp in self._pool.items():
-                    if not pp.busy and (now - pp.last_used) > self.idle_timeout:
-                        self._terminate_process(pp)
-                        to_remove.append(job_id)
-                        logger.debug(f"Cleaned up idle process for job {job_id}")
-
-                for job_id in to_remove:
-                    del self._pool[job_id]
+            self._active.clear()
+        logger.info("FFmpegPool shut down")
 
 
-# Global pool instance
+# ---------------------------------------------------------------------------
+# Instancia global singleton
+# ---------------------------------------------------------------------------
+
 _pool: Optional[FFmpegPool] = None
+_pool_lock = threading.Lock()
 
 
 def get_pool() -> FFmpegPool:
-    """Get or create the global FFmpeg pool."""
+    """Obtener (o crear) el pool global de FFmpeg."""
     global _pool
-    if _pool is None:
-        _pool = FFmpegPool(max_size=4, idle_timeout=30.0)
+    with _pool_lock:
+        if _pool is None:
+            _pool = FFmpegPool(max_size=4, idle_timeout=30.0)
     return _pool
 
 
-def shutdown_pool():
-    """Shutdown the global pool."""
+def shutdown_pool() -> None:
+    """Apagar el pool global."""
     global _pool
-    if _pool is not None:
-        _pool.shutdown()
-        _pool = None
+    with _pool_lock:
+        if _pool is not None:
+            _pool.shutdown()
+            _pool = None

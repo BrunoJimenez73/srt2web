@@ -19,69 +19,20 @@ from pydantic import BaseModel, field_validator
 
 logger = logging.getLogger("srt2web.api")
 
-# Whitelist of valid module names
-VALID_MODULE_NAMES = frozenset(
-    {
-        "audio_extractor",
-        "transcriber",
-        "translator",
-        "subtitle_generator",
-        "tts_engine",
-        "audio_mixer",
-        "video_muxer",
-    }
+# Importar constantes desde fuente única de verdad
+from core.config_schema import (
+    VALID_MODULE_NAMES,
+    VALID_INPUT_TYPES,
+    VALID_OUTPUT_TYPES,
+    ALLOWED_WHISPER_MODELS,
+    ALLOWED_LANGUAGES,
+    ALLOWED_DEVICES,
+    ALLOWED_TTS_ENGINES,
+    ALLOWED_TTS_VOICES,
+    ALLOWED_SRT_MODES,
+    ALLOWED_VIDEO_PRESETS,
+    ALLOWED_GPU_PRESETS,
 )
-
-# Valid input/output types
-VALID_INPUT_TYPES = frozenset({"srt", "file", "rtmp", "audio"})
-VALID_OUTPUT_TYPES = frozenset({"web", "hls", "srt", "rtmp", "audio"})
-
-# Allowed values for specific config fields
-ALLOWED_WHISPER_MODELS = {"tiny", "small", "medium", "large-v2", "large-v3", "large"}
-ALLOWED_LANGUAGES = {"auto", "en", "es", "fr", "de", "it", "pt", "ja", "zh", "ko", "ru"}
-ALLOWED_DEVICES = {"auto", "cuda", "cpu"}
-ALLOWED_TTS_ENGINES = {"edge-tts", "piper"}
-ALLOWED_TTS_VOICES = {
-    # Edge-TTS voices
-    "es-ES-AlvaroNeural",
-    "es-ES-ElviraNeural",
-    "en-US-AriaNeural",
-    "en-US-GuyNeural",
-    "fr-FR-DeniseNeural",
-    "de-DE-ConradNeural",
-    # Piper voices - all available in models/piper/
-    "es_ES-carlfm-x_low",
-    "es_ES-davefx-medium",
-    "es_ES-sharvard-medium",
-    "es_ES-mls_10246-low",
-    "es_MX-claude-high",
-    "es_AR-daniela-high",
-    "en_US-lessac-medium",
-    "en_US-lessac-low",
-    "en_US-amy-low",
-    "en_US-ryan-low",
-    "fr_FR-gilles-low",
-    "fr_FR-siwis-medium",
-    "de_DE-eva_k-x_low",
-    "de_DE-thorsten-medium",
-    "it_IT-paola-medium",
-    "it_IT-riccardo-x_low",
-    "pt_BR-cadu-medium",
-    "pt_PT-tugao-medium",
-}
-ALLOWED_SRT_MODES = {"listener", "caller"}
-ALLOWED_VIDEO_PRESETS = {
-    "ultrafast",
-    "superfast",
-    "veryfast",
-    "faster",
-    "fast",
-    "medium",
-    "slow",
-    "slower",
-    "veryslow",
-}
-ALLOWED_GPU_PRESETS = {"p1", "p2", "p3", "p4", "p5", "p6", "p7"}
 
 
 def sanitize_module_name(name: str) -> str:
@@ -95,21 +46,10 @@ def sanitize_module_name(name: str) -> str:
             f"Invalid module name format: '{name}'. Only letters, numbers and underscores are allowed.",
         )
 
-    # Lista de módulos válidos
-    valid_modules = [
-        "audio_extractor",
-        "transcriber",
-        "translator",
-        "subtitle_generator",
-        "tts_engine",
-        "audio_mixer",
-        "video_muxer",
-    ]
-
-    if name not in valid_modules:
+    if name not in VALID_MODULE_NAMES:
         raise HTTPException(
             400,
-            f"Unknown module: '{name}'. Valid modules are: {', '.join(sorted(valid_modules))}",
+            f"Unknown module: '{name}'. Valid modules are: {', '.join(sorted(VALID_MODULE_NAMES))}",
         )
 
     return name
@@ -734,59 +674,68 @@ def create_api_router() -> APIRouter:
 
     @router.get("/output-info")
     async def output_info(request: Request):
-        """Get output sink information."""
+        """Get output sink information (legacy — use /outputs for multi-output)."""
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
-
-        output_sink = pipeline.output_sink
-        if not output_sink:
+        composite = _get_composite(pipeline)
+        if hasattr(composite, "get_all_output_statuses"):
+            statuses = composite.get_all_output_statuses()
+            return statuses[0] if statuses else {"error": "No outputs configured"}
+        sink = pipeline.get_output_sink()
+        if not sink:
             return {"error": "No output sink configured"}
-
-        return output_sink.get_stream_info()
+        return sink.get_stream_info()
 
     # ── Output Management ───────────────────────────────────────
 
+    def _get_composite(pipeline):
+        """Helper: obtiene el CompositeOutput del pipeline. Lanza 500 si no existe."""
+        composite = pipeline.get_output_sinks()
+        if composite is None:
+            composite = pipeline.get_output_sink()
+        if composite is None:
+            raise HTTPException(500, "No output sink configured in pipeline")
+        # Si es un sink simple (no composite), envolverlo sería complejo;
+        # en la nueva arquitectura siempre arranca como CompositeOutput.
+        return composite
+
     @router.get("/outputs")
     async def list_outputs(request: Request):
-        """List all configured outputs and their status."""
+        """Lista todos los outputs configurados con su estado."""
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
+        composite = _get_composite(pipeline)
 
-        output_sink = pipeline.get_output_sinks()
-        if not output_sink:
-            output_sink = pipeline.get_output_sink()
-            if output_sink:
-                return {
-                    "outputs": [{
-                        "name": output_sink.name,
-                        "type": output_sink.name,
-                        "state": "running",
-                        "enabled": True,
-                        "status": output_sink.get_status() if hasattr(output_sink, 'get_status') else {},
-                        "stream_info": output_sink.get_stream_info() if hasattr(output_sink, 'get_stream_info') else {},
-                    }]
-                }
-            return {"outputs": [], "error": "No output sink configured"}
+        if hasattr(composite, "get_all_output_statuses"):
+            return {"outputs": composite.get_all_output_statuses()}
 
-        return {
-            "outputs": output_sink.get_all_output_statuses()
-        }
+        # Fallback para sink simple
+        status = composite.get_status() if hasattr(composite, "get_status") else {}
+        return {"outputs": [{
+            "name": getattr(composite, "name", "output"),
+            "type": getattr(composite, "name", "web"),
+            "state": status.get("state", "idle"),
+            "enabled": True,
+            "processed_chunks": status.get("processed_chunks", 0),
+            "last_process_time_ms": status.get("last_process_time_ms", 0),
+            "stream_info": composite.get_stream_info() if hasattr(composite, "get_stream_info") else {},
+        }]}
 
     @router.get("/outputs/available")
     async def get_available_outputs(request: Request):
-        """Get available output types."""
+        """Tipos de output disponibles para crear."""
         from core.io_factory import OutputFactory
         return {"available_types": OutputFactory.available()}
 
     @router.post("/outputs")
     async def add_output(request: Request, body: dict):
-        """Add a new output to the pipeline."""
+        """Añade un nuevo output al pipeline en caliente."""
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
 
         output_type = body.get("type")
-        output_config = body.get("config", {})
-        output_name = body.get("name", output_type)
+        output_config = body.get("config", {}) or {}
+        output_name = body.get("name") or f"{output_type}_{int(__import__('time').time())}"
 
         if not output_type:
             raise HTTPException(400, "Output type is required")
@@ -798,46 +747,56 @@ def create_api_router() -> APIRouter:
         except ValueError as e:
             raise HTTPException(400, str(e))
 
-        composite = pipeline.get_output_sinks()
-        if composite:
+        composite = _get_composite(pipeline)
+
+        if hasattr(composite, "add_output"):
             composite.add_output(output_name, output)
-            composite.start()
+            # Iniciar la nueva salida solo si el pipeline está corriendo
+            if pipeline.is_running:
+                try:
+                    output.start()
+                except Exception as e:
+                    logger.warning(f"Output '{output_name}' start warning: {e}")
         else:
-            pipeline.set_output_sink(output)
+            raise HTTPException(500, "Pipeline sink does not support multiple outputs")
 
         return {"status": "added", "name": output_name, "type": output_type}
 
     @router.put("/outputs/{output_name}")
     async def update_output(request: Request, output_name: str, body: dict):
-        """Update an output configuration."""
+        """Actualiza la configuración de un output existente."""
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
+        composite = _get_composite(pipeline)
 
-        composite = pipeline.get_output_sinks()
-        if not composite:
-            raise HTTPException(404, "No composite output configured")
+        if not hasattr(composite, "get_output_by_name"):
+            raise HTTPException(404, "Composite output not available")
 
         output = composite.get_output_by_name(output_name)
         if not output:
             raise HTTPException(404, f"Output '{output_name}' not found")
 
-        if "config" in body:
+        if "config" in body and hasattr(output, "configure"):
             output.configure(body["config"])
 
-        if "enabled" in body:
-            composite.enable_output(output_name, body["enabled"])
+        if "enabled" in body and hasattr(composite, "enable_output"):
+            composite.enable_output(output_name, bool(body["enabled"]))
 
         return {"status": "updated", "name": output_name}
 
     @router.delete("/outputs/{output_name}")
     async def remove_output(request: Request, output_name: str):
-        """Remove an output from the pipeline."""
+        """Elimina un output del pipeline."""
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
+        composite = _get_composite(pipeline)
 
-        composite = pipeline.get_output_sinks()
-        if not composite:
-            raise HTTPException(404, "No composite output configured")
+        if not hasattr(composite, "remove_output"):
+            raise HTTPException(404, "Composite output not available")
+
+        # No permitir eliminar el último output
+        if hasattr(composite, "get_output_names") and len(composite.get_output_names()) <= 1:
+            raise HTTPException(400, "Cannot remove the last output. Add another output first.")
 
         if not composite.remove_output(output_name):
             raise HTTPException(404, f"Output '{output_name}' not found")
@@ -846,13 +805,10 @@ def create_api_router() -> APIRouter:
 
     @router.post("/outputs/{output_name}/toggle")
     async def toggle_output(request: Request, output_name: str, body: dict = None):
-        """Toggle an output enabled/disabled."""
+        """Habilita o deshabilita un output."""
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
-
-        composite = pipeline.get_output_sinks()
-        if not composite:
-            raise HTTPException(404, "No composite output configured")
+        composite = _get_composite(pipeline)
 
         output = composite.get_output_by_name(output_name)
         if not output:

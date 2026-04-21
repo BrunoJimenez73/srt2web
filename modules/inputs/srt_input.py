@@ -200,9 +200,18 @@ class SRTInput(InputSource):
                 "-fflags",
                 "+genpts+discardcorrupt",
                 "-flush_packets",
+                "-reconnect",
                 "1",
+                "-reconnect_streamed",
+                "1",
+                "-reconnect_delay_max",
+                "5",
                 chunk_pattern,
             ])
+
+            # Log detallado del comando para debug
+            safe_cmd = [c if len(c) < 100 else c[:50]+"..." for c in cmd]
+            self.logger.info(f"FFmpeg cmd: {' '.join(safe_cmd)}")
 
             self.logger.info(f"Starting SRT input: {' '.join(cmd)}")
             self.logger.info("Starting FFmpeg process...")
@@ -543,18 +552,20 @@ class SRTInput(InputSource):
             for line in self._ffmpeg_proc.stderr:
                 line = line.strip()
                 if line:
-                    if "error" in line.lower():
+                    if "error" in line.lower() or "failed" in line.lower() or "invalid" in line.lower():
                         self.logger.error(f"[FFmpeg] {line}")
                     elif "warning" in line.lower():
                         self.logger.warning(f"[FFmpeg] {line}")
+                    elif "connection" in line.lower() or "accept" in line.lower() or "stream" in line.lower() or "duration" in line.lower():
+                        self.logger.info(f"[FFmpeg] {line}")
                     else:
                         self.logger.debug(f"[FFmpeg] {line}")
                     
                     # Notificar actividad al watchdog
                     if self._watchdog:
                         self._watchdog.notify_activity()
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.debug(f"Monitor stderr exception: {e}")
 
     def _ensure_stopped(self) -> None:
         """Asegurar que cualquier proceso anterior esté detenido."""

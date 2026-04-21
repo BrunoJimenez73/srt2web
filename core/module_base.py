@@ -567,16 +567,7 @@ class BaseModule(ABC):
                 )
 
     def get_status(self) -> ModuleStatus:
-        """Get current status of this module."""
-        memory_mb = None
-        try:
-            import psutil
-
-            process = psutil.Process()
-            memory_mb = process.memory_info().rss / 1024 / 1024
-        except ImportError:
-            pass
-
+        """Get current status of this module (sin llamar a psutil por módulo)."""
         return ModuleStatus(
             name=self.name,
             state=self._state if self.enabled else ModuleState.DISABLED,
@@ -585,7 +576,7 @@ class BaseModule(ABC):
             processed_chunks=self._processed_chunks,
             last_process_time_ms=self._last_process_time_ms,
             circuit_state=self.circuit_state.value,
-            memory_mb=memory_mb,
+            memory_mb=None,  # El pipeline lo llena desde HardwareMonitor centralizado
         )
 
     def reset_error(self) -> None:

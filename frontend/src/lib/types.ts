@@ -146,3 +146,26 @@ export interface OutputManagerCardProps extends OutputHandlers {
   outputs: OutputStatus[];
   errors: Record<string, string>;
 }
+
+export interface ModuleExtra {
+  using_gpu?: boolean;
+  device?: string;
+  encoder_mode?: string;
+  compute_type?: string;
+  sample_rate?: number;
+  provider?: string;
+}
+
+declare global {
+  interface Window {
+    showToast?: (message: string, type?: 'info' | 'success' | 'error') => void;
+    updateStats?: (stats: any) => void;
+    dashboardStore?: any;
+  }
+}
+
+export interface ConfigUpdateTimeouts {
+  input?: ReturnType<typeof setTimeout>;
+  pipeline?: ReturnType<typeof setTimeout>;
+  output?: ReturnType<typeof setTimeout>;
+}

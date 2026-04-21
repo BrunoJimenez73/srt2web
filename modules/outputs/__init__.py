@@ -19,6 +19,8 @@ from modules.outputs.file_output import FileOutput
 from modules.outputs.srt_output import SRTOutput
 from modules.outputs.webrtc_output import WebRTCOutput
 
+OutputFactory.register("webplayer", HLSOutput)
+OutputFactory.register("web", HLSOutput)
 OutputFactory.register("hls", HLSOutput)
 OutputFactory.register("rtmp", RTMPOutput)
 OutputFactory.register("recording", RecordingOutput)

@@ -5,8 +5,8 @@ export function formatTimestamp(ts: number): string {
   return new Date(ts).toLocaleTimeString('en-US', { hour12: false });
 }
 
-export function getSRTUrl(ip: string, port: number): string {
-  return `srt://${ip}:${port}?mode=listener`;
+export function getSRTUrl(ip: string, port: number, mode: string = 'listener', latency: number = 3000): string {
+  return `srt://${ip}:${port}?mode=${mode}&latency=${latency}`;
 }
 
 export function getRTMPUrl(ip: string, port: number, app: string = 'live', streamKey: string = 'stream'): string {

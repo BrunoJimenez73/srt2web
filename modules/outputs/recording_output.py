@@ -171,10 +171,10 @@ class RecordingOutput(OutputSink):
         map_args = []
 
         if input_count >= 1:
-            map_args.append(f"-map", "0:v:0")
+            map_args.extend(["-map", "0:v:0"])
 
         if input_count >= 2:
-            map_args.append(f"-map", "1:a:0")
+            map_args.extend(["-map", "1:a:0"])
 
         if input_count >= 3 and self._subtitles == "burnt":
             map_args.extend(["-map", "2:s:0"])
@@ -229,7 +229,7 @@ class RecordingOutput(OutputSink):
             output_file
         ])
 
-        self.logger.info(f"FFmpeg command: {' '.join(cmd)}")
+        self.logger.info(f"FFmpeg command: {' '.join(filter(None, cmd))}")
         return cmd
 
     def _should_split(self) -> bool:

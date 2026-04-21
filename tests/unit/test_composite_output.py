@@ -168,8 +168,9 @@ class TestCompositeOutput:
 
         statuses = composite_output.get_all_output_statuses()
         assert len(statuses) == 1
-        assert statuses[0].name == "test_output"
-        assert statuses[0].state == "running"
+        # Ahora retorna diccionarios, no objetos OutputStatus
+        assert statuses[0]["name"] == "test_output"
+        assert statuses[0]["state"] == "running"
 
     def test_is_output_enabled(self, composite_output, mock_output):
         """Test para verificar si una salida está habilitada."""

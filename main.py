@@ -21,7 +21,6 @@ import signal
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent
@@ -119,13 +118,21 @@ def build_pipeline(config: ConfigManager, output_dir: str):
     output_type = output_config.get("type", "web")
     type_config = output_config.get(output_type, {})
 
-    # Create output sink
-    logger.info(f"Creating output sink: {output_type}")
-    output_sink = OutputFactory.create(output_type, type_config)
-    output_sink.set_output_dir(output_dir)
+    # Siempre crear un CompositeOutput como sink principal.
+    # Esto permite agregar/quitar salidas en caliente desde la API
+    # sin reiniciar el pipeline.
+    from modules.outputs.composite_output import CompositeOutput
+    composite_sink = CompositeOutput({})
+    composite_sink.set_output_dir(output_dir)
+
+    # Crear el output inicial (por defecto "web"/HLS) y agregarlo al composite
+    logger.info(f"Creating default output sink: {output_type}")
+    default_output = OutputFactory.create(output_type, type_config)
+    default_output.name = f"{output_type}_1"
+    default_output.set_output_dir(output_dir)
+    composite_sink.add_output(default_output.name, default_output)
 
     # Create unified pipeline with parallel processing (THREAD_PARALLEL mode)
-    # Mismatch mode = THREAD_PARALLEL (default) con workers=3, buffer=5
     pipeline = UnifiedPipeline(
         mode=PipelineMode.THREAD_PARALLEL,
         max_concurrent_chunks=3,
@@ -134,7 +141,7 @@ def build_pipeline(config: ConfigManager, output_dir: str):
         retry_delay=1.0
     )
     pipeline.set_input_source(input_source)
-    pipeline.set_output_sink(output_sink)
+    pipeline.set_output_sink(composite_sink)
 
     # Register processing modules (Execution Order Matters!)
 
@@ -176,162 +183,6 @@ def build_pipeline(config: ConfigManager, output_dir: str):
     return pipeline, input_source
 
 
-def validate_configuration(config):
-    """Valida la configuración antes de iniciar el sistema."""
-    logger = logging.getLogger("srt2web.config")
-    errors = []
-
-    # Validar puertos
-    server_port = config.get("server.port", 9999)
-    if not (1 <= server_port <= 65535):
-        errors.append(f"Puerto del servidor fuera de rango: {server_port}")
-
-    srt_port = config.get("input.srt.listen_port", 9000)
-    if not (1 <= srt_port <= 65535):
-        errors.append(f"Puerto SRT fuera de rango: {srt_port}")
-
-    # Validar chunk duration
-    chunk_duration = config.get("pipeline.chunk_duration_sec", 10)
-    if not (1 <= chunk_duration <= 60):
-        errors.append(f"Duración de chunk fuera de rango: {chunk_duration}")
-
-    # Validar transcriber solo si está habilitado
-    transcriber_enabled = config.get("modules.transcriber.enabled", True)
-    if transcriber_enabled:
-        model = config.get("modules.transcriber.model", "tiny")
-        valid_models = ["tiny", "small", "medium", "large-v2", "large-v3", "large"]
-        if model not in valid_models:
-            errors.append(f"Modelo de transcripción inválido: {model}")
-
-    # Validar idioma
-    language = config.get("modules.transcriber.language", "auto")
-    valid_languages = [
-        "auto",
-        "en",
-        "es",
-        "fr",
-        "de",
-        "it",
-        "pt",
-        "ja",
-        "zh",
-        "ko",
-        "ru",
-    ]
-    if language not in valid_languages:
-        errors.append(f"Idioma inválido: {language}")
-
-    # Validar dispositivo
-    device = config.get("modules.transcriber.device", "auto")
-    valid_devices = ["auto", "cuda", "cpu"]
-    if device not in valid_devices:
-        errors.append(f"Dispositivo inválido: {device}")
-
-    # Validar volúmenes
-    original_volume = config.get("modules.audio_mixer.original_volume", 0.7)
-    tts_volume = config.get("modules.audio_mixer.tts_volume", 1.3)
-
-    if not (0.0 <= original_volume <= 2.0):
-        errors.append(f"Volumen original fuera de rango: {original_volume}")
-
-    if not (0.0 <= tts_volume <= 2.0):
-        errors.append(f"Volumen TTS fuera de rango: {tts_volume}")
-
-    # Validar rutas de directorios
-    output_dir = config.get("output_dir.directory", "./output")
-    if not os.path.exists(output_dir):
-        try:
-            os.makedirs(output_dir, exist_ok=True)
-            logger.info(f"Directorio de salida creado: {output_dir}")
-        except Exception as e:
-            errors.append(f"No se puede crear el directorio de salida: {e}")
-
-    # Validar dependencias
-    try:
-        import faster_whisper
-
-        logger.info("faster-whisper disponible")
-    except ImportError:
-        errors.append("faster-whisper no está instalado")
-
-    try:
-        import argostranslate
-
-        logger.info("Argos Translate disponible")
-    except ImportError:
-        errors.append("Argos Translate no está instalado")
-
-    try:
-        import edge_tts
-
-        logger.info("Edge TTS disponible")
-    except ImportError:
-        errors.append("Edge TTS no está instalado")
-
-    # Validar dependencias de módulos
-    modules = config.to_dict().get("modules", {})
-    translator_enabled = modules.get("translator", {}).get("enabled", False)
-    subtitle_enabled = modules.get("subtitle_generator", {}).get("enabled", False)
-    tts_enabled = modules.get("tts_engine", {}).get("enabled", False)
-    mixer_enabled = modules.get("audio_mixer", {}).get("enabled", False)
-
-    if subtitle_enabled and not translator_enabled:
-        errors.append("Subtítulos requiere que Traducción esté activo")
-
-    if tts_enabled and not translator_enabled:
-        errors.append("Doblaje (TTS) requiere que Traducción esté activo")
-
-    if mixer_enabled:
-        if not translator_enabled:
-            errors.append("Mezcla de audio requiere que Traducción esté activo")
-        if not tts_enabled:
-            errors.append("Mezcla de audio requiere que Doblaje (TTS) esté activo")
-
-    if errors:
-        logger.error("Errores de configuración:")
-        for error in errors:
-            logger.error(f"  - {error}")
-        raise ValueError("Configuración inválida")
-
-    logger.info("Configuración validada exitosamente")
-
-
-def create_app(app_context: dict) -> FastAPI:
-    """Crear instancia de la aplicación FastAPI."""
-    app = FastAPI(
-        title="SRT2Web",
-        description="Sistema de transcripción y traducción en tiempo real",
-        version="0.6.6",
-        docs_url="/docs",
-        redoc_url="/redoc",
-        openapi_url="/openapi.json",
-        access_log=True
-    )
-
-    # Configurar múltiples salidas si está habilitado en config.yaml
-    config = app_context.get("config")
-    if config.get("output", {}).get("outputs"):
-        # Crear composite output
-        from core.io_factory import OutputFactory
-        from modules.outputs.composite_output import CompositeOutput
-
-        output_configs = config["output"]["outputs"]
-        outputs = OutputFactory.create_multiple(output_configs)
-        composite = CompositeOutput({})
-        for output in outputs:
-            composite.add_output(output.name, output)
-        composite.start()
-
-        # Configurar pipeline con composite output
-        app_context["pipeline"].set_output_sinks(output_configs)
-    else:
-        # Configuración de salida única (compatibilidad)
-        output_config = config.get("output", {})
-        app_context["pipeline"].set_output_sink(output_config)
-
-    return app
-
-
 def main():
     """Main entry point."""
     setup_logging()
@@ -344,12 +195,9 @@ def main():
     print("  +====================================+")
     print()
 
-    # Load configuration
+    # Load configuration — Pydantic valida automáticamente al cargar
     config_path = str(PROJECT_ROOT / "config.yaml")
     config = ConfigManager(config_path)
-
-    # Validar configuración antes de continuar
-    validate_configuration(config)
 
     logger.info("Configuration loaded and validated")
 
@@ -383,12 +231,6 @@ def main():
     # Register atexit handler for cleanup
     atexit.register(_shutdown)
 
-    # Create FastAPI app using factory
-    from server.app import create_app
-    
-    def app_factory():
-        return create_app(app_context)
-    
     # Server configuration
     host = config.get("server.host", "0.0.0.0")
     port = config.get("server.port", 9999)
@@ -424,20 +266,17 @@ def main():
     logger.info(f"Stream:   http://localhost:{port}/hls/stream.m3u8")
     print()
 
-    # Run with factory - create wrapper that passes context
-    from server.app import create_app
-    
-    def app_factory():
-        return create_app(app_context)
-    
-    config = uvicorn.Config(
-        app_factory,
+    # Crear la app una sola vez y ejecutar
+    app = create_app(app_context)
+
+    uvicorn_config = uvicorn.Config(
+        app,
         host=host,
         port=port,
         log_level="info",
         access_log=True,
     )
-    server = uvicorn.Server(config)
+    server = uvicorn.Server(uvicorn_config)
     server.run()
 
 

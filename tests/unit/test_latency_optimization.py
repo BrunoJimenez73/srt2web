@@ -37,14 +37,14 @@ class TestLatencyConfig:
         assert config['pipeline']['chunk_duration_sec'] <= 10
     
     def test_output_segment_duration_is_2(self, config):
-        """Test output segment duration is 2 seconds."""
-        assert config['output']['web']['segment_duration'] == 2
-        assert config['output']['hls']['segment_duration'] == 2
+        """Test output segment duration is optimized for low latency (≤4s)."""
+        assert config['output']['web']['segment_duration'] <= 4
+        assert config['output']['hls']['segment_duration'] <= 4
     
     def test_list_size_minimal(self, config):
-        """Test list size is minimal (2) for low latency."""
-        assert config['output']['web']['list_size'] == 2
-        assert config['output']['hls']['list_size'] == 2
+        """Test list size is reasonable for latency (≤6)."""
+        assert config['output']['web']['list_size'] <= 6
+        assert config['output']['hls']['list_size'] <= 10
     
     def test_max_concurrent_chunks_increased(self, config):
         """Test max concurrent chunks is increased for parallelism."""

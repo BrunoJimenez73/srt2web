@@ -6,6 +6,7 @@ Serves the web GUI, HLS segments, and API endpoints.
 
 import os
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -41,9 +42,24 @@ def create_app(app_context: dict) -> FastAPI:
         app_context: Shared context dict containing:
             - "config": ConfigManager instance
             - "pipeline": Pipeline instance
-            - "srt_ingest": SRTIngest instance
-            - "log_subscribers": list of WebSocket log subscribers
+            - "input_source": input source instance
+            - "log_broadcast": broadcast callable
     """
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        """Gestiona el ciclo de vida del pipeline junto con FastAPI."""
+        # No arrancamos el pipeline aquí — lo arranca el usuario desde la UI.
+        # Solo nos aseguramos de hacer shutdown limpio al cerrar.
+        yield
+        # Shutdown: detener pipeline si está corriendo
+        pipeline = app_context.get("pipeline")
+        if pipeline and pipeline.is_running:
+            try:
+                await pipeline.stop()
+            except Exception as e:
+                logger.error(f"Error stopping pipeline on shutdown: {e}")
+
     app = FastAPI(
         title="SRT2Web",
         description="Modular SRT Stream Processor",
@@ -51,10 +67,8 @@ def create_app(app_context: dict) -> FastAPI:
         docs_url="/api/docs",
         redoc_url="/api/redoc",
         openapi_url="/api/openapi.json",
+        lifespan=lifespan,
     )
-
-    # Enable Swagger UI at /docs (after static files)
-
     config = app_context.get("config")
 
     # GZip compression for responses (min_size=1000 to compress responses > 1KB)

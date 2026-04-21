@@ -877,3 +877,81 @@ ffmpeg -encoders | grep videotoolbox
 ```
 
 ---
+
+## Sesión 21/04/2026 - Empaquetamiento Desktop (Electron)
+
+**Objetivo**: Crear aplicación de escritorio multiplataforma para que usuarios no técnicos puedan usar SRT2Web sin ver código ni ejecutar scripts.
+
+**Resultado**: Estructura completa de `desktop/` lista para build.
+
+**Archivos creados**:
+| Archivo | Descripción |
+|---------|-------------|
+| `desktop/package.json` | Config Electron + electron-builder |
+| `desktop/src/main.js` | Main process Electron |
+| `desktop/src/preload.js` | Context bridge (IPC) |
+| `desktop/src/python/launcher.py` | Launcher Python backend |
+| `desktop/src/python/core/paths.py` | Path utilities (frozen/bundle) |
+| `desktop/src/python/requirements.txt` | Dependencias Python |
+| `desktop/build/installer.nsh` | Custom NSIS script |
+| `desktop/build/icon.svg` | Icono SVG vectorial |
+| `desktop/README.md` | Documentación desktop |
+| `desktop/BUILD.md` | Guía de construcción |
+
+**Arquitectura**:
+```
+┌─────────────────────────────────────────┐
+│           SRT2Web Desktop              │
+├─────────────────────────────────────────┤
+│  ┌──────────────┐    ┌──────────────┐  │
+│  │  Electron    │    │    Python    │  │
+│  │  (Window)   │◄──►│   Server    │  │
+│  │             │    │            │  │
+│  │ Dashboard   │    │ Pipeline   │  │
+│  │ (Astro UI)  │    │ Processing │  │
+│  └──────────────┘    └──────────────┘  │
+└─────────────────────────────────────────┘
+```
+
+**Flujo de inicio**:
+1. Electron lanza `launcher.py` como subprocess
+2. Python launcher detecta ambiente, verifica FFmpeg
+3. Inicia servidor FastAPI en puerto disponible
+4. Comunica puerto a Electron via stdout
+5. Electron carga dashboard en BrowserWindow
+
+**Configuración electron-builder**:
+- Windows: NSIS installer + Portable
+- macOS: DMG disk image
+- Linux: AppImage + DEB
+
+**Auto-update**: Configurado con GitHub Releases
+
+**Build commands**:
+```bash
+cd desktop
+npm install
+npm run build:win   # Windows
+npm run build:mac    # macOS
+npm run build:linux  # Linux
+npm run build:all     # Todas las plataformas
+```
+
+**Próximos pasos**:
+- [ ] Crear icono real (512x512 PNG → ICO/ICNS)
+- [ ] Bundelear FFmpeg en `resources/ffmpeg/`
+- [ ] Descargar modelos al primer inicio
+- [ ] Test build completo
+- [ ] Upload a GitHub Releases
+
+**Estructura del bundle**:
+```
+dist/
+├── win-unpacked/              # App unpacked
+├── SRT2Web-0.6.6-Setup.exe  # Windows installer
+├── SRT2Web-0.6.6.dmg         # macOS disk image
+├── SRT2Web-0.6.6.AppImage    # Linux AppImage
+└── SRT2Web-0.6.6.deb        # Linux DEB
+```
+
+---

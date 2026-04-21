@@ -1,4 +1,4 @@
-import { apiCall, getConfig, startPipeline, stopPipeline, WSClient } from './api';
+import { apiCall, getConfig, startPipeline, stopPipeline, WSClient, getApiBase } from './api';
 import { getSRTUrl, getRTMPUrl, getStreamUrl, getPlayerUrl, isLocalhost, copyToClipboard, showToast, startClockUpdates } from './utils';
 import { ENCODER_LABELS } from './utils';
 import { dashboardStore } from './store';
@@ -68,10 +68,10 @@ export function updatePipelineUI(state: Status['state']): void {
   if (stopBtn) stopBtn.disabled = state !== 'running';
 }
 
+// REMOVED DUPLICATE applyConfigToUI - using the one at line ~643 instead
+
 export function updateUrls(localIp?: string): void {
   if (!config) return;
-  
-  const ip = localIp || '127.0.0.1';
   const useIp = isLocalhost(ip) ? '127.0.0.1' : ip;
   
   const inputType = config.input?.type || 'srt';
@@ -90,8 +90,10 @@ export function updateUrls(localIp?: string): void {
       urlEmision.textContent = getRTMPUrl(useIp, rtmpPort, rtmpApp, rtmpKey);
     } else {
       const srtPort = config.input?.srt?.listen_port || 9000;
+      const srtMode = config.input?.srt?.mode || 'listener';
+      const srtLatency = config.input?.srt?.latency_ms || 3000;
       urlEmisionLabel.textContent = 'SRT:';
-      urlEmision.textContent = getSRTUrl(useIp, srtPort);
+      urlEmision.textContent = getSRTUrl(useIp, srtPort, srtMode, srtLatency);
     }
   }
   
@@ -1012,7 +1014,7 @@ export async function initDashboard(): Promise<void> {
 
   try {
     config = await getConfig();
-    dashboardStore.setConfig(config);  // Update centralized store
+    dashboardStore.setConfig(config);
     applyConfigToUI(config);
     
     // Initialize RTMP URL after config is loaded
@@ -1030,7 +1032,7 @@ export async function initDashboard(): Promise<void> {
       }
     }
 
-    status = await apiCall<Status>('GET', 'status');
+    status = await apiCall<Status>('GET', 'api/status');
     updatePipelineUI(status.state);
     updateModuleStatus(status);
     dashboardStore.setStatus(status);  // Update centralized store
@@ -1059,7 +1061,7 @@ export async function initDashboard(): Promise<void> {
 
     statusPollInterval = setInterval(async () => {
       try {
-        status = await apiCall<Status>('GET', 'status');
+        status = await apiCall<Status>('GET', 'api/status');
         dashboardStore.setStatus(status);  // Update store on poll
         updatePipelineUI(status.state);
         updateModuleStatus(status);
@@ -1445,9 +1447,11 @@ export function updateConnectionInfoDisplay(): void {
     if (inputType === 'srt') {
       const srtPortInput = document.getElementById('input-srt-port') as HTMLInputElement;
       const srtModeInput = document.getElementById('input-srt-mode') as HTMLSelectElement;
+      const srtLatencyInput = document.getElementById('input-srt-latency') as HTMLInputElement;
       const srtPort = srtPortInput?.value || '9000';
       const srtMode = srtModeInput?.value || 'listener';
-      connectionInfo = `srt://${useIp}:${srtPort}?mode=${srtMode}`;
+      const srtLatency = srtLatencyInput?.value || '3000';
+      connectionInfo = `srt://${useIp}:${srtPort}?mode=${srtMode}&latency=${srtLatency}`;
       if (urlEmisionLabelEl) urlEmisionLabelEl.textContent = 'SRT:';
     } else if (inputType === 'rtmp') {
       const rtmpUrlInput = document.getElementById('input-rtmp-url') as HTMLInputElement;

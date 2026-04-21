@@ -14,9 +14,62 @@ Características:
 ✅ Mensajes de error detallados
 """
 
-from typing import Optional, Union, Literal, Dict, List, Any
+from typing import Optional, Union, Literal, Dict, List, Any, FrozenSet
 from pydantic import BaseModel, Field, field_validator, model_validator
 from enum import Enum
+
+
+# ---------------------------------------------------------------------------
+# Constantes públicas — fuente única de verdad para validaciones en toda la app
+# ---------------------------------------------------------------------------
+
+ALLOWED_WHISPER_MODELS: FrozenSet[str] = frozenset(
+    {"tiny", "base", "small", "medium", "large", "large-v2", "large-v3"}
+)
+
+ALLOWED_LANGUAGES: FrozenSet[str] = frozenset(
+    {"auto", "en", "es", "fr", "de", "it", "pt", "ja", "zh", "ko", "ru"}
+)
+
+ALLOWED_DEVICES: FrozenSet[str] = frozenset({"auto", "cuda", "cpu", "mps"})
+
+ALLOWED_TTS_ENGINES: FrozenSet[str] = frozenset({"edge-tts", "piper", "elevenlabs"})
+
+ALLOWED_TTS_VOICES: FrozenSet[str] = frozenset({
+    # Edge-TTS voices
+    "es-ES-AlvaroNeural", "es-ES-ElviraNeural",
+    "en-US-AriaNeural", "en-US-GuyNeural",
+    "fr-FR-DeniseNeural", "de-DE-ConradNeural",
+    # Piper voices
+    "es_ES-carlfm-x_low", "es_ES-davefx-medium",
+    "es_ES-sharvard-medium", "es_ES-mls_10246-low",
+    "es_MX-claude-high", "es_AR-daniela-high",
+    "en_US-lessac-medium", "en_US-lessac-low",
+    "en_US-amy-low", "en_US-ryan-low",
+    "fr_FR-gilles-low", "fr_FR-siwis-medium",
+    "de_DE-eva_k-x_low", "de_DE-thorsten-medium",
+    "it_IT-paola-medium", "it_IT-riccardo-x_low",
+    "pt_BR-cadu-medium", "pt_PT-tugao-medium",
+})
+
+ALLOWED_SRT_MODES: FrozenSet[str] = frozenset({"listener", "caller"})
+
+ALLOWED_VIDEO_PRESETS: FrozenSet[str] = frozenset({
+    "ultrafast", "superfast", "veryfast", "faster",
+    "fast", "medium", "slow", "slower", "veryslow",
+})
+
+ALLOWED_GPU_PRESETS: FrozenSet[str] = frozenset(
+    {"p1", "p2", "p3", "p4", "p5", "p6", "p7"}
+)
+
+VALID_MODULE_NAMES: FrozenSet[str] = frozenset({
+    "audio_extractor", "transcriber", "translator",
+    "subtitle_generator", "tts_engine", "audio_mixer", "video_muxer",
+})
+
+VALID_INPUT_TYPES: FrozenSet[str] = frozenset({"srt", "file", "rtmp", "audio"})
+VALID_OUTPUT_TYPES: FrozenSet[str] = frozenset({"web", "hls", "srt", "rtmp", "audio"})
 
 
 class PipelineModeEnum(str, Enum):

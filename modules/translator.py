@@ -6,12 +6,16 @@ Uses argostranslate for completely offline, free machine translation.
 
 import os
 import logging
+import hashlib
+from functools import lru_cache
 from typing import Optional
 
 from core.module_base import BaseModule, PipelineData, ModuleState
 from core.model_cache import ModelCache
 
 logger = logging.getLogger("srt2web.module.translator")
+
+_TRANSLATION_CACHE_SIZE = 256  # entradas LRU máximas por pipeline
 
 
 class Translator(BaseModule):
@@ -28,6 +32,10 @@ class Translator(BaseModule):
         self._waiting_for_language = self._source_lang == "auto"
         self._current_source_lang = None
         self._model_cache = ModelCache()
+        # Cache LRU: evita retraducciones de texto ya procesado
+        self._cache: dict[str, str] = {}
+        self._cache_hits = 0
+        self._cache_misses = 0
         super().__init__("translator", config)
 
     def configure(self, config: dict) -> None:
@@ -220,7 +228,26 @@ class Translator(BaseModule):
         """Cleanup."""
         self._state = ModuleState.STOPPING
         self._translation_pipeline = None
+        self._cache.clear()
         self._state = ModuleState.IDLE
+
+    def _translate_cached(self, text: str) -> str:
+        """Traduce texto usando cache LRU para evitar trabajo redundante."""
+        key = hashlib.md5(text.encode("utf-8", errors="replace")).hexdigest()
+        if key in self._cache:
+            self._cache_hits += 1
+            return self._cache[key]
+
+        result = self._translation_pipeline.translate(text)
+        self._cache_misses += 1
+
+        # Mantener el cache acotado a _TRANSLATION_CACHE_SIZE entradas (FIFO simple)
+        if len(self._cache) >= _TRANSLATION_CACHE_SIZE:
+            oldest_key = next(iter(self._cache))
+            del self._cache[oldest_key]
+
+        self._cache[key] = result
+        return result
 
     def _do_process(self, data: PipelineData) -> PipelineData:
         """
@@ -245,7 +272,7 @@ class Translator(BaseModule):
                     )
 
             # Translate full text
-            data.translated_text = self._translation_pipeline.translate(data.transcript)
+            data.translated_text = self._translate_cached(data.transcript)
 
             # Translate individual segments (useful for precise subtitles)
             if data.transcript_segments:
@@ -255,12 +282,16 @@ class Translator(BaseModule):
                         {
                             "start": seg["start"],
                             "end": seg["end"],
-                            "text": self._translation_pipeline.translate(seg["text"]),
+                            "text": self._translate_cached(seg["text"]),
                         }
                     )
                 data.translated_segments = translated_segs
 
             logger.info(f"Translated: {data.translated_text}")
+            hit_rate = (
+                round(self._cache_hits / max(1, self._cache_hits + self._cache_misses) * 100, 1)
+            )
+            logger.debug(f"Translation cache hit rate: {hit_rate}% ({self._cache_hits} hits / {self._cache_misses} misses)")
 
         except Exception as e:
             logger.error(f"Translation error: {e}")
