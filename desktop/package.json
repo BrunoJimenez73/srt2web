@@ -1,0 +1,143 @@
+{
+  "name": "srt2web-desktop",
+  "version": "0.6.6",
+  "description": "SRT2Web - Real-time SRT Stream Processor with Subtitles and TTS",
+  "author": "SRT2Web Team",
+  "license": "MIT",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "build:all": "electron-builder --win --mac --linux",
+    "postinstall": "electron-builder install-app-deps",
+    "icon": "node scripts/create-icon.js"
+  },
+  "dependencies": {
+    "electron-log": "^5.3.4",
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^34.1.1",
+    "electron-builder": "^25.1.8",
+    "electron-icon-builder": "^2.0.1",
+    "png-to-ico": "^3.0.1"
+  },
+  "build": {
+    "appId": "com.srt2web.desktop",
+    "productName": "SRT2Web",
+    "copyright": "Copyright 2024 SRT2Web Team",
+    "npmRebuild": false,
+    "nodeGypRebuild": false,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": "resources",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../main.py",
+        "to": "main.py"
+      },
+      {
+        "from": "../core",
+        "to": "core",
+        "filter": [
+          "**/*.py"
+        ]
+      },
+      {
+        "from": "../modules",
+        "to": "modules",
+        "filter": [
+          "**/*.py"
+        ]
+      },
+      {
+        "from": "../server",
+        "to": "server",
+        "filter": [
+          "**/*.py"
+        ]
+      },
+      {
+        "from": "../config.yaml",
+        "to": "config.yaml"
+      },
+      {
+        "from": "../requirements.txt",
+        "to": "requirements.txt"
+      },
+      {
+        "from": "../server/static",
+        "to": "static",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.video",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "AudioVideo",
+      "maintainer": "SRT2Web Team"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "BrunoJimenez73",
+      "repo": "srt2web"
+    }
+  }
+}
