@@ -102,14 +102,18 @@ class SubtitleGenerator(BaseModule):
         if not self._vtt_entries:
             return
 
-        # Use absolute timestamp: chunk_start + relative end
-        latest_abs = max(entry["chunk_start"] + entry["end"] for entry in self._vtt_entries)
+        # Use absolute timestamp: chunk_start + relative end (for entries that have it)
+        latest_abs = 0.0
+        for entry in self._vtt_entries:
+            cs = entry.get("chunk_start", 0.0)
+            latest_abs = max(latest_abs, cs + entry["end"])
+
         cutoff_abs = latest_abs - self._vtt_max_age_seconds
 
         # Remove entries older than cutoff (absolute time)
         self._vtt_entries = [
             entry for entry in self._vtt_entries
-            if (entry["chunk_start"] + entry["end"]) > cutoff_abs
+            if (entry.get("chunk_start", 0.0) + entry["end"]) > cutoff_abs
         ]
 
         # Also limit by count

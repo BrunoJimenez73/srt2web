@@ -25,3 +25,7 @@ aiortc>=1.14.0
 
 # TTS Engines
 edge-tts>=6.1.0
+
+# CLI dependencies
+requests>=2.31.0
+colorama>=0.4.6
