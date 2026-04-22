@@ -751,3 +751,467 @@
     margin: 0;
   }
 }
+
+/* ============================================
+   SHARED PROCESS CARD STYLES
+   Reusable styles for all process cards
+   ============================================ */
+
+/* Process Card Base */
+.process-card {
+  background-color: var(--color-card);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  transition: all 0.2s ease;
+}
+
+.process-card:hover {
+  background-color: var(--color-card-hover);
+}
+
+/* Process Header */
+.process-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.process-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-indicator-idle);
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.process-indicator.active {
+  background-color: var(--color-indicator-active) !important;
+  box-shadow: 0 0 6px var(--color-indicator-active), 0 0 12px var(--color-indicator-active) !important;
+  animation: indicator-pulse 1.5s ease-in-out infinite;
+}
+
+.process-indicator.error {
+  background-color: var(--color-indicator-error) !important;
+  box-shadow: 0 0 6px var(--color-indicator-error) !important;
+}
+
+@keyframes indicator-pulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+.process-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-prime);
+  flex: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.process-toggle {
+  margin-left: auto;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--text-dim);
+  transition: 0.3s;
+  border-radius: 20px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background-color: var(--success);
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(16px);
+}
+
+/* Process Content */
+.process-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Form Elements */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-label {
+  font-size: 10px;
+  color: var(--text-sec);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.form-input,
+.form-select {
+  width: 100%;
+  padding: 8px 10px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-sm);
+  color: var(--text-prime);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.form-input:focus,
+.form-select:focus {
+  border-color: var(--accent);
+}
+
+.form-input::placeholder {
+  color: var(--text-dim);
+}
+
+.form-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238888a0' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px;
+}
+
+/* Metrics Row */
+.metrics-row {
+  display: flex;
+  gap: 12px;
+  padding: 8px;
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-sm);
+}
+
+.metric-mini {
+  flex: 1;
+  text-align: center;
+}
+
+.metric-mini .metric-label {
+  display: block;
+  font-size: 9px;
+  color: var(--text-sec);
+  margin-bottom: 2px;
+  text-transform: uppercase;
+}
+
+.metric-mini .metric-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-prime);
+}
+
+/* GPU Badge */
+.gpu-badge {
+  background-color: var(--text-dim);
+  color: var(--text-sec);
+  font-size: 8px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.gpu-badge.active {
+  background: linear-gradient(135deg, #76b900, #a8e600);
+  color: #000;
+}
+
+.gpu-badge.inactive {
+  opacity: 0.5;
+}
+
+/* Log Entry Styles */
+.log-entry {
+  padding: 2px 8px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  border-left: 2px solid transparent;
+}
+
+.log-entry.info {
+  color: var(--text-sec);
+  border-left-color: var(--accent);
+}
+
+.log-entry.warning {
+  color: var(--warning);
+  border-left-color: var(--warning);
+  background-color: rgba(245, 158, 11, 0.1);
+}
+
+.log-entry.error {
+  color: var(--error);
+  border-left-color: var(--error);
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.log-entry.debug {
+  color: var(--text-dim);
+  border-left-color: var(--text-dim);
+}
+
+/* Status Badge */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.status-badge.success {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: var(--success);
+}
+
+.status-badge.warning {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: var(--warning);
+}
+
+.status-badge.error {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: var(--error);
+}
+
+.status-badge.info {
+  background-color: rgba(99, 102, 241, 0.2);
+  color: var(--accent);
+}
+
+/* ============================================
+   PROCESS CARD VARIANTS
+   Specific styles for different process types
+   ============================================ */
+
+/* Input Card */
+.input-card,
+.process-card.input {
+  background-color: var(--color-card);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  transition: all 0.3s ease;
+}
+
+.input-card.active {
+  border-color: var(--success) !important;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.3) !important;
+}
+
+/* Process Grid */
+.process-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+
+@media (min-width: 1200px) {
+  .process-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .process-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Form Row */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* Form Hint */
+.form-hint {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+/* Form Select Arrow */
+.form-select-arrow {
+  position: relative;
+}
+
+.form-select-arrow::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid var(--text-sec);
+  pointer-events: none;
+}
+
+/* Copy Input Wrapper */
+.copy-input-wrapper {
+  position: relative;
+  display: flex;
+  gap: 4px;
+}
+
+.copy-input-wrapper .form-input {
+  flex: 1;
+  padding-right: 40px;
+}
+
+.copy-button {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.copy-button:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* File Input Wrapper */
+.file-input-wrapper {
+  position: relative;
+  display: flex;
+  gap: 4px;
+}
+
+.file-input-wrapper .form-input {
+  flex: 1;
+  padding-right: 40px;
+}
+
+.file-button {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.file-button:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Input Settings (SRT/RTMP/File panels) */
+.input-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* File Player Controls */
+.file-player-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-dim);
+}
+
+.player-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.player-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.player-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.player-slider {
+  width: 100%;
+  height: 4px;
+  background: var(--border-dim);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.player-time {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-sec);
+  text-align: center;
+}

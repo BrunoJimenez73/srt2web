@@ -22,8 +22,11 @@ from pathlib import Path
 
 import uvicorn
 
+# Use centralized path utilities
+from core import get_project_root, get_config_path, get_logs_dir, SERVER_PORT_DEFAULT, SERVER_HOST, CONFIG_FILE
+
 # Add project root to path
-PROJECT_ROOT = Path(__file__).parent
+PROJECT_ROOT = get_project_root()
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.config_manager import ConfigManager
@@ -218,7 +221,7 @@ def main():
     print()
 
     # Load configuration — Pydantic valida automáticamente al cargar
-    config_path = str(PROJECT_ROOT / "config.yaml")
+    config_path = str(get_config_path())
     config = ConfigManager(config_path)
 
     logger.info("Configuration loaded and validated")
@@ -254,8 +257,8 @@ def main():
     atexit.register(_shutdown)
 
     # Server configuration
-    host = config.get("server.host", "0.0.0.0")
-    port = config.get("server.port", 9999)
+    host = config.get("server.host", SERVER_HOST)
+    port = config.get("server.port", SERVER_PORT_DEFAULT)
 
     # Open browser after a short delay
     def open_browser():

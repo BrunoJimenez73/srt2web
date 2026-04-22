@@ -1,5 +1,7 @@
 ---
 import DocsLayout from '../../components/docs/DocsLayout.astro';
+import CodeBlock from '../../components/docs/CodeBlock.astro';
+import { SERVER_PORT, API_ENDPOINTS, WS_PATHS } from '../../lib/constants';
 ---
 
 <DocsLayout title="SRT2Web Documentation" description="Documentation for SRT2Web, covering setup, usage, and API reference.">
@@ -29,6 +31,63 @@ import DocsLayout from '../../components/docs/DocsLayout.astro';
     <h2>Configuracion</h2>
     <p>Ajusta el comportamiento del pipeline (chunk size, volumenes, modelos, etc.) desde el panel de configuracion.</p>
     <p><a href="/docs/configuration">Configuracion del Sistema</a></p>
+
+    <h2>Arquitectura del Frontend</h2>
+    <p>SRT2Web usa Astro como framework frontal con TypeScript y Tailwind CSS. La interfaz de usuario se sirve como archivos estaticos desde el servidor FastAPI.</p>
+
+    <h3>Tecnologias</h3>
+    <ul>
+        <li><strong>Astro 5.0:</strong> Generador de sitios estaticos con arquitectura Islands</li>
+        <li><strong>TypeScript:</strong> Tipado estatico para JavaScript</li>
+        <li><strong>Tailwind CSS 4.0:</strong> Framework de utilidades CSS</li>
+        <li><strong>hls.js:</strong> Reproductor HLS para el navegador</li>
+    </ul>
+
+    <h3>Estructura del Frontend</h3>
+    <CodeBlock lang="text" code={`frontend/src/
+├── components/          # Componentes .astro reutilizables
+│   ├── ui/            # Componentes base (Button, Input, Card)
+│   └── layout/        # Componentes de layout (Header)
+├── layouts/            # Layouts de pagina
+│   └── BaseLayout.astro
+├── lib/               # Modulos JavaScript/TypeScript
+│   ├── api.ts         # FuncionesCliente de API
+│   ├── dashboard.ts   # Script principal del dashboard
+│   ├── types.ts      # Definiciones de tipos
+│   ├── constants.ts   # Constantes centralizadas
+│   ├── i18n.ts        # Sistema de traduccion
+│   └── modules/       # Modulos de charakteristicas
+├── pages/             # Paginas (rutas)
+│   ├── index.astro   # Dashboard principal
+│   ├── player.astro # Reproductor HLS
+│   └── docs/        # Documentacion
+└── styles/
+    └── globals.css  # Estilos globales (Tailwind)`} title="Estructura" />
+
+    <h3>Comandos de Desarrollo</h3>
+    <ul>
+        <li><code>npm run dev</code> - Servidor de desarrollo</li>
+        <li><code>npm run build:local</code> - Compilar para produccion</li>
+    </ul>
+
+    <h3>Integracion con el Backend</h3>
+    <p>El frontend se comunica con FastAPI mediante HTTP y WebSocket:</p>
+
+    <CodeBlock lang="typescript" code={`// Configurado en frontend/src/lib/constants.ts
+import { SERVER_PORT, API_ENDPOINTS, WS_PATHS } from '../lib/constants';
+
+// Frontend to Backend (HTTP)
+const res = await fetch('http://localhost:' + SERVER_PORT + API_ENDPOINTS.STATUS);
+const status = await res.json();
+
+// Frontend to Backend (WebSocket)
+const ws = new WebSocket('ws://localhost:' + SERVER_PORT + WS_PATHS.LOGS);
+ws.onmessage = (e) => console.log(JSON.parse(e.data));`} title="API Client" />
+
+    <h3>Build y Deployment</h3>
+    <p>Despues de compilar, los archivos estaticos se copian a <code>server/static/</code>:</p>
+    <CodeBlock lang="text" code={`npm run build:local
+cp -r frontend/dist/* server/static/`} title="Build" />
 
     <h2>Uso del Sistema</h2>
     <p>Explora como interactuar con los diferentes componentes del sistema:</p>

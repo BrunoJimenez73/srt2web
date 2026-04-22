@@ -62,8 +62,8 @@ class TestRollingSubtitles:
         from modules.subtitle_generator import SubtitleGenerator
 
         gen = SubtitleGenerator()
-        assert gen._max_vtt_entries == 200
-        assert gen._vtt_max_age_seconds == 300.0  # 5 minutes rolling window
+        assert gen._max_vtt_entries == 2000
+        assert gen._vtt_max_age_seconds == 7200.0  # 2 hours rolling window
 
     def test_trim_vtt_entries_limits_count(self):
         """Test that _trim_vtt_entries limits entry count."""

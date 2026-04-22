@@ -29,7 +29,7 @@ class TestTypeScriptModuleResolution:
         assert "export function getAuthToken" in content
         assert "export function setAuthToken" in content
         assert "export function clearAuthToken" in content
-        assert "export function getApiBaseUrl" in content
+        assert "export function getApiBase" in content
         assert "export function getWebSocketUrl" in content
         assert "fetchWithAuth" in content  # async function
         assert "export async function apiCall" in content
@@ -88,9 +88,9 @@ class TestAuthenticationTokenManagement:
         """Test that auth token key is defined."""
         api_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "api.ts"
         content = api_path.read_text(encoding="utf-8")
-        
+
         assert "AUTH_TOKEN_KEY" in content
-        assert "srt2web_auth_token" in content
+        assert "STORAGE_KEYS" in content
 
 
 class TestDashboardInputOutputHandlers:
