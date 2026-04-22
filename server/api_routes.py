@@ -688,6 +688,33 @@ def create_api_router() -> APIRouter:
 
     # ── Output Management ───────────────────────────────────────
 
+    def _sync_outputs_to_config(request: Request, composite) -> None:
+        """Actualiza la lista `outputs` en config.yaml desde el estado actual del composite."""
+        ctx = _ctx(request)
+        config = ctx["config"]
+
+        output_list = []
+        for name in (composite.get_output_names() if hasattr(composite, "get_output_names") else []):
+            output = composite.get_output_by_name(name) if hasattr(composite, "get_output_by_name") else None
+            if not output:
+                continue
+            entry = {
+                "name": name,
+                "type": getattr(output, "name", name.rsplit("_", 1)[0] if "_" in name else name),
+                "enabled": getattr(output, "enabled", True),
+                "config": getattr(output, "config", {}),
+            }
+            # Extraer el type real del output
+            type_attr = getattr(output, "name", "").rsplit("_", 1)
+            entry["type"] = type_attr[0] if len(type_attr) > 1 else name
+            output_list.append(entry)
+
+        config.set("output.outputs", output_list)
+        try:
+            config.save()
+        except Exception as e:
+            logger.warning(f"Could not sync outputs to config: {e}")
+
     def _get_composite(pipeline):
         """Helper: obtiene el CompositeOutput del pipeline. Lanza 500 si no existe."""
         composite = pipeline.get_output_sinks()
@@ -729,13 +756,14 @@ def create_api_router() -> APIRouter:
 
     @router.post("/outputs")
     async def add_output(request: Request, body: dict):
-        """Añade un nuevo output al pipeline en caliente."""
+        """Añade un nuevo output al pipeline en caliente y lo guarda en config.yaml."""
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
 
         output_type = body.get("type")
         output_config = body.get("config", {}) or {}
         output_name = body.get("name") or f"{output_type}_{int(__import__('time').time())}"
+        output_enabled = body.get("enabled", True)
 
         if not output_type:
             raise HTTPException(400, "Output type is required")
@@ -759,6 +787,9 @@ def create_api_router() -> APIRouter:
                     logger.warning(f"Output '{output_name}' start warning: {e}")
         else:
             raise HTTPException(500, "Pipeline sink does not support multiple outputs")
+
+        # Sync to config.yaml para persistencia
+        _sync_outputs_to_config(request, composite)
 
         return {"status": "added", "name": output_name, "type": output_type}
 
@@ -786,7 +817,7 @@ def create_api_router() -> APIRouter:
 
     @router.delete("/outputs/{output_name}")
     async def remove_output(request: Request, output_name: str):
-        """Elimina un output del pipeline."""
+        """Elimina un output del pipeline y lo elimina de config.yaml."""
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
         composite = _get_composite(pipeline)
@@ -800,6 +831,9 @@ def create_api_router() -> APIRouter:
 
         if not composite.remove_output(output_name):
             raise HTTPException(404, f"Output '{output_name}' not found")
+
+        # Sync to config.yaml
+        _sync_outputs_to_config(request, composite)
 
         return {"status": "removed", "name": output_name}
 
@@ -816,6 +850,9 @@ def create_api_router() -> APIRouter:
 
         enabled = body.get("enabled", not composite.is_output_enabled(output_name)) if body else not composite.is_output_enabled(output_name)
         composite.enable_output(output_name, enabled)
+
+        # Sync to config.yaml
+        _sync_outputs_to_config(request, composite)
 
         return {"status": "toggled", "name": output_name, "enabled": enabled}
 

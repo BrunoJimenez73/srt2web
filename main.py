@@ -125,12 +125,34 @@ def build_pipeline(config: ConfigManager, output_dir: str):
     composite_sink = CompositeOutput({})
     composite_sink.set_output_dir(output_dir)
 
-    # Crear el output inicial (por defecto "web"/HLS) y agregarlo al composite
-    logger.info(f"Creating default output sink: {output_type}")
-    default_output = OutputFactory.create(output_type, type_config)
-    default_output.name = f"{output_type}_1"
-    default_output.set_output_dir(output_dir)
-    composite_sink.add_output(default_output.name, default_output)
+    # La lista `outputs` es la fuente de verdad.
+    # Si existe, crearla toda. Si está vacía, crear el legacy default (backward compat).
+    named_outputs = output_config.get("outputs", [])
+
+    if named_outputs:
+        # Usar la lista completa — nombres tal como están en el YAML
+        for entry in named_outputs:
+            out_name = entry.get("name", "")
+            out_type = entry.get("type", "")
+            out_cfg = entry.get("config", {}) or {}
+            if not out_name or not out_type:
+                logger.warning(f"Skipping invalid output entry: {entry}")
+                continue
+            try:
+                output = OutputFactory.create(out_type, out_cfg)
+                output.name = out_name
+                output.set_output_dir(output_dir)
+                composite_sink.add_output(out_name, output)
+                logger.info(f"Created output '{out_name}' ({out_type})")
+            except Exception as e:
+                logger.warning(f"Failed to create output '{out_name}': {e}")
+    else:
+        # Fallback legacy: un solo output por defecto
+        logger.info(f"Creating default output sink: {output_type}")
+        default_output = OutputFactory.create(output_type, type_config)
+        default_output.name = f"{output_type}_1"
+        default_output.set_output_dir(output_dir)
+        composite_sink.add_output(default_output.name, default_output)
 
     # Create unified pipeline with parallel processing (THREAD_PARALLEL mode)
     pipeline = UnifiedPipeline(

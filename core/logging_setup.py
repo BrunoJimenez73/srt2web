@@ -133,6 +133,7 @@ def setup_logging(
         encoding='utf-8'
     )
     file_handler.setLevel(log_level)
+    file_handler.addFilter(ConsoleFilter())  # Filter noisy security warnings from file too
     file_handler.setFormatter(
         logging.Formatter(
             "%(asctime)s │ %(levelname)-5s │ %(name)s │ %(message)s",

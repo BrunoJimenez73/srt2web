@@ -152,7 +152,6 @@ def create_app(app_context: dict) -> FastAPI:
     logger.info(f"Mounting /hls at: {hls_dir}")
     app.mount("/hls", StaticFiles(directory=str(hls_dir), html=False), name="hls")
 
-    # Serve subtitles from HLS directory (where they're generated)
     subtitles_dir = OUTPUT_DIR / "hls"
     subtitles_dir.mkdir(parents=True, exist_ok=True)
     logger.info(f"Mounting /subtitles at: {subtitles_dir}")

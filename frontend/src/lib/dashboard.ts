@@ -1,5 +1,5 @@
 import { apiCall, getConfig, startPipeline, stopPipeline, WSClient, getApiBase } from './api';
-import { getSRTUrl, getRTMPUrl, getStreamUrl, getPlayerUrl, isLocalhost, copyToClipboard, showToast, startClockUpdates } from './utils';
+import { getSRTUrl, getRTMPUrl, getStreamUrl, getPlayerUrl, copyToClipboard, showToast, startClockUpdates } from './utils';
 import { ENCODER_LABELS } from './utils';
 import { dashboardStore } from './store';
 import type { Config, Status, LogMessage, ModuleName } from './types';
@@ -70,9 +70,9 @@ export function updatePipelineUI(state: Status['state']): void {
 
 // REMOVED DUPLICATE applyConfigToUI - using the one at line ~643 instead
 
-export function updateUrls(localIp?: string): void {
+export function updateUrls(): void {
   if (!config) return;
-  const useIp = isLocalhost(ip) ? '127.0.0.1' : ip;
+  const useIp = '127.0.0.1';
   
   const inputType = config.input?.type || 'srt';
   const urlEmisionLabel = document.getElementById('url-emision-label');
@@ -866,7 +866,7 @@ export async function handleSaveConfig(): Promise<void> {
     }
     
     const newConfig = collectConfigFromUI();
-    await apiCall('PUT', 'config', { config: newConfig });
+    await apiCall('PUT', '/api/config', { config: newConfig });
     config = await getConfig();
     dashboardStore.setConfig(config);  // Update centralized store
     applyConfigToUI(config);
@@ -1038,7 +1038,7 @@ export async function initDashboard(): Promise<void> {
     dashboardStore.setStatus(status);  // Update centralized store
 
     if (status.network?.local_ip) {
-      updateUrls(status.network.local_ip);
+      updateUrls();
     }
     
     // Update connection info display (SRT/RTMP/FILE URL)
@@ -1067,7 +1067,7 @@ export async function initDashboard(): Promise<void> {
         updateModuleStatus(status);
         
         if (status?.network?.local_ip) {
-          updateUrls(status.network.local_ip);
+          updateUrls();
         }
       } catch {
         // Silently fail on poll errors
@@ -1433,7 +1433,7 @@ export function copyRtmpUrl(): void {
 }
 
 export function updateConnectionInfoDisplay(): void {
-  const useIp = '127.0.0.1'; // Always use localhost for display
+  const useIp = '127.0.0.1';
   
   // Get current input type from dropdown (not config, as it may not be saved yet)
   const inputTypeSelect = document.getElementById('input-type') as HTMLSelectElement;

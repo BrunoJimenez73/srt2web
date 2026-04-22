@@ -11,7 +11,7 @@ input:
   type: srt
   srt:
     listen_port: 9000
-    mode: caller
+    mode: listener
     latency_ms: 200
     caller_address: ''
     chunk_duration_sec: 4
@@ -59,10 +59,36 @@ output:
     preset: medium
     audio_codec: aac
   file:
+    path: ./output
     save_video: true
     save_audio: true
     save_subtitles: true
-    path: ./output
+  recording:
+    output_path: ./output/recording.mp4
+    format: mp4
+    codec: h264_nvenc
+    video_bitrate: 5000k
+    video_crf: 23
+    quality_mode: crf
+    audio_codec: aac
+    audio_bitrate: 128k
+    split_mode: none
+    split_value: 600
+    subtitles: vtt
+    video_preset: fast
+  outputs:
+  - name: webplayer_1
+    type: web
+    enabled: true
+    config: {}
+  - name: filerecording_1
+    type: recording
+    enabled: true
+    config:
+      output_path: ./output/recording.mp4
+      codec: h264_nvenc
+      video_bitrate: 5000k
+      video_preset: fast
 pipeline:
   chunk_duration_sec: 15
   mode: thread_parallel
@@ -109,7 +135,7 @@ modules:
     video_quality: medium
     video_crf: 23
     audio_codec: opus
-    audio_bitrate: 128k
+    audio_bitrate: 64k
     audio_samplerate: '48000'
     video_bitrate: 1000k
     video_fps: 30

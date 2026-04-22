@@ -126,6 +126,7 @@ class OutputTypeEnum(str, Enum):
     SRT = "srt"
     RTMP = "rtmp"
     FILE = "file"
+    RECORDING = "recording"
 
 
 class EncoderModeEnum(str, Enum):
@@ -250,21 +251,47 @@ class SRTOutputConfig(BaseModel):
 
 
 class FileOutputConfig(BaseModel):
-    """Configuración de salida archivo."""
+    """Configuración archivo."""
+    path: str = Field(default="./output", description="Directorio de salida")
     save_video: bool = Field(default=True, description="Guardar video")
     save_audio: bool = Field(default=True, description="Guardar audio")
     save_subtitles: bool = Field(default=True, description="Guardar subtítulos")
-    path: str = Field(default="./output", description="Directorio de salida")
+
+
+class RecordingOutputConfig(BaseModel):
+    """Configuración de grabación a archivo."""
+    output_path: str = Field(default="./output/recording.mp4", description="Ruta del archivo de salida")
+    format: Literal["mp4", "mkv", "webm"] = Field(default="mp4", description="Formato del contenedor")
+    codec: str = Field(default="copy", description="Codec de video (copy, h264, h265)")
+    video_bitrate: str = Field(default="5000k", description="Bitrate de video")
+    video_crf: int = Field(default=23, ge=18, le=51, description="CRF de video")
+    quality_mode: Literal["crf", "cbr"] = Field(default="cbr", description="Modo de calidad")
+    audio_codec: str = Field(default="copy", description="Codec de audio (aac, opus, copy)")
+    audio_bitrate: str = Field(default="128k", description="Bitrate de audio")
+    split_mode: Literal["none", "time", "size"] = Field(default="none", description="Modo de split")
+    split_value: int = Field(default=600, description="Valor de split (segundos o MB)")
+    subtitles: Literal["none", "burnt", "vtt"] = Field(default="vtt", description="Subtítulos")
+    video_preset: str = Field(default="fast", description="Preset de encoding")
+
+
+class NamedOutputEntry(BaseModel):
+    """Una salida nombrada para la lista `outputs`."""
+    name: str = Field(description="Nombre único de la salida")
+    type: OutputTypeEnum = Field(description="Tipo de salida")
+    enabled: bool = Field(default=True, description="Habilitada")
+    config: dict = Field(default_factory=dict, description="Configuración específica del tipo de salida")
 
 
 class OutputConfig(BaseModel):
     """Configuración general de salida."""
-    type: OutputTypeEnum = Field(default=OutputTypeEnum.WEB, description="Tipo de salida")
+    type: OutputTypeEnum = Field(default=OutputTypeEnum.WEB, description="Tipo de salida por defecto (legacy)")
     web: WebOutputConfig = Field(default_factory=WebOutputConfig, description="Configuración Web/HLS")
     hls: WebOutputConfig = Field(default_factory=WebOutputConfig, description="Alias para web")
     rtmp: RTMPOutputConfig = Field(default_factory=RTMPOutputConfig, description="Configuración RTMP")
     srt: SRTOutputConfig = Field(default_factory=SRTOutputConfig, description="Configuración SRT")
     file: FileOutputConfig = Field(default_factory=FileOutputConfig, description="Configuración archivo")
+    recording: RecordingOutputConfig = Field(default_factory=RecordingOutputConfig, description="Configuración grabación")
+    outputs: list[NamedOutputEntry] = Field(default_factory=list, description="Lista de salidas activas")
 
 
 class PipelineConfig(BaseModel):

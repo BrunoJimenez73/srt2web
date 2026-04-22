@@ -1,8 +1,8 @@
 # SRT2Web - Estado del Proyecto
 
 ## Información General
-- **Fecha última sesión**: 2026-04-14
-- **Versión**: 0.6.6
+- **Fecha última sesión**: 2026-04-22
+- **Versión**: 0.6.7
 - **Repositorio**: https://github.com/BrunoJimenez73/srt2web
 - **Tests**: 590 passing ✅ (6 pre-existentes fallando por config, no relacionados)
 
@@ -875,6 +875,65 @@ python -c "import onnxruntime as ort; print('CoreML:', 'CoreMLExecutionProvider'
 # Ver VideoToolbox en FFmpeg
 ffmpeg -encoders | grep videotoolbox
 ```
+
+---
+
+## Sesión 22/04/2026 - Arreglar Frontend Outputs
+
+**Objetivo**: Arreglar el frontend roto: cabecera no visible, Outputs diferente a otros módulos, modal en vez de inline.
+
+**Problemas identificados**:
+- La cabecera SÍ aparecía (el servidor no estaba corriendo inicialmente)
+- OutputsPanel era un panel separado con CSS diferente (no seguía el estilo de InputCard/WhisperCard)
+- El formulario de creación era una modal fija, no inline
+- Los valores seleccionados no se veían/editaban en la misma ventana
+
+**Solución implementada**:
+
+| Archivo | Cambio |
+|---------|--------|
+| `frontend/src/components/OutputCard.astro` | **Nuevo** - Card mini para ProcessGrid (estilo igual a InputCard/WhisperCard) |
+| `frontend/src/components/OutputsPanel.astro` | **Reescrito** - Panel inline completo (sin modal), form expandible inline |
+| `frontend/src/components/ProcessGrid.astro` | Agregado OutputCard al grid |
+| `frontend/src/lib/modules/outputs.ts` | Funciones para gestión de outputs |
+
+**Arquitectura nueva**:
+
+```
+ProcessGrid (8 cards)
+├── InputCard          (SRT/RTMP/File config)
+├── WhisperCard       (Transcription config)
+├── TranslateCard    (Translation config)
+├── TtsCard          (TTS voice config)
+├── SubtitleCard    (Subtitle format config)
+├── AudioMixerCard   (Mix config)
+├── HlsCard          (Video mux config)
+└── OutputCard      (Mini card → botón "Gestionar salidas" → desplie OutputsPanel inline)
+```
+
+```
+OutputsPanel (inline, expandido)
+├── Salidas 1  ✕          (header + cerrar)
+├── + Nueva salida        (expandir/colapsar form inline)
+│   ├── Tipo: [HLS ▾]
+│   ├── Segmentos: [4]  Lista: [6]   (campos según tipo)
+│   └── [Crear Salida]
+└── Lista de salidas     (cards con toggle + stats + info stream + eliminar)
+```
+
+**Resultado visual**:
+- ✅ Header visible (siempre lo estaba, el servidor no corría al inicio)
+- ✅ OutputCard igual a otros módulos (process-header, process-indicator, process-content, form-group, metrics-row)
+- ✅ Formulario de creación inline (colapsable con click en "+ Nueva salida")
+- ✅ Valores visibles y editables en la misma ventana (no modal)
+- ✅ Panel completo con lista de salidas, toggles, stats, info de stream
+
+**Build commands**:
+```bash
+cd frontend && npm run build:local
+```
+
+**Pendiente**: Rebuild del .exe de escritorio cuando todo esté bien.
 
 ---
 

@@ -268,20 +268,15 @@ export function initHlsPlayer(): void {
       
       if (track) {
         for (const cue of cues) {
-          // Dynamic offset: adjust cue times based on video position
-          // The VTT has relative times (0-based), we adjust by finding
-          // which chunk is currently playing
-          const chunkStart = cue.chunkStart;
-          const offset = videoTime - chunkStart;
+          // VTT has relative timestamp times (0-based within each chunk)
+          // Just use them directly - HLS player handles the sync
+          const startTime = cue.start;
+          const endTime = cue.end;
           
-          // Only show cues that are relevant to current video position
-          // Allow some buffer (5 seconds before/after chunk)
-          const adjustedStart = cue.start + offset;
-          const adjustedEnd = cue.end + offset;
-          
-          // Only add if within visible range (with 10s buffer)
-          if (adjustedEnd >= videoTime - 10 && adjustedStart <= videoTime + 10) {
-            const vttCue = new VTTCue(adjustedStart, adjustedEnd, cue.text);
+          // Only add cues that should be visible now
+          // Use simplified range check
+          if (endTime >= videoTime - 5 && startTime <= videoTime + 60) {
+            const vttCue = new VTTCue(startTime, endTime, cue.text);
             track.addCue(vttCue);
           }
         }
