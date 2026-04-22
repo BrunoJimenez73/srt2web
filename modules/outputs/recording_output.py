@@ -25,14 +25,13 @@ Configuración (output.recording):
 """
 
 import os
-import glob
 import logging
 import subprocess
 import threading
 import time
-import re
+import shutil
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 from datetime import datetime
 
 from core.output_sink import OutputSink
@@ -44,8 +43,9 @@ class RecordingOutput(OutputSink):
     """
     Graba el stream procesado a archivos de video continuos.
 
-    Utiliza FFmpeg para muxear video + audio + subtítulos en tiempo real.
-    Soporta aceleración por hardware (NVENC, QSV, AMF) y split automático.
+    Estrategia: copia cada video + audio chunk a directorio temporal.
+    Al detener (stop()), concatena todos los chunks en un archivo usando
+    concat demuxer de FFmpeg.
     """
 
     def __init__(self, config: dict):
@@ -53,7 +53,6 @@ class RecordingOutput(OutputSink):
 
         self._ffmpeg_path: Optional[str] = None
         self._process: Optional[subprocess.Popen] = None
-        self._input_pipe: Optional[str] = None
         self._output_path: str = ""
         self._current_file: str = ""
         self._segment_index: int = 0
@@ -67,6 +66,9 @@ class RecordingOutput(OutputSink):
         self._start_time: float = 0.0
         self._file_start_time: float = 0.0
         self._pending_data: Optional[PipelineData] = None
+        self._recording_dir: str = ""
+        self._saved_video_paths: List[str] = []
+        self._saved_audio_paths: List[str] = []
 
         self._apply_config(config)
 
@@ -89,6 +91,13 @@ class RecordingOutput(OutputSink):
             f"RecordingOutput configured: format={self._format}, codec={self._codec}, "
             f"quality={self._quality_mode}, split={self._split_mode}:{self._split_value}"
         )
+
+    def set_output_dir(self, output_dir: str) -> None:
+        """Set output directory and prepare recording temp dir."""
+        super().set_output_dir(output_dir)
+        self._recording_dir = os.path.join(output_dir, "recording")
+        os.makedirs(self._recording_dir, exist_ok=True)
+        self.logger.info(f"Recording temp dir: {self._recording_dir}")
 
     def configure(self, config: dict) -> None:
         """Aplicar nueva configuración (para hot-reload)."""
@@ -135,21 +144,10 @@ class RecordingOutput(OutputSink):
             }
         }
 
-    def _get_ffmpeg_cmd(self, output_file: str) -> List[str]:
+    def _build_ffmpeg_cmd(self, output_file: str, input_video: Optional[str],
+                         input_audio: Optional[str], input_subs: Optional[str]) -> List[str]:
         """Construir comando FFmpeg según configuración."""
         cmd = [self._ffmpeg_path, "-y"]
-
-        input_video = None
-        input_audio = None
-        input_subs = None
-
-        if self._pending_data:
-            if hasattr(self._pending_data, 'video_chunk_path') and self._pending_data.video_chunk_path:
-                input_video = self._pending_data.video_chunk_path
-            if hasattr(self._pending_data, 'mixed_audio_path') and self._pending_data.mixed_audio_path:
-                input_audio = self._pending_data.mixed_audio_path
-            if hasattr(self._pending_data, 'subtitles_path') and self._pending_data.subtitles_path:
-                input_subs = self._pending_data.subtitles_path
 
         input_count = 0
 
@@ -157,8 +155,7 @@ class RecordingOutput(OutputSink):
             cmd.extend(["-i", input_video])
             input_count += 1
         else:
-            self.logger.warning(f"Video input not found, cannot record: {input_video}")
-            return []
+            self.logger.debug(f"Video input not found: {input_video}")
 
         if input_audio and os.path.exists(input_audio):
             cmd.extend(["-i", input_audio])
@@ -167,6 +164,10 @@ class RecordingOutput(OutputSink):
         if input_subs and os.path.exists(input_subs) and self._subtitles == "burnt":
             cmd.extend(["-i", input_subs])
             input_count += 1
+
+        if input_count == 0:
+            self.logger.warning("No inputs available for recording")
+            return []
 
         map_args = []
 
@@ -220,8 +221,6 @@ class RecordingOutput(OutputSink):
 
         if self._subtitles == "burnt" and input_count >= 3:
             cmd.extend(["-scodec", "mov_text"])
-        elif self._subtitles == "vtt":
-            pass
 
         cmd.extend([
             "-movflags", "+faststart",
@@ -229,24 +228,15 @@ class RecordingOutput(OutputSink):
             output_file
         ])
 
-        self.logger.info(f"FFmpeg command: {' '.join(filter(None, cmd))}")
+        self.logger.debug(f"FFmpeg cmd: {' '.join(filter(None, cmd))}")
         return cmd
 
-    def _should_split(self) -> bool:
-        """Determinar si se debe hacer split."""
-        if self._split_mode == "none":
-            return False
-
-        if self._split_mode == "time":
-            elapsed = time.time() - self._file_start_time
-            return elapsed >= self._split_value
-
-        elif self._split_mode == "size":
-            if os.path.exists(self._current_file):
-                size_mb = os.path.getsize(self._current_file) / (1024 * 1024)
-                return size_mb >= self._split_value
-
-        return False
+    def _get_ffmpeg_cmd(self, output_file: str) -> List[str]:
+        """Compatibilidad tests: usa pending_data para construir comando."""
+        input_video = getattr(self._pending_data, 'video_chunk_path', None) if self._pending_data else None
+        input_audio = getattr(self._pending_data, 'mixed_audio_path', None) if self._pending_data else None
+        input_subs = getattr(self._pending_data, 'subtitles_path', None) if self._pending_data else None
+        return self._build_ffmpeg_cmd(output_file, input_video, input_audio, input_subs)
 
     def _get_next_output_path(self) -> str:
         """Obtener siguiente ruta de salida (para split)."""
@@ -254,6 +244,19 @@ class RecordingOutput(OutputSink):
         if self._segment_index == 0:
             return self._output_path
         return f"{base}_{self._segment_index:03d}{ext}"
+
+    def _should_split(self) -> bool:
+        """Determinar si se debe hacer split."""
+        if self._split_mode == "none":
+            return False
+        if self._split_mode == "time":
+            elapsed = time.time() - self._file_start_time
+            return elapsed >= self._split_value
+        elif self._split_mode == "size":
+            if os.path.exists(self._current_file):
+                size_mb = os.path.getsize(self._current_file) / (1024 * 1024)
+                return size_mb >= self._split_value
+        return False
 
     def start(self) -> None:
         """Iniciar la grabación."""
@@ -265,14 +268,20 @@ class RecordingOutput(OutputSink):
         self._segment_index = 0
         self._start_time = time.time()
         self._file_start_time = time.time()
+        self._saved_video_paths.clear()
+        self._saved_audio_paths.clear()
 
         os.makedirs(os.path.dirname(self._output_path) or ".", exist_ok=True)
+
+        if not self._recording_dir:
+            self._recording_dir = os.path.join(self._output_dir or "./output", "recording")
+            os.makedirs(self._recording_dir, exist_ok=True)
 
         self._current_file = self._get_next_output_path()
         self.logger.info(f"Recording started: {self._current_file}")
 
     def stop(self) -> None:
-        """Detener la grabación."""
+        """Concatenar todos los chunks en un archivo y limpiar."""
         self._running = False
 
         if self._process:
@@ -281,7 +290,7 @@ class RecordingOutput(OutputSink):
                 self._process.stdin.close()
                 self._process.wait(timeout=5)
             except Exception as e:
-                self.logger.error(f"Error stopping FFmpeg: {e}")
+                self.logger.warning(f"Error closing FFmpeg: {e}")
                 try:
                     self._process.terminate()
                 except:
@@ -289,64 +298,142 @@ class RecordingOutput(OutputSink):
             finally:
                 self._process = None
 
+        if self._saved_video_paths:
+            self._do_concat()
+
+        for f in self._saved_video_paths + self._saved_audio_paths:
+            try:
+                os.remove(f)
+            except OSError:
+                pass
+        self._saved_video_paths.clear()
+        self._saved_audio_paths.clear()
+
+        if self._recording_dir and os.path.exists(self._recording_dir):
+            try:
+                os.rmdir(self._recording_dir)
+            except OSError:
+                pass
+
         duration = time.time() - self._start_time
         self.logger.info(
-            f"Recording stopped. Processed {self._processed_chunks} chunks, "
-            f"{self._bytes_written / (1024*1024):.1f} MB, duration: {duration:.1f}s"
+            f"Recording stopped. {self._processed_chunks} chunks -> {self._output_path}, "
+            f"{self._bytes_written / (1024*1024):.1f} MB, {duration:.1f}s"
         )
 
+    def _do_concat(self) -> None:
+        """Concatenar chunks guardados en un archivo usando concat demuxer."""
+        if not self._saved_video_paths:
+            return
+
+        output_file = os.path.abspath(self._output_path)
+
+        if os.path.exists(output_file):
+            base, ext = os.path.splitext(output_file)
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup = f"{base}_{ts}{ext}"
+            try:
+                os.rename(output_file, backup)
+                self.logger.info(f"Previous recording backed up: {backup}")
+            except Exception as e:
+                self.logger.warning(f"Could not backup previous: {e}")
+
+        concat_list = os.path.join(self._recording_dir, "concat.txt")
+        with open(concat_list, "w", encoding="utf-8") as f:
+            for vp in self._saved_video_paths:
+                if os.path.exists(vp):
+                    f.write(f"file '{vp}'\n")
+
+        cmd = [
+            self._ffmpeg_path, "-y",
+            "-f", "concat", "-safe", "0",
+            "-i", concat_list,
+        ]
+
+        has_audio = bool(self._saved_audio_paths)
+
+        if has_audio:
+            audio_concat = os.path.join(self._recording_dir, "audio_concat.txt")
+            with open(audio_concat, "w", encoding="utf-8") as f:
+                for ap in self._saved_audio_paths:
+                    if os.path.exists(ap):
+                        f.write(f"file '{ap}'\n")
+            cmd.extend(["-f", "concat", "-safe", "0", "-i", audio_concat])
+
+        if has_audio:
+            cmd.extend(["-map", "0:v", "-map", "1:a"])
+        else:
+            cmd.extend(["-map", "0:v"])
+
+        if self._codec == "copy":
+            cmd.extend(["-c:v", "copy"])
+        else:
+            cmd.extend(["-c:v", self._codec])
+            if self._quality_mode == "crf":
+                cmd.extend(["-crf", str(self._video_crf)])
+            else:
+                cmd.extend(["-b:v", self._video_bitrate])
+            cmd.extend(["-preset", self._video_preset])
+
+        if self._audio_codec == "copy":
+            cmd.extend(["-c:a", "copy"])
+        else:
+            cmd.extend(["-c:a", self._audio_codec, "-b:a", self._audio_bitrate])
+
+        cmd.append(output_file)
+
+        self.logger.info(f"Concatenating {len(self._saved_video_paths)} chunks -> {output_file}")
+
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300,
+                creationflags=(
+                    subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                ),
+            )
+            if result.returncode == 0:
+                size = os.path.getsize(output_file)
+                self._bytes_written = size
+                self.logger.info(f"Recording saved: {output_file} ({size / (1024*1024):.1f} MB)")
+            else:
+                self.logger.error(f"Concat failed: {result.stderr[-500:]}")
+        except subprocess.TimeoutExpired:
+            self.logger.error("Concat timed out")
+        except Exception as e:
+            self.logger.error(f"Concat error: {e}")
+
     def write(self, data: PipelineData) -> None:
-        """Escribir datos al archivo de grabación."""
+        """Copiar video + audio chunks a directorio temporal para concat posterior."""
         if not self._running:
             return
 
-        start_time = time.perf_counter()
+        if not self._recording_dir:
+            self._recording_dir = os.path.join(self._output_dir or "./output", "recording")
+            os.makedirs(self._recording_dir, exist_ok=True)
 
-        self._pending_data = data
+        chunk_idx = data.chunk_index
 
-        if self._should_split():
-            self._do_split()
+        if hasattr(data, 'video_chunk_path') and data.video_chunk_path and os.path.exists(data.video_chunk_path):
+            saved_video = os.path.join(self._recording_dir, f"rec_v_{chunk_idx:06d}.ts")
+            try:
+                shutil.copy2(data.video_chunk_path, saved_video)
+                self._saved_video_paths.append(saved_video)
+            except Exception as e:
+                self.logger.warning(f"Could not copy video chunk: {e}")
 
-        self._current_file = self._get_next_output_path()
+        if hasattr(data, 'mixed_audio_path') and data.mixed_audio_path and os.path.exists(data.mixed_audio_path):
+            saved_audio = os.path.join(self._recording_dir, f"rec_a_{chunk_idx:06d}.wav")
+            try:
+                shutil.copy2(data.mixed_audio_path, saved_audio)
+                self._saved_audio_paths.append(saved_audio)
+            except Exception as e:
+                self.logger.warning(f"Could not copy audio chunk: {e}")
 
-        cmd = self._get_ffmpeg_cmd(self._current_file)
-        if not cmd:
-            self.logger.error("Failed to build FFmpeg command")
-            return
-
-        try:
-            if self._segment_index == 0 or not self._process:
-                if self._process:
-                    try:
-                        self._process.stdin.flush()
-                        self._process.stdin.close()
-                        self._process.wait(timeout=5)
-                    except:
-                        pass
-
-                self._process = subprocess.Popen(
-                    cmd,
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE
-                )
-                self._file_start_time = time.time()
-                self.logger.info(f"Started new recording segment: {self._current_file}")
-
-            if self._process and self._process.stdin:
-                self._process.stdin.write(b'\x00')
-                self._process.stdin.flush()
-
-            if os.path.exists(self._current_file):
-                self._bytes_written += os.path.getsize(self._current_file)
-
-            self._processed_chunks += 1
-
-        except Exception as e:
-            self.logger.error(f"Error writing to recording: {e}")
-
-        elapsed = (time.perf_counter() - start_time) * 1000
-        self._last_process_time_ms = elapsed
+        self._processed_chunks += 1
+        self.logger.debug(f"Recording: saved chunk {chunk_idx}")
 
     def _do_split(self) -> None:
         """Realizar split del archivo."""

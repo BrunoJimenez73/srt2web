@@ -41,8 +41,8 @@ class SubtitleGenerator(BaseModule):
 
         # Rolling window for VTT entries (prevent unbounded growth)
         self._vtt_entries: list[dict] = []
-        self._max_vtt_entries = 200  # Keep last 200 subtitle entries (~400s of video)
-        self._vtt_max_age_seconds = 300.0  # Remove entries older than 300 seconds (5 min)
+        self._max_vtt_entries = 2000  # Keep last 2000 subtitle entries (~200 chunks)
+        self._vtt_max_age_seconds = 7200.0  # Remove entries older than 2 hours
 
         self._history = []
         self._max_history = 10
@@ -102,14 +102,14 @@ class SubtitleGenerator(BaseModule):
         if not self._vtt_entries:
             return
 
-        # Get the latest timestamp
-        latest_time = max(entry["end"] for entry in self._vtt_entries)
-        cutoff_time = latest_time - self._vtt_max_age_seconds
+        # Use absolute timestamp: chunk_start + relative end
+        latest_abs = max(entry["chunk_start"] + entry["end"] for entry in self._vtt_entries)
+        cutoff_abs = latest_abs - self._vtt_max_age_seconds
 
-        # Remove entries older than cutoff
+        # Remove entries older than cutoff (absolute time)
         self._vtt_entries = [
             entry for entry in self._vtt_entries
-            if entry["end"] > cutoff_time
+            if (entry["chunk_start"] + entry["end"]) > cutoff_abs
         ]
 
         # Also limit by count

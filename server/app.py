@@ -158,9 +158,14 @@ def create_app(app_context: dict) -> FastAPI:
     app.mount("/subtitles", StaticFiles(directory=str(subtitles_dir), html=False), name="subtitles")
 
     if FRONTEND_DIR.exists():
-        app.mount(
-            "/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend"
-        )
+        static_files = StaticFiles(directory=str(FRONTEND_DIR), html=True)
+
+        async def frontend_scope_aware(scope, receive, send):
+            if scope["type"] == "websocket":
+                return
+            await static_files(scope, receive, send)
+
+        app.mount("/", frontend_scope_aware, name="frontend")
 
     @app.get("/")
     async def serve_index():
