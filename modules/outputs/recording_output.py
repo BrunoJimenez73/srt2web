@@ -141,6 +141,10 @@ class RecordingOutput(OutputSink):
                 "video_bitrate": self._video_bitrate if self._quality_mode == "cbr" else f"CRF{self._video_crf}",
                 "audio_codec": self._audio_codec,
                 "audio_bitrate": self._audio_bitrate,
+                "using_gpu": self._codec in ["h264_nvenc", "h265_nvenc"],
+                "gpu_info": self._gpu_info,
+                "saved_videos": len(self._saved_video_paths),
+                "saved_audios": len(self._saved_audio_paths),
             }
         }
 
@@ -408,27 +412,39 @@ class RecordingOutput(OutputSink):
     def write(self, data: PipelineData) -> None:
         """Copiar video + audio chunks a directorio temporal para concat posterior."""
         if not self._running:
+            self.logger.debug(f"Recording write: not running, skipping")
             return
+
+        self.logger.debug(f"Recording write: processing chunk {data.chunk_index}")
 
         if not self._recording_dir:
             self._recording_dir = os.path.join(self._output_dir or "./output", "recording")
             os.makedirs(self._recording_dir, exist_ok=True)
+            self.logger.info(f"Recording dir: {self._recording_dir}")
 
         chunk_idx = data.chunk_index
 
-        if hasattr(data, 'video_chunk_path') and data.video_chunk_path and os.path.exists(data.video_chunk_path):
+        # Check for video_chunk_path (new) or video_path (legacy)
+        video_path = getattr(data, 'video_chunk_path', None) or getattr(data, 'video_path', None)
+        audio_path = getattr(data, 'mixed_audio_path', None) or getattr(data, 'audio_path', None)
+        
+        self.logger.debug(f"Recording: video_path={video_path}, audio_path={audio_path}")
+        
+        if video_path and os.path.exists(video_path):
             saved_video = os.path.join(self._recording_dir, f"rec_v_{chunk_idx:06d}.ts")
             try:
-                shutil.copy2(data.video_chunk_path, saved_video)
+                shutil.copy2(video_path, saved_video)
                 self._saved_video_paths.append(saved_video)
+                self.logger.debug(f"Recording: saved video {chunk_idx}")
             except Exception as e:
                 self.logger.warning(f"Could not copy video chunk: {e}")
 
-        if hasattr(data, 'mixed_audio_path') and data.mixed_audio_path and os.path.exists(data.mixed_audio_path):
+        if audio_path and os.path.exists(audio_path):
             saved_audio = os.path.join(self._recording_dir, f"rec_a_{chunk_idx:06d}.wav")
             try:
-                shutil.copy2(data.mixed_audio_path, saved_audio)
+                shutil.copy2(audio_path, saved_audio)
                 self._saved_audio_paths.append(saved_audio)
+                self.logger.debug(f"Recording: saved audio {chunk_idx}")
             except Exception as e:
                 self.logger.warning(f"Could not copy audio chunk: {e}")
 

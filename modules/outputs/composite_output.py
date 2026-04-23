@@ -121,18 +121,40 @@ class CompositeOutput(BaseOutput):
                 self._schedule_reconnect(name)
 
     def get_status(self) -> dict:
-        """Obtener estado de todas las salidas."""
-        status = {
-            "type": "composite",
-            "outputs": {},
-            "errors": self._errors.copy()
-        }
-
+        """Obtener estado de todas las salidas (compatible con formato legacy)."""
+        # Obtener el primer output para metrics legacy
+        first_output = None
+        first_name = None
+        with self._lock:
+            if self._outputs:
+                first_name = list(self._outputs.keys())[0]
+                first_output = list(self._outputs.values())[0]
+        
+        # Base del primer output o defaults
+        if first_output and hasattr(first_output, 'get_status'):
+            try:
+                first_status = first_output.get_status()
+                # Escribir merged en el dict principal para compatibilidad con API
+                merged = {
+                    "type": "composite",
+                    "state": first_status.get("state", "idle"),
+                    "enabled": first_status.get("enabled", True),
+                    "processed_chunks": first_status.get("processed_chunks", 0),
+                    "last_process_time_ms": first_status.get("last_process_time_ms", 0),
+                    "extra": first_status.get("extra", {}),
+                }
+            except Exception:
+                merged = {"type": "composite", "state": "idle", "enabled": True}
+        else:
+            merged = {"type": "composite", "state": "idle", "enabled": True}
+        
+        # Agregar outputs individuales
+        outputs_dict = {}
         with self._lock:
             for name, output in self._outputs.items():
                 try:
                     output_status = output.get_status()
-                    status["outputs"][name] = {
+                    outputs_dict[name] = {
                         "name": name,
                         "state": output_status.get("state", "unknown"),
                         "enabled": output_status.get("enabled", True),
@@ -141,14 +163,16 @@ class CompositeOutput(BaseOutput):
                         "extra": output_status.get("extra", {})
                     }
                 except Exception as e:
-                    status["outputs"][name] = {
+                    outputs_dict[name] = {
                         "name": name,
                         "state": "error",
                         "enabled": True,
                         "error": str(e)
                     }
-
-        return status
+        
+        merged["outputs"] = outputs_dict
+        merged["errors"] = self._errors.copy()
+        return merged
 
     def get_output_status(self, name: str) -> Optional[OutputStatus]:
         """Obtener estado de una salida específica."""

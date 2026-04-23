@@ -14,7 +14,7 @@ input:
     mode: listener
     latency_ms: 200
     caller_address: ''
-    chunk_duration_sec: 4
+    chunk_duration_sec: 2
   rtmp:
     listen_port: 1935
     app: live
