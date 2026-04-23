@@ -187,6 +187,9 @@ class VideoMuxer(BaseModule):
 
         data.output_hls_path = os.path.join(self._hls_dir, "master.m3u8")
 
+        # Copy video path to data BEFORE removing (for RecordingOutput)
+        data.video_path = input_path
+
         # Clean up old input chunk to save disk space
         try:
             os.remove(input_path)

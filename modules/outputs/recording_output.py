@@ -424,8 +424,8 @@ class RecordingOutput(OutputSink):
 
         chunk_idx = data.chunk_index
 
-        # Check for video_chunk_path (new) or video_path (legacy)
-        video_path = getattr(data, 'video_chunk_path', None) or getattr(data, 'video_path', None)
+        # Check for video_path (set by VideoMuxer before delete) or video_chunk_path
+        video_path = getattr(data, 'video_path', None) or getattr(data, 'video_chunk_path', None)
         audio_path = getattr(data, 'mixed_audio_path', None) or getattr(data, 'audio_path', None)
         
         self.logger.debug(f"Recording: video_path={video_path}, audio_path={audio_path}")
