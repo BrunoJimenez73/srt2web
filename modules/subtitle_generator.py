@@ -205,13 +205,12 @@ class SubtitleGenerator(BaseModule):
         if not segments and text:
             segments = [{"start": 0.0, "end": duration * 0.9, "text": text}]
 
-        # 1. Update rolling VTT for the HLS player (relative timing for seek support)
+        # 1. Update rolling VTT for the HLS player (absolute timestamps!)
         try:
             with self._lock:
-                # Store relative timestamps (0-based for each chunk)
-                # This allows seeking without desync - frontend adds video offset
+                # Store ABSOLUTE timestamps: chunk_start + relative offset
                 for seg in segments:
-                    # Relative timestamps (0-based)
+                    # Relative timestamps from transcript
                     rel_start = seg.get("start", 0)
                     rel_end = seg.get("end", duration)
 
@@ -222,12 +221,15 @@ class SubtitleGenerator(BaseModule):
                         except:
                             pass
 
-                        # Store relative time + chunk start for reference
+                        # ABSOLUTE timestamps: chunk_start + relative offset
+                        abs_start = chunk_start_time + rel_start
+                        abs_end = chunk_start_time + rel_end
+
                         self._vtt_entries.append({
-                            "start": rel_start,  # Relative: 0, 1, 2...
-                            "end": rel_end,
+                            "start": abs_start,  # ABSOLUTE timestamp!
+                            "end": abs_end,      # ABSOLUTE timestamp!
                             "text": clean_text,
-                            "chunk_start": chunk_start_time  # Store for frontend reference
+                            "chunk_start": chunk_start_time
                         })
 
                         logger.info(f"[SUB] {clean_text}")
