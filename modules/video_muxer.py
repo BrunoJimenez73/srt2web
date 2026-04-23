@@ -142,6 +142,38 @@ class VideoMuxer(BaseModule):
         self._log("info", f"[VideoMuxer.write] Processed chunk in {elapsed:.1f}ms")
         return result
 
+    def _do_process(self, data: PipelineData) -> PipelineData:
+        """Generate HLS segment from video chunk."""
+        input_path = data.video_chunk_path
+        if not input_path or not os.path.exists(input_path):
+            return data
+
+        chunk_duration = data.duration or self._hls_segment_duration
+        offset_sec = f"{self._total_duration_emitted:.3f}"
+        segment_name = f"seg_{self._segment_index:06d}.ts"
+
+        # Copy input to HLS segment (passthrough - no re-encoding)
+        try:
+            import shutil
+            dest_path = os.path.join(self._hls_dir, segment_name)
+            shutil.copy2(input_path, dest_path)
+        except Exception:
+            pass
+
+        # Cache duration for manifest
+        self._segment_durations[self._segment_index] = chunk_duration
+        self._total_duration_emitted += chunk_duration
+
+        # Update manifest
+        self._update_manifest()
+        self._segment_index += 1
+
+        # Set output path for RecordingOutput
+        data.output_hls_path = os.path.join(self._hls_dir, "master.m3u8")
+        data.video_path = input_path  # For RecordingOutput
+
+        return data
+
     def _update_manifest(self) -> None:
         """
         Write/update the HLS manifests (master and media playlists).

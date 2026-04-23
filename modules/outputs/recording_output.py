@@ -424,32 +424,35 @@ class RecordingOutput(OutputSink):
 
         chunk_idx = data.chunk_index
 
-        # Check for video_path (set by VideoMuxer before delete) or video_chunk_path
+        # Check for video_path (set by VideoMuxer) or video_chunk_path (from input)
         video_path = getattr(data, 'video_path', None) or getattr(data, 'video_chunk_path', None)
         audio_path = getattr(data, 'mixed_audio_path', None) or getattr(data, 'audio_path', None)
-        
-        self.logger.debug(f"Recording: video_path={video_path}, audio_path={audio_path}")
-        
+
+        self.logger.info(f"[Recording] chunk {chunk_idx}: video={bool(video_path)}, audio={bool(audio_path)}")
+
         if video_path and os.path.exists(video_path):
             saved_video = os.path.join(self._recording_dir, f"rec_v_{chunk_idx:06d}.ts")
             try:
                 shutil.copy2(video_path, saved_video)
                 self._saved_video_paths.append(saved_video)
-                self.logger.debug(f"Recording: saved video {chunk_idx}")
+                self.logger.info(f"[Recording] saved video chunk {chunk_idx}")
             except Exception as e:
                 self.logger.warning(f"Could not copy video chunk: {e}")
+        elif video_path:
+            self.logger.warning(f"[Recording] video path exists but file not found: {video_path}")
+        else:
+            self.logger.debug(f"[Recording] no video path for chunk {chunk_idx}")
 
         if audio_path and os.path.exists(audio_path):
             saved_audio = os.path.join(self._recording_dir, f"rec_a_{chunk_idx:06d}.wav")
             try:
                 shutil.copy2(audio_path, saved_audio)
                 self._saved_audio_paths.append(saved_audio)
-                self.logger.debug(f"Recording: saved audio {chunk_idx}")
+                self.logger.info(f"[Recording] saved audio chunk {chunk_idx}")
             except Exception as e:
                 self.logger.warning(f"Could not copy audio chunk: {e}")
 
         self._processed_chunks += 1
-        self.logger.debug(f"Recording: saved chunk {chunk_idx}")
 
     def _do_split(self) -> None:
         """Realizar split del archivo."""
