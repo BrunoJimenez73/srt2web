@@ -127,20 +127,20 @@ modules:
     dubbed_volume: 1.0
   video_muxer:
     enabled: true
-    engine: hls
+    engine: webrtc
     hls_segment_duration: 10
     hls_list_size: 6
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
     video_quality: medium
-    video_crf: 23
+    video_crf: 42
     audio_codec: opus
     audio_bitrate: 64k
     audio_samplerate: '48000'
     video_bitrate: 1000k
-    video_fps: 30
-    video_width: 1920
-    video_height: 1080
+    video_fps: 15
+    video_width: 1280
+    video_height: 720
     webrtc_audio_codec: null
     webrtc_audio_bitrate: null
     audio_sample_rate: 24000
