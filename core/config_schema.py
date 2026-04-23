@@ -469,21 +469,25 @@ class SRT2WebConfig(BaseModel):
 
     @model_validator(mode='after')
     def validate_chunk_duration_consistency(self) -> 'SRT2WebConfig':
-        """Valida consistencia - usa pipeline como fallback si input no tiene valor."""
+        """Unified chunk timing - pipeline is the single source of truth.
+
+        All input types and subtitle_generator use pipeline.chunk_duration_sec.
+        - SRT minimum: 2s (OBS keyframe constraint)
+        - HLS segment: 4s minimum
+        - OBS keyframe warning if < 10s
+        """
         pipeline_chunk = self.pipeline.chunk_duration_sec
 
-        # Fallback: si input no tiene chunk_duration, usar el de pipeline
-        # Los objetos input siempre existen (default_factory), verificamos valor
-        if self.input.srt.chunk_duration_sec is None or self.input.srt.chunk_duration_sec == 0:
-            self.input.srt.chunk_duration_sec = pipeline_chunk
+        # Enforce minimums
+        pipeline_chunk = max(2, pipeline_chunk)  # Hard minimum
 
-        if self.input.rtmp.chunk_duration_sec is None or self.input.rtmp.chunk_duration_sec == 0:
-            self.input.rtmp.chunk_duration_sec = pipeline_chunk
+        # Force all input types to match pipeline value (single source of truth)
+        # OBS keyframe interval minimum ~2s, recommended ~10s
+        self.input.srt.chunk_duration_sec = max(2, pipeline_chunk)
+        self.input.rtmp.chunk_duration_sec = max(2, pipeline_chunk)
+        self.input.file.chunk_duration_sec = max(2, pipeline_chunk)
 
-        if self.input.file.chunk_duration_sec is None or self.input.file.chunk_duration_sec == 0:
-            self.input.file.chunk_duration_sec = pipeline_chunk
-
-        # Subtitle generator usa pipeline como source of truth
+        # Subtitle generator must match pipeline timing
         if self.modules.subtitle_generator.enabled:
             self.modules.subtitle_generator.chunk_duration = pipeline_chunk
 

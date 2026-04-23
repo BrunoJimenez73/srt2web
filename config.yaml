@@ -14,7 +14,7 @@ input:
     mode: listener
     latency_ms: 200
     caller_address: ''
-    chunk_duration_sec: 2
+    chunk_duration_sec: 15
   rtmp:
     listen_port: 1935
     app: live
@@ -26,7 +26,7 @@ input:
     path: C:\Users\bruno\Desktop\We-Have-to-Talk-About-Anthropic-s-Mythos_Media_oBZ5W758y4o_001_1080p.mp4
     loop: false
     speed: 1.0
-    chunk_duration_sec: 2
+    chunk_duration_sec: 15
 output:
   type: web
   web:

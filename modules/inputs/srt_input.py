@@ -49,7 +49,7 @@ class SRTInput(InputSource):
         self._srt_caller_address = config.get("caller_address", "")
 
         # Configuración de chunks
-        self._chunk_duration = config.get("chunk_duration_sec", 15)
+        self._chunk_duration = config.get("chunk_duration_sec", 10)
 
         # Estado interno
         self._ffmpeg_path: Optional[str] = None

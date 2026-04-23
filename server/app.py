@@ -162,17 +162,12 @@ def create_app(app_context: dict) -> FastAPI:
 
         async def frontend_scope_aware(scope, receive, send):
             if scope["type"] == "websocket":
-                # WebSocket connections should be handled by websocket routes, not static files
-                # Return 404 to let the websocket route handler take over
-                await send({
-                    "type": "http.response.start",
-                    "status": 404,
-                    "headers": [[b"content-type", b"text/plain"]],
-                })
-                await send({
-                    "type": "http.response.body",
-                    "body": b"Not a websocket endpoint",
-                })
+                # WebSocket connections should be handled by websocket routes
+                # Close the connection without accepting (let websocket routes handle it)
+                try:
+                    await send({"type": "websocket.close", "code": 1003})
+                except Exception:
+                    pass
                 return
             await static_files(scope, receive, send)
 

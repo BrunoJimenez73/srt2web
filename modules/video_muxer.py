@@ -118,88 +118,29 @@ class VideoMuxer(BaseModule):
         start_time = time.perf_counter()
         
         self._log("info", f"[VideoMuxer.write] Received data chunk {getattr(data, 'chunk_index', 'None')}")
-        self._log("info", f"[VideoMuxer.write] Data type: {type(data)}")
-        if hasattr(data, '__dict__'):
-            self._log("info", f"[VideoMuxer.write] Data keys: {list(data.__dict__.keys())}")
-            for key, value in data.__dict__.items():
-                if 'path' in key.lower() or 'chunk' in key.lower():
-                    self._log("info", f"[VideoMuxer.write] {key}: {value} (exists: {os.path.exists(value) if isinstance(value, str) and value else 'N/A'})")
-        else:
-            self._log("info", f"[VideoMuxer.write] No __dict__ attribute")
         
-        # Ensure we have a video_chunk_path attribute for compatibility with the process method
         if hasattr(data, 'video_path') and not hasattr(data, 'video_chunk_path'):
-            self._log("info", f"[VideoMuxer.write] Copying video_path to video_chunk_path for compatibility")
             data.video_chunk_path = data.video_path
         elif not hasattr(data, 'video_chunk_path'):
-            # Try to get it from a dict
             if isinstance(data, dict) and 'video_path' in data:
-                self._log("info", f"[VideoMuxer.write] Getting video_path from dict for video_chunk_path")
                 data.video_chunk_path = data['video_path']
         
-        # If we still don't have a video_chunk_path, we cannot process
         if not hasattr(data, 'video_chunk_path') or not data.video_chunk_path:
-            self._log("warning", f"[VideoMuxer.write] No video_chunk_path available for chunk {getattr(data, 'chunk_index', 'None')}")
+            self._log("warning", f"[VideoMuxer.write] No video_chunk_path available")
             return data
         
-        # Log the video chunk path for debugging
-        self._log("info", f"[VideoMuxer.write] video_chunk_path: {data.video_chunk_path}")
-        self._log("info", f"[VideoMuxer.write] video_chunk_path exists: {os.path.exists(data.video_chunk_path)}")
-        
-        # Process the data through the video muxer's process method
+        # Process the data
         try:
             result = self.process(data)
-            self._log("info", f"[VideoMuxer.write] process() returned: {type(result)}")
-            if result is not None:
-                self._log("info", f"[VideoMuxer.write] Result has video_chunk_path: {hasattr(result, 'video_chunk_path') and getattr(result, 'video_chunk_path', None)}")
-            
-            # Track processing time
-            elapsed = (time.perf_counter() - start_time) * 1000
-            self._last_process_time_ms = elapsed
-            self._processed_chunks += 1
-            self._log("info", f"[VideoMuxer.write] Processed chunk in {elapsed:.1f}ms")
-            
-            return result
         except Exception as e:
-            self._log("error", f"[VideoMuxer.write] Error in process method: {e}")
-            import traceback
-            self._log("error", f"[VideoMuxer.write] Traceback: {traceback.format_exc()}")
+            self._log("error", f"[VideoMuxer.write] Error: {e}")
             return data
         
-        # Update cumulative duration for next segment (for logging/validation)
-        expected_next_cumulative = data.cumulative_duration + chunk_duration
-        drift = expected_next_cumulative - self._total_duration_emitted
-        if abs(drift) > 0.01:  # 10ms threshold
-            logger.warning(
-                f"[VideoMuxer] Duration drift detected: expected {expected_next_cumulative:.3f}s, "
-                f"was {self._total_duration_emitted:.3f}s (drift: {drift * 1000:.1f}ms)"
-            )
-        self._total_duration_emitted = expected_next_cumulative
-
-        # DEBUG: Log segment timing
-        logger.info(
-            f"[VideoMuxer] Segment {self._segment_index}: duration={chunk_duration:.3f}s, offset={offset_sec}s, total={self._total_duration_emitted:.3f}s"
-        )
-
-        # Update HLS manifest
-        self._update_manifest()
-        self._segment_index += 1
-
-        data.output_hls_path = os.path.join(self._hls_dir, "master.m3u8")
-
-        # Copy video path to data BEFORE removing (for RecordingOutput)
-        data.video_path = input_path
-
-        # Clean up old input chunk to save disk space
-        try:
-            os.remove(input_path)
-        except OSError:
-            pass
-
-        logger.debug(
-            f"HLS segment written: {segment_name} (Duration: {chunk_duration:.3f}s)"
-        )
-        return data
+        elapsed = (time.perf_counter() - start_time) * 1000
+        self._last_process_time_ms = elapsed
+        self._processed_chunks += 1
+        self._log("info", f"[VideoMuxer.write] Processed chunk in {elapsed:.1f}ms")
+        return result
 
     def _update_manifest(self) -> None:
         """
