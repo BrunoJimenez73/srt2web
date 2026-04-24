@@ -74,7 +74,7 @@ output:
     audio_bitrate: 128k
     split_mode: none
     split_value: 600
-    subtitles: vtt
+    subtitles: track
     video_preset: fast
   outputs:
   - name: webplayer_1

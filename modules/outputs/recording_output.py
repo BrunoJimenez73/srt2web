@@ -26,6 +26,7 @@ Configuración (output.recording):
 
 import os
 import sys
+import glob
 import logging
 import subprocess
 import threading
@@ -365,11 +366,25 @@ class RecordingOutput(OutputSink):
                         f.write(f"file '{ap}'\n")
             cmd.extend(["-f", "concat", "-safe", "0", "-i", audio_concat])
 
-        if has_audio:
+        # Concatenar subtitles .srt files
+        subs_track = False
+        if self._subtitles == "track":
+            subs_srt = self._concat_subtitle_chunks()
+            if subs_srt and os.path.exists(subs_srt):
+                cmd.extend(["-i", subs_srt])
+                subs_track = True
+
+        # Map inputs
+        if has_audio and subs_track:
+            cmd.extend(["-map", "0:v", "-map", "1:a", "-map", "2:s"])
+        elif has_audio:
             cmd.extend(["-map", "0:v", "-map", "1:a"])
+        elif subs_track:
+            cmd.extend(["-map", "0:v", "-map", "1:s"])
         else:
             cmd.extend(["-map", "0:v"])
 
+        # Video codec
         if self._codec == "copy":
             cmd.extend(["-c:v", "copy"])
         else:
@@ -380,14 +395,19 @@ class RecordingOutput(OutputSink):
                 cmd.extend(["-b:v", self._video_bitrate])
             cmd.extend(["-preset", self._video_preset])
 
+        # Audio codec
         if self._audio_codec == "copy":
             cmd.extend(["-c:a", "copy"])
         else:
             cmd.extend(["-c:a", self._audio_codec, "-b:a", self._audio_bitrate])
 
+        # Subtitle codec (track mode)
+        if subs_track:
+            cmd.extend(["-c:s", "mov_text"])
+
         cmd.append(output_file)
 
-        self.logger.info(f"Concatenating {len(self._saved_video_paths)} chunks -> {output_file}")
+        self.logger.info(f"Concatenating {len(self._saved_video_paths)} chunks -> {output_file}" + (" + subtitles" if subs_track else ""))
 
         try:
             result = subprocess.run(
@@ -454,6 +474,30 @@ class RecordingOutput(OutputSink):
                 self.logger.warning(f"Could not copy audio chunk: {e}")
 
         self._processed_chunks += 1
+
+    def _concat_subtitle_chunks(self) -> Optional[str]:
+        """Concatenar todos los chunks .srt de subtitles en un solo archivo."""
+        import re
+        srt_files = sorted(glob.glob(os.path.join(self._recording_dir, "chunk_*.srt")))
+        if not srt_files:
+            self.logger.debug("No subtitle .srt chunks found")
+            return None
+        
+        output_srt = os.path.join(self._recording_dir, "recording_subs.srt")
+        
+        try:
+            with open(output_srt, "w", encoding="utf-8") as out:
+                for srt_file in srt_files:
+                    with open(srt_file, "r", encoding="utf-8") as f:
+                        content = f.read().strip()
+                        if content:
+                            out.write(content + "\n\n")
+            
+            self.logger.info(f"Concatenated {len(srt_files)} subtitle chunks -> {output_srt}")
+            return output_srt
+        except Exception as e:
+            self.logger.warning(f"Could not concatenate subtitles: {e}")
+            return None
 
     def _do_split(self) -> None:
         """Realizar split del archivo."""
