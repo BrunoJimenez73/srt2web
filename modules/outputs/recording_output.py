@@ -25,6 +25,7 @@ Configuración (output.recording):
 """
 
 import os
+import sys
 import logging
 import subprocess
 import threading
