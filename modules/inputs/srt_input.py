@@ -41,7 +41,8 @@ class SRTInput(InputSource):
 
     def __init__(self, config: dict):
         super().__init__("srt", config)
-
+        self.logger.info("=== SRTInput CREATED ===")
+        
         # Configuración SRT
         self._srt_port = config.get("listen_port", 9000)
         self._srt_mode = config.get("mode", "listener")
@@ -109,12 +110,57 @@ class SRTInput(InputSource):
         }
 
     def start(self) -> None:
-        """Iniciar receptor SRT."""
+        """Start SRT receiver."""
+        import socket
+        import subprocess
+        
         try:
-            self.logger.info("Starting SRT input...")
+            self.logger.info("=== STARTING SRT INPUT ===")
             self._ensure_stopped()
-            time.sleep(0.5)
-
+            
+            # Wait for port release - with better socket handling on Windows
+            if sys.platform == "win32":
+                self.logger.info(f"Checking port {self._srt_port} availability...")
+                for attempt in range(15):  # Try 15 times (up to 15 seconds)
+                    try:
+                        test_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                        test_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                        test_sock.bind(('0.0.0.0', self._srt_port))
+                        test_sock.close()
+                        self.logger.info(f"✓ Port {self._srt_port} is available")
+                        break
+                    except OSError as e:
+                        self.logger.warning(f"Port {self._srt_port} in use ({e}), attempting cleanup...")
+                        # Aggressive cleanup: kill ALL processes using this port
+                        subprocess.run(["taskkill", "/F", "/IM", "ffmpeg.exe"], 
+                                     capture_output=True, timeout=2)
+                        subprocess.run(["taskkill", "/F", "/IM", "ffprobe.exe"], 
+                                     capture_output=True, timeout=2)
+                        # Also try to kill by finding PID using netstat
+                        try:
+                            result = subprocess.run(
+                                ["powershell", "-Command", 
+                                 f"Get-NetTCPConnection -LocalPort {self._srt_port} -ErrorAction SilentlyContinue | ForEach-Object {{ Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }}"],
+                                capture_output=True, timeout=5
+                            )
+                        except:
+                            pass
+                        if attempt < 14:
+                            time.sleep(1)
+                else:
+                    self.logger.error(f"Port {self._srt_port} still in use after 15 attempts - will try anyway")
+                    # Don't fail - try to start anyway, FFmpeg might handle it
+            else:
+                # Non-Windows: simple check
+                try:
+                    test_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    test_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                    test_sock.bind(('0.0.0.0', self._srt_port))
+                    test_sock.close()
+                    self.logger.info(f"✓ Port {self._srt_port} is available")
+                except OSError:
+                    self.logger.warning(f"Port {self._srt_port} in use, continuing anyway...")
+            
             self._last_chunk_index = -1
             self.logger.info("Getting FFmpeg path...")
             self._ffmpeg_path = ensure_ffmpeg()
@@ -180,32 +226,18 @@ class SRTInput(InputSource):
                 elif self._gpu_info.get("vaapi"):
                     cmd.extend(["-hwaccel", "vaapi"])
 
-            # Resto del comando
+            # Comando FFmpeg para recepción segmentada
             cmd.extend([
                 "-i", srt_url,
-                "-c",
-                "copy",
-                "-f",
-                "segment",
-                "-segment_time",
-                str(self._chunk_duration),
-                "-segment_format",
-                "mpegts",
-                "-reset_timestamps",
-                "1",
-                "-strftime",
-                "0",
-                "-max_muxing_queue_size",
-                "1024",
-                "-fflags",
-                "+genpts+discardcorrupt",
-                "-flush_packets",
-                "-reconnect",
-                "1",
-                "-reconnect_streamed",
-                "1",
-                "-reconnect_delay_max",
-                "5",
+                "-c", "copy",
+                "-f", "segment",
+                "-segment_time", str(self._chunk_duration),
+                "-segment_format", "mpegts",
+                "-reset_timestamps", "1",
+                "-strftime", "0",
+                "-max_muxing_queue_size", "1024",
+                "-fflags", "+genpts+discardcorrupt",
+                "-flush_packets", "1",
                 chunk_pattern,
             ])
 
@@ -380,15 +412,28 @@ class SRTInput(InputSource):
         self._monitor_thread.start()
 
     def _kill_ffmpeg_process(self) -> None:
-        """Matar el proceso FFmpeg actual de forma segura."""
+        """Matar el proceso FFmpeg de forma segura."""
+        import subprocess
         if self._ffmpeg_proc:
             try:
                 if sys.platform == "win32":
+                    # Kill main process and ALL children
                     subprocess.run(
                         ["taskkill", "/F", "/T", "/PID", str(self._ffmpeg_proc.pid)],
                         capture_output=True,
                         creationflags=subprocess.CREATE_NO_WINDOW,
+                        timeout=3,
                     )
+                    # ALSO kill any ffmpeg using the SRT port
+                    try:
+                        subprocess.run(
+                            ["cmd", "/C", f"for /F \"tokens=5\" %a in ('netstat -ano ^| findstr :{self._srt_port} ^| findstr LISTENING') do @echo %a"],
+                            capture_output=True,
+                            creationflags=subprocess.CREATE_NO_WINDOW,
+                            timeout=3,
+                        )
+                    except:
+                        pass
                 else:
                     self._ffmpeg_proc.terminate()
                 self._ffmpeg_proc.wait(timeout=2)
@@ -398,14 +443,57 @@ class SRTInput(InputSource):
                 self._ffmpeg_proc = None
 
     def stop(self) -> None:
-        """Detener receptor SRT."""
-        # Detener watchdog primero
+        """Stop SRT receiver and ensure port release."""
+        import subprocess
+        import socket
+        
+        self.logger.info("=== STOPPING SRT INPUT ===")
+        
+        # Stop watchdog first
         if self._watchdog:
             self._watchdog.stop()
             self._watchdog = None
 
-        # Detener proceso FFmpeg
+        # Kill FFmpeg process
         self._kill_ffmpeg_process()
+
+        # Force kill ALL ffmpeg processes on Windows with stronger cleanup
+        if sys.platform == "win32":
+            self.logger.info("Killing all ffmpeg/ffprobe processes...")
+            
+            # Kill by process name - multiple times for stubborn processes
+            for proc_name in ["ffmpeg.exe", "ffprobe.exe"]:
+                for _ in range(3):
+                    try:
+                        result = subprocess.run(["taskkill", "/F", "/IM", proc_name], 
+                                           capture_output=True, timeout=3)
+                        if result.returncode != 0:
+                            break  # No process found
+                        time.sleep(0.5)
+                    except:
+                        pass
+            
+            # Wait for port to be released with multiple attempts
+            port_free = False
+            for attempt in range(10):  # Try 10 times (up to 10 seconds)
+                try:
+                    test_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    test_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                    test_sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, b'\x00\x00\x00\x00\x00\x00\x00\x00', 8)
+                    test_sock.bind(('0.0.0.0', self._srt_port))
+                    test_sock.close()
+                    self.logger.info(f"✓ Port {self._srt_port} is now FREE")
+                    port_free = True
+                    break
+                except OSError as e:
+                    self.logger.warning(f"Port {self._srt_port} still in use: {e}, attempt {attempt+1}/10")
+                    # Aggressive cleanup
+                    subprocess.run(["taskkill", "/F", "/IM", "ffmpeg.exe"], capture_output=True, timeout=2)
+                    if attempt < 9:
+                        time.sleep(1)
+            
+            if not port_free:
+                self.logger.warning(f"Port {self._srt_port} may not be fully released, trying anyway...")
 
         self.logger.info("SRT input stopped")
 
@@ -569,6 +657,11 @@ class SRTInput(InputSource):
 
     def _ensure_stopped(self) -> None:
         """Asegurar que cualquier proceso anterior esté detenido."""
+        import subprocess
+        import socket
+        
+        self.logger.info("Ensuring SRT input is stopped...")
+        
         # Detener watchdog
         if self._watchdog:
             self._watchdog.stop()
@@ -576,6 +669,29 @@ class SRTInput(InputSource):
 
         # Detener proceso
         self._kill_ffmpeg_process()
+
+        # Additional cleanup: kill any lingering ffmpeg processes
+        if sys.platform == "win32":
+            for proc_name in ["ffmpeg.exe", "ffprobe.exe"]:
+                try:
+                    subprocess.run(["taskkill", "/F", "/IM", proc_name], 
+                                capture_output=True, timeout=2)
+                except:
+                    pass
+        
+        # Wait a moment for socket to be released
+        time.sleep(1)
+        
+        # Verify port is free before returning
+        try:
+            test_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            test_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            test_sock.bind(('0.0.0.0', self._srt_port))
+            test_sock.close()
+            self.logger.info(f"Port {self._srt_port} is ready")
+        except OSError:
+            self.logger.warning(f"Port {self._srt_port} still in use in _ensure_stopped")
+            # Don't wait forever - proceed anyway
 
 
 # Auto-registro en factory
