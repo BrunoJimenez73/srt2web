@@ -233,11 +233,8 @@ class HLSOutput(OutputSink):
         # Actualizar manifest
         self._update_manifest()
 
-        # Limpiar chunk de entrada
-        try:
-            os.remove(input_path)
-        except OSError:
-            pass
+        # No eliminar chunk aqui - RecordingOutput lo necesita
+        # Los chunks se limpian via API cleanup al detener
 
         data.output_hls_path = os.path.join(self._hls_dir, "master.m3u8")
 
