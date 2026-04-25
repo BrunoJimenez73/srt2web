@@ -435,6 +435,14 @@ import Toast from '../components/Toast.astro';
             if (chunksEl && modStatus.processed_chunks !== undefined) {
               chunksEl.textContent = String(modStatus.processed_chunks);
             }
+            var deviceEl = document.getElementById('module-device-' + key);
+            if (deviceEl && modStatus.extra && modStatus.extra.device) {
+              deviceEl.textContent = modStatus.extra.device.toUpperCase();
+            }
+            var encoderEl = document.getElementById('module-encoder-' + key);
+            if (encoderEl && modStatus.extra && modStatus.extra.encoder_mode) {
+              encoderEl.textContent = modStatus.extra.encoder_mode.toUpperCase();
+            }
           });
         }).catch(function() {});
       }
