@@ -1,770 +1,114 @@
 ---
 ---
-
 <div class="output-card" id="card-output">
   <div class="process-header">
     <span class="process-indicator" id="indicator-output"></span>
     <span class="process-title">📤 OUTPUT</span>
-    <span class="gpu-badge" id="output-gpu-badge" style="display: none;">GPU</span>
   </div>
-  
   <div class="process-content">
-    <!-- Lista de salidas configuradas -->
-    <div class="outputs-list" id="outputs-list"></div>
-    
-    <!-- Sección añadir salida -->
-    <div class="add-output-section">
-      <button class="btn-add-output" id="btn-add-output-toggle">
-        <span class="add-icon">▶</span>
-        <span>+ Añadir salida</span>
-      </button>
-      
-      <div class="add-output-form" id="add-output-form" style="display: none;">
-        <div class="form-group">
-          <label class="form-label">Tipo de salida</label>
-          <select class="form-select" id="new-output-type">
-            <option value="web">🌐 Web Player (HLS)</option>
-            <option value="recording">⏺ Grabación</option>
-            <option value="srt">📡 SRT</option>
-            <option value="rtmp">📺 RTMP</option>
-            <option value="file">📁 File</option>
-          </select>
-        </div>
-        
-        <!-- Web Player Settings -->
-        <div class="output-type-settings" id="settings-web">
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Segmentos (s)</label>
-              <input type="number" class="form-input" id="output-web-segment" value="4" min="1" max="30" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Lista</label>
-              <input type="number" class="form-input" id="output-web-list" value="6" min="2" max="30" />
-            </div>
-          </div>
-        </div>
-        
-        <!-- Recording Settings -->
-        <div class="output-type-settings" id="settings-recording" style="display: none;">
-          <div class="form-group">
-            <label class="form-label">Ruta del archivo</label>
-            <input type="text" class="form-input" id="output-recording-path" value="./output/recording.mp4" />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Formato</label>
-              <select class="form-select" id="output-recording-format">
-                <option value="mp4">MP4</option>
-                <option value="mkv">MKV</option>
-                <option value="webm">WebM</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Codec</label>
-              <select class="form-select" id="output-recording-codec">
-                <option value="copy">Copiar sin re-encode</option>
-                <option value="h264_nvenc">NVIDIA H.264</option>
-                <option value="libx264">CPU H.264</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        
-        <!-- SRT Settings -->
-        <div class="output-type-settings" id="settings-srt" style="display: none;">
-          <div class="form-group">
-            <label class="form-label">URL destino</label>
-            <input type="text" class="form-input" id="output-srt-url" value="srt://localhost:9001" />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Modo</label>
-              <select class="form-select" id="output-srt-mode">
-                <option value="caller">Caller</option>
-                <option value="listener">Listener</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Latencia (ms)</label>
-              <input type="number" class="form-input" id="output-srt-latency" value="2000" min="0" max="10000" />
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Video Bitrate</label>
-              <select class="form-select" id="output-srt-vbitrate">
-                <option value="1500k">1500 kbps</option>
-                <option value="2500k">2500 kbps</option>
-                <option value="4000k">4000 kbps</option>
-                <option value="6000k">6000 kbps</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Audio Bitrate</label>
-              <select class="form-select" id="output-srt-abitrate">
-                <option value="96k">96 kbps</option>
-                <option value="128k">128 kbps</option>
-                <option value="192k">192 kbps</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        
-        <!-- RTMP Settings -->
-        <div class="output-type-settings" id="settings-rtmp" style="display: none;">
-          <div class="form-group">
-            <label class="form-label">URL destino</label>
-            <input type="text" class="form-input" id="output-rtmp-url" value="rtmp://localhost/live/stream" />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Video Bitrate</label>
-              <select class="form-select" id="output-rtmp-vbitrate">
-                <option value="1500k">1500 kbps</option>
-                <option value="2500k">2500 kbps</option>
-                <option value="4000k">4000 kbps</option>
-                <option value="6000k">6000 kbps</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Audio Bitrate</label>
-              <select class="form-select" id="output-rtmp-abitrate">
-                <option value="96k">96 kbps</option>
-                <option value="128k">128 kbps</option>
-                <option value="192k">192 kbps</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        
-        <!-- File Settings -->
-        <div class="output-type-settings" id="settings-file" style="display: none;">
-          <div class="form-group">
-            <label class="form-label">Directorio de Salida</label>
-            <input type="text" class="form-input" id="output-file-path" value="./output" />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Guardar Video</label>
-              <select class="form-select" id="output-file-video">
-                <option value="true">Sí</option>
-                <option value="false">No</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Guardar Audio</label>
-              <select class="form-select" id="output-file-audio">
-                <option value="true">Sí</option>
-                <option value="false">No</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Guardar Subtítulos</label>
-            <select class="form-select" id="output-file-subs">
-              <option value="true">Sí</option>
-              <option value="false">No</option>
-            </select>
-          </div>
-        </div>
-        
-        <button class="btn-create-output" id="btn-create-output">Crear Salida</button>
-      </div>
-    </div>
-    
-    <!-- Métricas del OUTPUT -->
-    <div class="form-group" id="output-metrics">
-      <label class="form-label">Métricas</label>
-      <div class="metrics-row">
-        <div class="metric-mini">
-          <span class="metric-label">Tiempo</span>
-          <span class="metric-value" id="module-time-output">--</span>
-        </div>
-        <div class="metric-mini">
-          <span class="metric-label">Chunks</span>
-          <span class="metric-value" id="module-chunks-output">--</span>
-        </div>
-        <div class="metric-mini">
-          <span class="metric-label">Encoder</span>
-          <span class="metric-value" id="module-encoder-output">--</span>
-        </div>
-      </div>
+    <div class="output-list" id="output-list"></div>
+    <div class="metrics-row">
+      <span class="metric-mini"><span class="metric-label">Tiempo</span><span class="metric-value" id="module-time-output">--</span></span>
+      <span class="metric-mini"><span class="metric-label">Chunks</span><span class="metric-value" id="module-chunks-output">--</span></span>
     </div>
   </div>
 </div>
 
 <style>
-  .output-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-dim);
-    border-radius: var(--radius-md);
-    padding: 12px;
-    transition: all 0.3s ease;
-  }
-
-  .output-card.active {
-    border-color: var(--success) !important;
-    box-shadow: 0 0 12px rgba(16, 185, 129, 0.3) !important;
-  }
-
-  .process-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-
-  .process-indicator {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--text-dim);
-    transition: all 0.3s ease;
-  }
-
-  .process-indicator.active {
-    background: #00ff00 !important;
-    box-shadow: 0 0 6px #00ff00, 0 0 12px #00ff00 !important;
-    animation: indicator-pulse 1.5s ease-in-out infinite;
-  }
-
-  @keyframes indicator-pulse {
-    0%, 100% { opacity: 0.8; }
-    50% { opacity: 1; }
-  }
-
-  .process-title {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-prime);
-    flex: 1;
-  }
-
-  .process-content {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  .form-label {
-    font-size: 10px;
-    color: var(--text-sec);
-    font-weight: 500;
-  }
-
-  .form-input, .form-select {
-    width: 100%;
-    padding: 8px 10px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border-dim);
-    border-radius: var(--radius-sm);
-    color: var(--text-prime);
-    font-size: 12px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  .form-input:focus, .form-select:focus {
-    border-color: var(--accent);
-  }
-
-  .form-select {
-    cursor: pointer;
-  }
-
-  /* Lista de salidas */
-  .outputs-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    max-height: 200px;
-    overflow-y: auto;
-  }
-
-  .output-item {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-dim);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-  }
-
-  .output-item.active {
-    border-color: var(--success);
-  }
-
-  .output-item-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 10px;
-    cursor: pointer;
-    background: var(--bg-card);
-  }
-
-  .output-item-header:hover {
-    background: var(--bg-surface);
-  }
-
-  .output-collapse-icon {
-    font-size: 9px;
-    color: var(--text-sec);
-    transition: transform 0.2s;
-  }
-
-  .output-collapse-icon.expanded {
-    transform: rotate(90deg);
-  }
-
-  .output-item-title {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-prime);
-    flex: 1;
-  }
-
-  .output-type-badge {
-    font-size: 8px;
-    background: var(--accent);
-    color: white;
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-weight: 700;
-  }
-
-  .output-item-body {
-    display: none;
-    padding: 10px;
-    border-top: 1px solid var(--border-dim);
-  }
-
-  .output-item-body.expanded {
-    display: block;
-  }
-
-  .output-stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-    margin-bottom: 8px;
-  }
-
-  .output-stat {
-    background: var(--bg-deep);
-    padding: 6px 8px;
-    border-radius: var(--radius-sm);
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .output-stat-label {
-    font-size: 8px;
-    color: var(--text-sec);
-    text-transform: uppercase;
-  }
-
-  .output-stat-value {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-prime);
-  }
-
-  .output-stat-value.success {
-    color: var(--success);
-  }
-
-  .output-stat-value.error {
-    color: var(--error);
-  }
-
-  .output-details {
-    background: var(--bg-deep);
-    border-radius: var(--radius-sm);
-    padding: 8px;
-    margin-bottom: 8px;
-  }
-
-  .output-detail {
-    display: flex;
-    justify-content: space-between;
-    padding: 3px 0;
-    font-size: 10px;
-    border-bottom: 1px solid var(--border-dim);
-  }
-
-  .output-detail:last-child {
-    border-bottom: none;
-  }
-
-  .output-detail-label {
-    color: var(--text-sec);
-  }
-
-  .output-detail-value {
-    color: var(--text-prime);
-    font-family: var(--font-mono);
-    word-break: break-all;
-  }
-
-  .output-item-actions {
-    display: flex;
-    gap: 6px;
-    justify-content: flex-end;
-  }
-
-  .btn-remove-output {
-    padding: 4px 8px;
-    background: var(--bg-deep);
-    border: 1px solid var(--error);
-    border-radius: var(--radius-sm);
-    color: var(--error);
-    font-size: 10px;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .btn-remove-output:hover {
-    background: var(--error);
-    color: white;
-  }
-
-  .output-empty {
-    text-align: center;
-    padding: 16px;
-    color: var(--text-sec);
-    font-size: 11px;
-  }
-
-  /* Sección añadir */
-  .add-output-section {
-    background: var(--bg-surface);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-  }
-
-  .btn-add-output {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    width: 100%;
-    padding: 8px 10px;
-    background: var(--bg-card);
-    border: none;
-    color: var(--text-prime);
-    font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .btn-add-output:hover {
-    background: var(--accent);
-    color: white;
-  }
-
-  .add-icon {
-    font-size: 9px;
-    transition: transform 0.2s;
-  }
-
-  .add-icon.expanded {
-    transform: rotate(90deg);
-  }
-
-  .add-output-form {
-    display: none;
-    padding: 10px;
-    border-top: 1px solid var(--border-dim);
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .add-output-form.expanded {
-    display: flex;
-  }
-
-  .output-type-settings {
-    display: none;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .btn-create-output {
-    width: 100%;
-    padding: 8px;
-    background: var(--accent);
-    border: none;
-    border-radius: var(--radius-sm);
-    color: white;
-    font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .btn-create-output:hover {
-    background: var(--accent-hover, #3b82f6);
-  }
-
-  .metrics-row {
-    display: flex;
-    gap: 12px;
-    padding: 8px;
-    background: var(--bg-surface);
-    border-radius: var(--radius-sm);
-  }
-
-  .metric-mini {
-    flex: 1;
-    text-align: center;
-  }
-
-  .metric-mini .metric-label {
-    display: block;
-    font-size: 9px;
-    color: var(--text-sec);
-    margin-bottom: 2px;
-  }
-
-  .metric-mini .metric-value {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-prime);
-  }
-
-  .gpu-badge {
-    background: var(--text-dim);
-    color: var(--text-sec);
-    font-size: 8px;
-    font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 4px;
-    letter-spacing: 0.5px;
-  }
-
-  .gpu-badge.active {
-    background: linear-gradient(135deg, #76b900, #a8e600);
-    color: #000;
-  }
-
-  /* Toggle styles */
-  
+.output-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+.process-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.process-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+.process-indicator.active {
+  background: #00ff00;
+  box-shadow: 0 0 6px #00ff00;
+}
+.process-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+.output-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.output-item {
+  background: var(--bg-deep);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+.output-item.active {
+  border-color: var(--success);
+  background: rgba(16,185,129,0.1);
+}
+.output-icon { font-size: 12px; }
+.output-name { color: var(--text-prime); flex: 1; }
+.output-type { color: var(--text-sec); font-size: 10px; text-transform: uppercase; }
+.output-state { font-weight: 600; margin-left: auto; }
+.output-state.running { color: var(--success); }
+.output-chunks { color: var(--text-sec); }
+.metrics-row {
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+}
+.metric-mini {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.metric-label { color: var(--text-sec); font-size: 10px; }
+.metric-value { color: var(--text-prime); font-weight: 600; font-size: 14px; }
 </style>
 
 <script>
-  import { fetchOutputs, addOutput, toggleOutput, removeOutput, getOutputIcon, getOutputTypeName } from '../lib/modules/outputs';
-  import type { OutputStatus } from '../lib/modules/outputs';
+const TYPE_ICONS = { web: '🌐', recording: '⏺', srt: '📡', rtmp: '📺', file: '📁' };
+const TYPE_NAMES = { web: 'HLS', recording: 'Grabar', srt: 'SRT', rtmp: 'RTMP', file: 'Archivo' };
 
-  let outputs: OutputStatus[] = [];
-  const expandedOutputs = new Set<string>();
-
-  function renderOutputs(): void {
-    const listEl = document.getElementById('outputs-list');
-    if (!listEl) return;
-
-    listEl.innerHTML = '';
-
-    if (outputs.length === 0) {
-      listEl.innerHTML = '<div class="output-empty">Sin salidas configuradas</div>';
-      return;
-    }
-
-    outputs.forEach(o => {
-      const isExpanded = expandedOutputs.has(o.name);
-      const item = document.createElement('div');
-      item.className = `output-item${o.state === 'running' ? ' active' : ''}`;
-      
-      let detailsHtml = '';
-      if (o.stream_info) {
-        detailsHtml = `
-          <div class="output-details">
-            ${Object.entries(o.stream_info).slice(0, 6).map(([k, v]) => `
-              <div class="output-detail">
-                <span class="output-detail-label">${k}</span>
-                <span class="output-detail-value">${v}</span>
-              </div>
-            `).join('')}
-          </div>
-        `;
-      }
-
-      item.innerHTML = `
-        <div class="output-item-header" data-output-header="${o.name}">
-          <span class="output-collapse-icon${isExpanded ? ' expanded' : ''}">▶</span>
-          <span class="output-item-title">${getOutputIcon(o.type)} ${o.name}</span>
-          <span class="output-type-badge">${getOutputTypeName(o.type)}</span>
-          <label class="output-card-toggle" onclick="event.stopPropagation()">
-            <input type="checkbox" ${o.enabled ? 'checked' : ''} data-output-toggle="${o.name}" />
-            <span class="toggle-slider${o.enabled ? ' on' : ''}"></span>
-          </label>
-        </div>
-        <div class="output-item-body${isExpanded ? ' expanded' : ''}" data-output-body="${o.name}">
-          <div class="output-stats">
-            <div class="output-stat">
-              <span class="output-stat-label">Chunks</span>
-              <span class="output-stat-value">${o.processed_chunks}</span>
-            </div>
-            <div class="output-stat">
-              <span class="output-stat-label">Estado</span>
-              <span class="output-stat-value ${o.state === 'running' ? 'success' : o.state === 'error' ? 'error' : ''}">${o.state}</span>
-            </div>
-          </div>
-          ${o.error ? `<div class="output-stat-value error" style="padding: 8px; margin-bottom: 8px;">${o.error}</div>` : ''}
-          ${detailsHtml}
-          <div class="output-item-actions">
-            <button class="btn-remove-output" data-output-remove="${o.name}">🗑️ Eliminar</button>
-          </div>
-        </div>
-      `;
-      listEl.appendChild(item);
-    });
-
-    setupOutputListeners();
+function renderOutputs(list) {
+  const el = document.getElementById('output-list');
+  if (!el) return;
+  if (!list || list.length === 0) {
+    el.innerHTML = '<div style="padding:8px;color:var(--text-sec);font-size:12px;">Sin salidas</div>';
+    return;
   }
+  el.innerHTML = list.map(o => `
+    <div class="output-item ${o.state === 'running' ? 'active' : ''}">
+      <span class="output-icon">${TYPE_ICONS[o.type] || '📤'}</span>
+      <span class="output-name">${o.name}</span>
+      <span class="output-type">${TYPE_NAMES[o.type] || o.type}</span>
+      <span class="output-state ${o.state}">${o.state === 'running' ? '✓' : ''}</span>
+      <span class="output-chunks">${o.processed_chunks || 0}</span>
+    </div>
+  `).join('');
+}
 
-  function setupOutputListeners(): void {
-    document.querySelectorAll('[data-output-header]').forEach(header => {
-      header.addEventListener('click', (e) => {
-        const name = (e.currentTarget as HTMLElement).dataset.outputHeader;
-        if (name) {
-          const body = document.querySelector(`[data-output-body="${name}"]`);
-          const icon = (e.currentTarget as HTMLElement).querySelector('.output-collapse-icon');
-          if (expandedOutputs.has(name)) {
-            expandedOutputs.delete(name);
-            body?.classList.remove('expanded');
-            icon?.classList.remove('expanded');
-          } else {
-            expandedOutputs.add(name);
-            body?.classList.add('expanded');
-            icon?.classList.add('expanded');
-          }
-        }
-      });
-    });
+function loadOutputs() {
+  fetch('/api/outputs').then(r => r.json()).then(renderOutputs).catch(() => {});
+}
 
-    document.querySelectorAll('[data-output-toggle]').forEach(toggle => {
-      toggle.addEventListener('change', async (e) => {
-        const name = (e.target as HTMLElement).dataset.outputToggle;
-        const enabled = (e.target as HTMLInputElement).checked;
-        if (name) await toggleOutput(name, enabled);
-      });
-    });
-
-    document.querySelectorAll('[data-output-remove]').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        const name = (e.target as HTMLElement).dataset.outputRemove;
-        if (name && confirm(`Eliminar "${name}"?`)) {
-          await removeOutput(name);
-        }
-      });
-    });
-  }
-
-  function toggleAddForm(): void {
-    const btn = document.getElementById('btn-add-output-toggle');
-    const form = document.getElementById('add-output-form');
-    const icon = btn?.querySelector('.add-icon');
-    if (form) form.classList.toggle('expanded');
-    if (icon) icon.classList.toggle('expanded');
-    if (form?.classList.contains('expanded')) {
-      (form as HTMLElement).style.display = 'flex';
-    } else if (form) {
-      (form as HTMLElement).style.display = 'none';
-    }
-  }
-
-  function updateNewOutputSettings(type: string): void {
-    document.querySelectorAll('.output-type-settings').forEach(el => {
-      (el as HTMLElement).style.display = 'none';
-    });
-    const settingsEl = document.getElementById(`settings-${type}`);
-    if (settingsEl) {
-      (settingsEl as HTMLElement).style.display = 'flex';
-    }
-  }
-
-  async function handleCreateOutput(): Promise<void> {
-    const type = (document.getElementById('new-output-type') as HTMLSelectElement)?.value || 'web';
-    const timestamp = Date.now();
-    const name = `${type}_${timestamp}`;
-
-    let config: Record<string, any> = { type, name };
-
-    if (type === 'web') {
-      config = {
-        ...config,
-        segment_duration: parseInt((document.getElementById('output-web-segment') as HTMLInputElement)?.value || '4'),
-        list_size: parseInt((document.getElementById('output-web-list') as HTMLInputElement)?.value || '6'),
-        audio_offset_ms: 0,
-        encoder_mode: 'auto'
-      };
-    } else if (type === 'recording') {
-      config = {
-        ...config,
-        output_path: (document.getElementById('output-recording-path') as HTMLInputElement)?.value || './output/recording.mp4',
-        format: (document.getElementById('output-recording-format') as HTMLSelectElement)?.value || 'mp4',
-        codec: (document.getElementById('output-recording-codec') as HTMLSelectElement)?.value || 'copy',
-        audio_codec: 'aac',
-      };
-    } else if (type === 'srt') {
-      config = {
-        ...config,
-        url: (document.getElementById('output-srt-url') as HTMLInputElement)?.value || 'srt://localhost:9001',
-        mode: (document.getElementById('output-srt-mode') as HTMLSelectElement)?.value || 'caller',
-        latency_ms: parseInt((document.getElementById('output-srt-latency') as HTMLInputElement)?.value || '2000'),
-        video_bitrate: (document.getElementById('output-srt-vbitrate') as HTMLSelectElement)?.value || '2500k',
-        audio_bitrate: (document.getElementById('output-srt-abitrate') as HTMLSelectElement)?.value || '128k'
-      };
-    } else if (type === 'rtmp') {
-      config = {
-        ...config,
-        url: (document.getElementById('output-rtmp-url') as HTMLInputElement)?.value || 'rtmp://localhost/live/stream',
-        video_bitrate: (document.getElementById('output-rtmp-vbitrate') as HTMLSelectElement)?.value || '2500k',
-        audio_bitrate: (document.getElementById('output-rtmp-abitrate') as HTMLSelectElement)?.value || '128k',
-        encoder_mode: 'auto'
-      };
-    } else if (type === 'file') {
-      config = {
-        ...config,
-        output_path: (document.getElementById('output-file-path') as HTMLInputElement)?.value || './output',
-        save_video: (document.getElementById('output-file-video') as HTMLSelectElement)?.value === 'true',
-        save_audio: (document.getElementById('output-file-audio') as HTMLSelectElement)?.value === 'true',
-        save_subs: (document.getElementById('output-file-subs') as HTMLSelectElement)?.value === 'true',
-      };
-    }
-
-    const success = await addOutput({ name, type, config });
-    if (success) {
-      expandedOutputs.add(name);
-      toggleAddForm();
-    }
-  }
-
-  document.getElementById('btn-add-output-toggle')?.addEventListener('click', toggleAddForm);
-  document.getElementById('btn-create-output')?.addEventListener('click', handleCreateOutput);
-  document.getElementById('new-output-type')?.addEventListener('change', (e) => {
-    updateNewOutputSettings((e.target as HTMLSelectElement).value);
-  });
-
-  outputs = await fetchOutputs().catch(() => []);
-  renderOutputs();
-
-  setInterval(async () => {
-    outputs = await fetchOutputs().catch(() => []);
-    renderOutputs();
-  }, 5000);
+if (typeof window !== 'undefined') {
+  loadOutputs();
+  setInterval(loadOutputs, 3000);
+}
 </script>
