@@ -28,6 +28,10 @@ env/
 ENV/
 .venv
 
+# Libraries (Python specific, not frontend)
+/lib/
+/lib64/
+
 # IDE
 .idea/
 .vscode/

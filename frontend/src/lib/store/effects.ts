@@ -1,0 +1,444 @@
+/**
+ * Effects - DOM updates driven by signal changes.
+ *
+ * Each effect() block runs whenever its dependencies (read .value) change.
+ * These replace the imperative `update*` functions from the old dashboard.ts.
+ *
+ * Call `startEffects()` once during init() and `stopEffects()` on cleanup.
+ */
+
+import { effect, batch } from '@preact/signals-core';
+import {
+  pipelineStatus,
+  pipelineConfig,
+  wsConnected,
+  throughputHistory,
+  throughputAvg,
+  connectionUrls,
+  systemMetrics,
+  isPipelineRunning,
+  connectionMode,
+  pipelineLogs,
+} from './signals';
+import {
+  PipelineState,
+  normalizePipelineState,
+  getModuleState,
+} from '../types/state';
+import { startClockUpdates } from '../utils/clock';
+import { ENCODER_LABELS } from '../utils';
+
+// ── Element refs (lazy) ────────────────────────────────────────────────────────
+
+function el<T extends HTMLElement>(id: string): T | null {
+  return document.getElementById(id) as T | null;
+}
+
+// ── effectPipelineIndicator ────────────────────────────────────────────────────
+
+let _efPipelineIndicator: (() => void) | null = null;
+let _efModuleIndicators: (() => void) | null = null;
+let _efStatusCard: (() => void) | null = null;
+
+function startStatusEffects(): void {
+  // Status dot + text
+  _efStatusCard = effect(() => {
+    const status = pipelineStatus.value;
+    const dot = el<HTMLSpanElement>('status-dot');
+    const text = el<HTMLSpanElement>('status-text');
+
+    if (!dot || !text) return;
+
+    const state = normalizePipelineState(status?.state);
+
+    dot.classList.toggle('running', state === PipelineState.RUNNING);
+    dot.classList.toggle('error', state === PipelineState.ERROR);
+    text.textContent = state === PipelineState.RUNNING ? 'ACTIVO' : 'APAGADO';
+
+    // Start/stop buttons
+    const btnStart = el<HTMLButtonElement>('btn-start');
+    const btnStop = el<HTMLButtonElement>('btn-stop');
+
+    if (btnStart) {
+      const isRunning = state === PipelineState.RUNNING;
+      btnStart.disabled = isRunning;
+      btnStart.style.display = isRunning ? 'none' : '';
+    }
+    if (btnStop) {
+      btnStop.disabled = !isRunning;
+      btnStop.style.display = isRunning ? '' : 'none';
+    }
+  });
+
+  // Module indicators (active state)
+  _efModuleIndicators = effect(() => {
+    const status = pipelineStatus.value;
+    const modules = status?.modules ?? [];
+    const running = isPipelineRunning.value;
+
+    const indicatorMap: Record<string, string> = {
+      srt_input: 'indicator-input',
+      rtmp_input: 'indicator-input',
+      file_input: 'indicator-input',
+      audio_extractor: 'indicator-input',
+      transcriber: 'indicator-whisper',
+      translator: 'indicator-translate',
+      tts_engine: 'indicator-tts',
+      subtitle_generator: 'indicator-subtitle',
+      audio_mixer: 'indicator-audio-mixer',
+      video_muxer: 'indicator-video-muxer',
+      output: 'indicator-video-muxer',
+      webplayer_output: 'indicator-output',
+      srt_output: 'indicator-output',
+      rtmp_output: 'indicator-output',
+      file_output: 'indicator-output',
+    };
+
+    for (const module of modules) {
+      const indicatorId = indicatorMap[module.name];
+      if (!indicatorId) continue;
+      const indicator = el<HTMLSpanElement>(indicatorId);
+      if (!indicator) continue;
+      indicator.classList.toggle('active', running && module.enabled);
+    }
+  });
+
+  // Pipeline indicator (top-left dot in header)
+  _efPipelineIndicator = effect(() => {
+    const status = pipelineStatus.value;
+    const dot = el<HTMLSpanElement>('pipeline-indicator');
+    if (!dot) return;
+    dot.classList.toggle('active', status?.state === 'running');
+  });
+}
+
+function stopStatusEffects(): void {
+  _efStatusCard?.();
+  _efModuleIndicators?.();
+  _efPipelineIndicator?.();
+}
+
+// ── effectMetrics ─────────────────────────────────────────────────────────────
+
+let _efMetrics: (() => void) | null = null;
+
+function startMetricsEffects(): void {
+  _efMetrics = effect(() => {
+    const metrics = systemMetrics.value;
+    const tpAvg = throughputAvg.value;
+
+    // CPU
+    const cpuBar = el<HTMLDivElement>('metric-cpu-bar');
+    const cpuValue = el<HTMLSpanElement>('metric-cpu-value');
+    const cpuItem = el<HTMLDivElement>('metric-cpu');
+    if (cpuBar) cpuBar.style.width = `${metrics.cpu}%`;
+    if (cpuValue) cpuValue.textContent = `${metrics.cpu.toFixed(0)}%`;
+    if (cpuItem) {
+      cpuItem.classList.toggle('warning', metrics.cpu > 70);
+      cpuItem.classList.toggle('critical', metrics.cpu > 90);
+    }
+
+    // Memory
+    const memBar = el<HTMLDivElement>('metric-memory-bar');
+    const memValue = el<HTMLSpanElement>('metric-memory-value');
+    const memPercent = el<HTMLSpanElement>('metric-memory-percent');
+    const memItem = el<HTMLDivElement>('metric-memory');
+    if (memBar) memBar.style.width = `${metrics.memoryPercent}%`;
+    if (memValue) memValue.textContent = `${metrics.memoryMb.toFixed(0)} MB`;
+    if (memPercent) memPercent.textContent = `${metrics.memoryPercent.toFixed(0)}%`;
+    if (memItem) {
+      memItem.classList.toggle('warning', metrics.memoryPercent > 70);
+      memItem.classList.toggle('critical', metrics.memoryPercent > 90);
+    }
+
+    // GPU
+    const gpuBar = el<HTMLDivElement>('metric-gpu-bar');
+    const gpuValue = el<HTMLSpanElement>('metric-gpu-value');
+    const gpuMem = el<HTMLSpanElement>('metric-gpu-memory');
+    const gpuItem = el<HTMLDivElement>('metric-gpu');
+    if (gpuBar) gpuBar.style.width = `${metrics.gpuUtil}%`;
+    if (gpuValue) gpuValue.textContent = `${metrics.gpuUtil.toFixed(0)}%`;
+    if (gpuMem) gpuMem.textContent = metrics.gpuMemMb > 0 ? `${metrics.gpuMemMb.toFixed(0)} MB` : 'N/A';
+    if (gpuItem) {
+      gpuItem.style.display = metrics.gpuMemMb > 0 ? '' : 'none';
+      gpuItem.classList.toggle('warning', metrics.gpuUtil > 80);
+      gpuItem.classList.toggle('critical', metrics.gpuUtil > 95);
+    }
+
+    // Throughput
+    const tpBar = el<HTMLDivElement>('metric-throughput-bar');
+    const tpValue = el<HTMLSpanElement>('metric-throughput-value');
+    if (tpBar) tpBar.style.width = `${Math.min(tpAvg * 10, 100)}%`;
+    if (tpValue) tpValue.textContent = `${tpAvg.toFixed(2)}/s`;
+  });
+}
+
+function stopMetricsEffects(): void {
+  _efMetrics?.();
+}
+
+// ── effectModuleMetrics ──────────────────────────────────────────────────────
+
+let _efModuleMetrics: (() => void) | null = null;
+
+function startModuleMetricsEffects(): void {
+  _efModuleMetrics = effect(() => {
+    const status = pipelineStatus.value;
+    const modules = status?.modules ?? [];
+    const running = isPipelineRunning.value;
+    const tpAvg = throughputAvg.value;
+    const moduleMap = Object.fromEntries(modules.map(m => [m.name, m])) as Record<string, typeof modules[number]>;
+
+    const moduleTimeIds = [
+      'module-time-transcriber', 'module-time-translator',
+      'module-time-tts_engine', 'module-time-subtitle_generator',
+      'module-time-audio_mixer', 'module-time-video_muxer',
+    ];
+    const moduleChunksIds = [
+      'module-chunks-transcriber', 'module-chunks-translator',
+      'module-chunks-tts_engine', 'module-chunks-subtitle_generator',
+      'module-chunks-audio_mixer', 'module-chunks-video_muxer',
+    ];
+    const moduleEncoderIds = [
+      'module-encoder-transcriber', 'module-encoder-translator',
+      'module-encoder-tts_engine', 'module-encoder-subtitle_generator',
+      'module-encoder-audio_mixer', 'module-encoder-video_muxer',
+    ];
+
+    // Per-module time + chunks + GPU badge
+    for (const name of ['transcriber', 'translator', 'tts_engine', 'subtitle_generator', 'audio_mixer']) {
+      const mod = moduleMap[name];
+      const timeEl = el<HTMLSpanElement>(`module-time-${name}`);
+      const chunksEl = el<HTMLSpanElement>(`module-chunks-${name}`);
+      const encoderEl = el<HTMLSpanElement>(`module-encoder-${name}`);
+
+      if (timeEl) {
+        if (running && mod) {
+          const avgMs = tpAvg > 0 ? (1000 / tpAvg).toFixed(0) : '--';
+          timeEl.textContent = `${avgMs}ms`;
+        } else {
+          timeEl.textContent = '--';
+        }
+      }
+
+      if (chunksEl) {
+        chunksEl.textContent = String(mod?.processed_chunks ?? 0);
+      }
+
+      if (encoderEl && mod?.extra) {
+        const label = mod.extra.encoder_label || (mod.extra.using_gpu ? 'GPU' : 'CPU');
+        encoderEl.textContent = label;
+      }
+
+      // GPU badge
+      const badge = el<HTMLSpanElement>(`gpu-badge-${name}`);
+      if (badge && mod?.extra) {
+        const isActive = running && mod.enabled && (mod.processed_chunks ?? 0) > 0;
+        if (mod.extra.using_gpu) {
+          badge.style.display = 'inline';
+          badge.classList.toggle('active', isActive);
+        } else {
+          badge.style.display = 'none';
+        }
+      }
+    }
+
+    // Video muxer special (it's an OutputSink, not in modules list)
+    const vmTimeEl = el<HTMLSpanElement>('module-time-video_muxer');
+    const vmChunksEl = el<HTMLSpanElement>('module-chunks-video_muxer');
+    const vmEncoderEl = el<HTMLSpanElement>('module-encoder-video_muxer');
+
+    if (vmTimeEl) {
+      vmTimeEl.textContent = running && tpAvg > 0
+        ? `${(1000 / tpAvg).toFixed(0)}ms`
+        : '--';
+    }
+    if (vmChunksEl) {
+      vmChunksEl.textContent = String(status?.chunks_processed ?? 0);
+    }
+    if (vmEncoderEl) {
+      const enc = moduleMap['video_muxer'];
+      const label = enc?.extra?.encoder_label
+        ?? (enc?.extra?.using_gpu ? 'GPU' : 'CPU');
+      vmEncoderEl.textContent = label;
+    }
+
+    // Input module metrics (srt_input, rtmp_input, etc.)
+    const inputModule = moduleMap['srt_input'] ?? moduleMap['rtmp_input'] ?? moduleMap['file_input'];
+    const inputTimeEl = el<HTMLSpanElement>('module-time-input');
+    const inputChunksEl = el<HTMLSpanElement>('module-chunks-input');
+    const inputGpuBadge = el<HTMLSpanElement>('gpu-badge-input');
+    const inputEncoderEl = el<HTMLSpanElement>('module-encoder-input');
+
+    if (inputTimeEl) {
+      if (running && inputModule) {
+        inputTimeEl.textContent = tpAvg > 0 ? `${(1000 / tpAvg).toFixed(0)}ms` : '--';
+      } else if (!inputModule?.enabled) {
+        inputTimeEl.textContent = '--';
+      } else if (inputModule?.state === 'error') {
+        inputTimeEl.textContent = 'ERROR';
+        inputTimeEl.style.color = 'var(--error)';
+      } else {
+        inputTimeEl.textContent = 'IDLE';
+      }
+    }
+
+    if (inputChunksEl && inputModule) {
+      inputChunksEl.textContent = String(inputModule.processed_chunks ?? 0);
+    }
+
+    if (inputGpuBadge && inputModule) {
+      const isGpuActive = inputModule.extra?.using_gpu === true;
+      const isActiveProcessing = running && (inputModule.processed_chunks ?? 0) > 0;
+      if (inputModule.enabled && isGpuActive) {
+        inputGpuBadge.style.display = 'inline';
+        inputGpuBadge.classList.toggle('active', isActiveProcessing);
+        inputGpuBadge.textContent = 'GPU';
+      } else {
+        inputGpuBadge.style.display = 'none';
+      }
+    }
+
+    if (inputEncoderEl && inputModule) {
+      const label = inputModule.extra?.encoder_label
+        || (inputModule.extra?.using_gpu ? 'GPU' : 'CPU');
+      inputEncoderEl.textContent = label;
+    }
+  });
+}
+
+function stopModuleMetricsEffects(): void {
+  _efModuleMetrics?.();
+}
+
+// ── effectConnectionUrls ──────────────────────────────────────────────────────
+
+let _efConnectionUrls: (() => void) | null = null;
+
+function startConnectionUrlEffects(): void {
+  _efConnectionUrls = effect(() => {
+    const urls = connectionUrls.value;
+
+    const emissionLabel = el<HTMLSpanElement>('url-emision-label');
+    const emissionValue = el<HTMLSpanElement>('url-emision');
+    const streamValue = el<HTMLSpanElement>('url-stream');
+    const playerLink = el<HTMLAnchorElement>('url-player');
+
+    if (emissionLabel) emissionLabel.textContent = urls.primaryLabel;
+    if (emissionValue) emissionValue.textContent = urls.primaryUrl;
+    if (streamValue) streamValue.textContent = urls.streamUrl;
+    if (playerLink) {
+      playerLink.textContent = urls.playerUrl;
+      playerLink.href = urls.playerUrl;
+    }
+  });
+}
+
+function stopConnectionUrlEffects(): void {
+  _efConnectionUrls?.();
+}
+
+// ── effectWsStatus ────────────────────────────────────────────────────────────
+
+let _efWsStatus: (() => void) | null = null;
+
+function startWsStatusEffect(): void {
+  _efWsStatus = effect(() => {
+    const connected = wsConnected.value;
+    const wsBadge = el<HTMLSpanElement>('ws-status-badge');
+    if (wsBadge) {
+      wsBadge.textContent = connected ? 'WS ON' : 'WS OFF';
+      wsBadge.classList.toggle('active', connected);
+    }
+  });
+}
+
+function stopWsStatusEffect(): void {
+  _efWsStatus?.();
+}
+
+// ── effectClock ───────────────────────────────────────────────────────────────
+
+let _efClock: (() => void) | null = null;
+
+function startClockEffect(): void {
+  _efClock = effect(() => {
+    // Signal dependency to re-run on pipeline changes (clock doesn't depend on it,
+    // but the effect is tracked to ensure proper lifecycle)
+    void pipelineStatus.value;
+    const clock = el<HTMLSpanElement>('live-clock');
+    if (clock) {
+      clock.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+    }
+  });
+  startClockUpdates();
+}
+
+function stopClockEffect(): void {
+  _efClock?.();
+}
+
+// ── effectRemoteMode ──────────────────────────────────────────────────────────
+
+let _efRemoteMode: (() => void) | null = null;
+
+function startRemoteModeEffect(): void {
+  _efRemoteMode = effect(() => {
+    const mode = connectionMode.value;
+    const remoteConfig = el<HTMLDivElement>('remote-config');
+    const btnLocal = el<HTMLButtonElement>('btn-mode-local');
+    const btnRemote = el<HTMLButtonElement>('btn-mode-remote');
+
+    if (remoteConfig) {
+      remoteConfig.style.display = mode === 'remote' ? '' : 'none';
+    }
+    if (btnLocal) btnLocal.classList.toggle('active', mode === 'local');
+    if (btnRemote) btnRemote.classList.toggle('active', mode === 'remote');
+  });
+}
+
+function stopRemoteModeEffect(): void {
+  _efRemoteMode?.();
+}
+
+// ── effectThroughputHistory ───────────────────────────────────────────────────
+
+let _efThroughputHistory: (() => void) | null = null;
+
+function startThroughputEffect(): void {
+  _efThroughputHistory = effect(() => {
+    // Read throughputHistory to subscribe
+    const hist = throughputHistory.value;
+    // Also read config for segment/list_size
+    void pipelineConfig.value;
+    // Re-renders throughput display in module metrics
+  });
+}
+
+function stopThroughputEffect(): void {
+  _efThroughputHistory?.();
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+export function startEffects(): void {
+  startStatusEffects();
+  startMetricsEffects();
+  startModuleMetricsEffects();
+  startConnectionUrlEffects();
+  startWsStatusEffect();
+  startClockEffect();
+  startRemoteModeEffect();
+  startThroughputEffect();
+}
+
+export function stopEffects(): void {
+  stopStatusEffects();
+  stopMetricsEffects();
+  stopModuleMetricsEffects();
+  stopConnectionUrlEffects();
+  stopWsStatusEffect();
+  stopClockEffect();
+  stopRemoteModeEffect();
+  stopThroughputEffect();
+}

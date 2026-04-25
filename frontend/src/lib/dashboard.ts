@@ -1,613 +1,217 @@
-import { apiCall, getConfig, startPipeline, stopPipeline, WSClient, getApiBase } from './api';
-import { getSRTUrl, getRTMPUrl, getStreamUrl, getPlayerUrl, copyToClipboard, showToast, startClockUpdates } from './utils';
-import { ENCODER_LABELS } from './utils';
-import { dashboardStore } from './store';
-import type { Config, Status, LogMessage, ModuleName } from './types';
+/**
+ * Dashboard - Entry point for the SRT2Web frontend.
+ *
+ * This file handles user interactions, API calls, and config collection.
+ * State management is delegated to signals (store/signals.ts).
+ * DOM updates are handled automatically by effects (store/effects.ts).
+ */
 
-// Import toast from modules
+import { apiCall, getConfig, startPipeline, stopPipeline, WSClient, getWebSocketUrl } from './api';
+import { copyToClipboard, showToast } from './utils';
+import { formatTime } from './utils/format';
+import {
+  pipelineStatus,
+  pipelineConfig,
+  wsConnected,
+  updateStatus,
+  addLog,
+  resetThroughput,
+  startEffects,
+  stopEffects,
+  connectionMode,
+} from './store/index';
+import type { Config, Status } from './types';
+
+// ── Notification helper ────────────────────────────────────────────────────────
+
 function showNotification(message: string, type: 'success' | 'error' | 'info' = 'info'): void {
   showToast(message, type);
 }
 
-export const moduleToCard: Record<string, string> = {
-  srt_input: 'card-input',
-  rtmp_input: 'card-input',
-  file_input: 'card-input',
-  audio_extractor: 'card-input',
-  transcriber: 'card-whisper',
-  translator: 'card-translate',
-  tts_engine: 'card-tts',
-  subtitle_generator: 'card-subtitle',
-  audio_mixer: 'card-audio-mixer',
-  video_muxer: 'card-video-muxer',
-  output: 'card-video-muxer', // OutputSink se muestra como video_muxer
-  webplayer_output: 'card-output',
-  srt_output: 'card-output',
-  rtmp_output: 'card-output',
-  file_output: 'card-output'
-};
+// ── Pipeline control ──────────────────────────────────────────────────────────
 
-export const moduleToIndicator: Record<string, string> = {
-  srt_input: 'indicator-input',
-  rtmp_input: 'indicator-input',
-  file_input: 'indicator-input',
-  audio_extractor: 'indicator-input',
-  transcriber: 'indicator-whisper',
-  translator: 'indicator-translate',
-  tts_engine: 'indicator-tts',
-  subtitle_generator: 'indicator-subtitle',
-  audio_mixer: 'indicator-audio-mixer',
-  video_muxer: 'indicator-video-muxer',
-  output: 'indicator-video-muxer', // OutputSink se muestra como video_muxer
-  webplayer_output: 'indicator-output',
-  srt_output: 'indicator-output',
-  rtmp_output: 'indicator-output',
-  file_output: 'indicator-output'
-};
+export async function handleStart(): Promise<void> {
+  const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
+  const btnStop = document.getElementById('btn-stop') as HTMLButtonElement;
 
-let config: Config | null = null;
-let status: Status | null = null;
-let wsClient: WSClient | null = null;
-let localMode: 'local' | 'remote' = 'local';
-let statusPollInterval: ReturnType<typeof setInterval> | null = null;
-
-export function addLog(level: LogMessage['level'], message: string): void {
-  const fn = (window as unknown as { addLog: (l: string, m: string) => void }).addLog;
-  if (fn) fn(level, message);
-}
-
-export function updatePipelineUI(state: Status['state']): void {
-  const dot = document.getElementById('status-dot');
-  const text = document.getElementById('status-text');
-  const startBtn = document.getElementById('btn-start') as HTMLButtonElement;
-  const stopBtn = document.getElementById('btn-stop') as HTMLButtonElement;
-
-  if (dot) dot.classList.toggle('running', state === 'running');
-  if (text) text.textContent = state === 'running' ? 'ACTIVO' : 'APAGADO';
-  if (startBtn) startBtn.disabled = state === 'running';
-  if (stopBtn) stopBtn.disabled = state !== 'running';
-}
-
-// REMOVED DUPLICATE applyConfigToUI - using the one at line ~643 instead
-
-export function updateUrls(): void {
-  if (!config) return;
-  const useIp = '127.0.0.1';
-  
-  const inputType = config.input?.type || 'srt';
-  const urlEmisionLabel = document.getElementById('url-emision-label');
-  const urlEmision = document.getElementById('url-emision');
-  const urlStream = document.getElementById('url-stream');
-  const urlPlayer = document.getElementById('url-player');
-  
-  // Update emission URL based on input type
-  if (urlEmisionLabel && urlEmision) {
-    if (inputType === 'rtmp') {
-      const rtmpPort = config.input?.rtmp?.listen_port || 1935;
-      const rtmpApp = config.input?.rtmp?.app || 'live';
-      const rtmpKey = config.input?.rtmp?.stream_key || 'stream';
-      urlEmisionLabel.textContent = 'RTMP:';
-      urlEmision.textContent = getRTMPUrl(useIp, rtmpPort, rtmpApp, rtmpKey);
-    } else {
-      const srtPort = config.input?.srt?.listen_port || 9000;
-      const srtMode = config.input?.srt?.mode || 'listener';
-      const srtLatency = config.input?.srt?.latency_ms || 3000;
-      urlEmisionLabel.textContent = 'SRT:';
-      urlEmision.textContent = getSRTUrl(useIp, srtPort, srtMode, srtLatency);
-    }
-  }
-  
-  if (urlStream) {
-    const streamUrl = getStreamUrl(useIp);
-    urlStream.textContent = streamUrl;
-  }
-  
-  if (urlPlayer) {
-    const playerUrl = getPlayerUrl(useIp);
-    urlPlayer.textContent = playerUrl;
-    // Only set href if element is an anchor
-    if (urlPlayer instanceof HTMLAnchorElement) {
-      urlPlayer.href = playerUrl;
-    }
-  }
-  
-  // Also update the player URL in OutputCard based on engine mode
-  const outputPlayerDisplay = document.getElementById('url-player-display');
-  if (outputPlayerDisplay) {
-    const engine = config.modules.video_muxer?.engine || 'hls';
-    if (engine === 'webrtc') {
-      // WebRTC player URL
-      outputPlayerDisplay.textContent = `${window.location.origin}/webrtc-player`;
-    } else {
-      // HLS player URL
-      outputPlayerDisplay.textContent = getPlayerUrl(useIp);
-    }
-  }
-}
-
-export function updateModuleStatus(status: Status): void {
-  if (!status.modules) return;
-  
-  const isRunning = status.state === 'running';
-
-  status.modules.forEach((module) => {
-    const indicatorId = moduleToIndicator[module.name];
-    if (indicatorId) {
-      const indicator = document.getElementById(indicatorId);
-      if (indicator) {
-        indicator.classList.toggle('active', isRunning && module.enabled);
-      }
-    }
-  });
-
-  const inputIndicator = document.getElementById('indicator-input');
-  if (inputIndicator && status.input_receiving !== undefined) {
-    const receiving = status.input_receiving === true;
-    inputIndicator.classList.toggle('active', receiving);
-  }
-
-  const outputIndicator = document.getElementById('indicator-output');
-  if (outputIndicator) {
-    // Output indicator: active if streaming or pipeline is running
-    const streaming = status.output_info?.streaming === true;
-    const chunksProcessed = status.chunks_processed ?? 0;
-    outputIndicator.classList.toggle('active', streaming || (isRunning && chunksProcessed > 0));
-  }
-
-  // Video muxer indicator: active if pipeline is running and processing chunks
-  const videoMuxerIndicator = document.getElementById('indicator-video-muxer');
-  if (videoMuxerIndicator) {
-    const videoMuxerModule = status.modules.find(m => m.name === 'video_muxer');
-    if (videoMuxerModule) {
-      videoMuxerIndicator.classList.toggle('active', isRunning && videoMuxerModule.enabled);
-    } else {
-      // Video muxer is an OutputSink, not a module - use pipeline state as proxy
-      const chunksProcessed = status.chunks_processed ?? 0;
-      videoMuxerIndicator.classList.toggle('active', isRunning && chunksProcessed > 0);
-    }
-  }
-
-  const statChunks = document.getElementById('stat-chunks');
-  const statState = document.getElementById('stat-state');
-  if (statChunks) statChunks.textContent = String(status.chunks_processed ?? 0);
-  if (statState) statState.textContent = status.state;
-  
-  updateSystemMetrics(status);
-  updateModulePerformanceMetrics(status.modules);
-  
-  // Note: Input metrics are updated via updateModulePerformanceMetrics using module-time-input and module-chunks-input
-  // The input indicator is updated above based on input_receiving status
-}
-
-let lastChunksProcessed = 0;
-let throughputHistory: number[] = [];
-
-export function updateSystemMetrics(status: Status): void {
-  const system = status.system;
-  
-  const cpuBar = document.getElementById('metric-cpu-bar');
-  const cpuValue = document.getElementById('metric-cpu-value');
-  const cpuItem = document.getElementById('metric-cpu');
-  if (cpuBar && cpuValue && cpuItem && system?.cpu_percent !== undefined) {
-    const cpu = system.cpu_percent;
-    cpuBar.style.width = `${Math.min(cpu, 100)}%`;
-    cpuValue.textContent = `${cpu.toFixed(1)}%`;
-    
-    cpuBar.className = 'metric-bar';
-    if (cpu < 50) cpuBar.classList.add('low');
-    else if (cpu < 80) cpuBar.classList.add('medium');
-    else cpuBar.classList.add('high');
-    
-    cpuItem.className = cpu > 90 ? 'metric-item critical' : cpu > 70 ? 'metric-item warning' : 'metric-item';
-  }
-  
-  const memBar = document.getElementById('metric-memory-bar');
-  const memValue = document.getElementById('metric-memory-value');
-  const memPercent = document.getElementById('metric-memory-percent');
-  const memItem = document.getElementById('metric-memory');
-  if (memBar && memValue && memPercent && memItem && system?.memory_percent !== undefined) {
-    const memMb = system.memory_mb;
-    const memPct = system.memory_percent;
-    memBar.style.width = `${Math.min(memPct, 100)}%`;
-    memValue.textContent = `${memMb.toFixed(0)} MB`;
-    memPercent.textContent = `${memPct.toFixed(1)}%`;
-    
-    memBar.className = 'metric-bar';
-    if (memPct < 50) memBar.classList.add('low');
-    else if (memPct < 80) memBar.classList.add('medium');
-    else memBar.classList.add('high');
-    
-    memItem.className = memPct > 90 ? 'metric-item critical' : memPct > 70 ? 'metric-item warning' : 'metric-item';
-  }
-  
-  const gpuBar = document.getElementById('metric-gpu-bar');
-  const gpuValue = document.getElementById('metric-gpu-value');
-  const gpuMemory = document.getElementById('metric-gpu-memory');
-  const gpuItem = document.getElementById('metric-gpu');
-  if (gpuBar && gpuValue && gpuMemory && gpuItem) {
-    if (system?.gpu_available) {
-      const gpuPct = system.gpu_percent;
-      const gpuMemMb = system.gpu_memory_mb;
-      gpuBar.style.width = `${Math.min(gpuPct, 100)}%`;
-      gpuValue.textContent = `${gpuPct.toFixed(1)}%`;
-      gpuMemory.textContent = `${gpuMemMb.toFixed(0)} MB`;
-      
-      gpuBar.className = 'metric-bar';
-      if (gpuPct < 50) gpuBar.classList.add('low');
-      else if (gpuPct < 80) gpuBar.classList.add('medium');
-      else gpuBar.classList.add('high');
-      
-       gpuItem.className = gpuPct > 90 ? 'metric-item critical' : gpuPct > 70 ? 'metric-item warning' : 'metric-item';
-    } else {
-      gpuBar.style.width = '0%';
-      gpuValue.textContent = 'N/A';
-      gpuMemory.textContent = 'N/A';
-      gpuItem.className = 'metric-item';
-    }
-  }
-  
-  const throughputBar = document.getElementById('metric-throughput-bar');
-  const throughputValue = document.getElementById('metric-throughput-value');
-  if (throughputBar && throughputValue) {
-    const currentChunks = status.chunks_processed ?? 0;
-    const chunkDiff = currentChunks - lastChunksProcessed;
-    lastChunksProcessed = currentChunks;
-    
-    throughputHistory.push(chunkDiff);
-    if (throughputHistory.length > 5) throughputHistory.shift();
-    
-    const avgThroughput = throughputHistory.reduce((a, b) => a + b, 0) / throughputHistory.length;
-    throughputValue.textContent = `${avgThroughput.toFixed(1)}/s`;
-    
-    const throughputPct = Math.min((avgThroughput / 10) * 100, 100);
-    throughputBar.style.width = `${throughputPct}%`;
-  }
-}
-
-export function updateModulePerformanceMetrics(modules: any[]): void {
-  // Update input metrics separately (input is not in modules list)
-  // Find input module in modules array for timing info
-  const inputModule = modules?.find(m => 
-    m.name === 'input' || m.name === 'srt_input' || 
-    m.name === 'rtmp_input' || m.name === 'file_input'
-  );
-  
-  const inputTimeEl = document.getElementById('module-time-input');
-  const inputChunksEl = document.getElementById('module-chunks-input');
-  const inputGpuBadge = document.getElementById('input-gpu-badge');
-  const inputEncoderEl = document.getElementById('module-encoder-input');
-  
-  // Use input module's timing if available, otherwise use global status
-  const moduleStatus = inputModule || status;
-  const isProcessing = moduleStatus?.state === 'running' && (moduleStatus?.chunks_processed ?? 0) > 0;
-  
-  // Update INPUT metrics
-  if (inputTimeEl && moduleStatus) {
-    if (!moduleStatus.enabled) {
-      inputTimeEl.textContent = 'DISABLED';
-      inputTimeEl.style.color = 'var(--text-dim)';
-    } else if (moduleStatus.state === 'running') {
-      // Use the module's last_process_time_ms if available
-      if (inputModule?.last_process_time_ms > 0) {
-        inputTimeEl.textContent = `${inputModule.last_process_time_ms.toFixed(1)}ms`;
-        inputTimeEl.style.color = 'var(--success)';
-      } else if (throughputHistory.length > 0) {
-        const avgThroughput = throughputHistory.reduce((a, b) => a + b, 0) / throughputHistory.length;
-        const avgTimeMs = avgThroughput > 0 ? (1000 / avgThroughput).toFixed(0) : '--';
-        inputTimeEl.textContent = `${avgTimeMs}ms`;
-        inputTimeEl.style.color = 'var(--success)';
-      } else {
-        inputTimeEl.textContent = '--';
-        inputTimeEl.style.color = 'var(--text-sec)';
-      }
-    } else if (moduleStatus.state === 'error') {
-      inputTimeEl.textContent = 'ERROR';
-      inputTimeEl.style.color = 'var(--error)';
-    } else {
-      inputTimeEl.textContent = 'IDLE';
-      inputTimeEl.style.color = 'var(--text-sec)';
-    }
-  }
-  if (inputChunksEl && moduleStatus) {
-    inputChunksEl.textContent = String(moduleStatus.processed_chunks ?? 0);
-  }
-  
-  // Update INPUT GPU badge - show green when actively processing input chunks
-  if (inputGpuBadge && inputModule) {
-    const isGpuActive = inputModule.extra?.using_gpu === true;
-    const isActiveProcessing = moduleStatus?.state === 'running' && (inputModule.processed_chunks ?? 0) > 0;
-    if (inputModule.enabled && isGpuActive) {
-      inputGpuBadge.style.display = 'inline';
-      inputGpuBadge.classList.toggle('active', isActiveProcessing);
-      inputGpuBadge.textContent = isGpuActive ? 'GPU' : 'CPU';
-    } else {
-      inputGpuBadge.style.display = 'none';
-    }
-  }
-  if (inputEncoderEl && inputModule) {
-    const label = inputModule.extra?.encoder_label || (inputModule.extra?.using_gpu ? 'GPU' : 'CPU');
-    inputEncoderEl.textContent = label;
-  }
-
-  // Update video muxer metrics separately (video_muxer is an OutputSink, not in modules list)
-  const videoMuxerTimeEl = document.getElementById('module-time-video_muxer');
-  const videoMuxerChunksEl = document.getElementById('module-chunks-video_muxer');
-  if (videoMuxerTimeEl && status) {
-    if (status.state === 'running' && throughputHistory.length > 0) {
-      const avgThroughput = throughputHistory.reduce((a, b) => a + b, 0) / throughputHistory.length;
-      const avgTimeMs = avgThroughput > 0 ? (1000 / avgThroughput).toFixed(0) : '--';
-      videoMuxerTimeEl.textContent = `${avgTimeMs}ms`;
-      videoMuxerTimeEl.style.color = 'var(--success)';
-    } else {
-      videoMuxerTimeEl.textContent = 'IDLE';
-      videoMuxerTimeEl.style.color = 'var(--text-sec)';
-    }
-  }
-  if (videoMuxerChunksEl && status) {
-    videoMuxerChunksEl.textContent = String(status.chunks_processed ?? 0);
-  }
-
-  // Update output metrics (output is also an OutputSink)
-  const outputTimeEl = document.getElementById('module-time-output');
-  const outputChunksEl = document.getElementById('module-chunks-output');
-  const outputFormatEl = document.getElementById('module-format-output');
-  if (outputTimeEl && status) {
-    if (status.state === 'running' && throughputHistory.length > 0) {
-      const avgThroughput = throughputHistory.reduce((a, b) => a + b, 0) / throughputHistory.length;
-      const avgTimeMs = avgThroughput > 0 ? (1000 / avgThroughput).toFixed(0) : '--';
-      outputTimeEl.textContent = `${avgTimeMs}ms`;
-      outputTimeEl.style.color = 'var(--success)';
-    } else {
-      outputTimeEl.textContent = 'IDLE';
-      outputTimeEl.style.color = 'var(--text-sec)';
-    }
-  }
-  if (outputChunksEl && status) {
-    outputChunksEl.textContent = String(status.chunks_processed ?? 0);
-  }
-  if (outputFormatEl && config) {
-    const outputType = config.output?.type === 'web' ? 'Web' : (config.output?.type || 'Web').toUpperCase();
-    outputFormatEl.textContent = outputType;
-  }
-
-  modules.forEach(module => {
-    // Skip INPUT modules - they are handled separately in this function
-    if (module.name === 'input' || module.name === 'srt_input' || 
-        module.name === 'rtmp_input' || module.name === 'file_input') {
-      return;
-    }
-    
-    // Update main module metrics
-    const timeEl = document.getElementById(`module-time-${module.name}`);
-    if (timeEl) {
-      if (!module.enabled) {
-        timeEl.textContent = 'DISABLED';
-        timeEl.style.color = 'var(--text-dim)';
-      } else if (module.state === 'running') {
-        const lastProcessTime = module.last_process_time_ms > 0 ? `${module.last_process_time_ms.toFixed(1)}ms` : '--';
-        timeEl.textContent = lastProcessTime;
-        timeEl.style.color = 'var(--success)';
-      } else if (module.state === 'error') {
-        timeEl.textContent = 'ERROR';
-        timeEl.style.color = 'var(--error)';
-      } else {
-        timeEl.textContent = 'IDLE';
-        timeEl.style.color = 'var(--text-sec)';
-      }
-    }
-    
-    const memoryEl = document.getElementById(`module-memory-${module.name}`);
-    if (memoryEl && module.memory_mb !== undefined) {
-      memoryEl.textContent = `${module.memory_mb.toFixed(1)} MB`;
-    }
-    
-    const chunksEl = document.getElementById(`module-chunks-${module.name}`);
-    if (chunksEl && module.processed_chunks !== undefined) {
-      chunksEl.textContent = String(module.processed_chunks);
-    }
-
-    if (module.extra) {
-      const isProcessing = module.enabled && module.state === 'running' && module.processed_chunks > 0;
-
-      if (module.name === 'transcriber') {
-        const gpuBadge = document.getElementById('whisper-gpu-badge');
-        const deviceEl = document.getElementById('module-device-transcriber');
-        if (gpuBadge) {
-          if (module.extra.using_gpu) {
-            gpuBadge.style.display = 'inline';
-            gpuBadge.classList.toggle('active', isProcessing);
-          } else {
-            gpuBadge.style.display = 'none';
-          }
-        }
-        if (deviceEl) {
-          deviceEl.textContent = module.extra.device ? module.extra.device.toUpperCase() : '--';
-        }
-      }
-
-      if (module.name === 'tts_engine') {
-        const gpuBadge = document.getElementById('tts-gpu-badge');
-        const deviceEl = document.getElementById('module-device-tts_engine');
-        if (gpuBadge) {
-          if (module.extra.using_gpu) {
-            gpuBadge.style.display = 'inline';
-            gpuBadge.classList.toggle('active', isProcessing);
-          } else {
-            gpuBadge.style.display = 'none';
-          }
-        }
-        if (deviceEl) {
-          deviceEl.textContent = module.extra.device ? module.extra.device.toUpperCase() : '--';
-        }
-      }
-
-      // Actualizar badge GPU tanto para video_muxer como para output
-      // Ambos representan el mismo componente en la UI
-      if (module.name === 'video_muxer' || module.name === 'output') {
-        const gpuBadge = document.getElementById('hls-gpu-badge');
-        const encoderEl = document.getElementById('module-encoder-video_muxer');
-        
-        if (gpuBadge) {
-          if (module.enabled) {
-            gpuBadge.style.display = 'inline';
-            // Estado ABSOLUTAMENTE ESTABLE: no cambia por cada actualización
-            const isGpuActive = module.extra.using_gpu === true;
-            gpuBadge.classList.toggle('active', isProcessing && isGpuActive);
-            gpuBadge.textContent = isGpuActive ? 'GPU' : 'CPU';
-          } else {
-            gpuBadge.style.display = 'none';
-          }
-        }
-        
-        if (encoderEl) {
-          // Usar label del backend (nunca cambia aleatoriamente)
-          const label = module.extra.encoder_label || (module.extra.using_gpu ? 'GPU' : 'CPU');
-          encoderEl.textContent = label;
-        }
-      }
-      
-      // Actualizar métricas del módulo OUTPUT
-      if (module.name === 'output') {
-        const outputTimeEl = document.getElementById('module-time-output');
-        if (outputTimeEl) {
-          if (!module.enabled) {
-            outputTimeEl.textContent = 'DISABLED';
-            outputTimeEl.style.color = 'var(--text-dim)';
-          } else if (module.state === 'running') {
-            const lastProcessTime = module.last_process_time_ms > 0 
-              ? `${module.last_process_time_ms.toFixed(1)}ms` 
-              : '--';
-            outputTimeEl.textContent = lastProcessTime;
-            outputTimeEl.style.color = 'var(--success)';
-          } else if (module.state === 'error') {
-            outputTimeEl.textContent = 'ERROR';
-            outputTimeEl.style.color = 'var(--error)';
-          } else {
-            outputTimeEl.textContent = 'IDLE';
-            outputTimeEl.style.color = 'var(--text-sec)';
-          }
-        }
-        
-        // OUTPUT GPU badge
-        const outputGpuBadge = document.getElementById('output-gpu-badge');
-        const outputEncoderEl = document.getElementById('module-encoder-output');
-        
-        if (outputGpuBadge) {
-          const isGpuActive = module.extra?.using_gpu === true;
-          if (module.enabled && isGpuActive) {
-            outputGpuBadge.style.display = 'inline';
-            outputGpuBadge.classList.toggle('active', isProcessing);
-            outputGpuBadge.textContent = isGpuActive ? 'GPU' : 'CPU';
-          } else {
-            outputGpuBadge.style.display = 'none';
-          }
-        }
-        
-        if (outputEncoderEl) {
-          const label = module.extra?.encoder_label || (module.extra?.using_gpu ? 'GPU' : 'CPU');
-          outputEncoderEl.textContent = label;
-        }
-        
-        // No hacemos nada más para output
-        return;
-      }
-      
-      // INPUT GPU badge - show when using hardware acceleration
-      if (module.name === 'input' || module.name === 'srt_input' || module.name === 'rtmp_input' || module.name === 'file_input') {
-        const inputGpuBadge = document.getElementById('input-gpu-badge');
-        const inputEncoderEl = document.getElementById('module-encoder-input');
-        
-        if (inputGpuBadge) {
-          const isGpuActive = module.extra?.using_gpu === true;
-          if (module.enabled && isGpuActive) {
-            inputGpuBadge.style.display = 'inline';
-            inputGpuBadge.classList.toggle('active', isProcessing);
-            inputGpuBadge.textContent = isGpuActive ? 'GPU' : 'CPU';
-          } else {
-            inputGpuBadge.style.display = 'none';
-          }
-        }
-        
-        if (inputEncoderEl) {
-          const label = module.extra?.encoder_label || (module.extra?.using_gpu ? 'GPU' : 'CPU');
-          inputEncoderEl.textContent = label;
-        }
-      }
-    }
-  });
-}
-
-export async function toggleModule(moduleName: string, enabled: boolean): Promise<void> {
   try {
-    if (moduleName === 'input') {
-      await apiCall('PUT', 'input/toggle', { enabled });
-      await apiCall('PUT', 'output/toggle', { enabled });
-      await apiCall('PUT', `modules/${moduleName}/toggle`, { enabled });
-    }
+    btnStart.disabled = true;
+    btnStart.classList.add('loading');
+    btnStop.disabled = true;
+
+    addLog('INFO', 'Iniciando pipeline...');
+    const result = await startPipeline();
+    updateStatus(result);
+    addLog('INFO', 'Pipeline iniciado');
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    showToast(`Failed to toggle ${moduleName}: ${msg}`, 'error');
+    addLog('ERROR', `Error: ${(e as Error).message}`);
+    btnStart.disabled = false;
+  } finally {
+    btnStart.classList.remove('loading');
   }
 }
 
-export function updateInputFields(): void {
-  const inputType = (document.getElementById('input-type') as HTMLSelectElement)?.value || 'srt';
-  
-  const srtConfig = document.getElementById('input-srt-settings');
-  const rtmpConfig = document.getElementById('input-rtmp-settings');
-  const fileConfig = document.getElementById('input-file-settings');
-  const playerControls = document.getElementById('file-player-controls');
-  
-  if (srtConfig) srtConfig.style.display = inputType === 'srt' ? 'flex' : 'none';
-  if (rtmpConfig) rtmpConfig.style.display = inputType === 'rtmp' ? 'flex' : 'none';
-  if (fileConfig) fileConfig.style.display = inputType === 'file' ? 'flex' : 'none';
-  
-  // Hide player controls by default when switching to file mode (until file is selected)
-  // But if there's already a file path, show them
-  const filePathInput = document.getElementById('input-file-path') as HTMLInputElement;
-  const hasFile = filePathInput && filePathInput.value && filePathInput.value.length > 0;
-  
-  if (playerControls && inputType === 'file' && hasFile) {
-    playerControls.style.display = 'flex';
-    setupFilePlayerControls();
-  } else if (playerControls) {
-    playerControls.style.display = 'none';
-    // Stop polling if switching away from file input
-    if (inputType !== 'file') {
-      stopFileInfoPolling();
+export async function handleStop(): Promise<void> {
+  const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
+  const btnStop = document.getElementById('btn-stop') as HTMLButtonElement;
+
+  if (!confirm('¿Está seguro que desea detener el pipeline?')) {
+    return;
+  }
+
+  try {
+    btnStop.disabled = true;
+    btnStop.classList.add('loading');
+    btnStart.disabled = true;
+
+    addLog('INFO', 'Deteniendo pipeline...');
+    const result = await stopPipeline();
+    updateStatus(result);
+    resetThroughput();
+    addLog('INFO', 'Pipeline detenido');
+  } catch (e) {
+    addLog('ERROR', `Error: ${(e as Error).message}`);
+    btnStop.disabled = false;
+  } finally {
+    btnStop.classList.remove('loading');
+  }
+}
+
+export async function handleSaveConfig(): Promise<void> {
+  const btnSave = document.getElementById('btn-save-config') as HTMLButtonElement;
+
+  try {
+    if (btnSave) {
+      btnSave.disabled = true;
+      btnSave.classList.add('loading');
+    }
+
+    const newConfig = collectConfigFromUI();
+    await apiCall('PUT', '/api/config', { config: newConfig });
+    const cfg = await getConfig();
+    pipelineConfig.value = cfg;
+    applyConfigToUI(cfg);
+    showToast('Configuración guardada', 'success');
+    addLog('INFO', 'Configuración guardada');
+  } catch (e) {
+    const msg = (e as Error).message;
+    showToast(`Error: ${msg}`, 'error');
+    addLog('ERROR', `Error al guardar: ${msg}`);
+  } finally {
+    if (btnSave) {
+      btnSave.disabled = false;
+      btnSave.classList.remove('loading');
     }
   }
 }
 
-export function updateOutputFields(): void {
+// ── Config collection ─────────────────────────────────────────────────────────
+
+export function collectConfigFromUI(): Partial<Config> {
+  const inputType = (document.getElementById('input-type') as HTMLSelectElement)?.value || 'srt';
   const outputType = (document.getElementById('output-type') as HTMLSelectElement)?.value || 'webplayer';
-  
-  const webplayerConfig = document.getElementById('output-webplayer-config');
-  const srtConfig = document.getElementById('output-srt-config');
-  const rtmpConfig = document.getElementById('output-rtmp-config');
-  const fileConfig = document.getElementById('output-file-config');
-  
-  if (webplayerConfig) webplayerConfig.style.display = outputType === 'webplayer' ? 'flex' : 'none';
-  if (srtConfig) srtConfig.style.display = outputType === 'srt' ? 'flex' : 'none';
-  if (rtmpConfig) rtmpConfig.style.display = outputType === 'rtmp' ? 'flex' : 'none';
-  if (fileConfig) fileConfig.style.display = outputType === 'file' ? 'flex' : 'none';
+
+  const chunkDuration = parseInt(
+    (document.getElementById('input-chunk-duration') as HTMLInputElement)?.value
+    || (document.getElementById('input-rtmp-chunk') as HTMLInputElement)?.value
+    || (document.getElementById('input-file-chunk') as HTMLInputElement)?.value
+    || '10'
+  );
+
+  const inputConfig: Record<string, any> = { type: inputType };
+
+  if (inputType === 'srt') {
+    inputConfig.srt = {
+      listen_port: parseInt((document.getElementById('input-srt-port') as HTMLInputElement)?.value || '9000'),
+      mode: (document.getElementById('input-srt-mode') as HTMLSelectElement)?.value || 'listener',
+      latency_ms: parseInt((document.getElementById('input-srt-latency') as HTMLInputElement)?.value || '200'),
+    };
+  } else if (inputType === 'rtmp') {
+    inputConfig.rtmp = {
+      url: (document.getElementById('input-rtmp-url') as HTMLInputElement)?.value || 'rtmp://localhost/live/stream',
+      mode: (document.getElementById('input-rtmp-mode') as HTMLSelectElement)?.value || 'pull',
+      app: (document.getElementById('input-rtmp-app') as HTMLInputElement)?.value || 'live',
+    };
+  } else if (inputType === 'file') {
+    inputConfig.file = {
+      path: (document.getElementById('input-file-path') as HTMLInputElement)?.value || '',
+      loop: (document.getElementById('input-file-loop') as HTMLSelectElement)?.value === 'true',
+      speed: parseFloat((document.getElementById('input-file-speed') as HTMLInputElement)?.value || '1.0'),
+    };
+  }
+
+  const configModules: Record<string, any> = {
+    transcriber: {
+      enabled: (document.getElementById('whisper-enabled') as HTMLInputElement)?.checked ?? true,
+      model: (document.getElementById('whisper-model') as HTMLSelectElement)?.value || 'tiny',
+      language: (document.getElementById('whisper-lang') as HTMLSelectElement)?.value || 'auto',
+      device: (document.getElementById('whisper-device') as HTMLSelectElement)?.value || 'auto',
+    },
+    translator: {
+      enabled: (document.getElementById('translator-enabled') as HTMLInputElement)?.checked ?? true,
+      source_lang: (document.getElementById('translator-source') as HTMLSelectElement)?.value || 'auto',
+      target_lang: (document.getElementById('translator-target') as HTMLSelectElement)?.value || 'es',
+    },
+    tts_engine: {
+      enabled: (document.getElementById('tts-enabled') as HTMLInputElement)?.checked ?? true,
+      engine: (document.getElementById('tts-engine') as HTMLSelectElement)?.value || 'edge-tts',
+      voice: (document.getElementById('tts-engine') as HTMLSelectElement)?.value === 'piper'
+        ? (document.getElementById('tts-voice-piper') as HTMLSelectElement)?.value || 'es_ES-sharvard-medium'
+        : (document.getElementById('tts-voice-edge') as HTMLSelectElement)?.value || 'es-ES-ElviraNeural',
+      speed: parseFloat((document.getElementById('tts-speed') as HTMLInputElement)?.value || '1.0'),
+      device: (document.getElementById('tts-device') as HTMLSelectElement)?.value || 'auto',
+    },
+    subtitle_generator: {
+      enabled: (document.getElementById('subtitle-enabled') as HTMLInputElement)?.checked ?? true,
+      format: (document.getElementById('subtitle-format') as HTMLSelectElement)?.value || 'webvtt',
+      use_translated: (document.getElementById('subtitle-use-translated') as HTMLSelectElement)?.value === 'true',
+    },
+    audio_mixer: {
+      enabled: (document.getElementById('audio-mixer-enabled') as HTMLInputElement)?.checked ?? false,
+      original_volume: parseFloat((document.getElementById('audio-mixer-original-volume') as HTMLInputElement)?.value || '0.3'),
+      dubbed_volume: parseFloat((document.getElementById('audio-mixer-dubbed-volume') as HTMLInputElement)?.value || '1.0'),
+    },
+    video_muxer: {
+      enabled: (document.getElementById('muxer-enabled') as HTMLInputElement)?.checked ?? true,
+      engine: (document.getElementById('video-muxer-engine') as HTMLSelectElement)?.value || 'hls',
+      hls_segment_duration: parseInt((document.getElementById('hls-segment') as HTMLInputElement)?.value || '10'),
+      hls_list_size: parseInt((document.getElementById('hls-list') as HTMLInputElement)?.value || '6'),
+      audio_offset_ms: parseInt((document.getElementById('hls-audio-offset') as HTMLInputElement)?.value || '0'),
+      encoder_mode: (document.getElementById('hls-encoder') as HTMLSelectElement)?.value || 'auto',
+      video_quality: 'medium',
+      video_crf: parseInt((document.getElementById('hls-crf') as HTMLInputElement)?.value || '18'),
+      audio_codec: (document.getElementById('video-muxer-engine') as HTMLSelectElement)?.value === 'webrtc'
+        ? (document.getElementById('webrtc-audio-codec') as HTMLSelectElement)?.value || 'opus'
+        : (document.getElementById('hls-audio-codec') as HTMLSelectElement)?.value || 'aac',
+      audio_bitrate: (document.getElementById('hls-audio-bitrate') as HTMLSelectElement)?.value || '192k',
+      audio_samplerate: '48000',
+      video_codec: (document.getElementById('webrtc-video-codec') as HTMLSelectElement)?.value,
+      video_bitrate: (document.getElementById('webrtc-video-bitrate') as HTMLSelectElement)?.value,
+      video_fps: (document.getElementById('webrtc-video-fps') as HTMLSelectElement)
+        ? parseInt((document.getElementById('webrtc-video-fps') as HTMLSelectElement).value)
+        : undefined,
+      audio_sample_rate: (document.getElementById('webrtc-audio-sample-rate') as HTMLSelectElement)
+        ? parseInt((document.getElementById('webrtc-audio-sample-rate') as HTMLSelectElement).value)
+        : undefined,
+      ...((): { video_width?: number; video_height?: number } => {
+        const resEl = document.getElementById('webrtc-video-resolution') as HTMLSelectElement;
+        if (resEl?.value) {
+          const [w, h] = resEl.value.split('x').map(Number);
+          return { video_width: w, video_height: h };
+        }
+        return {};
+      })(),
+    },
+  };
+
+  return {
+    input: inputConfig,
+    pipeline: { chunk_duration_sec: chunkDuration },
+    modules: configModules,
+  };
 }
 
-export function handleTtsEngineChange(engine: string): void {
-  const ttsDeviceGroup = document.getElementById('tts-device-group');
-  const ttsVoiceEdgeGroup = document.getElementById('tts-voice-edge-group');
-  const ttsVoicePiperGroup = document.getElementById('tts-voice-piper-group');
-  
-  if (ttsDeviceGroup) {
-    ttsDeviceGroup.style.display = engine === 'piper' ? 'block' : 'none';
-  }
-  
-  if (ttsVoiceEdgeGroup && ttsVoicePiperGroup) {
-    const isEdge = engine === 'edge-tts';
-    ttsVoiceEdgeGroup.style.display = isEdge ? 'block' : 'none';
-    ttsVoicePiperGroup.style.display = isEdge ? 'none' : 'block';
-  }
-}
+// ── Config application ─────────────────────────────────────────────────────────
 
 export function applyConfigToUI(cfg: Config): void {
   const inputTypeSelect = document.getElementById('input-type') as HTMLSelectElement;
@@ -638,84 +242,61 @@ export function applyConfigToUI(cfg: Config): void {
   const hlsList = document.getElementById('hls-list') as HTMLInputElement;
   const hlsEncoder = document.getElementById('hls-encoder') as HTMLSelectElement;
   const hlsCrf = document.getElementById('hls-crf') as HTMLInputElement;
+  const hlsAudioOffset = document.getElementById('hls-audio-offset') as HTMLInputElement;
+  const hlsAudioCodec = document.getElementById('hls-audio-codec') as HTMLSelectElement;
+  const hlsAudioBitrate = document.getElementById('hls-audio-bitrate') as HTMLSelectElement;
 
   const inputType = cfg.input?.type || 'srt';
   if (inputTypeSelect) {
     inputTypeSelect.value = inputType;
     updateInputFields();
   }
-  
-  // Load chunk duration from config - use pipeline.chunk_duration_sec as fallback
+
+  // SRT config
+  const srtPortInput = document.getElementById('input-srt-port') as HTMLInputElement;
+  const srtModeSelect = document.getElementById('input-srt-mode') as HTMLSelectElement;
+  const srtLatencyInput = document.getElementById('input-srt-latency') as HTMLInputElement;
+  const inputSrtConfig = cfg.input?.srt;
+  if (srtPortInput && inputSrtConfig?.listen_port) srtPortInput.value = String(inputSrtConfig.listen_port);
+  if (srtModeSelect && inputSrtConfig?.mode) srtModeSelect.value = inputSrtConfig.mode;
+  if (srtLatencyInput && inputSrtConfig?.latency_ms) srtLatencyInput.value = String(inputSrtConfig.latency_ms);
+
+  // Chunk duration
   const srtChunkInput = document.getElementById('input-chunk-duration') as HTMLInputElement;
   const rtmpChunkInput = document.getElementById('input-rtmp-chunk') as HTMLInputElement;
   const fileChunkInput = document.getElementById('input-file-chunk') as HTMLInputElement;
-  
-  const inputSrtConfig = cfg.input?.srt;
+  const pipelineChunkDuration = cfg.pipeline?.chunk_duration_sec || 10;
+  const chunkDuration = pipelineChunkDuration;
+
+  if (srtChunkInput) {
+    srtChunkInput.value = String(inputSrtConfig?.chunk_duration_sec || chunkDuration);
+  }
   const inputRtmpConfig = cfg.input?.rtmp;
   const inputFileConfig = cfg.input?.file;
-  const pipelineChunkDuration = cfg.pipeline?.chunk_duration_sec;
-  
-  console.log('[DEBUG] applyConfigToUI - cfg.input:', cfg.input);
-  console.log('[DEBUG] applyConfigToUI - pipeline.chunk_duration_sec:', pipelineChunkDuration);
-  
-  // Use input-specific chunk_duration, fallback to pipeline value
-  const chunkDuration = pipelineChunkDuration || 5;
-  
-  if (srtChunkInput) {
-    const srtChunk = inputSrtConfig?.chunk_duration_sec;
-    if (srtChunk) {
-      srtChunkInput.value = String(srtChunk);
-      console.log('[DEBUG] Set SRT chunk to input-specific:', srtChunk);
-    } else {
-      srtChunkInput.value = String(chunkDuration);
-      console.log('[DEBUG] Set SRT chunk to pipeline fallback:', chunkDuration);
-    }
-  }
   if (rtmpChunkInput) {
-    const rtmpChunk = inputRtmpConfig?.chunk_duration_sec;
-    if (rtmpChunk) {
-      rtmpChunkInput.value = String(rtmpChunk);
-    } else {
-      rtmpChunkInput.value = String(chunkDuration);
-    }
+    rtmpChunkInput.value = String(inputRtmpConfig?.chunk_duration_sec || chunkDuration);
   }
-  
-  // Load RTMP config fields
+
+  // RTMP config
   const rtmpUrlInput = document.getElementById('input-rtmp-url') as HTMLInputElement;
-  const rtmpModeSelect = document.getElementById('input-rtmp-mode') as HTMLSelectElement;
+  const rtmpModeSelect2 = document.getElementById('input-rtmp-mode') as HTMLSelectElement;
   const rtmpAppInput = document.getElementById('input-rtmp-app') as HTMLInputElement;
-  if (rtmpUrlInput && inputRtmpConfig?.url) {
-    rtmpUrlInput.value = inputRtmpConfig.url;
-  }
-  if (rtmpModeSelect && inputRtmpConfig?.mode) {
-    rtmpModeSelect.value = inputRtmpConfig.mode;
-  }
-  if (rtmpAppInput && inputRtmpConfig?.app) {
-    rtmpAppInput.value = inputRtmpConfig.app;
-  }
-  
-  // Load File config fields
+  if (rtmpUrlInput && inputRtmpConfig?.url) rtmpUrlInput.value = inputRtmpConfig.url;
+  if (rtmpModeSelect2 && inputRtmpConfig?.mode) rtmpModeSelect2.value = inputRtmpConfig.mode;
+  if (rtmpAppInput && inputRtmpConfig?.app) rtmpAppInput.value = inputRtmpConfig.app;
+
+  // File config
   const filePathInput = document.getElementById('input-file-path') as HTMLInputElement;
   const fileLoopSelect = document.getElementById('input-file-loop') as HTMLSelectElement;
   const fileSpeedInput = document.getElementById('input-file-speed') as HTMLInputElement;
-  if (filePathInput && inputFileConfig?.path) {
-    filePathInput.value = inputFileConfig.path;
-  }
-  if (fileLoopSelect && inputFileConfig?.loop !== undefined) {
-    fileLoopSelect.value = inputFileConfig.loop ? 'true' : 'false';
-  }
-  if (fileSpeedInput && inputFileConfig?.speed) {
-    fileSpeedInput.value = String(inputFileConfig.speed);
-  }
+  if (filePathInput && inputFileConfig?.path) filePathInput.value = inputFileConfig.path;
+  if (fileLoopSelect && inputFileConfig?.loop !== undefined) fileLoopSelect.value = inputFileConfig.loop ? 'true' : 'false';
+  if (fileSpeedInput && inputFileConfig?.speed) fileSpeedInput.value = String(inputFileConfig.speed);
   if (fileChunkInput) {
-    const fileChunk = inputFileConfig?.chunk_duration_sec;
-    if (fileChunk) {
-      fileChunkInput.value = String(fileChunk);
-    } else {
-      fileChunkInput.value = String(chunkDuration);
-    }
+    fileChunkInput.value = String(inputFileConfig?.chunk_duration_sec || chunkDuration);
   }
 
+  // Output type
   const outputType = cfg.output?.type === 'web' ? 'webplayer' : (cfg.output?.type || 'webplayer');
   if (outputTypeSelect) {
     outputTypeSelect.value = outputType;
@@ -732,9 +313,7 @@ export function applyConfigToUI(cfg: Config): void {
   if (ttsEnabled) ttsEnabled.checked = cfg.modules.tts_engine.enabled;
   if (ttsEngine) {
     ttsEngine.value = cfg.modules.tts_engine.engine || 'edge-tts';
-    if (ttsDeviceGroup) {
-      ttsDeviceGroup.style.display = ttsEngine.value === 'piper' ? 'block' : 'none';
-    }
+    if (ttsDeviceGroup) ttsDeviceGroup.style.display = ttsEngine.value === 'piper' ? 'block' : 'none';
     if (ttsVoiceEdgeGroup && ttsVoicePiperGroup) {
       const isEdge = ttsEngine.value === 'edge-tts';
       ttsVoiceEdgeGroup.style.display = isEdge ? 'block' : 'none';
@@ -751,48 +330,40 @@ export function applyConfigToUI(cfg: Config): void {
   if (muxerEnabled) muxerEnabled.checked = cfg.modules.video_muxer.enabled;
   if (videoMuxerEngine) {
     videoMuxerEngine.value = cfg.modules.video_muxer.engine || 'hls';
-    // Trigger engine change to show/hide appropriate settings
-    if (window.handleEngineChange) {
-      window.handleEngineChange(videoMuxerEngine.value);
-    }
+    if (window.handleEngineChange) window.handleEngineChange(videoMuxerEngine.value);
   }
   const audioMixerEnabled = document.getElementById('audio-mixer-enabled') as HTMLInputElement;
   if (audioMixerEnabled) audioMixerEnabled.checked = cfg.modules.audio_mixer?.enabled ?? false;
-  
+
   const originalVolume = document.getElementById('audio-mixer-original-volume') as HTMLInputElement;
   if (originalVolume) originalVolume.value = String(cfg.modules.audio_mixer?.original_volume ?? 0.3);
   const originalValue = document.getElementById('audio-mixer-original-value') as HTMLSpanElement;
   if (originalValue) originalValue.textContent = String(cfg.modules.audio_mixer?.original_volume ?? 0.3);
-  
+
   const ttsVolume = document.getElementById('audio-mixer-dubbed-volume') as HTMLInputElement;
   if (ttsVolume) ttsVolume.value = String(cfg.modules.audio_mixer?.tts_volume ?? cfg.modules.audio_mixer?.dubbed_volume ?? 1.0);
   const ttsValue = document.getElementById('audio-mixer-dubbed-value') as HTMLSpanElement;
   if (ttsValue) ttsValue.textContent = String(cfg.modules.audio_mixer?.tts_volume ?? cfg.modules.audio_mixer?.dubbed_volume ?? 1.0);
+
   if (hlsSegment) hlsSegment.value = String(cfg.modules.video_muxer.hls_segment_duration);
   if (hlsList) hlsList.value = String(cfg.modules.video_muxer.hls_list_size);
   if (hlsEncoder) hlsEncoder.value = cfg.modules.video_muxer.encoder_mode;
   if (hlsCrf) hlsCrf.value = String(cfg.modules.video_muxer.video_crf);
-  
-  // Apply HLS audio settings
-  const hlsAudioOffset = document.getElementById('hls-audio-offset') as HTMLInputElement;
-  const hlsAudioCodec = document.getElementById('hls-audio-codec') as HTMLSelectElement;
-  const hlsAudioBitrate = document.getElementById('hls-audio-bitrate') as HTMLSelectElement;
   if (hlsAudioOffset) hlsAudioOffset.value = String(cfg.modules.video_muxer.audio_offset_ms || 0);
   if (hlsAudioCodec) hlsAudioCodec.value = cfg.modules.video_muxer.audio_codec || 'aac';
   if (hlsAudioBitrate) hlsAudioBitrate.value = cfg.modules.video_muxer.audio_bitrate || '192k';
-  
-   // Apply WebRTC settings
-   const webrtcEncoder = document.getElementById('webrtc-encoder') as HTMLSelectElement;
-   const webrtcVideoCodec = document.getElementById('webrtc-video-codec') as HTMLSelectElement;
-   const webrtcVideoBitrate = document.getElementById('webrtc-video-bitrate') as HTMLSelectElement;
-   const webrtcVideoResolution = document.getElementById('webrtc-video-resolution') as HTMLSelectElement;
-   const webrtcVideoFPS = document.getElementById('webrtc-video-fps') as HTMLSelectElement;
-   const webrtcAudioCodec = document.getElementById('webrtc-audio-codec') as HTMLSelectElement;
-   const webrtcAudioBitrate = document.getElementById('webrtc-audio-bitrate') as HTMLSelectElement;
-   const webrtcAudioSampleRate = document.getElementById('webrtc-audio-sample-rate') as HTMLSelectElement;
-   
-   if (webrtcEncoder) webrtcEncoder.value = cfg.modules.video_muxer.encoder_mode || 'auto';
-  
+
+  // WebRTC
+  const webrtcEncoder = document.getElementById('webrtc-encoder') as HTMLSelectElement;
+  const webrtcVideoCodec = document.getElementById('webrtc-video-codec') as HTMLSelectElement;
+  const webrtcVideoBitrate = document.getElementById('webrtc-video-bitrate') as HTMLSelectElement;
+  const webrtcVideoResolution = document.getElementById('webrtc-video-resolution') as HTMLSelectElement;
+  const webrtcVideoFPS = document.getElementById('webrtc-video-fps') as HTMLSelectElement;
+  const webrtcAudioCodec = document.getElementById('webrtc-audio-codec') as HTMLSelectElement;
+  const webrtcAudioBitrate = document.getElementById('webrtc-audio-bitrate') as HTMLSelectElement;
+  const webrtcAudioSampleRate = document.getElementById('webrtc-audio-sample-rate') as HTMLSelectElement;
+
+  if (webrtcEncoder) webrtcEncoder.value = cfg.modules.video_muxer.encoder_mode || 'auto';
   if (webrtcVideoCodec) webrtcVideoCodec.value = cfg.modules.video_muxer.video_codec || 'h264';
   if (webrtcVideoBitrate) webrtcVideoBitrate.value = cfg.modules.video_muxer.video_bitrate || '1000k';
   if (webrtcVideoResolution && cfg.modules.video_muxer.video_width && cfg.modules.video_muxer.video_height) {
@@ -808,346 +379,66 @@ export function applyConfigToUI(cfg: Config): void {
   }
 }
 
-export async function handleStart(): Promise<void> {
-  const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
-  const btnStop = document.getElementById('btn-stop') as HTMLButtonElement;
-  
-  try {
-    btnStart.disabled = true;
-    btnStart.classList.add('loading');
-    btnStop.disabled = true;
-    
-    addLog('info', 'Iniciando pipeline...');
-    const result = await startPipeline();
-    status = result;
-    updatePipelineUI(result.state);
-    addLog('success', 'Pipeline iniciado');
-  } catch (e) {
-    addLog('error', `Error: ${(e as Error).message}`);
-    btnStart.disabled = false;
-  } finally {
-    btnStart.classList.remove('loading');
-  }
-}
+// ── Form visibility helpers ───────────────────────────────────────────────────
 
-export async function handleStop(): Promise<void> {
-  const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
-  const btnStop = document.getElementById('btn-stop') as HTMLButtonElement;
-  
-  if (!confirm('¿Está seguro que desea detener el pipeline?')) {
-    return;
-  }
-  
-  try {
-    btnStop.disabled = true;
-    btnStop.classList.add('loading');
-    btnStart.disabled = true;
-    
-    addLog('info', 'Deteniendo pipeline...');
-    const result = await stopPipeline();
-    status = result;
-    updatePipelineUI(result.state);
-    addLog('info', 'Pipeline detenido');
-  } catch (e) {
-    addLog('error', `Error: ${(e as Error).message}`);
-    btnStop.disabled = false;
-  } finally {
-    btnStop.classList.remove('loading');
-  }
-}
-
-export async function handleSaveConfig(): Promise<void> {
-  const btnSave = document.getElementById('btn-save-config') as HTMLButtonElement;
-  
-  try {
-    if (btnSave) {
-      btnSave.disabled = true;
-      btnSave.classList.add('loading');
-    }
-    
-    const newConfig = collectConfigFromUI();
-    await apiCall('PUT', '/api/config', { config: newConfig });
-    config = await getConfig();
-    dashboardStore.setConfig(config);  // Update centralized store
-    applyConfigToUI(config);
-    showToast('Configuración guardada', 'success');
-    addLog('info', 'Configuración guardada');
-  } catch (e) {
-    const msg = (e as Error).message;
-    showToast(`Error: ${msg}`, 'error');
-    addLog('error', `Error al guardar: ${msg}`);
-  } finally {
-    if (btnSave) {
-      btnSave.disabled = false;
-      btnSave.classList.remove('loading');
-    }
-  }
-}
-
-export function collectConfigFromUI(): Partial<Config> {
+export function updateInputFields(): void {
   const inputType = (document.getElementById('input-type') as HTMLSelectElement)?.value || 'srt';
+
+  const srtConfig = document.getElementById('input-srt-settings');
+  const rtmpConfig = document.getElementById('input-rtmp-settings');
+  const fileConfig = document.getElementById('input-file-settings');
+  const playerControls = document.getElementById('file-player-controls');
+
+  if (srtConfig) srtConfig.style.display = inputType === 'srt' ? 'flex' : 'none';
+  if (rtmpConfig) rtmpConfig.style.display = inputType === 'rtmp' ? 'flex' : 'none';
+  if (fileConfig) fileConfig.style.display = inputType === 'file' ? 'flex' : 'none';
+
+  const filePathInput = document.getElementById('input-file-path') as HTMLInputElement;
+  const hasFile = filePathInput && filePathInput.value && filePathInput.value.length > 0;
+
+  if (playerControls) {
+    if (inputType === 'file' && hasFile) {
+      playerControls.style.display = 'flex';
+      setupFilePlayerControls();
+    } else {
+      playerControls.style.display = 'none';
+      if (inputType !== 'file') stopFileInfoPolling();
+    }
+  }
+}
+
+export function updateOutputFields(): void {
   const outputType = (document.getElementById('output-type') as HTMLSelectElement)?.value || 'webplayer';
-  
-  const inputConfig: Record<string, any> = {
-    type: inputType,
-  };
-  
-  if (inputType === 'srt') {
-    inputConfig.srt = {
-      listen_port: parseInt((document.getElementById('input-srt-port') as HTMLInputElement)?.value || '9000'),
-      mode: (document.getElementById('input-srt-mode') as HTMLSelectElement)?.value || 'listener',
-      latency_ms: parseInt((document.getElementById('input-srt-latency') as HTMLInputElement)?.value || '1000'),
-      chunk_duration_sec: parseInt((document.getElementById('input-chunk-duration') as HTMLInputElement)?.value || '10'),
-    };
-   } else if (inputType === 'rtmp') {
-     inputConfig.rtmp = {
-       url: (document.getElementById('input-rtmp-url') as HTMLInputElement)?.value || 'rtmp://localhost/live/stream',
-       mode: (document.getElementById('input-rtmp-mode') as HTMLSelectElement)?.value || 'pull',
-       app: (document.getElementById('input-rtmp-app') as HTMLInputElement)?.value || 'live',
-       chunk_duration_sec: parseInt((document.getElementById('input-rtmp-chunk') as HTMLInputElement)?.value || '10'),
-     };
-   } else if (inputType === 'file') {
-    inputConfig.file = {
-      path: (document.getElementById('input-file-path') as HTMLInputElement)?.value || '',
-      loop: (document.getElementById('input-file-loop') as HTMLSelectElement)?.value === 'true',
-      speed: parseFloat((document.getElementById('input-file-speed') as HTMLInputElement)?.value || '1.0'),
-      chunk_duration_sec: parseInt((document.getElementById('input-file-chunk') as HTMLInputElement)?.value || '10'),
-    };
-  }
-  
-  const outputConfig: Record<string, any> = {
-    type: outputType === 'webplayer' ? 'web' : outputType,
-  };
-  
-  if (outputType === 'webplayer') {
-    outputConfig.web = {
-      segment_duration: parseInt((document.getElementById('output-hls-duration') as HTMLInputElement)?.value || '4'),
-      list_size: parseInt((document.getElementById('output-hls-list') as HTMLInputElement)?.value || '6'),
-      encoder_mode: (document.getElementById('output-encoder-mode') as HTMLSelectElement)?.value || 'auto',
-    };
-  }
-  
-  const configModules: any = {
-      transcriber: {
-        enabled: (document.getElementById('whisper-enabled') as HTMLInputElement)?.checked ?? true,
-        model: (document.getElementById('whisper-model') as HTMLSelectElement)?.value || 'tiny',
-        language: (document.getElementById('whisper-lang') as HTMLSelectElement)?.value || 'auto',
-        device: (document.getElementById('whisper-device') as HTMLSelectElement)?.value || 'auto'
-      },
-      translator: {
-        enabled: (document.getElementById('translator-enabled') as HTMLInputElement)?.checked ?? true,
-        source_lang: (document.getElementById('translator-source') as HTMLSelectElement)?.value || 'auto',
-        target_lang: (document.getElementById('translator-target') as HTMLSelectElement)?.value || 'es'
-      },
-      tts_engine: {
-        enabled: (document.getElementById('tts-enabled') as HTMLInputElement)?.checked ?? true,
-        engine: (document.getElementById('tts-engine') as HTMLSelectElement)?.value || 'edge-tts',
-        voice: (document.getElementById('tts-engine') as HTMLSelectElement)?.value === 'piper'
-          ? (document.getElementById('tts-voice-piper') as HTMLSelectElement)?.value || 'es_ES-sharvard-medium'
-          : (document.getElementById('tts-voice-edge') as HTMLSelectElement)?.value || 'es-ES-ElviraNeural',
-        speed: parseFloat((document.getElementById('tts-speed') as HTMLInputElement)?.value || '1.0'),
-        device: (document.getElementById('tts-device') as HTMLSelectElement)?.value || 'auto'
-      },
-      subtitle_generator: {
-        enabled: (document.getElementById('subtitle-enabled') as HTMLInputElement)?.checked ?? true,
-        format: (document.getElementById('subtitle-format') as HTMLSelectElement)?.value || 'webvtt',
-        use_translated: (document.getElementById('subtitle-use-translated') as HTMLSelectElement)?.value === 'true'
-      },
-      audio_mixer: {
-        enabled: (document.getElementById('audio-mixer-enabled') as HTMLInputElement)?.checked ?? false,
-        original_volume: parseFloat((document.getElementById('audio-mixer-original-volume') as HTMLInputElement)?.value || '0.3'),
-        dubbed_volume: parseFloat((document.getElementById('audio-mixer-dubbed-volume') as HTMLInputElement)?.value || '1.0')
-      },
-      video_muxer: {
-        enabled: (document.getElementById('muxer-enabled') as HTMLInputElement)?.checked ?? true,
-        engine: (document.getElementById('video-muxer-engine') as HTMLSelectElement)?.value || 'hls',
-        hls_segment_duration: parseInt((document.getElementById('hls-segment') as HTMLInputElement)?.value || '10'),
-        hls_list_size: parseInt((document.getElementById('hls-list') as HTMLInputElement)?.value || '6'),
-        audio_offset_ms: parseInt((document.getElementById('hls-audio-offset') as HTMLInputElement)?.value || '0'),
-        encoder_mode: (document.getElementById('hls-encoder') as HTMLSelectElement)?.value || 'auto',
-        video_quality: 'medium',
-        video_crf: parseInt((document.getElementById('hls-crf') as HTMLInputElement)?.value || '18'),
-        audio_codec: (document.getElementById('video-muxer-engine') as HTMLSelectElement)?.value === 'webrtc' 
-          ? (document.getElementById('webrtc-audio-codec') as HTMLSelectElement)?.value || 'opus'
-          : (document.getElementById('hls-audio-codec') as HTMLSelectElement)?.value || 'aac',
-        audio_bitrate: (document.getElementById('hls-audio-bitrate') as HTMLSelectElement)?.value || '192k',
-        audio_samplerate: '48000',
-        // WebRTC specific settings
-        video_codec: (document.getElementById('webrtc-video-codec') as HTMLSelectElement)?.value,
-        video_bitrate: (document.getElementById('webrtc-video-bitrate') as HTMLSelectElement)?.value,
-        video_fps: (document.getElementById('webrtc-video-fps') as HTMLSelectElement) 
-          ? parseInt((document.getElementById('webrtc-video-fps') as HTMLSelectElement).value) 
-          : undefined,
-        audio_sample_rate: (document.getElementById('webrtc-audio-sample-rate') as HTMLSelectElement)
-          ? parseInt((document.getElementById('webrtc-audio-sample-rate') as HTMLSelectElement).value)
-          : undefined,
-        // Parse resolution from webrtc-video-resolution (format: "WIDTHxHEIGHT")
-        ...((): { video_width?: number; video_height?: number } => {
-          const resEl = document.getElementById('webrtc-video-resolution') as HTMLSelectElement;
-          if (resEl?.value) {
-            const [w, h] = resEl.value.split('x').map(Number);
-            return { video_width: w, video_height: h };
-          }
-          return {};
-        })()
-      }
-    };
 
-  return {
-    input: inputConfig,
-    output: outputConfig,
-    modules: configModules,
-  };
+  const webplayerConfig = document.getElementById('output-webplayer-config');
+  const srtConfig = document.getElementById('output-srt-config');
+  const rtmpConfig = document.getElementById('output-rtmp-config');
+  const fileConfig = document.getElementById('output-file-config');
+
+  if (webplayerConfig) webplayerConfig.style.display = outputType === 'webplayer' ? 'flex' : 'none';
+  if (srtConfig) srtConfig.style.display = outputType === 'srt' ? 'flex' : 'none';
+  if (rtmpConfig) rtmpConfig.style.display = outputType === 'rtmp' ? 'flex' : 'none';
+  if (fileConfig) fileConfig.style.display = outputType === 'file' ? 'flex' : 'none';
 }
 
-export function setupEventListeners(): void {
-  document.getElementById('btn-start')?.addEventListener('click', handleStart);
-  document.getElementById('btn-stop')?.addEventListener('click', handleStop);
-  
-  (window as unknown as { saveConfig: () => void }).saveConfig = handleSaveConfig;
-  (window as unknown as { updateInputFields: () => void }).updateInputFields = updateInputFields;
-  (window as unknown as { updateOutputFields: () => void }).updateOutputFields = updateOutputFields;
-}
+export function handleTtsEngineChange(engine: string): void {
+  const ttsDeviceGroup = document.getElementById('tts-device-group');
+  const ttsVoiceEdgeGroup = document.getElementById('tts-voice-edge-group');
+  const ttsVoicePiperGroup = document.getElementById('tts-voice-piper-group');
 
-export async function initDashboard(): Promise<void> {
-  addLog('info', 'Inicializando...');
-
-  try {
-    config = await getConfig();
-    dashboardStore.setConfig(config);
-    applyConfigToUI(config);
-    
-    // Initialize RTMP URL after config is loaded
-    const inputTypeSelect = document.getElementById('input-type') as HTMLSelectElement;
-    if (inputTypeSelect?.value === 'rtmp') {
-      updateRtmpUrl();
-    }
-    
-    // Setup file player controls if input type is file
-    if (inputTypeSelect?.value === 'file') {
-      const filePathInput = document.getElementById('input-file-path') as HTMLInputElement;
-      const hasFile = filePathInput && filePathInput.value && filePathInput.value.length > 0;
-      if (hasFile) {
-        setupFilePlayerControls();
-      }
-    }
-
-    status = await apiCall<Status>('GET', 'api/status');
-    updatePipelineUI(status.state);
-    updateModuleStatus(status);
-    dashboardStore.setStatus(status);  // Update centralized store
-
-    if (status.network?.local_ip) {
-      updateUrls();
-    }
-    
-    // Update connection info display (SRT/RTMP/FILE URL)
-    updateConnectionInfoDisplay();
-
-    wsClient = new WSClient({
-      onLog: (msg: LogMessage) => addLog(msg.level, msg.message),
-      onConnectionChange: (connected: boolean) => {
-        dashboardStore.setWsConnected(connected);
-        if (!connected) addLog('error', 'WebSocket desconectado');
-      },
-      onStatus: (newStatus: Status) => {
-        status = newStatus;
-        dashboardStore.setStatus(newStatus);  // Update store
-        updatePipelineUI(newStatus.state);
-        updateModuleStatus(newStatus);
-      }
-    });
-    wsClient.connect();
-
-    statusPollInterval = setInterval(async () => {
-      try {
-        status = await apiCall<Status>('GET', 'api/status');
-        dashboardStore.setStatus(status);  // Update store on poll
-        updatePipelineUI(status.state);
-        updateModuleStatus(status);
-        
-        if (status?.network?.local_ip) {
-          updateUrls();
-        }
-      } catch {
-        // Silently fail on poll errors
-      }
-    }, 2000);
-
-    addLog('success', 'Dashboard inicializado');
-  } catch (e) {
-    addLog('error', `Error de inicialización: ${(e as Error).message}`);
+  if (ttsDeviceGroup) ttsDeviceGroup.style.display = engine === 'piper' ? 'block' : 'none';
+  if (ttsVoiceEdgeGroup && ttsVoicePiperGroup) {
+    const isEdge = engine === 'edge-tts';
+    ttsVoiceEdgeGroup.style.display = isEdge ? 'block' : 'none';
+    ttsVoicePiperGroup.style.display = isEdge ? 'none' : 'block';
   }
 }
 
-export function initWebSocket(): void {
-  setupEventListeners();
-  initDashboard();
-  startClockUpdates();
-}
-
-(window as unknown as { toggleModule: typeof toggleModule }).toggleModule = toggleModule;
-(window as unknown as { updateInputFields: typeof updateInputFields }).updateInputFields = updateInputFields;
-(window as unknown as { updateOutputFields: typeof updateOutputFields }).updateOutputFields = updateOutputFields;
-(window as unknown as { handleTtsEngineChange: typeof handleTtsEngineChange }).handleTtsEngineChange = handleTtsEngineChange;
-(window as unknown as { handleInputTypeChange: typeof handleInputTypeChange }).handleInputTypeChange = handleInputTypeChange;
-(window as any).updateRtmpUrl = updateRtmpUrl;
-(window as any).copyRtmpUrl = copyRtmpUrl;
-(window as any).handleFileSelect = handleFileSelect;
-
-// Copy URL functionality
-function setupCopyButtons(): void {
-  // Emission URL copy button (SRT or RTMP)
-  document.getElementById('btn-copy-emision')?.addEventListener('click', () => {
-    const urlEl = document.getElementById('url-emision');
-    if (urlEl && urlEl.textContent) {
-      copyToClipboard(urlEl.textContent).then(() => {
-        showNotification('URL de emisión copiada', 'success');
-      }).catch(() => {
-        showNotification('Error al copiar URL', 'error');
-      });
-    }
-  });
-
-  // Stream URL copy button
-  document.getElementById('btn-copy-stream')?.addEventListener('click', () => {
-    const urlEl = document.getElementById('url-stream');
-    if (urlEl && urlEl.textContent) {
-      copyToClipboard(urlEl.textContent).then(() => {
-        showNotification('URL del stream copiada', 'success');
-      }).catch(() => {
-        showNotification('Error al copiar URL', 'error');
-      });
-    }
-  });
-
-  // Player URL copy button
-  document.getElementById('btn-copy-player')?.addEventListener('click', () => {
-    const urlEl = document.getElementById('url-player');
-    if (urlEl) {
-      const url = urlEl.getAttribute('href') || urlEl.textContent;
-      if (url) {
-        copyToClipboard(url).then(() => {
-          showNotification('URL del player copiada', 'success');
-        }).catch(() => {
-          showNotification('Error al copiar URL', 'error');
-        });
-      }
-    }
-  });
-}
-
-// Override init to include copy buttons setup
 export function handleInputTypeChange(type: string): void {
-  console.log('Input type changed:', type);
   updateInputFields();
-  
-  // Auto-populate RTMP URL when switching to RTMP
-  if (type === 'rtmp') {
-    updateRtmpUrl();
-  }
-  
-  // Show player controls if there's already a file selected
+
+  if (type === 'rtmp') updateRtmpUrl();
+
   if (type === 'file') {
     const filePathInput = document.getElementById('input-file-path') as HTMLInputElement;
     const playerControls = document.getElementById('file-player-controls');
@@ -1156,125 +447,140 @@ export function handleInputTypeChange(type: string): void {
       setupFilePlayerControls();
     }
   }
-  
-  // Update input process title
+
   const inputTitle = document.getElementById('input-process-title');
   if (inputTitle) {
-    switch (type) {
-      case 'srt':
-        inputTitle.textContent = '📥 INPUT (SRT)';
-        break;
-      case 'rtmp':
-        inputTitle.textContent = '📥 INPUT (RTMP)';
-        break;
-      case 'file':
-        inputTitle.textContent = '📥 INPUT (File)';
-        break;
-      default:
-        inputTitle.textContent = '📥 INPUT';
-    }
+    const titles: Record<string, string> = {
+      srt: '📥 INPUT (SRT)',
+      rtmp: '📥 INPUT (RTMP)',
+      file: '📥 INPUT (File)',
+    };
+    inputTitle.textContent = titles[type] || '📥 INPUT';
   }
-  
-  // Update connection info display
+
   updateConnectionInfoDisplay();
 }
+
+export function handleOutputFormatChange(_format: string): void {
+  // Reserved for future output format changes
+}
+
+// ── RTMP helpers ──────────────────────────────────────────────────────────────
 
 export function updateRtmpUrl(): void {
   const rtmpUrlInput = document.getElementById('input-rtmp-url') as HTMLInputElement;
   if (!rtmpUrlInput) return;
-  
+
   const portInput = document.getElementById('input-rtmp-port') as HTMLInputElement;
   const appInput = document.getElementById('input-rtmp-app') as HTMLInputElement;
   const keyInput = document.getElementById('input-rtmp-key') as HTMLInputElement;
-  
+
   const port = portInput?.value || '1935';
   const app = appInput?.value || 'live';
   const key = keyInput?.value || 'stream';
-  
+
   rtmpUrlInput.value = `rtmp://127.0.0.1:${port}/${app}/${key}`;
   updateConnectionInfoDisplay();
 }
 
+export function copyRtmpUrl(): void {
+  const rtmpUrlInput = document.getElementById('input-rtmp-url') as HTMLInputElement;
+  if (!rtmpUrlInput?.value) return;
+
+  navigator.clipboard.writeText(rtmpUrlInput.value).then(() => {
+    showToast('URL copiada al portapapeles', 'success');
+  }).catch(() => {
+    showToast('Error al copiar URL', 'error');
+  });
+}
+
+// ── Connection info display ──────────────────────────────────────────────────
+
+export function updateConnectionInfoDisplay(): void {
+  const useIp = '127.0.0.1';
+  const inputTypeSelect = document.getElementById('input-type') as HTMLSelectElement;
+  const inputType = inputTypeSelect?.value || 'srt';
+
+  const urlEmisionEl = document.getElementById('url-emision');
+  const urlEmisionLabelEl = document.getElementById('url-emision-label');
+  const urlStreamEl = document.getElementById('url-stream');
+  const urlPlayerEl = document.getElementById('url-player');
+  const serverPort = pipelineConfig.value?.server?.port || 9999;
+
+  if (urlEmisionEl) {
+    let connectionInfo = '';
+    if (inputType === 'srt') {
+      const srtPort = (document.getElementById('input-srt-port') as HTMLInputElement)?.value || '9000';
+      const srtMode = (document.getElementById('input-srt-mode') as HTMLSelectElement)?.value || 'listener';
+      const srtLatency = (document.getElementById('input-srt-latency') as HTMLInputElement)?.value || '3000';
+      connectionInfo = `srt://${useIp}:${srtPort}?mode=${srtMode}&latency=${srtLatency}`;
+      if (urlEmisionLabelEl) urlEmisionLabelEl.textContent = 'SRT:';
+    } else if (inputType === 'rtmp') {
+      connectionInfo = (document.getElementById('input-rtmp-url') as HTMLInputElement)?.value || 'rtmp://127.0.0.1:1935/live/stream';
+      if (urlEmisionLabelEl) urlEmisionLabelEl.textContent = 'RTMP:';
+    } else {
+      const filePath = (document.getElementById('input-file-path') as HTMLInputElement)?.value || '(no file selected)';
+      connectionInfo = filePath || 'file://(no file selected)';
+      if (urlEmisionLabelEl) urlEmisionLabelEl.textContent = 'FILE:';
+    }
+    urlEmisionEl.textContent = connectionInfo;
+  }
+
+  if (urlStreamEl) urlStreamEl.textContent = `http://${useIp}:${serverPort}/hls/stream.m3u8`;
+  if (urlPlayerEl) {
+    urlPlayerEl.textContent = `http://${useIp}:${serverPort}/player`;
+    if (urlPlayerEl instanceof HTMLAnchorElement) {
+      urlPlayerEl.href = `http://${useIp}:${serverPort}/player`;
+    }
+  }
+}
+
+// ── File input controls ──────────────────────────────────────────────────────
+
 export function handleFileSelect(input: HTMLInputElement): void {
   const filePathInput = document.getElementById('input-file-path') as HTMLInputElement;
-  if (!filePathInput || !input.files || input.files.length === 0) return;
-  
-  // Get the file name (browsers don't give full path for security)
-  const file = input.files[0];
-  const fileName = file.name;
-  
-  // Update the input field with placeholder hint
+  if (!filePathInput || !input.files?.length) return;
+
+  const fileName = input.files[0].name;
   filePathInput.placeholder = `Ej: C:\\Users\\bruno\\Desktop\\${fileName}`;
-  
-  // Show notification with instructions
   showToast(`Archivo: ${fileName}. Ahora ingresa la RUTA COMPLETA manualmente.`, 'info');
-  
-  // Focus the input for manual entry
   filePathInput.focus();
-  
-  console.log('File selected:', fileName, '- Please enter full path manually');
-  
-  // Update connection info display
-  updateConnectionInfoDisplay();
-  
-  // Show notification
-  showToast(`Archivo seleccionado: ${file.name}`, 'success');
-  
-  // Show player controls
+
   const playerControls = document.getElementById('file-player-controls');
-  if (playerControls) {
-    playerControls.style.display = 'flex';
-  }
-  
-  // Setup player controls - no longer needs fileName parameter
+  if (playerControls) playerControls.style.display = 'flex';
   setupFilePlayerControls();
 }
 
-// ── File Input Playback Controls ────────────────────────
-
-let currentFileDuration = 0;
-let filePollingInterval: ReturnType<typeof setInterval> | null = null;
-
 export async function fileInputPlay(): Promise<void> {
-  console.log('[Dashboard] fileInputPlay() called');
   try {
-    const result = await apiCall('POST', 'input/control/play');
-    console.log('[Dashboard] fileInputPlay() result:', result);
+    await apiCall('POST', 'input/control/play');
     showToast('Reproducción reanudada', 'success');
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error('[Dashboard] fileInputPlay() error:', msg);
-    showToast(`Error al reproducir: ${msg}`, 'error');
+    showToast(`Error al reproducir: ${(e as Error).message}`, 'error');
   }
 }
 
 export async function fileInputPause(): Promise<void> {
-  console.log('[Dashboard] fileInputPause() called');
   try {
-    const result = await apiCall('POST', 'input/control/pause');
-    console.log('[Dashboard] fileInputPause() result:', result);
+    await apiCall('POST', 'input/control/pause');
     showToast('Reproducción pausada', 'success');
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error('[Dashboard] fileInputPause() error:', msg);
-    showToast(`Error al pausar: ${msg}`, 'error');
+    showToast(`Error al pausar: ${(e as Error).message}`, 'error');
   }
 }
 
 export async function fileInputSeek(position: number): Promise<void> {
   try {
     await apiCall('POST', 'input/control/seek', { position });
-    // No toast for seek to avoid spam
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    showToast(`Error al buscar posición: ${msg}`, 'error');
+    showToast(`Error al buscar posición: ${(e as Error).message}`, 'error');
   }
 }
 
 async function fetchFileInfo(): Promise<{ duration: number; position: number; is_playing: boolean } | null> {
   try {
     const response = await fetch(`${window.location.origin}/api/input-info`, {
-      headers: { 'Accept': 'application/json' }
+      headers: { 'Accept': 'application/json' },
     });
     if (!response.ok) return null;
     const data = await response.json();
@@ -1282,7 +588,7 @@ async function fetchFileInfo(): Promise<{ duration: number; position: number; is
       return {
         duration: data.duration || 0,
         position: data.position || 0,
-        is_playing: data.is_playing || false
+        is_playing: data.is_playing || false,
       };
     }
     return null;
@@ -1291,10 +597,10 @@ async function fetchFileInfo(): Promise<{ duration: number; position: number; is
   }
 }
 
+let filePollingInterval: ReturnType<typeof setInterval> | null = null;
+
 function startFileInfoPolling(): void {
-  if (filePollingInterval) {
-    clearInterval(filePollingInterval);
-  }
+  if (filePollingInterval) clearInterval(filePollingInterval);
 
   const positionSlider = document.getElementById('input-file-position') as HTMLInputElement | null;
   const currentDisplay = document.getElementById('file-time-current') as HTMLSpanElement | null;
@@ -1302,31 +608,16 @@ function startFileInfoPolling(): void {
   const playBtn = document.getElementById('btn-file-play') as HTMLButtonElement | null;
   const pauseBtn = document.getElementById('btn-file-pause') as HTMLButtonElement | null;
 
-  function formatTime(seconds: number): string {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  }
-
   filePollingInterval = setInterval(() => {
     fetchFileInfo().then(info => {
       if (!info) return;
 
-      // Update slider
       if (positionSlider && info.duration > 0) {
-        const percent = (info.position / info.duration) * 100;
-        positionSlider.value = percent.toString();
+        positionSlider.value = ((info.position / info.duration) * 100).toString();
       }
+      if (currentDisplay) currentDisplay.textContent = formatTime(info.position);
+      if (totalDisplay) totalDisplay.textContent = formatTime(info.duration);
 
-      // Update time displays
-      if (currentDisplay) {
-        currentDisplay.textContent = formatTime(info.position);
-      }
-      if (totalDisplay) {
-        totalDisplay.textContent = formatTime(info.duration);
-      }
-
-      // Update button states
       if (playBtn && pauseBtn) {
         if (info.is_playing) {
           playBtn.style.display = 'none';
@@ -1337,7 +628,7 @@ function startFileInfoPolling(): void {
         }
       }
     });
-  }, 500); // Update every 500ms
+  }, 500);
 }
 
 export function stopFileInfoPolling(): void {
@@ -1353,40 +644,28 @@ export function setupFilePlayerControls(): void {
   const restartBtn = document.getElementById('btn-file-restart') as HTMLButtonElement | null;
   const positionSlider = document.getElementById('input-file-position') as HTMLInputElement | null;
 
-  console.log('[File Player] setupFilePlayerControls called', { playBtn: !!playBtn, pauseBtn: !!pauseBtn, restartBtn: !!restartBtn, positionSlider: !!positionSlider });
+  if (!playBtn || !pauseBtn || !restartBtn || !positionSlider) return;
 
-  if (!playBtn || !pauseBtn || !restartBtn || !positionSlider) {
-    console.error('[File Player] Missing UI elements');
-    return;
-  }
-
-  // Ensure correct initial state
   playBtn.style.display = 'inline';
   pauseBtn.style.display = 'none';
 
-  // Play button
   playBtn.addEventListener('click', () => {
-    console.log('[File Player] Play clicked');
     fileInputPlay().then(() => {
       playBtn.style.display = 'none';
       pauseBtn.style.display = 'inline';
     });
   });
 
-  // Pause button
   pauseBtn.addEventListener('click', () => {
-    console.log('[File Player] Pause clicked');
     fileInputPause().then(() => {
       pauseBtn.style.display = 'none';
       playBtn.style.display = 'inline';
     });
   });
 
-  // Restart button - seek to position 0
   restartBtn.addEventListener('click', () => {
     fileInputSeek(0).then(() => {
       positionSlider.value = '0';
-      // Auto-play after restart
       fileInputPlay().then(() => {
         playBtn.style.display = 'none';
         pauseBtn.style.display = 'inline';
@@ -1394,118 +673,149 @@ export function setupFilePlayerControls(): void {
     });
   });
 
-  // Slider - seek on change (debounced)
   let seekTimeout: ReturnType<typeof setTimeout> | null = null;
   positionSlider.addEventListener('input', () => {
     if (seekTimeout) clearTimeout(seekTimeout);
     const percent = parseInt(positionSlider.value);
-    
+
     seekTimeout = setTimeout(() => {
       fetchFileInfo().then(info => {
-        if (info && info.duration) {
-          const position = (percent / 100) * info.duration;
-          fileInputSeek(position);
+        if (info?.duration) {
+          fileInputSeek((percent / 100) * info.duration);
         }
       });
     }, 100);
   });
 
-  // Start polling for file info
   startFileInfoPolling();
 }
 
-function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
+// ── Event setup ───────────────────────────────────────────────────────────────
+
+export function setupEventListeners(): void {
+  document.getElementById('btn-start')?.addEventListener('click', handleStart);
+  document.getElementById('btn-stop')?.addEventListener('click', handleStop);
 }
 
-export function copyRtmpUrl(): void {
-  const rtmpUrlInput = document.getElementById('input-rtmp-url') as HTMLInputElement;
-  if (!rtmpUrlInput || !rtmpUrlInput.value) return;
-  
-  navigator.clipboard.writeText(rtmpUrlInput.value).then(() => {
-    showToast('URL copiada al portapapeles', 'success');
-  }).catch(err => {
-    console.error('Error copying:', err);
-    showToast('Error al copiar URL', 'error');
+function setupCopyButtons(): void {
+  document.getElementById('btn-copy-emision')?.addEventListener('click', () => {
+    const urlEl = document.getElementById('url-emision');
+    if (urlEl?.textContent) {
+      copyToClipboard(urlEl.textContent).then(() => showNotification('URL de emisión copiada', 'success')).catch(() => showNotification('Error al copiar URL', 'error'));
+    }
+  });
+
+  document.getElementById('btn-copy-stream')?.addEventListener('click', () => {
+    const urlEl = document.getElementById('url-stream');
+    if (urlEl?.textContent) {
+      copyToClipboard(urlEl.textContent).then(() => showNotification('URL del stream copiada', 'success')).catch(() => showNotification('Error al copiar URL', 'error'));
+    }
+  });
+
+  document.getElementById('btn-copy-player')?.addEventListener('click', () => {
+    const urlEl = document.getElementById('url-player');
+    if (urlEl) {
+      const url = urlEl.getAttribute('href') || urlEl.textContent;
+      if (url) copyToClipboard(url).then(() => showNotification('URL del player copiada', 'success')).catch(() => showNotification('Error al copiar URL', 'error'));
+    }
   });
 }
 
-export function updateConnectionInfoDisplay(): void {
-  const useIp = '127.0.0.1';
-  
-  // Get current input type from dropdown (not config, as it may not be saved yet)
-  const inputTypeSelect = document.getElementById('input-type') as HTMLSelectElement;
-  const inputType = inputTypeSelect?.value || 'srt';
-  
-  // Update SRT/RTMP/File URL display
-  const urlEmisionEl = document.getElementById('url-emision');
-  const urlEmisionLabelEl = document.getElementById('url-emision-label');
-  if (urlEmisionEl) {
-    let connectionInfo = '';
-    if (inputType === 'srt') {
-      const srtPortInput = document.getElementById('input-srt-port') as HTMLInputElement;
-      const srtModeInput = document.getElementById('input-srt-mode') as HTMLSelectElement;
-      const srtLatencyInput = document.getElementById('input-srt-latency') as HTMLInputElement;
-      const srtPort = srtPortInput?.value || '9000';
-      const srtMode = srtModeInput?.value || 'listener';
-      const srtLatency = srtLatencyInput?.value || '3000';
-      connectionInfo = `srt://${useIp}:${srtPort}?mode=${srtMode}&latency=${srtLatency}`;
-      if (urlEmisionLabelEl) urlEmisionLabelEl.textContent = 'SRT:';
-    } else if (inputType === 'rtmp') {
-      const rtmpUrlInput = document.getElementById('input-rtmp-url') as HTMLInputElement;
-      connectionInfo = rtmpUrlInput?.value || 'rtmp://127.0.0.1:1935/live/stream';
-      if (urlEmisionLabelEl) urlEmisionLabelEl.textContent = 'RTMP:';
-    } else if (inputType === 'file') {
+// ── Initialization ────────────────────────────────────────────────────────────
+
+let wsClient: WSClient | null = null;
+let statusPollInterval: ReturnType<typeof setInterval> | null = null;
+
+export async function initDashboard(): Promise<void> {
+  addLog('INFO', 'Inicializando...');
+
+  try {
+    // Load config and apply to UI
+    const cfg = await getConfig();
+    pipelineConfig.value = cfg;
+    applyConfigToUI(cfg);
+
+    // Initialize RTMP URL if needed
+    const inputTypeSelect = document.getElementById('input-type') as HTMLSelectElement;
+    if (inputTypeSelect?.value === 'rtmp') updateRtmpUrl();
+    if (inputTypeSelect?.value === 'file') {
       const filePathInput = document.getElementById('input-file-path') as HTMLInputElement;
-      const filePath = filePathInput?.value || '(no file selected)';
-      connectionInfo = filePath || 'file://(no file selected)';
-      if (urlEmisionLabelEl) urlEmisionLabelEl.textContent = 'FILE:';
+      if (filePathInput?.value) setupFilePlayerControls();
     }
-    urlEmisionEl.textContent = connectionInfo;
-  }
-  
-  // Update stream URL (always the same for HLS output)
-  const urlStreamEl = document.getElementById('url-stream');
-  const serverPort = config?.server?.port || 9999;
-  if (urlStreamEl) {
-    urlStreamEl.textContent = `http://${useIp}:${serverPort}/hls/stream.m3u8`;
-  }
-  
-  // Update player URL (always the same)
-  const urlPlayerEl = document.getElementById('url-player');
-  if (urlPlayerEl) {
-    urlPlayerEl.textContent = `http://${useIp}:${serverPort}/player`;
-    // Also update href if it's an anchor
-    if (urlPlayerEl instanceof HTMLAnchorElement) {
-      urlPlayerEl.href = `http://${useIp}:${serverPort}/player`;
-    }
+
+    // Load initial status
+    const initialStatus = await apiCall<Status>('GET', 'api/status');
+    updateStatus(initialStatus);
+
+    // Connection info display
+    updateConnectionInfoDisplay();
+
+    // Start effects (reactive DOM updates)
+    startEffects();
+
+    // WebSocket connection for logs + status
+    const wsUrl = getWebSocketUrl('/ws/logs');
+    wsClient = new WSClient(wsUrl);
+    wsClient.onMessage((data: any) => {
+      if (data.type === 'log') {
+        addLog(data.level, data.message);
+      } else if (data.type === 'status') {
+        updateStatus(data.status as Status);
+      }
+    });
+    wsClient.onError(() => {
+      addLog('ERROR', 'WebSocket error');
+    });
+    wsClient.onClose(() => {
+      wsConnected.value = false;
+      addLog('ERROR', 'WebSocket desconectado');
+    });
+    wsClient.connect();
+
+    // Fallback HTTP polling
+    statusPollInterval = setInterval(async () => {
+      try {
+        const s = await apiCall<Status>('GET', 'api/status');
+        updateStatus(s);
+      } catch {
+        // Silently fail on poll errors
+      }
+    }, 2000);
+
+    addLog('INFO', 'Dashboard inicializado');
+  } catch (e) {
+    addLog('ERROR', `Error de inicialización: ${(e as Error).message}`);
   }
 }
 
-export function handleOutputFormatChange(format: string): void {
-  console.log('Output format changed:', format);
+// ── Window exposure ───────────────────────────────────────────────────────────
+
+function exposeWindow(): void {
+  (window as any).toggleModule = toggleModule;
+  (window as any).updateInputFields = updateInputFields;
+  (window as any).updateOutputFields = updateOutputFields;
+  (window as any).handleTtsEngineChange = handleTtsEngineChange;
+  (window as any).handleInputTypeChange = handleInputTypeChange;
+  (window as any).updateRtmpUrl = updateRtmpUrl;
+  (window as any).copyRtmpUrl = copyRtmpUrl;
+  (window as any).handleOutputFormatChange = handleOutputFormatChange;
+  (window as any).saveConfig = handleSaveConfig;
+  (window as any).init = initDashboard;
 }
 
-// Expose functions to window for inline event handlers
-(window as any).toggleModule = toggleModule;
-(window as any).updateInputFields = updateInputFields;
-(window as any).updateOutputFields = updateOutputFields;
-(window as any).handleTtsEngineChange = handleTtsEngineChange;
-(window as any).handleInputTypeChange = handleInputTypeChange;
-(window as any).updateRtmpUrl = updateRtmpUrl;
-(window as any).copyRtmpUrl = copyRtmpUrl;
-(window as any).handleOutputFormatChange = handleOutputFormatChange;
-(window as any).saveConfig = handleSaveConfig;
+async function toggleModule(moduleName: string, enabled: boolean): Promise<void> {
+  try {
+    await apiCall('PUT', `modules/${moduleName}/toggle`, { enabled });
+  } catch (e) {
+    showToast(`Failed to toggle ${moduleName}: ${(e as Error).message}`, 'error');
+  }
+}
 
-(window as any).init = function() {
-  setupEventListeners();
-  setupCopyButtons();
-  initDashboard();
-  startClockUpdates();
-};
+// ── Bootstrap ────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
-  (window as any).init();
+  setupEventListeners();
+  setupCopyButtons();
+  exposeWindow();
+  initDashboard();
 });

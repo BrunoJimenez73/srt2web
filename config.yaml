@@ -19,11 +19,11 @@ input:
     listen_port: 1935
     app: live
     stream_key: stream
-    url: rtmp://127.0.0.1:1935/live/stream
-    mode: pull
+    url: ''
+    mode: listener
     chunk_duration_sec: 15
   file:
-    path: C:\Users\bruno\Desktop\We-Have-to-Talk-About-Anthropic-s-Mythos_Media_oBZ5W758y4o_001_1080p.mp4
+    path: ''
     loop: false
     speed: 1.0
     chunk_duration_sec: 15
@@ -36,7 +36,7 @@ output:
     encoder_mode: auto
   hls:
     segment_duration: 4
-    list_size: 10
+    list_size: 6
     audio_offset_ms: 0
     encoder_mode: auto
   rtmp:
@@ -66,33 +66,39 @@ output:
   recording:
     output_path: ./output/recording.mp4
     format: mp4
-    codec: h264_nvenc
+    codec: copy
     video_bitrate: 5000k
     video_crf: 23
-    quality_mode: crf
-    audio_codec: aac
+    quality_mode: cbr
+    audio_codec: copy
     audio_bitrate: 128k
     split_mode: none
     split_value: 600
-    subtitles: track
+    subtitles: burnt
     video_preset: fast
   outputs:
-  - name: webplayer_1
+  - name: web_1
     type: web
     enabled: true
-    config: {}
-  - name: filerecording_1
+    config:
+      segment_duration: 4
+      list_size: 6
+      audio_offset_ms: 0
+      encoder_mode: auto
+  - name: recording_1777056636276
     type: recording
     enabled: true
     config:
-      output_path: ./output/recording.mp4
-      codec: h264_nvenc
-      video_bitrate: 5000k
-      video_preset: fast
+      type: recording
+      name: recording_1777056636276
+      output_path: ./output/grabacion.mp4
+      format: mp4
+      codec: copy
+      audio_codec: aac
 pipeline:
   chunk_duration_sec: 15
   mode: thread_parallel
-  max_concurrent_chunks: 4
+  max_concurrent_chunks: 3
   buffer_size: 5
   retry_attempts: 2
   retry_delay: 1.0
@@ -102,8 +108,8 @@ modules:
   transcriber:
     enabled: true
     model: tiny
-    language: en
-    device: cuda
+    language: auto
+    device: auto
     beam_size: 2
   translator:
     enabled: true
@@ -111,18 +117,18 @@ modules:
     target_lang: es
   subtitle_generator:
     enabled: true
-    format: webvtt
+    format: srt
     use_translated: true
     chunk_duration: 15
   tts_engine:
     enabled: true
     engine: piper
     device: cuda
-    voice: es_ES-davefx-medium
-    speed: 1.1
+    voice: es_AR-daniela-high
+    speed: 1.0
   audio_mixer:
     enabled: true
-    original_volume: 0.6
+    original_volume: 0.7
     tts_volume: 1.0
     dubbed_volume: 1.0
   video_muxer:
@@ -131,16 +137,16 @@ modules:
     hls_segment_duration: 10
     hls_list_size: 6
     audio_offset_ms: 0
-    encoder_mode: gpu_nvenc
+    encoder_mode: auto
     video_quality: medium
-    video_crf: 42
-    audio_codec: opus
-    audio_bitrate: 64k
+    video_crf: 41
+    audio_codec: aac
+    audio_bitrate: 128k
     audio_samplerate: '48000'
     video_bitrate: 1000k
-    video_fps: 30
-    video_width: 1920
-    video_height: 1080
+    video_fps: 15
+    video_width: 320
+    video_height: 240
     webrtc_audio_codec: null
     webrtc_audio_bitrate: null
     audio_sample_rate: 24000

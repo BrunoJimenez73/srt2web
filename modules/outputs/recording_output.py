@@ -345,10 +345,13 @@ class RecordingOutput(OutputSink):
                 self.logger.warning(f"Could not backup previous: {e}")
 
         concat_list = os.path.join(self._recording_dir, "concat.txt")
+        rec_dir_abs = os.path.abspath(self._recording_dir)
         with open(concat_list, "w", encoding="utf-8") as f:
             for vp in self._saved_video_paths:
                 if os.path.exists(vp):
-                    f.write(f"file '{vp}'\n")
+                    vp_abs = os.path.abspath(vp)
+                    vp_rel = os.path.relpath(vp_abs, rec_dir_abs).replace("\\", "/")
+                    f.write(f"file '{vp_rel}'\n")
 
         cmd = [
             self._ffmpeg_path, "-y",
@@ -363,16 +366,20 @@ class RecordingOutput(OutputSink):
             with open(audio_concat, "w", encoding="utf-8") as f:
                 for ap in self._saved_audio_paths:
                     if os.path.exists(ap):
-                        f.write(f"file '{ap}'\n")
+                        ap_abs = os.path.abspath(ap)
+                        ap_rel = os.path.relpath(ap_abs, rec_dir_abs).replace("\\", "/")
+                        f.write(f"file '{ap_rel}'\n")
             cmd.extend(["-f", "concat", "-safe", "0", "-i", audio_concat])
 
         # Concatenar subtitles .srt files
         subs_track = False
         if self._subtitles == "track":
             subs_srt = self._concat_subtitle_chunks()
+            self.logger.info(f"[Recording] subtitles=track, concatenated SRT: {subs_srt}")
             if subs_srt and os.path.exists(subs_srt):
                 cmd.extend(["-i", subs_srt])
                 subs_track = True
+                self.logger.info(f"[Recording] Added subtitle track to FFmpeg command")
 
         # Map inputs
         if has_audio and subs_track:
@@ -476,24 +483,46 @@ class RecordingOutput(OutputSink):
         self._processed_chunks += 1
 
     def _concat_subtitle_chunks(self) -> Optional[str]:
-        """Concatenar todos los chunks .srt de subtitles en un solo archivo."""
+        """Concatenar todos los chunks .vtt de subtitles en un solo archivo."""
         import re
-        srt_files = sorted(glob.glob(os.path.join(self._recording_dir, "chunk_*.srt")))
-        if not srt_files:
-            self.logger.debug("No subtitle .srt chunks found")
+        # Look for VTT chunks in the subtitles directory
+        subs_dir = os.path.join(self._output_dir or "./output", "subtitles")
+        vtt_files = sorted(glob.glob(os.path.join(subs_dir, "chunk_*.vtt")))
+        if not vtt_files:
+            self.logger.debug("No subtitle .vtt chunks found in subtitles directory")
             return None
         
         output_srt = os.path.join(self._recording_dir, "recording_subs.srt")
         
+        # Need to convert VTT to SRT
         try:
+            # Parse VTT and convert to SRT
             with open(output_srt, "w", encoding="utf-8") as out:
-                for srt_file in srt_files:
-                    with open(srt_file, "r", encoding="utf-8") as f:
+                seq = 1
+                for vtt_file in vtt_files:
+                    with open(vtt_file, "r", encoding="utf-8") as f:
                         content = f.read().strip()
-                        if content:
-                            out.write(content + "\n\n")
+                        # Skip WEBVTT header and convert timings
+                        lines = content.split("\n")
+                        in_timing = False
+                        for line in lines:
+                            line = line.strip()
+                            if line.startswith("WEBVTT"):
+                                continue
+                            if "-->" in line:
+                                in_timing = True
+                                # Convert VTT timing (00:00:01.000 --> 00:00:02.000) to SRT
+                                line = line.replace(".", ",")
+                                out.write(f"{seq}\n{line}\n")
+                            elif line and in_timing:
+                                out.write(f"{line}\n")
+                            elif line == "":
+                                in_timing = False
+                                out.write("\n")
+                        # Add 1 to sequence between files
+                        seq += 1
             
-            self.logger.info(f"Concatenated {len(srt_files)} subtitle chunks -> {output_srt}")
+            self.logger.info(f"Concatenated {len(vtt_files)} subtitle chunks -> {output_srt}")
             return output_srt
         except Exception as e:
             self.logger.warning(f"Could not concatenate subtitles: {e}")

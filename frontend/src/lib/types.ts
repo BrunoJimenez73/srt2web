@@ -2,6 +2,9 @@
  * Tipos de datos para gestión de salidas múltiples.
  */
 
+// Re-export state types
+export * from './types/state';
+
 // Configuración base para todas las salidas
 export interface BaseOutputConfig {
   type: string;

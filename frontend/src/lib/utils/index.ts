@@ -1,9 +1,6 @@
 export * from './performance';
 export * from './clock';
-
-export function formatTimestamp(ts: number): string {
-  return new Date(ts).toLocaleTimeString('en-US', { hour12: false });
-}
+export * from './format';
 
 export function getSRTUrl(ip: string, port: number, mode: string = 'listener', latency: number = 3000): string {
   return `srt://${ip}:${port}?mode=${mode}&latency=${latency}`;

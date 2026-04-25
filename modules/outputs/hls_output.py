@@ -268,7 +268,12 @@ class HLSOutput(OutputSink):
                 encoder_mode = "cpu"
 
         # Configurar encoder según modo seleccionado
-        if encoder_mode == "gpu_nvenc" and self._gpu_info["nvenc"]:
+        if encoder_mode == "passthrough":
+            encoder = "copy"
+            preset = ""
+            extra_args = []
+            self.logger.info("Using passthrough mode (no re-encoding)")
+        elif encoder_mode == "gpu_nvenc" and self._gpu_info["nvenc"]:
             encoder = "h264_nvenc"
             preset = self._encoder_config.gpu_preset
             extra_args = self._encoder_config.get_gpu_nvenc_args()

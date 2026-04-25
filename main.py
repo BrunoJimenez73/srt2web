@@ -104,15 +104,18 @@ def build_pipeline(config: ConfigManager, output_dir: str):
     # Auto-discover available inputs and outputs
     auto_discover()
 
+    # Get chunk_duration_sec from pipeline (single source of truth)
+    chunk_duration = config.get("pipeline.chunk_duration_sec")
+
     # Get input configuration
     input_config = config.get_section("input")
     input_type = input_config.get("type", "srt")
     type_config = input_config.get(input_type, {})
-    type_config["chunk_duration_sec"] = config.get("pipeline.chunk_duration_sec", 15)
+    type_config["chunk_duration_sec"] = chunk_duration
 
     # Create input source
     logger = logging.getLogger("srt2web.main")
-    logger.info(f"Creating input source: {input_type}")
+    logger.info(f"Creating input source: {input_type} (chunk_duration={chunk_duration})")
     input_source = InputFactory.create(input_type, type_config)
     input_source.set_output_dir(output_dir)
 
@@ -189,6 +192,7 @@ def build_pipeline(config: ConfigManager, output_dir: str):
 
     # 4. Generate subtitles
     subs_config = config.get_module_config("subtitle_generator")
+    subs_config["chunk_duration"] = chunk_duration  # Override module's chunk_duration with pipeline value
     subtitle_generator = SubtitleGenerator(config=subs_config, output_dir=output_dir)
     pipeline.register_module(subtitle_generator)
 

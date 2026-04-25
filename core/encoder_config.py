@@ -45,7 +45,7 @@ class EncoderConfig:
         # Modo de codificación
         self.encoder_mode = config.get(
             "encoder_mode", "auto"
-        )  # auto, cpu, gpu_nvenc, gpu_amf, gpu_qsv
+        )  # auto, passthrough, cpu, gpu_nvenc, gpu_amf, gpu_qsv
 
         # Configuración de video (CPU)
         self.video_preset = config.get("video_preset", "medium")
@@ -158,6 +158,10 @@ class EncoderConfig:
             "-ar",
             str(self.audio_sample_rate),
         ]
+
+    def get_passthrough_args(self) -> list:
+        """Obtener argumentos FFmpeg para modo passthrough (sin recodificar)."""
+        return ["-c:v", "copy", "-c:a", "copy"]
 
     def to_dict(self) -> Dict[str, Any]:
         """Convertir configuración a diccionario."""

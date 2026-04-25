@@ -652,7 +652,9 @@ class UnifiedPipeline:
         # Detener input/output
         if self._input_source and hasattr(self._input_source, 'stop'):
             try:
+                self._log("info", f"Calling stop() on input_source: {type(self._input_source).__name__}")
                 self._input_source.stop()
+                self._log("info", "Input source stop() completed")
             except Exception as e:
                 self._log("error", f"Error stopping input source: {e}")
 
@@ -732,6 +734,14 @@ class UnifiedPipeline:
 
     def reconfigure(self, config_manager) -> None:
         """Actualizar configuración en ejecución (compatibilidad API)."""
+        # First, update pipeline's chunk_duration from config
+        try:
+            new_chunk_duration = config_manager.get("pipeline.chunk_duration_sec", 10)
+            self._chunk_duration = new_chunk_duration
+            self._log("info", f"Reconfigured pipeline chunk_duration: {new_chunk_duration}s")
+        except Exception as e:
+            self._log("warning", f"Could not update chunk_duration: {e}")
+        
         for module in self._modules:
             try:
                 mod_config = config_manager.get_module_config(module.name)
@@ -739,6 +749,17 @@ class UnifiedPipeline:
                 self._log("info", f"Reconfigured module: {module.name}")
             except Exception as e:
                 self._log("error", f"Failed to reconfigure {module.name}: {e}")
+        
+        # Also update input source config if it has chunk_duration
+        if self._input_source and hasattr(self._input_source, 'configure'):
+            try:
+                input_type = config_manager.get("input.type", "srt")
+                input_config = config_manager.get_section("input").get(input_type, {})
+                input_config["chunk_duration_sec"] = self._chunk_duration
+                self._input_source.configure(input_config)
+                self._log("info", f"Reconfigured input source: {input_type}")
+            except Exception as e:
+                self._log("warning", f"Could not reconfigure input source: {e}")
 
     # Alias para compatibilidad API 100% con versiones anteriores
     @property
