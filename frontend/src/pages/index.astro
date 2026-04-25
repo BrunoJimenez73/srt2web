@@ -402,14 +402,14 @@ import Toast from '../components/Toast.astro';
           if (!status.modules) return;
           var mods = status.modules;
           var moduleMap = {
-            'audio_extractor': { be: 'audio_extractor', ind: 'indicator-input', time: 'module-time-input', chunks: 'module-chunks-input' },
-            'transcriber': { be: 'transcriber', ind: 'indicator-whisper', time: 'module-time-transcriber', chunks: 'module-chunks-transcriber' },
-            'translator': { be: 'translator', ind: 'indicator-translate', time: 'module-time-translator', chunks: 'module-chunks-translator' },
-            'tts_engine': { be: 'tts_engine', ind: 'indicator-tts', time: 'module-time-tts_engine', chunks: 'module-chunks-tts_engine' },
-            'subtitle_generator': { be: 'subtitle_generator', ind: 'indicator-subtitle', time: 'module-time-subtitle_generator', chunks: 'module-chunks-subtitle_generator' },
-            'audio_mixer': { be: 'audio_mixer', ind: 'indicator-audio-mixer', time: 'module-time-audio_mixer', chunks: 'module-chunks-audio_mixer' },
-            'video_muxer': { be: 'output', ind: 'indicator-video-muxer', time: 'module-time-video_muxer', chunks: 'module-chunks-video_muxer' },
-            'output': { be: 'output', ind: 'indicator-output', time: 'module-time-output', chunks: 'module-chunks-output' }
+            'audio_extractor': { be: 'audio_extractor', ind: 'indicator-input', time: 'module-time-input', chunks: 'module-chunks-input', badge: 'input-gpu-badge' },
+            'transcriber': { be: 'transcriber', ind: 'indicator-whisper', time: 'module-time-transcriber', chunks: 'module-chunks-transcriber', badge: 'whisper-gpu-badge' },
+            'translator': { be: 'translator', ind: 'indicator-translate', time: 'module-time-translator', chunks: 'module-chunks-translator', badge: null },
+            'tts_engine': { be: 'tts_engine', ind: 'indicator-tts', time: 'module-time-tts_engine', chunks: 'module-chunks-tts_engine', badge: 'tts-gpu-badge' },
+            'subtitle_generator': { be: 'subtitle_generator', ind: 'indicator-subtitle', time: 'module-time-subtitle_generator', chunks: 'module-chunks-subtitle_generator', badge: null },
+            'audio_mixer': { be: 'audio_mixer', ind: 'indicator-audio-mixer', time: 'module-time-audio_mixer', chunks: 'module-chunks-audio_mixer', badge: null },
+            'video_muxer': { be: 'output', ind: 'indicator-video-muxer', time: 'module-time-video_muxer', chunks: 'module-chunks-video_muxer', badge: 'hls-gpu-badge' },
+            'output': { be: 'output', ind: 'indicator-output', time: 'module-time-output', chunks: 'module-chunks-output', badge: 'output-gpu-badge' }
           };
           Object.keys(moduleMap).forEach(function(key) {
             var info = moduleMap[key];
@@ -442,6 +442,26 @@ import Toast from '../components/Toast.astro';
             var encoderEl = document.getElementById('module-encoder-' + key);
             if (encoderEl && modStatus.extra && modStatus.extra.encoder_mode) {
               encoderEl.textContent = modStatus.extra.encoder_mode.toUpperCase();
+            }
+            if (info.badge) {
+              var badge = document.getElementById(info.badge);
+              if (badge) {
+                var usingGPU = modStatus.extra && modStatus.extra.using_gpu;
+                var isRunning = modStatus.state === 'running';
+                var hasChunks = modStatus.processed_chunks > 0;
+                if (usingGPU && isRunning && hasChunks) {
+                  badge.style.display = 'inline';
+                  badge.classList.add('active');
+                  badge.textContent = 'GPU';
+                } else if (usingGPU) {
+                  badge.style.display = 'inline';
+                  badge.classList.remove('active');
+                  badge.textContent = 'GPU';
+                } else {
+                  badge.style.display = 'none';
+                  badge.classList.remove('active');
+                }
+              }
             }
           });
         }).catch(function() {});
