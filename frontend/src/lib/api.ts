@@ -37,14 +37,20 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
   return fetch(url, { ...options, headers });
 }
 
-export async function apiCall(method: string, path: string, body?: any): Promise<any> {
-  const url = `${getApiBase()}/${path.replace(/^\/+/, '')}`;
+export async function apiCall<T = any>(method: string, path: string, body?: any): Promise<T> {
+  const base = getApiBase();
+  const cleanPath = path.replace(/^\/+/, '');
+  const url = cleanPath ? `${base}/${cleanPath}` : base;
   const options: RequestInit = { method };
   if (body) {
     options.body = JSON.stringify(body);
     options.headers = { 'Content-Type': 'application/json' };
   }
   const res = await fetchWithAuth(url, options);
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => res.statusText);
+    throw new Error(`${res.status} ${res.statusText}: ${errorText}`);
+  }
   return res.json();
 }
 

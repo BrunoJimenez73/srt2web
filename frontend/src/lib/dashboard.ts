@@ -31,39 +31,22 @@ function showNotification(message: string, type: 'success' | 'error' | 'info' = 
 // ── Pipeline control ──────────────────────────────────────────────────────────
 
 export async function handleStart(): Promise<void> {
-  const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
-  const btnStop = document.getElementById('btn-stop') as HTMLButtonElement;
-
   try {
-    btnStart.disabled = true;
-    btnStart.classList.add('loading');
-    btnStop.disabled = true;
-
     addLog('INFO', 'Iniciando pipeline...');
     const result = await startPipeline();
     updateStatus(result);
     addLog('INFO', 'Pipeline iniciado');
   } catch (e) {
     addLog('ERROR', `Error: ${(e as Error).message}`);
-    btnStart.disabled = false;
-  } finally {
-    btnStart.classList.remove('loading');
   }
 }
 
 export async function handleStop(): Promise<void> {
-  const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
-  const btnStop = document.getElementById('btn-stop') as HTMLButtonElement;
-
   if (!confirm('¿Está seguro que desea detener el pipeline?')) {
     return;
   }
 
   try {
-    btnStop.disabled = true;
-    btnStop.classList.add('loading');
-    btnStart.disabled = true;
-
     addLog('INFO', 'Deteniendo pipeline...');
     const result = await stopPipeline();
     updateStatus(result);
@@ -71,21 +54,11 @@ export async function handleStop(): Promise<void> {
     addLog('INFO', 'Pipeline detenido');
   } catch (e) {
     addLog('ERROR', `Error: ${(e as Error).message}`);
-    btnStop.disabled = false;
-  } finally {
-    btnStop.classList.remove('loading');
   }
 }
 
 export async function handleSaveConfig(): Promise<void> {
-  const btnSave = document.getElementById('btn-save-config') as HTMLButtonElement;
-
   try {
-    if (btnSave) {
-      btnSave.disabled = true;
-      btnSave.classList.add('loading');
-    }
-
     const newConfig = collectConfigFromUI();
     await apiCall('PUT', '/api/config', { config: newConfig });
     const cfg = await getConfig();
@@ -97,11 +70,6 @@ export async function handleSaveConfig(): Promise<void> {
     const msg = (e as Error).message;
     showToast(`Error: ${msg}`, 'error');
     addLog('ERROR', `Error al guardar: ${msg}`);
-  } finally {
-    if (btnSave) {
-      btnSave.disabled = false;
-      btnSave.classList.remove('loading');
-    }
   }
 }
 
@@ -382,56 +350,24 @@ export function applyConfigToUI(cfg: Config): void {
 // ── Form visibility helpers ───────────────────────────────────────────────────
 
 export function updateInputFields(): void {
-  const inputType = (document.getElementById('input-type') as HTMLSelectElement)?.value || 'srt';
-
-  const srtConfig = document.getElementById('input-srt-settings');
-  const rtmpConfig = document.getElementById('input-rtmp-settings');
-  const fileConfig = document.getElementById('input-file-settings');
-  const playerControls = document.getElementById('file-player-controls');
-
-  if (srtConfig) srtConfig.style.display = inputType === 'srt' ? 'flex' : 'none';
-  if (rtmpConfig) rtmpConfig.style.display = inputType === 'rtmp' ? 'flex' : 'none';
-  if (fileConfig) fileConfig.style.display = inputType === 'file' ? 'flex' : 'none';
-
-  const filePathInput = document.getElementById('input-file-path') as HTMLInputElement;
-  const hasFile = filePathInput && filePathInput.value && filePathInput.value.length > 0;
-
-  if (playerControls) {
-    if (inputType === 'file' && hasFile) {
-      playerControls.style.display = 'flex';
-      setupFilePlayerControls();
-    } else {
-      playerControls.style.display = 'none';
-      if (inputType !== 'file') stopFileInfoPolling();
-    }
+  const inputTypeSelect = document.getElementById('input-type') as HTMLSelectElement;
+  if (inputTypeSelect) {
+    inputType.value = inputTypeSelect.value as 'srt' | 'rtmp' | 'file';
   }
+  // DOM updates are handled by startInputFieldsEffect()
 }
 
 export function updateOutputFields(): void {
-  const outputType = (document.getElementById('output-type') as HTMLSelectElement)?.value || 'webplayer';
-
-  const webplayerConfig = document.getElementById('output-webplayer-config');
-  const srtConfig = document.getElementById('output-srt-config');
-  const rtmpConfig = document.getElementById('output-rtmp-config');
-  const fileConfig = document.getElementById('output-file-config');
-
-  if (webplayerConfig) webplayerConfig.style.display = outputType === 'webplayer' ? 'flex' : 'none';
-  if (srtConfig) srtConfig.style.display = outputType === 'srt' ? 'flex' : 'none';
-  if (rtmpConfig) rtmpConfig.style.display = outputType === 'rtmp' ? 'flex' : 'none';
-  if (fileConfig) fileConfig.style.display = outputType === 'file' ? 'flex' : 'none';
+  const outputTypeSelect = document.getElementById('output-type') as HTMLSelectElement;
+  if (outputTypeSelect) {
+    outputType.value = outputTypeSelect.value as 'webplayer' | 'srt' | 'rtmp' | 'file';
+  }
+  // DOM updates are handled by startOutputFieldsEffect()
 }
 
 export function handleTtsEngineChange(engine: string): void {
-  const ttsDeviceGroup = document.getElementById('tts-device-group');
-  const ttsVoiceEdgeGroup = document.getElementById('tts-voice-edge-group');
-  const ttsVoicePiperGroup = document.getElementById('tts-voice-piper-group');
-
-  if (ttsDeviceGroup) ttsDeviceGroup.style.display = engine === 'piper' ? 'block' : 'none';
-  if (ttsVoiceEdgeGroup && ttsVoicePiperGroup) {
-    const isEdge = engine === 'edge-tts';
-    ttsVoiceEdgeGroup.style.display = isEdge ? 'block' : 'none';
-    ttsVoicePiperGroup.style.display = isEdge ? 'none' : 'block';
-  }
+  ttsEngine.value = engine as 'edge-tts' | 'piper';
+  // DOM updates are handled by startTtsEngineEffect()
 }
 
 export function handleInputTypeChange(type: string): void {
@@ -497,42 +433,9 @@ export function copyRtmpUrl(): void {
 // ── Connection info display ──────────────────────────────────────────────────
 
 export function updateConnectionInfoDisplay(): void {
-  const useIp = '127.0.0.1';
-  const inputTypeSelect = document.getElementById('input-type') as HTMLSelectElement;
-  const inputType = inputTypeSelect?.value || 'srt';
-
-  const urlEmisionEl = document.getElementById('url-emision');
-  const urlEmisionLabelEl = document.getElementById('url-emision-label');
-  const urlStreamEl = document.getElementById('url-stream');
-  const urlPlayerEl = document.getElementById('url-player');
-  const serverPort = pipelineConfig.value?.server?.port || 9999;
-
-  if (urlEmisionEl) {
-    let connectionInfo = '';
-    if (inputType === 'srt') {
-      const srtPort = (document.getElementById('input-srt-port') as HTMLInputElement)?.value || '9000';
-      const srtMode = (document.getElementById('input-srt-mode') as HTMLSelectElement)?.value || 'listener';
-      const srtLatency = (document.getElementById('input-srt-latency') as HTMLInputElement)?.value || '3000';
-      connectionInfo = `srt://${useIp}:${srtPort}?mode=${srtMode}&latency=${srtLatency}`;
-      if (urlEmisionLabelEl) urlEmisionLabelEl.textContent = 'SRT:';
-    } else if (inputType === 'rtmp') {
-      connectionInfo = (document.getElementById('input-rtmp-url') as HTMLInputElement)?.value || 'rtmp://127.0.0.1:1935/live/stream';
-      if (urlEmisionLabelEl) urlEmisionLabelEl.textContent = 'RTMP:';
-    } else {
-      const filePath = (document.getElementById('input-file-path') as HTMLInputElement)?.value || '(no file selected)';
-      connectionInfo = filePath || 'file://(no file selected)';
-      if (urlEmisionLabelEl) urlEmisionLabelEl.textContent = 'FILE:';
-    }
-    urlEmisionEl.textContent = connectionInfo;
-  }
-
-  if (urlStreamEl) urlStreamEl.textContent = `http://${useIp}:${serverPort}/hls/stream.m3u8`;
-  if (urlPlayerEl) {
-    urlPlayerEl.textContent = `http://${useIp}:${serverPort}/player`;
-    if (urlPlayerEl instanceof HTMLAnchorElement) {
-      urlPlayerEl.href = `http://${useIp}:${serverPort}/player`;
-    }
-  }
+  // Connection URL display is now handled by the connectionUrls effect
+  // This function is kept for backwards compatibility but does nothing
+  // The effect reads from connectionUrls.value and updates the DOM
 }
 
 // ── File input controls ──────────────────────────────────────────────────────
@@ -813,9 +716,52 @@ async function toggleModule(moduleName: string, enabled: boolean): Promise<void>
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', () => {
+// Also run a direct status fetch on load to ensure metrics display
+async function refreshMetrics() {
+  try {
+    const res = await fetch('/api/status');
+    const status = await res.json();
+    const s = status.system || {};
+    
+    // Direct DOM update as fallback (in case signals don't work)
+    const cpuEl = document.getElementById('metric-cpu-value');
+    const cpuBar = document.getElementById('metric-cpu-bar');
+    const memEl = document.getElementById('metric-memory-value');
+    const memPercent = document.getElementById('metric-memory-percent');
+    const memBar = document.getElementById('metric-memory-bar');
+    const gpuEl = document.getElementById('metric-gpu-value');
+    const gpuBar = document.getElementById('metric-gpu-bar');
+    
+    if (cpuEl) cpuEl.textContent = (s.cpu_percent || s.cpu_usage || 0) + '%';
+    if (cpuBar) cpuBar.style.width = (s.cpu_percent || s.cpu_usage || 0) + '%';
+    if (memEl) memEl.textContent = (s.memory_mb || 0).toFixed(0) + ' MB';
+    if (memPercent) memPercent.textContent = (s.memory_percent || s.memory_usage || 0) + '%';
+    if (memBar) memBar.style.width = (s.memory_percent || s.memory_usage || 0) + '%';
+    if (gpuEl) gpuEl.textContent = (s.gpu_usage || 0) + '%';
+    if (gpuBar) gpuBar.style.width = (s.gpu_usage || 0) + '%';
+  } catch(e) {
+    console.error('Metrics refresh failed:', e);
+  }
+}
+
+// Initialize on both DOMContentLoaded and load events for robustness
+function bootstrap() {
   setupEventListeners();
   setupCopyButtons();
   exposeWindow();
-  initDashboard();
+  // Small delay to ensure DOM is fully rendered
+  setTimeout(() => {
+    initDashboard();
+    // Direct metrics refresh as additional fallback
+    refreshMetrics();
+  }, 100);
+}
+
+document.addEventListener('DOMContentLoaded', bootstrap);
+document.addEventListener('load', () => {
+  // Also try on load as fallback
+  setTimeout(() => {
+    initDashboard();
+    refreshMetrics();
+  }, 500);
 });

@@ -2,6 +2,9 @@
  * Tipos de datos para gestión de salidas múltiples.
  */
 
+// Re-export shared types (base types for the app)
+export * from './shared-types';
+
 // Re-export state types
 export * from './types/state';
 
