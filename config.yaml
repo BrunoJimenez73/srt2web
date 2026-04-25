@@ -14,29 +14,29 @@ input:
     mode: listener
     latency_ms: 200
     caller_address: ''
-    chunk_duration_sec: 15
+    chunk_duration_sec: 2
   rtmp:
     listen_port: 1935
     app: live
     stream_key: stream
     url: ''
     mode: listener
-    chunk_duration_sec: 15
+    chunk_duration_sec: 2
   file:
     path: ''
     loop: false
     speed: 1.0
-    chunk_duration_sec: 15
+    chunk_duration_sec: 2
 output:
   type: web
   web:
-    segment_duration: 4
-    list_size: 6
+    segment_duration: 2
+    list_size: 3
     audio_offset_ms: 0
     encoder_mode: auto
   hls:
-    segment_duration: 4
-    list_size: 6
+    segment_duration: 2
+    list_size: 3
     audio_offset_ms: 0
     encoder_mode: auto
   rtmp:
@@ -85,18 +85,8 @@ output:
       list_size: 6
       audio_offset_ms: 0
       encoder_mode: auto
-  - name: recording_1777056636276
-    type: recording
-    enabled: true
-    config:
-      type: recording
-      name: recording_1777056636276
-      output_path: ./output/grabacion.mp4
-      format: mp4
-      codec: copy
-      audio_codec: aac
 pipeline:
-  chunk_duration_sec: 15
+  chunk_duration_sec: 2
   mode: thread_parallel
   max_concurrent_chunks: 3
   buffer_size: 5
@@ -108,8 +98,8 @@ modules:
   transcriber:
     enabled: true
     model: tiny
-    language: auto
-    device: auto
+    language: en
+    device: cuda
     beam_size: 2
   translator:
     enabled: true
@@ -119,31 +109,31 @@ modules:
     enabled: true
     format: srt
     use_translated: true
-    chunk_duration: 15
+    chunk_duration: 2
   tts_engine:
     enabled: true
     engine: piper
-    device: cuda
-    voice: es_AR-daniela-high
+    device: auto
+    voice: es_ES-davefx-medium
     speed: 1.0
   audio_mixer:
     enabled: true
-    original_volume: 0.7
+    original_volume: 0.8
     tts_volume: 1.0
     dubbed_volume: 1.0
   video_muxer:
     enabled: true
     engine: hls
-    hls_segment_duration: 10
-    hls_list_size: 6
+    hls_segment_duration: 2
+    hls_list_size: 3
     audio_offset_ms: 0
     encoder_mode: auto
     video_quality: medium
-    video_crf: 41
+    video_crf: 18
     audio_codec: aac
-    audio_bitrate: 128k
+    audio_bitrate: 64k
     audio_samplerate: '48000'
-    video_bitrate: 1000k
+    video_bitrate: 500k
     video_fps: 15
     video_width: 320
     video_height: 240
