@@ -6,9 +6,10 @@
  * DOM updates are handled automatically by effects (store/effects.ts).
  */
 
-import { apiCall, getConfig, startPipeline, stopPipeline, WSClient, getWebSocketUrl } from './api';
+import { apiCall, getConfig, startPipeline, stopPipeline, WSClient, getWebSocketUrl, updateChunkDuration } from './api';
 import { copyToClipboard, showToast } from './utils';
 import { formatTime } from './utils/format';
+import { MESSAGES, DEFAULTS, INTERVALS, MODULE_TITLES } from './constants';
 import {
   pipelineStatus,
   pipelineConfig,
@@ -21,6 +22,7 @@ import {
   connectionMode,
 } from './store/index';
 import type { Config, Status } from './types';
+import type { InputConfig, ModulesConfig, WebSocketMessage } from './api';
 
 // ── Notification helper ────────────────────────────────────────────────────────
 
@@ -32,26 +34,26 @@ function showNotification(message: string, type: 'success' | 'error' | 'info' = 
 
 export async function handleStart(): Promise<void> {
   try {
-    addLog('INFO', 'Iniciando pipeline...');
+    addLog('INFO', MESSAGES.PIPELINE_STARTING);
     const result = await startPipeline();
     updateStatus(result);
-    addLog('INFO', 'Pipeline iniciado');
+    addLog('INFO', MESSAGES.PIPELINE_STARTED);
   } catch (e) {
     addLog('ERROR', `Error: ${(e as Error).message}`);
   }
 }
 
 export async function handleStop(): Promise<void> {
-  if (!confirm('¿Está seguro que desea detener el pipeline?')) {
+  if (!confirm(MESSAGES.PIPELINE_CONFIRM_STOP)) {
     return;
   }
 
   try {
-    addLog('INFO', 'Deteniendo pipeline...');
+    addLog('INFO', MESSAGES.PIPELINE_STOPPING);
     const result = await stopPipeline();
     updateStatus(result);
     resetThroughput();
-    addLog('INFO', 'Pipeline detenido');
+    addLog('INFO', MESSAGES.PIPELINE_STOPPED);
   } catch (e) {
     addLog('ERROR', `Error: ${(e as Error).message}`);
   }
@@ -60,15 +62,33 @@ export async function handleStop(): Promise<void> {
 export async function handleSaveConfig(): Promise<void> {
   try {
     const newConfig = collectConfigFromUI();
+    
+    // Extract chunk duration for sync endpoint
+    const chunkDuration = parseInt(
+      (document.getElementById('input-chunk-duration') as HTMLInputElement)?.value
+      || (document.getElementById('input-rtmp-chunk') as HTMLInputElement)?.value
+      || (document.getElementById('input-file-chunk') as HTMLInputElement)?.value
+      || String(DEFAULTS.CHUNK_DURATION)
+    );
+    
     await apiCall('PUT', '/api/config', { config: newConfig });
+    
+    // Sync chunk duration to all pipeline modules
+    try {
+      await updateChunkDuration(chunkDuration);
+      addLog('INFO', `Chunk synced: ${chunkDuration}s`);
+    } catch (chunkError) {
+      addLog('WARN', `Chunk sync failed: ${(chunkError as Error).message}`);
+    }
+    
     const cfg = await getConfig();
     pipelineConfig.value = cfg;
     applyConfigToUI(cfg);
-    showToast('Configuración guardada', 'success');
+    showToast(MESSAGES.CONFIG_SAVED, 'success');
     addLog('INFO', 'Configuración guardada');
   } catch (e) {
     const msg = (e as Error).message;
-    showToast(`Error: ${msg}`, 'error');
+    showToast(`${MESSAGES.CONFIG_SAVE_ERROR}: ${msg}`, 'error');
     addLog('ERROR', `Error al guardar: ${msg}`);
   }
 }
@@ -83,10 +103,10 @@ export function collectConfigFromUI(): Partial<Config> {
     (document.getElementById('input-chunk-duration') as HTMLInputElement)?.value
     || (document.getElementById('input-rtmp-chunk') as HTMLInputElement)?.value
     || (document.getElementById('input-file-chunk') as HTMLInputElement)?.value
-    || '10'
+    || String(DEFAULTS.CHUNK_DURATION)
   );
 
-  const inputConfig: Record<string, any> = { type: inputType };
+  const inputConfig: InputConfig = { type: inputType as InputConfig['type'] };
 
   if (inputType === 'srt') {
     inputConfig.srt = {
@@ -104,21 +124,21 @@ export function collectConfigFromUI(): Partial<Config> {
     inputConfig.file = {
       path: (document.getElementById('input-file-path') as HTMLInputElement)?.value || '',
       loop: (document.getElementById('input-file-loop') as HTMLSelectElement)?.value === 'true',
-      speed: parseFloat((document.getElementById('input-file-speed') as HTMLInputElement)?.value || '1.0'),
+      speed: parseFloat((document.getElementById('input-file-speed') as HTMLInputElement)?.value || String(DEFAULTS.TTS_SPEED)),
     };
   }
 
-  const configModules: Record<string, any> = {
+  const configModules: ModulesConfig = {
     transcriber: {
       enabled: (document.getElementById('whisper-enabled') as HTMLInputElement)?.checked ?? true,
-      model: (document.getElementById('whisper-model') as HTMLSelectElement)?.value || 'tiny',
-      language: (document.getElementById('whisper-lang') as HTMLSelectElement)?.value || 'auto',
+      model: (document.getElementById('whisper-model') as HTMLSelectElement)?.value || DEFAULTS.WHISPER_MODEL,
+      language: (document.getElementById('whisper-lang') as HTMLSelectElement)?.value || DEFAULTS.WHISPER_LANGUAGE,
       device: (document.getElementById('whisper-device') as HTMLSelectElement)?.value || 'auto',
     },
     translator: {
       enabled: (document.getElementById('translator-enabled') as HTMLInputElement)?.checked ?? true,
-      source_lang: (document.getElementById('translator-source') as HTMLSelectElement)?.value || 'auto',
-      target_lang: (document.getElementById('translator-target') as HTMLSelectElement)?.value || 'es',
+      source_lang: (document.getElementById('translator-source') as HTMLSelectElement)?.value || DEFAULTS.WHISPER_LANGUAGE,
+      target_lang: (document.getElementById('translator-target') as HTMLSelectElement)?.value || DEFAULTS.TRANSLATE_TARGET,
     },
     tts_engine: {
       enabled: (document.getElementById('tts-enabled') as HTMLInputElement)?.checked ?? true,
@@ -126,28 +146,28 @@ export function collectConfigFromUI(): Partial<Config> {
       voice: (document.getElementById('tts-engine') as HTMLSelectElement)?.value === 'piper'
         ? (document.getElementById('tts-voice-piper') as HTMLSelectElement)?.value || 'es_ES-sharvard-medium'
         : (document.getElementById('tts-voice-edge') as HTMLSelectElement)?.value || 'es-ES-ElviraNeural',
-      speed: parseFloat((document.getElementById('tts-speed') as HTMLInputElement)?.value || '1.0'),
+      speed: parseFloat((document.getElementById('tts-speed') as HTMLInputElement)?.value || String(DEFAULTS.TTS_SPEED)),
       device: (document.getElementById('tts-device') as HTMLSelectElement)?.value || 'auto',
     },
     subtitle_generator: {
       enabled: (document.getElementById('subtitle-enabled') as HTMLInputElement)?.checked ?? true,
-      format: (document.getElementById('subtitle-format') as HTMLSelectElement)?.value || 'webvtt',
+      format: (document.getElementById('subtitle-format') as HTMLSelectElement)?.value || DEFAULTS.SUBTITLE_FORMAT,
       use_translated: (document.getElementById('subtitle-use-translated') as HTMLSelectElement)?.value === 'true',
     },
     audio_mixer: {
       enabled: (document.getElementById('audio-mixer-enabled') as HTMLInputElement)?.checked ?? false,
-      original_volume: parseFloat((document.getElementById('audio-mixer-original-volume') as HTMLInputElement)?.value || '0.3'),
-      dubbed_volume: parseFloat((document.getElementById('audio-mixer-dubbed-volume') as HTMLInputElement)?.value || '1.0'),
+      original_volume: parseFloat((document.getElementById('audio-mixer-original-volume') as HTMLInputElement)?.value || String(DEFAULTS.ORIGINAL_VOLUME)),
+      dubbed_volume: parseFloat((document.getElementById('audio-mixer-dubbed-volume') as HTMLInputElement)?.value || String(DEFAULTS.TTS_VOLUME)),
     },
     video_muxer: {
       enabled: (document.getElementById('muxer-enabled') as HTMLInputElement)?.checked ?? true,
       engine: (document.getElementById('video-muxer-engine') as HTMLSelectElement)?.value || 'hls',
-      hls_segment_duration: parseInt((document.getElementById('hls-segment') as HTMLInputElement)?.value || '10'),
-      hls_list_size: parseInt((document.getElementById('hls-list') as HTMLInputElement)?.value || '6'),
-      audio_offset_ms: parseInt((document.getElementById('hls-audio-offset') as HTMLInputElement)?.value || '0'),
+      hls_segment_duration: parseInt((document.getElementById('hls-segment') as HTMLInputElement)?.value || String(DEFAULTS.SEGMENT_DURATION)),
+      hls_list_size: parseInt((document.getElementById('hls-list') as HTMLInputElement)?.value || String(DEFAULTS.LIST_SIZE)),
+      audio_offset_ms: parseInt((document.getElementById('hls-audio-offset') as HTMLInputElement)?.value || String(DEFAULTS.AUDIO_OFFSET)),
       encoder_mode: (document.getElementById('hls-encoder') as HTMLSelectElement)?.value || 'auto',
       video_quality: 'medium',
-      video_crf: parseInt((document.getElementById('hls-crf') as HTMLInputElement)?.value || '18'),
+      video_crf: parseInt((document.getElementById('hls-crf') as HTMLInputElement)?.value || String(DEFAULTS.CRF)),
       audio_codec: (document.getElementById('video-muxer-engine') as HTMLSelectElement)?.value === 'webrtc'
         ? (document.getElementById('webrtc-audio-codec') as HTMLSelectElement)?.value || 'opus'
         : (document.getElementById('hls-audio-codec') as HTMLSelectElement)?.value || 'aac',
@@ -233,7 +253,7 @@ export function applyConfigToUI(cfg: Config): void {
   const srtChunkInput = document.getElementById('input-chunk-duration') as HTMLInputElement;
   const rtmpChunkInput = document.getElementById('input-rtmp-chunk') as HTMLInputElement;
   const fileChunkInput = document.getElementById('input-file-chunk') as HTMLInputElement;
-  const pipelineChunkDuration = cfg.pipeline?.chunk_duration_sec || 10;
+  const pipelineChunkDuration = cfg.pipeline?.chunk_duration_sec || DEFAULTS.CHUNK_DURATION;
   const chunkDuration = pipelineChunkDuration;
 
   if (srtChunkInput) {
@@ -387,9 +407,9 @@ export function handleInputTypeChange(type: string): void {
   const inputTitle = document.getElementById('input-process-title');
   if (inputTitle) {
     const titles: Record<string, string> = {
-      srt: '📥 INPUT (SRT)',
-      rtmp: '📥 INPUT (RTMP)',
-      file: '📥 INPUT (File)',
+      srt: `${MODULE_TITLES.input} (SRT)`,
+      rtmp: `${MODULE_TITLES.input} (RTMP)`,
+      file: `${MODULE_TITLES.input} (File)`,
     };
     inputTitle.textContent = titles[type] || '📥 INPUT';
   }
@@ -424,9 +444,9 @@ export function copyRtmpUrl(): void {
   if (!rtmpUrlInput?.value) return;
 
   navigator.clipboard.writeText(rtmpUrlInput.value).then(() => {
-    showToast('URL copiada al portapapeles', 'success');
+    showToast(MESSAGES.URL_COPIED, 'success');
   }).catch(() => {
-    showToast('Error al copiar URL', 'error');
+    showToast(MESSAGES.URL_COPY_ERROR, 'error');
   });
 }
 
@@ -446,7 +466,7 @@ export function handleFileSelect(input: HTMLInputElement): void {
 
   const fileName = input.files[0].name;
   filePathInput.placeholder = `Ej: C:\\Users\\bruno\\Desktop\\${fileName}`;
-  showToast(`Archivo: ${fileName}. Ahora ingresa la RUTA COMPLETA manualmente.`, 'info');
+    showToast(MESSAGES.INPUT_FILE_SELECTED, 'info');
   filePathInput.focus();
 
   const playerControls = document.getElementById('file-player-controls');
@@ -457,7 +477,7 @@ export function handleFileSelect(input: HTMLInputElement): void {
 export async function fileInputPlay(): Promise<void> {
   try {
     await apiCall('POST', 'input/control/play');
-    showToast('Reproducción reanudada', 'success');
+    showToast(MESSAGES.INPUT_FILE_PLAY, 'success');
   } catch (e) {
     showToast(`Error al reproducir: ${(e as Error).message}`, 'error');
   }
@@ -466,7 +486,7 @@ export async function fileInputPlay(): Promise<void> {
 export async function fileInputPause(): Promise<void> {
   try {
     await apiCall('POST', 'input/control/pause');
-    showToast('Reproducción pausada', 'success');
+    showToast(MESSAGES.INPUT_FILE_PAUSE, 'success');
   } catch (e) {
     showToast(`Error al pausar: ${(e as Error).message}`, 'error');
   }
@@ -531,7 +551,7 @@ function startFileInfoPolling(): void {
         }
       }
     });
-  }, 500);
+  }, INTERVALS.FILE_POLL);
 }
 
 export function stopFileInfoPolling(): void {
@@ -587,7 +607,7 @@ export function setupFilePlayerControls(): void {
           fileInputSeek((percent / 100) * info.duration);
         }
       });
-    }, 100);
+    }, INTERVALS.SEEK_DEBOUNCE);
   });
 
   startFileInfoPolling();
@@ -630,7 +650,7 @@ let wsClient: WSClient | null = null;
 let statusPollInterval: ReturnType<typeof setInterval> | null = null;
 
 export async function initDashboard(): Promise<void> {
-  addLog('INFO', 'Inicializando...');
+  addLog('INFO', MESSAGES.LOADING);
 
   try {
     // Load config and apply to UI
@@ -659,19 +679,19 @@ export async function initDashboard(): Promise<void> {
     // WebSocket connection for logs + status
     const wsUrl = getWebSocketUrl('/ws/logs');
     wsClient = new WSClient(wsUrl);
-    wsClient.onMessage((data: any) => {
+    wsClient.onMessage((data: WebSocketMessage) => {
       if (data.type === 'log') {
-        addLog(data.level, data.message);
-      } else if (data.type === 'status') {
-        updateStatus(data.status as Status);
+        addLog(data.level ?? 'INFO', data.message ?? '');
+      } else if (data.type === 'status' && data.status) {
+        updateStatus(data.status);
       }
     });
     wsClient.onError(() => {
-      addLog('ERROR', 'WebSocket error');
+      addLog('ERROR', MESSAGES.WS_ERROR);
     });
     wsClient.onClose(() => {
       wsConnected.value = false;
-      addLog('ERROR', 'WebSocket desconectado');
+      addLog('ERROR', MESSAGES.WS_DISCONNECTED);
     });
     wsClient.connect();
 
@@ -683,9 +703,9 @@ export async function initDashboard(): Promise<void> {
       } catch {
         // Silently fail on poll errors
       }
-    }, 2000);
+    }, INTERVALS.STATUS_POLL);
 
-    addLog('INFO', 'Dashboard inicializado');
+    addLog('INFO', MESSAGES.SUCCESS);
   } catch (e) {
     addLog('ERROR', `Error de inicialización: ${(e as Error).message}`);
   }

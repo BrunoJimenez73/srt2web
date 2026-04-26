@@ -508,6 +508,60 @@ def create_api_router() -> APIRouter:
 
         return {"status": "updated", "config": config.to_dict()}
 
+    @router.post("/config/chunk")
+    async def update_chunk_duration(request: Request, body: dict):
+        """
+        Update chunk duration and synchronize all related parameters.
+        
+        Accepts: {"chunk_duration_sec": <int>}
+        Syncs to:
+        - config.pipeline.chunk_duration_sec
+        - config.input.srt.chunk_duration_sec
+        - config.modules.video_muxer.hls_segment_duration
+        - config.modules.hls_output.segment_duration
+        - Reconfigures running pipeline modules
+        """
+        ctx = _ctx(request)
+        config = ctx["config"]
+        pipeline = ctx["pipeline"]
+
+        chunk_duration = body.get("chunk_duration_sec")
+        if not chunk_duration:
+            raise HTTPException(400, "chunk_duration_sec is required")
+        if not isinstance(chunk_duration, int) or chunk_duration < 1 or chunk_duration > 60:
+            raise HTTPException(400, "chunk_duration_sec must be between 1 and 60")
+
+        # Sync to all config sections using config.set() method
+        config.set("pipeline.chunk_duration_sec", chunk_duration)
+        config.set("input.srt.chunk_duration_sec", chunk_duration)
+        config.set("modules.video_muxer.hls_segment_duration", chunk_duration)
+        config.set("modules.hls_output.segment_duration", chunk_duration)
+
+        logger.info(f"[CHUNK] Syncing chunk_duration={chunk_duration}s to all modules")
+
+        try:
+            config.save()
+            config.reload()
+        except Exception as e:
+            logger.error(f"[CHUNK] Failed to save config: {e}")
+
+        # Reconfigure pipeline and modules
+        try:
+            pipeline.reconfigure(config)
+        except Exception as e:
+            logger.warning(f"[CHUNK] Pipeline reconfigure failed (may not be running): {e}")
+
+        return {
+            "status": "updated",
+            "chunk_duration_sec": chunk_duration,
+            "synced_to": [
+                "pipeline.chunk_duration_sec",
+                "input.srt.chunk_duration_sec",
+                "modules.video_muxer.hls_segment_duration",
+                "modules.hls_output.segment_duration",
+            ]
+        }
+
     # ── Module Management ─────────────────────────────────
 
     @router.get("/modules")

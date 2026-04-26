@@ -171,6 +171,74 @@ class TestConfigUpdate:
         assert update.config["modules"]["transcriber"]["model"] == "invalid"
 
 
+class TestChunkDurationSync:
+    """Tests for /api/config/chunk endpoint."""
+
+    @pytest.fixture
+    def mock_ctx(self):
+        """Create mock app context."""
+        from unittest.mock import Mock
+        from core.config_manager import ConfigManager
+        from core.unified_pipeline import UnifiedPipeline
+
+        config = ConfigManager()
+        pipeline = UnifiedPipeline()
+
+        return {
+            "config": config,
+            "pipeline": pipeline,
+            "input_source": None,
+            "output_sink": None,
+            "log_broadcast": Mock(),
+        }
+
+    def test_chunk_duration_sync_endpoint_exists(self, mock_ctx):
+        """Test /api/config/chunk endpoint exists."""
+        from fastapi.testclient import TestClient
+        from server.app import create_app
+
+        app = create_app(mock_ctx)
+        client = TestClient(app)
+        response = client.post(
+            "/api/config/chunk",
+            json={"chunk_duration_sec": 5}
+        )
+        assert response.status_code in (200, 401, 403)
+
+    def test_chunk_duration_sync_validation(self, mock_ctx):
+        """Test chunk_duration validation."""
+        from fastapi.testclient import TestClient
+        from server.app import create_app
+
+        app = create_app(mock_ctx)
+        client = TestClient(app)
+        
+        # Invalid: must be between 1 and 60
+        response = client.post(
+            "/api/config/chunk",
+            json={"chunk_duration_sec": 100}
+        )
+        assert response.status_code == 400
+        assert "between 1 and 60" in response.json()["detail"]
+
+    def test_chunk_duration_sync_success(self, mock_ctx):
+        """Test successful chunk_duration sync."""
+        from fastapi.testclient import TestClient
+        from server.app import create_app
+
+        app = create_app(mock_ctx)
+        client = TestClient(app)
+        
+        response = client.post(
+            "/api/config/chunk",
+            json={"chunk_duration_sec": 5}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["chunk_duration_sec"] == 5
+        assert "pipeline.chunk_duration_sec" in data["synced_to"]
+
+
 class TestModuleToggle:
     """Tests for ModuleToggle model."""
 
