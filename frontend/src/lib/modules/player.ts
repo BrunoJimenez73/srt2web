@@ -389,14 +389,20 @@ export function initHlsPlayer(): void {
         lastManifestTime = Date.now();
         lastFragmentTime = Date.now();
         
-        // Try to autoplay if user hasn't disabled it
-        // This may fail due to browser autoplay policy, which is expected
-        const canAutoplay = localStorage.getItem('srt2web-autoplay') !== 'false';
-        if (canAutoplay) {
-          video.play()
-            .then(() => console.log('[Player] Autoplay started'))
-            .catch((e) => console.log('[Player] Autoplay blocked:', e.message));
-        }
+        // Try to autoplay with audio
+        video.play()
+          .then(() => {
+            console.log('[Player] Autoplay started with audio');
+            // Unmute after successful autoplay to enable audio
+            video.muted = false;
+          })
+          .catch((e) => {
+            // Try muted as fallback
+            video.muted = true;
+            video.play()
+              .then(() => console.log('[Player] Autoplay started muted'))
+              .catch((e2) => console.log('[Player] Autoplay blocked:', e2.message));
+          });
         
         startSubtitlePolling();
         startHealthCheck();
@@ -459,13 +465,10 @@ export function initHlsPlayer(): void {
         if (waitingEl) waitingEl.style.display = 'none';
         isConnected = true;
         
-        // Try to autoplay
-        const canAutoplay = localStorage.getItem('srt2web-autoplay') !== 'false';
-        if (canAutoplay) {
-          video.play()
-            .then(() => console.log('[Player] Autoplay started (native)'))
-            .catch((e) => console.log('[Player] Autoplay blocked:', e.message));
-        }
+        // Try to autoplay with audio
+        video.play()
+          .then(() => console.log('[Player] Autoplay started (native)'))
+          .catch((e) => console.log('[Player] Autoplay blocked:', e.message));
         
         startSubtitlePolling();
         startHealthCheck();
