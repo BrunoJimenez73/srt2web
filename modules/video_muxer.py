@@ -149,7 +149,7 @@ class VideoMuxer(BaseModule):
             return data
 
         chunk_duration = data.duration or self._hls_segment_duration
-        offset_sec = getattr(data, "cumulative_duration", self._total_duration_emitted)
+        offset_sec = f"{getattr(data, 'cumulative_duration', self._total_duration_emitted):.3f}"
         segment_name = f"seg_{self._segment_index:06d}.ts"
 
         # Copy input to HLS segment (passthrough - no re-encoding)
