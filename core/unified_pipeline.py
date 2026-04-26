@@ -665,6 +665,7 @@ class UnifiedPipeline:
                 self._log("error", f"Error stopping output sink: {e}")
 
         self._set_state(PipelineState.IDLE)
+        self._initialized = False  # Force re-initialization on next start
         self._log("info", "UnifiedPipeline stopped successfully")
 
     def get_status(self) -> dict:

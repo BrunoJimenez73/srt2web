@@ -154,9 +154,18 @@ class SubtitleGenerator(BaseModule):
         if not duration or duration <= 0:
             duration = 4.0
 
-        # CRITICAL: Use cumulative_duration from PipelineData for sync
+        # CRITICAL FIX: Use cumulative_duration from PipelineData for sync
         # This comes from InputSource and is validated there
         chunk_start_time = getattr(data, "cumulative_duration", 0.0)
+        
+        # FIX: Validate cumulative_duration is monotonically increasing to prevent drift
+        if chunk_start_time < self._last_cumulative:
+            logger.warning(
+                f"[SubtitleGen] Cumulative duration decreased! "
+                f"{chunk_start_time:.3f} < {self._last_cumulative:.3f} - "
+                f"using last cumulative to prevent drift"
+            )
+            chunk_start_time = self._last_cumulative
 
         # Validate sequential processing (detect out-of-order chunks)
         # Handle pause loop: same chunk_index is OK, just skip subtitle re-add
