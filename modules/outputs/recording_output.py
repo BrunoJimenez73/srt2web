@@ -439,6 +439,9 @@ class RecordingOutput(OutputSink):
 
     def write(self, data: PipelineData) -> None:
         """Copiar video + audio chunks a directorio temporal para concat posterior."""
+        # Store data for later use in concat (to get subtitles_path, etc)
+        self._pending_data = data
+        
         if not self._running:
             self.logger.debug(f"Recording write: not running, skipping")
             return
@@ -484,9 +487,8 @@ class RecordingOutput(OutputSink):
 
     def _concat_subtitle_chunks(self) -> Optional[str]:
         """Concatenar todos los chunks .vtt de subtitles en un solo archivo."""
-        import re
-        # Look for VTT chunks in the subtitles directory
-        subs_dir = os.path.join(self._output_dir or "./output", "subtitles")
+        # Subtitles are in output/hls/ (where SubtitleGenerator writes)
+        subs_dir = os.path.join(self._output_dir or "./output", "hls")
         vtt_files = sorted(glob.glob(os.path.join(subs_dir, "chunk_*.vtt")))
         if not vtt_files:
             self.logger.debug("No subtitle .vtt chunks found in subtitles directory")
