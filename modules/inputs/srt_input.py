@@ -19,6 +19,7 @@ import time
 import logging
 import subprocess
 import threading
+import struct
 from pathlib import Path
 from typing import Optional
 

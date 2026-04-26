@@ -41,8 +41,6 @@ const HlsEvents = {
   ERROR: 'hlsError',
   FRAG_BUFFERED: 'hlsFragBuffered',
   LEVEL_SWITCH: 'hlsLevelSwitch',
-  FRAG_LOADED: 'hlsFragLoaded',
-  FRAG_LOADED_APPENDING: 'hlsFragLoadedAppending',
 };
 
 // HLS Error Types enum
@@ -55,18 +53,12 @@ interface SubtitleCue {
   start: number;
   end: number;
   text: string;
-  chunkStart: number;  // When this chunk started in absolute time
 }
 
 // Health check state
 let healthCheckInterval: ReturnType<typeof setInterval> | null = null;
 let consecutiveErrors = 0;
-let initialLoadAttempts = 0;
-let hasShownWaiting = false;
-let lastFragmentTime = 0;
-const INITIAL_LOAD_TIMEOUT = 30000; // 30 seconds to wait for first chunk
-const MAX_CONSECUTIVE_ERRORS = 10; // More tolerant
-const FRAGMENT_TIMEOUT = 30000; // 30s timeout for fragments (with 4s segments + buffer)
+const MAX_CONSECUTIVE_ERRORS = 5;
 
 export function initHlsPlayer(): void {
   const video = document.getElementById('video-player') as HTMLVideoElement;
@@ -81,25 +73,22 @@ export function initHlsPlayer(): void {
   }
 
   const streamUrl = `${window.location.origin}/hls/stream.m3u8`;
-  const subtitlesUrl = `${window.location.origin}/subtitles/chunk_000000.vtt`;
-  const subtitlesDirUrl = `${window.location.origin}/subtitles/`;
+  const subtitlesUrl = `${window.location.origin}/subtitles/subs.vtt`;
   let hls: HlsInstance | null = null;
   let subtitleInterval: ReturnType<typeof setInterval> | null = null;
   let lastSubtitleContent = '';
   let isConnected = false;
   let lastManifestTime = 0;
 
-  function showError(message: string, showRetry = true) {
+  function showError(message: string) {
     if (errorOverlay) errorOverlay.style.display = 'flex';
     if (errorMessage) errorMessage.textContent = message;
     if (waitingEl) waitingEl.style.display = 'none';
-    if (btnRetry) btnRetry.style.display = showRetry ? 'block' : 'none';
     isConnected = false;
   }
 
   function hideError() {
     if (errorOverlay) errorOverlay.style.display = 'none';
-    if (btnRetry) btnRetry.style.display = 'none';
   }
 
   // Health check - monitor stream availability
@@ -108,25 +97,6 @@ export function initHlsPlayer(): void {
     consecutiveErrors = 0;
     
     healthCheckInterval = setInterval(async () => {
-      const now = Date.now();
-      
-      // Check for fragment stall (no new fragment in FRAGMENT_TIMEOUT ms)
-      if (isConnected && lastFragmentTime > 0 && (now - lastFragmentTime) > FRAGMENT_TIMEOUT) {
-        console.warn('[Health] Fragment stall detected, last fragment was', (now - lastFragmentTime) / 1000, 'seconds ago');
-        consecutiveErrors++;
-        lastFragmentTime = now; // Reset to avoid spam
-        
-        if (consecutiveErrors >= 3) {
-          console.log('[Health] Multiple stalls, attempting stream recovery...');
-          try {
-            hls?.startLoad();
-          } catch (e) {
-            console.error('[Health] Failed to restart load:', e);
-          }
-          consecutiveErrors = 0;
-        }
-      }
-      
       try {
         const response = await fetch(streamUrl, { method: 'HEAD', cache: 'no-cache' });
         
@@ -151,7 +121,7 @@ export function initHlsPlayer(): void {
         showError('Stream no disponible. Haz clic en Reintentar para conectar.');
         consecutiveErrors = 0;
       }
-    }, 5000); // Check every 5 seconds for better responsiveness
+    }, 10000); // Check every 10 seconds
   }
 
   function stopHealthCheck() {
@@ -165,45 +135,26 @@ export function initHlsPlayer(): void {
   function parseVTT(vttContent: string): SubtitleCue[] {
     const cues: SubtitleCue[] = [];
     const lines = vttContent.split('\n');
-    const timeRegex = /(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})/;
-    const chunkStartRegex = /chunk_start:\s*([\d.]+)/;
-    
-    let currentChunkStart = 0;
+    // Support both VTT (dot) and SRT (comma) timestamps
+    const timeRegex = /(\d{2}):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[,.](\d{3})/;
     
     for (let i = 0; i < lines.length; i++) {
-      // Check for chunk_start NOTE
-      const chunkMatch = lines[i].match(chunkStartRegex);
-      if (chunkMatch) {
-        currentChunkStart = parseFloat(chunkMatch[1]);
-        continue;
-      }
-      
       const match = lines[i].match(timeRegex);
       if (match) {
-        // Relative timestamps from VTT
-        const relStart = parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + 
+        const start = parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + 
                      parseInt(match[3]) + parseInt(match[4]) / 1000;
-        const relEnd = parseInt(match[5]) * 3600 + parseInt(match[6]) * 60 + 
+        const end = parseInt(match[5]) * 3600 + parseInt(match[6]) * 60 + 
                    parseInt(match[7]) + parseInt(match[8]) / 1000;
         
         let text = '';
         let j = i + 1;
         while (j < lines.length && lines[j].trim() !== '') {
-          // Skip NOTE lines in text
-          if (!lines[j].startsWith('NOTE')) {
-            text += (text ? '\n' : '') + lines[j].trim();
-          }
+          text += (text ? '\n' : '') + lines[j].trim();
           j++;
         }
         
-        if (text && currentChunkStart > 0) {
-          // Store relative time + chunk start for dynamic offset calculation
-          cues.push({ 
-            start: relStart, 
-            end: relEnd, 
-            text: text,
-            chunkStart: currentChunkStart 
-          });
+        if (text) {
+          cues.push({ start, end, text });
         }
       }
     }
@@ -211,60 +162,61 @@ export function initHlsPlayer(): void {
     return cues;
   }
 
-  // Load and display subtitles from all chunk files
+  // Load and display subtitles
   async function loadSubtitles() {
-    let allCues: SubtitleCue[] = [];
-    
-    // Fetch chunk files sequentially
-    for (let i = 0; i < 200; i++) {
-      const chunkUrl = `${subtitlesDirUrl}chunk_${String(i).padStart(6, '0')}.vtt`;
+    try {
+      const response = await fetch(subtitlesUrl, { 
+        cache: 'no-cache',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
       
-      try {
-        const response = await fetch(chunkUrl, { cache: 'no-cache' });
-        if (!response.ok) break;
-        
-        const content = await response.text();
-        if (content && content.length > 10) {
-          const cues = parseVTT(content);
-          allCues.push(...cues);
+      if (!response.ok) {
+        if (response.status !== 404) {
+          console.warn('Error loading subtitles:', response.status);
         }
-      } catch {
-        break;
+        return;
       }
-    }
-    
-    if (allCues.length === 0) return;
-       
-    let track: TextTrack | null = null;
-    if (video.textTracks.length > 0) {
-      track = video.textTracks[0];
-    } else {
-      track = video.addTextTrack('subtitles', 'Español', 'es');
-      track.mode = 'showing';
-    }
-       
-    if (track && track.cues) {
-      const cuesToRemove = Array.from(track.cues);
-      for (const cue of cuesToRemove) {
-        track.removeCue(cue);
+      
+      const content = await response.text();
+      
+      if (content === lastSubtitleContent) return;
+      lastSubtitleContent = content;
+      
+      const cues = parseVTT(content);
+      
+      if (!cues || cues.length === 0) return;
+      
+      let track: TextTrack | null = null;
+      if (video.textTracks.length > 0) {
+        track = video.textTracks[0];
+      } else {
+        track = video.addTextTrack('subtitles', 'Español', 'es');
+        track.mode = 'showing';
       }
-    }
-       
-    if (track) {
-      for (const cue of allCues) {
-const vttCue = new VTTCue(cue.start, cue.end, cue.text);
-        track.addCue(vttCue);
+      
+      if (track && track.cues) {
+        const cuesToRemove = Array.from(track.cues);
+        for (const cue of cuesToRemove) {
+          track.removeCue(cue);
+        }
       }
+      
+      if (track) {
+        for (const cue of cues) {
+          const vttCue = new VTTCue(cue.start, cue.end, cue.text);
+          track.addCue(vttCue);
+        }
+      }
+      
+      console.log(`Loaded ${cues.length} subtitle cues`);
+    } catch (error) {
+      console.warn('Error loading subtitles:', error);
     }
-       
-console.log(`Loaded ${allCues.length} subtitle cues`);
   }
 
   function startSubtitlePolling() {
     loadSubtitles();
-    subtitleInterval = setInterval(loadSubtitles, 1000); // Poll every 1s for faster updates
-    // Also poll for input state to pause/resume video
-    startInputStatePolling();
+    subtitleInterval = setInterval(loadSubtitles, 2000);
   }
 
   function stopSubtitlePolling() {
@@ -272,65 +224,13 @@ console.log(`Loaded ${allCues.length} subtitle cues`);
       clearInterval(subtitleInterval);
       subtitleInterval = null;
     }
-    stopInputStatePolling();
-  }
-
-  // Poll input state to pause/resume video when user pauses input
-  let inputStateInterval: ReturnType<typeof setInterval> | null = null;
-  let lastInputPaused = false;
-
-  async function checkInputState() {
-    try {
-      const response = await fetch(`${window.location.origin}/api/input-info`, {
-        headers: { 'Accept': 'application/json' }
-      });
-      if (!response.ok) return;
-      const data = await response.json();
-      
-      if (data.type === 'file') {
-        const isPaused = data.is_paused === true;
-        
-        // If input paused state changed, update video
-        if (isPaused !== lastInputPaused) {
-          lastInputPaused = isPaused;
-          if (isPaused && !video.paused) {
-            console.log('[Player] Input paused - pausing video');
-            video.pause();
-          } else if (!isPaused && video.paused) {
-            console.log('[Player] Input resumed - resuming video');
-            video.play().catch(console.error);
-          }
-        }
-      }
-    } catch {
-      // Ignore errors
-    }
-  }
-
-  function startInputStatePolling() {
-    checkInputState(); // Check immediately
-    inputStateInterval = setInterval(checkInputState, 1000);
-  }
-
-  function stopInputStatePolling() {
-    if (inputStateInterval) {
-      clearInterval(inputStateInterval);
-      inputStateInterval = null;
-    }
   }
 
   function connect() {
     hideError();
-    if (waitingEl) {
-      waitingEl.style.display = 'block';
-      waitingEl.textContent = 'Esperando stream...';
-    }
+    if (waitingEl) waitingEl.style.display = 'block';
     isConnected = false;
     consecutiveErrors = 0;
-    initialLoadAttempts = 0;
-
-    // If we already showed waiting, don't show error immediately
-    hasShownWaiting = false;
 
     if (typeof Hls !== 'undefined' && Hls.isSupported()) {
       if (hls) {
@@ -340,13 +240,13 @@ console.log(`Loaded ${allCues.length} subtitle cues`);
       hls = new Hls({
         debug: false,
         enableWorker: true,
-        lowLatencyMode: false, // Disable low latency for smoother playback
-        backBufferLength: 60, // 60s buffer
-        maxLoadingDelay: 8, // Allow up to 8s delay for segments
-        maxBufferLength: 30, // 30s buffer before pausing load
-        maxMaxBufferLength: 60, // Max 60s buffer
-        liveSyncMaxLatency: 10, // Allow up to 10s latency
-        liveDurationInfinity: true,
+        lowLatencyMode: true,
+        backBufferLength: 30,
+        maxLoadingDelay: 3,
+        maxBufferLength: 10,
+        maxMaxBufferLength: 20,
+        liveSyncMaxLatency: 4,
+        liveDurationInfinity: false,
       });
 
       hls.loadSource(streamUrl);
@@ -354,65 +254,21 @@ console.log(`Loaded ${allCues.length} subtitle cues`);
 
       hls.on(HlsEvents.MANIFEST_PARSED, () => {
         if (waitingEl) waitingEl.style.display = 'none';
-        hasShownWaiting = true;
         isConnected = true;
         lastManifestTime = Date.now();
-        lastFragmentTime = Date.now();
-        
-        // Try to autoplay with audio
-        video.play()
-          .then(() => {
-            console.log('[Player] Autoplay started with audio');
-            // Unmute after successful autoplay to enable audio
-            video.muted = false;
-          })
-          .catch((e) => {
-            // Try muted as fallback
-            video.muted = true;
-            video.play()
-              .then(() => console.log('[Player] Autoplay started muted'))
-              .catch((e2) => console.log('[Player] Autoplay blocked:', e2.message));
-          });
-        
+        video.play().catch(console.error);
         startSubtitlePolling();
         startHealthCheck();
-      });
-
-      // Track fragment loading to detect stalls
-      hls.on(HlsEvents.FRAG_LOADED, () => {
-        lastFragmentTime = Date.now();
-        consecutiveErrors = 0; // Reset errors on successful fragment
-      });
-
-      hls.on(HlsEvents.FRAG_LOADED_APPENDING, () => {
-        lastFragmentTime = Date.now();
       });
 
       hls.on(HlsEvents.ERROR, (_event, data) => {
         console.warn('[HLS Error]', data.type, data.fatal, data.details);
         
-        // Don't show error immediately - just retry
         if (data.fatal) {
           switch (data.type) {
             case HlsErrorTypes.NETWORK_ERROR:
-              if (isConnected) {
-                // Was connected, lost stream - reconnect attempt
-                console.log('[HLS] Lost stream, attempting reconnect...');
-                hls?.startLoad();
-              } else {
-                // First connect - show waiting, not error
-                if (waitingEl) {
-                  waitingEl.textContent = 'Esperando stream...';
-                  waitingEl.style.display = 'block';
-                }
-                // Auto-retry without showing error
-                initialLoadAttempts++;
-                if (initialLoadAttempts > 3) {
-                  showError('No se puede conectar al stream. Haz clic en Reintentar.');
-                } else {
-                  setTimeout(() => hls?.startLoad(), 2000);
-                }
-              }
+              showError('Error de red - intentando reconectar...');
+              hls?.startLoad();
               break;
             case HlsErrorTypes.MEDIA_ERROR:
               hls?.recoverMediaError();
@@ -434,12 +290,7 @@ console.log(`Loaded ${allCues.length} subtitle cues`);
       video.addEventListener('loadedmetadata', () => {
         if (waitingEl) waitingEl.style.display = 'none';
         isConnected = true;
-        
-        // Try to autoplay with audio
-        video.play()
-          .then(() => console.log('[Player] Autoplay started (native)'))
-          .catch((e) => console.log('[Player] Autoplay blocked:', e.message));
-        
+        video.play().catch(console.error);
         startSubtitlePolling();
         startHealthCheck();
       });

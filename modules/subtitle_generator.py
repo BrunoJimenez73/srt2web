@@ -61,7 +61,7 @@ class SubtitleGenerator(BaseModule):
         """Initialize subtitle files."""
         self._state = ModuleState.STARTING
 
-        self._subtitles_dir = os.path.join(self._output_dir, "hls")
+        self._subtitles_dir = os.path.join(self._output_dir, "subtitles")
         os.makedirs(self._subtitles_dir, exist_ok=True)
 
         self._vtt_path = os.path.join(self._subtitles_dir, "subs.vtt")
