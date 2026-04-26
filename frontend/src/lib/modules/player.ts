@@ -81,7 +81,8 @@ export function initHlsPlayer(): void {
   }
 
   const streamUrl = `${window.location.origin}/hls/stream.m3u8`;
-  const subtitlesUrl = `${window.location.origin}/subtitles/subs.vtt`;
+  const subtitlesUrl = `${window.location.origin}/subtitles/chunk_000000.vtt`;
+  const subtitlesDirUrl = `${window.location.origin}/subtitles/`;
   let hls: HlsInstance | null = null;
   let subtitleInterval: ReturnType<typeof setInterval> | null = null;
   let lastSubtitleContent = '';
@@ -210,84 +211,53 @@ export function initHlsPlayer(): void {
     return cues;
   }
 
-  // Load and display subtitles
+  // Load and display subtitles from all chunk files
   async function loadSubtitles() {
-    try {
-      const response = await fetch(subtitlesUrl, { 
-        cache: 'no-cache',
-        headers: { 'Cache-Control': 'no-cache' }
-      });
+    let allCues: SubtitleCue[] = [];
+    
+    // Fetch chunk files sequentially
+    for (let i = 0; i < 200; i++) {
+      const chunkUrl = `${subtitlesDirUrl}chunk_${String(i).padStart(6, '0')}.vtt`;
       
-      if (!response.ok) {
-        if (response.status !== 404) {
-          console.warn('Error loading subtitles:', response.status);
+      try {
+        const response = await fetch(chunkUrl, { cache: 'no-cache' });
+        if (!response.ok) break;
+        
+        const content = await response.text();
+        if (content && content.length > 10) {
+          const cues = parseVTT(content);
+          allCues.push(...cues);
         }
-        return;
+      } catch {
+        break;
       }
-      
-      const content = await response.text();
-      
-      // Don't skip if content looks similar - always parse and update
-      // This ensures we catch all changes from the rolling window
-      if (!content || content.length < 10) return;
-      
-      // Check if we have new content by comparing cue count
-      const cues = parseVTT(content);
-      
-      if (!cues || cues.length === 0) {
-        // Clear existing track if no cues available
-        if (video.textTracks.length > 0) {
-          const track = video.textTracks[0];
-          if (track.cues) {
-            const cuesToRemove = Array.from(track.cues);
-            for (const cue of cuesToRemove) {
-              track.removeCue(cue);
-            }
-          }
-        }
-        return;
-      }
-      
-      // Get current video time for dynamic offset calculation
-      const videoTime = video.currentTime;
-      
-      let track: TextTrack | null = null;
-      if (video.textTracks.length > 0) {
-        track = video.textTracks[0];
-      } else {
-        track = video.addTextTrack('subtitles', 'Español', 'es');
-        track.mode = 'showing';
-      }
-      
-      if (track && track.cues) {
-        const cuesToRemove = Array.from(track.cues);
-        for (const cue of cuesToRemove) {
-          track.removeCue(cue);
-        }
-      }
-      
-      if (track) {
-        for (const cue of cues) {
-          // VTT has relative timestamp times (0-based within each chunk)
-          // Just use them directly - HLS player handles the sync
-          const startTime = cue.start;
-          const endTime = cue.end;
-          
-          // Only add cues that should be visible now
-          // Use simplified range check
-          if (endTime >= videoTime - 5 && startTime <= videoTime + 60) {
-            const vttCue = new VTTCue(startTime, endTime, cue.text);
-            track.addCue(vttCue);
-          }
-        }
-      }
-      
-      // Update last content to avoid duplicate logs
-      lastSubtitleContent = content.substring(0, 500);
-      console.log(`Loaded ${cues.length} subtitle cues`);
-    } catch (error) {
-      console.warn('Error loading subtitles:', error);
     }
+    
+    if (allCues.length === 0) return;
+       
+    let track: TextTrack | null = null;
+    if (video.textTracks.length > 0) {
+      track = video.textTracks[0];
+    } else {
+      track = video.addTextTrack('subtitles', 'Español', 'es');
+      track.mode = 'showing';
+    }
+       
+    if (track && track.cues) {
+      const cuesToRemove = Array.from(track.cues);
+      for (const cue of cuesToRemove) {
+        track.removeCue(cue);
+      }
+    }
+       
+    if (track) {
+      for (const cue of allCues) {
+const vttCue = new VTTCue(cue.start, cue.end, cue.text);
+        track.addCue(vttCue);
+      }
+    }
+       
+console.log(`Loaded ${allCues.length} subtitle cues`);
   }
 
   function startSubtitlePolling() {
