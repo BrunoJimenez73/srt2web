@@ -158,8 +158,8 @@ class HLSOutput(OutputSink):
         # Determinar audio a usar
         audio_input = data.mixed_audio_path or data.dubbed_audio_path
 
-        # Calcular offset de tiempo
-        offset_sec = f"{self._total_duration_emitted:.3f}"
+        # Calcular offset de tiempo - usar cumulative_duration para sincronizar con subtitles
+        offset_sec = getattr(data, "cumulative_duration", self._total_duration_emitted)
         chunk_duration = data.duration or self._segment_duration
 
         # Guardar duración para el manifest
