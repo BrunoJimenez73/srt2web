@@ -479,7 +479,7 @@ class SRTInput(InputSource):
                 try:
                     test_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                     test_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                    test_sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, b'\x00\x00\x00\x00\x00\x00\x00\x00', 8)
+                    test_sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack('ii', 1, 0))
                     test_sock.bind(('0.0.0.0', self._srt_port))
                     test_sock.close()
                     self.logger.info(f"✓ Port {self._srt_port} is now FREE")

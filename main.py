@@ -163,8 +163,8 @@ def build_pipeline(config: ConfigManager, output_dir: str):
     # Create unified pipeline with parallel processing (THREAD_PARALLEL mode)
     pipeline = UnifiedPipeline(
         mode=PipelineMode.THREAD_PARALLEL,
-        max_concurrent_chunks=3,
-        buffer_size=5,
+        max_concurrent_chunks=2,
+        buffer_size=2,
         retry_attempts=2,
         retry_delay=1.0
     )

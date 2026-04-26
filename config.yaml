@@ -31,12 +31,12 @@ output:
   type: web
   web:
     segment_duration: 2
-    list_size: 3
+    list_size: 2
     audio_offset_ms: 0
     encoder_mode: auto
   hls:
     segment_duration: 2
-    list_size: 3
+    list_size: 2
     audio_offset_ms: 0
     encoder_mode: auto
   rtmp:
@@ -85,11 +85,21 @@ output:
       list_size: 6
       audio_offset_ms: 0
       encoder_mode: auto
+  - name: recording_1777223791830
+    type: recording
+    enabled: true
+    config:
+      type: recording
+      name: recording_1777223791830
+      output_path: ./output/recording.mp4
+      format: mp4
+      codec: copy
+      audio_codec: aac
 pipeline:
   chunk_duration_sec: 2
   mode: thread_parallel
-  max_concurrent_chunks: 3
-  buffer_size: 5
+  max_concurrent_chunks: 2
+  buffer_size: 2
   retry_attempts: 2
   retry_delay: 1.0
 modules:
@@ -125,7 +135,7 @@ modules:
     enabled: true
     engine: hls
     hls_segment_duration: 2
-    hls_list_size: 3
+    hls_list_size: 2
     audio_offset_ms: 0
     encoder_mode: auto
     video_quality: medium
