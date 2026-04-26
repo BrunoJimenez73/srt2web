@@ -116,6 +116,74 @@ class TestPipeline:
 
         assert pipeline.state in (PipelineState.STOPPING, PipelineState.IDLE)
 
+    @pytest.mark.asyncio
+    async def test_initialized_reset_after_stop(self):
+        """Test that _initialized is reset after stop to enable restart."""
+        pipeline = Pipeline()
+        module = DummyModule("test")
+        pipeline.register_module(module)
+
+        pipeline.start()
+
+        for _ in range(10):
+            if pipeline.state == PipelineState.RUNNING:
+                break
+            time.sleep(0.1)
+
+        assert pipeline.state == PipelineState.RUNNING
+
+        await pipeline.stop()
+
+        for _ in range(10):
+            if pipeline.state == PipelineState.IDLE:
+                break
+            time.sleep(0.1)
+
+        assert pipeline._initialized is False
+
+    @pytest.mark.asyncio
+    async def test_restart_after_stop(self):
+        """Test that pipeline can restart after being stopped."""
+        pipeline = Pipeline()
+        module = DummyModule("test")
+        pipeline.register_module(module)
+
+        import asyncio
+
+        async def mock_initialize():
+            pass
+
+        pipeline.initialize = mock_initialize
+
+        pipeline.start()
+
+        for _ in range(10):
+            if pipeline.state == PipelineState.RUNNING:
+                break
+            time.sleep(0.1)
+
+        assert pipeline.state == PipelineState.RUNNING
+
+        await pipeline.stop()
+
+        for _ in range(10):
+            if pipeline.state == PipelineState.IDLE:
+                break
+            time.sleep(0.1)
+
+        assert pipeline.state == PipelineState.IDLE
+        assert pipeline._initialized is False
+
+        pipeline._initialized = True
+        pipeline.start()
+
+        for _ in range(10):
+            if pipeline.state == PipelineState.RUNNING:
+                break
+            time.sleep(0.1)
+
+        assert pipeline.state == PipelineState.RUNNING
+
     def test_start_already_running(self):
         """Test starting an already running pipeline."""
         pipeline = Pipeline()
