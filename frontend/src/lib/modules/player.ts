@@ -388,7 +388,16 @@ export function initHlsPlayer(): void {
         isConnected = true;
         lastManifestTime = Date.now();
         lastFragmentTime = Date.now();
-        // Don't autoplay - user controls playback
+        
+        // Try to autoplay if user hasn't disabled it
+        // This may fail due to browser autoplay policy, which is expected
+        const canAutoplay = localStorage.getItem('srt2web-autoplay') !== 'false';
+        if (canAutoplay) {
+          video.play()
+            .then(() => console.log('[Player] Autoplay started'))
+            .catch((e) => console.log('[Player] Autoplay blocked:', e.message));
+        }
+        
         startSubtitlePolling();
         startHealthCheck();
       });
@@ -449,7 +458,15 @@ export function initHlsPlayer(): void {
       video.addEventListener('loadedmetadata', () => {
         if (waitingEl) waitingEl.style.display = 'none';
         isConnected = true;
-        video.play().catch(console.error);
+        
+        // Try to autoplay
+        const canAutoplay = localStorage.getItem('srt2web-autoplay') !== 'false';
+        if (canAutoplay) {
+          video.play()
+            .then(() => console.log('[Player] Autoplay started (native)'))
+            .catch((e) => console.log('[Player] Autoplay blocked:', e.message));
+        }
+        
         startSubtitlePolling();
         startHealthCheck();
       });
