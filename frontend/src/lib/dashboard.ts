@@ -6,7 +6,7 @@
  * DOM updates are handled automatically by effects (store/effects.ts).
  */
 
-import { apiCall, getConfig, startPipeline, stopPipeline, WSClient, getWebSocketUrl, updateChunkDuration } from './api';
+import { apiCall, getConfig, getStatus, startPipeline, stopPipeline, WSClient, getWebSocketUrl, updateChunkDuration } from './api';
 import { copyToClipboard, showToast } from './utils';
 import { formatTime } from './utils/format';
 import { MESSAGES, DEFAULTS, INTERVALS, MODULE_TITLES } from './constants';
@@ -35,8 +35,9 @@ function showNotification(message: string, type: 'success' | 'error' | 'info' = 
 export async function handleStart(): Promise<void> {
   try {
     addLog('INFO', MESSAGES.PIPELINE_STARTING);
-    const result = await startPipeline();
-    updateStatus(result);
+    await startPipeline();
+    const status = await getStatus();
+    updateStatus(status);
     addLog('INFO', MESSAGES.PIPELINE_STARTED);
   } catch (e) {
     addLog('ERROR', `Error: ${(e as Error).message}`);
@@ -50,8 +51,9 @@ export async function handleStop(): Promise<void> {
 
   try {
     addLog('INFO', MESSAGES.PIPELINE_STOPPING);
-    const result = await stopPipeline();
-    updateStatus(result);
+    await stopPipeline();
+    const status = await getStatus();
+    updateStatus(status);
     resetThroughput();
     addLog('INFO', MESSAGES.PIPELINE_STOPPED);
   } catch (e) {
@@ -78,7 +80,7 @@ export async function handleSaveConfig(): Promise<void> {
       await updateChunkDuration(chunkDuration);
       addLog('INFO', `Chunk synced: ${chunkDuration}s`);
     } catch (chunkError) {
-      addLog('WARN', `Chunk sync failed: ${(chunkError as Error).message}`);
+      addLog('WARNING', `Chunk sync failed: ${(chunkError as Error).message}`);
     }
     
     const cfg = await getConfig();
@@ -111,69 +113,81 @@ export function collectConfigFromUI(): Partial<Config> {
   if (inputType === 'srt') {
     inputConfig.srt = {
       listen_port: parseInt((document.getElementById('input-srt-port') as HTMLInputElement)?.value || '9000'),
-      mode: (document.getElementById('input-srt-mode') as HTMLSelectElement)?.value || 'listener',
+      mode: ((document.getElementById('input-srt-mode') as HTMLSelectElement)?.value || 'listener') as 'listener' | 'caller',
       latency_ms: parseInt((document.getElementById('input-srt-latency') as HTMLInputElement)?.value || '200'),
+      caller_address: '',
+      chunk_duration_sec: chunkDuration,
     };
   } else if (inputType === 'rtmp') {
     inputConfig.rtmp = {
       url: (document.getElementById('input-rtmp-url') as HTMLInputElement)?.value || 'rtmp://localhost/live/stream',
-      mode: (document.getElementById('input-rtmp-mode') as HTMLSelectElement)?.value || 'pull',
+      mode: ((document.getElementById('input-rtmp-mode') as HTMLSelectElement)?.value || 'pull') as 'listener' | 'pull',
       app: (document.getElementById('input-rtmp-app') as HTMLInputElement)?.value || 'live',
+      listen_port: 1935,
+      stream_key: '',
+      chunk_duration_sec: chunkDuration,
     };
   } else if (inputType === 'file') {
     inputConfig.file = {
       path: (document.getElementById('input-file-path') as HTMLInputElement)?.value || '',
       loop: (document.getElementById('input-file-loop') as HTMLSelectElement)?.value === 'true',
       speed: parseFloat((document.getElementById('input-file-speed') as HTMLInputElement)?.value || String(DEFAULTS.TTS_SPEED)),
+      chunk_duration_sec: chunkDuration,
     };
   }
 
   const configModules: ModulesConfig = {
+    audio_extractor: {
+      enabled: true,
+    },
     transcriber: {
       enabled: (document.getElementById('whisper-enabled') as HTMLInputElement)?.checked ?? true,
-      model: (document.getElementById('whisper-model') as HTMLSelectElement)?.value || DEFAULTS.WHISPER_MODEL,
-      language: (document.getElementById('whisper-lang') as HTMLSelectElement)?.value || DEFAULTS.WHISPER_LANGUAGE,
-      device: (document.getElementById('whisper-device') as HTMLSelectElement)?.value || 'auto',
+      model: ((document.getElementById('whisper-model') as HTMLSelectElement)?.value || DEFAULTS.WHISPER_MODEL) as any,
+      language: ((document.getElementById('whisper-lang') as HTMLSelectElement)?.value || DEFAULTS.WHISPER_LANGUAGE) as any,
+      device: ((document.getElementById('whisper-device') as HTMLSelectElement)?.value || 'auto') as any,
+      beam_size: 2,
     },
     translator: {
       enabled: (document.getElementById('translator-enabled') as HTMLInputElement)?.checked ?? true,
-      source_lang: (document.getElementById('translator-source') as HTMLSelectElement)?.value || DEFAULTS.WHISPER_LANGUAGE,
-      target_lang: (document.getElementById('translator-target') as HTMLSelectElement)?.value || DEFAULTS.TRANSLATE_TARGET,
+      source_lang: ((document.getElementById('translator-source') as HTMLSelectElement)?.value || DEFAULTS.WHISPER_LANGUAGE) as any,
+      target_lang: ((document.getElementById('translator-target') as HTMLSelectElement)?.value || DEFAULTS.TRANSLATE_TARGET) as any,
     },
     tts_engine: {
       enabled: (document.getElementById('tts-enabled') as HTMLInputElement)?.checked ?? true,
-      engine: (document.getElementById('tts-engine') as HTMLSelectElement)?.value || 'edge-tts',
+      engine: ((document.getElementById('tts-engine') as HTMLSelectElement)?.value || 'edge-tts') as any,
       voice: (document.getElementById('tts-engine') as HTMLSelectElement)?.value === 'piper'
-        ? (document.getElementById('tts-voice-piper') as HTMLSelectElement)?.value || 'es_ES-sharvard-medium'
-        : (document.getElementById('tts-voice-edge') as HTMLSelectElement)?.value || 'es-ES-ElviraNeural',
+        ? ((document.getElementById('tts-voice-piper') as HTMLSelectElement)?.value || 'es_ES-sharvard-medium')
+        : ((document.getElementById('tts-voice-edge') as HTMLSelectElement)?.value || 'es-ES-ElviraNeural'),
       speed: parseFloat((document.getElementById('tts-speed') as HTMLInputElement)?.value || String(DEFAULTS.TTS_SPEED)),
-      device: (document.getElementById('tts-device') as HTMLSelectElement)?.value || 'auto',
+      device: ((document.getElementById('tts-device') as HTMLSelectElement)?.value || 'auto') as any,
     },
     subtitle_generator: {
       enabled: (document.getElementById('subtitle-enabled') as HTMLInputElement)?.checked ?? true,
-      format: (document.getElementById('subtitle-format') as HTMLSelectElement)?.value || DEFAULTS.SUBTITLE_FORMAT,
+      format: ((document.getElementById('subtitle-format') as HTMLSelectElement)?.value || DEFAULTS.SUBTITLE_FORMAT) as any,
       use_translated: (document.getElementById('subtitle-use-translated') as HTMLSelectElement)?.value === 'true',
+      chunk_duration: chunkDuration,
     },
     audio_mixer: {
       enabled: (document.getElementById('audio-mixer-enabled') as HTMLInputElement)?.checked ?? false,
       original_volume: parseFloat((document.getElementById('audio-mixer-original-volume') as HTMLInputElement)?.value || String(DEFAULTS.ORIGINAL_VOLUME)),
+      tts_volume: parseFloat((document.getElementById('audio-mixer-dubbed-volume') as HTMLInputElement)?.value || String(DEFAULTS.TTS_VOLUME)),
       dubbed_volume: parseFloat((document.getElementById('audio-mixer-dubbed-volume') as HTMLInputElement)?.value || String(DEFAULTS.TTS_VOLUME)),
     },
     video_muxer: {
       enabled: (document.getElementById('muxer-enabled') as HTMLInputElement)?.checked ?? true,
-      engine: (document.getElementById('video-muxer-engine') as HTMLSelectElement)?.value || 'hls',
+      engine: ((document.getElementById('video-muxer-engine') as HTMLSelectElement)?.value || 'hls') as 'hls' | 'webrtc',
       hls_segment_duration: parseInt((document.getElementById('hls-segment') as HTMLInputElement)?.value || String(DEFAULTS.SEGMENT_DURATION)),
       hls_list_size: parseInt((document.getElementById('hls-list') as HTMLInputElement)?.value || String(DEFAULTS.LIST_SIZE)),
       audio_offset_ms: parseInt((document.getElementById('hls-audio-offset') as HTMLInputElement)?.value || String(DEFAULTS.AUDIO_OFFSET)),
-      encoder_mode: (document.getElementById('hls-encoder') as HTMLSelectElement)?.value || 'auto',
+      encoder_mode: ((document.getElementById('hls-encoder') as HTMLSelectElement)?.value || 'auto') as any,
       video_quality: 'medium',
       video_crf: parseInt((document.getElementById('hls-crf') as HTMLInputElement)?.value || String(DEFAULTS.CRF)),
-      audio_codec: (document.getElementById('video-muxer-engine') as HTMLSelectElement)?.value === 'webrtc'
-        ? (document.getElementById('webrtc-audio-codec') as HTMLSelectElement)?.value || 'opus'
-        : (document.getElementById('hls-audio-codec') as HTMLSelectElement)?.value || 'aac',
+      audio_codec: ((document.getElementById('video-muxer-engine') as HTMLSelectElement)?.value === 'webrtc'
+        ? (document.getElementById('webrtc-audio-codec') as HTMLSelectElement)?.value
+        : (document.getElementById('hls-audio-codec') as HTMLSelectElement)?.value) as any || 'aac',
       audio_bitrate: (document.getElementById('hls-audio-bitrate') as HTMLSelectElement)?.value || '192k',
       audio_samplerate: '48000',
-      video_codec: (document.getElementById('webrtc-video-codec') as HTMLSelectElement)?.value,
+      video_codec: ((document.getElementById('webrtc-video-codec') as HTMLSelectElement)?.value as any),
       video_bitrate: (document.getElementById('webrtc-video-bitrate') as HTMLSelectElement)?.value,
       video_fps: (document.getElementById('webrtc-video-fps') as HTMLSelectElement)
         ? parseInt((document.getElementById('webrtc-video-fps') as HTMLSelectElement).value)
@@ -194,7 +208,14 @@ export function collectConfigFromUI(): Partial<Config> {
 
   return {
     input: inputConfig,
-    pipeline: { chunk_duration_sec: chunkDuration },
+    pipeline: { 
+      chunk_duration_sec: chunkDuration,
+      mode: 'sequential',
+      max_concurrent_chunks: 2,
+      buffer_size: 10,
+      retry_attempts: 3,
+      retry_delay: 1000,
+    },
     modules: configModules,
   };
 }
@@ -318,7 +339,6 @@ export function applyConfigToUI(cfg: Config): void {
   if (muxerEnabled) muxerEnabled.checked = cfg.modules.video_muxer.enabled;
   if (videoMuxerEngine) {
     videoMuxerEngine.value = cfg.modules.video_muxer.engine || 'hls';
-    if (window.handleEngineChange) window.handleEngineChange(videoMuxerEngine.value);
   }
   const audioMixerEnabled = document.getElementById('audio-mixer-enabled') as HTMLInputElement;
   if (audioMixerEnabled) audioMixerEnabled.checked = cfg.modules.audio_mixer?.enabled ?? false;
@@ -372,22 +392,22 @@ export function applyConfigToUI(cfg: Config): void {
 export function updateInputFields(): void {
   const inputTypeSelect = document.getElementById('input-type') as HTMLSelectElement;
   if (inputTypeSelect) {
-    inputType.value = inputTypeSelect.value as 'srt' | 'rtmp' | 'file';
+    inputTypeSelect.value = inputTypeSelect.value as 'srt' | 'rtmp' | 'file';
   }
-  // DOM updates are handled by startInputFieldsEffect()
 }
 
 export function updateOutputFields(): void {
   const outputTypeSelect = document.getElementById('output-type') as HTMLSelectElement;
   if (outputTypeSelect) {
-    outputType.value = outputTypeSelect.value as 'webplayer' | 'srt' | 'rtmp' | 'file';
+    outputTypeSelect.value = outputTypeSelect.value as 'webplayer' | 'srt' | 'rtmp' | 'file';
   }
-  // DOM updates are handled by startOutputFieldsEffect()
 }
 
 export function handleTtsEngineChange(engine: string): void {
-  ttsEngine.value = engine as 'edge-tts' | 'piper';
-  // DOM updates are handled by startTtsEngineEffect()
+  const ttsEngineSelect = document.getElementById('tts-engine') as HTMLSelectElement;
+  if (ttsEngineSelect) {
+    ttsEngineSelect.value = engine;
+  }
 }
 
 export function handleInputTypeChange(type: string): void {

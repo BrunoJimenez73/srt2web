@@ -20,7 +20,7 @@ from core.module_base import PipelineData, ModuleState
 class TestTTSIntegration:
     """Integration tests for TTS engine with real audio synthesis."""
     
-    def setup_method(self):
+    def setup_method(self) -> None:
         # If edge_tts is mocked, restore the real module
         if 'edge_tts' in sys.modules and isinstance(sys.modules['edge_tts'], MagicMock):
             del sys.modules['edge_tts']
@@ -30,7 +30,7 @@ class TestTTSIntegration:
             del sys.modules['piper']
             import piper
 
-    def test_piper_tts_synthesis(self):
+    def test_piper_tts_synthesis(self) -> None:
         """Test Piper TTS synthesizes audio from text."""
         # Create temporary directory for output
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -86,7 +86,7 @@ class TestTTSIntegration:
                 tts_engine.stop()
                 assert tts_engine.state == ModuleState.IDLE
     
-    def test_edge_tts_synthesis(self):
+    def test_edge_tts_synthesis(self) -> None:
         """Test Edge TTS synthesizes audio from text."""
         # Create temporary directory for output
         with tempfile.TemporaryDirectory() as tmpdir:

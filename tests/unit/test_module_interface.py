@@ -16,12 +16,12 @@ from core.exceptions import SRT2WebError
 class TestProcessingModuleProtocol:
     """Test suite for ProcessingModule Protocol."""
     
-    def test_protocol_is_runtime_checkable(self):
+    def test_protocol_is_runtime_checkable(self) -> None:
         """Test that ProcessingModule is runtime checkable."""
         from typing import runtime_checkable
         assert hasattr(ProcessingModule, '_is_runtime_protocol')
     
-    def test_protocol_has_required_methods(self):
+    def test_protocol_has_required_methods(self) -> None:
         """Test that ProcessingModule has required methods."""
         assert hasattr(ProcessingModule, 'initialize')
         assert hasattr(ProcessingModule, 'process')
@@ -29,7 +29,7 @@ class TestProcessingModuleProtocol:
         assert hasattr(ProcessingModule, 'get_status')
         assert hasattr(ProcessingModule, 'reset')
     
-    def test_protocol_annotations(self):
+    def test_protocol_annotations(self) -> None:
         """Test that ProcessingModule has required annotations."""
         # Check that the protocol defines the required annotations
         assert 'name' in ProcessingModule.__annotations__
@@ -39,7 +39,7 @@ class TestProcessingModuleProtocol:
 class ConcreteModule(BaseModule):
     """Concrete implementation of BaseModule for testing."""
     
-    def __init__(self, name: str = "test_module", enabled: bool = True):
+    def __init__(self, name: str = "test_module", enabled: bool = True):  # type: ignore
         super().__init__(name, enabled)
         self.initialized = False
         self.processed = False
@@ -68,25 +68,25 @@ class ConcreteModule(BaseModule):
 class TestBaseModule:
     """Test suite for BaseModule class."""
     
-    def test_base_module_creation(self):
+    def test_base_module_creation(self) -> None:
         """Test BaseModule creation with default values."""
         module = ConcreteModule()
         assert module.name == "test_module"
         assert module.enabled is True
         assert module.state == ModuleState.IDLE
     
-    def test_base_module_custom_name(self):
+    def test_base_module_custom_name(self) -> None:
         """Test BaseModule creation with custom name."""
         module = ConcreteModule(name="custom_module")
         assert module.name == "custom_module"
     
-    def test_base_module_disabled(self):
+    def test_base_module_disabled(self) -> None:
         """Test BaseModule creation with disabled state."""
         module = ConcreteModule(enabled=False)
         assert module.enabled is False
         assert module.state == ModuleState.DISABLED
     
-    def test_base_module_enable_disable(self):
+    def test_base_module_enable_disable(self) -> None:
         """Test enabling and disabling a module."""
         module = ConcreteModule()
         assert module.enabled is True
@@ -99,7 +99,7 @@ class TestBaseModule:
         assert module.enabled is True
         # Note: enabling doesn't change state from DISABLED automatically
     
-    def test_base_module_get_status(self):
+    def test_base_module_get_status(self) -> None:
         """Test get_status returns ModuleStatus."""
         module = ConcreteModule()
         status = module.get_status()
@@ -109,7 +109,7 @@ class TestBaseModule:
         assert status.enabled is True
         assert status.state == ModuleState.IDLE
     
-    def test_base_module_reset(self):
+    def test_base_module_reset(self) -> None:
         """Test reset returns module to IDLE state."""
         module = ConcreteModule()
         module._set_state(ModuleState.ERROR)
@@ -168,7 +168,7 @@ class TestBaseModule:
         await module.shutdown()
         assert module.shutdown_called is True
     
-    def test_base_module_set_error(self):
+    def test_base_module_set_error(self) -> None:
         """Test setting error state."""
         module = ConcreteModule()
         status = module.get_status()
@@ -183,7 +183,7 @@ class TestBaseModule:
         assert status.last_error == "Test error"
         assert module.state == ModuleState.ERROR
     
-    def test_base_module_repr(self):
+    def test_base_module_repr(self) -> None:
         """Test string representation."""
         module = ConcreteModule(name="test")
         repr_str = repr(module)
@@ -192,7 +192,7 @@ class TestBaseModule:
         assert "test" in repr_str
         assert "idle" in repr_str
     
-    def test_base_module_is_processing_module(self):
+    def test_base_module_is_processing_module(self) -> None:
         """Test that BaseModule subclasses satisfy ProcessingModule protocol."""
         module = ConcreteModule()
         # Note: Since ProcessingModule is a Protocol with abstract methods,
@@ -209,7 +209,7 @@ class TestBaseModule:
 class ErrorModule(BaseModule):
     """Module that raises errors for testing error handling."""
     
-    def __init__(self, fail_on: str = "initialize"):
+    def __init__(self, fail_on: str = "initialize"):  # type: ignore
         super().__init__("error_module")
         self.fail_on = fail_on
     
@@ -241,7 +241,7 @@ class TestBaseModuleErrorHandling:
         
         assert module.state == ModuleState.IDLE  # Error before state change
     
-    def test_error_handling_sets_error_state(self):
+    def test_error_handling_sets_error_state(self) -> None:
         """Test that _set_error sets error state."""
         module = ConcreteModule()
         assert module.state == ModuleState.IDLE
@@ -250,7 +250,7 @@ class TestBaseModuleErrorHandling:
         assert module.state == ModuleState.ERROR
         assert module.get_status().error_count == 1
     
-    def test_multiple_errors_increment_count(self):
+    def test_multiple_errors_increment_count(self) -> None:
         """Test that multiple errors increment error count."""
         module = ConcreteModule()
         
@@ -262,7 +262,7 @@ class TestBaseModuleErrorHandling:
         assert status.error_count == 3
         assert status.last_error == "Error 3"
     
-    def test_reset_clears_error(self):
+    def test_reset_clears_error(self) -> None:
         """Test that reset clears error state and counters."""
         module = ConcreteModule()
         module._set_error("Test error")
@@ -316,7 +316,7 @@ class TestModuleStateTransitions:
         await task  # Complete processing
         assert module.state == ModuleState.READY
     
-    def test_disabled_state(self):
+    def test_disabled_state(self):  # type: ignore
         """Test DISABLED state."""
         module = ConcreteModule(enabled=False)
         assert module.state == ModuleState.DISABLED

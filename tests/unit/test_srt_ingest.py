@@ -24,7 +24,7 @@ class TestSRTIngest:
     @patch("os.makedirs")
     @patch("subprocess.Popen")
     @patch("glob.glob")
-    def test_start(self, mock_glob, mock_popen, mock_makedirs, mock_ensure):
+    def test_start(self, mock_glob, mock_popen, mock_makedirs, mock_ensure) -> None:
         """Test starting the SRT ingest process."""
         mock_ensure.return_value = "/bin/ffmpeg"
         mock_glob.return_value = [] # No old chunks
@@ -42,7 +42,7 @@ class TestSRTIngest:
 
     @patch("sys.platform", "win32")
     @patch("subprocess.run")
-    def test_stop_windows(self, mock_run):
+    def test_stop_windows(self, mock_run) -> None:
         """Test stopping the process on Windows using taskkill."""
         ingest = SRTIngest()
         mock_proc = MagicMock()
@@ -61,7 +61,7 @@ class TestSRTIngest:
     @patch("glob.glob")
     @patch("core.ffmpeg_utils.get_video_duration")
     @patch("os.path.basename")
-    def test_get_next_chunk_success(self, mock_basename, mock_duration, mock_glob):
+    def test_get_next_chunk_success(self, mock_basename, mock_duration, mock_glob) -> None:
         """Test successfully retrieving the next available chunk."""
         ingest = SRTIngest(output_dir="/tmp")
         ingest._chunks_dir = "/tmp/chunks"
@@ -84,7 +84,7 @@ class TestSRTIngest:
         assert ingest._last_chunk_index == 0
 
     @patch("glob.glob")
-    def test_get_next_chunk_none_available(self, mock_glob):
+    def test_get_next_chunk_none_available(self, mock_glob) -> None:
         """Test when no new chunks are available."""
         ingest = SRTIngest(output_dir="/tmp")
         ingest._chunks_dir = "/tmp/chunks"
@@ -96,7 +96,7 @@ class TestSRTIngest:
         chunk = ingest.get_next_chunk()
         assert chunk is None
 
-    def test_get_srt_url(self):
+    def test_get_srt_url(self) -> None:
         """Test generating the SRT URL."""
         ingest = SRTIngest()
         ingest._srt_port = 5000

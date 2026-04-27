@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 class TestCircuitBreaker:
     """Test suite for CircuitBreaker class."""
 
-    def test_initial_state_is_closed(self):
+    def test_initial_state_is_closed(self) -> None:
         """Test that circuit breaker starts in closed state."""
         from core.module_base import CircuitBreaker
 
@@ -18,7 +18,7 @@ class TestCircuitBreaker:
         assert cb.state == "closed"
         assert cb.can_execute() is True
 
-    def test_records_success(self):
+    def test_records_success(self) -> None:
         """Test that success resets failure count."""
         from core.module_base import CircuitBreaker
 
@@ -32,7 +32,7 @@ class TestCircuitBreaker:
         assert cb._failure_count == 0
         assert cb.state == "closed"
 
-    def test_opens_after_threshold(self):
+    def test_opens_after_threshold(self) -> None:
         """Test that circuit opens after reaching failure threshold."""
         from core.module_base import CircuitBreaker
 
@@ -46,7 +46,7 @@ class TestCircuitBreaker:
         assert cb.state == "open"
         assert cb.can_execute() is False
 
-    def test_half_open_after_timeout(self):
+    def test_half_open_after_timeout(self) -> None:
         """Test that circuit transitions to half-open after timeout."""
         from core.module_base import CircuitBreaker
 
@@ -60,7 +60,7 @@ class TestCircuitBreaker:
         assert cb.state == "half_open"
         assert cb.can_execute() is True
 
-    def test_closes_after_half_open_successes(self):
+    def test_closes_after_half_open_successes(self) -> None:
         """Test that circuit closes after successful calls in half-open state."""
         from core.module_base import CircuitBreaker
 
@@ -76,7 +76,7 @@ class TestCircuitBreaker:
         cb.record_success()
         assert cb.state == "closed"
 
-    def test_force_reset(self):
+    def test_force_reset(self) -> None:
         """Test force reset functionality."""
         from core.module_base import CircuitBreaker
 
@@ -90,7 +90,7 @@ class TestCircuitBreaker:
         assert cb._failure_count == 0
         assert cb.can_execute() is True
 
-    def test_half_open_max_calls(self):
+    def test_half_open_max_calls(self) -> None:
         """Test that circuit opens after threshold and recovers."""
         from core.module_base import CircuitBreaker
 
@@ -107,14 +107,14 @@ class TestCircuitBreaker:
         cb.record_failure()
         assert cb.state == "open"
 
-    def test_concurrent_access(self):
+    def test_concurrent_access(self) -> None:
         """Test thread safety of circuit breaker."""
         import threading
         from core.module_base import CircuitBreaker
 
         cb = CircuitBreaker(failure_threshold=100)
 
-        def record_failures():
+        def record_failures() -> None:
             for _ in range(50):
                 cb.record_failure()
 
@@ -130,7 +130,7 @@ class TestCircuitBreaker:
 class TestRetryStrategy:
     """Test suite for RetryStrategy class."""
 
-    def test_successful_execution_no_retry(self):
+    def test_successful_execution_no_retry(self) -> None:
         """Test that successful execution doesn't retry."""
         from core.module_base import RetryStrategy
 
@@ -142,7 +142,7 @@ class TestRetryStrategy:
         assert result == "success"
         assert func.call_count == 1
 
-    def test_retries_on_failure(self):
+    def test_retries_on_failure(self) -> None:
         """Test that retries happen on failure."""
         from core.module_base import RetryStrategy
 
@@ -156,7 +156,7 @@ class TestRetryStrategy:
         assert result == "success"
         assert func.call_count == 3
 
-    def test_exhausts_retries(self):
+    def test_exhausts_retries(self) -> None:
         """Test that all retries are exhausted."""
         from core.module_base import RetryStrategy
 
@@ -169,7 +169,7 @@ class TestRetryStrategy:
         assert str(exc_info.value) == "always fails"
         assert func.call_count == 3
 
-    def test_is_recoverable_check(self):
+    def test_is_recoverable_check(self) -> None:
         """Test that is_recoverable callback is respected."""
         from core.module_base import RetryStrategy
 
@@ -183,7 +183,7 @@ class TestRetryStrategy:
         assert func.call_count == 1
         is_recoverable.assert_called_once()
 
-    def test_delay_increases_exponentially(self):
+    def test_delay_increases_exponentially(self) -> None:
         """Test that delays increase exponentially."""
         from core.module_base import RetryStrategy
 
@@ -194,7 +194,7 @@ class TestRetryStrategy:
         assert retry.get_delay(2) == 0.4
         assert retry.get_delay(3) == 0.8
 
-    def test_max_delay_respected(self):
+    def test_max_delay_respected(self) -> None:
         """Test that max_delay is respected."""
         from core.module_base import RetryStrategy
 
@@ -209,34 +209,34 @@ class TestRetryStrategy:
 class TestIsRecoverableError:
     """Test suite for is_recoverable_error function."""
 
-    def test_timeout_is_recoverable(self):
+    def test_timeout_is_recoverable(self) -> None:
         """Test that timeout errors are recoverable."""
         from core.module_base import is_recoverable_error
 
         assert is_recoverable_error(Exception("timeout occurred")) is True
         assert is_recoverable_error(Exception("Connection timed out")) is True
 
-    def test_ffmpeg_is_recoverable(self):
+    def test_ffmpeg_is_recoverable(self) -> None:
         """Test that FFmpeg errors are recoverable."""
         from core.module_base import is_recoverable_error
 
         assert is_recoverable_error(Exception("ffmpeg error")) is True
         assert is_recoverable_error(Exception("FFmpeg process died")) is True
 
-    def test_stream_is_recoverable(self):
+    def test_stream_is_recoverable(self) -> None:
         """Test that stream errors are recoverable."""
         from core.module_base import is_recoverable_error
 
         assert is_recoverable_error(Exception("stream closed")) is True
         assert is_recoverable_error(Exception("connection lost")) is True
 
-    def test_memory_is_recoverable(self):
+    def test_memory_is_recoverable(self) -> None:
         """Test that memory errors are recoverable."""
         from core.module_base import is_recoverable_error
 
         assert is_recoverable_error(Exception("out of memory")) is True
 
-    def test_generic_error_not_recoverable(self):
+    def test_generic_error_not_recoverable(self) -> None:
         """Test that generic errors are not recoverable."""
         from core.module_base import is_recoverable_error
 
@@ -247,7 +247,7 @@ class TestIsRecoverableError:
 class TestMemoryManager:
     """Test suite for MemoryManager class."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test MemoryManager initialization."""
         from core.module_base import MemoryManager
 
@@ -257,7 +257,7 @@ class TestMemoryManager:
         assert mm.gc_threshold_mb == 2048
         assert mm.check_interval == 10
 
-    def test_should_check_interval(self):
+    def test_should_check_interval(self) -> None:
         """Test that check only runs at interval."""
         from core.module_base import MemoryManager
 
@@ -271,7 +271,7 @@ class TestMemoryManager:
         mm._chunk_counter = 5
         assert mm.should_check() is True
 
-    def test_check_without_psutil(self):
+    def test_check_without_psutil(self) -> None:
         """Test check when psutil is not available."""
         from core.module_base import MemoryManager
 
@@ -282,7 +282,7 @@ class TestMemoryManager:
 
         assert info.get("psutil_not_available") is True
 
-    def test_check_returns_memory_info(self):
+    def test_check_returns_memory_info(self) -> None:
         """Test that check returns memory information."""
         from core.module_base import MemoryManager
 
@@ -299,7 +299,7 @@ class TestMemoryManager:
         assert "memory_percent" in info
         assert info["memory_mb"] == 1024.0
 
-    def test_gc_triggered_above_threshold(self):
+    def test_gc_triggered_above_threshold(self) -> None:
         """Test that GC is triggered when memory exceeds threshold."""
         from core.module_base import MemoryManager
 
@@ -316,7 +316,7 @@ class TestMemoryManager:
         assert info["gc_triggered"] is True
         assert info["above_threshold"] is True
 
-    def test_gc_not_triggered_within_interval(self):
+    def test_gc_not_triggered_within_interval(self) -> None:
         """Test that GC is not triggered if within minimum interval."""
         from core.module_base import MemoryManager
 

@@ -17,28 +17,28 @@ from core.module_base import PipelineData, ModuleState
 class TestAudioExtractor:
     """Tests for AudioExtractor class."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test module initialization."""
         extractor = AudioExtractor(output_dir="/tmp/output")
         
         assert extractor.name == "audio_extractor"
         assert extractor.enabled is True
 
-    def test_start(self):
+    def test_start(self) -> None:
         """Test module can be started."""
         extractor = AudioExtractor(output_dir="/tmp/output")
         extractor.start()
         
         assert extractor.state in (ModuleState.STARTING, ModuleState.RUNNING)
 
-    def test_stop(self):
+    def test_stop(self) -> None:
         """Test module can be stopped."""
         extractor = AudioExtractor(output_dir="/tmp/output")
         extractor.stop()
         
         assert extractor.state == ModuleState.IDLE
 
-    def test_process_with_none_input(self):
+    def test_process_with_none_input(self) -> None:
         """Test processing with None input returns None."""
         extractor = AudioExtractor(output_dir="/tmp/output")
         
@@ -47,14 +47,14 @@ class TestAudioExtractor:
         
         assert result.audio_chunk_path is None
 
-    def test_get_status(self):
+    def test_get_status(self) -> None:
         """Test status reporting."""
         extractor = AudioExtractor(output_dir="/tmp/output")
         status = extractor.get_status()
         
         assert status.name == "audio_extractor"
 
-    def test_module_enabled_by_default(self):
+    def test_module_enabled_by_default(self) -> None:
         """Test that module is enabled by default."""
         extractor = AudioExtractor(output_dir="/tmp/output")
         

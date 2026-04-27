@@ -24,7 +24,7 @@ class Translator(BaseModule):
     Downloads required language packages on first use.
     """
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: Optional[dict] = None) -> None:
         self._source_lang = config.get("source_lang", "es") if config else "es"
         self._target_lang = config.get("target_lang", "en") if config else "en"
         self._translation_pipeline = None

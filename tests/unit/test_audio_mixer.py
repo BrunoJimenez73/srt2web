@@ -17,7 +17,7 @@ from modules.audio_mixer import AudioMixer
 from core.module_base import PipelineData, ModuleState
 
 
-def create_wav(path, duration_s=4.0, sample_rate=16000):
+def create_wav(path, duration_s=4.0, sample_rate=16000):  # type: ignore
     """Create a valid WAV file with silence."""
     num_samples = int(duration_s * sample_rate)
     samples = b'\x00\x00' * num_samples
@@ -29,21 +29,21 @@ def create_wav(path, duration_s=4.0, sample_rate=16000):
 
 
 @pytest.fixture
-def temp_dir():
+def temp_dir():  # type: ignore
     with tempfile.TemporaryDirectory() as tmpdir:
         yield tmpdir
 
 
 class TestAudioMixer:
 
-    def test_start(self, temp_dir):
+    def test_start(self, temp_dir) -> None:
         mixer = AudioMixer(output_dir=temp_dir)
         mixer._mixer_dir = os.path.join(temp_dir, "temp_mix")
         os.makedirs(mixer._mixer_dir, exist_ok=True)
         mixer._state = ModuleState.RUNNING
         assert mixer.state == ModuleState.RUNNING
 
-    def test_do_process_missing_original(self, temp_dir):
+    def test_do_process_missing_original(self, temp_dir) -> None:
         mixer = AudioMixer(output_dir=temp_dir)
         mixer._mixer_dir = os.path.join(temp_dir, "temp_mix")
         os.makedirs(mixer._mixer_dir, exist_ok=True)
@@ -54,7 +54,7 @@ class TestAudioMixer:
         result = mixer._do_process(data)
         assert result.mixed_audio_path is None
 
-    def test_do_process_only_original(self, temp_dir):
+    def test_do_process_only_original(self, temp_dir) -> None:
         mixer = AudioMixer(output_dir=temp_dir)
         mixer._mixer_dir = os.path.join(temp_dir, "temp_mix")
         os.makedirs(mixer._mixer_dir, exist_ok=True)
@@ -65,7 +65,7 @@ class TestAudioMixer:
         assert result.mixed_audio_path == orig_path
         assert result.duration == pytest.approx(4.0, abs=0.1)
 
-    def test_do_process_both_available(self, temp_dir):
+    def test_do_process_both_available(self, temp_dir) -> None:
         mixer = AudioMixer(output_dir=temp_dir)
         mixer._mixer_dir = os.path.join(temp_dir, "temp_mix")
         os.makedirs(mixer._mixer_dir, exist_ok=True)
@@ -83,7 +83,7 @@ class TestAudioMixer:
         assert os.path.exists(expected_mix)
         assert result.duration == pytest.approx(4.0, abs=0.1)
 
-    def test_do_process_tts_longer_than_original(self, temp_dir):
+    def test_do_process_tts_longer_than_original(self, temp_dir) -> None:
         mixer = AudioMixer(output_dir=temp_dir)
         mixer._mixer_dir = os.path.join(temp_dir, "temp_mix")
         os.makedirs(mixer._mixer_dir, exist_ok=True)
@@ -98,7 +98,7 @@ class TestAudioMixer:
         result = mixer._do_process(data)
         assert result.duration == pytest.approx(2.0, abs=0.1)
 
-    def test_last_measured_duration(self, temp_dir):
+    def test_last_measured_duration(self, temp_dir) -> None:
         mixer = AudioMixer(output_dir=temp_dir)
         assert mixer.last_measured_duration == 0.0
         mixer._last_measured_duration = 4.5

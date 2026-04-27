@@ -13,7 +13,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 
-def _get_player_html():
+def _get_player_html():  # type: ignore
     """Load player HTML content - try built output first, then web dir."""
     built_path = PROJECT_ROOT / "server" / "static" / "player" / "index.html"
     if built_path.exists():
@@ -30,14 +30,14 @@ class TestPlayerPageStructure:
     """Tests for player page structure."""
 
     @pytest.fixture
-    def player_html_content(self):
+    def player_html_content(self) -> None:
         return _get_player_html()
 
-    def test_player_html_exists(self, player_html_content):
+    def test_player_html_exists(self, player_html_content) -> None:
         """Test that player.html exists."""
         assert player_html_content is not None
 
-    def test_has_video_element(self, player_html_content):
+    def test_has_video_element(self, player_html_content) -> None:
         """Test that HTML has video element."""
         if player_html_content is None:
             pytest.skip("player.html not found")
@@ -45,7 +45,7 @@ class TestPlayerPageStructure:
         assert "<video" in player_html_content
         assert 'id="video-player"' in player_html_content
 
-    def test_has_hls_js_included(self, player_html_content):
+    def test_has_hls_js_included(self, player_html_content) -> None:
         """Test that HLS.js is included."""
         if player_html_content is None:
             pytest.skip("player.html not found")
@@ -58,14 +58,14 @@ class TestPlayerPageStructure:
             or "hls" in content_lower
         )
 
-    def test_has_subtitle_styling(self, player_html_content):
+    def test_has_subtitle_styling(self, player_html_content) -> None:
         """Test that subtitle styling is defined."""
         if player_html_content is None:
             pytest.skip("player.html not found")
 
         assert "::cue" in player_html_content or "text-shadow" in player_html_content
 
-    def test_links_to_hls_stream(self, player_html_content):
+    def test_links_to_hls_stream(self, player_html_content) -> None:
         """Test that player links to HLS stream."""
         if player_html_content is None:
             pytest.skip("player.html not found")
@@ -77,23 +77,23 @@ class TestPlayerSubtitleHandling:
     """Tests for player subtitle handling."""
 
     @pytest.fixture
-    def player_html_content(self):
+    def player_html_content(self) -> None:
         return _get_player_html()
 
-    def test_hls_subtitles_enabled(self, player_html_content):
+    def test_hls_subtitles_enabled(self, player_html_content) -> None:
         """Test that HLS.js subtitlesEnabled is configured."""
         if player_html_content is None:
             pytest.skip("player.html not found")
         assert "subtitlesEnabled" in player_html_content
 
-    def test_manual_subtitle_track_creation(self, player_html_content):
+    def test_manual_subtitle_track_creation(self, player_html_content) -> None:
         """Test that manual subtitle track is created via JavaScript."""
         if player_html_content is None:
             pytest.skip("player.html not found")
         assert "createElement" in player_html_content
         assert "subtitles" in player_html_content
 
-    def test_subtitle_track_label_from_manifest(self, player_html_content):
+    def test_subtitle_track_label_from_manifest(self, player_html_content) -> None:
         """Test that subtitle track label is updated from HLS manifest."""
         if player_html_content is None:
             pytest.skip("player.html not found")
@@ -104,31 +104,31 @@ class TestPlayerSubtitleHandling:
             or "SUBTITLE_TRACKS_UPDATED" in player_html_content
         )
 
-    def test_subtitle_refresh_interval(self, player_html_content):
+    def test_subtitle_refresh_interval(self, player_html_content) -> None:
         """Test that subtitle refresh interval exists."""
         if player_html_content is None:
             pytest.skip("player.html not found")
         assert "setInterval" in player_html_content
 
-    def test_track_appended_to_video(self, player_html_content):
+    def test_track_appended_to_video(self, player_html_content) -> None:
         """Test that manual track is appended to video element."""
         if player_html_content is None:
             pytest.skip("player.html not found")
         assert "appendChild" in player_html_content
 
-    def test_subtitle_tracks_updated_event(self, player_html_content):
+    def test_subtitle_tracks_updated_event(self, player_html_content) -> None:
         """Test that SUBTITLE_TRACKS_UPDATED event updates language info."""
         if player_html_content is None:
             pytest.skip("player.html not found")
         assert "SUBTITLE_TRACKS_UPDATED" in player_html_content or "subtitle" in player_html_content.lower()
 
-    def test_srclang_defaults_to_spanish(self, player_html_content):
+    def test_srclang_defaults_to_spanish(self, player_html_content) -> None:
         """Test that srclang defaults to Spanish (es)."""
         if player_html_content is None:
             pytest.skip("player.html not found")
         assert "srclang" in player_html_content
 
-    def test_default_track_label_is_spanish(self, player_html_content):
+    def test_default_track_label_is_spanish(self, player_html_content) -> None:
         """Test that default track label is Spanish."""
         if player_html_content is None:
             pytest.skip("player.html not found")
@@ -139,11 +139,11 @@ class TestPlayerFunctionality:
     """Tests for player functionality."""
 
     @pytest.fixture
-    def player_html_content(self):
+    def player_html_content(self) -> None:
         return _get_player_html()
 
     @pytest.fixture
-    def mock_server(self):
+    def mock_server(self) -> None:
         """Create a mock server for testing."""
         from fastapi.testclient import TestClient
         from server.app import create_app
@@ -165,23 +165,23 @@ class TestPlayerFunctionality:
 
         return TestClient(app)
 
-    def test_player_endpoint_accessible(self, mock_server):
+    def test_player_endpoint_accessible(self, mock_server) -> None:
         """Test that player endpoint is accessible."""
         response = mock_server.get("/player")
         assert response.status_code == 200
 
-    def test_hls_directory_mounted(self, mock_server):
+    def test_hls_directory_mounted(self, mock_server) -> None:
         """Test that HLS directory is mounted."""
         response = mock_server.get("/hls/")
         assert response.status_code in [200, 404]
 
-    def test_player_has_autoplay(self, player_html_content):
+    def test_player_has_autoplay(self, player_html_content) -> None:
         """Test that video has autoplay attribute."""
         if player_html_content is None:
             pytest.skip("player.html not found")
         assert "autoplay" in player_html_content
 
-    def test_player_has_playsinline(self, player_html_content):
+    def test_player_has_playsinline(self, player_html_content) -> None:
         """Test that video has playsinline for mobile."""
         if player_html_content is None:
             pytest.skip("player.html not found")
@@ -191,7 +191,7 @@ class TestPlayerFunctionality:
 class TestPlayerJavaScript:
     """Tests for player JavaScript logic."""
 
-    def test_hls_initialization(self):
+    def test_hls_initialization(self) -> None:
         """Test HLS.js initialization code exists."""
         player_js_path = PROJECT_ROOT / "web" / "js" / "player.js"
         if not player_js_path.exists():
@@ -204,7 +204,7 @@ class TestPlayerJavaScript:
         assert "loadSource" in content
         assert "attachMedia" in content
 
-    def test_hls_error_handling(self):
+    def test_hls_error_handling(self) -> None:
         """Test HLS error handling code exists."""
         player_js_path = PROJECT_ROOT / "web" / "js" / "player.js"
         if not player_js_path.exists():
@@ -216,7 +216,7 @@ class TestPlayerJavaScript:
         assert "Hls.Events.ERROR" in content
         assert "fatal" in content.lower()
 
-    def test_subtitle_tracks_handling(self):
+    def test_subtitle_tracks_handling(self) -> None:
         """Test subtitle tracks handling code exists."""
         player_js_path = PROJECT_ROOT / "web" / "js" / "player.js"
         if not player_js_path.exists():
@@ -236,7 +236,7 @@ class TestPlayerWithLiveServer:
         not os.environ.get("RUN_LIVE_TESTS"),
         reason="Live server tests require explicit opt-in",
     )
-    def test_live_player_accessible(self):
+    def test_live_player_accessible(self) -> None:
         """Test that player page is accessible on live server."""
         import requests
 
@@ -248,7 +248,7 @@ class TestPlayerWithLiveServer:
         not os.environ.get("RUN_LIVE_TESTS"),
         reason="Live server tests require explicit opt-in",
     )
-    def test_hls_stream_available(self):
+    def test_hls_stream_available(self) -> None:
         """Test that HLS stream is available."""
         import requests
 
@@ -260,7 +260,7 @@ class TestPlayerResponsive:
     """Tests for player responsiveness."""
 
     @pytest.fixture
-    def player_html_and_css(self):
+    def player_html_and_css(self) -> None:
         """Load player HTML and CSS content."""
         html_content = _get_player_html()
         css_content = None
@@ -273,7 +273,7 @@ class TestPlayerResponsive:
 
         return html_content, css_content
 
-    def test_player_has_full_viewport(self, player_html_and_css):
+    def test_player_has_full_viewport(self, player_html_and_css) -> None:
         """Test that player uses full viewport."""
         html_content, css_content = player_html_and_css
         if html_content is None:
@@ -283,7 +283,7 @@ class TestPlayerResponsive:
         assert "width" in combined and "100%" in combined
         assert "height" in combined and "100%" in combined
 
-    def test_player_has_black_background(self, player_html_and_css):
+    def test_player_has_black_background(self, player_html_and_css) -> None:
         """Test that player has dark background."""
         html_content, css_content = player_html_and_css
         if html_content is None:

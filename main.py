@@ -7,6 +7,16 @@ and opens the browser to the dashboard.
 
 import os
 import sys
+import signal
+import threading
+import logging
+import webbrowser
+from typing import TYPE_CHECKING, Any
+from types import FrameType
+
+if TYPE_CHECKING:
+    from core.unified_pipeline import UnifiedPipeline
+    from modules.inputs.base_input import BaseInput
 
 # Add CUDA/cuDNN paths for Windows - BEFORE any other imports
 from core.cuda_paths import setup_cuda_environment
@@ -46,7 +56,7 @@ from server.ws_routes import log_broadcaster
 _app_context = None
 
 
-def _cleanup_orphan_processes():
+def _cleanup_orphan_processes() -> None:
     """Cleanup any orphan FFmpeg processes on unexpected shutdown."""
     from core.ffmpeg_utils import cleanup_ffmpeg_processes
     from core.security import cleanup_temporary_files
@@ -67,7 +77,7 @@ def _cleanup_orphan_processes():
         logger.warning(f"Cleanup warning: {e}")
 
 
-def _shutdown():
+def _shutdown() -> None:
     """Graceful shutdown handler."""
     global _app_context
     logger = logging.getLogger("srt2web.main")
@@ -86,7 +96,7 @@ def _shutdown():
     _cleanup_orphan_processes()
 
 
-def setup_logging():
+def setup_logging() -> None:
     """Configure logging - delegates to core.logging_setup."""
     from core.logging_setup import setup_logging as _setup
     from server.ws_routes import log_broadcaster
@@ -95,7 +105,7 @@ def setup_logging():
     logging.getLogger("srt2web.main").info("Logging initialized")
 
 
-def build_pipeline(config: ConfigManager, output_dir: str):
+def build_pipeline(config: ConfigManager, output_dir: str) -> tuple['UnifiedPipeline', 'BaseInput']:
     """
     Build the processing pipeline with modular input/output.
 
@@ -212,7 +222,7 @@ def build_pipeline(config: ConfigManager, output_dir: str):
     return pipeline, input_source
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     setup_logging()
     logger = logging.getLogger("srt2web.main")
@@ -265,7 +275,7 @@ def main():
     port = config.get("server.port", SERVER_PORT_DEFAULT)
 
     # Open browser after a short delay
-    def open_browser():
+    def open_browser() -> None:
         import time
 
         time.sleep(1.5)
@@ -277,7 +287,7 @@ def main():
     browser_thread.start()
 
     # Register signal handlers for graceful shutdown
-    def handle_exit(signum, frame):
+    def handle_exit(signum: int, frame: FrameType | None) -> None:
         logger.info("Shutdown signal received. Cleaning up...")
         _shutdown()
         sys.exit(0)

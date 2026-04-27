@@ -13,7 +13,7 @@ import time
 class TestPlayerConfig:
     """Test player HLS configuration."""
     
-    def test_hls_config_low_latency(self):
+    def test_hls_config_low_latency(self) -> None:
         """Test HLS config is optimized for low latency."""
         config = {
             'debug': False,
@@ -36,7 +36,7 @@ class TestPlayerConfig:
 class TestHealthCheck:
     """Test health check functionality."""
     
-    def test_health_check_constants(self):
+    def test_health_check_constants(self) -> None:
         """Test health check constants are defined."""
         INITIAL_LOAD_TIMEOUT = 15000
         MAX_CONSECUTIVE_ERRORS = 5
@@ -44,7 +44,7 @@ class TestHealthCheck:
         assert INITIAL_LOAD_TIMEOUT == 15000
         assert MAX_CONSECUTIVE_ERRORS == 5
     
-    def test_consecutive_errors_tracking(self):
+    def test_consecutive_errors_tracking(self) -> None:
         """Test that consecutive errors are tracked properly."""
         consecutive_errors = 0
         max_errors = 5
@@ -59,7 +59,7 @@ class TestHealthCheck:
 class TestPlayerAutoRetry:
     """Test player auto-retry behavior."""
     
-    def test_initial_load_attempts(self):
+    def test_initial_load_attempts(self) -> None:
         """Test initial load attempts counter."""
         initialLoadAttempts = 0
         max_attempts = 3
@@ -69,7 +69,7 @@ class TestPlayerAutoRetry:
         
         assert initialLoadAttempts == max_attempts
     
-    def test_retry_delay(self):
+    def test_retry_delay(self) -> None:
         """Test retry delay is reasonable."""
         retry_delay = 2000
         max_delay = 5000
@@ -80,7 +80,7 @@ class TestPlayerAutoRetry:
 class TestPlayerConnection:
     """Test player connection states."""
     
-    def test_connection_states(self):
+    def test_connection_states(self) -> None:
         """Test different connection states."""
         isConnected = False
         
@@ -89,18 +89,18 @@ class TestPlayerConnection:
         isConnected = True
         assert isConnected == True
     
-    def test_error_display_controlled(self):
+    def test_error_display_controlled(self) -> None:
         """Test error can be shown/hidden."""
         errorOverlay = Mock()
         errorMessage = Mock()
         btnRetry = Mock()
         
-        def showError(message, showRetry=True):
+        def showError(message, showRetry=True) -> None:
             errorOverlay.style.display = 'flex'
             errorMessage.textContent = message
             btnRetry.style.display = 'block' if showRetry else 'none'
         
-        def hideError():
+        def hideError() -> None:
             errorOverlay.style.display = 'none'
             btnRetry.style.display = 'none'
         
@@ -114,7 +114,7 @@ class TestPlayerConnection:
 class TestPlayerErrorHandling:
     """Test player error handling."""
     
-    def test_network_error_handling(self):
+    def test_network_error_handling(self) -> None:
         """Test network error doesn't immediately show error."""
         network_error_count = 0
         isConnected = False
@@ -127,7 +127,7 @@ class TestPlayerErrorHandling:
         
         assert network_error_count <= 3
     
-    def test_media_error_recovery(self):
+    def test_media_error_recovery(self) -> None:
         """Test media error can be recovered."""
         recovery_attempts = 0
         recovered = False
@@ -144,7 +144,7 @@ class TestPlayerErrorHandling:
 class TestPlayerSubtitles:
     """Test player subtitle handling."""
     
-    def test_subtitle_parsing(self):
+    def test_subtitle_parsing(self) -> None:
         """Test VTT subtitle parsing."""
         vtt_content = """WEBVTT
 
@@ -178,7 +178,7 @@ Esto es una prueba
         assert cues[0]['text'] == 'Hola mundo'
         assert cues[1]['text'] == 'Esto es una prueba'
     
-    def test_subtitle_polling_interval(self):
+    def test_subtitle_polling_interval(self) -> None:
         """Test subtitle polling runs every 2 seconds."""
         polling_interval = 2000
         assert polling_interval == 2000

@@ -2,11 +2,8 @@
  * Tipos de datos para gestión de salidas múltiples.
  */
 
-// Re-export shared types (base types for the app)
-export * from './shared-types';
-
-// Re-export state types
-export * from './types/state';
+// Re-export shared types via barrel
+export type { Config, Status, PipelineState, ModuleStatus, ModuleState, MetricsData, InputConfig, WebSocketMessage, HealthStatus, LogMessage } from './shared-types';
 
 // Configuración base para todas las salidas
 export interface BaseOutputConfig {

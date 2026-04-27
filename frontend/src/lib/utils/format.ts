@@ -24,6 +24,7 @@ export function formatBytes(bytes: number): string {
 /**
  * Format a timestamp as HH:MM:SS
  */
-export function formatTimestamp(ts: number): string {
-  return new Date(ts).toLocaleTimeString('en-US', { hour12: false });
+export function formatTimestamp(ts: number | string): string {
+  const date = typeof ts === 'string' ? new Date(ts) : new Date(ts);
+  return date.toLocaleTimeString('en-US', { hour12: false });
 }

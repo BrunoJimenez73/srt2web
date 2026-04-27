@@ -24,7 +24,7 @@ CONFIG_PATH = str(PROJECT_ROOT / "config.yaml")
 class TestPipelineDataFix:
     """Test that SRT input creates PipelineData correctly (dataclass syntax)."""
 
-    def test_srt_input_uses_keyword_arguments(self):
+    def test_srt_input_uses_keyword_arguments(self) -> None:
         """Verify srt_input.py uses PipelineData with keyword arguments."""
         srt_input_path = PROJECT_ROOT / "modules" / "inputs" / "srt_input.py"
         with open(srt_input_path, "r") as f:
@@ -35,7 +35,7 @@ class TestPipelineDataFix:
         assert "audio_chunk_path=" in content
         assert "chunk_index=" in content
 
-    def test_srt_input_no_dict_positional_args(self):
+    def test_srt_input_no_dict_positional_args(self) -> None:
         """Should not pass dicts as positional args to PipelineData."""
         srt_input_path = PROJECT_ROOT / "modules" / "inputs" / "srt_input.py"
         with open(srt_input_path, "r") as f:
@@ -52,12 +52,12 @@ class TestPipelineDataFix:
 class TestPiperSubprocessManager:
     """Test PiperSubprocessManager exists and is used."""
 
-    def test_piper_loader_module_exists(self):
+    def test_piper_loader_module_exists(self) -> None:
         """Test that piper_loader.py module exists."""
         piper_loader_path = PROJECT_ROOT / "modules" / "piper_loader.py"
         assert piper_loader_path.exists()
 
-    def test_piper_subprocess_manager_class_exists(self):
+    def test_piper_subprocess_manager_class_exists(self) -> None:
         """Test PiperSubprocessManager class is defined."""
         from modules.piper_loader import PiperSubprocessManager
         assert hasattr(PiperSubprocessManager, '__init__')
@@ -65,7 +65,7 @@ class TestPiperSubprocessManager:
         assert hasattr(PiperSubprocessManager, 'synthesize')
         assert hasattr(PiperSubprocessManager, 'stop')
 
-    def test_piper_manager_used_in_tts_engine(self):
+    def test_piper_manager_used_in_tts_engine(self) -> None:
         """Test that TTS engine imports and uses PiperSubprocessManager."""
         tts_engine_path = PROJECT_ROOT / "modules" / "tts_engine.py"
         with open(tts_engine_path, "r") as f:
@@ -74,7 +74,7 @@ class TestPiperSubprocessManager:
         assert "from modules.piper_loader import PiperSubprocessManager" in content
         assert "self._piper_manager = PiperSubprocessManager()" in content
 
-    def test_piper_worker_uses_length_scale(self):
+    def test_piper_worker_uses_length_scale(self) -> None:
         """Test that the Piper worker script computes length_scale from speed."""
         piper_loader_path = PROJECT_ROOT / "modules" / "piper_loader.py"
         with open(piper_loader_path, "r") as f:
@@ -84,7 +84,7 @@ class TestPiperSubprocessManager:
         assert "SynthesisConfig" in content
         assert "length_scale" in content
 
-    def test_piper_worker_has_cuda_support(self):
+    def test_piper_worker_has_cuda_support(self) -> None:
         """Test that worker attempts CUDA load if available."""
         piper_loader_path = PROJECT_ROOT / "modules" / "piper_loader.py"
         with open(piper_loader_path, "r") as f:
@@ -96,7 +96,7 @@ class TestPiperSubprocessManager:
 class TestAudioMixerNumpy:
     """Test AudioMixer uses numpy instead of FFmpeg for mixing."""
 
-    def test_audio_mixer_imports_numpy(self):
+    def test_audio_mixer_imports_numpy(self) -> None:
         """Test that audio_mixer imports numpy."""
         from modules.audio_mixer import AudioMixer
         import inspect
@@ -104,7 +104,7 @@ class TestAudioMixerNumpy:
         source = inspect.getsource(AudioMixer._do_process)
         assert "import numpy as np" in source or "from numpy" in source
 
-    def test_audio_mixer_uses_numpy_operations(self):
+    def test_audio_mixer_uses_numpy_operations(self) -> None:
         """Test that AudioMixer._do_process uses numpy arrays for mixing."""
         from modules.audio_mixer import AudioMixer
         import inspect
@@ -113,7 +113,7 @@ class TestAudioMixerNumpy:
         assert "np.frombuffer" in source or "numpy.frombuffer" in source
         assert "np.pad" in source or "numpy.pad" in source
 
-    def test_audio_mixer_comment_mentions_numpy(self):
+    def test_audio_mixer_comment_mentions_numpy(self) -> None:
         """Test that code comment indicates numpy mixing."""
         from modules.audio_mixer import AudioMixer
         import inspect
@@ -125,12 +125,12 @@ class TestAudioMixerNumpy:
 class TestPipelineReconfigure:
     """Test pipeline reconfigure injects chunk_duration_sec."""
 
-    def test_pipeline_has_reconfigure_method(self):
+    def test_pipeline_has_reconfigure_method(self) -> None:
         """Test that Pipeline has reconfigure method."""
         from core.unified_pipeline import UnifiedPipeline
         assert hasattr(UnifiedPipeline, 'reconfigure')
 
-    def test_pipeline_reconfigure_injects_chunk_duration(self):
+    def test_pipeline_reconfigure_injects_chunk_duration(self) -> None:
         """Test that reconfigure is available."""
         from core.unified_pipeline import UnifiedPipeline
         import inspect
@@ -142,7 +142,7 @@ class TestPipelineReconfigure:
 class TestConfigValues:
     """Test config.yaml has correct low-latency settings."""
 
-    def test_chunk_duration_is_valid(self):
+    def test_chunk_duration_is_valid(self) -> None:
         """Test pipeline.chunk_duration_sec is between 1 and 15 (OBS keyframe constraint)."""
         with open(CONFIG_PATH, "r") as f:
             config = yaml.safe_load(f)
@@ -150,7 +150,7 @@ class TestConfigValues:
         assert config['pipeline']['chunk_duration_sec'] >= 1
         assert config['pipeline']['chunk_duration_sec'] <= 15
 
-    def test_hls_segment_duration_is_valid(self):
+    def test_hls_segment_duration_is_valid(self) -> None:
         """Test output.web.segment_duration is set for latency."""
         with open(CONFIG_PATH, "r") as f:
             config = yaml.safe_load(f)
@@ -158,7 +158,7 @@ class TestConfigValues:
         # segment_duration should be reasonable (1-10 seconds for low latency)
         assert 1 <= config['output']['web']['segment_duration'] <= 10
 
-    def test_hls_list_size_is_2(self):
+    def test_hls_list_size_is_2(self) -> None:
         """Test output.web.list_size is set for buffer."""
         with open(CONFIG_PATH, "r") as f:
             config = yaml.safe_load(f)
@@ -166,7 +166,7 @@ class TestConfigValues:
         # list_size should be reasonable (2-10 for buffer)
         assert 2 <= config['output']['web']['list_size'] <= 10
 
-    def test_video_muxer_has_hls_settings(self):
+    def test_video_muxer_has_hls_settings(self) -> None:
         """Test video_muxer has hls_segment_duration and hls_list_size."""
         with open(CONFIG_PATH, "r") as f:
             config = yaml.safe_load(f)
@@ -175,7 +175,7 @@ class TestConfigValues:
         assert 'hls_segment_duration' in vm
         assert 'hls_list_size' in vm
 
-    def test_audio_mixer_original_volume_exists(self):
+    def test_audio_mixer_original_volume_exists(self) -> None:
         """Test modules.audio_mixer.original_volume exists."""
         with open(CONFIG_PATH, "r") as f:
             config = yaml.safe_load(f)
@@ -187,7 +187,7 @@ class TestConfigValues:
 class TestSRTInputBehavior:
     """Test SRT input processing logic."""
 
-    def test_srt_input_has_buffer_for_previous_chunk(self):
+    def test_srt_input_has_buffer_for_previous_chunk(self) -> None:
         """Test SRT input maintains previous chunk for pairing."""
         srt_input_path = PROJECT_ROOT / "modules" / "inputs" / "srt_input.py"
         with open(srt_input_path, "r") as f:
@@ -195,7 +195,7 @@ class TestSRTInputBehavior:
         
         assert "_prev_chunk" in content or "_previous" in content or "_last_chunk" in content
 
-    def test_srt_input_uses_idx_condition(self):
+    def test_srt_input_uses_idx_condition(self) -> None:
         """Test SRT input uses chunk index to decide when to process."""
         srt_input_path = PROJECT_ROOT / "modules" / "inputs" / "srt_input.py"
         with open(srt_input_path, "r") as f:
@@ -207,7 +207,7 @@ class TestSRTInputBehavior:
 class TestAudioMixerDurationCheck:
     """Test that AudioMixer includes duration verification."""
 
-    def test_audio_mixer_sets_duration_in_output(self):
+    def test_audio_mixer_sets_duration_in_output(self) -> None:
         """Test that AudioMixer._do_process sets data.duration."""
         from modules.audio_mixer import AudioMixer
         import inspect
@@ -219,7 +219,7 @@ class TestAudioMixerDurationCheck:
 class TestWebRTCSubtitles:
     """Test WebRTC subtitle support (integrated in VideoMuxer)."""
 
-    def test_webrtc_engine_in_video_muxer(self):
+    def test_webrtc_engine_in_video_muxer(self) -> None:
         """Test WebRTC engine is supported in VideoMuxer."""
         video_muxer_path = PROJECT_ROOT / "modules" / "video_muxer.py"
         with open(video_muxer_path, "r", encoding="utf-8") as f:
@@ -228,7 +228,7 @@ class TestWebRTCSubtitles:
         assert "webrtc" in content.lower()
         assert "_engine" in content
 
-    def test_video_muxer_has_webrtc_support(self):
+    def test_video_muxer_has_webrtc_support(self) -> None:
         """Test video_muxer has WebRTC engine support."""
         from pathlib import Path
         vm_path = Path("modules/video_muxer.py")
@@ -241,7 +241,7 @@ class TestWebRTCSubtitles:
 class TestVideoMuxerUI:
     """Test VideoMuxer UI improvements."""
 
-    def test_video_muxer_has_engine_type_property(self):
+    def test_video_muxer_has_engine_type_property(self) -> None:
         """Test video_muxer has _engine attribute."""
         vm_path = PROJECT_ROOT / "modules" / "video_muxer.py"
         with open(vm_path, "r", encoding="utf-8") as f:
@@ -249,7 +249,7 @@ class TestVideoMuxerUI:
         
         assert "_engine" in content or "engine" in content
 
-    def test_video_muxer_status_includes_available_engines(self):
+    def test_video_muxer_status_includes_available_engines(self) -> None:
         """Test get_status returns available_engines."""
         vm_path = PROJECT_ROOT / "modules" / "video_muxer.py"
         with open(vm_path, "r", encoding="utf-8") as f:
@@ -257,7 +257,7 @@ class TestVideoMuxerUI:
         
         assert "encoder" in content.lower()
 
-    def test_video_muxer_can_switch_engines(self):
+    def test_video_muxer_can_switch_engines(self) -> None:
         """Test video_muxer can switch between HLS and WebRTC."""
         vm_path = PROJECT_ROOT / "modules" / "video_muxer.py"
         with open(vm_path, "r", encoding="utf-8") as f:
@@ -269,37 +269,37 @@ class TestVideoMuxerUI:
 class TestFrontendModularization:
     """Test frontend modular JavaScript structure."""
 
-    def test_ui_module_exists(self):
+    def test_ui_module_exists(self) -> None:
         """Test ui.ts module exists."""
         ui_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "ui.ts"
         assert ui_path.exists()
 
-    def test_config_module_exists(self):
+    def test_config_module_exists(self) -> None:
         """Test config.ts module exists."""
         config_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "config.ts"
         assert config_path.exists()
 
-    def test_events_module_exists(self):
+    def test_events_module_exists(self) -> None:
         """Test events.ts module exists."""
         events_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "events.ts"
         assert events_path.exists()
 
-    def test_player_module_exists(self):
+    def test_player_module_exists(self) -> None:
         """Test player.ts module exists."""
         player_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "player.ts"
         assert player_path.exists()
 
-    def test_dashboard_script_exists(self):
+    def test_dashboard_script_exists(self) -> None:
         """Test dashboard.ts main script exists."""
         dashboard_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "dashboard.ts"
         assert dashboard_path.exists()
 
-    def test_tailwind_config_exists(self):
+    def test_tailwind_config_exists(self) -> None:
         """Test tailwind.config.js exists."""
         tw_config_path = PROJECT_ROOT / "frontend" / "tailwind.config.js"
         assert tw_config_path.exists()
 
-    def test_postcss_config_exists(self):
+    def test_postcss_config_exists(self) -> None:
         """Test postcss.config.js exists."""
         pc_config_path = PROJECT_ROOT / "frontend" / "postcss.config.js"
         assert pc_config_path.exists()

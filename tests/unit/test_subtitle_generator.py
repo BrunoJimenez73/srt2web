@@ -18,7 +18,7 @@ from core.module_base import PipelineData, ModuleState
 
 
 @pytest.fixture
-def temp_dir():
+def temp_dir():  # type: ignore
     """Create a temporary directory for tests."""
     with tempfile.TemporaryDirectory() as tmpdir:
         yield tmpdir
@@ -27,14 +27,14 @@ def temp_dir():
 class TestSubtitleGenerator:
     """Tests for SubtitleGenerator class."""
 
-    def test_init(self):
+    def test_init(self) -> None:
         """Test initialization and config."""
         gen = SubtitleGenerator(output_dir="/tmp")
         assert gen._use_translated is True
         assert gen._format == "webvtt"
 
     @patch("os.makedirs")
-    def test_start(self, mock_makedirs):
+    def test_start(self, mock_makedirs) -> None:
         """Test module startup."""
         with patch("builtins.open", mock_open()) as mocked_file:
             gen = SubtitleGenerator(output_dir="/tmp")
@@ -47,7 +47,7 @@ class TestSubtitleGenerator:
             )
             mocked_file().write.assert_called_once_with("WEBVTT\n\n")
 
-    def test_format_timestamp(self):
+    def test_format_timestamp(self) -> None:
         """Test timestamp formatting for VTT and SRT."""
         gen = SubtitleGenerator()
         vtt_ts = gen._format_timestamp(3661.123, "vtt")
@@ -55,7 +55,7 @@ class TestSubtitleGenerator:
         srt_ts = gen._format_timestamp(3661.123, "srt")
         assert srt_ts == "01:01:01,123"
 
-    def test_do_process_vtt(self, temp_dir):
+    def test_do_process_vtt(self, temp_dir) -> None:
         """Test processing to generate VTT content."""
         gen = SubtitleGenerator(output_dir=temp_dir)
         gen.start()
@@ -74,7 +74,7 @@ class TestSubtitleGenerator:
         assert "WEBVTT" in content
         assert "Hola Mundo" in content
 
-    def test_do_process_no_text(self):
+    def test_do_process_no_text(self) -> None:
         """Test processing when no text is available."""
         gen = SubtitleGenerator(output_dir="/tmp")
         gen._vtt_path = os.path.join("/tmp", "hls", "subs.vtt")
@@ -84,7 +84,7 @@ class TestSubtitleGenerator:
 
         assert result.subtitles_path == gen._vtt_path
 
-    def test_do_process_use_original_transcript(self, temp_dir):
+    def test_do_process_use_original_transcript(self, temp_dir) -> None:
         """Test using transcript when translation is disabled."""
         gen = SubtitleGenerator(output_dir=temp_dir)
         gen.configure({"use_translated": False})
@@ -104,7 +104,7 @@ class TestSubtitleGenerator:
 class TestSubtitleGeneratorTiming:
     """Tests for subtitle timing synchronization."""
 
-    def test_last_cumulative_reset_on_start(self, temp_dir):
+    def test_last_cumulative_reset_on_start(self, temp_dir) -> None:
         """Test that last cumulative is reset when module starts."""
         gen = SubtitleGenerator(output_dir=temp_dir)
         gen._last_cumulative = 100.0
@@ -114,7 +114,7 @@ class TestSubtitleGeneratorTiming:
         assert gen._last_cumulative == 0.0
         assert gen._last_chunk_index == -1
 
-    def test_cumulative_time_uses_data_cumulative_duration(self, temp_dir):
+    def test_cumulative_time_uses_data_cumulative_duration(self, temp_dir) -> None:
         """Test that chunk_start_time uses data.cumulative_duration."""
         gen = SubtitleGenerator(output_dir=temp_dir)
         gen.start()
@@ -129,7 +129,7 @@ class TestSubtitleGeneratorTiming:
         # After processing, last_cumulative should match data.cumulative_duration
         assert gen._last_cumulative == 0.0
 
-    def test_cumulative_time_increases_with_chunks(self, temp_dir):
+    def test_cumulative_time_increases_with_chunks(self, temp_dir) -> None:
         """Test that cumulative time increases correctly across chunks."""
         gen = SubtitleGenerator(output_dir=temp_dir)
         gen.start()
@@ -144,7 +144,7 @@ class TestSubtitleGeneratorTiming:
         # Last cumulative should be 8.0 (from chunk 2)
         assert gen._last_cumulative == 8.0
 
-    def test_segments_timing_relative_to_chunk(self, temp_dir):
+    def test_segments_timing_relative_to_chunk(self, temp_dir) -> None:
         """Test that segment timestamps use cumulative_duration from data."""
         gen = SubtitleGenerator(output_dir=temp_dir)
         gen.start()
@@ -187,7 +187,7 @@ class TestSubtitleGeneratorTiming:
 class TestRollingWindow:
     """Tests for rolling window VTT functionality."""
 
-    def test_trim_vtt_entries_limits_count(self):
+    def test_trim_vtt_entries_limits_count(self) -> None:
         """Test that _trim_vtt_entries limits entry count."""
         gen = SubtitleGenerator()
         gen._max_vtt_entries = 5
@@ -200,7 +200,7 @@ class TestRollingWindow:
         gen._trim_vtt_entries()
         assert len(gen._vtt_entries) == 5
 
-    def test_trim_vtt_entries_removes_old_by_time(self):
+    def test_trim_vtt_entries_removes_old_by_time(self) -> None:
         """Test that _trim_vtt_entries removes entries older than max age."""
         gen = SubtitleGenerator()
         gen._vtt_max_age_seconds = 10.0
@@ -216,7 +216,7 @@ class TestRollingWindow:
         assert len(gen._vtt_entries) == 1
         assert gen._vtt_entries[0]["text"] == "Recent entry"
 
-    def test_rewrite_vtt_file(self, temp_dir):
+    def test_rewrite_vtt_file(self, temp_dir) -> None:
         """Test that _rewrite_vtt_file writes correct VTT format."""
         gen = SubtitleGenerator(output_dir=temp_dir)
         gen._subtitles_dir = temp_dir
@@ -239,7 +239,7 @@ class TestRollingWindow:
         assert "00:00:02.000 --> 00:00:04.000" in content
         assert "World" in content
 
-    def test_start_clears_rolling_window(self, temp_dir):
+    def test_start_clears_rolling_window(self, temp_dir) -> None:
         """Test that start() clears the rolling window."""
         gen = SubtitleGenerator(output_dir=temp_dir)
         gen._vtt_entries = [{"start": 0, "end": 1, "text": "test"}]

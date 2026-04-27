@@ -115,7 +115,7 @@ def sample_pipeline_data() -> dict:
 
 
 @pytest.fixture
-def mock_app_context():
+def mock_app_context():  # type: ignore
     """Create a mock app context for testing."""
     from core.config_manager import ConfigManager
     from core.pipeline import Pipeline
@@ -132,7 +132,7 @@ def mock_app_context():
 
 
 @pytest.fixture
-def client(mock_app_context):
+def client(mock_app_context):  # type: ignore
     """Create a test client for the FastAPI app."""
     from fastapi.testclient import TestClient
     from server.app import create_app

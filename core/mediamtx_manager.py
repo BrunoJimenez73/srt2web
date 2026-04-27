@@ -26,7 +26,7 @@ MEDIAMTX_CONFIG = os.path.join(MEDIAMTX_DIR, "mediamtx.yml")
 class MediaMTXManager:
     """Manages MediaMTX server for RTMP input."""
     
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: Optional[dict] = None) -> None:
         self._process: Optional[subprocess.Popen] = None
         self._config = config or {}
         self._rtmp_port = self._config.get("rtmp_port", 1935)

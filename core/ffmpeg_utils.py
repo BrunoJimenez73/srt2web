@@ -368,7 +368,7 @@ def start_ffmpeg_process(
     )
 
 
-def cleanup_ffmpeg_processes():
+def cleanup_ffmpeg_processes() -> None:
     """Clean up any orphaned FFmpeg processes."""
     import subprocess
     import platform

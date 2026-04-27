@@ -17,13 +17,13 @@ CONFIG_PATH = os.path.join(PROJECT_ROOT, 'config.yaml')
 class TestConfigReload:
     """Test config reload functionality."""
     
-    def test_config_reload_exists(self):
+    def test_config_reload_exists(self) -> None:
         """Test config has reload method."""
         from core.config_manager import ConfigManager
         
         assert hasattr(ConfigManager, 'reload')
     
-    def test_config_save_includes_reload(self):
+    def test_config_save_includes_reload(self) -> None:
         """Test config save triggers reload."""
         from core.config_manager import ConfigManager
         
@@ -48,7 +48,7 @@ class TestConfigReload:
 class TestConfigHotReloadOnUpdate:
     """Test hot reload is called on config update."""
     
-    def test_update_config_reload_behavior(self):
+    def test_update_config_reload_behavior(self) -> None:
         """Test that config reloads after update."""
         config_path = CONFIG_PATH
         
@@ -73,7 +73,7 @@ class TestConfigHotReloadOnUpdate:
 class TestConfigCachePrevention:
     """Test config doesn't use stale cache."""
     
-    def test_no_stale_cache(self):
+    def test_no_stale_cache(self) -> None:
         """Test config reads from disk, not cache."""
         config_path = "config.yaml"
         
@@ -92,7 +92,7 @@ class TestConfigCachePrevention:
                     
                     assert manager._config is not None
     
-    def test_config_updates_immediately(self):
+    def test_config_updates_immediately(self) -> None:
         """Test config updates are immediately visible."""
         config = {'pipeline': {'chunk_duration_sec': 5}}
         
@@ -104,7 +104,7 @@ class TestConfigCachePrevention:
 class TestConfigValues:
     """Test config low-latency values."""
     
-    def test_chunk_duration_is_2(self):
+    def test_chunk_duration_is_2(self) -> None:
         """Test chunk_duration is set to 2 seconds."""
         config = {
             'input': {'srt': {'chunk_duration_sec': 2}},
@@ -114,7 +114,7 @@ class TestConfigValues:
         assert config['input']['srt']['chunk_duration_sec'] == 2
         assert config['pipeline']['chunk_duration_sec'] == 2
     
-    def test_segment_duration_is_2(self):
+    def test_segment_duration_is_2(self) -> None:
         """Test segment_duration is set to 2 seconds."""
         config = {
             'output': {
@@ -126,7 +126,7 @@ class TestConfigValues:
         assert config['output']['web']['segment_duration'] == 2
         assert config['output']['hls']['segment_duration'] == 2
     
-    def test_list_size_is_2(self):
+    def test_list_size_is_2(self) -> None:
         """Test list_size is set to 2."""
         config = {
             'output': {
@@ -138,7 +138,7 @@ class TestConfigValues:
         assert config['output']['web']['list_size'] == 2
         assert config['output']['hls']['list_size'] == 2
     
-    def test_max_concurrent_chunks_increased(self):
+    def test_max_concurrent_chunks_increased(self) -> None:
         """Test max_concurrent_chunks is increased to 4."""
         config = {
             'pipeline': {'max_concurrent_chunks': 4},
@@ -151,7 +151,7 @@ class TestConfigValues:
 class TestAPIConfigUpdate:
     """Test API config update endpoint."""
     
-    def test_update_config_returns_dict(self):
+    def test_update_config_returns_dict(self) -> None:
         """Test update config returns config dict."""
         from server.api_routes import APIRouter
         
@@ -160,7 +160,7 @@ class TestAPIConfigUpdate:
         assert 'status' in result
         assert 'config' in result
     
-    def test_update_config_validates(self):
+    def test_update_config_validates(self) -> None:
         """Test update config validates before saving."""
         config = {'pipeline': {'chunk_duration_sec': 2}}
         
@@ -172,7 +172,7 @@ class TestAPIConfigUpdate:
 class TestConfigValidation:
     """Test config validation."""
     
-    def test_chunk_duration_validation(self):
+    def test_chunk_duration_validation(self) -> None:
         """Test chunk_duration must be between 1 and 10."""
         valid_values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         invalid_values = [0, 11, -1, 15]
@@ -183,14 +183,14 @@ class TestConfigValidation:
         for val in invalid_values:
             assert not (1 <= val <= 10)
     
-    def test_segment_duration_validation(self):
+    def test_segment_duration_validation(self) -> None:
         """Test segment_duration must be between 1 and 10."""
         valid_values = [1, 2, 3, 4, 5]
         
         for val in valid_values:
             assert 1 <= val <= 10
     
-    def test_list_size_validation(self):
+    def test_list_size_validation(self) -> None:
         """Test list_size must be positive."""
         valid_values = [1, 2, 3, 4, 5]
         

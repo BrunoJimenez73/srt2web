@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch, call
 class TestFFmpegWatchdog:
     """Test suite for FFmpegWatchdog class."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test Watchdog initialization."""
         from core.watchdog import FFmpegWatchdog
 
@@ -27,7 +27,7 @@ class TestFFmpegWatchdog:
         assert wd.restart_count == 0
         assert wd.is_healthy is False
 
-    def test_attach_process(self):
+    def test_attach_process(self) -> None:
         """Test attaching a process to watchdog."""
         from core.watchdog import FFmpegWatchdog
 
@@ -40,7 +40,7 @@ class TestFFmpegWatchdog:
         assert wd.is_healthy is True
         assert wd._process_name == "Test Process"
 
-    def test_detach_process(self):
+    def test_detach_process(self) -> None:
         """Test detaching a process from watchdog."""
         from core.watchdog import FFmpegWatchdog
 
@@ -54,7 +54,7 @@ class TestFFmpegWatchdog:
         assert wd.is_healthy is False
         assert wd._process is None
 
-    def test_detect_crashed_process(self):
+    def test_detect_crashed_process(self) -> None:
         """Test that watchdog detects crashed process."""
         from core.watchdog import FFmpegWatchdog
 
@@ -71,7 +71,7 @@ class TestFFmpegWatchdog:
 
         assert wd.is_healthy is False
 
-    def test_notify_activity(self):
+    def test_notify_activity(self) -> None:
         """Test activity notification."""
         from core.watchdog import FFmpegWatchdog
 
@@ -86,7 +86,7 @@ class TestFFmpegWatchdog:
 
         assert wd._is_hung is False
 
-    def test_restart_count(self):
+    def test_restart_count(self) -> None:
         """Test restart counter."""
         from core.watchdog import FFmpegWatchdog
 
@@ -99,7 +99,7 @@ class TestFFmpegWatchdog:
 class TestProcessManager:
     """Test suite for ProcessManager singleton."""
 
-    def test_singleton(self):
+    def test_singleton(self) -> None:
         """Test that ProcessManager is a singleton."""
         from core.watchdog import ProcessManager
 
@@ -108,7 +108,7 @@ class TestProcessManager:
 
         assert pm1 is pm2
 
-    def test_register_process(self):
+    def test_register_process(self) -> None:
         """Test registering a process."""
         from core.watchdog import ProcessManager
 
@@ -123,7 +123,7 @@ class TestProcessManager:
         assert "test_process" in pm._processes
         assert pm.get_watchdog("test_process") is watchdog
 
-    def test_unregister_process(self):
+    def test_unregister_process(self) -> None:
         """Test unregistering a process."""
         from core.watchdog import ProcessManager
 
@@ -138,7 +138,7 @@ class TestProcessManager:
 
         assert "test_process" not in pm._processes
 
-    def test_get_all_health(self):
+    def test_get_all_health(self) -> None:
         """Test getting health of all processes."""
         from core.watchdog import ProcessManager
 
@@ -155,7 +155,7 @@ class TestProcessManager:
         assert "healthy_proc" in health
         assert health["healthy_proc"]["healthy"] is True
 
-    def test_kill_all(self):
+    def test_kill_all(self) -> None:
         """Test killing all processes."""
         from core.watchdog import ProcessManager
 
@@ -176,18 +176,18 @@ class TestProcessManager:
 class TestWatchdogIntegration:
     """Integration tests for watchdog with BaseModule."""
 
-    def test_module_with_watchdog(self):
+    def test_module_with_watchdog(self) -> None:
         """Test that module can use watchdog for process monitoring."""
         from core.module_base import BaseModule, ModuleState, PipelineData
 
         class MockModule(BaseModule):
-            def start(self):
+            def start(self):  # type: ignore
                 self._state = ModuleState.RUNNING
 
-            def stop(self):
+            def stop(self):  # type: ignore
                 self._state = ModuleState.IDLE
 
-            def _do_process(self, data):
+            def _do_process(self, data):  # type: ignore
                 return data
 
         module = MockModule("test")
@@ -198,21 +198,21 @@ class TestWatchdogIntegration:
         module.stop()
         assert module.state == ModuleState.IDLE
 
-    def test_degraded_mode(self):
+    def test_degraded_mode(self):  # type: ignore
         """Test degraded mode when module fails."""
         from core.module_base import BaseModule, ModuleState, PipelineData
 
         class FailingModule(BaseModule):
-            def start(self):
+            def start(self):  # type: ignore
                 self._state = ModuleState.RUNNING
 
-            def stop(self):
+            def stop(self):  # type: ignore
                 self._state = ModuleState.IDLE
 
-            def _do_process(self, data):
+            def _do_process(self, data):  # type: ignore
                 raise Exception("Processing failed")
 
-            def _degraded_process(self, data):
+            def _degraded_process(self, data):  # type: ignore
                 self.logger.info("Operating in degraded mode")
                 return data
 

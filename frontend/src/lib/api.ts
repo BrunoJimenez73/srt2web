@@ -41,9 +41,20 @@ export interface ModuleStatus {
   name: string;
   state: ModuleState;
   enabled: boolean;
-  processed_chunks: number;
   last_process_time_ms: number;
+  processed_chunks?: number;
   extra?: ModuleExtra;
+}
+
+export type ModuleName = 'input' | 'whisper' | 'translator' | 'tts' | 'subtitles' | 'mixer' | 'muxer' | 'outputs';
+
+export type LogLevel = 'INFO' | 'WARNING' | 'ERROR';
+
+export interface LogMessage {
+  level: LogLevel;
+  message: string;
+  timestamp: string;
+  module?: ModuleName;
 }
 
 export type ModuleState = 'idle' | 'running' | 'error' | 'stopped';
@@ -132,8 +143,11 @@ export interface InputConfig {
 
 export type InputType = 'srt' | 'rtmp' | 'file';
 
+export type ConnectionMode = 'local' | 'remote' | 'hybrid';
+
 export interface SrtInputConfig {
   listen_port: number;
+  port?: number;
   mode: 'listener' | 'caller';
   latency_ms: number;
   caller_address: string;
@@ -142,6 +156,7 @@ export interface SrtInputConfig {
 
 export interface RtmpInputConfig {
   listen_port: number;
+  port?: number;
   app: string;
   stream_key: string;
   url: string;
@@ -295,6 +310,7 @@ export interface VideoMuxerConfig extends ModuleConfig {
   audio_codec: AudioCodec;
   audio_bitrate: string;
   audio_samplerate: string;
+  video_codec?: string;
   video_bitrate?: string;
   video_fps?: number;
   video_width?: number;
@@ -302,8 +318,8 @@ export interface VideoMuxerConfig extends ModuleConfig {
   webrtc_audio_codec?: AudioCodec;
   webrtc_audio_bitrate?: string;
   audio_sample_rate?: number;
-  gpu_preset: string;
-  video_preset: string;
+  gpu_preset?: string;
+  video_preset?: string;
 }
 
 export interface OutputDirectoryConfig {
@@ -342,6 +358,10 @@ export interface MetricsData {
   memory_percent: number;
   gpu_usage?: number;
   gpu_memory?: number;
+  gpu_util?: number;
+  gpu_memory_mb?: number;
+  gpu_memory_percent?: number;
+  chunks_per_second?: number;
 }
 
 export interface InputInfo {

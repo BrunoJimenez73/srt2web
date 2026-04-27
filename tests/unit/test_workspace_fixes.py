@@ -18,7 +18,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 class TestTypeScriptModuleResolution:
     """Test that TypeScript modules are properly created and exported."""
 
-    def test_api_module_exists(self):
+    def test_api_module_exists(self) -> None:
         """Test that api.ts module exists with required exports."""
         api_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "api.ts"
         assert api_path.exists(), "api.ts module should exist"
@@ -37,7 +37,7 @@ class TestTypeScriptModuleResolution:
         assert "export async function startPipeline" in content
         assert "export async function stopPipeline" in content
 
-    def test_utils_index_module_exists(self):
+    def test_utils_index_module_exists(self) -> None:
         """Test that utils/index.ts barrel export exists."""
         utils_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "utils" / "index.ts"
         assert utils_path.exists(), "utils/index.ts should exist"
@@ -46,7 +46,7 @@ class TestTypeScriptModuleResolution:
         assert "export" in content
         assert "performance" in content or "formatTimestamp" in content
 
-    def test_dashboard_module_exists(self):
+    def test_dashboard_module_exists(self) -> None:
         """Test that dashboard.ts main script exists."""
         dashboard_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "dashboard.ts"
         assert dashboard_path.exists(), "dashboard.ts should exist"
@@ -55,7 +55,7 @@ class TestTypeScriptModuleResolution:
         assert "initDashboard" in content
         assert "initWebSocket" in content
 
-    def test_astro_type_declarations_exist(self):
+    def test_astro_type_declarations_exist(self) -> None:
         """Test that astro.d.ts type declarations exist."""
         astro_dts_path = PROJECT_ROOT / "frontend" / "src" / "astro.d.ts"
         assert astro_dts_path.exists(), "astro.d.ts should exist"
@@ -67,7 +67,7 @@ class TestTypeScriptModuleResolution:
 class TestAuthenticationTokenManagement:
     """Test authentication token functionality."""
 
-    def test_clear_auth_token_function(self):
+    def test_clear_auth_token_function(self) -> None:
         """Test that clearAuthToken function exists and removes token."""
         api_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "api.ts"
         content = api_path.read_text(encoding="utf-8")
@@ -75,7 +75,7 @@ class TestAuthenticationTokenManagement:
         assert "export function clearAuthToken" in content
         assert "localStorage.removeItem" in content
 
-    def test_websocket_url_includes_token(self):
+    def test_websocket_url_includes_token(self) -> None:
         """Test that WebSocket URL includes token as query parameter."""
         api_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "api.ts"
         content = api_path.read_text(encoding="utf-8")
@@ -84,7 +84,7 @@ class TestAuthenticationTokenManagement:
         assert "?token=" in content or "token=" in content
         assert "encodeURIComponent" in content
 
-    def test_auth_token_key_constant(self):
+    def test_auth_token_key_constant(self) -> None:
         """Test that auth token key is defined."""
         api_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "api.ts"
         content = api_path.read_text(encoding="utf-8")
@@ -96,7 +96,7 @@ class TestAuthenticationTokenManagement:
 class TestDashboardInputOutputHandlers:
     """Test dashboard input/output handling."""
 
-    def test_dashboard_imports_input_output_handlers(self):
+    def test_dashboard_imports_input_output_handlers(self) -> None:
         """Test that dashboard imports input/output handlers."""
         dashboard_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "dashboard.ts"
         content = dashboard_path.read_text(encoding="utf-8")
@@ -104,7 +104,7 @@ class TestDashboardInputOutputHandlers:
         assert "handleInputTypeChange" in content
         assert "handleOutputFormatChange" in content
 
-    def test_dashboard_has_input_output_comments(self):
+    def test_dashboard_has_input_output_comments(self) -> None:
         """Test that dashboard has input/output initialization comments."""
         dashboard_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "dashboard.ts"
         content = dashboard_path.read_text(encoding="utf-8")
@@ -116,14 +116,14 @@ class TestDashboardInputOutputHandlers:
 class TestLogPanelSearchFilter:
     """Test LogPanel search and filter functionality."""
 
-    def test_log_panel_has_search_styles(self):
+    def test_log_panel_has_search_styles(self) -> None:
         """Test that LogPanel has search input styles."""
         logpanel_path = PROJECT_ROOT / "frontend" / "src" / "components" / "LogPanel.astro"
         content = logpanel_path.read_text(encoding="utf-8")
         
         assert ".log-search" in content
 
-    def test_log_panel_has_filter_logic(self):
+    def test_log_panel_has_filter_logic(self) -> None:
         """Test that LogPanel has filter logic."""
         logpanel_path = PROJECT_ROOT / "frontend" / "src" / "components" / "LogPanel.astro"
         content = logpanel_path.read_text(encoding="utf-8")
@@ -131,7 +131,7 @@ class TestLogPanelSearchFilter:
         assert "currentFilter" in content
         assert "entry.dataset.message" in content
 
-    def test_log_entry_has_data_attributes(self):
+    def test_log_entry_has_data_attributes(self) -> None:
         """Test that log entries have data attributes for filtering."""
         logpanel_path = PROJECT_ROOT / "frontend" / "src" / "components" / "LogPanel.astro"
         content = logpanel_path.read_text(encoding="utf-8")
@@ -139,7 +139,7 @@ class TestLogPanelSearchFilter:
         assert "entry.dataset.level" in content
         assert "entry.dataset.message" in content
 
-    def test_log_entry_has_level_styles(self):
+    def test_log_entry_has_level_styles(self) -> None:
         """Test that log entries have level-specific styles."""
         logpanel_path = PROJECT_ROOT / "frontend" / "src" / "components" / "LogPanel.astro"
         content = logpanel_path.read_text(encoding="utf-8")
@@ -154,14 +154,14 @@ class TestLogPanelSearchFilter:
 class TestTypeScriptConfiguration:
     """Test TypeScript configuration."""
 
-    def test_tsconfig_has_ignore_deprecations(self):
+    def test_tsconfig_has_ignore_deprecations(self) -> None:
         """Test that tsconfig.json has ignoreDeprecations option."""
         tsconfig_path = PROJECT_ROOT / "frontend" / "tsconfig.json"
         content = tsconfig_path.read_text(encoding="utf-8")
         
         assert "ignoreDeprecations" in content
 
-    def test_tsconfig_has_base_url(self):
+    def test_tsconfig_has_base_url(self) -> None:
         """Test that tsconfig.json has baseUrl for path aliases."""
         tsconfig_path = PROJECT_ROOT / "frontend" / "tsconfig.json"
         content = tsconfig_path.read_text(encoding="utf-8")
@@ -173,14 +173,14 @@ class TestTypeScriptConfiguration:
 class TestAstroConfiguration:
     """Test Astro configuration."""
 
-    def test_astro_config_uses_node_imports(self):
+    def test_astro_config_uses_node_imports(self) -> None:
         """Test that astro.config.mjs uses node: prefix for imports."""
         astro_config_path = PROJECT_ROOT / "frontend" / "astro.config.mjs"
         content = astro_config_path.read_text(encoding="utf-8")
         
         assert "node:url" in content or "node:path" in content
 
-    def test_astro_config_outdir_at_top_level(self):
+    def test_astro_config_outdir_at_top_level(self) -> None:
         """Test that outDir is at top level (not in build)."""
         astro_config_path = PROJECT_ROOT / "frontend" / "astro.config.mjs"
         content = astro_config_path.read_text(encoding="utf-8")
@@ -194,7 +194,7 @@ class TestAstroConfiguration:
 class TestFrontendTypes:
     """Test frontend type definitions."""
 
-    def test_types_has_module_extra_interface(self):
+    def test_types_has_module_extra_interface(self) -> None:
         """Test that types.ts has ModuleExtra interface."""
         types_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "types.ts"
         if not types_path.exists():
@@ -204,7 +204,7 @@ class TestFrontendTypes:
         assert "ModuleExtra" in content or "module_extra" in content.lower()
         assert "using_gpu" in content or "using_gpu" in content.lower()
 
-    def test_types_has_window_extensions(self):
+    def test_types_has_window_extensions(self) -> None:
         """Test that types.ts has Window interface extensions."""
         types_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "types.ts"
         if not types_path.exists():
@@ -214,7 +214,7 @@ class TestFrontendTypes:
         assert "Window" in content or "window" in content.lower()
         assert "showToast" in content or "show_toast" in content.lower()
 
-    def test_types_has_config_update_timeouts(self):
+    def test_types_has_config_update_timeouts(self) -> None:
         """Test that types.ts has ConfigUpdateTimeouts type."""
         types_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "types.ts"
         if not types_path.exists():

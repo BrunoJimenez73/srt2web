@@ -19,7 +19,7 @@ class TestSRTPortConfiguration:
     """Tests for SRT port configuration."""
 
     @pytest.fixture
-    def config_data(self):
+    def config_data(self) -> None:
         """Load config from ConfigManager."""
         from core.config_manager import ConfigManager
 
@@ -29,20 +29,20 @@ class TestSRTPortConfiguration:
             "input": {"srt": {"listen_port": config.get("input.srt.listen_port")}},
         }
 
-    def test_srt_port_is_different_from_server(self, config_data):
+    def test_srt_port_is_different_from_server(self, config_data) -> None:
         """Test that SRT listen port is different from server port."""
         srt_port = config_data.get("input", {}).get("srt", {}).get("listen_port")
         server_port = config_data.get("server", {}).get("port")
         if srt_port == server_port:
             pytest.skip("Config has port conflict - needs manual fix")
 
-    def test_server_port_is_9999(self, config_data):
+    def test_server_port_is_9999(self, config_data) -> None:
         """Test that server web port is configured."""
         server_port = config_data.get("server", {}).get("port")
         assert server_port is not None, "Server port should be configured"
         assert 1 <= server_port <= 65535, f"Server port {server_port} out of valid range"
 
-    def test_ports_are_different(self, config_data):
+    def test_ports_are_different(self, config_data) -> None:
         """Test that SRT and server ports are different to avoid conflicts."""
         server_port = config_data.get("server", {}).get("port", 9999)
         srt_port = config_data.get("input", {}).get("srt", {}).get("listen_port", 9000)
@@ -58,7 +58,7 @@ class TestDashboardURLs:
     """Tests for dashboard URL generation."""
 
     @pytest.fixture
-    def dashboard_content(self):
+    def dashboard_content(self) -> None:
         """Load index.html content - try built output first, then web dir."""
         # Try built Astro output first
         built_path = Path(__file__).parent.parent.parent / "server" / "static" / "index.html"
@@ -73,7 +73,7 @@ class TestDashboardURLs:
         return None
 
     @pytest.fixture
-    def dashboard_js_content(self):
+    def dashboard_js_content(self) -> None:
         """Load dashboard JS from external module files."""
         js_dir = Path(__file__).parent.parent.parent / "server" / "static" / "_astro"
         combined = ""
@@ -88,7 +88,7 @@ class TestDashboardURLs:
                 combined += f.read()
         return combined if combined else None
 
-    def test_update_urls_uses_localhost_for_local_access(self, dashboard_content, dashboard_js_content):
+    def test_update_urls_uses_localhost_for_local_access(self, dashboard_content, dashboard_js_content) -> None:
         """Test that updateUrls() uses 127.0.0.1 for localhost connections."""
         if dashboard_content is None:
             pytest.skip("Dashboard HTML not found (not built)")
@@ -102,7 +102,7 @@ class TestDashboardURLs:
             "Dashboard should use 127.0.0.1 for local SRT connections"
         )
 
-    def test_srt_url_uses_correct_port_variable(self, dashboard_content, dashboard_js_content):
+    def test_srt_url_uses_correct_port_variable(self, dashboard_content, dashboard_js_content) -> None:
         """Test that SRT URL uses the input port from the form."""
         if dashboard_content is None:
             pytest.skip("Dashboard HTML not found (not built)")
@@ -118,7 +118,7 @@ class TestDashboardURLs:
 class TestSRTServerConnection:
     """Tests for SRT server connection behavior."""
 
-    def test_different_ports_prevent_conflict(self):
+    def test_different_ports_prevent_conflict(self) -> None:
         """Verify server and SRT ports are different at runtime."""
         from core.config_manager import ConfigManager
 
@@ -137,7 +137,7 @@ class TestSRTServerConnection:
 class TestNetworkInfoSRTPort:
     """Tests for network info with correct SRT port."""
 
-    def test_network_info_uses_config_srt_port(self):
+    def test_network_info_uses_config_srt_port(self) -> None:
         """Test that network info includes the SRT port from config."""
         from core.network_utils import get_network_info
         from core.config_manager import ConfigManager
@@ -158,7 +158,7 @@ class TestNetworkInfoSRTPort:
 class TestOBSConnectionScenario:
     """Tests simulating OBS connection scenario."""
 
-    def test_obs_can_form_srt_url_with_localhost(self):
+    def test_obs_can_form_srt_url_with_localhost(self) -> None:
         """Test that a valid SRT URL can be formed for OBS with localhost."""
         host = "127.0.0.1"
         port = 9000
@@ -171,7 +171,7 @@ class TestOBSConnectionScenario:
             f"SRT URL should be {expected_url}, got {srt_url}"
         )
 
-    def test_different_ports_prevent_conflict(self):
+    def test_different_ports_prevent_conflict(self) -> None:
         """Test that different ports prevent server/SRT conflicts."""
         from core.config_manager import ConfigManager
 
@@ -189,7 +189,7 @@ class TestOBSConnectionScenario:
         assert 1 <= web_port <= 65535, "Web port out of range"
         assert 1 <= srt_port <= 65535, "SRT port out of range"
 
-    def test_config_ports_are_different(self):
+    def test_config_ports_are_different(self) -> None:
         """Test that config.yaml has different server and SRT ports."""
         from core.config_manager import ConfigManager
 
@@ -209,7 +209,7 @@ class TestLocalhostURLGeneration:
     """Tests for localhost URL generation in dashboard."""
 
     @pytest.fixture
-    def dashboard_content(self):
+    def dashboard_content(self) -> None:
         """Load index.html content - try built output first, then web dir."""
         built_path = Path(__file__).parent.parent.parent / "server" / "static" / "index.html"
         if built_path.exists():
@@ -222,7 +222,7 @@ class TestLocalhostURLGeneration:
         return None
 
     @pytest.fixture
-    def dashboard_js_content(self):
+    def dashboard_js_content(self) -> None:
         """Load dashboard JS from external module files."""
         js_dir = Path(__file__).parent.parent.parent / "server" / "static" / "_astro"
         combined = ""
@@ -236,7 +236,7 @@ class TestLocalhostURLGeneration:
                 combined += f.read()
         return combined if combined else None
 
-    def test_dashboard_detects_localhost(self, dashboard_content, dashboard_js_content):
+    def test_dashboard_detects_localhost(self, dashboard_content, dashboard_js_content) -> None:
         """Test that dashboard has localhost detection logic."""
         if dashboard_content is None:
             pytest.skip("Dashboard HTML not found (not built)")
@@ -244,7 +244,7 @@ class TestLocalhostURLGeneration:
         has_localhost_detection = "localhost" in combined
         assert has_localhost_detection, "Dashboard should handle localhost connections"
 
-    def test_dashboard_uses_127_for_local_srt(self, dashboard_content, dashboard_js_content):
+    def test_dashboard_uses_127_for_local_srt(self, dashboard_content, dashboard_js_content) -> None:
         """Test that dashboard uses 127.0.0.1 for local SRT connections."""
         if dashboard_content is None:
             pytest.skip("Dashboard HTML not found (not built)")
@@ -253,7 +253,7 @@ class TestLocalhostURLGeneration:
             "Dashboard should use 127.0.0.1 for local SRT connections"
         )
 
-    def test_dashboard_uses_separate_srt_port(self, dashboard_content, dashboard_js_content):
+    def test_dashboard_uses_separate_srt_port(self, dashboard_content, dashboard_js_content) -> None:
         """Test that dashboard uses port from input-port field."""
         if dashboard_content is None:
             pytest.skip("Dashboard HTML not found (not built)")
@@ -266,7 +266,7 @@ class TestLocalhostURLGeneration:
 class TestPortConflictPrevention:
     """Tests to prevent port conflicts."""
 
-    def test_no_port_conflict(self):
+    def test_no_port_conflict(self) -> None:
         """Verify SRT port is different from server port."""
         from core.config_manager import ConfigManager
 
@@ -277,7 +277,7 @@ class TestPortConflictPrevention:
         if input_srt_port == server_port:
             pytest.skip("Config has port conflict - needs manual fix")
 
-    def test_config_structure_is_correct(self):
+    def test_config_structure_is_correct(self) -> None:
         """Verify config has proper structure with separate input and server sections."""
         config_path = Path(__file__).parent.parent.parent / "config.yaml"
 
@@ -302,7 +302,7 @@ class TestAPIConfigResponse:
     """Tests for API config endpoint with correct ports."""
 
     @pytest.fixture
-    def mock_context(self):
+    def mock_context(self) -> None:
         """Create a mock context with correct port configuration."""
         from unittest.mock import Mock
         from core.config_manager import ConfigManager
@@ -313,13 +313,13 @@ class TestAPIConfigResponse:
             "config": config,
         }
 
-    def test_config_returns_valid_srt_port(self, mock_context):
+    def test_config_returns_valid_srt_port(self, mock_context) -> None:
         """Test that config API returns a valid SRT port."""
         srt_port = mock_context["config"].get("input.srt.listen_port")
         assert srt_port is not None, "SRT port should be configured"
         assert 1 <= srt_port <= 65535, f"SRT port out of range: {srt_port}"
 
-    def test_config_returns_valid_server_port(self, mock_context):
+    def test_config_returns_valid_server_port(self, mock_context) -> None:
         """Test that config API returns a valid server port."""
         server_port = mock_context["config"].get("server.port")
         assert server_port is not None, "Server port should be configured"

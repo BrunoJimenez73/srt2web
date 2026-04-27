@@ -27,7 +27,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 class TestGPUIndicators:
     """Tests for GPU indicator functionality in modules."""
 
-    def test_transcriber_get_status_has_device(self):
+    def test_transcriber_get_status_has_device(self) -> None:
         """Test that transcriber get_status includes device info."""
         from modules.transcriber import Transcriber
         from core.module_base import ModuleState
@@ -40,7 +40,7 @@ class TestGPUIndicators:
         assert "compute_type" in status.extra
         assert "using_gpu" in status.extra
 
-    def test_transcriber_get_status_gpu_false_for_cpu(self):
+    def test_transcriber_get_status_gpu_false_for_cpu(self) -> None:
         """Test that transcriber reports GPU=False for CPU device."""
         from modules.transcriber import Transcriber
         from core.module_base import ModuleState
@@ -51,7 +51,7 @@ class TestGPUIndicators:
         status = transcriber.get_status()
         assert status.extra["using_gpu"] is False
 
-    def test_transcriber_get_status_gpu_true_for_cuda(self):
+    def test_transcriber_get_status_gpu_true_for_cuda(self) -> None:
         """Test that transcriber reports GPU=True when _device is set to cuda."""
         from modules.transcriber import Transcriber
         from core.module_base import ModuleState
@@ -66,7 +66,7 @@ class TestGPUIndicators:
 
     @patch("os.makedirs")
     @patch("os.listdir")
-    def test_tts_get_status_has_device(self, mock_listdir, mock_makedirs):
+    def test_tts_get_status_has_device(self, mock_listdir, mock_makedirs) -> None:
         """Test that TTS get_status includes device and engine info."""
         mock_listdir.return_value = []
         from modules.tts_engine import TTSEngine
@@ -83,7 +83,7 @@ class TestGPUIndicators:
 
     @patch("os.makedirs")
     @patch("os.listdir")
-    def test_tts_gpu_false_for_edge_tts(self, mock_listdir, mock_makedirs):
+    def test_tts_gpu_false_for_edge_tts(self, mock_listdir, mock_makedirs) -> None:
         """Test that edge-tts never reports GPU usage."""
         mock_listdir.return_value = []
         from modules.tts_engine import TTSEngine
@@ -99,7 +99,7 @@ class TestGPUIndicators:
     @patch("core.ffmpeg_utils.check_gpu_support")
     @patch("os.makedirs")
     @patch("glob.glob")
-    def test_video_muxer_get_status_has_encoder(self, mock_glob, mock_makedirs, mock_gpu, mock_ensure):
+    def test_video_muxer_get_status_has_encoder(self, mock_glob, mock_makedirs, mock_gpu, mock_ensure) -> None:
         """Test that video muxer get_status includes encoder info."""
         mock_ensure.return_value = "/bin/ffmpeg"
         mock_gpu.return_value = {"nvenc": True, "qsv": False, "amf": False, "vaapi": False}
@@ -108,7 +108,7 @@ class TestGPUIndicators:
         from modules.video_muxer import VideoMuxer
 
         class Testable(VideoMuxer):
-            def _do_process(self, data):
+            def _do_process(self, data) -> None:
                 return data
 
         muxer = Testable(output_dir="/tmp")
@@ -125,7 +125,7 @@ class TestGPUIndicators:
     @patch("core.ffmpeg_utils.check_gpu_support")
     @patch("os.makedirs")
     @patch("glob.glob")
-    def test_video_muxer_cpu_mode(self, mock_glob, mock_makedirs, mock_gpu, mock_ensure):
+    def test_video_muxer_cpu_mode(self, mock_glob, mock_makedirs, mock_gpu, mock_ensure) -> None:
         """Test that video muxer reports CPU when no GPU available."""
         mock_ensure.return_value = "/bin/ffmpeg"
         mock_gpu.return_value = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
@@ -134,7 +134,7 @@ class TestGPUIndicators:
         from modules.video_muxer import VideoMuxer
 
         class Testable(VideoMuxer):
-            def _do_process(self, data):
+            def _do_process(self, data) -> None:
                 return data
 
         muxer = Testable(output_dir="/tmp")
@@ -152,7 +152,7 @@ class TestGPUIndicators:
 class TestEncoderConfig:
     """Tests for EncoderConfig class."""
 
-    def test_default_values(self):
+    def test_default_values(self) -> None:
         """Test default EncoderConfig values."""
         from core.encoder_config import EncoderConfig
 
@@ -164,7 +164,7 @@ class TestEncoderConfig:
         assert config.audio_codec == "aac"
         assert config.audio_bitrate == "192k"
 
-    def test_custom_values(self):
+    def test_custom_values(self) -> None:
         """Test EncoderConfig with custom values."""
         from core.encoder_config import EncoderConfig
 
@@ -181,7 +181,7 @@ class TestEncoderConfig:
         assert config.audio_codec == "opus"
         assert config.audio_bitrate == "128k"
 
-    def test_get_cpu_args(self):
+    def test_get_cpu_args(self) -> None:
         """Test CPU encoding arguments."""
         from core.encoder_config import EncoderConfig
 
@@ -195,7 +195,7 @@ class TestEncoderConfig:
         assert "-profile:v" in args
         assert "high" in args
 
-    def test_get_gpu_nvenc_args(self):
+    def test_get_gpu_nvenc_args(self) -> None:
         """Test NVENC GPU encoding arguments."""
         from core.encoder_config import EncoderConfig
 
@@ -209,7 +209,7 @@ class TestEncoderConfig:
         assert "-cq" in args
         assert "20" in args  # p3 maps to CQ 20
 
-    def test_get_gpu_amf_args(self):
+    def test_get_gpu_amf_args(self) -> None:
         """Test AMF GPU encoding arguments."""
         from core.encoder_config import EncoderConfig
 
@@ -221,7 +221,7 @@ class TestEncoderConfig:
         assert "-quality" in args
         assert "balanced" in args
 
-    def test_get_gpu_qsv_args(self):
+    def test_get_gpu_qsv_args(self) -> None:
         """Test QSV GPU encoding arguments."""
         from core.encoder_config import EncoderConfig
 
@@ -232,7 +232,7 @@ class TestEncoderConfig:
         assert "1" in args
         assert "-async_depth" in args
 
-    def test_get_audio_args(self):
+    def test_get_audio_args(self) -> None:
         """Test audio encoding arguments."""
         from core.encoder_config import EncoderConfig
 
@@ -244,7 +244,7 @@ class TestEncoderConfig:
         assert "-b:a" in args
         assert "128k" in args
 
-    def test_to_dict(self):
+    def test_to_dict(self) -> None:
         """Test EncoderConfig serialization."""
         from core.encoder_config import EncoderConfig
 
@@ -256,7 +256,7 @@ class TestEncoderConfig:
         assert "video_preset" in d
         assert "audio_codec" in d
 
-    def test_from_dict(self):
+    def test_from_dict(self) -> None:
         """Test EncoderConfig deserialization."""
         from core.encoder_config import EncoderConfig
 
@@ -274,7 +274,7 @@ class TestEncoderConfig:
         assert config.video_crf == 20
         assert config.audio_codec == "opus"
 
-    def test_cpu_presets_have_crf(self):
+    def test_cpu_presets_have_crf(self) -> None:
         """Test that all CPU presets have CRF values."""
         from core.encoder_config import EncoderConfig
 
@@ -282,7 +282,7 @@ class TestEncoderConfig:
             assert "crf" in preset_info, f"CPU preset '{preset_name}' missing CRF"
             assert isinstance(preset_info["crf"], int)
 
-    def test_gpu_presets_have_cq(self):
+    def test_gpu_presets_have_cq(self) -> None:
         """Test that all GPU presets have CQ values."""
         from core.encoder_config import EncoderConfig
 
@@ -298,7 +298,7 @@ class TestEncoderConfig:
 class TestPiperLoader:
     """Tests for Piper TTS loader subprocess."""
 
-    def test_check_piper_environment_returns_dict(self):
+    def test_check_piper_environment_returns_dict(self) -> None:
         """Test that check_piper_environment returns a dict with expected keys."""
         from modules.piper_loader import check_piper_environment
 
@@ -313,7 +313,7 @@ class TestPiperLoader:
         assert "python_path" in result
         assert "python_version" in result
 
-    def test_check_piper_environment_reports_availability(self):
+    def test_check_piper_environment_reports_availability(self) -> None:
         """Test that check_piper_environment correctly reports piper availability."""
         from modules.piper_loader import check_piper_environment
 
@@ -325,7 +325,7 @@ class TestPiperLoader:
         assert isinstance(result["piper_available"], bool)
         assert isinstance(result["onnxruntime_available"], bool)
 
-    def test_load_piper_model_subprocess_returns_dict(self):
+    def test_load_piper_model_subprocess_returns_dict(self) -> None:
         """Test that load_piper_model_subprocess returns error dict for missing model."""
         from modules.piper_loader import load_piper_model_subprocess
 
@@ -341,7 +341,7 @@ class TestPiperLoader:
         assert "status" in result
         assert result["status"] == "error"
 
-    def test_load_piper_model_subprocess_timeout(self):
+    def test_load_piper_model_subprocess_timeout(self) -> None:
         """Test that load_piper_model_subprocess handles timeout."""
         from modules.piper_loader import load_piper_model_subprocess
 
@@ -363,52 +363,52 @@ class TestPiperLoader:
 class TestInstallerScripts:
     """Tests for installer and startup scripts."""
 
-    def test_install_bat_exists(self):
+    def test_install_bat_exists(self) -> None:
         """Test that Install.bat exists."""
         assert os.path.exists("Install.bat"), "Install.bat not found"
 
-    def test_start_bat_exists(self):
+    def test_start_bat_exists(self) -> None:
         """Test that Start.bat exists."""
         assert os.path.exists("Start.bat"), "Start.bat not found"
 
-    def test_stop_bat_exists(self):
+    def test_stop_bat_exists(self) -> None:
         """Test that Stop.bat exists."""
         assert os.path.exists("Stop.bat"), "Stop.bat not found"
 
-    def test_install_bat_has_venv_creation(self):
+    def test_install_bat_has_venv_creation(self) -> None:
         """Test that Install.bat creates virtual environment."""
         with open("Install.bat", "r", encoding="utf-8") as f:
             content = f.read()
         assert "venv" in content.lower()
         assert "python" in content.lower()
 
-    def test_install_bat_has_pip_install(self):
+    def test_install_bat_has_pip_install(self) -> None:
         """Test that Install.bat installs dependencies."""
         with open("Install.bat", "r", encoding="utf-8") as f:
             content = f.read()
         assert "pip" in content.lower()
         assert "requirements" in content.lower()
 
-    def test_install_bat_checks_cuda(self):
+    def test_install_bat_checks_cuda(self) -> None:
         """Test that Install.bat checks CUDA availability."""
         with open("Install.bat", "r", encoding="utf-8") as f:
             content = f.read()
         assert "cuda" in content.lower() or "onnxruntime" in content.lower()
 
-    def test_start_bat_uses_venv_python(self):
+    def test_start_bat_uses_venv_python(self) -> None:
         """Test that Start.bat uses virtual environment Python."""
         with open("Start.bat", "r", encoding="utf-8") as f:
             content = f.read()
         assert "venv" in content.lower()
         assert "python" in content.lower()
 
-    def test_start_bat_runs_main_py(self):
+    def test_start_bat_runs_main_py(self) -> None:
         """Test that Start.bat runs main.py."""
         with open("Start.bat", "r", encoding="utf-8") as f:
             content = f.read()
         assert "main.py" in content
 
-    def test_start_bat_shows_dashboard_url(self):
+    def test_start_bat_shows_dashboard_url(self) -> None:
         """Test that Start.bat shows dashboard URL."""
         with open("Start.bat", "r", encoding="utf-8") as f:
             content = f.read()
@@ -422,35 +422,35 @@ class TestInstallerScripts:
 class TestProjectStructure:
     """Tests for project directory structure."""
 
-    def test_core_directory_exists(self):
+    def test_core_directory_exists(self) -> None:
         """Test that core/ directory exists."""
         assert os.path.isdir("core"), "core/ directory not found"
 
-    def test_modules_directory_exists(self):
+    def test_modules_directory_exists(self) -> None:
         """Test that modules/ directory exists."""
         assert os.path.isdir("modules"), "modules/ directory not found"
 
-    def test_server_directory_exists(self):
+    def test_server_directory_exists(self) -> None:
         """Test that server/ directory exists."""
         assert os.path.isdir("server"), "server/ directory not found"
 
-    def test_frontend_directory_exists(self):
+    def test_frontend_directory_exists(self) -> None:
         """Test that frontend/ directory exists."""
         assert os.path.isdir("frontend"), "frontend/ directory not found"
 
-    def test_tests_directory_exists(self):
+    def test_tests_directory_exists(self) -> None:
         """Test that tests/ directory exists."""
         assert os.path.isdir("tests"), "tests/ directory not found"
 
-    def test_config_yaml_exists(self):
+    def test_config_yaml_exists(self) -> None:
         """Test that config.yaml exists."""
         assert os.path.exists(CONFIG_PATH), "config.yaml not found"
 
-    def test_main_py_exists(self):
+    def test_main_py_exists(self) -> None:
         """Test that main.py exists."""
         assert os.path.exists("main.py"), "main.py not found"
 
-    def test_core_modules_present(self):
+    def test_core_modules_present(self) -> None:
         """Test that core modules exist."""
         expected_core_files = [
             "config_manager.py",
@@ -465,7 +465,7 @@ class TestProjectStructure:
             filepath = os.path.join("core", filename)
             assert os.path.exists(filepath), f"core/{filename} not found"
 
-    def test_processing_modules_present(self):
+    def test_processing_modules_present(self) -> None:
         """Test that processing modules exist."""
         expected_modules = [
             "transcriber.py",
@@ -481,7 +481,7 @@ class TestProjectStructure:
             filepath = os.path.join("modules", filename)
             assert os.path.exists(filepath), f"modules/{filename} not found"
 
-    def test_server_modules_present(self):
+    def test_server_modules_present(self) -> None:
         """Test that server modules exist."""
         expected_server_files = [
             "app.py",
@@ -493,44 +493,44 @@ class TestProjectStructure:
             filepath = os.path.join("server", filename)
             assert os.path.exists(filepath), f"server/{filename} not found"
 
-    def test_frontend_has_astro_config(self):
+    def test_frontend_has_astro_config(self) -> None:
         """Test that frontend has Astro config."""
         assert os.path.exists(os.path.join("frontend", "astro.config.mjs")), \
             "frontend/astro.config.mjs not found"
         assert os.path.exists(os.path.join("frontend", "package.json")), \
             "frontend/package.json not found"
 
-    def test_requirements_txt_exists(self):
+    def test_requirements_txt_exists(self) -> None:
         """Test that requirements.txt exists (in config/ or root)."""
         assert (
             os.path.exists("requirements.txt")
             or os.path.exists(os.path.join("config", "requirements.txt"))
         ), "requirements.txt not found"
 
-    def test_bin_directory_exists(self):
+    def test_bin_directory_exists(self) -> None:
         """Test that bin/ directory exists (for FFmpeg)."""
         assert os.path.isdir("bin"), "bin/ directory not found"
 
-    def test_models_directory_exists(self):
+    def test_models_directory_exists(self) -> None:
         """Test that models/ directory exists."""
         assert os.path.isdir("models"), "models/ directory not found"
 
-    def test_server_static_directory_exists(self):
+    def test_server_static_directory_exists(self) -> None:
         """Test that server/static/ directory exists (built frontend)."""
         static_dir = os.path.join("server", "static")
         assert os.path.isdir(static_dir), "server/static/ directory not found"
 
-    def test_server_static_has_index(self):
+    def test_server_static_has_index(self) -> None:
         """Test that server/static/index.html exists."""
         index_path = os.path.join("server", "static", "index.html")
         assert os.path.exists(index_path), "server/static/index.html not found"
 
-    def test_server_static_has_player(self):
+    def test_server_static_has_player(self) -> None:
         """Test that server/static/player/ exists."""
         player_dir = os.path.join("server", "static", "player")
         assert os.path.isdir(player_dir), "server/static/player/ not found"
 
-    def test_test_files_cover_all_modules(self):
+    def test_test_files_cover_all_modules(self) -> None:
         """Test that test files exist for major modules."""
         expected_test_files = [
             "test_transcriber.py",
@@ -557,12 +557,12 @@ class TestProjectStructure:
 class TestFFmpegPool:
     """Tests for FFmpeg process pool."""
 
-    def test_ffmpeg_pool_module_exists(self):
+    def test_ffmpeg_pool_module_exists(self) -> None:
         """Test that ffmpeg_pool module exists."""
         assert os.path.exists(os.path.join("core", "ffmpeg_pool.py")), \
             "core/ffmpeg_pool.py not found"
 
-    def test_ffmpeg_pool_can_be_imported(self):
+    def test_ffmpeg_pool_can_be_imported(self) -> None:
         """Test that ffmpeg_pool can be imported."""
         from core.ffmpeg_pool import FFmpegPool
         assert FFmpegPool is not None
@@ -575,12 +575,12 @@ class TestFFmpegPool:
 class TestWatchdogModule:
     """Tests for watchdog module."""
 
-    def test_watchdog_module_exists(self):
+    def test_watchdog_module_exists(self) -> None:
         """Test that watchdog module exists."""
         assert os.path.exists(os.path.join("core", "watchdog.py")), \
             "core/watchdog.py not found"
 
-    def test_watchdog_can_be_imported(self):
+    def test_watchdog_can_be_imported(self) -> None:
         """Test that watchdog can be imported."""
         from core.watchdog import FFmpegWatchdog, ProcessManager
         assert FFmpegWatchdog is not None

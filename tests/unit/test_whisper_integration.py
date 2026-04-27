@@ -19,7 +19,8 @@ from core.module_base import PipelineData, ModuleState
 class TestWhisperIntegration:
     """Integration tests for Whisper transcriber with real audio processing."""
     
-    def test_transcriber_cpu_configuration(self):
+    def test_transcriber_cpu_configuration(self) -> None:
+        pass
         """Test Whisper transcriber configuration for CPU."""
         # Skip if faster-whisper is not available
         faster_whisper = pytest.importorskip("faster_whisper")
@@ -48,7 +49,8 @@ class TestWhisperIntegration:
         transcriber.stop()
         assert transcriber.state == ModuleState.IDLE
     
-    def test_transcriber_gpu_configuration(self):
+    def test_transcriber_gpu_configuration(self) -> None:
+        pass
         """Test Whisper transcriber configuration for GPU (simulated)."""
         # Skip if faster-whisper is not available
         faster_whisper = pytest.importorskip("faster_whisper")

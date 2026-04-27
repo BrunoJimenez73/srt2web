@@ -10,14 +10,14 @@ from core.module_base import BaseModule, PipelineData, ModuleState, ModuleStatus
 class TestModule(BaseModule):
     """Concrete implementation of BaseModule for testing."""
 
-    def __init__(self, name: str = "test", config: dict = None):
+    def __init__(self, name: str = "test", config: dict[str, object] | None = None) -> None:
         super().__init__(name, config)
-        self.process_calls = []
+        self.process_calls: list[object] = []
 
-    def start(self):
+    def start(self) -> None:
         self._state = ModuleState.RUNNING
 
-    def stop(self):
+    def stop(self) -> None:
         self._state = ModuleState.IDLE
 
     def _do_process(self, data: PipelineData) -> PipelineData:
@@ -29,7 +29,7 @@ class TestModule(BaseModule):
 class TestPipelineData:
     """Tests for PipelineData dataclass."""
 
-    def test_default_init(self):
+    def test_default_init(self) -> None:
         """Test default initialization."""
         data = PipelineData()
 
@@ -39,7 +39,7 @@ class TestPipelineData:
         assert data.video_chunk_path is None
         assert data.audio_chunk_path is None
 
-    def test_full_init(self):
+    def test_full_init(self) -> None:
         """Test full initialization."""
         data = PipelineData(
             chunk_index=5,
@@ -58,7 +58,7 @@ class TestPipelineData:
         assert data.transcript == "Hello world"
         assert data.translated_text == "Hola mundo"
 
-    def test_to_dict(self):
+    def test_to_dict(self) -> None:
         """Test serialization to dict."""
         data = PipelineData(
             chunk_index=1,
@@ -71,7 +71,7 @@ class TestPipelineData:
         assert result["chunk_index"] == 1
         assert result["transcript"] == "Test"
 
-    def test_to_dict_handles_numpy(self):
+    def test_to_dict_handles_numpy(self) -> None:
         """Test serialization handles numpy arrays."""
         data = PipelineData()
         data.audio_samples = np.array([1, 2, 3])
@@ -85,7 +85,7 @@ class TestPipelineData:
 class TestModuleStatus:
     """Tests for ModuleStatus dataclass."""
 
-    def test_default_status(self):
+    def test_default_status(self) -> None:
         """Test default status values."""
         status = ModuleStatus(
             name="test",
@@ -100,7 +100,7 @@ class TestModuleStatus:
         assert status.processed_chunks == 0
         assert status.last_process_time_ms == 0.0
 
-    def test_status_to_dict(self):
+    def test_status_to_dict(self) -> None:
         """Test status serialization."""
         status = ModuleStatus(
             name="test",
@@ -121,7 +121,7 @@ class TestModuleStatus:
 class TestBaseModule:
     """Tests for BaseModule abstract class."""
 
-    def test_init(self):
+    def test_init(self) -> None:
         """Test module initialization."""
         module = TestModule("test_module")
 
@@ -129,14 +129,14 @@ class TestBaseModule:
         assert module.enabled is True
         assert module.state == ModuleState.IDLE
 
-    def test_init_with_config(self):
+    def test_init_with_config(self) -> None:
         """Test initialization with config."""
         config = {"enabled": False, "custom_key": "custom_value"}
         module = TestModule("test", config)
 
         assert module.enabled is False
 
-    def test_configure(self):
+    def test_configure(self) -> None:
         """Test configure method."""
         module = TestModule("test")
 
@@ -144,14 +144,14 @@ class TestBaseModule:
 
         assert module.enabled is False
 
-    def test_disabled_state(self):
+    def test_disabled_state(self) -> None:
         """Test disabled state after configuration."""
         module = TestModule("test")
         module.configure({"enabled": False})
 
         assert module.state == ModuleState.DISABLED
 
-    def test_process(self):
+    def test_process(self) -> None:
         """Test process method."""
         module = TestModule("test")
         module.start()
@@ -162,7 +162,7 @@ class TestBaseModule:
         assert len(module.process_calls) == 1
         assert result.metadata["processed_by"] == "test"
 
-    def test_process_disabled_module(self):
+    def test_process_disabled_module(self) -> None:
         """Test that disabled modules don't process."""
         module = TestModule("test")
         module.configure({"enabled": False})
@@ -172,14 +172,14 @@ class TestBaseModule:
 
         assert len(module.process_calls) == 0
 
-    def test_process_error_handling(self):
+    def test_process_error_handling(self) -> None:
         """Test error handling in process method."""
         module = TestModule("test")
 
-        def raise_error(data):
+        def raise_error(data: PipelineData) -> PipelineData:
             raise RuntimeError("Test error")
 
-        module._do_process = raise_error
+        module._do_process = raise_error  # type: ignore
         module.start()
 
         data = PipelineData(chunk_index=0)
@@ -191,7 +191,7 @@ class TestBaseModule:
         # Data should be returned unchanged
         assert result.chunk_index == 0
 
-    def test_get_status(self):
+    def test_get_status(self) -> None:
         """Test get_status method."""
         module = TestModule("test")
         module.start()
@@ -203,7 +203,7 @@ class TestBaseModule:
         assert status.state == ModuleState.RUNNING
         assert status.processed_chunks == 1
 
-    def test_reset_error(self):
+    def test_reset_error(self) -> None:
         """Test reset_error method."""
         module = TestModule("test")
 
@@ -216,7 +216,7 @@ class TestBaseModule:
         assert module._state == ModuleState.RUNNING
         assert module._error_message is None
 
-    def test_timing_tracking(self):
+    def test_timing_tracking(self) -> None:
         """Test that processing time is tracked."""
         import time
 
@@ -226,18 +226,18 @@ class TestBaseModule:
         # Small delay to ensure timing is measurable
         original_do_process = module._do_process
 
-        def slow_process(data):
+        def slow_process(data: PipelineData) -> PipelineData:
             time.sleep(0.01)
             return original_do_process(data)
 
-        module._do_process = slow_process
+        module._do_process = slow_process  # type: ignore
 
         data = PipelineData(chunk_index=0)
         module.process(data)
 
         assert module._last_process_time_ms >= 10
 
-    def test_metadata_preserved(self):
+    def test_metadata_preserved(self) -> None:
         """Test that metadata is preserved through processing."""
         module1 = TestModule("mod1")
         module2 = TestModule("mod2")
@@ -258,7 +258,7 @@ class TestBaseModule:
 class TestModuleState:
     """Tests for ModuleState enum."""
 
-    def test_all_states(self):
+    def test_all_states(self) -> None:
         """Test all module states exist."""
         assert ModuleState.IDLE.value == "idle"
         assert ModuleState.STARTING.value == "starting"

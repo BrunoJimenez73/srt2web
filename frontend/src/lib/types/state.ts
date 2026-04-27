@@ -3,7 +3,7 @@
  * These enums and types provide a single source of truth for all UI states.
  */
 
-import type { Status, LogMessage } from './types';
+import type { Status, LogMessage } from '../api';
 
 // ── Pipeline State ──────────────────────────────────────────────────────────
 

@@ -31,7 +31,7 @@ class VideoMuxer(BaseModule):
     MPEG-TS chunks into HLS segments with a rolling m3u8 manifest.
     """
 
-    def __init__(self, config: Optional[dict] = None, output_dir: str = "./output"):
+    def __init__(self, config: Optional[dict] = None, output_dir: str = "./output") -> None:
         self._ffmpeg_path: Optional[str] = None
         self._output_dir = output_dir
         self._hls_dir = ""

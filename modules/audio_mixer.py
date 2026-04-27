@@ -32,7 +32,7 @@ class AudioMixer(BaseModule):
     to prevent drift accumulation across chunks.
     """
 
-    def __init__(self, config: Optional[dict] = None, output_dir: str = "./output"):
+    def __init__(self, config: Optional[dict] = None, output_dir: str = "./output") -> None:
         self._ffmpeg_path: Optional[str] = None
         self._output_dir = output_dir
         self._mixer_dir = ""

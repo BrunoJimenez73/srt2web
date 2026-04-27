@@ -16,7 +16,7 @@ from modules.outputs.base import BaseOutput
 class MockOutput(BaseOutput):
     """Mock de una salida para testing."""
 
-    def __init__(self, name: str, config: dict = None):
+    def __init__(self, name: str, config: dict = None):  # type: ignore
         super().__init__(name, config or {})
         self._enabled = True
         self._started = False
@@ -52,17 +52,17 @@ class MockOutput(BaseOutput):
             self._error_on_write = config["error_on_write"]
 
 @pytest.fixture
-def composite_output():
+def composite_output():  # type: ignore
     """Fixture para crear un CompositeOutput."""
     return CompositeOutput({})
 
 @pytest.fixture
-def mock_output():
+def mock_output():  # type: ignore
     """Fixture para crear un MockOutput."""
     return MockOutput("mock_output")
 
 @pytest.fixture
-def pipeline_data():
+def pipeline_data():  # type: ignore
     """Fixture para crear PipelineData."""
     from core.module_base import PipelineData
     return PipelineData(
@@ -78,7 +78,7 @@ def pipeline_data():
 class TestCompositeOutput:
     """Tests para la clase CompositeOutput."""
 
-    def test_add_output(self, composite_output, mock_output):
+    def test_add_output(self, composite_output, mock_output) -> None:
         """Test para añadir una salida al composite."""
         composite_output.add_output("test_output", mock_output)
 
@@ -87,7 +87,7 @@ class TestCompositeOutput:
         assert composite_output._errors["test_output"] is None
         assert composite_output._reconnect_attempts["test_output"] == 0
 
-    def test_start_stop(self, composite_output, mock_output):
+    def test_start_stop(self, composite_output, mock_output) -> None:
         """Test para iniciar y detener todas las salidas."""
         composite_output.add_output("test_output", mock_output)
 
@@ -99,7 +99,7 @@ class TestCompositeOutput:
         composite_output.stop()
         assert mock_output._stopped is True
 
-    def test_write_success(self, composite_output, mock_output, pipeline_data):
+    def test_write_success(self, composite_output, mock_output, pipeline_data) -> None:
         """Test para escribir en todas las salidas con éxito."""
         composite_output.add_output("test_output", mock_output)
 
@@ -110,7 +110,7 @@ class TestCompositeOutput:
         assert mock_output._write_data == pipeline_data
         assert composite_output._errors.get("test_output") is None
 
-    def test_write_error(self, composite_output, mock_output, pipeline_data):
+    def test_write_error(self, composite_output, mock_output, pipeline_data) -> None:
         """Test para escribir en salidas con error."""
         mock_output._error_on_write = "Test error"
         composite_output.add_output("test_output", mock_output)
@@ -121,7 +121,7 @@ class TestCompositeOutput:
         assert mock_output._write_calls == 1
         assert composite_output._errors.get("test_output") == "Test error"
 
-    def test_reconnect_auto(self, composite_output, mock_output, pipeline_data):
+    def test_reconnect_auto(self, composite_output, mock_output, pipeline_data) -> None:
         """Test para reconexión automática."""
         mock_output._error_on_write = "Test error"
         composite_output.add_output("test_output", mock_output)
@@ -133,7 +133,7 @@ class TestCompositeOutput:
         time.sleep(0.1)  # Esperar a que se ejecute el timer
         assert composite_output._reconnect_attempts["test_output"] == 1
 
-    def test_get_status(self, composite_output, mock_output):
+    def test_get_status(self, composite_output, mock_output) -> None:
         """Test para obtener estado de todas las salidas."""
         composite_output.add_output("test_output", mock_output)
         composite_output.start()
@@ -147,7 +147,7 @@ class TestCompositeOutput:
         assert status["outputs"]["test_output"]["processed_chunks"] == 0
         assert status["outputs"]["test_output"]["extra"] == {"mock": True}
 
-    def test_get_output_status(self, composite_output, mock_output):
+    def test_get_output_status(self, composite_output, mock_output) -> None:
         """Test para obtener estado de una salida específica."""
         composite_output.add_output("test_output", mock_output)
         composite_output.start()
@@ -161,7 +161,7 @@ class TestCompositeOutput:
         assert status.processed_chunks == 0
         assert status.extra == {"mock": True}
 
-    def test_get_all_output_statuses(self, composite_output, mock_output):
+    def test_get_all_output_statuses(self, composite_output, mock_output) -> None:
         """Test para obtener estado de todas las salidas."""
         composite_output.add_output("test_output", mock_output)
         composite_output.start()
@@ -172,7 +172,7 @@ class TestCompositeOutput:
         assert statuses[0]["name"] == "test_output"
         assert statuses[0]["state"] == "running"
 
-    def test_is_output_enabled(self, composite_output, mock_output):
+    def test_is_output_enabled(self, composite_output, mock_output) -> None:
         """Test para verificar si una salida está habilitada."""
         composite_output.add_output("test_output", mock_output)
 
@@ -182,7 +182,7 @@ class TestCompositeOutput:
         mock_output._enabled = False
         assert composite_output.is_output_enabled("test_output") is False
 
-    def test_enable_output(self, composite_output, mock_output):
+    def test_enable_output(self, composite_output, mock_output) -> None:
         """Test para habilitar/deshabilitar una salida."""
         composite_output.add_output("test_output", mock_output)
 
@@ -194,7 +194,7 @@ class TestCompositeOutput:
         assert composite_output.enable_output("test_output", True) is True
         assert mock_output._enabled is True
 
-    def test_remove_output(self, composite_output, mock_output):
+    def test_remove_output(self, composite_output, mock_output) -> None:
         """Test para eliminar una salida del composite."""
         composite_output.add_output("test_output", mock_output)
 
@@ -209,7 +209,7 @@ class TestCompositeOutput:
         assert "test_output" not in composite_output._errors
         assert "test_output" not in composite_output._reconnect_attempts
 
-    def test_get_output_names(self, composite_output, mock_output):
+    def test_get_output_names(self, composite_output, mock_output) -> None:
         """Test para obtener lista de nombres de salidas."""
         composite_output.add_output("test_output", mock_output)
 
@@ -217,7 +217,7 @@ class TestCompositeOutput:
         assert len(names) == 1
         assert "test_output" in names
 
-    def test_get_output_types(self, composite_output, mock_output):
+    def test_get_output_types(self, composite_output, mock_output) -> None:
         """Test para obtener lista de tipos de salidas."""
         composite_output.add_output("test_output", mock_output)
 
@@ -225,7 +225,7 @@ class TestCompositeOutput:
         assert len(types) == 1
         assert types[0] == "MockOutput"
 
-    def test_get_output_by_name(self, composite_output, mock_output):
+    def test_get_output_by_name(self, composite_output, mock_output) -> None:
         """Test para obtener una salida por nombre."""
         composite_output.add_output("test_output", mock_output)
 
@@ -235,7 +235,7 @@ class TestCompositeOutput:
         # Probar con nombre inexistente
         assert composite_output.get_output_by_name("inexistent") is None
 
-    def test_get_output_errors(self, composite_output, mock_output):
+    def test_get_output_errors(self, composite_output, mock_output) -> None:
         """Test para obtener todos los errores de salidas."""
         composite_output.add_output("test_output", mock_output)
 
@@ -250,7 +250,7 @@ class TestCompositeOutput:
         errors = composite_output.get_output_errors()
         assert errors["test_output"] == "Test error"
 
-    def test_clear_output_errors(self, composite_output, mock_output):
+    def test_clear_output_errors(self, composite_output, mock_output) -> None:
         """Test para limpiar todos los errores de salidas."""
         composite_output.add_output("test_output", mock_output)
 
@@ -270,11 +270,11 @@ class TestCompositeOutput:
         assert errors["test_output"] is None
         assert composite_output._reconnect_attempts["test_output"] == 0
 
-    def test_concurrent_access(self, composite_output, mock_output):
+    def test_concurrent_access(self, composite_output, mock_output) -> None:
         """Test para acceso concurrente."""
         composite_output.add_output("test_output", mock_output)
 
-        def writer():
+        def writer() -> None:
             for i in range(100):
                 composite_output.write(MagicMock())
 
@@ -293,7 +293,7 @@ class TestCompositeOutput:
         assert mock_output._write_calls == 500
         assert composite_output._errors.get("test_output") is None
 
-    def test_multiple_outputs(self, composite_output):
+    def test_multiple_outputs(self, composite_output) -> None:
         """Test para múltiples salidas simultáneas."""
         # Crear múltiples salidas
         outputs = []
@@ -321,7 +321,7 @@ class TestCompositeOutput:
             assert f"output_{i}" in status["outputs"]
             assert status["outputs"][f"output_{i}"]["processed_chunks"] == 1
 
-    def test_error_handling(self, composite_output):
+    def test_error_handling(self, composite_output) -> None:
         """Test para manejo de errores."""
         # Crear salidas con y sin errores
         good_output = MockOutput("good")
@@ -350,7 +350,7 @@ class TestCompositeOutput:
         time.sleep(0.1)
         assert composite_output._reconnect_attempts["bad"] == 1
 
-    def test_configurable_reconnect(self, composite_output, mock_output):
+    def test_configurable_reconnect(self, composite_output, mock_output) -> None:
         """Test para reconexión configurable."""
         # Configurar reconexión con menos intentos
         composite_output._max_reconnect_attempts = 2

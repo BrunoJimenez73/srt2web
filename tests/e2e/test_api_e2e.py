@@ -18,7 +18,7 @@ class TestAPIEndpoints:
     """Tests for all API endpoints."""
 
     @pytest.fixture
-    def client(self):
+    def client(self) -> None:
         """Create a test client."""
         from fastapi.testclient import TestClient
         from server.app import create_app
@@ -27,15 +27,15 @@ class TestAPIEndpoints:
         from core.module_base import ModuleState, ModuleStatus
 
         class DummyModule:
-            def __init__(self, name, enabled=True):
+            def __init__(self, name, enabled=True):  # type: ignore
                 self.name = name
                 self.enabled = enabled
                 self._state = ModuleState.IDLE
 
-            def configure(self, config):
+            def configure(self, config):  # type: ignore
                 self.enabled = config.get("enabled", True)
 
-            def get_status(self):
+            def get_status(self):  # type: ignore
                 return ModuleStatus(
                     name=self.name,
                     state=self._state,
@@ -71,7 +71,7 @@ class TestAPIEndpoints:
 
         return TestClient(app)
 
-    def test_get_status(self, client):
+    def test_get_status(self, client):  # type: ignore
         """Test GET /api/status endpoint."""
         response = client.get("/api/status")
 
@@ -81,7 +81,7 @@ class TestAPIEndpoints:
         assert "modules" in data
         assert "network" in data
 
-    def test_get_status_includes_module_details(self, client):
+    def test_get_status_includes_module_details(self, client):  # type: ignore
         """Test that status includes module details."""
         response = client.get("/api/status")
 
@@ -94,7 +94,7 @@ class TestAPIEndpoints:
         assert "transcriber" in module_names
         assert "translator" in module_names
 
-    def test_get_config(self, client):
+    def test_get_config(self, client):  # type: ignore
         """Test GET /api/config endpoint."""
         response = client.get("/api/config")
 
@@ -105,7 +105,7 @@ class TestAPIEndpoints:
         assert "input" in data
         assert "modules" in data
 
-    def test_update_config_partial(self, client):
+    def test_update_config_partial(self, client):  # type: ignore
         """Test partial config update."""
         response = client.put(
             "/api/config",
@@ -116,7 +116,7 @@ class TestAPIEndpoints:
         data = response.json()
         assert data["status"] == "updated"
 
-    def test_update_config_nested(self, client):
+    def test_update_config_nested(self, client):  # type: ignore
         """Test nested config update."""
         response = client.put(
             "/api/config",
@@ -125,7 +125,7 @@ class TestAPIEndpoints:
 
         assert response.status_code == 200
 
-    def test_update_config_invalid(self, client):
+    def test_update_config_invalid(self, client):  # type: ignore
         """Test invalid config update."""
         response = client.put(
             "/api/config",
@@ -135,7 +135,7 @@ class TestAPIEndpoints:
         # API may accept invalid models (they're just logged as warnings)
         assert response.status_code in [200, 422]
 
-    def test_list_modules(self, client):
+    def test_list_modules(self, client):  # type: ignore
         """Test GET /api/modules endpoint."""
         response = client.get("/api/modules")
 
@@ -145,14 +145,14 @@ class TestAPIEndpoints:
         assert "modules" in data
         assert len(data["modules"]) > 0
 
-    def test_toggle_module_enable(self, client):
+    def test_toggle_module_enable(self, client):  # type: ignore
         """Test enabling a module."""
         response = client.put("/api/modules/transcriber/toggle", json={"enabled": True})
 
         # Should work even if module doesn't exist in pipeline
         assert response.status_code in [200, 404]
 
-    def test_toggle_module_disable(self, client):
+    def test_toggle_module_disable(self, client):  # type: ignore
         """Test disabling a module."""
         response = client.put(
             "/api/modules/transcriber/toggle", json={"enabled": False}
@@ -160,7 +160,7 @@ class TestAPIEndpoints:
 
         assert response.status_code in [200, 404]
 
-    def test_toggle_module_invalid_name(self, client):
+    def test_toggle_module_invalid_name(self, client):  # type: ignore
         """Test toggling with invalid module name."""
         response = client.put(
             "/api/modules/invalid-module/toggle", json={"enabled": True}
@@ -168,7 +168,7 @@ class TestAPIEndpoints:
 
         assert response.status_code == 400
 
-    def test_srt_info(self, client):
+    def test_srt_info(self, client):  # type: ignore
         """Test GET /api/srt-info endpoint."""
         response = client.get("/api/srt-info")
 
@@ -181,7 +181,7 @@ class TestAPIEndpoints:
             # May have srt_port, srt_mode, etc.
             assert "srt_port" in data or "error" in data
 
-    def test_start_pipeline(self, client):
+    def test_start_pipeline(self, client):  # type: ignore
         """Test POST /api/start endpoint."""
         # Mock the srt_ingest and pipeline to avoid actual start
         response = client.post("/api/start")
@@ -189,7 +189,7 @@ class TestAPIEndpoints:
         # Will fail because modules need to be set up
         assert response.status_code in [200, 500]
 
-    def test_stop_pipeline(self, client):
+    def test_stop_pipeline(self, client):  # type: ignore
         """Test POST /api/stop endpoint."""
         response = client.post("/api/stop")
 
@@ -201,7 +201,7 @@ class TestAPIValidation:
     """Tests for API input validation."""
 
     @pytest.fixture
-    def client(self):
+    def client(self) -> None:
         """Create a test client."""
         from fastapi.testclient import TestClient
         from server.app import create_app
@@ -223,7 +223,7 @@ class TestAPIValidation:
 
         return TestClient(app)
 
-    def test_invalid_port_value(self, client):
+    def test_invalid_port_value(self, client) -> None:
         """Test that invalid port values are rejected."""
         response = client.put(
             "/api/config", json={"config": {"srt": {"listen_port": 70000}}}
@@ -232,7 +232,7 @@ class TestAPIValidation:
         # API may return 400 or 422 for invalid values
         assert response.status_code in [400, 422]
 
-    def test_invalid_latency(self, client):
+    def test_invalid_latency(self, client) -> None:
         """Test that invalid latency is rejected."""
         response = client.put(
             "/api/config", json={"config": {"srt": {"latency_ms": -100}}}
@@ -241,13 +241,13 @@ class TestAPIValidation:
         # API may return 400 or 422 for invalid values
         assert response.status_code in [400, 422]
 
-    def test_invalid_module_name_in_toggle(self, client):
+    def test_invalid_module_name_in_toggle(self, client) -> None:
         """Test that invalid module names in toggle are rejected."""
         response = client.put("/api/modules/bad-name/toggle", json={"enabled": True})
 
         assert response.status_code == 400
 
-    def test_invalid_json_body(self, client):
+    def test_invalid_json_body(self, client) -> None:
         """Test that invalid JSON is rejected."""
         response = client.put(
             "/api/config",
@@ -262,7 +262,7 @@ class TestAPIIntegration:
     """Integration tests for API workflows."""
 
     @pytest.fixture
-    def client(self):
+    def client(self) -> None:
         """Create a test client."""
         from fastapi.testclient import TestClient
         from server.app import create_app
@@ -284,7 +284,7 @@ class TestAPIIntegration:
 
         return TestClient(app)
 
-    def test_config_update_reflects_in_status(self, client):
+    def test_config_update_reflects_in_status(self, client) -> None:
         """Test that config updates reflect in status."""
         # Get initial config
         config_response = client.get("/api/config")
@@ -301,7 +301,7 @@ class TestAPIIntegration:
 
         assert updated_port == 8888
 
-    def test_srt_info_uses_config(self, client):
+    def test_srt_info_uses_config(self, client) -> None:
         """Test that srt-info uses current config."""
         # Update a non-port setting to avoid conflicts
         client.put(
@@ -323,7 +323,7 @@ class TestAPILiveServer:
         not os.environ.get("RUN_LIVE_TESTS"),
         reason="Live server tests require explicit opt-in",
     )
-    def test_live_server_api_health(self):
+    def test_live_server_api_health(self) -> None:
         """Test that live server API is healthy."""
         import requests
 
@@ -335,7 +335,7 @@ class TestAPILiveServer:
         not os.environ.get("RUN_LIVE_TESTS"),
         reason="Live server tests require explicit opt-in",
     )
-    def test_live_server_api_status(self):
+    def test_live_server_api_status(self) -> None:
         """Test live server status endpoint."""
         import requests
 
@@ -349,7 +349,7 @@ class TestAPILiveServer:
         not os.environ.get("RUN_LIVE_TESTS"),
         reason="Live server tests require explicit opt-in",
     )
-    def test_live_server_can_start_pipeline(self):
+    def test_live_server_can_start_pipeline(self) -> None:
         """Test starting pipeline on live server."""
         import requests
 

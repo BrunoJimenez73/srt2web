@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 
 @pytest.fixture
-def mock_pipeline():
+def mock_pipeline():  # type: ignore
     """Crear mock del pipeline."""
     pipeline = Mock()
     pipeline.get_output_sinks = Mock(return_value=None)
@@ -18,7 +18,7 @@ def mock_pipeline():
 
 
 @pytest.fixture
-def mock_output_sink():
+def mock_output_sink():  # type: ignore
     """Crear mock del output sink."""
     sink = Mock()
     sink.name = "test_output"
@@ -32,7 +32,7 @@ def mock_output_sink():
 
 
 @pytest.fixture
-def mock_composite_output():
+def mock_composite_output():  # type: ignore
     """Crear mock de CompositeOutput."""
     composite = Mock()
     
@@ -75,7 +75,7 @@ def mock_composite_output():
 class TestOutputAPI:
     """Tests para endpoints de API de outputs."""
 
-    def test_list_outputs_no_outputs(self):
+    def test_list_outputs_no_outputs(self) -> None:
         """Test listar outputs cuando no hay ninguno."""
         from modules.outputs.composite_output import CompositeOutput
         
@@ -85,7 +85,7 @@ class TestOutputAPI:
         # Verify empty state (returns empty list)
         assert composite.get_all_output_statuses() == []
         
-    def test_get_available_output_types(self):
+    def test_get_available_output_types(self) -> None:
         """Test obtener tipos de outputs disponibles."""
         from core.io_factory import OutputFactory
         
@@ -101,7 +101,7 @@ class TestOutputAPI:
 class TestOutputFactory:
     """Tests para OutputFactory."""
 
-    def test_create_recording_output(self):
+    def test_create_recording_output(self) -> None:
         """Test crear output de tipo recording."""
         from core.io_factory import OutputFactory
         
@@ -119,7 +119,7 @@ class TestOutputFactory:
             # Si no está registrado, el test falla
             pytest.fail(f"Output 'recording' not registered: {e}")
 
-    def test_create_multiple_outputs(self):
+    def test_create_multiple_outputs(self) -> None:
         """Test crear múltiples outputs."""
         from core.io_factory import OutputFactory
         
@@ -138,14 +138,14 @@ class TestOutputFactory:
 class TestOutputSink:
     """Tests para OutputSink base."""
 
-    def test_output_sink_get_status(self):
+    def test_output_sink_get_status(self) -> None:
         """Test método get_status en OutputSink base."""
         from core.output_sink import OutputSink
         
         class TestSink(OutputSink):
-            def start(self): pass
-            def stop(self): pass
-            def write(self, data): pass
+            def start(self) -> None: pass
+            def stop(self) -> None: pass
+            def write(self, data) -> None: pass
         
         sink = TestSink("test", {})
         status = sink.get_status()
@@ -158,7 +158,7 @@ class TestOutputSink:
 class TestCompositeOutputAPI:
     """Tests para integración de CompositeOutput con API."""
 
-    def test_composite_output_get_all_statuses(self):
+    def test_composite_output_get_all_statuses(self) -> None:
         """Test obtener todos los statuses del composite."""
         from modules.outputs.composite_output import CompositeOutput
         
@@ -184,7 +184,7 @@ class TestCompositeOutputAPI:
         assert statuses[0]["name"] == "test"
         assert statuses[0]["state"] == "running"
 
-    def test_composite_output_toggle(self):
+    def test_composite_output_toggle(self) -> None:
         """Test toggle de output."""
         from modules.outputs.composite_output import CompositeOutput
         
@@ -198,7 +198,7 @@ class TestCompositeOutputAPI:
         assert result is True
         assert mock_output.enabled is False
 
-    def test_composite_output_remove(self):
+    def test_composite_output_remove(self) -> None:
         """Test eliminar output."""
         from modules.outputs.composite_output import CompositeOutput
         
@@ -217,7 +217,7 @@ class TestCompositeOutputAPI:
 class TestRecordingOutputConfig:
     """Tests para configuración de RecordingOutput."""
 
-    def test_recording_config_all_options(self):
+    def test_recording_config_all_options(self) -> None:
         """Test de todas las opciones de configuración."""
         from modules.outputs.recording_output import RecordingOutput
         
@@ -251,7 +251,7 @@ class TestRecordingOutputConfig:
         assert output._subtitles == "burnt"
         assert output._video_preset == "fast"
 
-    def test_recording_default_values(self):
+    def test_recording_default_values(self) -> None:
         """Test valores por defecto."""
         from modules.outputs.recording_output import RecordingOutput
         

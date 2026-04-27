@@ -27,7 +27,7 @@ class SubtitleGenerator(BaseModule):
     to prevent drift accumulation across modules.
     """
 
-    def __init__(self, config: Optional[dict] = None, output_dir: str = "./output"):
+    def __init__(self, config: Optional[dict] = None, output_dir: str = "./output") -> None:
         self._output_dir = output_dir
         self._format = "webvtt"
         self._use_translated = True

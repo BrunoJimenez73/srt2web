@@ -24,7 +24,7 @@ class RateLimiter:
     Thread-safe for concurrent access.
     """
 
-    def __init__(self, requests_per_minute: int = 60):
+    def __init__(self, requests_per_minute: int = 60) -> None:
         self.requests_per_minute = requests_per_minute
         self.window_ms = 60_000  # 1 minute in ms
         self._requests: dict[str, list[float]] = defaultdict(list)
@@ -66,7 +66,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
     Skips /health, /api/available, and static files.
     """
 
-    def __init__(self, app: ASGIApp, get_auth_token: Callable[[], str]):
+    def __init__(self, app: ASGIApp, get_auth_token: Callable[[], str]) -> None:
         super().__init__(app)
         self.get_auth_token = get_auth_token
 
@@ -138,7 +138,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         app: ASGIApp,
         rate_limiter: RateLimiter,
         get_auth_token: Callable[[], str],
-    ):
+    ) -> None:
         super().__init__(app)
         self.rate_limiter = rate_limiter
         self.get_auth_token = get_auth_token
@@ -203,7 +203,7 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
     Limits the size of incoming request bodies to prevent memory exhaustion.
     """
 
-    def __init__(self, app: ASGIApp, max_size_bytes: int = 1_048_576):  # 1MB default
+    def __init__(self, app: ASGIApp, max_size_bytes: int = 1_048_576) -> None:  # 1MB default
         super().__init__(app)
         self.max_size_bytes = max_size_bytes
 

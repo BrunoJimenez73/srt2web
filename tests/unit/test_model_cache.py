@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 class TestModelCache:
     """Test suite for ModelCache singleton."""
 
-    def test_singleton(self):
+    def test_singleton(self) -> None:
         """Test that ModelCache is a singleton."""
         from core.model_cache import ModelCache
 
@@ -19,7 +19,7 @@ class TestModelCache:
 
         assert mc1 is mc2
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test ModelCache initialization."""
         from core.model_cache import ModelCache
 
@@ -30,7 +30,7 @@ class TestModelCache:
         assert len(mc._argos_indexes) == 0
         assert mc._models_loaded is False
 
-    def test_cache_directories(self):
+    def test_cache_directories(self) -> None:
         """Test cache directory properties."""
         from core.model_cache import ModelCache
 
@@ -40,7 +40,7 @@ class TestModelCache:
         assert "argos" in str(mc.argos_cache_dir)
         assert mc.whisper_cache_dir.exists()
 
-    def test_get_whisper_model_caches(self):
+    def test_get_whisper_model_caches(self) -> None:
         """Test that Whisper models are cached."""
         from core.model_cache import ModelCache
 
@@ -56,7 +56,7 @@ class TestModelCache:
             assert model1 is model2
             assert mock.call_count == 1
 
-    def test_get_whisper_model_different_keys(self):
+    def test_get_whisper_model_different_keys(self) -> None:
         """Test that different model configs create different models."""
         from core.model_cache import ModelCache
 
@@ -71,7 +71,7 @@ class TestModelCache:
 
             assert mock.call_count == 2
 
-    def test_preload_whisper(self):
+    def test_preload_whisper(self) -> None:
         """Test background preload of Whisper model."""
         from core.model_cache import ModelCache
 
@@ -88,7 +88,7 @@ class TestModelCache:
 
         assert mc._models_loaded is True
 
-    def test_wait_for_preload_timeout(self):
+    def test_wait_for_preload_timeout(self) -> None:
         """Test timeout on preload wait."""
         from core.model_cache import ModelCache
 
@@ -99,7 +99,7 @@ class TestModelCache:
 
         assert result is False
 
-    def test_clear_cache(self):
+    def test_clear_cache(self) -> None:
         """Test clearing the cache."""
         from core.model_cache import ModelCache
 
@@ -116,7 +116,7 @@ class TestModelCache:
         assert mc._models_loaded is False
         assert mc._preload_done.is_set() is False
 
-    def test_get_cache_stats(self):
+    def test_get_cache_stats(self) -> None:
         """Test getting cache statistics."""
         from core.model_cache import ModelCache
 
@@ -139,7 +139,7 @@ class TestModelCache:
 class TestModelCacheArgos:
     """Test suite for Argos translation caching."""
 
-    def test_get_argos_pair_returns_none_when_not_available(self):
+    def test_get_argos_pair_returns_none_when_not_available(self) -> None:
         """Test that missing language pair returns None."""
         from core.model_cache import ModelCache
 
@@ -150,7 +150,7 @@ class TestModelCacheArgos:
             pair = mc.get_argos_pair("en", "invalid_lang")
             assert pair is None
 
-    def test_get_argos_pair_import_error(self):
+    def test_get_argos_pair_import_error(self) -> None:
         """Test handling when argostranslate is not installed."""
         from core.model_cache import ModelCache
 
@@ -164,7 +164,7 @@ class TestModelCacheArgos:
 class TestModelCacheWarmUp:
     """Test suite for model warm-up functionality."""
 
-    def test_warm_up_cpu(self):
+    def test_warm_up_cpu(self) -> None:
         """Test warm-up with CPU device."""
         from core.model_cache import ModelCache
 
@@ -184,7 +184,7 @@ class TestModelCacheWarmUp:
                 with patch.dict("sys.modules", {"argostranslate": None}):
                     mc.warm_up(config)
 
-    def test_warm_up_auto_detects_cuda(self):
+    def test_warm_up_auto_detects_cuda(self) -> None:
         """Test warm-up with auto device detection."""
         from core.model_cache import ModelCache
 

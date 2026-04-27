@@ -17,35 +17,35 @@ class TestCLIEndpoints:
         from server.api_routes import create_api_router
         assert callable(create_api_router)
 
-    def test_api_router_has_start_endpoint(self):
+    def test_api_router_has_start_endpoint(self) -> None:
         """Test router has start endpoint."""
         from server.api_routes import create_api_router
         router = create_api_router()
         paths = [route.path for route in router.routes]
         assert "/start" in paths or "/api/start" in paths
 
-    def test_api_router_has_stop_endpoint(self):
+    def test_api_router_has_stop_endpoint(self) -> None:
         """Test router has stop endpoint."""
         from server.api_routes import create_api_router
         router = create_api_router()
         paths = [route.path for route in router.routes]
         assert "/stop" in paths or "/api/stop" in paths
 
-    def test_api_router_has_status_endpoint(self):
+    def test_api_router_has_status_endpoint(self) -> None:
         """Test router has status endpoint."""
         from server.api_routes import create_api_router
         router = create_api_router()
         paths = [route.path for route in router.routes]
         assert "/status" in paths or "/api/status" in paths
 
-    def test_api_router_has_config_endpoint(self):
+    def test_api_router_has_config_endpoint(self) -> None:
         """Test router has config endpoints."""
         from server.api_routes import create_api_router
         router = create_api_router()
         paths = [route.path for route in router.routes]
         assert "/config" in paths or "/api/config" in paths
 
-    def test_api_router_has_health_endpoint(self):
+    def test_api_router_has_health_endpoint(self) -> None:
         """Test router has health endpoint."""
         from server.api_routes import create_api_router
         router = create_api_router()
@@ -56,7 +56,7 @@ class TestCLIEndpoints:
 class TestCLIModuleNames:
     """Test CLI uses correct module names."""
 
-    def test_valid_module_names_list(self):
+    def test_valid_module_names_list(self) -> None:
         """Test valid module names are defined."""
         from server.api_routes import VALID_MODULE_NAMES
         assert isinstance(VALID_MODULE_NAMES, (list, tuple, frozenset))
@@ -67,12 +67,12 @@ class TestCLIModuleNames:
 class TestCLIConfigUpdate:
     """Test CLI config update structures."""
 
-    def test_config_update_model_exists(self):
+    def test_config_update_model_exists(self) -> None:
         """Test ConfigUpdate model exists."""
         from server.api_routes import ConfigUpdate
         assert ConfigUpdate is not None
 
-    def test_module_toggle_model_exists(self):
+    def test_module_toggle_model_exists(self) -> None:
         """Test ModuleToggle model exists."""
         from server.api_routes import ModuleToggle
         assert ModuleToggle is not None
@@ -81,7 +81,7 @@ class TestCLIConfigUpdate:
 class TestCLIServerInfo:
     """Test CLI server info."""
 
-    def test_api_router_has_network_info_route(self):
+    def test_api_router_has_network_info_route(self) -> None:
         """Test router has network info endpoint."""
         from server.api_routes import create_api_router
         router = create_api_router()
@@ -92,12 +92,12 @@ class TestCLIServerInfo:
 class TestCLIWebSocketRoutes:
     """Test CLI WebSocket routes."""
 
-    def test_ws_routes_module_exists(self):
+    def test_ws_routes_module_exists(self) -> None:
         """Test ws_routes module exists."""
         from server import ws_routes
         assert ws_routes is not None
 
-    def test_ws_routes_has_create_ws_router(self):
+    def test_ws_routes_has_create_ws_router(self) -> None:
         """Test ws_routes has create_ws_router function."""
         from server import ws_routes
         assert hasattr(ws_routes, "create_ws_router")
@@ -107,12 +107,12 @@ class TestCLIWebSocketRoutes:
 class TestCLIAPIFunctions:
     """Test API utility functions."""
 
-    def test_sanitize_module_name_exists(self):
+    def test_sanitize_module_name_exists(self) -> None:
         """Test sanitize_module_name utility exists."""
         from server.api_routes import sanitize_module_name
         assert callable(sanitize_module_name)
 
-    def test_validate_config_value_exists(self):
+    def test_validate_config_value_exists(self) -> None:
         """Test validate_config_value utility exists."""
         from server.api_routes import validate_config_value
         assert callable(validate_config_value)

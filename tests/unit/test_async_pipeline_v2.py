@@ -16,7 +16,7 @@ from core.exceptions import PipelineStateError
 class MockAsyncModule:
     """Mock module with async methods for testing."""
     
-    def __init__(self, name: str = "mock_module", delay: float = 0.01, fail: bool = False):
+    def __init__(self, name: str = "mock_module", delay: float = 0.01, fail: bool = False):  # type: ignore
         self.name = name
         self.delay = delay
         self.fail = fail
@@ -40,7 +40,7 @@ class MockAsyncModule:
         await asyncio.sleep(0.001)
         self.shutdown_called = True
     
-    def get_status(self):
+    def get_status(self):  # type: ignore
         return type('Status', (), {
             'name': self.name,
             'state': ModuleState.READY if self.initialized else ModuleState.IDLE,
@@ -52,7 +52,7 @@ class MockAsyncModule:
 class MockSyncModule:
     """Mock module with sync methods for testing."""
     
-    def __init__(self, name: str = "sync_module"):
+    def __init__(self, name: str = "sync_module"):  # type: ignore
         self.name = name
         self.initialized = False
         self.shutdown_called = False
@@ -69,7 +69,7 @@ class MockSyncModule:
     def shutdown(self) -> None:
         self.shutdown_called = True
     
-    def get_status(self):
+    def get_status(self):  # type: ignore
         return type('Status', (), {
             'name': self.name,
             'state': ModuleState.READY if self.initialized else ModuleState.IDLE,
@@ -81,7 +81,7 @@ class MockSyncModule:
 class MockInputSource:
     """Mock input source for testing."""
     
-    def __init__(self, data_items: list = None):
+    def __init__(self, data_items: list = None):  # type: ignore
         self.data_items = data_items or []
         self.index = 0
         self.initialized = False
@@ -103,7 +103,7 @@ class MockInputSource:
 class TestAsyncPipelineV2Creation:
     """Test suite for AsyncPipelineV2 creation and basic properties."""
     
-    def test_pipeline_creation(self):
+    def test_pipeline_creation(self) -> None:
         """Test basic pipeline creation."""
         pipeline = AsyncPipelineV2()
         assert pipeline.state == PipelineState.IDLE
@@ -111,7 +111,7 @@ class TestAsyncPipelineV2Creation:
         assert pipeline.max_concurrent_chunks == 3
         assert pipeline.retry_attempts == 2
     
-    def test_pipeline_custom_config(self):
+    def test_pipeline_custom_config(self) -> None:
         """Test pipeline creation with custom config."""
         pipeline = AsyncPipelineV2(
             max_concurrent_chunks=5,
@@ -122,7 +122,7 @@ class TestAsyncPipelineV2Creation:
         assert pipeline.retry_attempts == 3
         assert pipeline.retry_delay == 0.5
     
-    def test_pipeline_set_state(self):
+    def test_pipeline_set_state(self) -> None:
         """Test setting pipeline state."""
         pipeline = AsyncPipelineV2()
         pipeline._set_state(PipelineState.RUNNING)
@@ -262,7 +262,7 @@ class TestAsyncPipelineV2Concurrency:
         max_observed_concurrent = 0
         
         class TrackingModule:
-            def __init__(self):
+            def __init__(self):  # type: ignore
                 self.name = "tracking"
             
             async def initialize(self):
@@ -279,7 +279,7 @@ class TestAsyncPipelineV2Concurrency:
             async def shutdown(self):
                 pass
             
-            def get_status(self):
+            def get_status(self):  # type: ignore
                 return type('Status', (), {'name': 'tracking'})()
         
         pipeline.register_module(TrackingModule())
@@ -315,7 +315,7 @@ class TestAsyncPipelineV2ErrorHandling:
         call_count = 0
         
         class FlakyModule:
-            def __init__(self):
+            def __init__(self):  # type: ignore
                 self.name = "flaky"
             
             async def initialize(self):
@@ -331,7 +331,7 @@ class TestAsyncPipelineV2ErrorHandling:
             async def shutdown(self):
                 pass
             
-            def get_status(self):
+            def get_status(self):  # type: ignore
                 return type('Status', (), {'name': 'flaky'})()
         
         pipeline = AsyncPipelineV2(retry_attempts=3, retry_delay=0.01)
@@ -345,7 +345,7 @@ class TestAsyncPipelineV2ErrorHandling:
         assert result is data
         assert call_count == 3  # Failed twice, succeeded on third
     
-    def test_metrics_track_failures_manual(self):
+    def test_metrics_track_failures_manual(self):  # type: ignore
         """Test that metrics track failed chunks (manual counting)."""
         pipeline = AsyncPipelineV2()
         
@@ -415,7 +415,7 @@ class TestAsyncPipelineV2Callbacks:
         pipeline = AsyncPipelineV2()
         states = []
         
-        def on_state_change(state):
+        def on_state_change(state) -> None:
             states.append(state)
         
         pipeline.set_state_callback(on_state_change)
@@ -431,7 +431,7 @@ class TestAsyncPipelineV2Callbacks:
         
         completed_chunks = []
         
-        def on_chunk_complete(index, data):
+        def on_chunk_complete(index, data) -> None:
             completed_chunks.append(index)
         
         pipeline.set_chunk_complete_callback(on_chunk_complete)
@@ -447,7 +447,7 @@ class TestAsyncPipelineV2Callbacks:
 class TestAsyncPipelineV2Metrics:
     """Test suite for AsyncPipelineV2 metrics."""
     
-    def test_get_metrics_empty(self):
+    def test_get_metrics_empty(self) -> None:
         """Test metrics for empty pipeline."""
         pipeline = AsyncPipelineV2()
         metrics = pipeline.get_metrics()
@@ -457,7 +457,7 @@ class TestAsyncPipelineV2Metrics:
         assert metrics["chunks_failed"] == 0
         assert metrics["modules_count"] == 0
     
-    def test_get_metrics_after_processing(self):
+    def test_get_metrics_after_processing(self) -> None:
         """Test metrics after processing chunks."""
         pipeline = AsyncPipelineV2()
         pipeline._chunks_processed = 10

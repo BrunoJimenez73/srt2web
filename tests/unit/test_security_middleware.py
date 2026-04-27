@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 class TestRateLimiter:
     """Test the RateLimiter class."""
 
-    def test_rate_limiter_allows_requests_under_limit(self):
+    def test_rate_limiter_allows_requests_under_limit(self) -> None:
         """Test that requests under the limit are allowed."""
         from server.security import RateLimiter
 
@@ -22,7 +22,7 @@ class TestRateLimiter:
             assert allowed is True
             assert remaining == 9 - i
 
-    def test_rate_limiter_blocks_requests_over_limit(self):
+    def test_rate_limiter_blocks_requests_over_limit(self) -> None:
         """Test that requests over the limit are blocked."""
         from server.security import RateLimiter
 
@@ -37,7 +37,7 @@ class TestRateLimiter:
         assert allowed is False
         assert remaining == 0
 
-    def test_rate_limiter_different_keys(self):
+    def test_rate_limiter_different_keys(self) -> None:
         """Test that different keys have separate limits."""
         from server.security import RateLimiter
 
@@ -51,7 +51,7 @@ class TestRateLimiter:
         allowed, _ = limiter.is_allowed("key2")
         assert allowed is True
 
-    def test_rate_limiter_retry_after(self):
+    def test_rate_limiter_retry_after(self) -> None:
         """Test that retry_after returns correct wait time."""
         from server.security import RateLimiter
 
@@ -66,7 +66,7 @@ class TestSecurityMiddleware:
     """Test the security middleware."""
 
     @pytest.fixture
-    def app_with_auth(self):
+    def app_with_auth(self) -> None:
         """Create a test app with authentication enabled."""
         from server.security import AuthMiddleware
 
@@ -88,7 +88,7 @@ class TestSecurityMiddleware:
 
         return app
 
-    def test_auth_middleware_allows_without_token_configured(self):
+    def test_auth_middleware_allows_without_token_configured(self) -> None:
         """Test that requests pass when no token is configured."""
         from server.security import AuthMiddleware
 
@@ -106,13 +106,13 @@ class TestSecurityMiddleware:
         response = client.get("/test")
         assert response.status_code == 200
 
-    def test_auth_middleware_blocks_without_auth_header(self, app_with_auth):
+    def test_auth_middleware_blocks_without_auth_header(self, app_with_auth) -> None:
         """Test that requests without auth header are blocked."""
         client = TestClient(app_with_auth, raise_server_exceptions=False)
         response = client.get("/protected")
         assert response.status_code == 401
 
-    def test_auth_middleware_allows_with_valid_token(self, app_with_auth):
+    def test_auth_middleware_allows_with_valid_token(self, app_with_auth) -> None:
         """Test that requests with valid token are allowed."""
         client = TestClient(app_with_auth)
         response = client.get(
@@ -121,7 +121,7 @@ class TestSecurityMiddleware:
         )
         assert response.status_code == 200
 
-    def test_auth_middleware_blocks_with_invalid_token(self, app_with_auth):
+    def test_auth_middleware_blocks_with_invalid_token(self, app_with_auth) -> None:
         """Test that requests with invalid token are blocked."""
         client = TestClient(app_with_auth, raise_server_exceptions=False)
         response = client.get(
@@ -130,7 +130,7 @@ class TestSecurityMiddleware:
         )
         assert response.status_code == 401
 
-    def test_auth_middleware_allows_public_paths(self, app_with_auth):
+    def test_auth_middleware_allows_public_paths(self, app_with_auth) -> None:
         """Test that public paths don't require authentication."""
         client = TestClient(app_with_auth)
         response = client.get("/health")
@@ -140,7 +140,7 @@ class TestSecurityMiddleware:
 class TestSecurityHeadersMiddleware:
     """Test the security headers middleware."""
 
-    def test_security_headers_present(self):
+    def test_security_headers_present(self) -> None:
         """Test that security headers are added to responses."""
         from server.security import SecurityHeadersMiddleware
 
@@ -166,7 +166,7 @@ class TestSecurityHeadersMiddleware:
 class TestRequestSizeLimitMiddleware:
     """Test the request size limit middleware."""
 
-    def test_allows_small_request(self):
+    def test_allows_small_request(self) -> None:
         """Test that small requests are allowed."""
         from server.security import RequestSizeLimitMiddleware
 
@@ -181,7 +181,7 @@ class TestRequestSizeLimitMiddleware:
         response = client.post("/test", json={"small": "data"})
         assert response.status_code == 200
 
-    def test_blocks_large_request(self):
+    def test_blocks_large_request(self) -> None:
         """Test that large requests are blocked."""
         from server.security import RequestSizeLimitMiddleware
 
@@ -203,7 +203,7 @@ class TestRequestSizeLimitMiddleware:
 class TestWebSocketAuth:
     """Test WebSocket authentication."""
 
-    def test_validate_ws_auth_without_token(self):
+    def test_validate_ws_auth_without_token(self) -> None:
         """Test that WS auth passes when no token is configured."""
         from server.security import validate_ws_auth
 
@@ -214,7 +214,7 @@ class TestWebSocketAuth:
         result = validate_ws_auth(mock_request, lambda: "")
         assert result is True
 
-    def test_validate_ws_auth_with_valid_token(self):
+    def test_validate_ws_auth_with_valid_token(self) -> None:
         """Test that WS auth passes with valid token."""
         from server.security import validate_ws_auth
 
@@ -225,7 +225,7 @@ class TestWebSocketAuth:
         result = validate_ws_auth(mock_request, lambda: "secret123")
         assert result is True
 
-    def test_validate_ws_auth_with_invalid_token(self):
+    def test_validate_ws_auth_with_invalid_token(self) -> None:
         """Test that WS auth fails with invalid token."""
         from server.security import validate_ws_auth
 
@@ -236,7 +236,7 @@ class TestWebSocketAuth:
         result = validate_ws_auth(mock_request, lambda: "secret123")
         assert result is False
 
-    def test_validate_ws_auth_without_token_param(self):
+    def test_validate_ws_auth_without_token_param(self) -> None:
         """Test that WS auth fails when token is required but not provided."""
         from server.security import validate_ws_auth
 
@@ -251,19 +251,19 @@ class TestWebSocketAuth:
 class TestConfigManagerDefaults:
     """Test that config manager has secure defaults."""
 
-    def test_default_host_is_localhost(self):
+    def test_default_host_is_localhost(self) -> None:
         """Test that default host is 127.0.0.1 (localhost only)."""
         from core.config_manager import ConfigManager, DEFAULT_CONFIG
 
         assert DEFAULT_CONFIG["server"]["host"] == "127.0.0.1"
 
-    def test_default_auth_token_is_empty(self):
+    def test_default_auth_token_is_empty(self) -> None:
         """Test that auth_token defaults to empty (backwards compatible)."""
         from core.config_manager import DEFAULT_CONFIG
 
         assert DEFAULT_CONFIG["server"]["auth_token"] == ""
 
-    def test_default_rate_limit_configured(self):
+    def test_default_rate_limit_configured(self) -> None:
         """Test that rate limiting is configured by default."""
         from core.config_manager import DEFAULT_CONFIG
 
@@ -274,7 +274,7 @@ class TestConfigManagerDefaults:
 class TestSecurityCardComponent:
     """Test that security functionality exists in the frontend."""
 
-    def test_security_in_header_component(self):
+    def test_security_in_header_component(self) -> None:
         """Test that security button exists in Header component."""
         import os
         header_path = "frontend/src/components/Header.astro"
@@ -284,7 +284,7 @@ class TestSecurityCardComponent:
             content = f.read()
         assert "Secure" in content, "Security toggle should be in Header"
 
-    def test_api_ts_has_auth_functions(self):
+    def test_api_ts_has_auth_functions(self) -> None:
         """Test that api.ts has auth token functions."""
         with open("frontend/src/lib/api.ts", "r") as f:
             content = f.read()

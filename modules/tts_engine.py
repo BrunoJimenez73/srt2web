@@ -25,7 +25,7 @@ class TTSEngine(BaseModule):
     Provides natural AI voices.
     """
 
-    def __init__(self, config: Optional[dict] = None, output_dir: str = "./output"):
+    def __init__(self, config: Optional[dict] = None, output_dir: str = "./output") -> None:
         self._output_dir = output_dir
         self._tts_dir = ""
         self._engine = "edge-tts"  # "edge-tts" (online) or "piper" (offline)

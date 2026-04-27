@@ -9,21 +9,21 @@ from unittest.mock import patch
 class TestFFmpegUtils:
     """Test FFmpeg utility functions."""
 
-    def test_find_ffmpeg_returns_valid_result(self):
+    def test_find_ffmpeg_returns_valid_result(self) -> None:
         """Test find_ffmpeg returns string or None."""
         from core.ffmpeg_utils import find_ffmpeg
 
         result = find_ffmpeg()
         assert result is None or (isinstance(result, str) and result)
 
-    def test_find_ffprobe_returns_valid_result(self):
+    def test_find_ffprobe_returns_valid_result(self) -> None:
         """Test find_ffprobe returns string or None."""
         from core.ffmpeg_utils import find_ffprobe
 
         result = find_ffprobe()
         assert result is None or (isinstance(result, str) and result)
 
-    def test_check_gpu_support_returns_dict(self):
+    def test_check_gpu_support_returns_dict(self) -> None:
         """Test check_gpu_support returns dict."""
         from core.ffmpeg_utils import check_gpu_support
 
@@ -34,7 +34,7 @@ class TestFFmpegUtils:
             assert isinstance(result, dict)
             assert "nvenc" in result
 
-    def test_get_video_duration_returns_number(self):
+    def test_get_video_duration_returns_number(self) -> None:
         """Test get_video_duration returns number."""
         from core.ffmpeg_utils import get_video_duration
 
@@ -44,7 +44,7 @@ class TestFFmpegUtils:
             result = get_video_duration("test.mp4")
             assert isinstance(result, (int, float))
 
-    def test_check_srt_support_returns_bool(self):
+    def test_check_srt_support_returns_bool(self) -> None:
         """Test check_srt_support returns bool."""
         from core.ffmpeg_utils import check_srt_support
 
@@ -54,7 +54,7 @@ class TestFFmpegUtils:
             result = check_srt_support("/bin/ffmpeg")
             assert isinstance(result, bool)
 
-    def test_run_ffmpeg_decodes_bytes(self):
+    def test_run_ffmpeg_decodes_bytes(self) -> None:
         """Test run_ffmpeg function handles bytes output."""
         from core.ffmpeg_utils import run_ffmpeg
 
@@ -65,7 +65,7 @@ class TestFFmpegUtils:
             result = run_ffmpeg(["-version"])
             assert result.returncode == 0
 
-    def test_start_ffmpeg_process(self):
+    def test_start_ffmpeg_process(self) -> None:
         """Test start_ffmpeg_process function."""
         from core.ffmpeg_utils import start_ffmpeg_process
 

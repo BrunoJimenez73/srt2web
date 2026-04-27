@@ -16,7 +16,7 @@ class TestCSPHeaders:
     """Test that CSP headers allow HLS playback."""
 
     @pytest.fixture
-    def client(self):
+    def client(self) -> None:
         from server.app import create_app
         from core.config_manager import ConfigManager
         from core.pipeline import Pipeline
@@ -33,7 +33,7 @@ class TestCSPHeaders:
         app = create_app(app_context)
         return TestClient(app)
 
-    def test_csp_allows_hls_media(self, client):
+    def test_csp_allows_hls_media(self, client) -> None:
         """Test that CSP allows media from HTTP sources."""
         response = client.get("/health")
         csp = response.headers.get("content-security-policy", "")
@@ -42,7 +42,7 @@ class TestCSPHeaders:
         assert "media-src" in csp
         assert "http://" in csp or "https://" in csp
 
-    def test_csp_allows_cdn_scripts(self, client):
+    def test_csp_allows_cdn_scripts(self, client) -> None:
         """Test that CSP allows scripts from CDN (for HLS.js)."""
         response = client.get("/health")
         csp = response.headers.get("content-security-policy", "")
@@ -50,7 +50,7 @@ class TestCSPHeaders:
         # Should allow jsdelivr.net for HLS.js
         assert "cdn.jsdelivr.net" in csp
 
-    def test_csp_allows_websockets(self, client):
+    def test_csp_allows_websockets(self, client) -> None:
         """Test that CSP allows WebSocket connections."""
         response = client.get("/health")
         csp = response.headers.get("content-security-policy", "")
@@ -58,7 +58,7 @@ class TestCSPHeaders:
         # Should allow ws:// and wss:// connections
         assert "ws://" in csp or "connect-src" in csp
 
-    def test_security_headers_present(self, client):
+    def test_security_headers_present(self, client) -> None:
         """Test that all security headers are present."""
         response = client.get("/health")
         
@@ -71,7 +71,7 @@ class TestWebSocketConnection:
     """Test WebSocket connection works correctly."""
 
     @pytest.fixture
-    def client(self):
+    def client(self) -> None:
         from server.app import create_app
         from core.config_manager import ConfigManager
         from core.pipeline import Pipeline
@@ -88,20 +88,20 @@ class TestWebSocketConnection:
         app = create_app(app_context)
         return TestClient(app)
 
-    def test_websocket_connects_successfully(self, client):
+    def test_websocket_connects_successfully(self, client) -> None:
         """Test that WebSocket connects without errors."""
         with client.websocket_connect("/ws/logs") as ws:
             # Connection should succeed
             assert ws is not None
 
-    def test_websocket_ping_pong(self, client):
+    def test_websocket_ping_pong(self, client) -> None:
         """Test that WebSocket handles ping/pong."""
         with client.websocket_connect("/ws/logs") as ws:
             ws.send_text('{"type": "ping"}')
             response = ws.receive_text()
             assert "pong" in response
 
-    def test_websocket_accepts_without_token_when_no_auth(self, client):
+    def test_websocket_accepts_without_token_when_no_auth(self, client) -> None:
         """Test WebSocket accepts connections when auth is disabled."""
         # With no auth_token configured, should accept
         with client.websocket_connect("/ws/logs") as ws:
@@ -113,7 +113,7 @@ class TestHTTPEndpoints:
     """Test HTTP endpoints work correctly."""
 
     @pytest.fixture
-    def client(self):
+    def client(self) -> None:
         from server.app import create_app
         from core.config_manager import ConfigManager
         from core.pipeline import Pipeline
@@ -130,13 +130,13 @@ class TestHTTPEndpoints:
         app = create_app(app_context)
         return TestClient(app)
 
-    def test_health_endpoint(self, client):
+    def test_health_endpoint(self, client) -> None:
         """Test health endpoint returns OK."""
         response = client.get("/health")
         assert response.status_code == 200
         assert response.json()["status"] == "ok"
 
-    def test_config_endpoint(self, client):
+    def test_config_endpoint(self, client) -> None:
         """Test config endpoint returns configuration."""
         response = client.get("/api/config")
         assert response.status_code == 200
@@ -144,7 +144,7 @@ class TestHTTPEndpoints:
         assert "server" in config
         assert "modules" in config
 
-    def test_status_endpoint(self, client):
+    def test_status_endpoint(self, client) -> None:
         """Test status endpoint returns pipeline status."""
         response = client.get("/api/status")
         assert response.status_code == 200
@@ -155,7 +155,7 @@ class TestHTTPEndpoints:
 class TestPlayerCode:
     """Test that player.astro has correct code."""
 
-    def test_player_has_hls_js_import(self):
+    def test_player_has_hls_js_import(self) -> None:
         """Test that player imports HLS.js from CDN."""
         with open("frontend/src/pages/player.astro", "r", encoding="utf-8") as f:
             content = f.read()
@@ -163,7 +163,7 @@ class TestPlayerCode:
         assert "hls.js" in content
         assert "cdn.jsdelivr.net" in content or "jsdelivr" in content
 
-    def test_player_has_error_overlay(self):
+    def test_player_has_error_overlay(self) -> None:
         """Test that player has error overlay elements."""
         with open("frontend/src/pages/player.astro", "r", encoding="utf-8") as f:
             content = f.read()
@@ -172,7 +172,7 @@ class TestPlayerCode:
         assert "error-message" in content
         assert "btn-retry" in content
 
-    def test_player_has_show_error_function(self):
+    def test_player_has_show_error_function(self) -> None:
         """Test that player has showError function."""
         with open("frontend/src/lib/modules/player.ts", "r", encoding="utf-8") as f:
             content = f.read()
@@ -180,7 +180,7 @@ class TestPlayerCode:
         assert "showError" in content
         assert "hideError" in content
 
-    def test_player_no_invalid_error_types(self):
+    def test_player_no_invalid_error_types(self) -> None:
         """Test that player doesn't use invalid Hls.ErrorTypes."""
         with open("frontend/src/lib/modules/player.ts", "r", encoding="utf-8") as f:
             content = f.read()
@@ -189,7 +189,7 @@ class TestPlayerCode:
         assert "ERROR_OTHER" not in content
         assert "Hls.ErrorTypes.ERROR_OTHER" not in content
 
-    def test_player_hides_waiting_on_manifest_parsed(self):
+    def test_player_hides_waiting_on_manifest_parsed(self) -> None:
         """Test that player hides waiting message on MANIFEST_PARSED."""
         with open("frontend/src/lib/modules/player.ts", "r", encoding="utf-8") as f:
             content = f.read()
@@ -197,7 +197,7 @@ class TestPlayerCode:
         assert "MANIFEST_PARSED" in content
         assert "waitingEl) waitingEl.style.display = 'none'" in content
 
-    def test_player_has_error_handling(self):
+    def test_player_has_error_handling(self) -> None:
         """Test that player has proper HLS error handling."""
         with open("frontend/src/lib/modules/player.ts", "r", encoding="utf-8") as f:
             content = f.read()
@@ -210,13 +210,13 @@ class TestPlayerCode:
 class TestWebSocketRequestWrapper:
     """Test WebSocketRequest wrapper class."""
 
-    def test_websocket_request_class_exists(self):
+    def test_websocket_request_class_exists(self) -> None:
         """Test that WebSocketRequest class is defined."""
         from server.ws_routes import WebSocketRequest
         
         assert WebSocketRequest is not None
 
-    def test_websocket_request_has_required_fields(self):
+    def test_websocket_request_has_required_fields(self) -> None:
         """Test that WebSocketRequest has required fields."""
         from server.ws_routes import WebSocketRequest
         
@@ -235,7 +235,7 @@ class TestWebSocketRequestWrapper:
 class TestSecurityMiddlewareOrder:
     """Test that security middlewares are applied in correct order."""
 
-    def test_app_has_gzip_middleware(self):
+    def test_app_has_gzip_middleware(self) -> None:
         """Test that GZip middleware is added."""
         from server.app import create_app
         from core.config_manager import ConfigManager
@@ -257,7 +257,7 @@ class TestSecurityMiddlewareOrder:
         # GZipMiddleware should be present
         assert any("GZip" in name for name in middleware_names) or len(app.user_middleware) > 0
 
-    def test_app_has_security_headers(self, client):
+    def test_app_has_security_headers(self, client) -> None:
         """Test that security headers are applied to responses."""
         response = client.get("/health")
         

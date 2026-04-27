@@ -5,6 +5,8 @@
     "paths": {
       "@/*": ["src/*"]
     },
-    "ignoreDeprecations": "5.0"
-  }
+    "ignoreDeprecations": "5.0",
+    "typeRoots": ["./node_modules/@types", "./node_modules/@preact"]
+  },
+  "include": ["src/**/*", "node_modules/@preact/**/*.d.ts"]
 }

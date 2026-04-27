@@ -60,13 +60,14 @@ function startStatusEffects(): void {
     const btnStop = el<HTMLButtonElement>('btn-stop');
 
     if (btnStart) {
-      const isRunning = state === PipelineState.RUNNING;
-      btnStart.disabled = isRunning;
-      btnStart.style.display = isRunning ? 'none' : '';
+      const isRunningLocal = state === PipelineState.RUNNING;
+      btnStart.disabled = isRunningLocal;
+      btnStart.style.display = isRunningLocal ? 'none' : '';
     }
     if (btnStop) {
-      btnStop.disabled = !isRunning;
-      btnStop.style.display = isRunning ? '' : 'none';
+      const isRunningStop = state === PipelineState.RUNNING;
+      btnStop.disabled = !isRunningStop;
+      btnStop.style.display = isRunningStop ? '' : 'none';
     }
   });
 

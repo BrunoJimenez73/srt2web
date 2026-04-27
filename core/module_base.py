@@ -47,12 +47,7 @@ class CircuitBreaker:
         HALF_OPEN: Testing if service recovered
     """
 
-    def __init__(
-        self,
-        failure_threshold: int = 5,
-        timeout: float = 60.0,
-        half_open_max_calls: int = 3,
-    ):
+    def __init__(self, failure_threshold: int = 5, timeout: float = 60.0, half_open_max_calls: int = 3) -> None:
         self.failure_threshold = failure_threshold
         self.timeout = timeout
         self.half_open_max_calls = half_open_max_calls
@@ -127,13 +122,7 @@ class CircuitBreaker:
 class RetryStrategy:
     """Retry strategy with exponential backoff."""
 
-    def __init__(
-        self,
-        max_retries: int = 3,
-        base_delay: float = 0.5,
-        max_delay: float = 10.0,
-        exponential_base: float = 2.0,
-    ):
+    def __init__(self, max_retries: int = 3, base_delay: float = 0.5, max_delay: float = 10.0, exponential_base: float = 2.0) -> None:
         self.max_retries = max_retries
         self.base_delay = base_delay
         self.max_delay = max_delay
@@ -193,12 +182,7 @@ class MemoryManager:
     when thresholds are exceeded.
     """
 
-    def __init__(
-        self,
-        max_memory_mb: float = 3072.0,
-        gc_threshold_mb: float = 2048.0,
-        check_interval: int = 10,
-    ):
+    def __init__(self, max_memory_mb: float = 3072.0, gc_threshold_mb: float = 2048.0, check_interval: int = 10) -> None:
         self.max_memory_mb = max_memory_mb
         self.gc_threshold_mb = gc_threshold_mb
         self.check_interval = check_interval
@@ -385,13 +369,7 @@ class BaseModule(ABC):
 
     _memory_manager = MemoryManager()
 
-    def __init__(
-        self,
-        name: str,
-        config: Optional[dict] = None,
-        circuit_breaker: Optional[CircuitBreaker] = None,
-        retry_strategy: Optional[RetryStrategy] = None,
-    ):
+    def __init__(self, name: str, config: Optional[dict] = None, circuit_breaker: Optional[CircuitBreaker] = None, retry_strategy: Optional[RetryStrategy] = None) -> None:
         self.name = name
         self.enabled = True
         self._state = ModuleState.IDLE

@@ -32,7 +32,7 @@ class FFmpegWatchdog:
         hang_timeout: float = 60.0,
         max_restarts: int = 10,
         restart_delay: float = 2.0,
-    ):
+    ) -> None:
         """
         Args:
             check_interval: Seconds between health checks
@@ -215,10 +215,10 @@ class ProcessManager:
     and automatically cleans up orphaned processes.
     """
 
-    _instance = None
-    _lock = threading.Lock()
+    _instance: Optional[ProcessManager] = None
+    _lock: threading.Lock = threading.Lock()
 
-    def __new__(cls):
+    def __new__(cls) -> ProcessManager:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -226,7 +226,7 @@ class ProcessManager:
                     cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         if self._initialized:
             return
 

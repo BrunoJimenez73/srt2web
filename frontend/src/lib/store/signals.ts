@@ -6,8 +6,7 @@
  */
 
 import { signal, computed } from '@preact/signals-core';
-import type { Config, Status, LogMessage, ModuleName } from '../types';
-import type { PipelineState, ModuleState, ConnectionMode } from '../types/state';
+import type { Config, Status, LogMessage, ModuleName, PipelineState, ModuleState, ConnectionMode } from '../api';
 
 // ── Source Signals ────────────────────────────────────────────────────────────
 
@@ -137,7 +136,7 @@ export function updateStatus(status: Status): void {
 /** Append a log message */
 export function addLog(level: 'INFO' | 'WARNING' | 'ERROR', message: string): void {
   const entry: LogMessage = {
-    timestamp: Date.now(),
+    timestamp: new Date().toISOString(),
     level,
     message,
   };

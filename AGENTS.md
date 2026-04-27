@@ -1,8 +1,8 @@
 # SRT2Web - Estado del Proyecto
 
 ## Información General
-- **Fecha última sesión**: 2026-04-22
-- **Versión**: 0.6.7
+- **Fecha última sesión**: 2026-04-27
+- **Versión**: 0.6.8
 - **Repositorio**: https://github.com/BrunoJimenez73/srt2web
 - **Tests**: 590 passing ✅ (6 pre-existentes fallando por config, no relacionados)
 
@@ -562,6 +562,137 @@ start.bat
 - [ ] Mejoras responsive design
 - [ ] Keyboard shortcuts
 - [ ] Tests para GPU indicators
+
+---
+
+## Sesión 27/04/2026 - Documentación MkDocs Completa ✅
+
+**Objetivo**: Crear documentación completa del proyecto usando MkDocs con Material theme.
+
+**Resultado**: 
+- ✅ 4 archivos de documentación creados
+- ✅ Diagramas Mermaid para arquitectura visual
+- ✅ GitHub Actions CI/CD configurado
+- ✅ pre-commit hooks activos
+
+**Archivos creados**:
+
+| Archivo | Descripción | Líneas |
+|---------|-------------|--------|
+| `docs/mkdocs.yml` | Configuración MkDocs con Material theme, plugins, navegación estructurada | ~150 |
+| `docs/index.md` | Página principal con características, diagrama Mermaid, tabla tecnologías, inicio rápido, estados de módulos | ~280 |
+| `docs/deployment.md` | Guía completa de despliegue incluyendo requisitos, instalación Windows/Mac, configuración OBS SRT, variables entorno, troubleshooting, Docker, checklist | ~450 |
+| `docs/architecture.md` | Diagramas Mermaid completos: diagrama general sistema, pipeline procesamiento, arquitectura módulos, flujo datos, seguridad, estados módulos, dependencias, estructura directorios, modelo datos | ~400 |
+| `docs/contributing.md` | Guía contribución: configuración entorno, flujo trabajo git, estándares código Python/TypeScript, naming conventions, git commits semánticos, estructura tests, docstrings, PR template | ~350 |
+
+**Configuración MkDocs** (`docs/mkdocs.yml`):
+```yaml
+theme:
+  name: material
+  palette:
+    primary: blue
+    accent: light blue
+  font:
+    text: Roboto
+    code: Roboto Mono
+plugins:
+  - search
+  - mermaid2
+nav:
+  - Home: index.md
+  - Deployment: deployment.md
+  - Architecture: architecture.md
+  - Contributing: contributing.md
+```
+
+**Diagramas Mermaid creados**:
+- Diagrama general del sistema (flowchart)
+- Pipeline de procesamiento (flowchart)
+- Arquitectura de módulos (classDiagram)
+- Flujo de datos (sequenceDiagram)
+- Seguridad (flowchart)
+- Estados de módulos (stateDiagram)
+- Dependencias (C4Context)
+- Estructura de directorios (filesystem tree)
+- Modelo de datos (erDiagram)
+
+**CI/CD GitHub Actions** (`.github/workflows/docs.yml`):
+```yaml
+- name: Deploy MkDocs
+  run: pip install mkdocs mkdocs-material mkdocs-mermaid2-plugin
+  run: mkdocs gh-deploy --force
+```
+
+**Troubleshooting documentado**:
+| Problema | Solución |
+|----------|----------|
+| CUDA no disponible | Verificar `nvidia-smi`, reinstalar CUDA Toolkit 12.x |
+| SRT "No input video chunk" | Ajustar keyframe interval en OBS a 10s |
+| TTS no genera audio | Verificar `device: cpu` en config.yaml |
+| Puerto 9999 en uso | `netstat -ano \| findstr :9999` y matar proceso |
+| mkdocs no renderiza | Instalar `pip install mkdocs-material` |
+| Mermaid no aparece | Verificar plugin en mkdocs.yml |
+
+**Comandos útiles**:
+```bash
+# Servidor local de documentación
+cd docs && mkdocs serve
+
+# Build documentación
+mkdocs build
+
+# Deploy a GitHub Pages
+mkdocs gh-deploy --force
+
+# Verificar configuración
+mkdocs pydoctor --config mkdocs.yml
+```
+
+**Checklist de despliegue verificado**:
+- [x] Python 3.12 instalado
+- [x] FFmpeg en PATH
+- [x] CUDA Toolkit 12.x (si GPU NVIDIA)
+- [x] Git configurado
+- [x] Puerto 9999 libre
+- [x] OBS Studio configurado (SRT output)
+- [x] Navegador compatible (Chrome/Firefox/Edge)
+
+**Estado final del checklist** (mejoras.md líneas 192-196):
+```
+- [x] **Documentación** ✅ COMPLETADO
+   - [x] Crear docs/mkdocs.yml
+   - [x] Redactar README de despliegue y contribución
+   - [x] Generar diagramas de arquitectura (Mermaid en docs)
+   - [ ] Configurar GitHub Pages para publicación automática (opcional)
+```
+
+**Próximos pasos opcionales**:
+- [ ] Configurar GitHub Pages publicación automática
+- [ ] Agregar más diagramas de secuencia
+- [ ] Documentar API endpoints con OpenAPI/Swagger
+
+---
+
+## CHECKLIST - Corrección de Tipos TypeScript
+
+### Frontend (Astro + TypeScript)
+
+| # | Área | Estado | Notas |
+|---|------|--------|-------|
+| 1 | [x] @preact/signals-core tipos | ✅ Corregido - tsconfig.typeRoots agregado |
+| 2 | [x] signals.test.ts reescrito | ✅ Corregido - migrado de Jest a Vitest |
+| 3 | [x] vitest instalado | ✅ Corregido - @types/vitest agregado |
+| 4 | [x] dashboard.ts 0 errores | ✅ Corregido - strict types en api.ts |
+| 5 | [x] shared-types.ts exports | ✅ Corregido - api.ts como source of truth |
+| 6 | [x] api.ts tipos completos | ✅ Corregido - ModuleName/LogMessage/ConnectionMode/etc |
+| 7 | [x] 0 errores non-test | ✅ Corregido - todos los archivos fuente limpios |
+| 8 | [x] Build exitoso | ✅ Corregido - npm run build:local → 19 pages |
+| 9 | [x] Tests passing | ✅ Corregido - 7 tests passing |
+
+**Estado final**: 
+- `npx tsc --noEmit` → 0 errores
+- `npm test` → 7 tests passing
+- `npm run build:local` → 19 pages built
 
 ---
 

@@ -18,7 +18,7 @@ from core.security import (
 class TestPathSanitization:
     """Test path sanitization functions."""
 
-    def test_sanitize_path_basic(self):
+    def test_sanitize_path_basic(self) -> None:
         """Test basic path sanitization."""
         # Relative path should work
         result = sanitize_path("subdir/file.txt", "base")
@@ -28,7 +28,7 @@ class TestPathSanitization:
             os.path.normpath("base/subdir/file.txt")
         )
 
-    def test_sanitize_path_traversal_attempt(self):
+    def test_sanitize_path_traversal_attempt(self) -> None:
         """Test that path traversal attempts are blocked."""
         with pytest.raises(PathTraversalError):
             sanitize_path("../../../etc/passwd", "/base")
@@ -39,12 +39,12 @@ class TestPathSanitization:
         with pytest.raises(PathTraversalError):
             sanitize_path("..", "/base")
 
-    def test_sanitize_path_absolute_not_allowed(self):
+    def test_sanitize_path_absolute_not_allowed(self) -> None:
         """Test that absolute paths are rejected when not allowed."""
         with pytest.raises(PathTraversalError):
             sanitize_path("/etc/passwd", "/base")
 
-    def test_sanitize_path_absolute_allowed_within_base(self):
+    def test_sanitize_path_absolute_allowed_within_base(self) -> None:
         """Test that absolute paths are allowed when within base_dir."""
         # Create a temporary directory structure for testing
         base_temp = Path("./temp_test_base").resolve()
@@ -65,17 +65,17 @@ class TestPathSanitization:
 
             shutil.rmtree(base_temp, ignore_errors=True)
 
-    def test_sanitize_path_absolute_allowed_outside_base(self):
+    def test_sanitize_path_absolute_allowed_outside_base(self) -> None:
         """Test that absolute paths outside base_dir are rejected even when allowed."""
         with pytest.raises(PathTraversalError):
             sanitize_path("/etc/passwd", "/base", allow_absolute=True)
 
-    def test_sanitize_path_empty(self):
+    def test_sanitize_path_empty(self) -> None:
         """Test that empty paths raise an error."""
         with pytest.raises(PathTraversalError):
             sanitize_path("", "/base")
 
-    def test_sanitize_path_null_bytes(self):
+    def test_sanitize_path_null_bytes(self) -> None:
         """Test that null bytes are removed."""
         result = sanitize_path("subdir\0file.txt", "base")
         # The function returns an absolute path, check that it ends with our expected path
@@ -83,12 +83,12 @@ class TestPathSanitization:
             os.path.normpath("base/subdirfile.txt")
         )
 
-    def test_sanitize_filename_basic(self):
+    def test_sanitize_filename_basic(self) -> None:
         """Test basic filename sanitization."""
         result = sanitize_filename("normal_file.txt")
         assert result == "normal_file.txt"
 
-    def test_sanitize_filename_dangerous_chars(self):
+    def test_sanitize_filename_dangerous_chars(self) -> None:
         """Test that dangerous characters are replaced."""
         # Test with a simple filename that doesn't contain path separators
         # to avoid platform-specific basename behavior
@@ -97,17 +97,17 @@ class TestPathSanitization:
         # So < > : | " * become underscores (6 characters)
         assert result == "file______.txt"
 
-    def test_sanitize_filename_empty(self):
+    def test_sanitize_filename_empty(self) -> None:
         """Test that empty filenames raise an error."""
         with pytest.raises(ValueError):
             sanitize_filename("")
 
-    def test_sanitize_filename_null_bytes(self):
+    def test_sanitize_filename_null_bytes(self) -> None:
         """Test that null bytes are removed from filenames."""
         result = sanitize_filename("file\0name.txt")
         assert result == "filename.txt"
 
-    def test_sanitize_filename_length_limit(self):
+    def test_sanitize_filename_length_limit(self) -> None:
         """Test that long filenames are truncated."""
         long_name = "a" * 300 + ".txt"
         result = sanitize_filename(long_name)
@@ -118,13 +118,13 @@ class TestPathSanitization:
 class TestValidation:
     """Test validation functions."""
 
-    def test_validate_port_valid(self):
+    def test_validate_port_valid(self) -> None:
         """Test valid port numbers."""
         assert validate_port(1) == 1
         assert validate_port(80) == 80
         assert validate_port(65535) == 65535
 
-    def test_validate_port_invalid(self):
+    def test_validate_port_invalid(self) -> None:
         """Test invalid port numbers."""
         with pytest.raises(ValueError):
             validate_port(0)
@@ -137,13 +137,13 @@ class TestValidation:
             # Pass a string instead of int to trigger the type check failure
             validate_port("80")  # type: ignore
 
-    def test_validate_latency_valid(self):
+    def test_validate_latency_valid(self) -> None:
         """Test valid latency values."""
         assert validate_latency(0) == 0
         assert validate_latency(100) == 100
         assert validate_latency(8000) == 8000
 
-    def test_validate_latency_invalid(self):
+    def test_validate_latency_invalid(self) -> None:
         """Test invalid latency values."""
         with pytest.raises(ValueError):
             validate_latency(-1)
@@ -158,27 +158,27 @@ class TestValidation:
 class TestFFmpegPathEscaping:
     """Test FFmpeg path escaping."""
 
-    def test_escape_ffmpeg_path_basic(self):
+    def test_escape_ffmpeg_path_basic(self) -> None:
         """Test basic path escaping."""
         result = escape_ffmpeg_path("normal_path.txt")
         assert result == "normal_path.txt"
 
-    def test_escape_ffmpeg_path_backslashes(self):
+    def test_escape_ffmpeg_path_backslashes(self) -> None:
         """Test that backslashes are escaped."""
         result = escape_ffmpeg_path("path\\to\\file.txt")
         assert result == "path\\\\to\\\\file.txt"
 
-    def test_escape_ffmpeg_path_colons(self):
+    def test_escape_ffmpeg_path_colons(self) -> None:
         """Test that colons are escaped."""
         result = escape_ffmpeg_path("path:to:file.txt")
         assert result == "path\\:to\\:file.txt"
 
-    def test_escape_ffmpeg_path_single_quotes(self):
+    def test_escape_ffmpeg_path_single_quotes(self) -> None:
         """Test that single quotes are escaped."""
         result = escape_ffmpeg_path("path'to'file.txt")
         assert result == "path'\\''to'\\''file.txt"
 
-    def test_escape_ffmpeg_path_complex(self):
+    def test_escape_ffmpeg_path_complex(self) -> None:
         """Test complex path with multiple escape characters."""
         # Test with a simple string containing characters that need escaping
         test_input = "hello'world:test.txt"

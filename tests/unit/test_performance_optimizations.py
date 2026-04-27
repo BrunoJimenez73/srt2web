@@ -15,7 +15,7 @@ CONFIG_PATH = str(PROJECT_ROOT / "config.yaml")
 class TestAudioMixerDurationCache:
     """Test the duration caching in AudioMixer."""
 
-    def test_audio_mixer_has_duration_cache(self):
+    def test_audio_mixer_has_duration_cache(self) -> None:
         """Test that AudioMixer has a duration cache attribute."""
         from modules.audio_mixer import AudioMixer
 
@@ -23,7 +23,7 @@ class TestAudioMixerDurationCache:
         assert hasattr(mixer, '_duration_cache')
         assert isinstance(mixer._duration_cache, dict)
 
-    def test_duration_cache_is_cleared_on_start(self, temp_dir):
+    def test_duration_cache_is_cleared_on_start(self, temp_dir) -> None:
         """Test that duration cache is cleared when mixer starts."""
         from modules.audio_mixer import AudioMixer
 
@@ -33,7 +33,7 @@ class TestAudioMixerDurationCache:
         assert len(mixer._duration_cache) == 0
 
     @patch('modules.audio_mixer.ensure_ffmpeg')
-    def test_duration_cache_stores_results(self, mock_ffmpeg, temp_dir):
+    def test_duration_cache_stores_results(self, mock_ffmpeg, temp_dir) -> None:
         """Test that duration results are cached."""
         from modules.audio_mixer import AudioMixer
 
@@ -65,7 +65,7 @@ class TestAudioMixerDurationCache:
 class TestTTSAsyncioOptimization:
     """Test the TTS asyncio optimization."""
 
-    def test_tts_uses_asyncio_run(self):
+    def test_tts_uses_asyncio_run(self) -> None:
         """Test that TTS engine uses asyncio.run instead of manual event loop."""
         with open("modules/tts_engine.py", "r") as f:
             content = f.read()
@@ -77,7 +77,7 @@ class TestTTSAsyncioOptimization:
         assert "asyncio.new_event_loop()" not in content, \
             "TTS should not create new event loops manually"
 
-    def test_tts_no_event_loop_leak(self):
+    def test_tts_no_event_loop_leak(self) -> None:
         """Test that TTS doesn't leak event loops."""
         with open("modules/tts_engine.py", "r") as f:
             content = f.read()
@@ -94,7 +94,7 @@ class TestTTSAsyncioOptimization:
 class TestModelCacheIntegration:
     """Test that ModelCache is properly integrated."""
 
-    def test_transcriber_uses_model_cache(self):
+    def test_transcriber_uses_model_cache(self) -> None:
         """Test that Transcriber uses ModelCache."""
         with open("modules/transcriber.py", "r") as f:
             content = f.read()
@@ -103,7 +103,7 @@ class TestModelCacheIntegration:
         assert "self._model_cache = ModelCache()" in content
         assert "self._model_cache.get_whisper_model(" in content
 
-    def test_translator_uses_model_cache(self):
+    def test_translator_uses_model_cache(self) -> None:
         """Test that Translator uses ModelCache."""
         with open("modules/translator.py", "r") as f:
             content = f.read()
@@ -112,7 +112,7 @@ class TestModelCacheIntegration:
         assert "self._model_cache = ModelCache()" in content
         assert "self._model_cache.get_argos_pair(" in content
 
-    def test_model_cache_singleton(self):
+    def test_model_cache_singleton(self) -> None:
         """Test that ModelCache is a singleton."""
         from core.model_cache import ModelCache
 
@@ -120,7 +120,7 @@ class TestModelCacheIntegration:
         cache2 = ModelCache()
         assert cache1 is cache2
 
-    def test_model_cache_caches_whisper_models(self):
+    def test_model_cache_caches_whisper_models(self) -> None:
         """Test that ModelCache caches Whisper models."""
         from core.model_cache import ModelCache
 
@@ -147,7 +147,7 @@ class TestModelCacheIntegration:
 class TestFFmpegOptimizations:
     """Test FFmpeg-related optimizations."""
 
-    def test_audio_mixer减少_ffmpeg_calls(self, temp_dir):
+    def test_audio_mixer减少_ffmpeg_calls(self, temp_dir) -> None:
         """Test that audio mixer reduces FFmpeg calls with caching."""
         from modules.audio_mixer import AudioMixer
 
@@ -176,14 +176,14 @@ class TestFFmpegOptimizations:
 class TestConfigDefaults:
     """Test that configuration defaults support optimizations."""
 
-    def test_config_has_rate_limit(self):
+    def test_config_has_rate_limit(self) -> None:
         """Test that config has rate limiting by default."""
         from core.config_manager import DEFAULT_CONFIG
         
         assert "rate_limit_rpm" in DEFAULT_CONFIG["server"]
         assert DEFAULT_CONFIG["server"]["rate_limit_rpm"] == 600
 
-    def test_config_has_max_request_size(self):
+    def test_config_has_max_request_size(self) -> None:
         """Test that config has max request size in config or defaults."""
         from core.config_manager import DEFAULT_CONFIG
         

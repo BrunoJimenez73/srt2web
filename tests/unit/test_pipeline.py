@@ -13,17 +13,17 @@ from core.exceptions import PipelineStateError
 class DummyModule(BaseModule):
     """A dummy module for testing."""
 
-    def __init__(self, name: str = "dummy", config: dict = None):
+    def __init__(self, name: str = "dummy", config: dict = None):  # type: ignore
         self._start_called = False
         self._stop_called = False
         self._process_count = 0
         super().__init__(name, config)
 
-    def start(self):
+    def start(self):  # type: ignore
         self._start_called = True
         self._state = ModuleState.RUNNING
 
-    def stop(self):
+    def stop(self):  # type: ignore
         self._stop_called = True
         self._state = ModuleState.IDLE
 
@@ -36,14 +36,14 @@ class DummyModule(BaseModule):
 class TestPipeline:
     """Tests for the Pipeline class."""
 
-    def test_init(self):
+    def test_init(self) -> None:
         """Test pipeline initialization."""
         pipeline = Pipeline()
 
         assert pipeline.state == PipelineState.IDLE
         assert len(pipeline.get_modules()) == 0
 
-    def test_register_module(self):
+    def test_register_module(self) -> None:
         """Test registering a module."""
         pipeline = Pipeline()
         module = DummyModule("test_module")
@@ -53,7 +53,7 @@ class TestPipeline:
         assert len(pipeline.get_modules()) == 1
         assert pipeline.get_module("test_module") is module
 
-    def test_register_multiple_modules(self):
+    def test_register_multiple_modules(self) -> None:
         """Test registering multiple modules."""
         pipeline = Pipeline()
 
@@ -63,13 +63,13 @@ class TestPipeline:
 
         assert len(pipeline.get_modules()) == 3
 
-    def test_get_module_not_found(self):
+    def test_get_module_not_found(self) -> None:
         """Test getting a non-existent module."""
         pipeline = Pipeline()
 
         assert pipeline.get_module("nonexistent") is None
 
-    def test_reconfigure_modules(self):
+    def test_reconfigure_modules(self) -> None:
         """Test reconfiguring all modules."""
         pipeline = Pipeline()
         module = DummyModule("test")
@@ -85,7 +85,7 @@ class TestPipeline:
 
         assert module.enabled is False
 
-    def test_start_pipeline(self):
+    def test_start_pipeline(self) -> None:
         """Test starting the pipeline."""
         pipeline = Pipeline()
         module = DummyModule("test")
@@ -184,7 +184,7 @@ class TestPipeline:
 
         assert pipeline.state == PipelineState.RUNNING
 
-    def test_start_already_running(self):
+    def test_start_already_running(self) -> None:
         """Test starting an already running pipeline."""
         pipeline = Pipeline()
 
@@ -197,7 +197,7 @@ class TestPipeline:
 
         pipeline.stop()
 
-    def test_process_data_through_modules(self):
+    def test_process_data_through_modules(self) -> None:
         """Test that data flows through modules."""
         pipeline = Pipeline()
 
@@ -217,7 +217,7 @@ class TestPipeline:
         assert mod1._process_count == 1
         assert mod2._process_count == 1
 
-    def test_disabled_module_skipped(self):
+    def test_disabled_module_skipped(self) -> None:
         """Test that disabled modules are skipped."""
         pipeline = Pipeline()
 
@@ -237,13 +237,13 @@ class TestPipeline:
         assert mod1._process_count == 1
         assert mod2._process_count == 0
 
-    def test_module_error_handling(self):
+    def test_module_error_handling(self) -> None:
         """Test that module errors don't stop the pipeline."""
         pipeline = Pipeline()
 
         error_module = DummyModule("error")
 
-        def raise_error(data):
+        def raise_error(data) -> None:
             raise RuntimeError("Test error")
 
         error_module._do_process = raise_error
@@ -262,7 +262,7 @@ class TestPipeline:
 
         assert normal_module._process_count == 1
 
-    def test_get_status(self):
+    def test_get_status(self) -> None:
         """Test getting pipeline status."""
         pipeline = Pipeline()
         pipeline.register_module(DummyModule("mod1"))
@@ -275,17 +275,17 @@ class TestPipeline:
         # UnifiedPipeline always includes the output sink in the status
         assert len(status["modules"]) == 2
 
-    def test_callbacks(self):
+    def test_callbacks(self) -> None:
         """Test log and state change callbacks."""
         pipeline = Pipeline()
 
         log_messages = []
         state_changes = []
 
-        def on_log(level, message):
+        def on_log(level, message) -> None:
             log_messages.append((level, message))
 
-        def on_state(state):
+        def on_state(state) -> None:
             state_changes.append(state)
 
         pipeline._on_log = on_log
@@ -297,7 +297,7 @@ class TestPipeline:
         assert ("info", "Test message") in log_messages
         assert "running" in state_changes
 
-    def test_chunk_index_tracking(self):
+    def test_chunk_index_tracking(self) -> None:
         """Test that chunk index is properly tracked."""
         pipeline = Pipeline()
 
@@ -309,7 +309,7 @@ class TestPipeline:
 class TestPipelineState:
     """Tests for PipelineState enum."""
 
-    def test_pipeline_states(self):
+    def test_pipeline_states(self) -> None:
         """Test all pipeline states exist."""
         assert PipelineState.IDLE.value == "idle"
         assert PipelineState.STARTING.value == "starting"

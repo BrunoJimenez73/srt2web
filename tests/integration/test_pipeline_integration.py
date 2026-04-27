@@ -17,7 +17,7 @@ from core.exceptions import ModuleProcessingError
 class IntegrationTestModule(BaseModule):
     """Test module for integration testing."""
     
-    def __init__(self, name: str, delay: float = 0.01, fail_rate: float = 0.0):
+    def __init__(self, name: str, delay: float = 0.01, fail_rate: float = 0.0):  # type: ignore
         super().__init__(name)
         self.delay = delay
         self.fail_rate = fail_rate
@@ -224,7 +224,7 @@ class TestModuleInterfaceIntegration:
         module.reset()
         assert module.state == ModuleState.IDLE
     
-    def test_module_status_tracking(self):
+    def test_module_status_tracking(self) -> None:
         """Test module tracks status correctly."""
         module = IntegrationTestModule("status_test", delay=0.01)
         
@@ -237,7 +237,7 @@ class TestModuleInterfaceIntegration:
 class TestExceptionHierarchyIntegration:
     """Integration tests for exception hierarchy."""
     
-    def test_exception_catch_base(self):
+    def test_exception_catch_base(self) -> None:
         """Test that all exceptions can be caught by base."""
         from core.exceptions import SRT2WebError
         
@@ -253,7 +253,7 @@ class TestExceptionHierarchyIntegration:
         except SRT2WebError:
             pass  # Should catch
     
-    def test_exception_context_preservation(self):
+    def test_exception_context_preservation(self) -> None:
         """Test that exception context is preserved."""
         from core.exceptions import ModuleProcessingError
         

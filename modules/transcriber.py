@@ -21,7 +21,7 @@ class Transcriber(BaseModule):
     Performance is heavily dependent on the chosen model size and hardware (CPU vs GPU).
     """
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: Optional[dict] = None) -> None:
         self._model_size = "small"
         self._language = "es"
         self._device_config = "auto"

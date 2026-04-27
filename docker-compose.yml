@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "9999:9999"      # HTTP API, Web UI, HLS
+      - "9000:9000/udp"  # SRT input
+    volumes:
+      - ./config:/app/config
+      - ./logs:/app/logs
+      - ./output:/app/output
+    env_file:
+      - .env.example   # Use .env.example as template, override with .env if exists
+    environment:
+      # Override any specific settings here if needed
+      # SERVER_HOST: 0.0.0.0
+      # SERVER_PORT: 9999
+      # AUTH_TOKEN: your-secret-token-here
+    # Uncomment the following lines to enable GPU support
+    # runtime: nvidia
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    #   
+    # Optional: Add healthcheck
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:9999/health"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 40s
+
+  # Optional Redis service for future queuing system
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   command: redis-server --appendonly yes
+
+# volumes:
+#   redis_data:

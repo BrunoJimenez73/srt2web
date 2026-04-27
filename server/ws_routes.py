@@ -67,9 +67,9 @@ class LogBroadcaster:
     Thread-safe: can be called from the pipeline thread.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._subscribers: Set[WebSocket] = set()
-        self._loop: asyncio.AbstractEventLoop = None
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._buffer: list = []  # Buffer for messages before loop is set
         self._max_buffer = 200
 

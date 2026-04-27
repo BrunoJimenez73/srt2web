@@ -1,0 +1,1 @@
+function o(t){const a=Math.floor(t/60),e=Math.floor(t%60);return`${a}:${e.toString().padStart(2,"0")}`}function n(t){return(typeof t=="string"?new Date(t):new Date(t)).toLocaleTimeString("en-US",{hour12:!1})}export{o as a,n as f};

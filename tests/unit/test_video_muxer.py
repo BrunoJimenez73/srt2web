@@ -18,31 +18,31 @@ from core.module_base import PipelineData, ModuleState
 class TestableVideoMuxer(VideoMuxer):
     """Concrete VideoMuxer subclass for testing."""
 
-    def _do_process(self, data):
+    def _do_process(self, data: object) -> object:
         return data
 
-    def _log(self, level: str, message: str):
+    def _log(self, level: str, message: str) -> None:
         pass
 
 
 class TestVideoMuxer:
     """Tests for VideoMuxer class."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test module initialization."""
         muxer = TestableVideoMuxer(output_dir="/tmp")
         
         assert muxer.name == "video_muxer"
         assert muxer.enabled is True
 
-    def test_start(self):
+    def test_start(self) -> None:
         """Test module can start."""
         muxer = TestableVideoMuxer(output_dir="/tmp")
         muxer.start()
         
         assert muxer.state in (ModuleState.STARTING, ModuleState.RUNNING)
 
-    def test_stop(self):
+    def test_stop(self) -> None:
         """Test module can stop."""
         muxer = TestableVideoMuxer(output_dir="/tmp")
         muxer.start()
@@ -50,12 +50,12 @@ class TestVideoMuxer:
         
         assert muxer.state == ModuleState.IDLE
 
-    def test_get_status_has_extra(self):
+    def test_get_status_has_extra(self) -> None:
         """Test get_status includes extra info."""
         from modules.video_muxer import VideoMuxer
 
         class Testable(VideoMuxer):
-            def _do_process(self, data):
+            def _do_process(self, data) -> None:
                 return data
 
         with patch("modules.video_muxer.ensure_ffmpeg", return_value="/bin/ffmpeg"):
@@ -66,7 +66,7 @@ class TestVideoMuxer:
                 status = muxer.get_status()
                 assert "encoder_mode" in status.extra
 
-    def test_process_with_none_input(self):
+    def test_process_with_none_input(self) -> None:
         """Test process handles None input."""
         muxer = TestableVideoMuxer(output_dir="/tmp")
         
@@ -75,12 +75,12 @@ class TestVideoMuxer:
         
         assert result is not None
 
-    def test_hls_directory_created(self):
+    def test_hls_directory_created(self) -> None:
         """Test HLS directory is set."""
         from modules.video_muxer import VideoMuxer
 
         class Testable(VideoMuxer):
-            def _do_process(self, data):
+            def _do_process(self, data) -> None:
                 return data
 
         with patch("modules.video_muxer.ensure_ffmpeg", return_value="/bin/ffmpeg"):

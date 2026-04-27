@@ -15,7 +15,7 @@ from server.app import create_app
 class DummyModule:
     """Dummy module for testing."""
 
-    def __init__(self, name: str):
+    def __init__(self, name: str):  # type: ignore
         self.name = name
         self.enabled = True
         self._state = ModuleState.IDLE
@@ -23,10 +23,10 @@ class DummyModule:
         self._last_process_time_ms = 0.0
         self._error_message = None
 
-    def configure(self, config: dict):
+    def configure(self, config: dict):  # type: ignore
         self.enabled = config.get("enabled", True)
 
-    def get_status(self):
+    def get_status(self):  # type: ignore
         from core.module_base import ModuleStatus
 
         return ModuleStatus(
@@ -43,7 +43,7 @@ class TestServerIntegration:
     """Integration tests for the server application."""
 
     @pytest.fixture
-    def app_context(self):
+    def app_context(self) -> None:
         """Create a complete app context for testing."""
         config = ConfigManager()
         pipeline = Pipeline()
@@ -68,33 +68,33 @@ class TestServerIntegration:
         }
 
     @pytest.fixture
-    def client(self, app_context):
+    def client(self, app_context) -> None:
         """Create a test client."""
         app = create_app(app_context)
         return TestClient(app)
 
-    def test_root_endpoint(self, client):
+    def test_root_endpoint(self, client) -> None:
         """Test GET / returns HTML."""
         response = client.get("/")
 
         assert response.status_code == 200
         assert "text/html" in response.headers.get("content-type", "")
 
-    def test_health_endpoint(self, client):
+    def test_health_endpoint(self, client) -> None:
         """Test GET /health returns OK."""
         response = client.get("/health")
 
         assert response.status_code == 200
         assert response.json()["status"] == "ok"
 
-    def test_player_endpoint(self, client):
+    def test_player_endpoint(self, client) -> None:
         """Test GET /player returns HTML."""
         response = client.get("/player")
 
         assert response.status_code == 200
         assert "text/html" in response.headers.get("content-type", "")
 
-    def test_api_status_endpoint(self, client):
+    def test_api_status_endpoint(self, client) -> None:
         """Test GET /api/status returns pipeline status."""
         response = client.get("/api/status")
 
@@ -103,7 +103,7 @@ class TestServerIntegration:
         assert "state" in data
         assert "modules" in data
 
-    def test_api_config_endpoint(self, client):
+    def test_api_config_endpoint(self, client) -> None:
         """Test GET /api/config returns configuration."""
         response = client.get("/api/config")
 
@@ -112,7 +112,7 @@ class TestServerIntegration:
         assert "server" in data
         assert "input" in data or "srt" in data
 
-    def test_api_modules_endpoint(self, client):
+    def test_api_modules_endpoint(self, client) -> None:
         """Test GET /api/modules returns module list."""
         response = client.get("/api/modules")
 
@@ -120,7 +120,7 @@ class TestServerIntegration:
         data = response.json()
         assert "modules" in data
 
-    def test_api_srt_info_endpoint(self, client):
+    def test_api_srt_info_endpoint(self, client) -> None:
         """Test GET /api/srt-info returns SRT connection info."""
         response = client.get("/api/srt-info")
 
@@ -132,7 +132,7 @@ class TestServerIntegration:
         if response.status_code == 200:
             assert "srt_port" in data or "error" in data
 
-    def test_api_update_config(self, client):
+    def test_api_update_config(self, client) -> None:
         """Test PUT /api/config updates configuration."""
         response = client.put(
             "/api/config", json={"config": {"server": {"port": 9999}}}
@@ -141,7 +141,7 @@ class TestServerIntegration:
         # API may accept or reject this update
         assert response.status_code in [200, 422]
 
-    def test_api_toggle_module(self, client):
+    def test_api_toggle_module(self, client) -> None:
         """Test PUT /api/modules/{name}/toggle toggles module."""
         response = client.put(
             "/api/modules/transcriber/toggle", json={"enabled": False}
@@ -150,21 +150,21 @@ class TestServerIntegration:
         # Module may not exist in the pipeline, so 404 is OK
         assert response.status_code in [200, 404]
 
-    def test_static_css_served(self, client):
+    def test_static_css_served(self, client) -> None:
         """Test static CSS files are served."""
         response = client.get("/css/styles.css")
 
         # May 404 if file doesn't exist in test env
         assert response.status_code in [200, 404]
 
-    def test_static_js_served(self, client):
+    def test_static_js_served(self, client) -> None:
         """Test static JS files are served."""
         # Try to access a JS file
         response = client.get("/js/app.js")
 
         assert response.status_code in [200, 404]
 
-    def test_hls_directory_served(self, client):
+    def test_hls_directory_served(self, client) -> None:
         """Test HLS directory is accessible."""
         response = client.get("/hls/")
 
@@ -175,7 +175,7 @@ class TestServerIntegration:
 class TestServerCORS:
     """Tests for CORS configuration."""
 
-    def test_cors_headers_present(self):
+    def test_cors_headers_present(self) -> None:
         """Test CORS headers are present in responses."""
         config = ConfigManager()
         pipeline = Pipeline()
@@ -209,7 +209,7 @@ class TestServerCORS:
 class TestServerErrorHandling:
     """Tests for server error handling."""
 
-    def test_404_for_unknown_route(self):
+    def test_404_for_unknown_route(self) -> None:
         """Test 404 is returned for unknown routes."""
         from server.app import create_app
 
@@ -231,7 +231,7 @@ class TestServerErrorHandling:
 class TestServerWebSocket:
     """Tests for WebSocket endpoint."""
 
-    def test_websocket_endpoint_registered(self):
+    def test_websocket_endpoint_registered(self) -> None:
         """Test WebSocket endpoint is registered."""
         from server.app import create_app
 

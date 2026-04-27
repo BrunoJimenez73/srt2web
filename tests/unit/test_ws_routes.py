@@ -13,7 +13,7 @@ from server.ws_routes import LogBroadcaster, create_ws_router
 class TestLogBroadcaster:
     """Tests for LogBroadcaster class."""
 
-    def test_init(self):
+    def test_init(self) -> None:
         """Test broadcaster initialization."""
         broadcaster = LogBroadcaster()
 
@@ -21,7 +21,7 @@ class TestLogBroadcaster:
         assert broadcaster._loop is None
         assert len(broadcaster._buffer) == 0
 
-    def test_set_loop(self):
+    def test_set_loop(self) -> None:
         """Test setting the event loop."""
         broadcaster = LogBroadcaster()
         mock_loop = Mock()
@@ -41,7 +41,7 @@ class TestLogBroadcaster:
         mock_ws.accept.assert_called_once()
         assert mock_ws in broadcaster._subscribers
 
-    def test_unsubscribe(self):
+    def test_unsubscribe(self) -> None:
         """Test unsubscribing a WebSocket."""
         broadcaster = LogBroadcaster()
         mock_ws = Mock()
@@ -51,7 +51,7 @@ class TestLogBroadcaster:
 
         assert mock_ws not in broadcaster._subscribers
 
-    def test_broadcast_buffers_message(self):
+    def test_broadcast_buffers_message(self) -> None:
         """Test that broadcast buffers the message."""
         broadcaster = LogBroadcaster()
 
@@ -62,7 +62,7 @@ class TestLogBroadcaster:
         assert msg["message"] == "Test message"
         assert msg["level"] == "info"
 
-    def test_broadcast_respects_max_buffer(self):
+    def test_broadcast_respects_max_buffer(self) -> None:
         """Test that broadcast respects max buffer size."""
         broadcaster = LogBroadcaster()
         broadcaster._max_buffer = 5
@@ -72,7 +72,7 @@ class TestLogBroadcaster:
 
         assert len(broadcaster._buffer) == 5
 
-    def test_broadcast_status(self):
+    def test_broadcast_status(self) -> None:
         """Test broadcasting status updates."""
         broadcaster = LogBroadcaster()
 
@@ -84,7 +84,7 @@ class TestLogBroadcaster:
 class TestWsRouter:
     """Tests for WebSocket router."""
 
-    def test_ws_endpoint_exists(self):
+    def test_ws_endpoint_exists(self) -> None:
         """Test that WebSocket endpoint is registered."""
         router = create_ws_router()
 
@@ -128,13 +128,13 @@ class TestWebSocketIntegration:
 class TestLogBroadcasterThreadSafety:
     """Tests for thread safety of LogBroadcaster."""
 
-    def test_broadcast_from_thread(self):
+    def test_broadcast_from_thread(self) -> None:
         """Test broadcasting from a separate thread."""
         import threading
 
         broadcaster = LogBroadcaster()
 
-        def broadcast_message():
+        def broadcast_message() -> None:
             broadcaster.broadcast("info", "Thread message")
 
         thread = threading.Thread(target=broadcast_message)
@@ -144,13 +144,13 @@ class TestLogBroadcasterThreadSafety:
         # Should not raise and should buffer the message
         assert len(broadcaster._buffer) == 1
 
-    def test_multiple_threads(self):
+    def test_multiple_threads(self) -> None:
         """Test broadcasting from multiple threads."""
         import threading
 
         broadcaster = LogBroadcaster()
 
-        def broadcast_many():
+        def broadcast_many() -> None:
             for i in range(10):
                 broadcaster.broadcast("info", f"Message {i}")
 
@@ -168,7 +168,7 @@ class TestLogBroadcasterThreadSafety:
 class TestWsMessageTypes:
     """Tests for different WebSocket message types."""
 
-    def test_log_message_format(self):
+    def test_log_message_format(self) -> None:
         """Test log message format."""
         import time
 
@@ -184,7 +184,7 @@ class TestWsMessageTypes:
         assert msg["message"] == "Test error message"
         assert before <= msg["timestamp"] <= after
 
-    def test_status_message_format(self):
+    def test_status_message_format(self) -> None:
         """Test status message format is correct."""
         broadcaster = LogBroadcaster()
 

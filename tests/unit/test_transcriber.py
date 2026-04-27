@@ -25,18 +25,18 @@ from core.module_base import PipelineData, ModuleState
 class TestTranscriber:
     """Tests for Transcriber class."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Reset mocks before each test."""
         mock_fw.WhisperModel.reset_mock()
         mock_torch.cuda.is_available.reset_mock()
 
-    def test_init(self):
+    def test_init(self) -> None:
         """Test initialization and config."""
         trans = Transcriber({"model": "base", "language": "auto"})
         assert trans._model_size == "base"
         assert trans._language is None  # "auto" maps to None
 
-    def test_start_auto_cpu(self):
+    def test_start_auto_cpu(self) -> None:
         """Test model loading with CPU fallback."""
         mock_torch.cuda.is_available.return_value = False
         trans = Transcriber()
@@ -53,7 +53,7 @@ class TestTranscriber:
         assert kwargs["device"] == "cpu"
         assert kwargs["compute_type"] == "int8"
 
-    def test_start_auto_gpu(self):
+    def test_start_auto_gpu(self) -> None:
         """Test model loading with GPU."""
         mock_torch.cuda.is_available.return_value = True
         trans = Transcriber()
@@ -67,7 +67,7 @@ class TestTranscriber:
         assert kwargs["device"] == "cuda"
         assert kwargs["compute_type"] == "float16"
 
-    def test_stop(self):
+    def test_stop(self) -> None:
         """Test cleanup."""
         trans = Transcriber()
         trans._model = MagicMock()
@@ -79,7 +79,7 @@ class TestTranscriber:
         assert trans.state == ModuleState.IDLE
         mock_torch.cuda.empty_cache.assert_called_once()
 
-    def test_do_process(self):
+    def test_do_process(self) -> None:
         """Test transcription processing."""
         trans = Transcriber()
         mock_model = MagicMock()
@@ -112,7 +112,7 @@ class TestTranscriber:
         assert args[0] == "/tmp/audio.wav"
         assert kwargs["vad_filter"] is True
 
-    def test_do_process_no_model(self):
+    def test_do_process_no_model(self) -> None:
         """Test processing when model is not loaded."""
         trans = Transcriber()
         trans._model = None
@@ -122,7 +122,7 @@ class TestTranscriber:
         
         assert result.transcript is None
 
-    def test_do_process_error_handling(self):
+    def test_do_process_error_handling(self) -> None:
         """Test error handling during transcription."""
         trans = Transcriber()
         mock_model = MagicMock()

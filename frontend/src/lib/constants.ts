@@ -15,7 +15,8 @@ export const STORAGE_KEYS = {
   THEME: 'srt2web_theme',
   LOG_FILTER: 'srt2web_log_filter',
   LAST_CONFIG: 'srt2web_last_config',
-  SHOW_LOGS: 'srt2web_show_logs'
+  SHOW_LOGS: 'srt2web_show_logs',
+  LANGUAGE: 'srt2web_language'
 } as const;
 
 // ── Mensajes de UI ────────────────────────────────────────────────────────────

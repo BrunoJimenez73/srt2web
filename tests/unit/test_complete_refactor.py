@@ -18,14 +18,14 @@ class TestCompleteRefactor:
     """Verifica todo el flujo de la refactorización."""
 
     @pytest.fixture
-    def frontend_root(self):
+    def frontend_root(self) -> None:
         return Path(__file__).parent.parent.parent / "frontend"
 
     @pytest.fixture
-    def src_lib(self, frontend_root):
+    def src_lib(self, frontend_root) -> None:
         return frontend_root / "src" / "lib"
 
-    def test_1_store_structure_complete(self, src_lib):
+    def test_1_store_structure_complete(self, src_lib) -> None:
         """Verifica que la estructura del store está completa."""
         # Directorio store existe
         store_dir = src_lib / "store"
@@ -40,7 +40,7 @@ class TestCompleteRefactor:
         assert signals_file.exists(), "store/signals.ts missing"
         assert effects_file.exists(), "store/effects.ts missing"
 
-    def test_2_signals_have_correct_exports(self, src_lib):
+    def test_2_signals_have_correct_exports(self, src_lib) -> None:
         """Verifica que signals.ts define todas las señales necesarias."""
         signals_file = src_lib / "store" / "signals.ts"
         content = signals_file.read_text(encoding='utf-8')
@@ -64,7 +64,7 @@ class TestCompleteRefactor:
         assert "function addLog" in content, "Missing addLog function"
         assert "function resetThroughput" in content, "Missing resetThroughput function"
 
-    def test_3_effects_subscribe_to_signals(self, src_lib):
+    def test_3_effects_subscribe_to_signals(self, src_lib) -> None:
         """Verifica que effects.ts suscribe a los cambios en las señales."""
         effects_file = src_lib / "store" / "effects.ts"
         content = effects_file.read_text(encoding='utf-8')
@@ -79,7 +79,7 @@ class TestCompleteRefactor:
         assert "connectionUrls.value" in content, "Effects should use connectionUrls"
         assert "wsConnected.value" in content, "Effects should use wsConnected"
 
-    def test_4_effects_update_dom(self, src_lib):
+    def test_4_effects_update_dom(self, src_lib) -> None:
         """Verifica que los efectos actualizan el DOM."""
         effects_file = src_lib / "store" / "effects.ts"
         content = effects_file.read_text(encoding='utf-8')
@@ -91,7 +91,7 @@ class TestCompleteRefactor:
         assert "ws-status" in content, "Should update WS status"
         assert "module-time-" in content or "module-chunks-" in content, "Should update module metrics"
 
-    def test_5_store_index_exports_all(self, src_lib):
+    def test_5_store_index_exports_all(self, src_lib) -> None:
         """Verifica que store/index.ts exporta todo correctamente."""
         index_file = src_lib / "store" / "index.ts"
         content = index_file.read_text(encoding='utf-8')
@@ -110,7 +110,7 @@ class TestCompleteRefactor:
         # Legacy store (para compatibilidad)
         assert "dashboardStore" in content
 
-    def test_6_dashboard_uses_signals(self, src_lib):
+    def test_6_dashboard_uses_signals(self, src_lib) -> None:
         """Verifica que dashboard.ts usa señales en lugar de manipulación directa del DOM."""
         dashboard_file = src_lib / "dashboard.ts"
         content = dashboard_file.read_text(encoding='utf-8')
@@ -126,7 +126,7 @@ class TestCompleteRefactor:
         assert "pipelineConfig.value" in content, "Should update pipelineConfig.value"
         assert "updateStatus(result)" in content or "updateStatus(result);" in content
 
-    def test_7_dashboard_functions_exist(self, src_lib):
+    def test_7_dashboard_functions_exist(self, src_lib) -> None:
         """Verifica que las funciones necesarias existen en dashboard.ts."""
         dashboard_file = src_lib / "dashboard.ts"
         content = dashboard_file.read_text(encoding='utf-8')
@@ -144,7 +144,7 @@ class TestCompleteRefactor:
         assert "function handleInputTypeChange" in content
         assert "function handleTtsEngineChange" in content
 
-    def test_8_build_output_exists(self, frontend_root):
+    def test_8_build_output_exists(self, frontend_root) -> None:
         """Verifica que el build del frontend funciona."""
         server_static = frontend_root.parent / "server" / "static"
 
@@ -158,7 +158,7 @@ class TestCompleteRefactor:
         assert index_file.exists(), "index.html not built"
         assert player_file.exists(), "player/index.html not built"
 
-    def test_9_no_duplicate_exports(self, src_lib):
+    def test_9_no_duplicate_exports(self, src_lib) -> None:
         """Verifica que no hay exportaciones duplicadas en store/index.ts."""
         index_file = src_lib / "store" / "index.ts"
         content = index_file.read_text(encoding='utf-8')
@@ -168,7 +168,7 @@ class TestCompleteRefactor:
         connection_mode_lines = [line for line in lines if 'connectionMode' in line]
         assert len(connection_mode_lines) <= 2, f"Too many connectionMode references: {len(connection_mode_lines)}"
 
-    def test_10_modules_integrated(self, src_lib):
+    def test_10_modules_integrated(self, src_lib) -> None:
         """Verifica que los módulos (api.ts, config.ts, etc.) están integrados."""
         # api.ts debe existir
         api_file = src_lib / "api.ts"

@@ -12,19 +12,19 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 class TestRecordingOutputInitialization:
     """Test RecordingOutput initializes correctly."""
 
-    def test_recording_output_imports(self):
+    def test_recording_output_imports(self) -> None:
         """Test RecordingOutput can be imported."""
         from modules.outputs.recording_output import RecordingOutput
         assert RecordingOutput is not None
 
-    def test_recording_output_inherits_output_sink(self):
+    def test_recording_output_inherits_output_sink(self) -> None:
         """Test RecordingOutput inherits OutputSink."""
         from modules.outputs.recording_output import RecordingOutput
         from core.output_sink import OutputSink
         assert issubclass(RecordingOutput, OutputSink)
 
     @patch("modules.outputs.recording_output.ensure_ffmpeg")
-    def test_recording_output_default_config(self, mock_ffmpeg):
+    def test_recording_output_default_config(self, mock_ffmpeg) -> None:
         """Test RecordingOutput accepts default config."""
         from modules.outputs.recording_output import RecordingOutput
         config = {"output_path": "./output/test.mp4"}
@@ -36,13 +36,13 @@ class TestRecordingOutputWrite:
     """Test RecordingOutput writes data."""
 
     @patch("modules.outputs.recording_output.ensure_ffmpeg")
-    def test_recording_output_has_write_method(self, mock_ffmpeg):
+    def test_recording_output_has_write_method(self, mock_ffmpeg) -> None:
         """Test RecordingOutput has write method (from OutputSink)."""
         from modules.outputs.recording_output import RecordingOutput
         assert hasattr(RecordingOutput, "write")
 
     @patch("modules.outputs.recording_output.ensure_ffmpeg")
-    def test_recording_output_write_handles_none_video(self, mock_ffmpeg):
+    def test_recording_output_write_handles_none_video(self, mock_ffmpeg) -> None:
         """Test RecordingOutput write handles None video path."""
         from modules.outputs.recording_output import RecordingOutput
         from core.module_base import PipelineData
@@ -68,7 +68,7 @@ class TestRecordingOutputStop:
 
     @patch("modules.outputs.recording_output.subprocess.run")
     @patch("modules.outputs.recording_output.ensure_ffmpeg")
-    def test_recording_output_stop_method_exists(self, mock_ffmpeg, mock_run):
+    def test_recording_output_stop_method_exists(self, mock_ffmpeg, mock_run) -> None:
         """Test stop() method exists."""
         from modules.outputs.recording_output import RecordingOutput
         assert hasattr(RecordingOutput, "stop")
@@ -76,7 +76,7 @@ class TestRecordingOutputStop:
     @patch("modules.outputs.recording_output.ensure_ffmpeg")
     @patch("modules.outputs.recording_output.subprocess.run")
     @patch("pathlib.Path.exists")
-    def test_recording_output_stop_concatenates_when_chunks_exist(self, mock_exists, mock_run, mock_ffmpeg):
+    def test_recording_output_stop_concatenates_when_chunks_exist(self, mock_exists, mock_run, mock_ffmpeg) -> None:
         """Test stop() concatenates when chunks exist."""
         from modules.outputs.recording_output import RecordingOutput
 
@@ -98,7 +98,7 @@ class TestRecordingOutputStatus:
     """Test RecordingOutput provides status."""
 
     @patch("modules.outputs.recording_output.ensure_ffmpeg")
-    def test_recording_output_get_status_returns_dict(self, mock_ffmpeg):
+    def test_recording_output_get_status_returns_dict(self, mock_ffmpeg) -> None:
         """Test RecordingOutput returns status dict."""
         from modules.outputs.recording_output import RecordingOutput
 
@@ -115,7 +115,7 @@ class TestRecordingOutputExtra:
     """Test RecordingOutput extra info."""
 
     @patch("modules.outputs.recording_output.ensure_ffmpeg")
-    def test_recording_output_extra_has_encoder(self, mock_ffmpeg):
+    def test_recording_output_extra_has_encoder(self, mock_ffmpeg) -> None:
         """Test status extra has encoder info."""
         from modules.outputs.recording_output import RecordingOutput
 
@@ -131,7 +131,7 @@ class TestRecordingOutputConfig:
     """Test RecordingOutput config handling."""
 
     @patch("modules.outputs.recording_output.ensure_ffmpeg")
-    def test_recording_output_parses_codec(self, mock_ffmpeg):
+    def test_recording_output_parses_codec(self, mock_ffmpeg) -> None:
         """Test RecordingOutput parses codec from config."""
         from modules.outputs.recording_output import RecordingOutput
 
@@ -140,7 +140,7 @@ class TestRecordingOutputConfig:
         assert rec._codec == "h265"
 
     @patch("modules.outputs.recording_output.ensure_ffmpeg")
-    def test_recording_output_parses_format(self, mock_ffmpeg):
+    def test_recording_output_parses_format(self, mock_ffmpeg) -> None:
         """Test RecordingOutput parses format from config."""
         from modules.outputs.recording_output import RecordingOutput
 
@@ -153,7 +153,7 @@ class TestRecordingOutputMetrics:
     """Test RecordingOutput metrics tracking."""
 
     @patch("modules.outputs.recording_output.ensure_ffmpeg")
-    def test_recording_output_tracks_processed_chunks(self, mock_ffmpeg):
+    def test_recording_output_tracks_processed_chunks(self, mock_ffmpeg) -> None:
         """Test RecordingOutput tracks processed chunks."""
         from modules.outputs.recording_output import RecordingOutput
 
@@ -162,7 +162,7 @@ class TestRecordingOutputMetrics:
         assert hasattr(rec, "_processed_chunks")
 
     @patch("modules.outputs.recording_output.ensure_ffmpeg")
-    def test_recording_output_tracks_bytes_written(self, mock_ffmpeg):
+    def test_recording_output_tracks_bytes_written(self, mock_ffmpeg) -> None:
         """Test RecordingOutput tracks bytes written."""
         from modules.outputs.recording_output import RecordingOutput
 

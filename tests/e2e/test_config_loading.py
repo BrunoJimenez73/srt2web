@@ -15,11 +15,11 @@ class TestConfigLoadsFromServer:
     """Tests that config loads correctly from the running server."""
 
     @pytest.fixture
-    def running_server_url(self):
+    def running_server_url(self) -> None:
         """Get the running server URL."""
         return "http://127.0.0.1:9999"
 
-    def test_server_is_running(self, running_server_url):
+    def test_server_is_running(self, running_server_url) -> None:
         """Test that the server is accessible."""
         import requests
 
@@ -31,7 +31,7 @@ class TestConfigLoadsFromServer:
         except requests.exceptions.ConnectionError:
             pytest.skip("Server is not running - start it with python main.py")
 
-    def test_config_endpoint_returns_json(self, running_server_url):
+    def test_config_endpoint_returns_json(self, running_server_url) -> None:
         """Test that /api/config returns valid JSON."""
         import requests
 
@@ -45,7 +45,7 @@ class TestConfigLoadsFromServer:
         except requests.exceptions.ConnectionError:
             pytest.skip("Server is not running")
 
-    def test_config_has_required_sections(self, running_server_url):
+    def test_config_has_required_sections(self, running_server_url) -> None:
         """Test that config has all required sections."""
         import requests
 
@@ -65,11 +65,11 @@ class TestPortConfiguration:
     """Tests for port configuration correctness."""
 
     @pytest.fixture
-    def running_server_url(self):
+    def running_server_url(self) -> None:
         return "http://127.0.0.1:9999"
 
     @pytest.fixture
-    def config_data(self, running_server_url):
+    def config_data(self, running_server_url) -> None:
         """Load config from running server."""
         import requests
 
@@ -79,17 +79,17 @@ class TestPortConfiguration:
         except requests.exceptions.ConnectionError:
             pytest.skip("Server is not running")
 
-    def test_server_port_is_9999(self, config_data):
+    def test_server_port_is_9999(self, config_data) -> None:
         """Test that server port is 9999."""
         server_port = config_data.get("server", {}).get("port")
         assert server_port == 9999, f"Server port should be 9999, got {server_port}"
 
-    def test_srt_port_is_9000(self, config_data):
+    def test_srt_port_is_9000(self, config_data) -> None:
         """Test that SRT listen port is 9000."""
         srt_port = config_data.get("input", {}).get("srt", {}).get("listen_port")
         assert srt_port == 9000, f"SRT port should be 9000, got {srt_port}"
 
-    def test_srt_port_different_from_server(self, config_data):
+    def test_srt_port_different_from_server(self, config_data) -> None:
         """Test that SRT and server ports are different."""
         server_port = config_data.get("server", {}).get("port")
         srt_port = config_data.get("input", {}).get("srt", {}).get("listen_port")
@@ -99,12 +99,12 @@ class TestPortConfiguration:
             "This causes connection conflicts."
         )
 
-    def test_srt_port_is_valid(self, config_data):
+    def test_srt_port_is_valid(self, config_data) -> None:
         """Test that SRT port is in valid range."""
         srt_port = config_data.get("input", {}).get("srt", {}).get("listen_port")
         assert 1 <= srt_port <= 65535, f"SRT port {srt_port} is out of valid range"
 
-    def test_server_port_is_valid(self, config_data):
+    def test_server_port_is_valid(self, config_data) -> None:
         """Test that server port is in valid range."""
         server_port = config_data.get("server", {}).get("port")
         assert 1 <= server_port <= 65535, (
@@ -116,11 +116,11 @@ class TestModuleConfiguration:
     """Tests for module configuration."""
 
     @pytest.fixture
-    def running_server_url(self):
+    def running_server_url(self) -> None:
         return "http://127.0.0.1:9999"
 
     @pytest.fixture
-    def config_data(self, running_server_url):
+    def config_data(self, running_server_url) -> None:
         """Load config from running server."""
         import requests
 
@@ -130,7 +130,7 @@ class TestModuleConfiguration:
         except requests.exceptions.ConnectionError:
             pytest.skip("Server is not running")
 
-    def test_transcriber_has_valid_config(self, config_data):
+    def test_transcriber_has_valid_config(self, config_data) -> None:
         """Test that transcriber has valid configuration."""
         transcriber = config_data.get("modules", {}).get("transcriber", {})
 
@@ -153,13 +153,13 @@ class TestModuleConfiguration:
         if device not in valid_devices:
             pytest.skip(f"Transcriber has invalid device: {device}")
 
-    def test_translator_enabled(self, config_data):
+    def test_translator_enabled(self, config_data) -> None:
         """Test that translator is enabled."""
         translator = config_data.get("modules", {}).get("translator", {})
         enabled = translator.get("enabled")
         assert enabled is True, f"Translator should be enabled, got {enabled}"
 
-    def test_transcriber_enabled(self, config_data):
+    def test_transcriber_enabled(self, config_data) -> None:
         """Test that transcriber is enabled."""
         transcriber = config_data.get("modules", {}).get("transcriber", {})
         enabled = transcriber.get("enabled")
@@ -169,13 +169,13 @@ class TestModuleConfiguration:
                 "Transcriber is disabled - may be due to invalid model in config"
             )
 
-    def test_subtitle_generator_enabled(self, config_data):
+    def test_subtitle_generator_enabled(self, config_data) -> None:
         """Test that subtitle_generator is enabled by default."""
         subtitle_gen = config_data.get("modules", {}).get("subtitle_generator", {})
         enabled = subtitle_gen.get("enabled")
         assert enabled is True, f"Subtitle generator should be enabled, got {enabled}"
 
-    def test_video_muxer_enabled(self, config_data):
+    def test_video_muxer_enabled(self, config_data) -> None:
         """Test that video_muxer is enabled by default."""
         video_muxer = config_data.get("modules", {}).get("video_muxer", {})
         enabled = video_muxer.get("enabled")
@@ -186,7 +186,7 @@ class TestDashboardHTMLConfig:
     """Tests for dashboard HTML configuration elements."""
 
     @pytest.fixture
-    def dashboard_html(self):
+    def dashboard_html(self) -> None:
         """Load dashboard HTML."""
         html_path = Path(__file__).parent.parent.parent / "web" / "index.html"
         if html_path.exists():
@@ -194,7 +194,7 @@ class TestDashboardHTMLConfig:
                 return f.read()
         return None
 
-    def test_input_port_default_is_9000(self, dashboard_html):
+    def test_input_port_default_is_9000(self, dashboard_html) -> None:
         """Test that input-port field has default value of 9000."""
         if dashboard_html is None:
             pytest.skip("index.html not found")
@@ -202,14 +202,14 @@ class TestDashboardHTMLConfig:
         assert 'id="input-port"' in dashboard_html, "input-port element should exist"
         assert 'value="9000"' in dashboard_html, "input-port should default to 9000"
 
-    def test_whisper_toggle_exists(self, dashboard_html):
+    def test_whisper_toggle_exists(self, dashboard_html) -> None:
         """Test that whisper toggle exists."""
         if dashboard_html is None:
             pytest.skip("index.html not found")
 
         assert "adv-whisper-enabled" in dashboard_html, "Whisper toggle should exist"
 
-    def test_whisper_toggle_is_checked_by_default(self, dashboard_html):
+    def test_whisper_toggle_is_checked_by_default(self, dashboard_html) -> None:
         """Test that whisper toggle is checked by default."""
         if dashboard_html is None:
             pytest.skip("index.html not found")
@@ -219,7 +219,7 @@ class TestDashboardHTMLConfig:
             or 'id="adv-whisper-enabled" checked="checked"' in dashboard_html
         ), "Whisper toggle should be checked by default"
 
-    def test_hls_settings_exist(self, dashboard_html):
+    def test_hls_settings_exist(self, dashboard_html) -> None:
         """Test that HLS settings exist in the HTML."""
         if dashboard_html is None:
             pytest.skip("index.html not found")
@@ -228,7 +228,7 @@ class TestDashboardHTMLConfig:
         assert "adv-list" in dashboard_html, "HLS list size setting should exist"
         assert "adv-offset" in dashboard_html, "HLS offset setting should exist"
 
-    def test_no_duplicate_ids(self, dashboard_html):
+    def test_no_duplicate_ids(self, dashboard_html) -> None:
         """Test that there are no duplicate element IDs."""
         if dashboard_html is None:
             pytest.skip("index.html not found")
@@ -249,12 +249,12 @@ class TestDashboardHTMLConfig:
 class TestConfigFile:
     """Tests for config.yaml file directly."""
 
-    def test_config_yaml_exists(self):
+    def test_config_yaml_exists(self) -> None:
         """Test that config.yaml exists."""
         config_path = Path(__file__).parent.parent.parent / "config" / "config.yaml"
         assert config_path.exists(), f"config.yaml not found at {config_path}"
 
-    def test_config_yaml_is_valid_yaml(self):
+    def test_config_yaml_is_valid_yaml(self) -> None:
         """Test that config.yaml is valid YAML."""
         import yaml
 
@@ -265,7 +265,7 @@ class TestConfigFile:
         except yaml.YAMLError as e:
             pytest.fail(f"config.yaml is not valid YAML: {e}")
 
-    def test_config_yaml_srt_port_is_9000(self):
+    def test_config_yaml_srt_port_is_9000(self) -> None:
         """Test that config.yaml has a valid SRT listen port."""
         import yaml
 
@@ -280,7 +280,7 @@ class TestConfigFile:
             f"config.yaml SRT port {srt_port} is out of valid range"
         )
 
-    def test_config_yaml_server_port_is_9999(self):
+    def test_config_yaml_server_port_is_9999(self) -> None:
         """Test that config.yaml has a valid server port."""
         import yaml
 
@@ -294,7 +294,7 @@ class TestConfigFile:
             f"config.yaml server port {server_port} is out of valid range"
         )
 
-    def test_config_yaml_no_port_conflict(self):
+    def test_config_yaml_no_port_conflict(self) -> None:
         """Test that config.yaml has no port conflict."""
         import yaml
 
@@ -314,10 +314,10 @@ class TestAPIEndpoints:
     """Tests for API endpoints."""
 
     @pytest.fixture
-    def running_server_url(self):
+    def running_server_url(self) -> None:
         return "http://127.0.0.1:9999"
 
-    def test_status_endpoint(self, running_server_url):
+    def test_status_endpoint(self, running_server_url) -> None:
         """Test that /api/status endpoint works."""
         import requests
 
@@ -329,7 +329,7 @@ class TestAPIEndpoints:
         except requests.exceptions.ConnectionError:
             pytest.skip("Server is not running")
 
-    def test_srt_info_endpoint(self, running_server_url):
+    def test_srt_info_endpoint(self, running_server_url) -> None:
         """Test that /api/srt-info endpoint returns correct port."""
         import requests
 
@@ -345,7 +345,7 @@ class TestAPIEndpoints:
         except requests.exceptions.ConnectionError:
             pytest.skip("Server is not running")
 
-    def test_start_endpoint_works(self, running_server_url):
+    def test_start_endpoint_works(self, running_server_url) -> None:
         """Test that /api/start endpoint works (pipeline may fail without input)."""
         import requests
 
@@ -359,7 +359,7 @@ class TestAPIEndpoints:
         except requests.exceptions.Timeout:
             pytest.skip("Start endpoint timed out")
 
-    def test_stop_endpoint_works(self, running_server_url):
+    def test_stop_endpoint_works(self, running_server_url) -> None:
         """Test that /api/stop endpoint works."""
         import requests
 
