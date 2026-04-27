@@ -1,6 +1,6 @@
 /**
  * Constantes globales - Textos, mensajes y valores fijos
- * 
+ *
  * Todos los strings literales que se muestran en la UI
  * deben definirse aquí para facilitar traducciones y mantenimiento.
  */
@@ -27,42 +27,42 @@ export const MESSAGES = {
   PIPELINE_STOPPING: 'Deteniendo pipeline...',
   PIPELINE_STOPPED: 'Pipeline detenido',
   PIPELINE_CONFIRM_STOP: '¿Está seguro que desea detener el pipeline?',
-  
+
   // Configuración
   CONFIG_SAVED: 'Configuración guardada correctamente',
   CONFIG_SAVE_ERROR: 'Error al guardar configuración',
   CONFIG_LOAD_ERROR: 'Error al cargar configuración',
-  
+
   // Inputs
   INPUT_FILE_SELECTED: 'Archivo seleccionado. Ingrese la ruta completa manualmente.',
   INPUT_FILE_PLAY: 'Reproducción reanudada',
   INPUT_FILE_PAUSE: 'Reproducción pausada',
   INPUT_FILE_SEEK_ERROR: 'Error al buscar posición',
-  
+
   // Copiar URL
   URL_COPIED: 'URL copiada al portapapeles',
   URL_COPY_ERROR: 'Error al copiar URL',
-  
+
   // WebSocket
   WS_CONNECTED: 'Conectado al servidor',
   WS_DISCONNECTED: 'WebSocket desconectado',
   WS_ERROR: 'Error de conexión WebSocket',
-  
+
   // General
   LOADING: 'Cargando...',
   ERROR: 'Ha ocurrido un error',
   SUCCESS: 'Operación completada correctamente',
   WARNING: 'Advertencia',
   INFO: 'Información',
-  
+
   // Notificaciones
   TOAST_DURATION: 3000,
-  
+
   // Logs
   LOG_PANEL_PLACEHOLDER: 'Esperando logs...',
   LOG_SEARCH_PLACEHOLDER: 'Buscar en logs...',
   LOG_CLEAR: 'Limpiar logs',
-  
+
   // Outputs
   OUTPUT_CREATED: 'Salida creada correctamente',
   OUTPUT_REMOVED: 'Salida eliminada',
@@ -113,7 +113,7 @@ export const OUTPUT_TYPES = {
 
 // ── Intervalos de tiempo ──────────────────────────────────────────────────────
 export const INTERVALS = {
-  STATUS_POLL: 2000,
+  STATUS_POLL: 5000,
   FILE_POLL: 500,
   SEEK_DEBOUNCE: 100,
   RECONNECT_BASE: 1000,

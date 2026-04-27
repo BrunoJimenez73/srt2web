@@ -1,45 +1,53 @@
 ---
 interface Props {
-  id: string;
-  icon: string;
   title: string;
+  indicatorId: string;
+  toggleId?: string;
+  gpuBadgeId?: string;
+  showGpuBadge?: boolean;
   active?: boolean;
+  hoverable?: boolean;
+  class?: string;
 }
-
-const { id, icon, title, active = false } = Astro.props;
+const {
+  title,
+  indicatorId,
+  toggleId,
+  gpuBadgeId,
+  showGpuBadge = false,
+  active = false,
+  hoverable = false,
+  class: className = '',
+  ...rest
+} = Astro.props as Props;
 ---
 
-<div class:list={["process-card", { active }]} id={`card-${id}`}>
+<Card hoverable={hoverable} active={active} class={className} {...rest}>
   <div class="process-header">
-    <span class="process-indicator" id={`indicator-${id}`}></span>
-    <span class="process-title">{icon} {title}</span>
+    <span class="process-indicator" id={indicatorId}></span>
+    <span class="process-title">{title}</span>
+    {showGpuBadge && (
+      <span class="gpu-badge" id={gpuBadgeId} style="display: none;">GPU</span>
+    )}
+    {toggleId && (
+      <label class="toggle-switch">
+        <input type="checkbox" id={toggleId} onchange={`window.toggleModule('${title.toLowerCase()}', this.checked)`} />
+        <span class="toggle-slider"></span>
+      </label>
+    )}
   </div>
   <div class="process-content">
     <slot />
   </div>
-</div>
+</Card>
 
 <style>
-  .process-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-dim);
-    border-radius: var(--radius-md);
-    padding: 12px;
-    transition: all 0.3s ease;
-  }
-
-  .process-card.active {
-    border-color: var(--success);
-    box-shadow: 0 0 12px rgba(16, 185, 129, 0.3) !important;
-  }
-
   .process-header {
     display: flex;
     align-items: center;
     gap: 8px;
     margin-bottom: 10px;
   }
-
   .process-indicator {
     width: 8px;
     height: 8px;
@@ -47,28 +55,77 @@ const { id, icon, title, active = false } = Astro.props;
     background: var(--text-dim);
     transition: all 0.3s ease;
   }
-
   .process-indicator.active {
-    background: #00ff00;
-    box-shadow: 0 0 6px #00ff00, 0 0 12px #00ff00;
+    background: #00ff00 !important;
+    box-shadow: 0 0 6px #00ff00, 0 0 12px #00ff00 !important;
     animation: indicator-pulse 1.5s ease-in-out infinite;
   }
-
   @keyframes indicator-pulse {
-    0%, 100% { opacity: 0.8; box-shadow: 0 0 4px #00ff00, 0 0 8px #00ff00; }
-    50% { opacity: 1; box-shadow: 0 0 8px #00ff00, 0 0 16px #00ff00, 0 0 24px #00ff00; }
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; }
   }
-
   .process-title {
     font-size: 11px;
     font-weight: 600;
     color: var(--text-prime);
     flex: 1;
   }
-
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+  }
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--text-dim);
+    transition: 0.3s;
+    border-radius: 20px;
+  }
+  .toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+  }
+  input:checked + .toggle-slider {
+    background-color: var(--success);
+  }
+  input:checked + .toggle-slider:before {
+    transform: translateX(16px);
+  }
   .process-content {
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+  .gpu-badge {
+    background: var(--text-dim);
+    color: var(--text-sec);
+    font-size: 8px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+  }
+  .gpu-badge.active {
+    background: linear-gradient(135deg, #76b900, #a8e600);
+    color: #000;
   }
 </style>

@@ -4,7 +4,6 @@ FFmpeg Watchdog - Monitors FFmpeg processes for crashes and hangs.
 Provides automatic restart capability when FFmpeg fails.
 """
 
-import os
 import sys
 import time
 import logging
@@ -215,10 +214,10 @@ class ProcessManager:
     and automatically cleans up orphaned processes.
     """
 
-    _instance: Optional[ProcessManager] = None
+    _instance: Optional["ProcessManager"] = None
     _lock: threading.Lock = threading.Lock()
 
-    def __new__(cls) -> ProcessManager:
+    def __new__(cls) -> "ProcessManager":
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:

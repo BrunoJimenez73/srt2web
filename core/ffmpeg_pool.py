@@ -24,6 +24,7 @@ logger = logging.getLogger("srt2web.ffmpeg_pool")
 @dataclass
 class JobSlot:
     """Registro de un job activo en el pool."""
+
     job_id: str
     acquired_at: float = field(default_factory=time.time)
     description: str = ""
@@ -67,7 +68,9 @@ class FFmpegPool:
         with self._lock:
             self._active[job_id] = JobSlot(job_id=job_id)
 
-        logger.debug(f"FFmpegPool: slot acquired for job={job_id} (active={len(self._active)}/{self.max_size})")
+        logger.debug(
+            f"FFmpegPool: slot acquired for job={job_id} (active={len(self._active)}/{self.max_size})"
+        )
         return True
 
     def release(self, job_id: str) -> None:
@@ -80,7 +83,9 @@ class FFmpegPool:
             del self._active[job_id]
 
         self._semaphore.release()
-        logger.debug(f"FFmpegPool: slot released for job={job_id} (held {elapsed:.1f}s, active={len(self._active)}/{self.max_size})")
+        logger.debug(
+            f"FFmpegPool: slot released for job={job_id} (held {elapsed:.1f}s, active={len(self._active)}/{self.max_size})"
+        )
 
     def get_stats(self) -> Dict:
         """Estadísticas actuales del pool."""
@@ -110,12 +115,26 @@ _pool: Optional[FFmpegPool] = None
 _pool_lock = threading.Lock()
 
 
-def get_pool() -> FFmpegPool:
-    """Obtener (o crear) el pool global de FFmpeg."""
+def get_pool(config_manager=None) -> FFmpegPool:
+    """
+    Obtener (o crear) el pool global de FFmpeg.
+
+    Args:
+        config_manager: ConfigManager instance para leer configuración.
+                        Si no se proporciona, usa valores por defecto.
+    """
     global _pool
     with _pool_lock:
         if _pool is None:
-            _pool = FFmpegPool(max_size=4, idle_timeout=30.0)
+            # Leer configuración o usar valores por defecto
+            max_size = 4
+            idle_timeout = 30.0
+            if config_manager:
+                max_size = config_manager.get("modules.audio_extractor.pool_size", 4)
+                idle_timeout = config_manager.get(
+                    "modules.audio_extractor.pool_idle_timeout", 30.0
+                )
+            _pool = FFmpegPool(max_size=max_size, idle_timeout=idle_timeout)
     return _pool
 
 

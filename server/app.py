@@ -4,12 +4,11 @@ FastAPI application for SRT2Web.
 Serves the web GUI, HLS segments, and API endpoints.
 """
 
-import os
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -78,7 +77,8 @@ def create_app(app_context: dict) -> FastAPI:
     app.add_middleware(
         RequestSizeLimitMiddleware,
         max_size_bytes=config.get("server.max_request_size_mb", 1) * 1_048_576
-        if config else 1_048_576,
+        if config
+        else 1_048_576,
     )
 
     # Security headers
@@ -86,8 +86,7 @@ def create_app(app_context: dict) -> FastAPI:
 
     # Rate limiting
     rate_limiter = RateLimiter(
-        requests_per_minute=config.get("server.rate_limit_rpm", 60)
-        if config else 60
+        requests_per_minute=config.get("server.rate_limit_rpm", 60) if config else 60
     )
     app.add_middleware(
         RateLimitMiddleware,
@@ -101,19 +100,15 @@ def create_app(app_context: dict) -> FastAPI:
         get_auth_token=lambda: config.get("server.auth_token", "") if config else "",
     )
 
-    # CORS
-    cors_origins = [
-        "http://localhost:8080",
-        "http://localhost:8089",
-        "http://localhost:9999",
-        "http://127.0.0.1:8080",
-        "http://127.0.0.1:8089",
-        "http://127.0.0.1:9999",
-    ]
+    # CORS - use ConfigManager, fallback to schema defaults
+    cors_origins = []
     if config:
-        configured_origins = config.get("server.cors_origins", [])
-        if configured_origins:
-            cors_origins = configured_origins
+        cors_origins = config.get("server.cors_origins", [])
+    if not cors_origins:
+        # Fallback to default from schema if not configured
+        from core.config_schema import ServerConfig
+
+        cors_origins = ServerConfig().cors_origins
 
     allowed_origins = []
     for origin in cors_origins:
@@ -155,7 +150,11 @@ def create_app(app_context: dict) -> FastAPI:
     subtitles_dir = OUTPUT_DIR / "subtitles"
     subtitles_dir.mkdir(parents=True, exist_ok=True)
     logger.info(f"Mounting /subtitles at: {subtitles_dir}")
-    app.mount("/subtitles", StaticFiles(directory=str(subtitles_dir), html=False), name="subtitles")
+    app.mount(
+        "/subtitles",
+        StaticFiles(directory=str(subtitles_dir), html=False),
+        name="subtitles",
+    )
 
     if FRONTEND_DIR.exists():
         static_files = StaticFiles(directory=str(FRONTEND_DIR), html=True)
