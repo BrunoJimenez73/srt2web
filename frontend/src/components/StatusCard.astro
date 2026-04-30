@@ -17,11 +17,11 @@ const { state = 'idle' } = Astro.props;
       <button class="mode-btn" data-mode="remote" id="btn-mode-remote" aria-label="Modo remoto">🌐 REMOTE</button>
     </div>
     <div class="status-right">
-      <button class="btn-stop" id="btn-stop" disabled aria-label="Detener el pipeline de procesamiento">
+      <button class="btn-stop" id="btn-stop" disabled aria-label="Detener el pipeline de procesamiento" onclick="window.stopPipeline()">
         <span class="btn-text">⏹ Detener</span>
         <span class="btn-loading" aria-hidden="true">⏳</span>
       </button>
-      <button class="btn-start" id="btn-start" aria-label="Iniciar el pipeline de procesamiento">
+      <button class="btn-start" id="btn-start" aria-label="Iniciar el pipeline de procesamiento" onclick="window.startPipeline()">
         <span class="btn-text">▶ Iniciar</span>
         <span class="btn-loading" aria-hidden="true">⏳</span>
       </button>

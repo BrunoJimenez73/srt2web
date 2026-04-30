@@ -14,19 +14,19 @@ input:
     mode: listener
     latency_ms: 200
     caller_address: ''
-    chunk_duration_sec: 3
+    chunk_duration_sec: 4
   rtmp:
     listen_port: 1935
     app: live
     stream_key: stream
     url: ''
     mode: listener
-    chunk_duration_sec: 3
+    chunk_duration_sec: 15
   file:
     path: ''
     loop: false
     speed: 1.0
-    chunk_duration_sec: 3
+    chunk_duration_sec: 15
 output:
   type: web
   web:
@@ -85,20 +85,30 @@ output:
       list_size: 6
       audio_offset_ms: 0
       encoder_mode: auto
-  - name: recording_1777233753464
+  - name: file_1777589666302
+    type: file
+    enabled: true
+    config:
+      type: file
+      name: file_1777589666302
+      output_path: ./output/recording.mp4
+      save_video: true
+      save_audio: true
+      save_subs: true
+  - name: recording_1777589702607
     type: recording
     enabled: true
     config:
       type: recording
-      name: recording_1777233753464
-      output_path: ./output/recording.mp4
+      name: recording_1777589702607
+      output_path: ./output/grabacion.mp4
       format: mp4
       codec: copy
       audio_codec: aac
 pipeline:
-  chunk_duration_sec: 3
+  chunk_duration_sec: 4
   mode: thread_parallel
-  max_concurrent_chunks: 2
+  max_concurrent_chunks: 4
   buffer_size: 2
   retry_attempts: 2
   retry_delay: 1.0
@@ -119,7 +129,7 @@ modules:
     enabled: true
     format: srt
     use_translated: true
-    chunk_duration: 3
+    chunk_duration: 4
   tts_engine:
     enabled: true
     engine: piper
@@ -134,7 +144,7 @@ modules:
   video_muxer:
     enabled: true
     engine: hls
-    hls_segment_duration: 3
+    hls_segment_duration: 4
     hls_list_size: 6
     audio_offset_ms: 0
     encoder_mode: auto

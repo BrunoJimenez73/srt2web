@@ -13,17 +13,15 @@ Configuración (output.web o output.hls):
 import os
 import sys
 import glob
-import logging
 import subprocess
 import threading
-from pathlib import Path
 from typing import Optional
 
 from core.output_sink import OutputSink
 from core.module_base import PipelineData
 from core.ffmpeg_utils import ensure_ffmpeg, check_gpu_support
 from core.encoder_config import EncoderConfig
-from core.ffmpeg_pool import get_pool, shutdown_pool
+from core.ffmpeg_pool import shutdown_pool
 
 
 class HLSOutput(OutputSink):
@@ -79,8 +77,8 @@ class HLSOutput(OutputSink):
         return {
             "type": "web",
             "hls_dir": self._hls_dir,
-            "master_url": f"/hls/master.m3u8",
-            "stream_url": f"/hls/stream.m3u8",
+            "master_url": "/hls/master.m3u8",
+            "stream_url": "/hls/stream.m3u8",
             "segment_duration": self._segment_duration,
         }
 
@@ -119,7 +117,7 @@ class HLSOutput(OutputSink):
                 f.write("#EXTM3U\n")
                 f.write("#EXT-X-VERSION:4\n")
                 f.write(
-                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="subs.vtt"\n'
+                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="/subtitles/subs.vtt"\n'
                 )
                 f.write(
                     '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"\n'
@@ -148,8 +146,9 @@ class HLSOutput(OutputSink):
             PipelineData con video_chunk_path y opcionalmente audio paths.
         """
         import time
+
         start_time = time.perf_counter()
-        
+
         input_path = data.video_chunk_path
         if not input_path or not os.path.exists(input_path):
             self.logger.warning(f"No input video chunk for index {data.chunk_index}")
@@ -159,7 +158,9 @@ class HLSOutput(OutputSink):
         audio_input = data.mixed_audio_path or data.dubbed_audio_path
 
         # Calcular offset de tiempo - usar cumulative_duration para sincronizar con subtitles
-        offset_sec = f"{getattr(data, 'cumulative_duration', self._total_duration_emitted):.3f}"
+        offset_sec = (
+            f"{getattr(data, 'cumulative_duration', self._total_duration_emitted):.3f}"
+        )
         chunk_duration = data.duration or self._segment_duration
 
         # Guardar duración para el manifest
@@ -365,8 +366,11 @@ class HLSOutput(OutputSink):
                 self.logger.error(f"Failed to write media playlist: {e}")
 
             # Escribir master playlist
-            subs_path = os.path.join(self._hls_dir, "subs.vtt")
-            has_subs = os.path.exists(subs_path)
+            # Check subtitles directory (where SubtitleGenerator writes) first, then hls dir
+            subs_dir = os.path.join(self._output_dir or "./output", "subtitles")
+            subs_path_local = os.path.join(subs_dir, "subs.vtt")
+            subs_path_hls = os.path.join(self._hls_dir, "subs.vtt")
+            has_subs = os.path.exists(subs_path_local) or os.path.exists(subs_path_hls)
 
             master_lines = [
                 "#EXTM3U",
@@ -374,8 +378,9 @@ class HLSOutput(OutputSink):
             ]
 
             if has_subs:
+                # Use the mounted /subtitles endpoint so browser can fetch it
                 master_lines.append(
-                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="subs.vtt"'
+                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="/subtitles/subs.vtt"'
                 )
                 master_lines.append(
                     '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"'
@@ -398,10 +403,16 @@ class HLSOutput(OutputSink):
         using_gpu = False
         actual_encoder = "libx264"
         encoder_label = "CPU"
-        
+
         encoder_mode = self._encoder_config.encoder_mode
-        
-        if self._ffmpeg_path and encoder_mode in ["auto", "gpu_nvenc", "gpu_amf", "gpu_qsv", "gpu_vaapi"]:
+
+        if self._ffmpeg_path and encoder_mode in [
+            "auto",
+            "gpu_nvenc",
+            "gpu_amf",
+            "gpu_qsv",
+            "gpu_vaapi",
+        ]:
             if encoder_mode == "gpu_nvenc" and self._gpu_info["nvenc"]:
                 using_gpu = True
                 actual_encoder = "h264_nvenc"
@@ -422,11 +433,11 @@ class HLSOutput(OutputSink):
                 using_gpu = True
                 actual_encoder = "h264_qsv"
                 encoder_label = "H.264 QSV"
-        
+
         if not using_gpu:
             actual_encoder = "libx264"
             encoder_label = "H.264 CPU"
-        
+
         return {
             "name": "video_muxer",
             "state": "running" if self._hls_dir else "idle",
@@ -440,7 +451,7 @@ class HLSOutput(OutputSink):
                 "gpu_available": self._gpu_info,
                 "gpu_preset": self._encoder_config.gpu_preset,
                 "encoder_label": encoder_label,
-            }
+            },
         }
 
 

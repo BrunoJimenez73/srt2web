@@ -7,19 +7,20 @@ Extraído para mejorar mantenibilidad.
 
 import logging
 import os
+import re
 from logging.handlers import RotatingFileHandler
-from typing import Optional, List
+from typing import Optional, List, Pattern
 
 
 class BroadcastHandler(logging.Handler):
     """Custom handler that sends logs to WebSocket subscribers."""
-    
+
     _broadcaster = None
-    
+
     @classmethod
     def set_broadcaster(cls, broadcaster):
         cls._broadcaster = broadcaster
-    
+
     def emit(self, record):
         if self._broadcaster is None:
             return
@@ -32,9 +33,9 @@ class BroadcastHandler(logging.Handler):
 
 class ConsoleFilter(logging.Filter):
     """Filter out security warnings from console output."""
-    
-    SECURITY_PATTERNS = ["SECURITY:", "auth_token not configured"]
-    
+
+    SECURITY_PATTERNS = ("SECURITY:", "auth_token not configured")
+
     def filter(self, record):
         msg = record.getMessage()
         for pattern in self.SECURITY_PATTERNS:
@@ -68,14 +69,18 @@ def get_filter_patterns() -> List[str]:
     ]
 
 
+def _compile_filter_pattern(patterns: List[str]) -> Pattern:
+    """Compile all filter patterns into a single regex for O(1) matching."""
+    escaped = [re.escape(p) for p in patterns]
+    return re.compile("|".join(escaped))
+
+
 def setup_logging(
-    log_file: Optional[str] = None,
-    log_broadcaster=None,
-    log_level: int = logging.DEBUG
+    log_file: Optional[str] = None, log_broadcaster=None, log_level: int = logging.DEBUG
 ) -> None:
     """
     Configure logging with console, file, and WebSocket broadcast.
-    
+
     Args:
         log_file: Path to log file. If None, uses default 'logs/srt2web.log'
         log_broadcaster: LogBroadcaster instance for WebSocket broadcast
@@ -84,23 +89,40 @@ def setup_logging(
     # Set broadcaster for BroadcastHandler
     if log_broadcaster:
         BroadcastHandler.set_broadcaster(log_broadcaster)
-    
-    FILTER_PATTERNS = get_filter_patterns()
-    
+
+    # Compile filter pattern once (single regex pass per log line)
+    filter_regex = _compile_filter_pattern(get_filter_patterns())
+
     class FilteredBroadcastHandler(logging.Handler):
         """Broadcast handler that filters noisy messages."""
-        
+
         def emit(self, record):
             try:
                 msg = self.format(record)
-                for pattern in FILTER_PATTERNS:
-                    if pattern in msg or pattern in record.name:
-                        return
+                # Single regex pass instead of O(n) pattern iterations
+                if filter_regex.search(msg) or filter_regex.search(record.name):
+                    return
                 if log_broadcaster:
                     log_broadcaster.broadcast(record.levelname.lower(), msg)
             except Exception:
                 pass
-    
+
+    class FilteredFileHandler(logging.Handler):
+        """File handler that filters noisy messages."""
+
+        def __init__(self, file_handler):
+            super().__init__()
+            self._file_handler = file_handler
+
+        def emit(self, record):
+            try:
+                msg = self.format(record)
+                if filter_regex.search(msg) or filter_regex.search(record.name):
+                    return
+                self._file_handler.emit(record)
+            except Exception:
+                pass
+
     # Console handler
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
@@ -111,43 +133,46 @@ def setup_logging(
         )
     )
     console.addFilter(ConsoleFilter())
-    
+
     # Broadcast handler (sends to WebSocket clients)
     broadcast = FilteredBroadcastHandler()
     broadcast.setLevel(logging.DEBUG)
     broadcast.setFormatter(
         logging.Formatter("%(levelname)-5s │ %(name)s │ %(message)s")
     )
-    
+
     # File handler - persists logs to disk for debugging crashes
     if log_file is None:
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         logs_dir = os.path.join(project_root, "logs")
         os.makedirs(logs_dir, exist_ok=True)
         log_file = os.path.join(logs_dir, "srt2web.log")
-    
+
     file_handler = RotatingFileHandler(
         log_file,
-        maxBytes=10*1024*1024,  # 10 MB per file
+        maxBytes=10 * 1024 * 1024,  # 10 MB per file
         backupCount=3,
-        encoding='utf-8'
+        encoding="utf-8",
     )
     file_handler.setLevel(log_level)
-    file_handler.addFilter(ConsoleFilter())  # Filter noisy security warnings from file too
     file_handler.setFormatter(
         logging.Formatter(
             "%(asctime)s │ %(levelname)-5s │ %(name)s │ %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
         )
     )
-    
+
+    # Wrap file handler with filter (avoid duplicating RotatingFileHandler logic)
+    filtered_file = FilteredFileHandler(file_handler)
+    filtered_file.setLevel(log_level)
+
     # Root logger
     root = logging.getLogger()
     root.setLevel(log_level)
     root.addHandler(console)
     root.addHandler(broadcast)
-    root.addHandler(file_handler)
-    
+    root.addHandler(filtered_file)
+
     # Silence noisy libraries
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("uvicorn.error").setLevel(logging.WARNING)

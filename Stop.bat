@@ -22,7 +22,7 @@ if not exist "output\recording" mkdir "output\recording"
 
 :: 3. Liberar puertos del sistema
 echo Liberando puertos del sistema...
-for %%p in (9999 9000 8000) do (
+for %%p in (9999 9000 8000 1935) do (
   for /f "tokens=5" %%a in ('netstat -ano ^| findstr "%%p" ^| findstr "LISTENING"') do (
     taskkill /F /PID %%a 2>nul
   )

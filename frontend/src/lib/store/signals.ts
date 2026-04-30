@@ -68,15 +68,19 @@ export const enabledModules = computed(() => {
 
 export const systemMetrics = computed(() => {
   const s = pipelineStatus.value;
+  const sys = (s as any)?.system_metrics ?? (s as any)?.system ?? {};
+  const uptime = (s as any)?.uptime_seconds ?? 0;
+  const chunks = s?.chunks_processed ?? 0;
+  const cps = uptime > 0 ? chunks / uptime : 0;
   return {
-    cpu: s?.metrics?.cpu_percent ?? 0,
-    memoryMb: s?.metrics?.memory_mb ?? 0,
-    memoryPercent: s?.metrics?.memory_percent ?? 0,
-    gpuUtil: s?.metrics?.gpu_util ?? 0,
-    gpuMemMb: s?.metrics?.gpu_memory_mb ?? 0,
-    gpuMemPercent: s?.metrics?.gpu_memory_percent ?? 0,
-    chunksPerSec: s?.metrics?.chunks_per_second ?? 0,
-    totalChunks: s?.chunks_processed ?? 0,
+    cpu: sys.cpu_percent ?? sys.cpu_usage ?? 0,
+    memoryMb: sys.memory_mb ?? 0,
+    memoryPercent: sys.memory_percent ?? sys.memory_usage ?? 0,
+    gpuUtil: sys.gpu_percent ?? sys.gpu_usage ?? 0,
+    gpuMemMb: sys.gpu_memory_mb ?? 0,
+    gpuMemPercent: sys.gpu_memory_usage ?? 0,
+    chunksPerSec: cps,
+    totalChunks: chunks,
   };
 });
 
@@ -125,7 +129,13 @@ export const throughputAvg = computed(() => {
 export function updateStatus(status: Status): void {
   pipelineStatus.value = status;
 
-  const tp = status.metrics?.chunks_per_second ?? 0;
+  // Calculate chunks_per_second from actual backend fields
+  const uptime = (status as any)?.uptime_seconds ?? 0;
+  const chunks = status?.chunks_processed ?? 0;
+  const avgTimeMs = (status as any)?.avg_processing_time_ms ?? 0;
+
+  // Use avg_processing_time_ms for instant throughput estimate
+  const tp = avgTimeMs > 0 ? 1000 / avgTimeMs : (uptime > 0 ? chunks / uptime : 0);
   if (tp > 0) {
     const hist = [...throughputHistory.value, tp];
     // Keep last 10 samples

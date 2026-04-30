@@ -62,12 +62,12 @@ function startStatusEffects(): void {
     if (btnStart) {
       const isRunningLocal = state === PipelineState.RUNNING;
       btnStart.disabled = isRunningLocal;
-      btnStart.style.display = isRunningLocal ? 'none' : '';
+      btnStart.style.opacity = isRunningLocal ? '0.5' : '1';
     }
     if (btnStop) {
       const isRunningStop = state === PipelineState.RUNNING;
       btnStop.disabled = !isRunningStop;
-      btnStop.style.display = isRunningStop ? '' : 'none';
+      btnStop.style.opacity = isRunningStop ? '1' : '0.5';
     }
   });
 
@@ -161,7 +161,6 @@ function startMetricsEffects(): void {
     if (gpuValue) gpuValue.textContent = `${metrics.gpuUtil.toFixed(0)}%`;
     if (gpuMem) gpuMem.textContent = metrics.gpuMemMb > 0 ? `${metrics.gpuMemMb.toFixed(0)} MB` : 'N/A';
     if (gpuItem) {
-      gpuItem.style.display = metrics.gpuMemMb > 0 ? '' : 'none';
       gpuItem.classList.toggle('warning', metrics.gpuUtil > 80);
       gpuItem.classList.toggle('critical', metrics.gpuUtil > 95);
     }
@@ -214,8 +213,11 @@ function startModuleMetricsEffects(): void {
       const encoderEl = el<HTMLSpanElement>(`module-encoder-${name}`);
 
       if (timeEl) {
-        if (running && mod) {
-          const avgMs = tpAvg > 0 ? (1000 / tpAvg).toFixed(0) : '--';
+        if (mod?.last_process_time_ms !== undefined && mod.last_process_time_ms > 0) {
+          const ms = mod.last_process_time_ms;
+          timeEl.textContent = ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
+        } else if (running && tpAvg > 0) {
+          const avgMs = (1000 / tpAvg).toFixed(0);
           timeEl.textContent = `${avgMs}ms`;
         } else {
           timeEl.textContent = '--';
@@ -248,32 +250,40 @@ function startModuleMetricsEffects(): void {
     const vmTimeEl = el<HTMLSpanElement>('module-time-video_muxer');
     const vmChunksEl = el<HTMLSpanElement>('module-chunks-video_muxer');
     const vmEncoderEl = el<HTMLSpanElement>('module-encoder-video_muxer');
+    const vmStatus = moduleMap['video_muxer'] ?? moduleMap['output'];
 
     if (vmTimeEl) {
-      vmTimeEl.textContent = running && tpAvg > 0
-        ? `${(1000 / tpAvg).toFixed(0)}ms`
-        : '--';
+      if (vmStatus?.last_process_time_ms !== undefined && vmStatus.last_process_time_ms > 0) {
+        const ms = vmStatus.last_process_time_ms;
+        vmTimeEl.textContent = ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
+      } else if (running && tpAvg > 0) {
+        vmTimeEl.textContent = `${(1000 / tpAvg).toFixed(0)}ms`;
+      } else {
+        vmTimeEl.textContent = '--';
+      }
     }
     if (vmChunksEl) {
-      vmChunksEl.textContent = String(status?.chunks_processed ?? 0);
+      vmChunksEl.textContent = String(vmStatus?.processed_chunks ?? status?.chunks_processed ?? 0);
     }
     if (vmEncoderEl) {
-      const enc = moduleMap['video_muxer'];
-      const label = enc?.extra?.encoder_label
-        ?? (enc?.extra?.using_gpu ? 'GPU' : 'CPU');
+      const label = vmStatus?.extra?.encoder_label
+        ?? (vmStatus?.extra?.using_gpu ? 'GPU' : 'CPU');
       vmEncoderEl.textContent = label;
     }
 
     // Input module metrics (srt_input, rtmp_input, etc.)
-    const inputModule = moduleMap['srt_input'] ?? moduleMap['rtmp_input'] ?? moduleMap['file_input'];
+    const inputModule = moduleMap['srt_input'] ?? moduleMap['rtmp_input'] ?? moduleMap['file_input'] ?? moduleMap['audio_extractor'] ?? moduleMap['input'];
     const inputTimeEl = el<HTMLSpanElement>('module-time-input');
     const inputChunksEl = el<HTMLSpanElement>('module-chunks-input');
     const inputGpuBadge = el<HTMLSpanElement>('gpu-badge-input');
     const inputEncoderEl = el<HTMLSpanElement>('module-encoder-input');
 
     if (inputTimeEl) {
-      if (running && inputModule) {
-        inputTimeEl.textContent = tpAvg > 0 ? `${(1000 / tpAvg).toFixed(0)}ms` : '--';
+      if (inputModule?.last_process_time_ms !== undefined && inputModule.last_process_time_ms > 0) {
+        const ms = inputModule.last_process_time_ms;
+        inputTimeEl.textContent = ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
+      } else if (running && tpAvg > 0) {
+        inputTimeEl.textContent = `${(1000 / tpAvg).toFixed(0)}ms`;
       } else if (!inputModule?.enabled) {
         inputTimeEl.textContent = '--';
       } else if (inputModule?.state === 'error') {

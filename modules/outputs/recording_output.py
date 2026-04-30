@@ -20,19 +20,16 @@ Configuración (output.recording):
     audio_bitrate: Bitrate de audio (ej: 128k)
     split_mode: none, time, size
     split_value: Minutos (si split_mode=time) o MB (si split_mode=size)
-    subtitles: none, burnt, vtt
+    subtitles: none, burnt, track, vtt (default: track)
     video_preset: fast, medium, slow (para encoding)
 """
 
 import os
 import sys
-import glob
-import logging
 import subprocess
 import threading
 import time
 import shutil
-from pathlib import Path
 from typing import Optional, List
 from datetime import datetime
 
@@ -71,6 +68,7 @@ class RecordingOutput(OutputSink):
         self._recording_dir: str = ""
         self._saved_video_paths: List[str] = []
         self._saved_audio_paths: List[str] = []
+        self._latest_subs_path: Optional[str] = None
 
         self._apply_config(config)
 
@@ -86,7 +84,7 @@ class RecordingOutput(OutputSink):
         self._audio_bitrate = config.get("audio_bitrate", "128k")
         self._split_mode = config.get("split_mode", "none")
         self._split_value = config.get("split_value", 600)
-        self._subtitles = config.get("subtitles", "none")
+        self._subtitles = config.get("subtitles", "track")
         self._video_preset = config.get("video_preset", "fast")
 
         self.logger.info(
@@ -119,7 +117,9 @@ class RecordingOutput(OutputSink):
             "subtitles": self._subtitles,
             "processed_chunks": self._processed_chunks,
             "bytes_written": self._bytes_written,
-            "recording_duration_sec": time.time() - self._file_start_time if self._file_start_time else 0,
+            "recording_duration_sec": time.time() - self._file_start_time
+            if self._file_start_time
+            else 0,
         }
 
     def get_status(self) -> dict:
@@ -137,21 +137,30 @@ class RecordingOutput(OutputSink):
             "split_mode": self._split_mode,
             "subtitles": self._subtitles,
             "bytes_written": self._bytes_written,
-            "recording_duration_sec": time.time() - self._file_start_time if self._file_start_time else 0,
+            "recording_duration_sec": time.time() - self._file_start_time
+            if self._file_start_time
+            else 0,
             "extra": {
                 "encoder": self._codec,
-                "video_bitrate": self._video_bitrate if self._quality_mode == "cbr" else f"CRF{self._video_crf}",
+                "video_bitrate": self._video_bitrate
+                if self._quality_mode == "cbr"
+                else f"CRF{self._video_crf}",
                 "audio_codec": self._audio_codec,
                 "audio_bitrate": self._audio_bitrate,
                 "using_gpu": self._codec in ["h264_nvenc", "h265_nvenc"],
                 "gpu_info": self._gpu_info,
                 "saved_videos": len(self._saved_video_paths),
                 "saved_audios": len(self._saved_audio_paths),
-            }
+            },
         }
 
-    def _build_ffmpeg_cmd(self, output_file: str, input_video: Optional[str],
-                         input_audio: Optional[str], input_subs: Optional[str]) -> List[str]:
+    def _build_ffmpeg_cmd(
+        self,
+        output_file: str,
+        input_video: Optional[str],
+        input_audio: Optional[str],
+        input_subs: Optional[str],
+    ) -> List[str]:
         """Construir comando FFmpeg según configuración."""
         cmd = [self._ffmpeg_path, "-y"]
 
@@ -167,7 +176,12 @@ class RecordingOutput(OutputSink):
             cmd.extend(["-i", input_audio])
             input_count += 1
 
-        if input_subs and os.path.exists(input_subs) and self._subtitles == "burnt":
+        # Burnt needs input for -vf filter; track needs input for stream mapping
+        if (
+            input_subs
+            and os.path.exists(input_subs)
+            and self._subtitles in ("burnt", "track")
+        ):
             cmd.extend(["-i", input_subs])
             input_count += 1
 
@@ -175,21 +189,28 @@ class RecordingOutput(OutputSink):
             self.logger.warning("No inputs available for recording")
             return []
 
-        map_args = []
+        # Track mode maps subtitle as separate stream; burnt uses -vf filter
+        map_subs_as_stream = input_count >= 3 and self._subtitles == "track"
 
+        map_args = []
         if input_count >= 1:
             map_args.extend(["-map", "0:v:0"])
-
         if input_count >= 2:
             map_args.extend(["-map", "1:a:0"])
-
-        if input_count >= 3 and self._subtitles == "burnt":
+        if map_subs_as_stream:
             map_args.extend(["-map", "2:s:0"])
 
         cmd.extend(map_args)
 
         video_codec = self._codec
         audio_codec = self._audio_codec
+
+        # Burnt subtitles require re-encoding with -vf filter
+        if self._subtitles == "burnt" and input_count >= 3 and input_subs:
+            subs_escaped = input_subs.replace("\\", "/").replace(":", "\\\\:")
+            cmd.extend(["-vf", f"subtitles='{subs_escaped}'"])
+            if video_codec == "copy":
+                video_codec = "libx264"
 
         if video_codec != "copy":
             if video_codec == "h264_nvenc":
@@ -225,23 +246,32 @@ class RecordingOutput(OutputSink):
         else:
             cmd.extend(["-c:a", "copy"])
 
-        if self._subtitles == "burnt" and input_count >= 3:
-            cmd.extend(["-scodec", "mov_text"])
+        # Subtitle codec (track mode - muxed as separate stream)
+        if self._subtitles == "track" and input_count >= 3:
+            cmd.extend(["-c:s", "mov_text"])
 
-        cmd.extend([
-            "-movflags", "+faststart",
-            "-f", self._format,
-            output_file
-        ])
+        cmd.extend(["-movflags", "+faststart", "-f", self._format, output_file])
 
         self.logger.debug(f"FFmpeg cmd: {' '.join(filter(None, cmd))}")
         return cmd
 
     def _get_ffmpeg_cmd(self, output_file: str) -> List[str]:
         """Compatibilidad tests: usa pending_data para construir comando."""
-        input_video = getattr(self._pending_data, 'video_chunk_path', None) if self._pending_data else None
-        input_audio = getattr(self._pending_data, 'mixed_audio_path', None) if self._pending_data else None
-        input_subs = getattr(self._pending_data, 'subtitles_path', None) if self._pending_data else None
+        input_video = (
+            getattr(self._pending_data, "video_chunk_path", None)
+            if self._pending_data
+            else None
+        )
+        input_audio = (
+            getattr(self._pending_data, "mixed_audio_path", None)
+            if self._pending_data
+            else None
+        )
+        input_subs = (
+            getattr(self._pending_data, "subtitles_path", None)
+            if self._pending_data
+            else None
+        )
         return self._build_ffmpeg_cmd(output_file, input_video, input_audio, input_subs)
 
     def _get_next_output_path(self) -> str:
@@ -280,7 +310,9 @@ class RecordingOutput(OutputSink):
         os.makedirs(os.path.dirname(self._output_path) or ".", exist_ok=True)
 
         if not self._recording_dir:
-            self._recording_dir = os.path.join(self._output_dir or "./output", "recording")
+            self._recording_dir = os.path.join(
+                self._output_dir or "./output", "recording"
+            )
             os.makedirs(self._recording_dir, exist_ok=True)
 
         self._current_file = self._get_next_output_path()
@@ -354,9 +386,14 @@ class RecordingOutput(OutputSink):
                     f.write(f"file '{vp_rel}'\n")
 
         cmd = [
-            self._ffmpeg_path, "-y",
-            "-f", "concat", "-safe", "0",
-            "-i", concat_list,
+            self._ffmpeg_path,
+            "-y",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            concat_list,
         ]
 
         has_audio = bool(self._saved_audio_paths)
@@ -371,28 +408,46 @@ class RecordingOutput(OutputSink):
                         f.write(f"file '{ap_rel}'\n")
             cmd.extend(["-f", "concat", "-safe", "0", "-i", audio_concat])
 
-        # Concatenar subtitles .srt files
-        subs_track = False
-        if self._subtitles == "track":
+        # Subtitle handling: burnt (render into video), track (mux as subtitle stream), vtt (save as sidecar)
+        subs_srt = None
+        if self._subtitles in ("burnt", "track"):
             subs_srt = self._concat_subtitle_chunks()
-            self.logger.info(f"[Recording] subtitles=track, concatenated SRT: {subs_srt}")
             if subs_srt and os.path.exists(subs_srt):
                 cmd.extend(["-i", subs_srt])
-                subs_track = True
-                self.logger.info(f"[Recording] Added subtitle track to FFmpeg command")
+
+        has_subs_input = (
+            subs_srt is not None and os.path.exists(subs_srt) if subs_srt else False
+        )
 
         # Map inputs
-        if has_audio and subs_track:
-            cmd.extend(["-map", "0:v", "-map", "1:a", "-map", "2:s"])
+        if has_audio and has_subs_input:
+            cmd.extend(["-map", "0:v", "-map", "1:a"])
+            if self._subtitles == "track":
+                cmd.extend(["-map", "2:s"])
         elif has_audio:
             cmd.extend(["-map", "0:v", "-map", "1:a"])
-        elif subs_track:
-            cmd.extend(["-map", "0:v", "-map", "1:s"])
+        elif has_subs_input:
+            cmd.extend(["-map", "0:v"])
+            if self._subtitles == "track":
+                cmd.extend(["-map", "1:s"])
         else:
             cmd.extend(["-map", "0:v"])
 
-        # Video codec
-        if self._codec == "copy":
+        # Video codec - burnt subtitles require re-encoding with filter
+        if self._subtitles == "burnt" and has_subs_input:
+            subs_path_escaped = subs_srt.replace("\\", "/").replace(":", "\\\\:")
+            cmd.extend(["-vf", f"subtitles='{subs_path_escaped}'"])
+            if self._codec != "copy":
+                cmd.extend(["-c:v", self._codec])
+                if self._quality_mode == "crf":
+                    cmd.extend(["-crf", str(self._video_crf)])
+                else:
+                    cmd.extend(["-b:v", self._video_bitrate])
+                cmd.extend(["-preset", self._video_preset])
+            else:
+                # copy codec incompatible with subtitle filter, force libx264
+                cmd.extend(["-c:v", "libx264", "-preset", "fast", "-crf", "23"])
+        elif self._codec == "copy":
             cmd.extend(["-c:v", "copy"])
         else:
             cmd.extend(["-c:v", self._codec])
@@ -409,12 +464,15 @@ class RecordingOutput(OutputSink):
             cmd.extend(["-c:a", self._audio_codec, "-b:a", self._audio_bitrate])
 
         # Subtitle codec (track mode)
-        if subs_track:
+        if self._subtitles == "track" and has_subs_input:
             cmd.extend(["-c:s", "mov_text"])
 
         cmd.append(output_file)
 
-        self.logger.info(f"Concatenating {len(self._saved_video_paths)} chunks -> {output_file}" + (" + subtitles" if subs_track else ""))
+        self.logger.info(
+            f"Concatenating {len(self._saved_video_paths)} chunks -> {output_file}"
+            + (" + subtitles" if has_subs_input else "")
+        )
 
         try:
             result = subprocess.run(
@@ -429,7 +487,9 @@ class RecordingOutput(OutputSink):
             if result.returncode == 0:
                 size = os.path.getsize(output_file)
                 self._bytes_written = size
-                self.logger.info(f"Recording saved: {output_file} ({size / (1024*1024):.1f} MB)")
+                self.logger.info(
+                    f"Recording saved: {output_file} ({size / (1024*1024):.1f} MB)"
+                )
             else:
                 self.logger.error(f"Concat failed: {result.stderr[-500:]}")
         except subprocess.TimeoutExpired:
@@ -441,25 +501,38 @@ class RecordingOutput(OutputSink):
         """Copiar video + audio chunks a directorio temporal para concat posterior."""
         # Store data for later use in concat (to get subtitles_path, etc)
         self._pending_data = data
-        
+
         if not self._running:
-            self.logger.debug(f"Recording write: not running, skipping")
+            self.logger.debug("Recording write: not running, skipping")
             return
 
         self.logger.debug(f"Recording write: processing chunk {data.chunk_index}")
 
         if not self._recording_dir:
-            self._recording_dir = os.path.join(self._output_dir or "./output", "recording")
+            self._recording_dir = os.path.join(
+                self._output_dir or "./output", "recording"
+            )
             os.makedirs(self._recording_dir, exist_ok=True)
             self.logger.info(f"Recording dir: {self._recording_dir}")
 
         chunk_idx = data.chunk_index
 
-        # Check for video_path (set by VideoMuxer) or video_chunk_path (from input)
-        video_path = getattr(data, 'video_path', None) or getattr(data, 'video_chunk_path', None)
-        audio_path = getattr(data, 'mixed_audio_path', None) or getattr(data, 'audio_path', None)
+        # Track subtitle path for final concat
+        subs_path = getattr(data, "subtitles_path", None)
+        if subs_path and os.path.exists(subs_path):
+            self._latest_subs_path = subs_path
 
-        self.logger.info(f"[Recording] chunk {chunk_idx}: video={bool(video_path)}, audio={bool(audio_path)}")
+        # Check for video_path (set by VideoMuxer) or video_chunk_path (from input)
+        video_path = getattr(data, "video_path", None) or getattr(
+            data, "video_chunk_path", None
+        )
+        audio_path = getattr(data, "mixed_audio_path", None) or getattr(
+            data, "audio_path", None
+        )
+
+        self.logger.info(
+            f"[Recording] chunk {chunk_idx}: video={bool(video_path)}, audio={bool(audio_path)}"
+        )
 
         if video_path and os.path.exists(video_path):
             saved_video = os.path.join(self._recording_dir, f"rec_v_{chunk_idx:06d}.ts")
@@ -470,12 +543,16 @@ class RecordingOutput(OutputSink):
             except Exception as e:
                 self.logger.warning(f"Could not copy video chunk: {e}")
         elif video_path:
-            self.logger.warning(f"[Recording] video path exists but file not found: {video_path}")
+            self.logger.warning(
+                f"[Recording] video path exists but file not found: {video_path}"
+            )
         else:
             self.logger.debug(f"[Recording] no video path for chunk {chunk_idx}")
 
         if audio_path and os.path.exists(audio_path):
-            saved_audio = os.path.join(self._recording_dir, f"rec_a_{chunk_idx:06d}.wav")
+            saved_audio = os.path.join(
+                self._recording_dir, f"rec_a_{chunk_idx:06d}.wav"
+            )
             try:
                 shutil.copy2(audio_path, saved_audio)
                 self._saved_audio_paths.append(saved_audio)
@@ -486,48 +563,51 @@ class RecordingOutput(OutputSink):
         self._processed_chunks += 1
 
     def _concat_subtitle_chunks(self) -> Optional[str]:
-        """Concatenar todos los chunks .vtt de subtitles en un solo archivo."""
-        # Subtitles are in output/hls/ (where SubtitleGenerator writes)
-        subs_dir = os.path.join(self._output_dir or "./output", "hls")
-        vtt_files = sorted(glob.glob(os.path.join(subs_dir, "chunk_*.vtt")))
-        if not vtt_files:
-            self.logger.debug("No subtitle .vtt chunks found in subtitles directory")
-            return None
-        
+        """Convert latest VTT subtitle file to SRT for recording."""
+        # Check the stored subtitle path first
+        if self._latest_subs_path and os.path.exists(self._latest_subs_path):
+            vtt_file = self._latest_subs_path
+        else:
+            # Fallback: look in subtitles directory
+            subs_dir = os.path.join(self._output_dir or "./output", "subtitles")
+            vtt_file = os.path.join(subs_dir, "subs.vtt")
+            if not os.path.exists(vtt_file):
+                self.logger.debug(f"No subtitle file found at {vtt_file}")
+                return None
+
         output_srt = os.path.join(self._recording_dir, "recording_subs.srt")
-        
-        # Need to convert VTT to SRT
+
         try:
-            # Parse VTT and convert to SRT
+            with open(vtt_file, "r", encoding="utf-8") as f:
+                content = f.read()
+
             with open(output_srt, "w", encoding="utf-8") as out:
                 seq = 1
-                for vtt_file in vtt_files:
-                    with open(vtt_file, "r", encoding="utf-8") as f:
-                        content = f.read().strip()
-                        # Skip WEBVTT header and convert timings
-                        lines = content.split("\n")
-                        in_timing = False
-                        for line in lines:
-                            line = line.strip()
-                            if line.startswith("WEBVTT"):
-                                continue
-                            if "-->" in line:
-                                in_timing = True
-                                # Convert VTT timing (00:00:01.000 --> 00:00:02.000) to SRT
-                                line = line.replace(".", ",")
-                                out.write(f"{seq}\n{line}\n")
-                            elif line and in_timing:
-                                out.write(f"{line}\n")
-                            elif line == "":
-                                in_timing = False
-                                out.write("\n")
-                        # Add 1 to sequence between files
+                lines = content.split("\n")
+                in_timing = False
+                for line in lines:
+                    stripped = line.strip()
+                    if stripped.startswith("WEBVTT") or stripped.startswith("NOTE"):
+                        continue
+                    if "-->" in stripped:
+                        in_timing = True
+                        # Convert VTT timing (00:00:01.000 --> 00:00:02.000) to SRT (comma separator)
+                        timing_line = stripped.replace(".", ",", 2)
+                        out.write(f"{seq}\n{timing_line}\n")
+                    elif stripped and in_timing:
+                        out.write(f"{stripped}\n\n")
                         seq += 1
-            
-            self.logger.info(f"Concatenated {len(vtt_files)} subtitle chunks -> {output_srt}")
-            return output_srt
+                    elif stripped == "" or not stripped:
+                        in_timing = False
+
+            if seq > 1:
+                self.logger.info(f"Converted VTT -> SRT: {output_srt} ({seq - 1} cues)")
+                return output_srt
+            else:
+                self.logger.debug("No subtitle cues found in VTT file")
+                return None
         except Exception as e:
-            self.logger.warning(f"Could not concatenate subtitles: {e}")
+            self.logger.warning(f"Could not convert subtitles: {e}")
             return None
 
     def _do_split(self) -> None:
@@ -550,6 +630,7 @@ def _register():
     """Auto-register this output module."""
     try:
         from core.io_factory import OutputFactory
+
         OutputFactory.register("recording", RecordingOutput)
     except ImportError:
         pass
