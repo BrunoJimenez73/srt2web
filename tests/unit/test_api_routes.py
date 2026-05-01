@@ -4,15 +4,12 @@ Unit tests for API routes.
 
 import pytest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-from fastapi import HTTPException
-from server.api_routes import (
+from unittest.mock import Mock
+from server.validators import (
     sanitize_module_name,
     validate_config_value,
     ConfigUpdate,
     ModuleToggle,
-    create_api_router,
-    VALID_MODULE_NAMES,
 )
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -28,25 +25,26 @@ class TestSanitizeModuleName:
         assert sanitize_module_name("translator") == "translator"
 
     def test_invalid_module_name_raises(self) -> None:
-        """Test invalid module names raise HTTPException."""
-        with pytest.raises(HTTPException) as exc:
+        """Test invalid module names raise ValueError."""
+        with pytest.raises(ValueError) as exc:
             sanitize_module_name("invalid-module")
 
-        assert exc.value.status_code == 400
+        assert "Invalid module name format" in str(exc.value)
 
     def test_unknown_module_raises(self) -> None:
-        """Test unknown module names raise HTTPException."""
-        with pytest.raises(HTTPException) as exc:
+        """Test unknown module names raise ValueError."""
+        with pytest.raises(ValueError) as exc:
             sanitize_module_name("unknown_module")
 
-        assert exc.value.status_code == 400
+        assert "Unknown module" in str(exc.value)
+        assert exc.value.args[0]  # Check that it's a ValueError with message
 
     def test_numeric_module_raises(self) -> None:
-        """Test numeric module names raise HTTPException."""
-        with pytest.raises(HTTPException) as exc:
+        """Test numeric module names raise ValueError."""
+        with pytest.raises(ValueError) as exc:
             sanitize_module_name("123module")
 
-        assert exc.value.status_code == 400
+        assert "Invalid module name format" in str(exc.value)
 
 
 class TestValidateConfigValue:
@@ -58,11 +56,11 @@ class TestValidateConfigValue:
         assert validate_config_value("srt.listen_port", 9000) == 9000
 
     def test_invalid_port_raises(self) -> None:
-        """Test invalid port values raise HTTPException."""
-        with pytest.raises(HTTPException):
+        """Test invalid port values raise ValueError."""
+        with pytest.raises(ValueError):
             validate_config_value("port", 0)
 
-        with pytest.raises(HTTPException):
+        with pytest.raises(ValueError):
             validate_config_value("port", 70000)
 
     def test_valid_latency(self) -> None:
@@ -72,8 +70,8 @@ class TestValidateConfigValue:
         assert validate_config_value("latency", 0) == 0
 
     def test_invalid_latency_raises(self) -> None:
-        """Test invalid latency raises HTTPException."""
-        with pytest.raises(HTTPException):
+        """Test invalid latency raises ValueError."""
+        with pytest.raises(ValueError):
             validate_config_value("latency", -1)
 
     def test_valid_whisper_model(self) -> None:
@@ -82,8 +80,8 @@ class TestValidateConfigValue:
         assert validate_config_value("transcriber.model", "large-v3") == "large-v3"
 
     def test_invalid_whisper_model_raises(self) -> None:
-        """Test invalid Whisper model raises HTTPException."""
-        with pytest.raises(HTTPException):
+        """Test invalid Whisper model raises ValueError."""
+        with pytest.raises(ValueError):
             validate_config_value("transcriber.model", "invalid-model")
 
     def test_valid_language(self) -> None:
@@ -92,8 +90,8 @@ class TestValidateConfigValue:
         assert validate_config_value("translator.source_lang", "es") == "es"
 
     def test_invalid_language_raises(self) -> None:
-        """Test invalid language raises HTTPException."""
-        with pytest.raises(HTTPException):
+        """Test invalid language raises ValueError."""
+        with pytest.raises(ValueError):
             validate_config_value("translator.source_lang", "invalid")
 
     def test_valid_device(self) -> None:
@@ -102,8 +100,8 @@ class TestValidateConfigValue:
         assert validate_config_value("transcriber.device", "cpu") == "cpu"
 
     def test_invalid_device_raises(self) -> None:
-        """Test invalid device raises HTTPException."""
-        with pytest.raises(HTTPException):
+        """Test invalid device raises ValueError."""
+        with pytest.raises(ValueError):
             validate_config_value("transcriber.device", "invalid")
 
     def test_valid_srt_mode(self) -> None:
@@ -112,8 +110,8 @@ class TestValidateConfigValue:
         assert validate_config_value("srt.mode", "caller") == "caller"
 
     def test_invalid_srt_mode_raises(self) -> None:
-        """Test invalid SRT mode raises HTTPException."""
-        with pytest.raises(HTTPException):
+        """Test invalid SRT mode raises ValueError."""
+        with pytest.raises(ValueError):
             validate_config_value("srt.mode", "invalid")
 
     def test_valid_volume(self) -> None:
@@ -123,11 +121,11 @@ class TestValidateConfigValue:
         assert validate_config_value("volume", 2.0) == 2.0
 
     def test_invalid_volume_raises(self) -> None:
-        """Test invalid volume raises HTTPException."""
-        with pytest.raises(HTTPException):
+        """Test invalid volume raises ValueError."""
+        with pytest.raises(ValueError):
             validate_config_value("volume", -0.1)
 
-        with pytest.raises(HTTPException):
+        with pytest.raises(ValueError):
             validate_config_value("volume", 2.1)
 
     def test_valid_speed(self) -> None:
@@ -137,11 +135,11 @@ class TestValidateConfigValue:
         assert validate_config_value("speed", 2.0) == 2.0
 
     def test_invalid_speed_raises(self) -> None:
-        """Test invalid speed raises HTTPException."""
-        with pytest.raises(HTTPException):
+        """Test invalid speed raises ValueError."""
+        with pytest.raises(ValueError):
             validate_config_value("speed", 0.4)
 
-        with pytest.raises(HTTPException):
+        with pytest.raises(ValueError):
             validate_config_value("speed", 2.1)
 
 
@@ -199,10 +197,7 @@ class TestChunkDurationSync:
 
         app = create_app(mock_ctx)
         client = TestClient(app)
-        response = client.post(
-            "/api/config/chunk",
-            json={"chunk_duration_sec": 5}
-        )
+        response = client.post("/api/config/chunk", json={"chunk_duration_sec": 5})
         assert response.status_code in (200, 401, 403)
 
     def test_chunk_duration_sync_validation(self, mock_ctx) -> None:
@@ -212,12 +207,9 @@ class TestChunkDurationSync:
 
         app = create_app(mock_ctx)
         client = TestClient(app)
-        
+
         # Invalid: must be between 1 and 60
-        response = client.post(
-            "/api/config/chunk",
-            json={"chunk_duration_sec": 100}
-        )
+        response = client.post("/api/config/chunk", json={"chunk_duration_sec": 100})
         assert response.status_code == 400
         assert "between 1 and 60" in response.json()["detail"]
 
@@ -228,11 +220,8 @@ class TestChunkDurationSync:
 
         app = create_app(mock_ctx)
         client = TestClient(app)
-        
-        response = client.post(
-            "/api/config/chunk",
-            json={"chunk_duration_sec": 5}
-        )
+
+        response = client.post("/api/config/chunk", json={"chunk_duration_sec": 5})
         assert response.status_code == 200
         data = response.json()
         assert data["chunk_duration_sec"] == 5
@@ -268,7 +257,7 @@ class TestApiRouter:
         # Copy the actual config to a temporary location
         temp_config = tmp_path / "config.yaml"
         shutil.copy2(CONFIG_PATH, temp_config)
-        
+
         # Create config manager pointing to temp file
         config = ConfigManager(str(temp_config))
         pipeline = Pipeline()
@@ -440,7 +429,7 @@ class TestApiRouter:
         assert response.status_code == 200
 
     def test_update_config_invalid_value_returns_422(self, mock_ctx) -> None:
-        """Test that invalid config values return validation error."""
+        """Test that invalid config values return 422 (Pydantic validation)."""
         from fastapi.testclient import TestClient
         from server.app import create_app
 
@@ -451,7 +440,7 @@ class TestApiRouter:
             "/api/config", json={"config": {"srt": {"listen_port": 99999}}}
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_update_config_invalid_model_accepted(self, mock_ctx) -> None:
         """Test that invalid model is accepted (validation happens on apply)."""
@@ -526,7 +515,7 @@ class TestApiRouterEdgeCases:
         # Copy the actual config to a temporary location
         temp_config = tmp_path / "config.yaml"
         shutil.copy2(CONFIG_PATH, temp_config)
-        
+
         # Create config manager pointing to temp file
         config = ConfigManager(str(temp_config))
         pipeline = Pipeline()
@@ -590,7 +579,7 @@ class TestApiRouterEdgeCases:
 
     def test_get_status_with_pipeline_modules(self, mock_ctx) -> None:
         """Test status with registered modules."""
-        from core.module_base import BaseModule, PipelineData
+        from core.module_base import BaseModule
         from fastapi.testclient import TestClient
         from server.app import create_app
 
@@ -621,21 +610,21 @@ class TestApiRouterValidation:
 
     def test_validate_config_value_returns_unchanged_for_unknown_keys(self) -> None:
         """Test that unknown keys pass through unchanged."""
-        from server.api_routes import validate_config_value
+        from server.validators import validate_config_value
 
         result = validate_config_value("unknown.key", "some_value")
         assert result == "some_value"
 
     def test_validate_config_float_latency(self) -> None:
         """Test float latency values."""
-        from server.api_routes import validate_config_value
+        from server.validators import validate_config_value
 
         assert validate_config_value("latency", 100.5) == 100.5
         assert validate_config_value("latency", 0.0) == 0.0
 
     def test_validate_config_all_whisper_models(self) -> None:
         """Test all valid Whisper models."""
-        from server.api_routes import validate_config_value
+        from server.validators import validate_config_value
 
         for model in ["tiny", "small", "medium", "large-v2", "large-v3", "large"]:
             result = validate_config_value("transcriber.model", model)
@@ -643,7 +632,7 @@ class TestApiRouterValidation:
 
     def test_validate_config_all_languages(self) -> None:
         """Test all valid languages."""
-        from server.api_routes import validate_config_value
+        from server.validators import validate_config_value
 
         for lang in [
             "auto",
@@ -663,7 +652,7 @@ class TestApiRouterValidation:
 
     def test_validate_config_all_devices(self) -> None:
         """Test all valid devices."""
-        from server.api_routes import validate_config_value
+        from server.validators import validate_config_value
 
         for device in ["auto", "cuda", "cpu"]:
             result = validate_config_value("transcriber.device", device)
@@ -671,21 +660,21 @@ class TestApiRouterValidation:
 
     def test_validate_config_boundary_ports(self) -> None:
         """Test boundary port values."""
-        from server.api_routes import validate_config_value
+        from server.validators import validate_config_value
 
         assert validate_config_value("port", 1) == 1
         assert validate_config_value("port", 65535) == 65535
 
     def test_validate_config_boundary_speed(self) -> None:
         """Test boundary speed values."""
-        from server.api_routes import validate_config_value
+        from server.validators import validate_config_value
 
         assert validate_config_value("speed", 0.5) == 0.5
         assert validate_config_value("speed", 2.0) == 2.0
 
     def test_validate_config_boundary_volume(self) -> None:
         """Test boundary volume values."""
-        from server.api_routes import validate_config_value
+        from server.validators import validate_config_value
 
         assert validate_config_value("volume", 0.0) == 0.0
         assert validate_config_value("volume", 2.0) == 2.0
@@ -704,7 +693,7 @@ class TestNetworkInfo:
         # Copy the actual config to a temporary location
         temp_config = tmp_path / "config.yaml"
         shutil.copy2(CONFIG_PATH, temp_config)
-        
+
         # Create config manager pointing to temp file
         config = ConfigManager(str(temp_config))
         pipeline = Pipeline()

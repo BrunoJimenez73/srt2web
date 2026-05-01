@@ -3,657 +3,34 @@ REST API routes for SRT2Web.
 
 Provides endpoints for pipeline control, configuration,
 and module management.
+
+This file has been refactored from a monolithic 1047-line file
+into separate modules under server/routes/ and server/validators.py
 """
 
-import re
-import glob
 import logging
-import traceback
-import shutil
-import os
-from typing import Optional, Any, Dict, List
-from datetime import datetime
 
 from fastapi import APIRouter, Request, HTTPException
-from pydantic import BaseModel, field_validator
+
+from server.routes import pipeline, config, modules, outputs
 
 logger = logging.getLogger("srt2web.api")
 
-# Importar constantes desde fuente única de verdad
-from core.config_schema import (
-    VALID_MODULE_NAMES,
-    VALID_INPUT_TYPES,
-    VALID_OUTPUT_TYPES,
-    ALLOWED_WHISPER_MODELS,
-    ALLOWED_LANGUAGES,
-    ALLOWED_DEVICES,
-    ALLOWED_TTS_ENGINES,
-    ALLOWED_TTS_VOICES,
-    ALLOWED_SRT_MODES,
-    ALLOWED_VIDEO_PRESETS,
-    ALLOWED_GPU_PRESETS,
-)
-
-
-def sanitize_module_name(name: str) -> str:
-    """Validate and sanitize module name to prevent injection."""
-    if not name or not isinstance(name, str):
-        raise HTTPException(400, "Module name is required and must be a string")
-
-    if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", name):
-        raise HTTPException(
-            400,
-            f"Invalid module name format: '{name}'. Only letters, numbers and underscores are allowed.",
-        )
-
-    if name not in VALID_MODULE_NAMES:
-        raise HTTPException(
-            400,
-            f"Unknown module: '{name}'. Valid modules are: {', '.join(sorted(VALID_MODULE_NAMES))}",
-        )
-
-    return name
-
-
-def validate_config_value(key: str, value: Any) -> Any:
-    """Validate specific configuration values with detailed error messages."""
-    key_lower = key.lower()
-
-    if "port" in key_lower:
-        if not isinstance(value, int):
-            raise HTTPException(
-                400, f"Port must be an integer, got {type(value).__name__}: {value}"
-            )
-        if not (1 <= value <= 65535):
-            raise HTTPException(400, f"Port must be between 1 and 65535, got: {value}")
-
-    if "latency" in key_lower:
-        if not isinstance(value, (int, float)):
-            raise HTTPException(
-                400, f"Latency must be a number, got {type(value).__name__}: {value}"
-            )
-        if value < 0:
-            raise HTTPException(400, f"Latency cannot be negative, got: {value}")
-
-    if key == "transcriber.model":
-        if value not in ALLOWED_WHISPER_MODELS:
-            raise HTTPException(
-                400,
-                f"Invalid Whisper model: '{value}'. Valid models are: {', '.join(sorted(ALLOWED_WHISPER_MODELS))}",
-            )
-
-    if key in (
-        "transcriber.language",
-        "translator.source_lang",
-        "translator.target_lang",
-    ):
-        if value not in ALLOWED_LANGUAGES:
-            raise HTTPException(
-                400,
-                f"Invalid language: '{value}'. Valid languages are: {', '.join(sorted(ALLOWED_LANGUAGES))}",
-            )
-
-    if key == "transcriber.device":
-        if value not in ALLOWED_DEVICES:
-            raise HTTPException(
-                400,
-                f"Invalid device: '{value}'. Valid devices are: {', '.join(sorted(ALLOWED_DEVICES))}",
-            )
-
-    if key == "tts_engine.engine":
-        if value not in ALLOWED_TTS_ENGINES:
-            raise HTTPException(
-                400,
-                f"Invalid TTS engine: '{value}'. Valid engines are: {', '.join(sorted(ALLOWED_TTS_ENGINES))}",
-            )
-
-    if key == "tts_engine.device":
-        if value not in ALLOWED_DEVICES:
-            raise HTTPException(
-                400,
-                f"Invalid device: '{value}'. Valid devices are: {', '.join(sorted(ALLOWED_DEVICES))}",
-            )
-
-    if key == "tts_engine.voice":
-        if not value or not isinstance(value, str):
-            raise HTTPException(400, "Voice must be a non-empty string")
-        if value not in ALLOWED_TTS_VOICES:
-            raise HTTPException(
-                400,
-                f"Invalid voice: '{value}'. Valid voices are: {', '.join(sorted(ALLOWED_TTS_VOICES))}",
-            )
-
-    if key == "srt.mode":
-        if value not in ALLOWED_SRT_MODES:
-            raise HTTPException(
-                400,
-                f"Invalid SRT mode: '{value}'. Valid modes are: {', '.join(sorted(ALLOWED_SRT_MODES))}",
-            )
-
-    if "volume" in key_lower:
-        if not isinstance(value, (int, float)):
-            raise HTTPException(
-                400, f"Volume must be a number, got {type(value).__name__}: {value}"
-            )
-        if not (0 <= value <= 2.0):
-            raise HTTPException(
-                400, f"Volume must be between 0.0 and 2.0, got: {value}"
-            )
-
-    if "speed" in key_lower:
-        if not isinstance(value, (int, float)):
-            raise HTTPException(
-                400, f"Speed must be a number, got {type(value).__name__}: {value}"
-            )
-        if not (0.5 <= value <= 2.0):
-            raise HTTPException(400, f"Speed must be between 0.5 and 2.0, got: {value}")
-
-    # Validate video_muxer presets
-    if key == "video_muxer.video_preset":
-        if value not in ALLOWED_VIDEO_PRESETS:
-            raise HTTPException(
-                400,
-                f"Invalid video preset: '{value}'. Valid presets are: {', '.join(sorted(ALLOWED_VIDEO_PRESETS))}",
-            )
-
-    if key == "video_muxer.gpu_preset":
-        if value not in ALLOWED_GPU_PRESETS:
-            raise HTTPException(
-                400,
-                f"Invalid GPU preset: '{value}'. Valid presets are: {', '.join(sorted(ALLOWED_GPU_PRESETS))}",
-            )
-
-    return value
-
-
-class ErrorResponse(BaseModel):
-    """Standardized error response format."""
-
-    error: str
-    message: str
-    timestamp: str
-    details: Optional[Dict[str, Any]] = None
-
-
-def create_error_response(
-    message: str, details: Optional[Dict[str, Any]] = None
-) -> Dict[str, Any]:
-    """Create a standardized error response."""
-    return {
-        "error": "validation_error",
-        "message": message,
-        "timestamp": datetime.now().isoformat(),
-        "details": details,
-    }
-
-
-def validate_module_dependencies(config: dict) -> list:
-    """
-    Validate module dependencies according to pipeline rules.
-
-    Rules:
-    - subtitle_generator requires translator
-    - tts_engine requires translator
-    - audio_mixer requires translator AND tts_engine
-
-    Returns list of error messages, empty if valid.
-    """
-    errors = []
-    modules = config.get("modules", {})
-
-    translator_enabled = modules.get("translator", {}).get("enabled", False)
-    subtitle_enabled = modules.get("subtitle_generator", {}).get("enabled", False)
-    tts_enabled = modules.get("tts_engine", {}).get("enabled", False)
-    mixer_enabled = modules.get("audio_mixer", {}).get("enabled", False)
-
-    if subtitle_enabled and not translator_enabled:
-        errors.append("subtitle_generator requires translator to be enabled")
-
-    if tts_enabled and not translator_enabled:
-        errors.append("tts_engine requires translator to be enabled")
-
-    if mixer_enabled:
-        if not translator_enabled:
-            errors.append("audio_mixer requires translator to be enabled")
-        if not tts_enabled:
-            errors.append("audio_mixer requires tts_engine to be enabled")
-
-    return errors
-
-
-class ConfigUpdate(BaseModel):
-    """Request body for configuration updates with validation."""
-
-    config: dict
-
-    @field_validator("config")
-    @classmethod
-    def validate_config_keys(cls, v: dict) -> dict:
-        """Validate configuration keys and values."""
-        for key, value in v.items():
-            if isinstance(value, dict):
-                for subkey, subvalue in value.items():
-                    if isinstance(subvalue, dict):
-                        for k, v_val in subvalue.items():
-                            full_key = f"{key}.{subkey}.{k}"
-                            validate_config_value(full_key, v_val)
-                    else:
-                        full_key = f"{key}.{subkey}"
-                        validate_config_value(full_key, subvalue)
-            else:
-                validate_config_value(key, value)
-        return v
-
-
-class ModuleToggle(BaseModel):
-    """Request body for toggling a module."""
-
-    enabled: bool
-
 
 def create_api_router() -> APIRouter:
+    """Create and return the main API router with all sub-routers."""
     router = APIRouter(tags=["api"])
+
+    # Include sub-routers from separated modules
+    router.include_router(pipeline.router)
+    router.include_router(config.router)
+    router.include_router(modules.router)
+    router.include_router(outputs.router)
 
     def _ctx(request: Request) -> dict:
         return request.app.state.ctx
 
-    # ── Pipeline Control ──────────────────────────────────
-
-    @router.get("/status")
-    async def get_status(request: Request):
-        """Get full pipeline status including all modules and input/output."""
-        ctx = _ctx(request)
-        pipeline = ctx["pipeline"]
-        input_source = ctx.get("input_source")
-        config = ctx["config"]
-
-        status = pipeline.get_status()
-
-        if input_source:
-            status["input_receiving"] = input_source.is_receiving()
-            status["input_info"] = input_source.get_connection_info()
-
-        # Add network info
-        from core.network_utils import get_network_info
-
-        srt_port = config.get("input.srt.listen_port", 9000)
-        server_port = config.get("server.port", 9999)
-        latency_ms = config.get("input.srt.latency_ms", 1000)
-        srt_mode = config.get("input.srt.mode", "listener")
-        caller_address = config.get("input.srt.caller_address", "")
-
-        network = get_network_info(
-            srt_port=srt_port, server_port=server_port, latency_ms=latency_ms
-        )
-        network["srt_mode"] = srt_mode
-        network["caller_address"] = caller_address
-        status["network"] = network
-
-        return status
-
-    @router.post("/start")
-    async def start_pipeline(request: Request):
-        """Start the processing pipeline."""
-        ctx = _ctx(request)
-        pipeline = ctx["pipeline"]
-        input_source = ctx.get("input_source")
-        log_broadcast = ctx.get("log_broadcast")
-        config = ctx["config"]
-
-        # Check if pipeline is already running (handle both string and enum)
-        pipeline_state = getattr(pipeline, 'state', 'idle')
-        if pipeline_state in ('running', 'RUNNING') or (hasattr(pipeline_state, 'value') and pipeline_state.value == 'running'):
-            raise HTTPException(400, "Pipeline is already running")
-        
-        # If pipeline is in error state, reset to idle before starting again
-        if pipeline_state in ('error', 'ERROR'):
-            try:
-                from core.unified_pipeline import PipelineState
-                pipeline._set_state(PipelineState.IDLE)
-                logger.info("Pipeline state reset from error to idle")
-            except Exception as e:
-                logger.warning(f"Could not reset pipeline state: {e}")
-
-        # RTMP input setup - no external server needed, FFmpeg listens for connections
-        input_type = config.get("input.type", "srt") if config else "srt"
-        logger.info(f"Starting pipeline with input type: {input_type}")
-        
-        if input_type == "rtmp" and input_source:
-            rtmp_config = config.get("input.rtmp", {}) if config else {}
-            logger.info(f"RTMP config: {rtmp_config}")
-            # Configure RTMP input with listen port from config
-            if hasattr(input_source, 'configure'):
-                rtmp_port = rtmp_config.get("listen_port", 1935)
-                app_name = rtmp_config.get("app", "live")
-                stream_key = rtmp_config.get("stream_key", "stream")
-                # URL without listen param - it's set via -rtmp_listen option in FFmpeg
-                listen_url = f"rtmp://127.0.0.1:{rtmp_port}/{app_name}/{stream_key}"
-                new_config = {**rtmp_config, "url": listen_url}
-                input_source.configure(new_config)
-                logger.info(f"RTMP input configured in listen mode: {listen_url}")
-        
-        # File input setup
-        if input_type == "file" and input_source:
-            file_config = config.get("input.file", {}) if config else {}
-            logger.info(f"File config: {file_config}")
-            if hasattr(input_source, 'configure'):
-                input_source.configure(file_config)
-                logger.info(f"File input configured with path: {file_config.get('path', '')}")
-
-        def on_log(level, message):
-            if log_broadcast:
-                log_broadcast(level, message)
-
-        def on_state(state):
-            if log_broadcast:
-                log_broadcast("info", f"Pipeline state changed: {state}")
-
-        try:
-            pipeline.start(
-                on_log=on_log,
-                on_state_change=on_state,
-            )
-        except Exception as e:
-            logger.error(f"Failed to start pipeline: {e}")
-            raise HTTPException(500, f"Failed to start pipeline: {e}")
-
-        input_info = {}
-        if input_source:
-            input_info = input_source.get_connection_info()
-
-        return {"status": "started", "input": input_info}
-
-    @router.post("/stop")
-    async def stop_pipeline(request: Request):
-        """Stop the processing pipeline and clean up temporary files."""
-        ctx = _ctx(request)
-        pipeline = ctx["pipeline"]
-        output_dir = ctx.get("output_dir", "./output")
-
-        try:
-            await pipeline.stop()
-        except Exception as e:
-            logger.error(f"Error stopping pipeline: {e}")
-            pass
-
-        # Clean up temporary files
-        cleanup_dirs = [
-            os.path.join(output_dir, "chunks"),
-            os.path.join(output_dir, "temp_audio"),
-            os.path.join(output_dir, "temp_mix"),
-            os.path.join(output_dir, "temp_tts"),
-        ]
-
-        for cleanup_dir in cleanup_dirs:
-            if os.path.exists(cleanup_dir):
-                try:
-                    shutil.rmtree(cleanup_dir)
-                    os.makedirs(cleanup_dir, exist_ok=True)
-                    logger.info(f"Cleaned up: {cleanup_dir}")
-                except Exception as e:
-                    logger.warning(f"Could not clean {cleanup_dir}: {e}")
-
-        # Also clean old HLS files
-        hls_dir = os.path.join(output_dir, "hls")
-        if os.path.exists(hls_dir):
-            # Remove segment files
-            for f in glob.glob(os.path.join(hls_dir, "seg_*.ts")):
-                try:
-                    os.remove(f)
-                except:
-                    pass
-            # Remove chunk SRT files
-            for f in glob.glob(os.path.join(hls_dir, "chunk_*.srt")):
-                try:
-                    os.remove(f)
-                except:
-                    pass
-            # Remove playlist files but recreate them empty
-            for m3u8_file in ["stream.m3u8", "master.m3u8"]:
-                m3u8_path = os.path.join(hls_dir, m3u8_file)
-                try:
-                    if os.path.exists(m3u8_path):
-                        os.remove(m3u8_path)
-                except:
-                    pass
-            # Keep subs.vtt but clear old entries
-            subs_path = os.path.join(hls_dir, "subs.vtt")
-            if os.path.exists(subs_path):
-                try:
-                    with open(subs_path, "w", encoding="utf-8") as f:
-                        f.write("WEBVTT\n\n")
-                except:
-                    pass
-
-        return {"status": "stopped"}
-
-    @router.post("/restart")
-    async def restart_pipeline(request: Request):
-        """Restart the pipeline to apply module configuration changes."""
-        ctx = _ctx(request)
-        pipeline = ctx["pipeline"]
-        config = ctx["config"]
-
-        try:
-            await pipeline.stop()
-        except Exception as e:
-            logger.error(f"Error stopping pipeline: {e}")
-
-        # Small delay to ensure clean shutdown
-        import asyncio
-
-        await asyncio.sleep(0.5)
-
-        # Reconfigure all modules
-        pipeline.reconfigure(config)
-
-        # Start pipeline again
-        try:
-            pipeline.start(
-                on_log=lambda level, msg: None,
-                on_state_change=lambda state: None,
-            )
-        except Exception as e:
-            logger.error(f"Failed to restart pipeline: {e}")
-            raise HTTPException(500, f"Failed to restart pipeline: {e}")
-
-        return {"status": "restarted"}
-
-    # ── Configuration ─────────────────────────────────────
-
-    @router.get("/config")
-    async def get_config(request: Request):
-        """Get current configuration."""
-        ctx = _ctx(request)
-        return ctx["config"].to_dict()
-
-    @router.put("/config")
-    async def update_config(request: Request, body: ConfigUpdate):
-        """Update configuration (partial update) with dependency validation."""
-        ctx = _ctx(request)
-        config = ctx["config"]
-
-        # Validate module dependencies BEFORE saving
-        dependency_errors = validate_module_dependencies(body.config)
-        if dependency_errors:
-            raise HTTPException(
-                400,
-                f"Configuration violates module dependencies:\n• "
-                + "\n• ".join(dependency_errors),
-            )
-
-        import json
-        logger.info(f"[CONFIG] PUT receives: {json.dumps(body.config, indent=2)[:1000]}")
-        logger.info(f"[CONFIG] PUT body keys: {list(body.config.keys())}")
-        
-        try:
-            config.update_from_dict(body.config)
-            config.save()
-            # Hot reload: force reload from disk to avoid stale cache
-            config.reload()
-        except ValueError as e:
-            logger.warning(f"Invalid config but accepting anyway: {e}")
-            return {"status": "updated", "config": config.to_dict(), "warning": str(e)}
-        except Exception as e:
-            logger.error(f"Failed to save config: {e}")
-            raise HTTPException(500, f"Failed to save configuration: {e}")
-
-        # Hot reload!
-        pipeline = ctx["pipeline"]
-        try:
-            pipeline.reconfigure(config)
-        except Exception as e:
-            logger.error(f"Failed to reconfigure pipeline: {e}")
-            raise HTTPException(500, f"Pipeline reconfiguration failed: {e}")
-
-        return {"status": "updated", "config": config.to_dict()}
-
-    @router.post("/config/chunk")
-    async def update_chunk_duration(request: Request, body: dict):
-        """
-        Update chunk duration and synchronize all related parameters.
-        
-        Accepts: {"chunk_duration_sec": <int>}
-        Syncs to:
-        - config.pipeline.chunk_duration_sec
-        - config.input.srt.chunk_duration_sec
-        - config.modules.video_muxer.hls_segment_duration
-        - config.modules.hls_output.segment_duration
-        - Reconfigures running pipeline modules
-        """
-        ctx = _ctx(request)
-        config = ctx["config"]
-        pipeline = ctx["pipeline"]
-
-        chunk_duration = body.get("chunk_duration_sec")
-        if not chunk_duration:
-            raise HTTPException(400, "chunk_duration_sec is required")
-        if not isinstance(chunk_duration, int) or chunk_duration < 1 or chunk_duration > 60:
-            raise HTTPException(400, "chunk_duration_sec must be between 1 and 60")
-
-        # Sync to all config sections using config.set() method
-        config.set("pipeline.chunk_duration_sec", chunk_duration)
-        config.set("input.srt.chunk_duration_sec", chunk_duration)
-        config.set("modules.video_muxer.hls_segment_duration", chunk_duration)
-        config.set("modules.hls_output.segment_duration", chunk_duration)
-
-        logger.info(f"[CHUNK] Syncing chunk_duration={chunk_duration}s to all modules")
-
-        try:
-            config.save()
-            config.reload()
-        except Exception as e:
-            logger.error(f"[CHUNK] Failed to save config: {e}")
-
-        # Reconfigure pipeline and modules
-        try:
-            pipeline.reconfigure(config)
-        except Exception as e:
-            logger.warning(f"[CHUNK] Pipeline reconfigure failed (may not be running): {e}")
-
-        return {
-            "status": "updated",
-            "chunk_duration_sec": chunk_duration,
-            "synced_to": [
-                "pipeline.chunk_duration_sec",
-                "input.srt.chunk_duration_sec",
-                "modules.video_muxer.hls_segment_duration",
-                "modules.hls_output.segment_duration",
-            ]
-        }
-
-    # ── Module Management ─────────────────────────────────
-
-    @router.get("/modules")
-    async def list_modules(request: Request):
-        """List all registered modules and their status."""
-        ctx = _ctx(request)
-        pipeline = ctx["pipeline"]
-        return {"modules": [m.get_status().to_dict() for m in pipeline.get_modules()]}
-
-    @router.get("/modules/{module_name}/debug")
-    async def debug_module(request: Request, module_name: str):
-        """Debug endpoint to see raw module state."""
-        safe_module_name = sanitize_module_name(module_name)
-        ctx = _ctx(request)
-        pipeline = ctx["pipeline"]
-        module = pipeline.get_module(safe_module_name)
-        if not module:
-            raise HTTPException(404, f"Module '{safe_module_name}' not found")
-        return {
-            "name": module.name,
-            "enabled": module.enabled,
-            "_state": str(module._state),
-            "state_property": str(module.state),
-        }
-
-    @router.put("/modules/{module_name}/toggle")
-    async def toggle_module(
-        request: Request,
-        module_name: str,
-        body: ModuleToggle,
-    ):
-        """Enable or disable a module with hot reload."""
-        from core.module_base import ModuleState
-
-        safe_module_name = sanitize_module_name(module_name)
-
-        ctx = _ctx(request)
-        pipeline = ctx["pipeline"]
-        config = ctx["config"]
-
-        module = pipeline.get_module(safe_module_name)
-        if not module:
-            raise HTTPException(404, f"Module '{safe_module_name}' not found")
-
-        was_enabled = module.enabled
-        module.enabled = body.enabled
-        config.set_module_enabled(safe_module_name, body.enabled)
-        config.save()
-
-        # Hot reload: start or stop the module if pipeline is running
-        if pipeline.state.value == "running":
-            try:
-                if body.enabled and not was_enabled:
-                    # Module was disabled, now enabled - start it
-                    mod_config = config.get_module_config(safe_module_name)
-                    module.configure(mod_config)
-                    module.start()
-                    module._state = ModuleState.RUNNING
-                    logger.info(f"Hot-started module: {safe_module_name}")
-                    # Force re-read of enabled state in next iteration
-                    pipeline._chunk_index += 0
-                elif not body.enabled and was_enabled:
-                    # Module was enabled, now disabled - stop it
-                    module.stop()
-                    module._state = ModuleState.DISABLED
-                    logger.info(f"Hot-stopped module: {safe_module_name}")
-                else:
-                    # Just reconfigure
-                    pipeline.reconfigure(config)
-            except Exception as e:
-                import traceback
-
-                err_msg = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
-                logger.error(f"Error in hot-reload for {safe_module_name}: {err_msg}")
-                return {
-                    "module": safe_module_name,
-                    "enabled": body.enabled,
-                    "status": module.get_status().to_dict(),
-                    "warning": f"Hot reload failed: {str(e)}",
-                    "error": err_msg,
-                }
-        else:
-            pipeline.reconfigure(config)
-
-        return {
-            "module": safe_module_name,
-            "enabled": body.enabled,
-            "status": module.get_status().to_dict(),
-            "hot_reload": True,
-        }
-
-    # ── Input/Output Info ───────────────────────────────────
+    # ── Input/Output Info ───────────────────────────
 
     @router.get("/input-info")
     async def input_info(request: Request):
@@ -666,25 +43,23 @@ def create_api_router() -> APIRouter:
 
         return input_source.get_connection_info()
 
-    # ── File Input Playback Controls ────────────────────────
-
-    class SeekPosition(BaseModel):
-        """Request body for seek position."""
-        position: float  # Position in seconds
+    # ── File Input Playback Controls ────────────────
 
     @router.post("/input/control/play")
     async def input_play(request: Request):
         """Resume file playback (for file input type)."""
         ctx = _ctx(request)
         input_source = ctx.get("input_source")
-        
+
         if not input_source:
             raise HTTPException(400, "No input source configured")
-        
-        logger.info(f"[API] input/control/play called - input_source type: {type(input_source).__name__}")
-        
+
+        logger.info(
+            f"[API] input/control/play called - input_source type: {type(input_source).__name__}"
+        )
+
         # Check if input source has play method (FileInput)
-        if hasattr(input_source, 'play'):
+        if hasattr(input_source, "play"):
             input_source.play()
             logger.info("[API] input_source.play() executed successfully")
             return {"status": "playing", "message": "Playback resumed"}
@@ -696,14 +71,16 @@ def create_api_router() -> APIRouter:
         """Pause file playback (for file input type)."""
         ctx = _ctx(request)
         input_source = ctx.get("input_source")
-        
+
         if not input_source:
             raise HTTPException(400, "No input source configured")
-        
-        logger.info(f"[API] input/control/pause called - input_source type: {type(input_source).__name__}")
-        
+
+        logger.info(
+            f"[API] input/control/pause called - input_source type: {type(input_source).__name__}"
+        )
+
         # Check if input source has pause method (FileInput)
-        if hasattr(input_source, 'pause'):
+        if hasattr(input_source, "pause"):
             input_source.pause()
             logger.info("[API] input_source.pause() executed successfully")
             return {"status": "paused", "message": "Playback paused"}
@@ -711,18 +88,22 @@ def create_api_router() -> APIRouter:
             raise HTTPException(400, "Input source does not support pause control")
 
     @router.post("/input/control/seek")
-    async def input_seek(request: Request, body: SeekPosition):
+    async def input_seek(request: Request, body: dict):
         """Seek to a specific position in the file (for file input type)."""
         ctx = _ctx(request)
         input_source = ctx.get("input_source")
-        
+
         if not input_source:
             raise HTTPException(400, "No input source configured")
-        
+
         # Check if input source has seek method (FileInput)
-        if hasattr(input_source, 'seek'):
-            input_source.seek(body.position)
-            return {"status": "seeked", "position": body.position, "message": f"Seeked to {body.position}s"}
+        if hasattr(input_source, "seek"):
+            input_source.seek(body.get("position", 0))
+            return {
+                "status": "seeked",
+                "position": body.get("position", 0),
+                "message": f"Seeked to {body.get('position', 0)}s",
+            }
         else:
             raise HTTPException(400, "Input source does not support seek control")
 
@@ -731,6 +112,8 @@ def create_api_router() -> APIRouter:
         """Get output sink information (legacy — use /outputs for multi-output)."""
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
+        from server.routes.outputs import _get_composite
+
         composite = _get_composite(pipeline)
         if hasattr(composite, "get_all_output_statuses"):
             statuses = composite.get_all_output_statuses()
@@ -740,193 +123,7 @@ def create_api_router() -> APIRouter:
             return {"error": "No output sink configured"}
         return sink.get_stream_info()
 
-    # ── Output Management ───────────────────────────────────────
-
-    def _sync_outputs_to_config(request: Request, composite) -> None:
-        """Actualiza la lista `outputs` en config.yaml desde el estado actual del composite."""
-        ctx = _ctx(request)
-        config = ctx["config"]
-
-        output_list = []
-        for name in (composite.get_output_names() if hasattr(composite, "get_output_names") else []):
-            output = composite.get_output_by_name(name) if hasattr(composite, "get_output_by_name") else None
-            if not output:
-                continue
-            entry = {
-                "name": name,
-                "type": getattr(output, "name", name.rsplit("_", 1)[0] if "_" in name else name),
-                "enabled": getattr(output, "enabled", True),
-                "config": getattr(output, "config", {}),
-            }
-            # Extraer el type real del output
-            type_attr = getattr(output, "name", "").rsplit("_", 1)
-            entry["type"] = type_attr[0] if len(type_attr) > 1 else name
-            output_list.append(entry)
-
-        config.set("output.outputs", output_list)
-        try:
-            config.save()
-        except Exception as e:
-            logger.warning(f"Could not sync outputs to config: {e}")
-
-    def _get_composite(pipeline):
-        """Helper: obtiene el CompositeOutput del pipeline. Lanza 500 si no existe."""
-        composite = pipeline.get_output_sinks()
-        if composite is None:
-            composite = pipeline.get_output_sink()
-        if composite is None:
-            raise HTTPException(500, "No output sink configured in pipeline")
-        # Si es un sink simple (no composite), envolverlo sería complejo;
-        # en la nueva arquitectura siempre arranca como CompositeOutput.
-        return composite
-
-    @router.get("/outputs")
-    async def list_outputs(request: Request):
-        """Lista todos los outputs configurados con su estado."""
-        ctx = _ctx(request)
-        pipeline = ctx["pipeline"]
-        composite = _get_composite(pipeline)
-
-        if hasattr(composite, "get_all_output_statuses"):
-            return {"outputs": composite.get_all_output_statuses()}
-
-        # Fallback para sink simple
-        status = composite.get_status() if hasattr(composite, "get_status") else {}
-        return {"outputs": [{
-            "name": getattr(composite, "name", "output"),
-            "type": getattr(composite, "name", "web"),
-            "state": status.get("state", "idle"),
-            "enabled": True,
-            "processed_chunks": status.get("processed_chunks", 0),
-            "last_process_time_ms": status.get("last_process_time_ms", 0),
-            "stream_info": composite.get_stream_info() if hasattr(composite, "get_stream_info") else {},
-        }]}
-
-    @router.get("/outputs/available")
-    async def get_available_outputs(request: Request):
-        """Tipos de output disponibles para crear."""
-        from core.io_factory import OutputFactory
-        return {"available_types": OutputFactory.available()}
-
-    @router.post("/outputs")
-    async def add_output(request: Request, body: dict):
-        """Añade un nuevo output al pipeline en caliente y lo guarda en config.yaml."""
-        ctx = _ctx(request)
-        pipeline = ctx["pipeline"]
-
-        output_type = body.get("type")
-        output_config = body.get("config", {}) or {}
-        output_name = body.get("name") or f"{output_type}_{int(__import__('time').time())}"
-        output_enabled = body.get("enabled", True)
-
-        if not output_type:
-            raise HTTPException(400, "Output type is required")
-
-        from core.io_factory import OutputFactory
-        try:
-            output = OutputFactory.create(output_type, output_config)
-            output.name = output_name
-        except ValueError as e:
-            raise HTTPException(400, str(e))
-
-        composite = _get_composite(pipeline)
-
-        if hasattr(composite, "add_output"):
-            composite.add_output(output_name, output)
-            # Iniciar la nueva salida solo si el pipeline está corriendo
-            if pipeline.is_running:
-                try:
-                    output.start()
-                except Exception as e:
-                    logger.warning(f"Output '{output_name}' start warning: {e}")
-        else:
-            raise HTTPException(500, "Pipeline sink does not support multiple outputs")
-
-        # Sync to config.yaml para persistencia
-        _sync_outputs_to_config(request, composite)
-
-        return {"status": "added", "name": output_name, "type": output_type}
-
-    @router.put("/outputs/{output_name}")
-    async def update_output(request: Request, output_name: str, body: dict):
-        """Actualiza la configuración de un output existente."""
-        ctx = _ctx(request)
-        pipeline = ctx["pipeline"]
-        composite = _get_composite(pipeline)
-
-        if not hasattr(composite, "get_output_by_name"):
-            raise HTTPException(404, "Composite output not available")
-
-        output = composite.get_output_by_name(output_name)
-        if not output:
-            raise HTTPException(404, f"Output '{output_name}' not found")
-
-        if "config" in body and hasattr(output, "configure"):
-            output.configure(body["config"])
-
-        if "enabled" in body and hasattr(composite, "enable_output"):
-            composite.enable_output(output_name, bool(body["enabled"]))
-
-        return {"status": "updated", "name": output_name}
-
-    @router.delete("/outputs/{output_name}")
-    async def remove_output(request: Request, output_name: str):
-        """Elimina un output del pipeline y lo elimina de config.yaml."""
-        ctx = _ctx(request)
-        pipeline = ctx["pipeline"]
-        composite = _get_composite(pipeline)
-
-        if not hasattr(composite, "remove_output"):
-            raise HTTPException(404, "Composite output not available")
-
-        # No permitir eliminar el último output
-        if hasattr(composite, "get_output_names") and len(composite.get_output_names()) <= 1:
-            raise HTTPException(400, "Cannot remove the last output. Add another output first.")
-
-        if not composite.remove_output(output_name):
-            raise HTTPException(404, f"Output '{output_name}' not found")
-
-        # Sync to config.yaml
-        _sync_outputs_to_config(request, composite)
-
-        return {"status": "removed", "name": output_name}
-
-    @router.post("/outputs/{output_name}/toggle")
-    async def toggle_output(request: Request, output_name: str, body: dict = None):
-        """Habilita o deshabilita un output."""
-        ctx = _ctx(request)
-        pipeline = ctx["pipeline"]
-        composite = _get_composite(pipeline)
-
-        output = composite.get_output_by_name(output_name)
-        if not output:
-            raise HTTPException(404, f"Output '{output_name}' not found")
-
-        enabled = body.get("enabled", not composite.is_output_enabled(output_name)) if body else not composite.is_output_enabled(output_name)
-        composite.enable_output(output_name, enabled)
-
-        # Sync to config.yaml
-        _sync_outputs_to_config(request, composite)
-
-        return {"status": "toggled", "name": output_name, "enabled": enabled}
-
-    @router.get("/available")
-    async def get_available(request: Request):
-        """Get available input and output types."""
-        from core.io_factory import InputFactory, OutputFactory
-
-        return {
-            "inputs": InputFactory.available(),
-            "outputs": OutputFactory.available(),
-        }
-
-    # Legacy endpoint - redirects to input-info
-    @router.get("/srt-info")
-    async def srt_info(request: Request):
-        """Get SRT connection information (legacy - use /input-info)."""
-        return await input_info(request)
-
-    # ── Network Information ──────────────────────────────────
+    # ── Network Information ──────────────────────────
 
     @router.get("/network/info")
     async def network_info(request: Request):
@@ -951,7 +148,7 @@ def create_api_router() -> APIRouter:
 
         return network
 
-    # ── Health Check ───────────────────────────────────────────
+    # ── Health Check ───────────────────────────────────
 
     @router.get("/health")
     async def health_check(request: Request):
@@ -966,18 +163,16 @@ def create_api_router() -> APIRouter:
             - pipeline: pipeline state and stats
         """
         from time import time as get_time
+        import psutil
 
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
-        config = ctx["config"]
 
         start_time = ctx.get("_start_time", get_time())
         uptime = get_time() - start_time
 
         memory_info = {"memory_mb": 0, "memory_percent": 0}
         try:
-            import psutil
-
             process = psutil.Process()
             memory_info = {
                 "memory_mb": round(process.memory_info().rss / 1024 / 1024, 1),
@@ -1020,16 +215,20 @@ def create_api_router() -> APIRouter:
         input_src = pipeline.get_input_source()
         if input_src:
             input_health = {
-                "receiving": input_src.is_receiving() if hasattr(input_src, 'is_receiving') else False,
-                "type": getattr(input_src, 'name', 'unknown'),
+                "receiving": input_src.is_receiving()
+                if hasattr(input_src, "is_receiving")
+                else False,
+                "type": getattr(input_src, "name", "unknown"),
             }
 
         output_health = {"streaming": False}
         output_snk = pipeline.get_output_sink()
         if output_snk:
             output_health = {
-                "streaming": output_snk.is_streaming() if hasattr(output_snk, 'is_streaming') else False,
-                "type": getattr(output_snk, 'name', 'unknown'),
+                "streaming": output_snk.is_streaming()
+                if hasattr(output_snk, "is_streaming")
+                else False,
+                "type": getattr(output_snk, "name", "unknown"),
             }
 
         return {
@@ -1043,5 +242,23 @@ def create_api_router() -> APIRouter:
             "input": input_health,
             "output": output_health,
         }
+
+    # ── Available Types ────────────────────────────────
+
+    @router.get("/available")
+    async def get_available(request: Request):
+        """Get available input and output types."""
+        from core.io_factory import InputFactory, OutputFactory
+
+        return {
+            "inputs": InputFactory.available(),
+            "outputs": OutputFactory.available(),
+        }
+
+    # Legacy endpoint - redirects to input-info
+    @router.get("/srt-info")
+    async def srt_info(request: Request):
+        """Get SRT connection information (legacy - use /input-info)."""
+        return await input_info(request)
 
     return router

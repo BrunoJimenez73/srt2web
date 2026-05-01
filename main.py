@@ -11,37 +11,17 @@ import signal
 import threading
 import logging
 import webbrowser
-from typing import TYPE_CHECKING, Any
-from types import FrameType
-
-if TYPE_CHECKING:
-    from core.unified_pipeline import UnifiedPipeline
-    from modules.inputs.base_input import BaseInput
-
-# Add CUDA/cuDNN paths for Windows - BEFORE any other imports
-from core.cuda_paths import setup_cuda_environment
-setup_cuda_environment()
-
-import asyncio
 import atexit
-import logging
-import webbrowser
-import threading
-import signal
-from pathlib import Path
-
 import uvicorn
 
-# Use centralized path utilities
-from core import get_project_root, get_config_path, get_logs_dir, SERVER_PORT_DEFAULT, SERVER_HOST, CONFIG_FILE
+from typing import Tuple
+from types import FrameType
 
-# Add project root to path
-PROJECT_ROOT = get_project_root()
-sys.path.insert(0, str(PROJECT_ROOT))
-
+from core.cuda_paths import setup_cuda_environment
+from core import get_project_root, get_config_path, SERVER_PORT_DEFAULT, SERVER_HOST
 from core.config_manager import ConfigManager
 from core.unified_pipeline import UnifiedPipeline, PipelineMode
-from core.ffmpeg_utils import find_ffmpeg, ensure_ffmpeg
+from core.ffmpeg_utils import find_ffmpeg
 from core.io_factory import InputFactory, OutputFactory, auto_discover
 from modules.audio_extractor import AudioExtractor
 from modules.transcriber import Transcriber
@@ -51,9 +31,15 @@ from modules.tts_engine import TTSEngine
 from modules.audio_mixer import AudioMixer
 from server.app import create_app
 from server.ws_routes import log_broadcaster
+from modules.inputs.base_input import BaseInput
 
-# Global references for cleanup
-_app_context = None
+# Setup CUDA paths - must be called before any GPU-related imports
+setup_cuda_environment()
+
+# Define PROJECT_ROOT after import
+PROJECT_ROOT = get_project_root()
+
+# No global state - use function parameters
 
 
 def _cleanup_orphan_processes() -> None:
@@ -77,14 +63,13 @@ def _cleanup_orphan_processes() -> None:
         logger.warning(f"Cleanup warning: {e}")
 
 
-def _shutdown() -> None:
+def _shutdown(app_context: dict) -> None:
     """Graceful shutdown handler."""
-    global _app_context
     logger = logging.getLogger("srt2web.main")
 
-    if _app_context:
+    if app_context:
         try:
-            pipeline = _app_context.get("pipeline")
+            pipeline = app_context.get("pipeline")
 
             if pipeline:
                 pipeline.stop()
@@ -100,12 +85,14 @@ def setup_logging() -> None:
     """Configure logging - delegates to core.logging_setup."""
     from core.logging_setup import setup_logging as _setup
     from server.ws_routes import log_broadcaster
+
     _setup(log_broadcaster=log_broadcaster)
-    import logging
     logging.getLogger("srt2web.main").info("Logging initialized")
 
 
-def build_pipeline(config: ConfigManager, output_dir: str) -> tuple['UnifiedPipeline', 'BaseInput']:
+def build_pipeline(
+    config: ConfigManager, output_dir: str
+) -> Tuple[UnifiedPipeline, BaseInput]:
     """
     Build the processing pipeline with modular input/output.
 
@@ -125,7 +112,9 @@ def build_pipeline(config: ConfigManager, output_dir: str) -> tuple['UnifiedPipe
 
     # Create input source
     logger = logging.getLogger("srt2web.main")
-    logger.info(f"Creating input source: {input_type} (chunk_duration={chunk_duration})")
+    logger.info(
+        f"Creating input source: {input_type} (chunk_duration={chunk_duration})"
+    )
     input_source = InputFactory.create(input_type, type_config)
     input_source.set_output_dir(output_dir)
 
@@ -138,6 +127,7 @@ def build_pipeline(config: ConfigManager, output_dir: str) -> tuple['UnifiedPipe
     # Esto permite agregar/quitar salidas en caliente desde la API
     # sin reiniciar el pipeline.
     from modules.outputs.composite_output import CompositeOutput
+
     composite_sink = CompositeOutput({})
     composite_sink.set_output_dir(output_dir)
 
@@ -176,7 +166,7 @@ def build_pipeline(config: ConfigManager, output_dir: str) -> tuple['UnifiedPipe
         max_concurrent_chunks=2,
         buffer_size=2,
         retry_attempts=2,
-        retry_delay=1.0
+        retry_delay=1.0,
     )
     pipeline.set_input_source(input_source)
     pipeline.set_output_sink(composite_sink)
@@ -202,7 +192,9 @@ def build_pipeline(config: ConfigManager, output_dir: str) -> tuple['UnifiedPipe
 
     # 4. Generate subtitles
     subs_config = config.get_module_config("subtitle_generator")
-    subs_config["chunk_duration"] = chunk_duration  # Override module's chunk_duration with pipeline value
+    subs_config[
+        "chunk_duration"
+    ] = chunk_duration  # Override module's chunk_duration with pipeline value
     subtitle_generator = SubtitleGenerator(config=subs_config, output_dir=output_dir)
     pipeline.register_module(subtitle_generator)
 
@@ -216,7 +208,7 @@ def build_pipeline(config: ConfigManager, output_dir: str) -> tuple['UnifiedPipe
     audio_mixer = AudioMixer(config=mixer_config, output_dir=output_dir)
     pipeline.register_module(audio_mixer)
 
-    logger.info(f"Async pipeline created: buffer_size=5, num_workers=3")
+    logger.info("Async pipeline created: buffer_size=5, num_workers=3")
     logger.info("Parallel processing enabled - expected 3-4x throughput improvement")
 
     return pipeline, input_source
@@ -258,17 +250,18 @@ def main() -> None:
     pipeline, input_source = build_pipeline(config, output_dir)
 
     # Create shared context
-    global _app_context
     app_context = {
         "config": config,
         "pipeline": pipeline,
         "input_source": input_source,
         "log_broadcast": log_broadcaster.broadcast,
     }
-    _app_context = app_context
 
-    # Register atexit handler for cleanup
-    atexit.register(_shutdown)
+    # Register atexit handler for cleanup - capture app_context
+    def _shutdown_wrapper():
+        _shutdown(app_context)
+
+    atexit.register(_shutdown_wrapper)
 
     # Server configuration
     host = config.get("server.host", SERVER_HOST)

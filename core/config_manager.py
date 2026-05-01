@@ -71,22 +71,26 @@ class ConfigManager:
         """Load configuration from YAML file, merging with defaults."""
         # Cargar defaults desde esquema Pydantic
         default_config = SRT2WebConfig().to_dict()
-        
+
         if os.path.exists(self._config_path):
             try:
                 with open(self._config_path, "r", encoding="utf-8") as f:
                     file_config = yaml.safe_load(f) or {}
-                
+
                 # Merge con defaults
                 merged_config = _deep_merge(default_config, file_config)
-                
+
                 # Validar con esquema Pydantic
                 try:
                     validated_config = SRT2WebConfig.from_dict(merged_config)
                     self._config = validated_config.to_dict()
-                    logger.info(f"Configuration loaded and validated from {self._config_path}")
+                    logger.info(
+                        f"Configuration loaded and validated from {self._config_path}"
+                    )
                 except ValidationError as ve:
-                    logger.error(f"Configuration validation error in {self._config_path}:\n{ve}")
+                    logger.error(
+                        f"Configuration validation error in {self._config_path}:\n{ve}"
+                    )
                     logger.warning("Using defaults due to validation failure.")
                     self._config = default_config
             except Exception as e:
@@ -105,7 +109,7 @@ class ConfigManager:
             # Validar antes de guardar
             validated_config = SRT2WebConfig.from_dict(self._config)
             self._config = validated_config.to_dict()
-            
+
             os.makedirs(os.path.dirname(self._config_path) or ".", exist_ok=True)
             with open(self._config_path, "w", encoding="utf-8") as f:
                 yaml.dump(
@@ -166,22 +170,24 @@ class ConfigManager:
 
     def update_from_dict(self, data: dict) -> None:
         """Update configuration from a dictionary (partial update) with validation."""
-        import logging
-        import json
-        logger = logging.getLogger("srt2web.config")
-        
-        logger.info(f"[update_from_dict] BEFORE merge - input.srt: {data.get('input', {}).get('srt', {})}")
-        
+        logger.debug(
+            f"[update_from_dict] BEFORE merge - input.srt: {data.get('input', {}).get('srt', {})}"
+        )
+
         new_config = _deep_merge(self._config, data)
-        
-        logger.info(f"[update_from_dict] AFTER merge - input.srt: {new_config.get('input', {}).get('srt', {})}")
-        
+
+        logger.debug(
+            f"[update_from_dict] AFTER merge - input.srt: {new_config.get('input', {}).get('srt', {})}"
+        )
+
         try:
             # Validar que el resultado del merge sigue siendo válido
             validated_config = SRT2WebConfig.from_dict(new_config)
             self._config = validated_config.to_dict()
-            
-            logger.info(f"[update_from_dict] AFTER validate - input.srt: {self._config.get('input', {}).get('srt', {})}")
+
+            logger.debug(
+                f"[update_from_dict] AFTER validate - input.srt: {self._config.get('input', {}).get('srt', {})}"
+            )
         except ValidationError as ve:
             logger.error(f"Invalid configuration update attempt:\n{ve}")
             raise ValueError(f"Configuration update failed: {ve}")
