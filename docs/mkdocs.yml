@@ -42,7 +42,7 @@ plugins:
         - es
         - en
   - mermaid2:
-      version: 9.3.0
+      version: 10.6.0
       arguments:
         theme: default
 
@@ -66,24 +66,12 @@ markdown_extensions:
 
 # Navigation
 nav:
-  - Home: index.md
-  - Installation:
-    - Installation/index.md
-    - Installation/quickstart.md
-    - Installation/deployment.md
-  - Architecture:
-    - Architecture/index.md
-    - Architecture/overview.md
-    - Architecture/pipeline.md
-  - Configuration:
-    - Configuration/index.md
-    - Configuration/inputs.md
-    - Configuration/outputs.md
-    - Configuration/multiple_outputs.md
-  - Development:
-    - Development/index.md
-    - Development/testing.md
-    - Development/contributing.md
+  - Inicio: index.md
+  - Despliegue: deployment.md
+  - Arquitectura: architecture.md
+  - Sistema de Salidas: outputs.md
+  - CLI: cli.md
+  - Contribuir: contributing.md
 
 # Options
 extra:
@@ -91,9 +79,6 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/BrunoJimenez73/srt2web
   generator: false
-
-extra_css:
-  - stylesheets/extra.css
 
 watch:
   - docs

@@ -63,6 +63,9 @@ python -m pytest tests/unit/ -v --tb=short
 # TypeScript frontend
 cd frontend && npx tsc --noEmit
 
+# Frontend tests (Vitest)
+cd frontend && npm test
+
 # Mypy strict
 mypy --strict core/ modules/ server/
 ```
@@ -95,14 +98,20 @@ git commit -m "feat: descripción clara del cambio"
 ### 3. Ejecutar Tests Locales
 
 ```bash
-# Todos los tests
+# Todos los tests (740 tests)
 python -m pytest tests/ -v
 
 # Solo tests unitarios
 python -m pytest tests/unit/ -v
 
+# Archivo específico
+python -m pytest tests/unit/test_audio_mixer.py -v
+
 # Con coverage
 python -m pytest tests/ --cov=. --cov-report=html
+
+# Frontend tests
+cd frontend && npm test
 ```
 
 ### 4. Linting y Type Checking
@@ -123,7 +132,7 @@ pre-commit run --all-files
 
 ```bash
 # Generar MkDocs localmente
-mkdocs serve
+cd docs && mkdocs serve
 
 # Verificar en http://localhost:8000
 ```
@@ -173,14 +182,14 @@ def transcribe_audio(audio_path: str, language: str = "en") -> str:
 
 #### Naming Conventions
 
-| Tipo | Convention | Ejemplo |
-|------|------------|---------|
-| Variables | snake_case | `chunk_duration` |
-| Funciones | snake_case | `get_audio_path()` |
-| Clases | PascalCase | `AudioExtractor` |
-| Constantes | UPPER_SNAKE | `MAX_CHUNK_SIZE` |
-| Módulos | snake_case | `audio_mixer.py` |
-| Tests | `test_*.py` | `test_audio_mixer.py` |
+| Tipo       | Convention  | Ejemplo               |
+| ---------- | ----------- | --------------------- |
+| Variables  | snake_case  | `chunk_duration`      |
+| Funciones  | snake_case  | `get_audio_path()`    |
+| Clases     | PascalCase  | `AudioExtractor`      |
+| Constantes | UPPER_SNAKE | `MAX_CHUNK_SIZE`      |
+| Módulos    | snake_case  | `audio_mixer.py`      |
+| Tests      | `test_*.py` | `test_audio_mixer.py` |
 
 ### TypeScript
 
@@ -203,26 +212,51 @@ function getStatus() {
 }
 ```
 
+### Frontend: Signals & Effects
+
+El frontend usa **Preact Signals** para estado reactivo. Cuando añadas nuevo estado UI:
+
+```typescript
+// src/lib/store/signals.ts - Definir signal
+import { signal, computed } from "@preact/signals-core";
+
+export const myNewState = signal<MyType>(initialValue);
+export const myComputed = computed(() => myNewState.value.derived);
+```
+
+```typescript
+// src/lib/store/effects.ts - Efecto DOM
+function setupMyEffect(): EffectCleanup {
+  return effect(() => {
+    const value = myNewState.value;
+    const el = document.getElementById("my-element");
+    if (el) el.textContent = value;
+  });
+}
+```
+
 ### Git Commits
 
 Formato: `<type>(<scope>): <description>`
 
-| Type | Descripción |
-|------|-------------|
-| `feat` | Nueva funcionalidad |
-| `fix` | Corrección de bug |
-| `docs` | Cambios en documentación |
-| `style` | Formateo, estilos (sin lógica) |
-| `refactor` | Refactorización de código |
-| `perf` | Mejoras de rendimiento |
-| `test` | Tests nuevos o modificados |
-| `chore` | Tareas de mantenimiento |
+| Type       | Descripción                    |
+| ---------- | ------------------------------ |
+| `feat`     | Nueva funcionalidad            |
+| `fix`      | Corrección de bug              |
+| `docs`     | Cambios en documentación       |
+| `style`    | Formateo, estilos (sin lógica) |
+| `refactor` | Refactorización de código      |
+| `perf`     | Mejoras de rendimiento         |
+| `test`     | Tests nuevos o modificados     |
+| `chore`    | Tareas de mantenimiento        |
 
 ```bash
 # Ejemplos
 git commit -m "feat(audio): add numpy-based mixing"
 git commit -m "fix(pipeline): correct chunk buffer handling"
 git commit -m "docs(readme): update installation steps"
+git commit -m "feat(outputs): add WebRTC output support"
+git commit -m "test(signals): add unit tests for store signals"
 ```
 
 ---
@@ -233,24 +267,26 @@ git commit -m "docs(readme): update installation steps"
 
 ```
 tests/
-├── unit/           # Tests unitarios
-├── integration/    # Tests de integración
-└── e2e/           # Tests end-to-end
+├── unit/              # Tests unitarios (740 tests)
+│   ├── test_*.py      # Tests por módulo
+│   └── pytest.ini     # Config pytest
+└── integration/       # Tests de integración (futuro)
 ```
 
 ### Ejecutar Tests
 
 ```bash
-# Todos los tests
-python -m pytest tests/ -v
+# Todos los tests unitarios
+python -m pytest tests/unit/ -v
 
-# Tests unitarios específicos
+# Tests específicos
 python -m pytest tests/unit/test_audio_mixer.py -v
+python -m pytest tests/unit/test_multioutput_api.py -v
 
 # Con verbose y coverage
 python -m pytest tests/ --cov=. --cov-report=term-missing
 
-# Solo tests nuevos (sin los pre-existentes fallidos)
+# Solo tests nuevos
 python -m pytest tests/unit/test_workspace_fixes.py -v
 ```
 
@@ -277,11 +313,6 @@ class TestAudioMixerNumpy:
         )
         assert result.endswith(".wav")
         assert os.path.exists(result)
-
-    def test_duration_verification(self, temp_dir):
-        """Verifica sincronización A/V."""
-        mixer = AudioMixer()
-        # Test de verificación de duración
 ```
 
 ### Tests Frontend
@@ -289,15 +320,20 @@ class TestAudioMixerNumpy:
 ```bash
 cd frontend
 
-# Ejecutar tests Vitest
+# Ejecutar tests Vitest (signals + effects)
 npm test
 
-# TypeScript
+# TypeScript check
 npx tsc --noEmit
 
 # Build
 npm run build:local
 ```
+
+Los tests frontend usan **Vitest + jsdom** para testear:
+
+- **Signals**: `signals.test.ts` - Tests de señales reactivas
+- **Effects**: `effects.test.ts` - Tests de efectos DOM (requiren jsdom)
 
 ---
 
@@ -337,11 +373,59 @@ def get_status() -> dict:
     """
 ```
 
-### README y Docs
+### MkDocs
 
-- Actualizar README.md con cambios significativos
-- Añadir ejemplos en docs/ si es necesario
-- Mantener docs/architecture.md actualizado
+La documentación se genera con MkDocs Material:
+
+```bash
+# Servidor local
+cd docs && mkdocs serve
+
+# Build
+mkdocs build
+
+# Deploy a GitHub Pages
+mkdocs gh-deploy --force
+```
+
+Archivos de docs:
+
+- `docs/index.md` - Página principal
+- `docs/architecture.md` - Arquitectura del sistema
+- `docs/deployment.md` - Guía de despliegue
+- `docs/contributing.md` - Esta guía
+- `docs/outputs.md` - Sistema multi-output
+- `docs/cli.md` - Herramienta CLI
+
+---
+
+## Áreas de Contribución
+
+### Añadir un Nuevo Input
+
+1. Crear clase en `modules/inputs/nuevo_input.py`
+2. Heredar de `InputSource` y `BaseModule`
+3. Registrar en `modules/inputs/__init__.py`
+4. Añadir a `VALID_INPUT_TYPES` en `core/config_schema.py`
+5. Crear UI en `frontend/src/components/InputCard.astro`
+6. Tests en `tests/unit/test_nuevo_input.py`
+
+### Añadir un Nuevo Output
+
+1. Crear clase en `modules/outputs/nuevo_output.py`
+2. Heredar de `OutputSink` y `BaseModule`
+3. Registrar en `modules/outputs/__init__.py`
+4. Añadir a `VALID_OUTPUT_TYPES` en `core/config_schema.py`
+5. Crear UI en `frontend/src/components/OutputConfigForm.astro`
+6. Tests en `tests/unit/test_nuevo_output.py`
+
+### Añadir un Nuevo Módulo de Pipeline
+
+1. Crear clase heredando de `BaseModule`
+2. Implementar: `initialize()`, `process()`, `get_status()`, `shutdown()`
+3. Añadir a `core/pipeline.py` en el flujo
+4. Crear card UI en `frontend/src/components/`
+5. Tests unitarios
 
 ---
 
@@ -373,20 +457,24 @@ git push origin feat/nombre-de-rama
 
 ```markdown
 ## Descripción
+
 [Breve descripción del cambio]
 
 ## Tipo de Cambio
+
 - [ ] Bug fix
 - [ ] Nueva funcionalidad
 - [ ] Breaking change
 - [ ] Documentación
 
 ## Testing
+
 - [ ] Tests añadidos
 - [ ] Tests pasando
 - [ ] Verificado manualmente
 
 ## Checklist
+
 - [ ] Código sigue style guide
 - [ ] Type hints completos
 - [ ] Docstrings actualizados
@@ -408,8 +496,10 @@ El PR será revisado por maintainers. Sé receptivo a feedback:
 
 - [Python Style Guide (PEP 8)](https://pep8.org/)
 - [TypeScript Handbook](https://www.typescriptlang.org/docs/)
+- [Preact Signals](https://preactjs.com/guide/v10/signals/)
 - [MkDocs User Guide](https://www.mkdocs.org/user-guide/)
 - [Testing with pytest](https://docs.pytest.org/)
+- [Astro Documentation](https://docs.astro.build/)
 
 ## Preguntas
 
