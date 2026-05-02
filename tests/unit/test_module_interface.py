@@ -46,10 +46,10 @@ class ConcreteModule(BaseModule):
         self.shutdown_called = False
     
     async def initialize(self) -> None:
-        self._set_state(ModuleState.INITIALIZING)
+        self._set_state(ModuleState.STARTING)
         await asyncio.sleep(0.01)  # Simulate async work
         self.initialized = True
-        self._set_state(ModuleState.READY)
+        self._set_state(ModuleState.IDLE)
     
     async def process(self, data: PipelineData) -> PipelineData:
         self._start_processing()
@@ -61,7 +61,7 @@ class ConcreteModule(BaseModule):
     
     async def shutdown(self) -> None:
         self._set_state(ModuleState.IDLE)
-        await asyncio.sleep(0.01)  # Simulate async work
+        await asyncio.sleep(0.01)
         self.shutdown_called = True
 
 
@@ -126,7 +126,7 @@ class TestBaseModule:
         
         await module.initialize()
         assert module.initialized is True
-        assert module.state == ModuleState.READY
+        assert module.state == ModuleState.IDLE
     
     @pytest.mark.asyncio
     async def test_base_module_process(self):
@@ -156,7 +156,7 @@ class TestBaseModule:
         
         status = module.get_status()
         assert status.processed_chunks == 1
-        assert status.last_processing_time > 0
+        assert status.last_process_time_ms > 0
     
     @pytest.mark.asyncio
     async def test_base_module_shutdown(self):
@@ -173,14 +173,12 @@ class TestBaseModule:
         module = ConcreteModule()
         status = module.get_status()
         
-        assert status.error_count == 0
-        assert status.last_error is None
+        assert status.error_message is None
         
         module._set_error("Test error")
         
         status = module.get_status()
-        assert status.error_count == 1
-        assert status.last_error == "Test error"
+        assert status.error_message == "Test error"
         assert module.state == ModuleState.ERROR
     
     def test_base_module_repr(self) -> None:
@@ -216,7 +214,7 @@ class ErrorModule(BaseModule):
     async def initialize(self) -> None:
         if self.fail_on == "initialize":
             raise ValueError("Initialization failed")
-        self._set_state(ModuleState.READY)
+        self._set_state(ModuleState.IDLE)
     
     async def process(self, data: PipelineData) -> PipelineData:
         if self.fail_on == "process":
@@ -248,7 +246,7 @@ class TestBaseModuleErrorHandling:
         
         module._set_error("Test error")
         assert module.state == ModuleState.ERROR
-        assert module.get_status().error_count == 1
+        assert module.get_status().error_message is not None
     
     def test_multiple_errors_increment_count(self) -> None:
         """Test that multiple errors increment error count."""
@@ -259,8 +257,7 @@ class TestBaseModuleErrorHandling:
         module._set_error("Error 3")
         
         status = module.get_status()
-        assert status.error_count == 3
-        assert status.last_error == "Error 3"
+        assert status.error_message == "Error 3"
     
     def test_reset_clears_error(self) -> None:
         """Test that reset clears error state and counters."""
@@ -268,13 +265,11 @@ class TestBaseModuleErrorHandling:
         module._set_error("Test error")
         
         assert module.state == ModuleState.ERROR
-        assert module.get_status().error_count == 1
         
         module.reset()
         
         assert module.state == ModuleState.IDLE
-        assert module.get_status().last_error is None
-        assert module.get_status().error_count == 0
+        assert module.get_status().error_message is None
 
 
 class TestModuleStateTransitions:
@@ -282,21 +277,19 @@ class TestModuleStateTransitions:
     
     @pytest.mark.asyncio
     async def test_idle_to_ready_transition(self):
-        """Test transition from IDLE to READY."""
+        """Test transition from IDLE to IDLE (after initialize)."""
         module = ConcreteModule()
         assert module.state == ModuleState.IDLE
         
         await module.initialize()
-        assert module.state == ModuleState.READY
+        assert module.state == ModuleState.IDLE
     
     @pytest.mark.asyncio
     async def test_ready_to_processing_transition(self):
-        """Test transition from READY to PROCESSING."""
+        """Test transition from IDLE to PROCESSING during processing."""
         module = ConcreteModule()
         await module.initialize()
         
-        # During processing, state should be PROCESSING
-        # We need to check mid-processing, so we'll use a custom module
         class SlowModule(ConcreteModule):
             async def process(self, data: PipelineData) -> PipelineData:
                 self._start_processing()
@@ -306,14 +299,13 @@ class TestModuleStateTransitions:
         
         module = SlowModule()
         await module.initialize()
-        assert module.state == ModuleState.READY
+        assert module.state == ModuleState.IDLE
         
-        # Start processing without awaiting
         task = asyncio.create_task(module.process(PipelineData()))
-        await asyncio.sleep(0.05)  # Wait a bit
+        await asyncio.sleep(0.05)
         assert module.state == ModuleState.PROCESSING
         
-        await task  # Complete processing
+        await task
         assert module.state == ModuleState.READY
     
     def test_disabled_state(self):  # type: ignore

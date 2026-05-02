@@ -17,16 +17,37 @@ const { state = 'idle' } = Astro.props;
       <button class="mode-btn" data-mode="remote" id="btn-mode-remote" aria-label="Modo remoto">🌐 REMOTE</button>
     </div>
     <div class="status-right">
-      <button class="btn-stop" id="btn-stop" disabled aria-label="Detener el pipeline de procesamiento" onclick="window.stopPipeline()">
+      <button class="btn-stop" id="btn-stop" disabled aria-label="Detener el pipeline de procesamiento">
         <span class="btn-text">⏹ Detener</span>
-        <span class="btn-loading" aria-hidden="true">⏳</span>
+        <span class="btn-loading" aria-hidden="true"></span>
       </button>
-      <button class="btn-start" id="btn-start" aria-label="Iniciar el pipeline de procesamiento" onclick="window.startPipeline()">
+      <button class="btn-start" id="btn-start" aria-label="Iniciar el pipeline de procesamiento">
         <span class="btn-text">▶ Iniciar</span>
-        <span class="btn-loading" aria-hidden="true">⏳</span>
+        <span class="btn-loading" aria-hidden="true"></span>
       </button>
     </div>
   </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Stop pipeline button
+    const btnStop = document.getElementById('btn-stop');
+    if (btnStop) {
+      btnStop.addEventListener('click', function() {
+        if (window.stopPipeline) window.stopPipeline();
+      });
+    }
+    
+    // Start pipeline button
+    const btnStart = document.getElementById('btn-start');
+    if (btnStart) {
+      btnStart.addEventListener('click', function() {
+        if (window.startPipeline) window.startPipeline();
+      });
+    }
+  });
+</script>
   <div class="urls-row">
     <div class="url-item">
       <span class="url-label" id="url-emision-label">SRT:</span>

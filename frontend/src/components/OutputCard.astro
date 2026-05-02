@@ -607,7 +607,7 @@
           <span class="output-collapse-icon${isExpanded ? ' expanded' : ''}">▶</span>
           <span class="output-item-title">${getOutputIcon(o.type)} ${o.name}</span>
           <span class="output-type-badge">${getOutputTypeName(o.type)}</span>
-          <label class="output-card-toggle" onclick="event.stopPropagation()">
+          <label class="output-card-toggle" data-output-toggle-label="${o.name}">
             <input type="checkbox" ${o.enabled ? 'checked' : ''} data-output-toggle="${o.name}" />
             <span class="toggle-slider${o.enabled ? ' on' : ''}"></span>
           </label>
@@ -664,17 +664,26 @@
       });
     });
 
-    document.querySelectorAll('[data-output-remove]').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        const name = (e.target as HTMLElement).dataset.outputRemove;
-        if (name && confirm(`Eliminar "${name}"?`)) {
-          await removeOutput(name);
-        }
+    document.querySelectorAll('[data-output-toggle-label]').forEach(label => {
+      label.addEventListener('click', (e) => {
+        e.stopPropagation();
       });
     });
-  }
 
-  function toggleAddForm(): void {
+     document.querySelectorAll('[data-output-remove]').forEach(btn => {
+       btn.addEventListener('click', async (e) => {
+         const name = (e.target as HTMLElement).dataset.outputRemove;
+         if (name) {
+           const confirmed = await showDeleteConfirm(name);
+           if (confirmed) {
+             await removeOutput(name);
+           }
+         }
+       });
+     });
+   }
+
+   function toggleAddForm(): void {
     const btn = document.getElementById('btn-add-output-toggle');
     const form = document.getElementById('add-output-form');
     const icon = btn?.querySelector('.add-icon');
@@ -701,52 +710,47 @@
     const type = (document.getElementById('new-output-type') as HTMLSelectElement)?.value || 'web';
     const timestamp = Date.now();
     const name = `${type}_${timestamp}`;
-
+    
     let config: Record<string, any> = { type, name };
-
+    
     if (type === 'web') {
-      config = {
-        ...config,
+      config = Object.assign({}, config, {
         segment_duration: parseInt((document.getElementById('output-web-segment') as HTMLInputElement)?.value || '4'),
         list_size: parseInt((document.getElementById('output-web-list') as HTMLInputElement)?.value || '6'),
         audio_offset_ms: 0,
         encoder_mode: 'auto'
-      };
+      });
     } else if (type === 'recording') {
-      config = {
-        ...config,
+      config = Object.assign({}, config, {
         output_path: (document.getElementById('output-recording-path') as HTMLInputElement)?.value || './output/recording.mp4',
         format: (document.getElementById('output-recording-format') as HTMLSelectElement)?.value || 'mp4',
-        codec: (document.getElementById('output-recording-codec') as HTMLSelectElement)?.value || 'copy',
-        audio_codec: 'aac',
-      };
+        codec: 'aac',
+        audio_codec: 'aac'
+      });
     } else if (type === 'srt') {
-      config = {
-        ...config,
+      config = Object.assign({}, config, {
         url: (document.getElementById('output-srt-url') as HTMLInputElement)?.value || 'srt://localhost:9001',
         mode: (document.getElementById('output-srt-mode') as HTMLSelectElement)?.value || 'caller',
         latency_ms: parseInt((document.getElementById('output-srt-latency') as HTMLInputElement)?.value || '2000'),
         video_bitrate: (document.getElementById('output-srt-vbitrate') as HTMLSelectElement)?.value || '2500k',
         audio_bitrate: (document.getElementById('output-srt-abitrate') as HTMLSelectElement)?.value || '128k'
-      };
+      });
     } else if (type === 'rtmp') {
-      config = {
-        ...config,
+      config = Object.assign({}, config, {
         url: (document.getElementById('output-rtmp-url') as HTMLInputElement)?.value || 'rtmp://localhost/live/stream',
         video_bitrate: (document.getElementById('output-rtmp-vbitrate') as HTMLSelectElement)?.value || '2500k',
         audio_bitrate: (document.getElementById('output-rtmp-abitrate') as HTMLSelectElement)?.value || '128k',
         encoder_mode: 'auto'
-      };
+      });
     } else if (type === 'file') {
-      config = {
-        ...config,
+      config = Object.assign({}, config, {
         output_path: (document.getElementById('output-file-path') as HTMLInputElement)?.value || './output',
-        save_video: (document.getElementById('output-file-video') as HTMLSelectElement)?.value === 'true',
+        save_video: (document.getElementById('output-file-video') as HTMLInputElement)?.value === 'true',
         save_audio: (document.getElementById('output-file-audio') as HTMLSelectElement)?.value === 'true',
-        save_subs: (document.getElementById('output-file-subs') as HTMLSelectElement)?.value === 'true',
-      };
+        save_subs: (document.getElementById('output-file-subs') as HTMLSelectElement)?.value === 'true'
+      });
     }
-
+    
     const success = await addOutput({ name, type, config });
     if (success) {
       expandedOutputs.add(name);

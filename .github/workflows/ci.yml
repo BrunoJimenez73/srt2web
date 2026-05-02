@@ -33,6 +33,11 @@ jobs:
         ruff check .
         ruff format --check .
 
+    - name: Type check with MyPy
+      run: |
+        pip install mypy
+        mypy core/ modules/ server/ --ignore-missing-imports
+
     - name: Run tests
       run: |
         python -m pytest tests/unit/ -v --cov=core --cov=modules --cov-report=xml

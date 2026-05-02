@@ -58,7 +58,7 @@ class TestCLIModuleNames:
 
     def test_valid_module_names_list(self) -> None:
         """Test valid module names are defined."""
-        from server.api_routes import VALID_MODULE_NAMES
+        from server.validators import VALID_MODULE_NAMES
         assert isinstance(VALID_MODULE_NAMES, (list, tuple, frozenset))
         assert len(VALID_MODULE_NAMES) > 0
         assert "transcriber" in VALID_MODULE_NAMES
@@ -69,12 +69,12 @@ class TestCLIConfigUpdate:
 
     def test_config_update_model_exists(self) -> None:
         """Test ConfigUpdate model exists."""
-        from server.api_routes import ConfigUpdate
+        from server.validators import ConfigUpdate
         assert ConfigUpdate is not None
 
     def test_module_toggle_model_exists(self) -> None:
         """Test ModuleToggle model exists."""
-        from server.api_routes import ModuleToggle
+        from server.validators import ModuleToggle
         assert ModuleToggle is not None
 
 
@@ -109,10 +109,10 @@ class TestCLIAPIFunctions:
 
     def test_sanitize_module_name_exists(self) -> None:
         """Test sanitize_module_name utility exists."""
-        from server.api_routes import sanitize_module_name
+        from server.validators import sanitize_module_name
         assert callable(sanitize_module_name)
 
     def test_validate_config_value_exists(self) -> None:
         """Test validate_config_value utility exists."""
-        from server.api_routes import validate_config_value
+        from server.validators import validate_config_value
         assert callable(validate_config_value)

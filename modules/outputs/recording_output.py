@@ -34,7 +34,7 @@ from typing import Optional, List
 from datetime import datetime
 
 from core.output_sink import OutputSink
-from core.module_base import PipelineData
+from core.module_base import PipelineData, ModuleStatus, ModuleState
 from core.ffmpeg_utils import ensure_ffmpeg, check_gpu_support
 
 
@@ -122,29 +122,29 @@ class RecordingOutput(OutputSink):
             else 0,
         }
 
-    def get_status(self) -> dict:
+    def get_status(self) -> ModuleStatus:
         """Obtener estado del output."""
-        return {
-            "state": "running" if self._running else "idle",
-            "enabled": True,
-            "processed_chunks": self._processed_chunks,
-            "last_process_time_ms": self._last_process_time_ms,
-            "output_path": self._output_path,
-            "current_file": self._current_file,
-            "format": self._format,
-            "codec": self._codec,
-            "quality_mode": self._quality_mode,
-            "split_mode": self._split_mode,
-            "subtitles": self._subtitles,
-            "bytes_written": self._bytes_written,
-            "recording_duration_sec": time.time() - self._file_start_time
-            if self._file_start_time
-            else 0,
-            "extra": {
+        recording_duration = time.time() - self._file_start_time if self._file_start_time else 0
+        video_bitrate = self._video_bitrate if self._quality_mode == "cbr" else f"CRF{self._video_crf}"
+        
+        return ModuleStatus(
+            name="recording_output",
+            state=ModuleState.RUNNING if self._running else ModuleState.IDLE,
+            enabled=True,
+            processed_chunks=self._processed_chunks,
+            last_process_time_ms=self._last_process_time_ms,
+            extra={
+                "output_path": self._output_path,
+                "current_file": self._current_file,
+                "format": self._format,
+                "codec": self._codec,
+                "quality_mode": self._quality_mode,
+                "split_mode": self._split_mode,
+                "subtitles": self._subtitles,
+                "bytes_written": self._bytes_written,
+                "recording_duration_sec": recording_duration,
                 "encoder": self._codec,
-                "video_bitrate": self._video_bitrate
-                if self._quality_mode == "cbr"
-                else f"CRF{self._video_crf}",
+                "video_bitrate": video_bitrate,
                 "audio_codec": self._audio_codec,
                 "audio_bitrate": self._audio_bitrate,
                 "using_gpu": self._codec in ["h264_nvenc", "h265_nvenc"],
@@ -152,115 +152,6 @@ class RecordingOutput(OutputSink):
                 "saved_videos": len(self._saved_video_paths),
                 "saved_audios": len(self._saved_audio_paths),
             },
-        }
-
-    def _build_ffmpeg_cmd(
-        self,
-        output_file: str,
-        input_video: Optional[str],
-        input_audio: Optional[str],
-        input_subs: Optional[str],
-    ) -> List[str]:
-        """Construir comando FFmpeg según configuración."""
-        cmd = [self._ffmpeg_path, "-y"]
-
-        input_count = 0
-
-        if input_video and os.path.exists(input_video):
-            cmd.extend(["-i", input_video])
-            input_count += 1
-        else:
-            self.logger.debug(f"Video input not found: {input_video}")
-
-        if input_audio and os.path.exists(input_audio):
-            cmd.extend(["-i", input_audio])
-            input_count += 1
-
-        # Burnt needs input for -vf filter; track needs input for stream mapping
-        if (
-            input_subs
-            and os.path.exists(input_subs)
-            and self._subtitles in ("burnt", "track")
-        ):
-            cmd.extend(["-i", input_subs])
-            input_count += 1
-
-        if input_count == 0:
-            self.logger.warning("No inputs available for recording")
-            return []
-
-        # Track mode maps subtitle as separate stream; burnt uses -vf filter
-        map_subs_as_stream = input_count >= 3 and self._subtitles == "track"
-
-        map_args = []
-        if input_count >= 1:
-            map_args.extend(["-map", "0:v:0"])
-        if input_count >= 2:
-            map_args.extend(["-map", "1:a:0"])
-        if map_subs_as_stream:
-            map_args.extend(["-map", "2:s:0"])
-
-        cmd.extend(map_args)
-
-        video_codec = self._codec
-        audio_codec = self._audio_codec
-
-        # Burnt subtitles require re-encoding with -vf filter
-        if self._subtitles == "burnt" and input_count >= 3 and input_subs:
-            subs_escaped = input_subs.replace("\\", "/").replace(":", "\\\\:")
-            cmd.extend(["-vf", f"subtitles='{subs_escaped}'"])
-            if video_codec == "copy":
-                video_codec = "libx264"
-
-        if video_codec != "copy":
-            if video_codec == "h264_nvenc":
-                cmd.extend(["-c:v", "h264_nvenc", "-preset", self._video_preset])
-                if self._quality_mode == "cbr":
-                    cmd.extend(["-b:v", self._video_bitrate])
-                else:
-                    cmd.extend(["-crf", str(self._video_crf), "-rc", "vbr"])
-            elif video_codec == "h265_nvenc":
-                cmd.extend(["-c:v", "hevc_nvenc", "-preset", self._video_preset])
-                if self._quality_mode == "cbr":
-                    cmd.extend(["-b:v", self._video_bitrate])
-                else:
-                    cmd.extend(["-crf", str(self._video_crf), "-rc", "vbr"])
-            elif video_codec == "libx264":
-                cmd.extend(["-c:v", "libx264", "-preset", self._video_preset])
-                if self._quality_mode == "cbr":
-                    cmd.extend(["-b:v", self._video_bitrate])
-                else:
-                    cmd.extend(["-crf", str(self._video_crf)])
-            else:
-                cmd.extend(["-c:v", "copy"])
-        else:
-            cmd.extend(["-c:v", "copy"])
-
-        if audio_codec != "copy":
-            if audio_codec == "aac":
-                cmd.extend(["-c:a", "aac", "-b:a", self._audio_bitrate])
-            elif audio_codec == "opus":
-                cmd.extend(["-c:a", "libopus", "-b:a", self._audio_bitrate])
-            else:
-                cmd.extend(["-c:a", "copy"])
-        else:
-            cmd.extend(["-c:a", "copy"])
-
-        # Subtitle codec (track mode - muxed as separate stream)
-        if self._subtitles == "track" and input_count >= 3:
-            cmd.extend(["-c:s", "mov_text"])
-
-        cmd.extend(["-movflags", "+faststart", "-f", self._format, output_file])
-
-        self.logger.debug(f"FFmpeg cmd: {' '.join(filter(None, cmd))}")
-        return cmd
-
-    def _get_ffmpeg_cmd(self, output_file: str) -> List[str]:
-        """Compatibilidad tests: usa pending_data para construir comando."""
-        input_video = (
-            getattr(self._pending_data, "video_chunk_path", None)
-            if self._pending_data
-            else None
         )
         input_audio = (
             getattr(self._pending_data, "mixed_audio_path", None)

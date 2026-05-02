@@ -101,18 +101,37 @@ class TestRTMPConfigHandling:
 
     def test_rtmp_config_in_api_routes(self) -> None:
         """Test API routes handle RTMP configuration."""
-        api_routes_path = PROJECT_ROOT / "server" / "api_routes.py"
-        with open(api_routes_path, "r") as f:
-            content = f.read()
-
+        # Check in new modular routes
+        files_to_check = [
+            PROJECT_ROOT / "server" / "api_routes.py",
+            PROJECT_ROOT / "server" / "routes" / "pipeline.py",
+            PROJECT_ROOT / "server" / "routes" / "config.py",
+        ]
+        
+        content = ""
+        for path in files_to_check:
+            if path.exists():
+                content += path.read_text(encoding="utf-8")
+        
+        # If old api_routes.py is missing, check the module that handles input
+        if not content:
+            raise AssertionError("No API route files found")
+        
         assert "rtmp" in content.lower(), "API routes should handle RTMP configuration"
 
     def test_rtmp_url_generation_in_api(self) -> None:
         """Test API generates RTMP URL correctly."""
-        api_routes_path = PROJECT_ROOT / "server" / "api_routes.py"
-        with open(api_routes_path, "r") as f:
-            content = f.read()
-
+        files_to_check = [
+            PROJECT_ROOT / "server" / "api_routes.py",
+            PROJECT_ROOT / "server" / "routes" / "pipeline.py",
+            PROJECT_ROOT / "server" / "routes" / "config.py",
+        ]
+        
+        content = ""
+        for path in files_to_check:
+            if path.exists():
+                content += path.read_text(encoding="utf-8")
+        
         # Should generate URL with port, app, stream_key
         assert "rtmp://" in content, "API should generate rtmp:// URL"
 
@@ -318,7 +337,8 @@ class TestRTMPStatusDisplay:
         with open(dashboard_path, "r") as f:
             content = f.read()
 
-        # Should update label based on input type
+        # Should update title/label based on input type
         assert (
-            "url-emision-label" in content
-        ), "Should update emission label based on input type"
+            "input-process-title" in content
+        ), "Should update process title based on input type"
+        assert "rtmp" in content.lower(), "Should handle RTMP input type"

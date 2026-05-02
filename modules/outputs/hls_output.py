@@ -18,7 +18,7 @@ import threading
 from typing import Optional
 
 from core.output_sink import OutputSink
-from core.module_base import PipelineData
+from core.module_base import PipelineData, ModuleStatus, ModuleState
 from core.ffmpeg_utils import ensure_ffmpeg, check_gpu_support
 from core.encoder_config import EncoderConfig
 from core.ffmpeg_pool import shutdown_pool
@@ -398,7 +398,7 @@ class HLSOutput(OutputSink):
             except Exception as e:
                 self.logger.error(f"Failed to write master playlist: {e}")
 
-    def get_status(self) -> dict:
+    def get_status(self) -> ModuleStatus:
         """Get status including GPU encoder info."""
         using_gpu = False
         actual_encoder = "libx264"
@@ -438,13 +438,13 @@ class HLSOutput(OutputSink):
             actual_encoder = "libx264"
             encoder_label = "H.264 CPU"
 
-        return {
-            "name": "video_muxer",
-            "state": "running" if self._hls_dir else "idle",
-            "enabled": True,
-            "processed_chunks": self._segment_index,
-            "last_process_time_ms": self._last_process_time_ms,
-            "extra": {
+        return ModuleStatus(
+            name="video_muxer",
+            state=ModuleState.RUNNING if self._hls_dir else ModuleState.IDLE,
+            enabled=True,
+            processed_chunks=self._segment_index,
+            last_process_time_ms=self._last_process_time_ms,
+            extra={
                 "encoder_mode": encoder_mode,
                 "actual_encoder": actual_encoder,
                 "using_gpu": using_gpu,
@@ -452,7 +452,7 @@ class HLSOutput(OutputSink):
                 "gpu_preset": self._encoder_config.gpu_preset,
                 "encoder_label": encoder_label,
             },
-        }
+        )
 
 
 # Auto-registro en factory

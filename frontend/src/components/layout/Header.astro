@@ -22,12 +22,15 @@ const { version = '0.6.1' }: HeaderProps = Astro.props;
     </svg>
     <span class="text-lg font-bold text-accent">SRT2Web</span>
     <span class="bg-card px-2 py-0.5 rounded-full text-xs text-surface-dim border border-white/8" aria-label="Versión">{version}</span>
-  </div>
-  
-  <div class="flex items-center gap-2.5">
-    <a href="/docs/" class="text-surface-dim no-underline px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all border border-white/8 hover:bg-card hover:text-surface-light hover:border-accent" target="_blank" rel="noopener noreferrer">
-      📚 Docs
-    </a>
+    </div>
+    
+    <div class="flex items-center gap-2.5">
+      <button id="btn-shortcuts-help" class="text-surface-dim no-underline px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all border border-white/8 hover:bg-card hover:text-surface-light hover:border-accent" aria-label="Keyboard shortcuts" title="Ctrl+S: Save | Space: Start/Stop | Ctrl+D: Dark mode">
+        ⌨️ Shortcuts
+      </button>
+      <a href="/docs/" class="text-surface-dim no-underline px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all border border-white/8 hover:bg-card hover:text-surface-light hover:border-accent" target="_blank" rel="noopener noreferrer">
+        📚 Docs
+      </a>
     <div id="ws-status" class="ws-status disconnected" role="status" aria-label="Estado WebSocket">
       <span class="ws-status-dot"></span>
       <span class="ws-status-label">WS OFF</span>
@@ -59,7 +62,7 @@ const { version = '0.6.1' }: HeaderProps = Astro.props;
     <span id="live-clock" class="live-clock" role="timer" aria-label="Hora actual">--:--:--</span>
     <Button id="btn-save-config" onclick="saveConfig()" aria-label="Guardar configuración actual">
       <span class="btn-text">💾 Guardar Config</span>
-      <span class="btn-loading hidden" aria-hidden="true">⏳</span>
+      <span class="btn-loading hidden" aria-hidden="true"></span>
     </Button>
   </div>
 </header>

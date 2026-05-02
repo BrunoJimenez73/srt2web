@@ -6,8 +6,8 @@ Extraído para mejorar mantenibilidad.
 """
 
 import logging
-import os
 import re
+from pathlib import Path
 from logging.handlers import RotatingFileHandler
 from typing import Optional, List, Pattern
 
@@ -143,10 +143,10 @@ def setup_logging(
 
     # File handler - persists logs to disk for debugging crashes
     if log_file is None:
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        logs_dir = os.path.join(project_root, "logs")
-        os.makedirs(logs_dir, exist_ok=True)
-        log_file = os.path.join(logs_dir, "srt2web.log")
+        project_root = Path(__file__).resolve().parent.parent
+        logs_dir = project_root / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        log_file = str(logs_dir / "srt2web.log")
 
     file_handler = RotatingFileHandler(
         log_file,

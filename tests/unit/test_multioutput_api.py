@@ -262,4 +262,4 @@ class TestRecordingOutputConfig:
         assert output._codec == "copy"
         assert output._quality_mode == "cbr"
         assert output._split_mode == "none"
-        assert output._subtitles == "none"
+        assert output._subtitles == "track"  # Default changed from "none" to "track"

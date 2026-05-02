@@ -7,20 +7,20 @@ and forward them to FFmpeg for processing in the srt2web pipeline.
 Flow: OBS → RTMP (port 1935) → MediaMTX → FFmpeg (srt2web) → Pipeline
 """
 
-import os
 import sys
 import subprocess
 import logging
 import time
 import signal
+from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger("srt2web.mtx")
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MEDIAMTX_DIR = os.path.join(PROJECT_ROOT, "bin")
-MEDIAMTX_BIN = os.path.join(MEDIAMTX_DIR, "mediamtx.exe")
-MEDIAMTX_CONFIG = os.path.join(MEDIAMTX_DIR, "mediamtx.yml")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+MEDIAMTX_DIR = PROJECT_ROOT / "bin"
+MEDIAMTX_BIN = MEDIAMTX_DIR / "mediamtx.exe"
+MEDIAMTX_CONFIG = MEDIAMTX_DIR / "mediamtx.yml"
 
 
 class MediaMTXManager:
@@ -53,7 +53,7 @@ class MediaMTXManager:
             return True
         
         # Check if MediaMTX binary exists
-        if not os.path.exists(MEDIAMTX_BIN):
+        if not MEDIAMTX_BIN.exists():
             logger.error(f"MediaMTX binary not found: {MEDIAMTX_BIN}")
             return False
         

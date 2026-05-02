@@ -12,7 +12,6 @@ Configuración (input.srt):
     chunk_duration_sec: Duración de cada chunk en segundos (default: 15)
 """
 
-import os
 import sys
 import glob
 import time
@@ -24,7 +23,7 @@ from pathlib import Path
 from typing import Optional
 
 from core.input_source import InputSource
-from core.module_base import PipelineData
+from core.module_base import PipelineData, ModuleStatus, ModuleState
 from core.ffmpeg_utils import ensure_ffmpeg, get_video_duration
 from core.watchdog import FFmpegWatchdog
 
@@ -168,8 +167,8 @@ class SRTInput(InputSource):
             self.logger.info(f"FFmpeg path: {self._ffmpeg_path}")
 
             # Crear directorio de chunks
-            self._chunks_dir = os.path.join(self._output_dir or "./output", "chunks")
-            os.makedirs(self._chunks_dir, exist_ok=True)
+            self._chunks_dir = str(Path(self._output_dir or "./output") / "chunks")
+            Path(self._chunks_dir).mkdir(parents=True, exist_ok=True)
             self.logger.info(f"Chunks directory: {self._chunks_dir}")
 
             # Detectar soporte GPU para hwaccel
@@ -193,9 +192,9 @@ class SRTInput(InputSource):
                 self.logger.info("Input: No GPU acceleration available, using CPU")
 
             # Limpiar chunks antiguos
-            for f in glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")):
+            for f in Path(self._chunks_dir).glob("chunk_*.ts"):
                 try:
-                    os.remove(f)
+                    f.unlink()
                 except OSError:
                     pass
 
@@ -213,7 +212,7 @@ class SRTInput(InputSource):
             self.logger.info(f"SRT URL: {srt_url}")
 
             # Comando FFmpeg para recepción segmentada
-            chunk_pattern = os.path.join(self._chunks_dir, "chunk_%06d.ts")
+            chunk_pattern = str(Path(self._chunks_dir) / "chunk_%06d.ts")
 
             # Construir comando con soporte hwaccel (GPU acceleration)
             cmd = [self._ffmpeg_path, "-y"]
@@ -358,7 +357,7 @@ class SRTInput(InputSource):
             srt_url = f"srt://0.0.0.0:{self._srt_port}?mode=listener&latency={latency_us}"
 
         # Comando FFmpeg para recepción segmentada
-        chunk_pattern = os.path.join(self._chunks_dir, "chunk_%06d.ts")
+        chunk_pattern = str(Path(self._chunks_dir) / "chunk_%06d.ts")
 
         cmd = [
             self._ffmpeg_path,
@@ -508,7 +507,7 @@ class SRTInput(InputSource):
         if not self._chunks_dir:
             return None
 
-        chunks = sorted(glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")))
+        chunks = sorted(Path(self._chunks_dir).glob("chunk_*.ts"))
 
         if not chunks:
             self.logger.debug(f"SRT input: no chunks found in {self._chunks_dir}")
@@ -519,7 +518,7 @@ class SRTInput(InputSource):
         if len(chunks) >= 2:
             chunks = chunks[:-1]
         elif len(chunks) == 1:
-            chunk_age = time.time() - os.path.getmtime(chunks[0])
+            chunk_age = time.time() - chunks[0].stat().st_mtime
             if chunk_age < self._chunk_duration * 0.8:
                 self.logger.debug(f"SRT input: only 1 chunk, age={chunk_age:.1f}s < {self._chunk_duration * 0.8:.1f}s, waiting...")
                 return None
@@ -530,7 +529,7 @@ class SRTInput(InputSource):
         # Encontrar siguiente chunk no procesado
         processable = []
         for chunk_path in chunks:
-            fname = os.path.basename(chunk_path)
+            fname = chunk_path.name
             try:
                 idx = int(fname.replace("chunk_", "").replace(".ts", ""))
                 if idx > self._last_chunk_index:
@@ -616,21 +615,21 @@ class SRTInput(InputSource):
             "max_restarts": self._watchdog_max_restarts,
         }
 
-    def get_status(self) -> dict:
+    def get_status(self) -> ModuleStatus:
         """Get status including GPU acceleration info."""
-        return {
-            "name": "input",
-            "state": "running" if self.is_receiving() else "idle",
-            "enabled": True,
-            "processed_chunks": self._last_chunk_index + 1 if self._last_chunk_index >= 0 else 0,
-            "last_process_time_ms": 0,
-            "extra": {
+        return ModuleStatus(
+            name="input",
+            state=ModuleState.RUNNING if self.is_receiving() else ModuleState.IDLE,
+            enabled=True,
+            processed_chunks=self._last_chunk_index + 1 if self._last_chunk_index >=0 else 0,
+            last_process_time_ms=0.0,
+            extra={
                 "using_gpu": self._hwaccel_enabled,
                 "gpu_info": self._gpu_info,
                 "encoder_label": "NVDEC" if self._gpu_info.get("nvenc") else "QSV" if self._gpu_info.get("qsv") else "VAAPI" if self._gpu_info.get("vaapi") else "CPU",
                 "hwaccel": self._hwaccel_enabled,
             }
-        }
+        )
 
     def _monitor_ffmpeg(self) -> None:
         """Monitorear stderr de FFmpeg para logs."""

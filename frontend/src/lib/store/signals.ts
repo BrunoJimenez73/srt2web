@@ -34,6 +34,9 @@ export const isOperationPending = signal<boolean>(false);
 /** Throughput history for rolling average (video muxer metrics) */
 export const throughputHistory = signal<number[]>([]);
 
+/** Input type signal (srt/rtmp/file) - reactive */
+export const inputType = signal<'srt' | 'rtmp' | 'file'>('srt');
+
 // ── Computed: Pipeline ────────────────────────────────────────────────────────
 
 export const pipelineState = computed<PipelineState>(() => {
@@ -92,7 +95,10 @@ export const connectionUrls = computed(() => {
     ? (document.getElementById('emitter-address') as HTMLInputElement)?.value || 'localhost'
     : '127.0.0.1';
 
-  const inputType = cfg?.input?.type ?? 'srt';
+  const inputTypeValue = pipelineConfig.value?.input?.type ?? 'srt';
+  // Update reactive signal
+  inputType.value = inputTypeValue as 'srt' | 'rtmp' | 'file';
+  
   const srtPort = cfg?.input?.srt?.port ?? 9000;
   const rtmpPort = cfg?.input?.rtmp?.port ?? 1935;
   const serverPort = cfg?.server?.port ?? 9999;
@@ -104,14 +110,14 @@ export const connectionUrls = computed(() => {
 
   return {
     host,
-    inputType,
+    inputType: inputTypeValue,
     srtUrl,
     rtmpUrl,
     streamUrl,
     playerUrl,
-    srtLabel: inputType === 'rtmp' ? 'RTMP:' : 'SRT:',
-    primaryUrl: inputType === 'rtmp' ? rtmpUrl : srtUrl,
-    primaryLabel: inputType === 'rtmp' ? 'RTMP:' : 'SRT:',
+    srtLabel: inputTypeValue === 'rtmp' ? 'RTMP:' : 'SRT:',
+    primaryUrl: inputTypeValue === 'rtmp' ? rtmpUrl : srtUrl,
+    primaryLabel: inputTypeValue === 'rtmp' ? 'RTMP:' : 'SRT:',
   };
 });
 

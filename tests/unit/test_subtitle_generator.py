@@ -43,7 +43,7 @@ class TestSubtitleGenerator:
             assert gen.state == ModuleState.RUNNING
             mock_makedirs.assert_called()
             mocked_file.assert_called_with(
-                os.path.join("/tmp", "hls", "subs.vtt"), "w", encoding="utf-8"
+                os.path.join("/tmp", "subtitles", "subs.vtt"), "w", encoding="utf-8"
             )
             mocked_file().write.assert_called_once_with("WEBVTT\n\n")
 
@@ -177,11 +177,11 @@ class TestSubtitleGeneratorTiming:
         with open(gen._vtt_path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        # SubtitleGenerator uses chunk-relative timing, not absolute
-        # So segment at 0.5 → 00:00:00.500 (relative to chunk start)
-        assert "00:00:00.500" in content
-        # segment at 3.0 → 00:00:03.000
-        assert "00:00:03.000" in content
+        # SubtitleGenerator uses absolute cumulative timing (cumulative_duration + segment start)
+        # Segment at 0.5 + cumulative 20.0 → 00:00:20.500
+        assert "00:00:20.500" in content
+        # Segment at 3.0 + cumulative 20.0 → 00:00:23.000
+        assert "00:00:23.000" in content
 
 
 class TestRollingWindow:

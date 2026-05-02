@@ -8,7 +8,7 @@ CRITICAL: Uses data.cumulative_duration from PipelineData for accurate sync,
 not internal tracking, to prevent drift from VideoMuxer.
 """
 
-import os
+from pathlib import Path
 import logging
 import threading
 from typing import Optional
@@ -31,8 +31,8 @@ class SubtitleGenerator(BaseModule):
         self._output_dir = output_dir
         self._format = "webvtt"
         self._use_translated = True
-        self._subtitles_dir = ""
-        self._vtt_path = ""
+        self._subtitles_dir = Path()
+        self._vtt_path = Path()
         self._chunk_duration = 4
         self._lock = threading.Lock()
 
@@ -61,10 +61,10 @@ class SubtitleGenerator(BaseModule):
         """Initialize subtitle files."""
         self._state = ModuleState.STARTING
 
-        self._subtitles_dir = os.path.join(self._output_dir, "subtitles")
-        os.makedirs(self._subtitles_dir, exist_ok=True)
+        self._subtitles_dir = Path(self._output_dir) / "subtitles"
+        self._subtitles_dir.mkdir(parents=True, exist_ok=True)
 
-        self._vtt_path = os.path.join(self._subtitles_dir, "subs.vtt")
+        self._vtt_path = self._subtitles_dir / "subs.vtt"
 
         # Reset file with WebVTT header
         with self._lock:
@@ -249,7 +249,7 @@ class SubtitleGenerator(BaseModule):
                 # Rewrite VTT file with rolling entries
                 self._rewrite_vtt_file()
 
-            file_size = os.path.getsize(self._vtt_path)
+            file_size = self._vtt_path.stat().st_size
             logger.debug(f"VTT file size: {file_size} bytes, entries: {len(self._vtt_entries)}")
 
             data.subtitles_path = self._vtt_path
@@ -257,9 +257,7 @@ class SubtitleGenerator(BaseModule):
             logger.error(f"Error writing global VTT: {e}")
 
         # 2. Create per-chunk SRT for Video Muxer burn-in
-        chunk_srt_path = os.path.join(
-            self._subtitles_dir, f"chunk_{data.chunk_index:06d}.srt"
-        )
+        chunk_srt_path = self._subtitles_dir / f"chunk_{data.chunk_index:06d}.srt"
         try:
             with open(chunk_srt_path, "w", encoding="utf-8") as f:
                 for i, seg in enumerate(segments):

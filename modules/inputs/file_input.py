@@ -13,18 +13,17 @@ Configuración (input.file):
     chunk_duration_sec: Duración de cada chunk (default: 15)
 """
 
-import os
 import sys
-import glob
 import time
 import logging
+from pathlib import Path
 import subprocess
 import threading
 from pathlib import Path
 from typing import Optional
 
 from core.input_source import InputSource
-from core.module_base import PipelineData
+from core.module_base import PipelineData, ModuleStatus, ModuleState
 from core.ffmpeg_utils import ensure_ffmpeg, get_video_duration
 
 
@@ -72,7 +71,7 @@ class FileInput(InputSource):
     def get_connection_info(self) -> dict:
         """Obtener información del archivo incluyendo duración y posición actual."""
         # Obtener duración del archivo si aún no la tenemos
-        if self._file_duration == 0.0 and self._file_path and os.path.exists(self._file_path):
+        if self._file_duration == 0.0 and self._file_path and Path(self._file_path).exists():
             self._file_duration = get_video_duration(self._file_path) or 0.0
             
         return {
@@ -466,21 +465,21 @@ class FileInput(InputSource):
             return False
         return True
 
-    def get_status(self) -> dict:
+    def get_status(self) -> ModuleStatus:
         """Get status including GPU acceleration info."""
-        return {
-            "name": "input",
-            "state": "running" if self.is_receiving() else "idle",
-            "enabled": True,
-            "processed_chunks": self._last_chunk_index + 1 if self._last_chunk_index >= 0 else 0,
-            "last_process_time_ms": 0,
-            "extra": {
+        return ModuleStatus(
+            name="input",
+            state=ModuleState.RUNNING if self.is_receiving() else ModuleState.IDLE,
+            enabled=True,
+            processed_chunks=self._last_chunk_index + 1 if self._last_chunk_index >= 0 else 0,
+            last_process_time_ms=0.0,
+            extra={
                 "using_gpu": self._hwaccel_enabled,
                 "gpu_info": self._gpu_info,
                 "encoder_label": "NVDEC" if self._gpu_info.get("nvenc") else "QSV" if self._gpu_info.get("qsv") else "VAAPI" if self._gpu_info.get("vaapi") else "CPU",
                 "hwaccel": self._hwaccel_enabled,
             }
-        }
+        )
 
     def _monitor_ffmpeg(self) -> None:
         """Monitorear stderr de FFmpeg."""

@@ -7,6 +7,7 @@ Extraído para mejorar mantenibilidad.
 
 import os
 import site
+from pathlib import Path
 from typing import List
 
 
@@ -18,26 +19,26 @@ def get_cuda_paths() -> List[str]:
         Lista de paths priorizados para CUDA (cuDNN 8.x primero).
     """
     cuda_paths: List[str] = []
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    project_root = Path(__file__).resolve().parent.parent
     
     # CRITICAL: Add local cuDNN 8.x FIRST (must be at front to avoid loading cuDNN 9.x)
-    local_cudnn8 = os.path.join(project_root, "bin", "cudnn8")
-    if os.path.exists(local_cudnn8) and os.listdir(local_cudnn8):
-        cuda_paths.append(local_cudnn8)  # Prioritize cuDNN 8.x
+    local_cudnn8 = project_root / "bin" / "cudnn8"
+    if local_cudnn8.exists() and any(local_cudnn8.iterdir()):
+        cuda_paths.append(str(local_cudnn8))  # Prioritize cuDNN 8.x
     
     # Add venv nvidia paths (cuDNN 8.9.4 from pip)
     for sp in site.getsitepackages():
-        cudnn_bin = os.path.join(sp, "nvidia", "cudnn", "bin")
-        if os.path.exists(cudnn_bin):
-            cuda_paths.append(cudnn_bin)
-        cublas_bin = os.path.join(sp, "nvidia", "cublas_cu11", "bin")
-        if os.path.exists(cublas_bin):
-            cuda_paths.append(cublas_bin)
+        cudnn_bin = Path(sp) / "nvidia" / "cudnn" / "bin"
+        if cudnn_bin.exists():
+            cuda_paths.append(str(cudnn_bin))
+        cublas_bin = Path(sp) / "nvidia" / "cublas_cu11" / "bin"
+        if cublas_bin.exists():
+            cuda_paths.append(str(cublas_bin))
     
     # Add local bin/cuda folder (for portable CUDA DLLs)
-    local_cuda = os.path.join(project_root, "bin", "cuda")
-    if os.path.exists(local_cuda) and os.listdir(local_cuda):
-        cuda_paths.append(local_cuda)
+    local_cuda = project_root / "bin" / "cuda"
+    if local_cuda.exists() and any(local_cuda.iterdir()):
+        cuda_paths.append(str(local_cuda))
     
     # Add CUDA Toolkit paths LAST (less preferred)
     cuda_toolkit_paths = [
@@ -46,11 +47,11 @@ def get_cuda_paths() -> List[str]:
         "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.2\\bin",
     ]
     for path in cuda_toolkit_paths:
-        if os.path.exists(path):
+        if Path(path).exists():
             cuda_paths.append(path)
     
     # Add Windows System32 LAST (has CUDA runtime but may have incompatible cuDNN)
-    cuda_paths.append(os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "System32"))
+    cuda_paths.append(str(Path(os.environ.get("SystemRoot", "C:\\Windows")) / "System32"))
     
     return cuda_paths
 
@@ -67,9 +68,10 @@ def setup_cuda_environment() -> None:
         
         # Add DLL directories for Python 3.8+ (required for proper DLL loading)
         for path in cuda_paths:
-            if os.path.isdir(path):
+            p = Path(path)
+            if p.is_dir():
                 try:
-                    os.add_dll_directory(path)
+                    os.add_dll_directory(str(p))
                 except (AttributeError, OSError):
                     pass  # Not all paths support add_dll_directory
 

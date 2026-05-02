@@ -8,7 +8,6 @@ VALIDACIÓN ESTRICTA: Ahora usa esquema Pydantic definido en config_schema.py
 Todos los campos se validan automáticamente al cargar y guardar.
 """
 
-import os
 import copy
 import logging
 from pathlib import Path
@@ -18,6 +17,7 @@ from pydantic import ValidationError
 import yaml
 
 from core.config_schema import SRT2WebConfig
+from core.hardware import update_config_with_optimal_device
 
 logger = logging.getLogger("srt2web.config")
 
@@ -72,7 +72,7 @@ class ConfigManager:
         # Cargar defaults desde esquema Pydantic
         default_config = SRT2WebConfig().to_dict()
 
-        if os.path.exists(self._config_path):
+        if Path(self._config_path).exists():
             try:
                 with open(self._config_path, "r", encoding="utf-8") as f:
                     file_config = yaml.safe_load(f) or {}
@@ -84,6 +84,10 @@ class ConfigManager:
                 try:
                     validated_config = SRT2WebConfig.from_dict(merged_config)
                     self._config = validated_config.to_dict()
+                    
+                    # AUTO-DETECT HARDWARE (Sugerencia 2)
+                    self._config = update_config_with_optimal_device(self._config)
+                    
                     logger.info(
                         f"Configuration loaded and validated from {self._config_path}"
                     )
@@ -101,6 +105,8 @@ class ConfigManager:
             logger.info(
                 f"Config file not found at {self._config_path}. Using defaults."
             )
+            # AUTO-DETECT HARDWARE even for defaults (Sugerencia 2)
+            self._config = update_config_with_optimal_device(default_config)
             self._config = default_config
 
     def save(self) -> None:
@@ -110,7 +116,7 @@ class ConfigManager:
             validated_config = SRT2WebConfig.from_dict(self._config)
             self._config = validated_config.to_dict()
 
-            os.makedirs(os.path.dirname(self._config_path) or ".", exist_ok=True)
+            Path(self._config_path).parent.mkdir(parents=True, exist_ok=True)
             with open(self._config_path, "w", encoding="utf-8") as f:
                 yaml.dump(
                     self._config,

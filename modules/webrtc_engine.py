@@ -7,7 +7,6 @@ It handles RTCPeerConnection, tracks, and data channels for subtitles.
 
 import asyncio
 import logging
-import os
 import threading
 import time
 import json as JSON
@@ -57,11 +56,11 @@ class WebRTCEngine:
         self._ready_event = threading.Event()
         
         # Directory for chunks
-        self._output_dir = self.config.get("output_dir", "./output/webrtc")
-        os.makedirs(self._output_dir, exist_ok=True)
+        self._output_dir = Path(self.config.get("output_dir", "./output/webrtc"))
+        self._output_dir.mkdir(parents=True, exist_ok=True)
         
         # Subtitle state
-        self._subtitle_vtt_path = os.path.join(self._output_dir, "..", "subtitles", "subs.vtt")
+        self._subtitle_vtt_path = self._output_dir.parent.parent / "subtitles" / "subs.vtt"
         self._current_subtitles: List[SubtitleCue] = []
         self._last_subtitle_update = 0.0
         
@@ -77,8 +76,9 @@ class WebRTCEngine:
 
     def set_output_dir(self, output_dir: str) -> None:
         """Set the output directory."""
-        self._output_dir = output_dir
-        self._subtitle_vtt_path = os.path.join(os.path.dirname(output_dir), "subtitles", "subs.vtt")
+        self._output_dir = Path(output_dir)
+        # For WebRTC, subtitles are in parent/../subtitles/subs.vtt
+        self._subtitle_vtt_path = self._output_dir.parent.parent / "subtitles" / "subs.vtt"
 
     @property
     def running(self) -> bool:
@@ -139,12 +139,12 @@ class WebRTCEngine:
 
     def _load_subtitles(self) -> List[SubtitleCue]:
         """Load current subtitles from VTT file."""
-        if not os.path.exists(self._subtitle_vtt_path):
+        if not Path(self._subtitle_vtt_path).exists():
             return []
-            
+        
         try:
             # Check if file changed
-            mtime = os.path.getmtime(self._subtitle_vtt_path)
+            mtime = Path(self._subtitle_vtt_path).stat().st_mtime
             if mtime == self._last_subtitle_update:
                 return self._current_subtitles
                 

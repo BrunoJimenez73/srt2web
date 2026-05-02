@@ -28,6 +28,7 @@ from typing import Optional, Callable, List, Dict, Any, Union
 from dataclasses import dataclass, field
 
 from core.module_base import BaseModule, PipelineData, ModuleState
+from core.schemas import SystemMetrics, ModuleStatus as PydanticModuleStatus
 from core.exceptions import (
     PipelineStateError,
     ModuleProcessingError,
@@ -39,6 +40,17 @@ try:
     from modules.outputs.composite_output import CompositeOutput
 except ImportError:
     CompositeOutput = None
+
+try:
+    from core.pipeline.strategies import (
+        create_strategy,
+        StrategyConfig,
+        PipelineStrategy,
+    )
+except ImportError:
+    create_strategy = None
+    StrategyConfig = None
+    PipelineStrategy = None
 
 logger = logging.getLogger("srt2web.unified_pipeline")
 
@@ -110,39 +122,46 @@ class UnifiedPipeline:
         retry_delay: float = 1.0,
     ):
         """
-        Inicializar pipeline unificado.
-
+        Initialize unified pipeline.
+        
         Args:
-            mode: Modo de operación
-            max_concurrent_chunks: Máximo de chunks procesando simultáneamente
-            buffer_size: Tamaño del buffer de entrada
-            retry_attempts: Número de reintentos por módulo
-            retry_delay: Retraso entre reintentos (segundos)
+            mode: Mode of operation
+            max_concurrent_chunks: Maximum chunks processing simultaneously
+            buffer_size: Size of input buffer
+            retry_attempts: Number of retry attempts per module
+            retry_delay: Delay between retries (seconds)
         """
+        # Initialize _initialized FIRST to avoid race conditions
+        self._initialized = False
+        
         self.mode = mode
         self.max_concurrent_chunks = max_concurrent_chunks
         self.buffer_size = buffer_size
         self.retry_attempts = retry_attempts
         self.retry_delay = retry_delay
-
-        # Estado interno
+        
+        # Internal state
         self._state = PipelineState.IDLE
+        # Metrics initialized via _metrics (Pydantic)
         self._modules: List[BaseModule] = []
         self._module_map: Dict[str, BaseModule] = {}
         self._input_source = None
         self._output_sink = None
-
-        # Control de ejecución - INICIALIZADOS DESDE PRINCIPIO PARA EVITAR NONE
+        
+        # Execution control - INITIALIZED EARLY TO AVOID RACE
         self._stop_event = threading.Event()
         self._semaphore = threading.Semaphore(max_concurrent_chunks)
         self._tasks: List[Any] = []
         self._chunk_queue = queue.Queue(maxsize=buffer_size)
         self._output_queue = queue.Queue(maxsize=buffer_size)
         self._results: Dict[int, ChunkProcessor] = {}
-
-        # Métricas
-        self.metrics = PipelineMetrics()
-
+        self._input_thread: Optional[threading.Thread] = None
+        self._output_thread: Optional[threading.Thread] = None
+        
+        # Metrics
+        self._pipeline_metrics = PipelineMetrics()
+        self._system_metrics = SystemMetrics(cpu_percent=0, memory_mb=0, memory_percent=0)
+        
         # Callbacks
         self._on_log: Optional[Callable[[str, str], None]] = None
         self._on_state_change: Optional[Callable[[str], None]] = None
@@ -151,8 +170,19 @@ class UnifiedPipeline:
         # Lock para operaciones thread-safe
         self._lock = threading.Lock()
         self._hardware_monitor = HardwareMonitor()
+        self._initialized = False  # Initialize to False BEFORE thread starts
 
         logger.info(f"UnifiedPipeline initialized mode={mode.value} concurrent={max_concurrent_chunks}")
+
+        # Initialize processing strategy (if available)
+        self._strategy: Optional[PipelineStrategy] = None
+        if create_strategy and StrategyConfig:
+            try:
+                strategy_config = StrategyConfig(max_concurrent_chunks=max_concurrent_chunks)
+                self._strategy = create_strategy(mode.value, strategy_config)
+                logger.info(f"Pipeline strategy initialized: {type(self._strategy).__name__}")
+            except Exception as e:
+                logger.warning(f"Could not initialize strategy: {e}")
 
     @property
     def state(self) -> PipelineState:
@@ -207,6 +237,10 @@ class UnifiedPipeline:
         if config:
             module.configure(config)
 
+        # Update strategy with modules if available
+        if self._strategy:
+            self._strategy.set_modules(self._modules)
+
     def get_module(self, name: str) -> Optional[BaseModule]:
         """Obtener un módulo por nombre."""
         return self._module_map.get(name)
@@ -237,6 +271,29 @@ class UnifiedPipeline:
             except Exception:
                 pass
 
+    def process_with_strategy(self, data: PipelineData) -> PipelineData:
+        """
+        Procesar un chunk usando la estrategia configurada.
+        
+        Si no hay estrategia configurada, retorna los datos sin procesar.
+        Útil para testing o procesamiento manual de chunks.
+        """
+        if not self._strategy:
+            logger.warning("No strategy configured, skipping processing")
+            return data
+
+        try:
+            return self._strategy.process_chunk(data)
+        except Exception as e:
+            logger.error(f"Strategy processing failed: {e}")
+            raise
+
+    def get_strategy_metrics(self) -> Dict[str, Any]:
+        """Obtener métricas de la estrategia."""
+        if self._strategy:
+            return self._strategy.get_metrics()
+        return {"strategy": "none"}
+
     async def initialize(self) -> None:
         """Inicializar pipeline y módulos."""
         self._set_state(PipelineState.STARTING)
@@ -254,21 +311,26 @@ class UnifiedPipeline:
             # Inicializar módulos
             for module in self._modules:
                 try:
-                    if hasattr(module, 'start'):
-                        module.start()
+                    start_method = getattr(module, 'start', None)
+                    if start_method:
+                        start_method()
                     logger.info(f"Module '{module.name}' initialized")
                 except Exception as e:
                     logger.error(f"Failed to initialize module '{module.name}': {e}")
                     raise
 
             # Inicializar input/output
-            if self._input_source and hasattr(self._input_source, 'start'):
-                self._input_source.start()
+            if self._input_source:
+                start_method = getattr(self._input_source, 'start', None)
+                if start_method:
+                    start_method()
 
-            if self._output_sink and hasattr(self._output_sink, 'start'):
-                self._output_sink.start()
+            if self._output_sink:
+                start_method = getattr(self._output_sink, 'start', None)
+                if start_method:
+                    start_method()
 
-            self.metrics.start_time = time.time()
+            # Start time is now tracked via system metrics timestamp
             self._set_state(PipelineState.IDLE)
             logger.info("UnifiedPipeline initialized successfully")
 
@@ -292,7 +354,7 @@ class UnifiedPipeline:
         self._set_state(PipelineState.STARTING)
         
         # Inicializar automáticamente si no se ha hecho antes
-        if not hasattr(self, '_initialized') or not self._initialized:
+        if not getattr(self, '_initialized', False):
             # No podemos usar el event loop principal de FastAPI, ejecutamos en thread separado
             def run_init():
                 loop = asyncio.new_event_loop()
@@ -631,36 +693,41 @@ class UnifiedPipeline:
                 await asyncio.gather(*self._tasks, return_exceptions=True)
         else:
             # Esperar threads
-            if hasattr(self, '_input_thread') and self._input_thread.is_alive():
+            if self._input_thread and self._input_thread.is_alive():
                 self._input_thread.join(timeout=5.0)
 
             for worker in self._tasks:
                 if worker.is_alive():
                     worker.join(timeout=5.0)
 
-            if hasattr(self, '_output_thread') and self._output_thread.is_alive():
+            if self._output_thread and self._output_thread.is_alive():
                 self._output_thread.join(timeout=5.0)
 
         # Detener módulos
         for module in self._modules:
             try:
-                if hasattr(module, 'stop'):
-                    module.stop()
+                stop_method = getattr(module, 'stop', None)
+                if stop_method:
+                    stop_method()
             except Exception as e:
                 self._log("error", f"Error stopping module {module.name}: {e}")
 
         # Detener input/output
-        if self._input_source and hasattr(self._input_source, 'stop'):
+        if self._input_source:
             try:
                 self._log("info", f"Calling stop() on input_source: {type(self._input_source).__name__}")
-                self._input_source.stop()
+                stop_method = getattr(self._input_source, 'stop', None)
+                if stop_method:
+                    stop_method()
                 self._log("info", "Input source stop() completed")
             except Exception as e:
                 self._log("error", f"Error stopping input source: {e}")
 
-        if self._output_sink and hasattr(self._output_sink, 'stop'):
+        if self._output_sink:
             try:
-                self._output_sink.stop()
+                stop_method = getattr(self._output_sink, 'stop', None)
+                if stop_method:
+                    stop_method()
             except Exception as e:
                 self._log("error", f"Error stopping output sink: {e}")
 
@@ -683,7 +750,7 @@ class UnifiedPipeline:
         for module in self._modules:
             try:
                 status = module.get_status()
-                status_dict = status.to_dict() if hasattr(status, 'to_dict') else status
+                status_dict = status.to_dict() if getattr(status, 'to_dict', None) else status
                 # Inyectar memoria centralizada en cada módulo
                 if isinstance(status_dict, dict) and process_memory_mb is not None:
                     status_dict["memory_mb"] = process_memory_mb
@@ -706,31 +773,36 @@ class UnifiedPipeline:
         
         # Agregar status del input source al inicio de la lista
         try:
-            if self._input_source and hasattr(self._input_source, 'get_status'):
-                input_status = self._input_source.get_status()
-                if isinstance(input_status, dict):
-                    # Ensure it has the right name for the frontend
-                    if 'name' not in input_status:
-                        input_status['name'] = 'input'
-                    modules_status.insert(0, input_status)
+            if self._input_source:
+                get_status_method = getattr(self._input_source, 'get_status', None)
+                if get_status_method:
+                    input_status = get_status_method()
+                    if isinstance(input_status, dict):
+                        # Ensure it has the right name for the frontend
+                        if 'name' not in input_status:
+                            input_status['name'] = 'input'
+                        modules_status.insert(0, input_status)
         except Exception:
             pass
 
+        # Métricas del pipeline
+        avg_time = self._pipeline_metrics.avg_processing_time
+        
         # Métricas del sistema
         system_metrics = self._hardware_monitor.get_system_metrics()
-
+        
         return {
             "state": self._state.value,
             "mode": self.mode.value,
-            "chunks_processed": self.metrics.chunks_processed,
-            "chunks_failed": self.metrics.chunks_failed,
-            "avg_processing_time_ms": round(self.metrics.avg_processing_time * 1000, 2),
-            "uptime_seconds": round(self.metrics.uptime, 1),
+            "chunks_processed": self._pipeline_metrics.chunks_processed,
+            "chunks_failed": self._pipeline_metrics.chunks_failed,
+            "avg_processing_time_ms": round(avg_time * 1000, 2),
+            "uptime_seconds": round(self._pipeline_metrics.uptime, 1),
             "max_concurrent_chunks": self.max_concurrent_chunks,
             "buffer_size": self.buffer_size,
             "modules": modules_status,
             "system": system_metrics,
-            "system_metrics": system_metrics
+            "system_metrics": system_metrics,
         }
 
     def reconfigure(self, config_manager) -> None:
@@ -752,12 +824,14 @@ class UnifiedPipeline:
                 self._log("error", f"Failed to reconfigure {module.name}: {e}")
         
         # Also update input source config if it has chunk_duration
-        if self._input_source and hasattr(self._input_source, 'configure'):
+        if self._input_source:
             try:
                 input_type = config_manager.get("input.type", "srt")
                 input_config = config_manager.get_section("input").get(input_type, {})
                 input_config["chunk_duration_sec"] = self._chunk_duration
-                self._input_source.configure(input_config)
+                configure_method = getattr(self._input_source, 'configure', None)
+                if configure_method:
+                    configure_method(input_config)
                 self._log("info", f"Reconfigured input source: {input_type}")
             except Exception as e:
                 self._log("warning", f"Could not reconfigure input source: {e}")
@@ -765,11 +839,11 @@ class UnifiedPipeline:
     # Alias para compatibilidad API 100% con versiones anteriores
     @property
     def chunks_processed(self) -> int:
-        return self.metrics.chunks_processed
+        return self._pipeline_metrics.chunks_processed
 
     @property
     def _chunk_index(self) -> int:
-        return self.metrics.chunks_processed
+        return self._pipeline_metrics.chunks_processed
 
     def _get_output_module_status(self) -> dict:
         """Compatibilidad con frontend (método existente)."""
@@ -782,10 +856,10 @@ class UnifiedPipeline:
         processed_chunks = self.metrics.chunks_processed
         last_process_time_ms = 0
         
-        if sink and hasattr(sink, 'get_status'):
+        if sink:
             try:
                 status = sink.get_status()
-                status_dict = status.to_dict() if hasattr(status, 'to_dict') else status
+                status_dict = status.to_dict() if getattr(status, 'to_dict', None) else status
                 if isinstance(status_dict, dict):
                     processed_chunks = status_dict.get('processed_chunks', processed_chunks)
                     last_process_time_ms = status_dict.get('last_process_time_ms', last_process_time_ms)

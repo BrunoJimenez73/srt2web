@@ -47,7 +47,7 @@ def find_ffmpeg() -> Optional[str]:
     global _cached_ffmpeg_path
     
     # Return cached path if available
-    if _cached_ffmpeg_path and os.path.exists(_cached_ffmpeg_path):
+    if _cached_ffmpeg_path and Path(_cached_ffmpeg_path).exists():
         return _cached_ffmpeg_path
     
     # Check project bin/ directory first
@@ -85,7 +85,7 @@ def find_ffprobe() -> Optional[str]:
     global _cached_ffprobe_path
     
     # Return cached path if available
-    if _cached_ffprobe_path and os.path.exists(_cached_ffprobe_path):
+    if _cached_ffprobe_path and Path(_cached_ffprobe_path).exists():
         return _cached_ffprobe_path
     
     bin_dir = get_project_bin_dir()

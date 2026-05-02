@@ -1,9 +1,9 @@
 ---
 import { getAuthToken, getWebSocketUrl } from '../lib/api';
-import type { OutputConfig } from '../lib/types';
+import type { AnyOutputConfig } from '../lib/types';
 
 interface Props {
-  onAddOutput: (config: any) => void;
+  onAddOutput: (config: AnyOutputConfig) => void;
 }
 
 const { onAddOutput } = Astro.props;

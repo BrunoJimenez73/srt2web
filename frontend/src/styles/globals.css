@@ -1030,9 +1030,77 @@ input:checked + .toggle-slider:before {
 }
 
 /* ============================================
-   PROCESS CARD VARIANTS
-   Specific styles for different process types
-   ============================================ */
+    MEDIA QUERIES - Responsive Design
+    ============================================ */
+@media (max-width: 480px) {
+  /* Mobile Small - 480px */
+  .process-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px;
+  }
+  
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+  
+  .header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  
+  .metric-value {
+    font-size: 12px;
+  }
+  
+  .process-title {
+    font-size: 10px;
+  }
+  
+  .live-clock {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .process-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .header {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  /* Tablet breakpoint */
+  .process-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .dashboard {
+    max-width: 1400px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .process-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ============================================
+    PROCESS CARD VARIANTS
+    Specific styles for different process types
+    ============================================ */
 
 /* Input Card */
 .input-card,

@@ -107,9 +107,7 @@ class BaseModule(ABC):
         self._name = name
         self._enabled = enabled
         self._state = ModuleState.IDLE if enabled else ModuleState.DISABLED
-        self._status = ModuleStatus(name=name, enabled=enabled)
-        if not enabled:
-            self._status.state = ModuleState.DISABLED
+        self._status = ModuleStatus(name=name, enabled=enabled, state=self._state)
         self._last_error: Optional[str] = None
     
     @property
@@ -162,8 +160,7 @@ class BaseModule(ABC):
         self._state = ModuleState.IDLE
         self._status.state = ModuleState.IDLE
         self._last_error = None
-        self._status.last_error = None
-        self._status.error_count = 0
+        self._status.error_message = None
     
     def _start_processing(self) -> None:
         """Marcar inicio de procesamiento."""
@@ -176,7 +173,12 @@ class BaseModule(ABC):
         Args:
             processing_time: Tiempo de procesamiento en segundos.
         """
-        self._status.update_processing_time(processing_time)
+        processing_ms = processing_time * 1000
+        self._status.last_process_time_ms = processing_ms
+        self._status.total_processing_time += processing_ms
+        self._status.processed_chunks += 1
+        if self._status.processed_chunks > 0:
+            self._status.average_processing_time = self._status.total_processing_time / self._status.processed_chunks
         self._set_state(ModuleState.READY)
     
     def _set_error(self, error: str) -> None:
@@ -188,8 +190,7 @@ class BaseModule(ABC):
         """
         self._last_error = error
         self._set_state(ModuleState.ERROR)
-        self._status.last_error = error
-        self._status.error_count += 1
+        self._status.error_message = error
     
     # Métodos abstractos que deben implementar las módulos derivados
     

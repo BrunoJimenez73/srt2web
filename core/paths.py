@@ -2,7 +2,6 @@
 Centralized path utilities for SRT2Web.
 All path operations should use functions from this module.
 """
-import os
 from pathlib import Path
 from typing import Optional
 

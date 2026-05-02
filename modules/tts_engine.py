@@ -5,7 +5,7 @@ Supports 'edge-tts' for ultra-natural cloud AI voices (free, requires internet),
 and 'piper' for fast, offline, and natural-sounding text-to-speech.
 """
 
-import os
+from pathlib import Path
 import time
 import json
 import asyncio
@@ -26,8 +26,8 @@ class TTSEngine(BaseModule):
     """
 
     def __init__(self, config: Optional[dict] = None, output_dir: str = "./output") -> None:
-        self._output_dir = output_dir
-        self._tts_dir = ""
+        self._output_dir = Path(output_dir)
+        self._tts_dir = Path()
         self._engine = "edge-tts"  # "edge-tts" (online) or "piper" (offline)
         self._device = "auto"  # "auto", "cuda", or "cpu" (for piper)
         self._voice_model = "en-US-AriaNeural"  # Very natural female AI voice
@@ -70,15 +70,15 @@ class TTSEngine(BaseModule):
         self._using_cuda = False
         self._voice_loaded = False  # Track if voice has been loaded
 
-        self._tts_dir = os.path.join(self._output_dir, "temp_tts")
-        os.makedirs(self._tts_dir, exist_ok=True)
+        self._tts_dir = str(Path(self._output_dir) / "temp_tts")
+        Path(self._tts_dir).mkdir(parents=True, exist_ok=True)
 
         # Clean old TTS audio
         try:
-            for f in os.listdir(self._tts_dir):
-                if f.endswith(".wav"):
+            for f in Path(self._tts_dir).iterdir():
+                if f.name.endswith(".wav"):
                     try:
-                        os.remove(os.path.join(self._tts_dir, f))
+                        f.unlink()
                     except OSError:
                         pass
         except Exception as e:
@@ -177,17 +177,17 @@ class TTSEngine(BaseModule):
 
     def _ensure_piper_model(self, voice_name: str) -> tuple[str, str]:
         """Check if Piper ONNX model exists locally. Raises error if not found."""
-        models_dir = os.path.abspath(os.path.join(".", "models", "piper"))
-        os.makedirs(models_dir, exist_ok=True)
+        models_dir = str(Path(".").resolve() / "models" / "piper")
+        Path(models_dir).mkdir(parents=True, exist_ok=True)
 
-        model_path = os.path.join(models_dir, f"{voice_name}.onnx")
-        config_path = os.path.join(models_dir, f"{voice_name}.onnx.json")
+        model_path = str(Path(models_dir) / f"{voice_name}.onnx")
+        config_path = str(Path(models_dir) / f"{voice_name}.onnx.json")
 
-        if os.path.exists(model_path) and os.path.exists(config_path):
+        if Path(model_path).exists() and Path(config_path).exists():
             return model_path, config_path
 
         # Model not found locally - list available voices
-        available = [f.replace(".onnx", "") for f in os.listdir(models_dir) if f.endswith(".onnx")]
+        available = [f.stem for f in Path(models_dir).iterdir() if f.suffix == ".onnx"]
         raise RuntimeError(
             f"Piper voice '{voice_name}' not found locally. "
             f"Available voices: {', '.join(sorted(available)) if available else 'none'}"
@@ -198,8 +198,8 @@ class TTSEngine(BaseModule):
         Synthesize text into speech.
         """
         text = data.translated_text if self._use_translated else data.transcript
-
-        output_wav = os.path.join(self._tts_dir, f"tts_{data.chunk_index:06d}.wav")
+        
+        output_wav = str(self._tts_dir / f"tts_{data.chunk_index:06d}.wav")
 
         if not text:
             logger.debug(f"[TTS] Empty text for chunk {data.chunk_index}, setting dubbed_audio_path to None")
@@ -259,7 +259,7 @@ class TTSEngine(BaseModule):
             creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
         )
 
-        if os.path.exists(temp_mp3):
+        if Path(temp_mp3).exists():
             os.remove(temp_mp3)
 
     def _run_piper_tts(self, text: str, output_wav: str):
@@ -293,9 +293,9 @@ class TTSEngine(BaseModule):
             # Write WAV bytes to file
             with open(output_wav, "wb") as f:
                 f.write(wav_bytes)
-
-            if os.path.exists(output_wav):
-                file_size = os.path.getsize(output_wav)
+            
+            if Path(output_wav).exists():
+                file_size = Path(output_wav).stat().st_size
                 logger.debug(f"Piper TTS generated: {output_wav} ({file_size} bytes)")
                 if file_size < 44:
                     logger.warning(f"Generated WAV too small ({file_size} bytes), likely empty")

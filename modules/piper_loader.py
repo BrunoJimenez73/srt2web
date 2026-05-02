@@ -19,6 +19,7 @@ import tempfile
 import base64
 import time
 import logging
+from pathlib import Path
 
 logger = logging.getLogger("srt2web.module.tts_engine")
 
@@ -252,10 +253,11 @@ class PiperSubprocessManager:
             cuda_paths = []
             for sp in site.getsitepackages():
                 for subdir in ("nvidia/cudnn/bin", "nvidia/cublas_cu11/bin"):
-                    p = os.path.join(sp, subdir)
-                    if os.path.exists(p):
-                        cuda_paths.append(p)
+                    p = Path(sp) / subdir
+                    if p.exists():
+                        cuda_paths.append(str(p))
             if cuda_paths:
+                # os.pathsep is the path separator (e.g., ';' on Windows, ':' on Linux)
                 env["PATH"] = os.pathsep.join(cuda_paths) + os.pathsep + env.get("PATH", "")
 
             # Pass FFmpeg path for speed adjustment

@@ -4,13 +4,12 @@ WebRTC Output - Streaming via WebRTC protocol.
 Provides WebRTC streaming capabilities with subtitle support via data channels.
 """
 
-import os
 import logging
 import threading
 from typing import Optional, Dict
 
 from core.output_sink import OutputSink
-from core.module_base import PipelineData
+from core.module_base import PipelineData, ModuleStatus, ModuleState
 
 logger = logging.getLogger("srt2web.output.webrtc")
 
@@ -80,22 +79,22 @@ class WebRTCOutput(OutputSink):
         """Get the underlying WebRTC engine."""
         return self._engine
 
-    def get_status(self) -> dict:
+    def get_status(self) -> ModuleStatus:
         """Get status including WebRTC info."""
-        return {
-            "name": "video_muxer",
-            "state": "running" if self._running else "idle",
-            "enabled": True,
-            "processed_chunks": 0,
-            "last_process_time_ms": 0,
-            "extra": {
+        return ModuleStatus(
+            name="video_muxer",
+            state=ModuleState.RUNNING if self._running else ModuleState.IDLE,
+            enabled=True,
+            processed_chunks=0,
+            last_process_time_ms=0.0,
+            extra={
                 "encoder_mode": "webrtc",
                 "actual_encoder": "webrtc",
                 "using_gpu": False,
                 "gpu_available": {},
                 "encoder_label": "CPU (WebRTC)",
             }
-        }
+        )
 
 
 # Auto-register in factory

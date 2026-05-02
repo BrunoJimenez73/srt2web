@@ -10,7 +10,7 @@
   <div class="process-content">
     <div class="form-group">
       <label class="form-label" for="input-type">Tipo</label>
-      <select class="form-select" id="input-type" onchange="window.handleInputTypeChange(this.value)" aria-describedby="input-type-desc">
+      <select class="form-select" id="input-type" aria-describedby="input-type-desc">
         <option value="srt">SRT</option>
         <option value="rtmp">RTMP</option>
         <option value="file">File (Video local)</option>
@@ -53,23 +53,23 @@
         <label class="form-label" for="input-rtmp-url">URL para OBS (RTMP Listen)</label>
         <div class="copy-input-wrapper">
           <input type="text" class="form-input" id="input-rtmp-url" readonly placeholder="rtmp://127.0.0.1:1935/live/stream" />
-          <button type="button" class="copy-button" onclick="copyRtmpUrl()" aria-label="Copiar URL">📋</button>
+          <button type="button" class="copy-button" id="btn-copy-rtmp" aria-label="Copiar URL">📋</button>
         </div>
       </div>
        <div class="form-row">
          <div class="form-group">
            <label class="form-label" for="input-rtmp-port">Puerto</label>
-           <input type="number" class="form-input" id="input-rtmp-port" value="1935" min="1" max="65535" onchange="updateRtmpUrl()" />
+           <input type="number" class="form-input" id="input-rtmp-port" value="1935" min="1" max="65535" />
          </div>
          <div class="form-group">
            <label class="form-label" for="input-rtmp-app">App</label>
-           <input type="text" class="form-input" id="input-rtmp-app" value="live" onchange="updateRtmpUrl()" />
+           <input type="text" class="form-input" id="input-rtmp-app" value="live" />
          </div>
        </div>
        <div class="form-row">
          <div class="form-group">
            <label class="form-label" for="input-rtmp-key">Stream Key</label>
-           <input type="text" class="form-input" id="input-rtmp-key" placeholder="stream" onchange="updateRtmpUrl()" />
+           <input type="text" class="form-input" id="input-rtmp-key" placeholder="stream" />
          </div>
          <div class="form-group">
            <label class="form-label" for="input-rtmp-chunk">Chunk (s)</label>
@@ -84,8 +84,8 @@
         <label class="form-label" for="input-file-path">Archivo de Video (ruta completa)</label>
         <div class="file-input-wrapper">
           <input type="text" class="form-input" id="input-file-path" placeholder="C:\Users\bruno\Desktop\video.mp4" />
-          <button type="button" class="file-button" onclick="document.getElementById('input-file-select').click()" aria-label="Seleccionar archivo">📁</button>
-          <input type="file" id="input-file-select" accept="video/*" style="display: none;" onchange="handleFileSelect(this)" />
+          <button type="button" class="file-button" id="btn-file-select" aria-label="Seleccionar archivo">📁</button>
+          <input type="file" id="input-file-select" accept="video/*" style="display: none;" />
         </div>
         <small class="form-hint">Selecciona un archivo o escribe la ruta completa manualmente</small>
       </div>
@@ -400,3 +400,8 @@
     color: var(--text-dim);
   }
 </style>
+
+<script>
+  import { initInputCard } from "../lib/components/input-card";
+  document.addEventListener("DOMContentLoaded", initInputCard);
+</script>

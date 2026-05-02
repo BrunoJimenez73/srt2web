@@ -1,23 +1,5 @@
-import { apiCall } from '../api';
+import { apiCall, type OutputStatus } from '../api';
 import { showToast } from '../utils';
-
-export interface OutputStatus {
-  name: string;
-  type: string;
-  state: string;
-  enabled: boolean;
-  processed_chunks: number;
-  last_process_time_ms: number;
-  extra?: Record<string, any>;
-  stream_info?: Record<string, any>;
-  error?: string;
-}
-
-export interface OutputConfig {
-  type: string;
-  name?: string;
-  config?: Record<string, any>;
-}
 
 let outputs: OutputStatus[] = [];
 let outputListeners: ((outputs: OutputStatus[]) => void)[] = [];
@@ -44,7 +26,11 @@ export async function fetchAvailableTypes(): Promise<string[]> {
   }
 }
 
-export async function addOutput(config: OutputConfig): Promise<boolean> {
+export async function addOutput(config: {
+  type: string;
+  name?: string;
+  config?: Record<string, unknown>;
+}): Promise<boolean> {
   try {
     await apiCall('POST', 'api/outputs', config);
     showToast('Salida añadida correctamente', 'success');
@@ -59,7 +45,7 @@ export async function addOutput(config: OutputConfig): Promise<boolean> {
 
 export async function removeOutput(name: string): Promise<boolean> {
   try {
-    await apiCall('DELETE', `api/outputs/${name}`);
+    await apiCall('DELETE', `api/outputs/${encodeURIComponent(name)}`);
     showToast('Salida eliminada', 'success');
     await fetchOutputs();
     return true;
@@ -72,7 +58,7 @@ export async function removeOutput(name: string): Promise<boolean> {
 
 export async function toggleOutput(name: string, enabled: boolean): Promise<boolean> {
   try {
-    await apiCall('POST', `api/outputs/${name}/toggle`, { enabled });
+    await apiCall('POST', `api/outputs/${encodeURIComponent(name)}/toggle`, { enabled });
     await fetchOutputs();
     return true;
   } catch (e) {
@@ -84,7 +70,7 @@ export async function toggleOutput(name: string, enabled: boolean): Promise<bool
 
 export async function updateOutput(name: string, config: Record<string, any>): Promise<boolean> {
   try {
-    await apiCall('PUT', `api/outputs/${name}`, { config });
+    await apiCall('PUT', `api/outputs/${encodeURIComponent(name)}`, { config });
     showToast('Salida actualizada', 'success');
     await fetchOutputs();
     return true;

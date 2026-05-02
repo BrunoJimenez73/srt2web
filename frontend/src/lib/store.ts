@@ -1,4 +1,5 @@
 /**
+ * [x] --- No longer needed. Use signals from './store/signals' instead.
  * Dashboard State Store - Gestión centralizada de estado.
  * 
  * Patrón: Store observable con suscriptores.
@@ -11,7 +12,7 @@
  */
 
 import type { Config, Status, LogMessage } from './types';
-import type { OutputStatus } from './modules/outputs';
+import type { OutputStatus } from './api';
 
 export interface DashboardState {
   config: Config | null;

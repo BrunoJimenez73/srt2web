@@ -5,35 +5,17 @@ Este módulo define tipos y estructuras de datos compartidas entre módulos,
 facilitando la consistencia y el type checking.
 """
 
-from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
+from dataclasses import dataclass, field
 import time
 
+from core.schemas import PipelineData, ModuleStatus, ModuleState, PipelineState
+
 
 # ============================================================================
-# Enums
+# Enums (mantener los que no están en schemas)
 # ============================================================================
-
-class PipelineState(str, Enum):
-    """Estados posibles del pipeline."""
-    IDLE = "idle"
-    STARTING = "starting"
-    RUNNING = "running"
-    STOPPING = "stopping"
-    ERROR = "error"
-    PAUSED = "paused"
-
-
-class ModuleState(str, Enum):
-    """Estados posibles de un módulo."""
-    IDLE = "idle"
-    INITIALIZING = "initializing"
-    READY = "ready"
-    PROCESSING = "processing"
-    ERROR = "error"
-    DISABLED = "disabled"
-
 
 class LogLevel(str, Enum):
     """Niveles de log."""
@@ -78,108 +60,6 @@ class EncoderMode(str, Enum):
     VAAPI = "vaapi"  # Linux VA-API
 
 
-# ============================================================================
-# Data Classes
-# ============================================================================
-
-@dataclass
-class PipelineData:
-    """
-    Datos que fluyen a través del pipeline.
-    
-    Esta clase representa los datos que pasan entre módulos,
-    incluyendo metadatos y estado del procesamiento.
-    """
-    # Datos de video/audio
-    video_chunk_path: Optional[str] = None
-    audio_chunk_path: Optional[str] = None
-    tts_audio_path: Optional[str] = None
-    mixed_audio_path: Optional[str] = None
-    
-    # Datos de texto
-    transcript: Optional[str] = None
-    translation: Optional[str] = None
-    detected_language: Optional[str] = None
-    
-    # Timing
-    chunk_index: int = 0
-    duration: float = 0.0
-    cumulative_duration: float = 0.0
-    timestamp: float = field(default_factory=time.time)
-    
-    # Metadatos
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    
-    # Estado de procesamiento
-    errors: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
-    
-    @property
-    def is_valid(self) -> bool:
-        """Verifica si los datos son válidos para procesamiento."""
-        return self.video_chunk_path is not None or self.audio_chunk_path is not None
-    
-    @property
-    def has_audio(self) -> bool:
-        """Verifica si hay audio disponible."""
-        return self.audio_chunk_path is not None
-    
-    @property
-    def has_video(self) -> bool:
-        """Verifica si hay video disponible."""
-        return self.video_chunk_path is not None
-    
-    @property
-    def has_transcript(self) -> bool:
-        """Verifica si hay transcripción disponible."""
-        return self.transcript is not None
-    
-    @property
-    def has_translation(self) -> bool:
-        """Verifica si hay traducción disponible."""
-        return self.translation is not None
-
-
-@dataclass
-class ModuleStatus:
-    """
-    Estado de un módulo del pipeline.
-    """
-    name: str
-    state: ModuleState = ModuleState.IDLE
-    enabled: bool = True
-    
-    # Métricas
-    processed_chunks: int = 0
-    total_processing_time: float = 0.0
-    last_processing_time: float = 0.0
-    average_processing_time: float = 0.0
-    
-    # Información de error
-    last_error: Optional[str] = None
-    error_count: int = 0
-    
-    # Información específica del módulo
-    extra: Dict[str, Any] = field(default_factory=dict)
-    
-    @property
-    def is_processing(self) -> bool:
-        """Verifica si el módulo está procesando actualmente."""
-        return self.state == ModuleState.PROCESSING
-    
-    @property
-    def is_healthy(self) -> bool:
-        """Verifica si el módulo está saludable."""
-        return self.enabled and self.state != ModuleState.ERROR
-    
-    def update_processing_time(self, processing_time: float):
-        """Actualiza las métricas de tiempo de procesamiento."""
-        self.processed_chunks += 1
-        self.last_processing_time = processing_time
-        self.total_processing_time += processing_time
-        self.average_processing_time = self.total_processing_time / self.processed_chunks
-
-
 @dataclass
 class PipelineStatus:
     """
@@ -192,7 +72,7 @@ class PipelineStatus:
     
     # Métricas generales
     uptime: float = 0.0
-    start_time: Optional[float] = None
+    start_time: float | None = None
     total_chunks_processed: int = 0
     
     # Información del sistema
@@ -223,7 +103,7 @@ class LogMessage:
     """
     level: LogLevel
     message: str
-    module: Optional[str] = None
+    module: str | None = None
     timestamp: float = field(default_factory=time.time)
     context: Dict[str, Any] = field(default_factory=dict)
     
@@ -259,11 +139,11 @@ class SystemMetrics:
     
     # GPU (si está disponible)
     gpu_available: bool = False
-    gpu_name: Optional[str] = None
+    gpu_name: str | None = None
     gpu_usage_percent: float = 0.0
     gpu_memory_used_mb: float = 0.0
     gpu_memory_total_mb: float = 0.0
-    gpu_temperature: Optional[float] = None
+    gpu_temperature: float | None = None
     
     # Proceso actual
     process_cpu_percent: float = 0.0
@@ -318,7 +198,7 @@ class AudioConfig:
     sample_rate: int = 16000
     channels: int = 1
     format: str = "s16le"  # Signed 16-bit little-endian
-    bitrate: Optional[int] = None  # bits per second
+    bitrate: int | None = None  # bits per second
 
 
 @dataclass
@@ -330,7 +210,7 @@ class VideoConfig:
     height: int = 1080
     fps: float = 30.0
     codec: str = "h264"
-    bitrate: Optional[int] = None  # bits per second
+    bitrate: int | None = None  # bits per second
     keyframe_interval: int = 10  # frames entre keyframes
     encoder_mode: EncoderMode = EncoderMode.SOFTWARE
 
@@ -344,4 +224,4 @@ class HLSConfig:
     playlist_size: int = 5  # número máximo de segmentos en playlist
     allow_cache: bool = True
     version: int = 3
-    target_duration: Optional[float] = None  # se calcula automáticamente si es None
+    target_duration: float | None = None  # se calcula automáticamente si es None

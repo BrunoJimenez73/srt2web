@@ -31,15 +31,14 @@ class TestDashboardRefactor:
 
     def test_dashboard_uses_signals(self, dashboard_file) -> None:
         content = dashboard_file.read_text(encoding='utf-8')
-        assert "from './store/index'" in content
-        assert "pipelineStatus" in content
-        assert "pipelineConfig.value" in content
+        assert "from './modules/pipeline-control'" in content
+        assert "from './modules/config-collector'" in content
 
     def test_handle_functions_exist(self, dashboard_file) -> None:
         content = dashboard_file.read_text(encoding='utf-8')
-        assert "function handleStart" in content
-        assert "function handleStop" in content
-        assert "function handleSaveConfig" in content
+        assert "handleStart" in content
+        assert "handleStop" in content
+        assert "handleSaveConfig" in content
 
 
 class TestEffectsImplementation:

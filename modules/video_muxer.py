@@ -5,7 +5,6 @@ Takes video chunks (with optional processed audio and subtitles)
 and generates HLS output (m3u8 + ts segments) for web playback.
 """
 
-import os
 import sys
 import glob
 import logging
@@ -33,8 +32,8 @@ class VideoMuxer(BaseModule):
 
     def __init__(self, config: Optional[dict] = None, output_dir: str = "./output") -> None:
         self._ffmpeg_path: Optional[str] = None
-        self._output_dir = output_dir
-        self._hls_dir = ""
+        self._output_dir = Path(output_dir)  # Convert to Path
+        self._hls_dir = Path()
         self._hls_segment_duration = 4
         self._segment_index = 0
         self._manifest_lock = threading.Lock()
@@ -79,8 +78,8 @@ class VideoMuxer(BaseModule):
         self._segment_durations = {}
 
         # Create HLS output directory
-        self._hls_dir = os.path.join(self._output_dir, "hls")
-        os.makedirs(self._hls_dir, exist_ok=True)
+        self._hls_dir = Path(self._output_dir) / "hls"
+        self._hls_dir.mkdir(parents=True, exist_ok=True)
 
         from core.ffmpeg_utils import check_gpu_support
 
@@ -88,14 +87,14 @@ class VideoMuxer(BaseModule):
         logger.info(f"Hardware Acceleration Check: {self._gpu_info}")
 
         # Clean old HLS files
-        for f in glob.glob(os.path.join(self._hls_dir, "*.ts")):
+        for f in self._hls_dir.glob("*.ts"):
             try:
-                os.remove(f)
+                f.unlink()
             except OSError:
                 pass
-        for f in glob.glob(os.path.join(self._hls_dir, "*.m3u8")):
+        for f in self._hls_dir.glob("*.m3u8"):
             try:
-                os.remove(f)
+                f.unlink()
             except OSError:
                 pass
 
@@ -145,7 +144,7 @@ class VideoMuxer(BaseModule):
     def _do_process(self, data: PipelineData) -> PipelineData:
         """Generate HLS segment from video chunk."""
         input_path = data.video_chunk_path
-        if not input_path or not os.path.exists(input_path):
+        if not input_path or not Path(input_path).exists():
             return data
 
         chunk_duration = data.duration or self._hls_segment_duration
@@ -155,7 +154,7 @@ class VideoMuxer(BaseModule):
         # Copy input to HLS segment (passthrough - no re-encoding)
         try:
             import shutil
-            dest_path = os.path.join(self._hls_dir, segment_name)
+            dest_path = self._hls_dir / segment_name
             shutil.copy2(input_path, dest_path)
         except Exception:
             pass
@@ -169,7 +168,7 @@ class VideoMuxer(BaseModule):
         self._segment_index += 1
 
         # Set output path for RecordingOutput
-        data.output_hls_path = os.path.join(self._hls_dir, "master.m3u8")
+        data.output_hls_path = str(self._hls_dir / "master.m3u8")
         data.video_path = input_path  # For RecordingOutput
 
         return data
@@ -180,33 +179,33 @@ class VideoMuxer(BaseModule):
         Uses a sliding window for segments and REAL durations for stability.
         """
         with self._manifest_lock:
-            media_playlist_path = os.path.join(self._hls_dir, "stream.m3u8")
-            master_playlist_path = os.path.join(self._hls_dir, "master.m3u8")
+            media_playlist_path = self._hls_dir / "stream.m3u8"
+            master_playlist_path = self._hls_dir / "master.m3u8"
 
             # 1. Get current segments
-            all_segments = sorted(glob.glob(os.path.join(self._hls_dir, "seg_*.ts")))
+            all_segments = sorted(self._hls_dir.glob("seg_*.ts"))
 
             # Keep only the latest N segments (sliding window)
             if len(all_segments) > self._hls_list_size:
                 to_remove = all_segments[: len(all_segments) - self._hls_list_size]
                 for old_seg in to_remove:
                     try:
-                        os.remove(old_seg)
+                        old_seg.unlink()
                         # Clean up duration cache
-                        old_name = os.path.basename(old_seg)
+                        old_name = old_seg.name
                         old_idx = int(old_name.replace("seg_", "").replace(".ts", ""))
                         if old_idx in self._segment_durations:
                             del self._segment_durations[old_idx]
                     except (OSError, ValueError):
                         pass
-                all_segments = all_segments[-self._hls_list_size :]
+                all_segments = all_segments[-self._hls_list_size : ]
 
             # Calculate media sequence number
             media_seq = 0
             if all_segments:
-                first_seg = os.path.basename(all_segments[0])
+                first_seg = all_segments[0]
                 try:
-                    media_seq = int(first_seg.replace("seg_", "").replace(".ts", ""))
+                    media_seq = int(first_seg.stem.replace("seg_", ""))
                 except ValueError:
                     media_seq = 0
 
@@ -220,9 +219,9 @@ class VideoMuxer(BaseModule):
             ]
 
             for seg_path in all_segments:
-                seg_name = os.path.basename(seg_path)
+                seg_name = seg_path.name
                 try:
-                    seg_idx = int(seg_name.replace("seg_", "").replace(".ts", ""))
+                    seg_idx = int(seg_path.stem.replace("seg_", ""))
                     # Use cached duration or fallback to default
                     dur = self._segment_durations.get(
                         seg_idx, float(self._hls_segment_duration)
@@ -241,8 +240,8 @@ class VideoMuxer(BaseModule):
 
             # 3. Write Master Playlist (master.m3u8)
             # This is where we properly link subtitles for HLS.js
-            subs_vtt_path = os.path.join(self._hls_dir, "subs.vtt")
-            subs_exist = os.path.exists(subs_vtt_path)
+            subs_vtt_path = self._hls_dir / "subs.vtt"
+            subs_exist = subs_vtt_path.exists()
 
             master_lines = [
                 "#EXTM3U",

@@ -1,18 +1,29 @@
 /**
  * Tipos de datos para gestión de salidas múltiples.
+ * 
+ * NOTA: Los tipos principales (ModuleExtra, OutputStatus, etc.) 
+ * ahora viven en `api.ts` como única fuente de verdad.
+ * Este archivo solo contiene tipos específicos para el sistema de salidas.
  */
 
-// Re-export shared types via barrel
-export type { Config, Status, PipelineState, ModuleStatus, ModuleState, MetricsData, InputConfig, WebSocketMessage, HealthStatus, LogMessage } from './shared-types';
+// Re-export shared types via barrel (api.ts es la fuente de verdad)
+export type { 
+  Config, Status, PipelineState, ModuleStatus, ModuleState, 
+  MetricsData, InputConfig, WebSocketMessage, HealthStatus, 
+  LogMessage, ModuleExtra 
+} from './shared-types';
 
-// Configuración base para todas las salidas
+// Importar OutputStatus desde api.ts para usarlo en este archivo
+import type { OutputStatus } from './api';
+
+// ── Tipos específicos para configuración de salidas ──────────────────
+
 export interface BaseOutputConfig {
   type: string;
   name?: string;
   enabled?: boolean;
 }
 
-// Configuración específica para Recording (grabación continua)
 export interface RecordingOutputConfig extends BaseOutputConfig {
   type: 'recording';
   output_path: string;
@@ -29,7 +40,6 @@ export interface RecordingOutputConfig extends BaseOutputConfig {
   video_preset?: string;
 }
 
-// Configuración específica para SRT
 export interface SrtOutputConfig extends BaseOutputConfig {
   type: 'srt';
   url: string;
@@ -44,7 +54,6 @@ export interface SrtOutputConfig extends BaseOutputConfig {
   audio_codec: string;
 }
 
-// Configuración específica para Archivo
 export interface FileOutputConfig extends BaseOutputConfig {
   type: 'file';
   save_video: boolean;
@@ -53,7 +62,6 @@ export interface FileOutputConfig extends BaseOutputConfig {
   path: string;
 }
 
-// Configuración específica para RTMP
 export interface RtmpOutputConfig extends BaseOutputConfig {
   type: 'rtmp';
   url: string;
@@ -65,7 +73,6 @@ export interface RtmpOutputConfig extends BaseOutputConfig {
   encoder_mode: 'auto' | 'cpu' | 'gpu_nvenc' | 'gpu_vaapi';
 }
 
-// Configuración específica para Web/HLS
 export interface WebOutputConfig extends BaseOutputConfig {
   type: 'web';
   segment_duration: number;
@@ -74,19 +81,15 @@ export interface WebOutputConfig extends BaseOutputConfig {
   encoder_mode: 'auto' | 'cpu' | 'gpu_nvenc' | 'gpu_vaapi';
 }
 
-// Tipo unión para todas las configuraciones de salida
-export type OutputConfig = RecordingOutputConfig | SrtOutputConfig | FileOutputConfig | RtmpOutputConfig | WebOutputConfig;
+// Tipo unión para todas las configuraciones de salida (usado en outputs.ts)
+export type AnyOutputConfig = 
+  | RecordingOutputConfig 
+  | SrtOutputConfig 
+  | FileOutputConfig 
+  | RtmpOutputConfig 
+  | WebOutputConfig;
 
-// Estado de una salida
-export interface OutputStatus {
-  name: string;
-  type: string;
-  state: 'running' | 'stopped' | 'starting' | 'stopping';
-  enabled: boolean;
-  processed_chunks: number;
-  last_process_time_ms: number;
-  extra?: Record<string, any>;
-}
+// ── Tipos para estado y gestión de salidas ───────────────────────────
 
 // Respuesta de múltiples salidas
 export interface OutputsResponse {
@@ -96,6 +99,32 @@ export interface OutputsResponse {
 
 // Estado de la aplicación para gestión de salidas
 export interface OutputManagerState {
+  outputs: OutputStatus[];
+  errors: Record<string, string>;
+}
+
+// Tipos para los manejadores de eventos
+export interface OutputHandlers {
+  onAddOutput: (config: AnyOutputConfig) => void;
+  onRemoveOutput: (name: string) => void;
+  onReconnectOutput: (name: string) => void;
+  onEnableOutput: (name: string, enable: boolean) => void;
+}
+
+// Tipos para los componentes
+export interface OutputStatusCardProps {
+  output: OutputStatus;
+  error: string | null;
+  onRemove: () => void;
+  onReconnect: () => void;
+  onEnable: (enable: boolean) => void;
+}
+
+export interface OutputConfigFormProps {
+  onAddOutput: (config: AnyOutputConfig) => void;
+}
+
+export interface OutputManagerCardProps extends OutputHandlers {
   outputs: OutputStatus[];
   errors: Record<string, string>;
 }
@@ -124,51 +153,17 @@ export interface OutputFormState {
   encoderMode: string;
 }
 
-// Tipos para los manejadores de eventos
-export interface OutputHandlers {
-  onAddOutput: (config: any) => void;
-  onRemoveOutput: (name: string) => void;
-  onReconnectOutput: (name: string) => void;
-  onEnableOutput: (name: string, enable: boolean) => void;
-}
-
-// Tipos para los componentes
-export interface OutputStatusCardProps {
-  output: OutputStatus;
-  error: string | null;
-  onRemove: () => void;
-  onReconnect: () => void;
-  onEnable: (enable: boolean) => void;
-}
-
-export interface OutputConfigFormProps {
-  onAddOutput: (config: any) => void;
-}
-
-export interface OutputManagerCardProps extends OutputHandlers {
-  outputs: OutputStatus[];
-  errors: Record<string, string>;
-}
-
-export interface ModuleExtra {
-  using_gpu?: boolean;
-  device?: string;
-  encoder_mode?: string;
-  compute_type?: string;
-  sample_rate?: number;
-  provider?: string;
-}
-
-declare global {
-  interface Window {
-    showToast?: (message: string, type?: 'info' | 'success' | 'error') => void;
-    updateStats?: (stats: any) => void;
-    dashboardStore?: any;
-  }
-}
-
+// Tipos adicionales para timeouts de configuración
 export interface ConfigUpdateTimeouts {
   input?: ReturnType<typeof setTimeout>;
   pipeline?: ReturnType<typeof setTimeout>;
   output?: ReturnType<typeof setTimeout>;
+}
+
+// Extensión de la interfaz Window para compatibilidad con HLS.js
+declare global {
+  interface Window {
+    // HLS player instance (set by player.astro)
+    player?: any;
+  }
 }

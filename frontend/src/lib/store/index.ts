@@ -14,6 +14,7 @@ export {
   connectionMode,
   isOperationPending,
   throughputHistory,
+  inputType,
   pipelineState,
   isPipelineRunning,
   isPipelineStopping,

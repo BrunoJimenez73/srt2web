@@ -66,7 +66,8 @@
 - test_workspace_fixes (20) - Created missing files
 - test_latest_features - WebRTC tests updated
 | `tests/unit/test_ffmpeg_optimizations.py` | ✅ **Nuevos tests** (9 tests) |
-| `server/static/docs/*` | ✅ Documentación rebuild y actualizada |
+| `docs/` (MkDocs) | ✅ Documentación MkDocs rebuild y actualizada |
+| `frontend/src/pages/docs/` | **Eliminado** - Migrado a MkDocs |
 
 **Resultados**:
 - ✅ 557 tests pasando ✅

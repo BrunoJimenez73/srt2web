@@ -6,10 +6,10 @@ which is the required format for Whisper transcription.
 Optimized for speed with GPU acceleration (NVDEC) when available.
 """
 
-import os
 import sys
 import logging
 import subprocess
+from pathlib import Path
 from typing import Optional
 
 from core.module_base import PipelineData, ModuleState
@@ -27,9 +27,9 @@ class AudioExtractor(FFmpegModule):
     """
 
     def __init__(self, config: Optional[dict] = None, output_dir: str = "./output"):
-        self._output_dir = output_dir
-        self._audio_dir = ""
-        self._gpu_info = {"nvenc": False, "nvdec": False}
+        self._output_dir = Path(output_dir)
+        self._audio_dir = Path()
+        self._gpu_info = {"nvdec": False, "nvdec": False}
         super().__init__("audio_extractor", config)
 
     def configure(self, config: dict) -> None:
@@ -49,8 +49,8 @@ class AudioExtractor(FFmpegModule):
             self._gpu_info["nvdec"] = False
 
         # Create temporary audio directory
-        self._audio_dir = os.path.join(self._output_dir, "temp_audio")
-        os.makedirs(self._audio_dir, exist_ok=True)
+        self._audio_dir = Path(self._output_dir) / "temp_audio"
+        self._audio_dir.mkdir(parents=True, exist_ok=True)
 
         self._state = ModuleState.RUNNING
         logger.info(f"AudioExtractor ready. Temp dir: {self._audio_dir}, GPU: {self._gpu_info}")
@@ -60,10 +60,10 @@ class AudioExtractor(FFmpegModule):
         self._state = ModuleState.STOPPING
         # Try to clean up the temporary directory
         try:
-            for f in os.listdir(self._audio_dir):
-                if f.endswith(".wav"):
+            for f in self._audio_dir.iterdir():
+                if f.suffix == ".wav":
                     try:
-                        os.remove(os.path.join(self._audio_dir, f))
+                        f.unlink()
                     except OSError:
                         pass
         except OSError:
@@ -76,12 +76,12 @@ class AudioExtractor(FFmpegModule):
         Sets data.audio_chunk_path to the resulting WAV file.
         """
         input_path = data.video_chunk_path
-        if not input_path or not os.path.exists(input_path):
+        if not input_path or not Path(input_path).exists():
             return data
 
         # Output WAV filename
         wav_name = f"audio_{data.chunk_index:06d}.wav"
-        output_path = os.path.join(self._audio_dir, wav_name)
+        output_path = str(self._audio_dir / wav_name)
 
         # FFmpeg command: extract audio, 8kHz, mono, 16-bit PCM
         # Optimized for speed: 8kHz is sufficient for Whisper and faster to process
@@ -109,8 +109,8 @@ class AudioExtractor(FFmpegModule):
             if result.returncode != 0:
                 logger.error(f"FFmpeg audio extraction error: {result.stderr[-500:]}")
                 return data
-                
-            if os.path.exists(output_path):
+                 
+            if Path(output_path).exists():
                 data.audio_chunk_path = output_path
                 self.logger.debug(f"Extracted audio for chunk {data.chunk_index}")
 

@@ -1,0 +1,126 @@
+[build-system]
+requires = ["setuptools>=68.0.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "srt2web"
+version = "0.6.8"
+description = "Real-time SRT streaming processor with Web dashboard"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+license = {text = "MIT"}
+authors = [
+    {name = "BrunoJimenez73"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.optional-dependencies]
+core = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "pyyaml>=6.0",
+    "aiofiles>=23.0",
+    "websockets>=12.0",
+    "numpy>=1.24.0",
+    "pydub>=0.25.1",
+    "psutil>=5.9.0",
+    "nvidia-ml-py>=12.0.0",
+]
+pydantic-v1 = [
+    "pydantic>=1.10.0,<2.0.0",
+]
+processing = [
+    "faster-whisper>=1.0.0",
+    "argostranslate>=1.9.0",
+    "piper-tts>=1.2.0",
+]
+gpu = [
+    "onnxruntime-gpu>=1.19.0",
+    "nvidia-cublas-cu11>=8.9.4.25",
+    "nvidia-cudnn-cu11>=8.9.4.25",
+]
+webrtc = [
+    "aiortc>=1.14.0",
+]
+tts = [
+    "edge-tts>=6.1.0",
+]
+cli = [
+    "requests>=2.31.0",
+    "colorama>=0.4.6",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "anyio>=4.0.0",
+    "pytest-xdist>=3.5.0",
+    "ruff>=0.1.6",
+    "mypy>=1.8.0",
+    "pre-commit>=4.5.0",
+]
+
+[project.scripts]
+srt2web = "main:main"
+srt2web-cli = "scripts.cli:main"
+
+[tool.setuptools]
+packages = ["core", "modules", "server", "scripts"]
+include-package-data = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+src = ["core", "modules", "server", "scripts", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["E501", "F841", "B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["core", "modules", "server"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = false
+warn_unused_configs = true
+ignore_missing_imports = true
+exclude = ["desktop", "scripts", "desktop/dist"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+disallow_untyped_decorators = false
+no_implicit_optional = false
+warn_redundant_casts = true
+warn_unused_ignores = true
+show_error_codes = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+asyncio_mode = "auto"
+
+[tool.pytest.ini_options.markets]
+slow = "slow tests"
+
+[tool.coverage.run]
+source = ["core", "modules", "server"]
+omit = ["*/tests/*", "*/desktop/*", "*/scripts/*"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]

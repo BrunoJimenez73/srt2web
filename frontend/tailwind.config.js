@@ -122,6 +122,9 @@ export default {
           error: '#ff3333',
         },
       },
+      screens: {
+        tablet: '1024px',
+      },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],

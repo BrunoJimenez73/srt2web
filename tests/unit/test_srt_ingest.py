@@ -58,29 +58,28 @@ class TestSRTIngest:
         )
         assert ingest.state == ModuleState.IDLE
 
-    @patch("glob.glob")
+    @patch("pathlib.Path.glob")
     @patch("core.ffmpeg_utils.get_video_duration")
-    @patch("os.path.basename")
-    def test_get_next_chunk_success(self, mock_basename, mock_duration, mock_glob) -> None:
+    def test_get_next_chunk_success(self, mock_duration, mock_path_glob) -> None:
         """Test successfully retrieving the next available chunk."""
+        from pathlib import Path
         ingest = SRTIngest(output_dir="/tmp")
         ingest._chunks_dir = "/tmp/chunks"
         ingest._last_chunk_index = -1
-        
+
         # Two chunks found, 000000 is ready, 000001 is in-progress
-        mock_glob.return_value = [
-            "/tmp/chunks/chunk_000000.ts",
-            "/tmp/chunks/chunk_000001.ts"
+        mock_path_glob.return_value = [
+            Path("/tmp/chunks/chunk_000000.ts"),
+            Path("/tmp/chunks/chunk_000001.ts")
         ]
-        mock_basename.side_effect = lambda p: os.path.split(p)[1]
         mock_duration.return_value = 4.2
-        
+
         chunk = ingest.get_next_chunk()
-        
+
         assert chunk is not None
         assert chunk.chunk_index == 0
         assert chunk.duration == 4.2
-        assert chunk.video_chunk_path == "/tmp/chunks/chunk_000000.ts"
+        assert chunk.video_chunk_path == Path("/tmp/chunks/chunk_000000.ts")
         assert ingest._last_chunk_index == 0
 
     @patch("glob.glob")

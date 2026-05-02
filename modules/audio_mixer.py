@@ -11,7 +11,7 @@ Key features:
 - Duration validation: measures actual output duration
 """
 
-import os
+from pathlib import Path
 import sys
 import logging
 import subprocess
@@ -34,8 +34,8 @@ class AudioMixer(BaseModule):
 
     def __init__(self, config: Optional[dict] = None, output_dir: str = "./output") -> None:
         self._ffmpeg_path: Optional[str] = None
-        self._output_dir = output_dir
-        self._mixer_dir = ""
+        self._output_dir = Path(output_dir)
+        self._mixer_dir = Path()
         self._original_volume = 0.15  # 15% original volume (ducking)
         self._tts_volume = 1.0  # 100% TTS volume
         self._last_measured_duration = 0.0
@@ -54,18 +54,18 @@ class AudioMixer(BaseModule):
         """Initialize directory."""
         self._state = ModuleState.STARTING
         self._ffmpeg_path = ensure_ffmpeg()
-
-        self._mixer_dir = os.path.join(self._output_dir, "temp_mix")
-        os.makedirs(self._mixer_dir, exist_ok=True)
+        
+        self._mixer_dir = Path(self._output_dir) / "temp_mix"
+        self._mixer_dir.mkdir(parents=True, exist_ok=True)
         
         # Clear duration cache on start
         self._duration_cache.clear()
-
+        
         # Clean old files
-        for f in os.listdir(self._mixer_dir):
-            if f.endswith(".wav"):
+        for f in self._mixer_dir.iterdir():
+            if f.suffix == ".wav":
                 try:
-                    os.remove(os.path.join(self._mixer_dir, f))
+                    f.unlink()
                 except OSError:
                     pass
 
@@ -78,9 +78,9 @@ class AudioMixer(BaseModule):
         """Cleanup temporary files."""
         self._state = ModuleState.STOPPING
         try:
-            for f in os.listdir(self._mixer_dir):
-                if f.endswith(".wav"):
-                    os.remove(os.path.join(self._mixer_dir, f))
+            for f in self._mixer_dir.iterdir():
+                if f.suffix == ".wav":
+                    f.unlink()
         except OSError:
             pass
         self._state = ModuleState.IDLE
@@ -98,19 +98,19 @@ class AudioMixer(BaseModule):
         orig_audio = data.audio_chunk_path
         tts_audio = data.dubbed_audio_path
 
-        if not orig_audio or not os.path.exists(orig_audio):
+        if not orig_audio or not Path(orig_audio).exists():
             return data
 
         # If no TTS audio, use original as-is
-        if not tts_audio or not os.path.exists(tts_audio):
+        if not tts_audio or not Path(tts_audio).exists():
             logger.debug(f"[AudioMixer] No TTS audio for chunk {data.chunk_index}")
             data.mixed_audio_path = orig_audio
             # Measure duration from original
-            with wave.open(orig_audio, "rb") as wf:
+            with wave.open(str(orig_audio), "rb") as wf:
                 data.duration = wf.getnframes() / wf.getframerate()
             return data
 
-        mix_wav = os.path.join(self._mixer_dir, f"mix_{data.chunk_index:06d}.wav")
+        mix_wav = self._mixer_dir / f"mix_{data.chunk_index:06d}.wav"
         expected_duration = getattr(data, "duration", None)
         if not expected_duration:
             with wave.open(orig_audio, "rb") as wf:
@@ -119,7 +119,7 @@ class AudioMixer(BaseModule):
 
         try:
             # Read original audio (from audio_extractor: 16kHz, 16-bit, mono)
-            with wave.open(orig_audio, "rb") as wf:
+            with wave.open(str(orig_audio), "rb") as wf:
                 orig_sr = wf.getframerate()
                 orig_channels = wf.getnchannels()
                 orig_raw = wf.readframes(wf.getnframes())
@@ -127,8 +127,8 @@ class AudioMixer(BaseModule):
             if orig_channels > 1:
                 orig_samples = orig_samples.reshape(-1, orig_channels).mean(axis=1)
 
-            # Read TTS audio (from Piper: 22050Hz, 16-bit, mono)
-            with wave.open(tts_audio, "rb") as wf:
+# Read TTS audio (from Piper: 22050Hz, 16-bit, mono)
+            with wave.open(str(tts_audio), "rb") as wf:
                 tts_sr = wf.getframerate()
                 tts_raw = wf.readframes(wf.getnframes())
             tts_samples = np.frombuffer(tts_raw, dtype=np.int16).astype(np.float64)
@@ -158,7 +158,7 @@ class AudioMixer(BaseModule):
             mixed = np.clip(mixed, -32768, 32767).astype(np.int16)
 
             # Write output WAV
-            with wave.open(mix_wav, "wb") as wf:
+            with wave.open(str(mix_wav), "wb") as wf:
                 wf.setnchannels(1)
                 wf.setsampwidth(2)
                 wf.setframerate(orig_sr)
@@ -177,11 +177,12 @@ class AudioMixer(BaseModule):
 
     def _get_audio_duration(self, audio_path: str) -> float:
         """Get audio duration using ffprobe with caching."""
-        if not audio_path or not os.path.exists(audio_path):
+        audio_path_obj = Path(audio_path)
+        if not audio_path or not audio_path_obj.exists():
             return 0.0
 
         # Check cache first
-        mtime = os.path.getmtime(audio_path)
+        mtime = audio_path_obj.stat().st_mtime
         cache_key = f"{audio_path}:{mtime}"
         if cache_key in self._duration_cache:
             return self._duration_cache[cache_key]
@@ -189,11 +190,12 @@ class AudioMixer(BaseModule):
         try:
             ffmpeg_bin = self._ffmpeg_path or ensure_ffmpeg()
             # Use rsplit to replace only the filename, not the full path
+            ffmpeg_path_obj = Path(ffmpeg_bin)
             if sys.platform == "win32":
-                ffprobe = ffmpeg_bin.rsplit(os.sep, 1)[0] + os.sep + "ffprobe.exe"
+                ffprobe = ffmpeg_path_obj.parent / "ffprobe.exe"
             else:
-                ffprobe = ffmpeg_bin.rsplit("/", 1)[0] + "/ffprobe"
-            if not os.path.exists(ffprobe):
+                ffprobe = ffmpeg_path_obj.parent / "ffprobe"
+            if not ffprobe.exists():
                 ffprobe = "ffprobe"
             cmd = [
                 ffprobe,
@@ -220,10 +222,13 @@ class AudioMixer(BaseModule):
 
     def _cleanup_temp_file(self, file_path: str) -> None:
         """Safely remove temporary file."""
-        if not file_path or not os.path.exists(file_path):
+        if not file_path:
+            return
+        file_path_obj = Path(file_path)
+        if not file_path_obj.exists():
             return
         try:
-            os.remove(file_path)
+            file_path_obj.unlink()
         except OSError:
             pass
 

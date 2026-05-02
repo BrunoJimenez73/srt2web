@@ -4,7 +4,6 @@ Security utilities for SRT2Web.
 Provides path sanitization, input validation, and other security helpers.
 """
 
-import os
 import re
 from pathlib import Path
 from typing import Optional
@@ -61,8 +60,7 @@ def sanitize_path(user_path: str, base_dir: str, allow_absolute: bool = False) -
     # For relative paths, resolve them relative to base_dir
     try:
         base_path = Path(base_dir).resolve()
-        # Clean the path (remove .. and . components)
-        # Use os.path.normpath but be careful
+        # Clean path components (remove .. and . components) using Path
         clean_parts = []
         for part in path.parts:
             if part == "..":
@@ -113,7 +111,7 @@ def sanitize_filename(filename: str) -> str:
     filename = filename.replace("\0", "")
 
     # Get just the basename (no directory components)
-    filename = os.path.basename(filename)
+    filename = Path(filename).name
 
     # Remove or replace dangerous characters
     # Keep alphanumeric, underscore, hyphen, dot
@@ -121,7 +119,7 @@ def sanitize_filename(filename: str) -> str:
 
     # Limit length
     if len(filename) > 255:
-        name, ext = os.path.splitext(filename)
+        name, ext = Path(filename).stem, Path(filename).suffix
         filename = name[: 255 - len(ext)] + ext
 
     return filename
@@ -178,12 +176,13 @@ def cleanup_temporary_files(output_dir: str, patterns: list = None) -> None:
     
     import glob
     for pattern in patterns:
-        full_pattern = os.path.join(output_dir, pattern)
+        full_pattern = str(Path(output_dir) / pattern)
         for file_path in glob.glob(full_pattern):
             try:
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
-                elif os.path.isdir(file_path):
+                p = Path(file_path)
+                if p.is_file():
+                    p.unlink()
+                elif p.is_dir():
                     import shutil
                     shutil.rmtree(file_path)
             except Exception as e:

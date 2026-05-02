@@ -31,7 +31,6 @@ from modules.tts_engine import TTSEngine
 from modules.audio_mixer import AudioMixer
 from server.app import create_app
 from server.ws_routes import log_broadcaster
-from modules.inputs.base_input import BaseInput
 
 # Setup CUDA paths - must be called before any GPU-related imports
 setup_cuda_environment()
@@ -92,7 +91,7 @@ def setup_logging() -> None:
 
 def build_pipeline(
     config: ConfigManager, output_dir: str
-) -> Tuple[UnifiedPipeline, BaseInput]:
+) -> Tuple[UnifiedPipeline, Any]:
     """
     Build the processing pipeline with modular input/output.
 
@@ -207,106 +206,108 @@ def build_pipeline(
     mixer_config = config.get_module_config("audio_mixer")
     audio_mixer = AudioMixer(config=mixer_config, output_dir=output_dir)
     pipeline.register_module(audio_mixer)
-
-    logger.info("Async pipeline created: buffer_size=5, num_workers=3")
-    logger.info("Parallel processing enabled - expected 3-4x throughput improvement")
+    
+    # Log actual configuration values
+    buffer_size = config.get("pipeline.buffer_size", 5)
+    num_workers = config.get("pipeline.max_concurrent_chunks", 3)
+    logger.info(f"Pipeline created: buffer_size={buffer_size}, num_workers={num_workers}")
+    logger.info(f"Parallel processing enabled - expected {num_workers-1}x throughput improvement")
 
     return pipeline, input_source
 
 
 def main() -> None:
     """Main entry point."""
-    setup_logging()
     logger = logging.getLogger("srt2web.main")
-
-    print()
-    print("  +====================================+")
-    print("  |      SRT2Web - Stream Processor   |")
-    print("  |         v0.4.0 - Modular          |")
-    print("  +====================================+")
-    print()
-
-    # Load configuration — Pydantic valida automáticamente al cargar
-    config_path = str(get_config_path())
-    config = ConfigManager(config_path)
-
-    logger.info("Configuration loaded and validated")
-
-    # Ensure output directory exists
-    output_dir = config.get("output_dir", {}).get("directory", "./output")
-    if not os.path.isabs(output_dir):
-        output_dir = str(PROJECT_ROOT / output_dir)
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Check FFmpeg
-    logger.info("Checking FFmpeg availability...")
-    ffmpeg_path = find_ffmpeg()
-    if ffmpeg_path:
-        logger.info(f"✓ FFmpeg found: {ffmpeg_path}")
-    else:
-        logger.warning("FFmpeg not found. Will attempt download on first use.")
-
-    # Build pipeline
-    pipeline, input_source = build_pipeline(config, output_dir)
-
-    # Create shared context
+    
+    # Load config for server settings
+    config_manager = ConfigManager(get_config_path())
+    config = config_manager.load_config()
+    
+    host = config.get("server", {}).get("host", SERVER_HOST)
+    port = config.get("server", {}).get("port", SERVER_PORT_DEFAULT)
+    ssl_config = config.get("server", {}).get("ssl", {})
+    ssl_enabled = ssl_config.get("enabled", False)
+    
+    # Initialize components
+    input_source = InputFactory.create(config)
+    modules = [
+        AudioExtractor(),
+        Transcriber(),
+        Translator(),
+        TTSEngine(),
+        SubtitleGenerator(),
+        AudioMixer(),
+    ]
+    output_sink = OutputFactory.create(config)
+    
+    pipeline = UnifiedPipeline(
+        input_source=input_source,
+        modules=modules,
+        output_sink=output_sink,
+        mode=PipelineMode.SEQUENTIAL,
+    )
+    
     app_context = {
-        "config": config,
         "pipeline": pipeline,
-        "input_source": input_source,
-        "log_broadcast": log_broadcaster.broadcast,
+        "config_manager": config_manager,
     }
-
-    # Register atexit handler for cleanup - capture app_context
-    def _shutdown_wrapper():
-        _shutdown(app_context)
-
-    atexit.register(_shutdown_wrapper)
-
-    # Server configuration
-    host = config.get("server.host", SERVER_HOST)
-    port = config.get("server.port", SERVER_PORT_DEFAULT)
-
-    # Open browser after a short delay
+    
+    # Setup browser opener
     def open_browser() -> None:
-        import time
-
-        time.sleep(1.5)
-        url = f"http://localhost:{port}"
-        logger.info(f"Opening browser at {url}")
+        url = f"http{'s' if ssl_enabled else ''}://{host}:{port}"
+        logger.info(f"Opening browser: {url}")
         webbrowser.open(url)
-
-    browser_thread = threading.Thread(target=open_browser, daemon=True)
+    
+    browser_thread = threading.Thread(target=open_browser, args=(host, port), daemon=True)
     browser_thread.start()
-
+    
     # Register signal handlers for graceful shutdown
     def handle_exit(signum: int, frame: FrameType | None) -> None:
         logger.info("Shutdown signal received. Cleaning up...")
-        _shutdown()
+        _shutdown(app_context)
         sys.exit(0)
-
+    
     signal.signal(signal.SIGINT, handle_exit)
     signal.signal(signal.SIGTERM, handle_exit)
-
+    
     # Get connection info for logging
     input_info = input_source.get_connection_info()
     input_url = input_info.get("url", f"port {input_info.get('port', 'N/A')}")
-
+    
     # Start server
-    logger.info(f"Dashboard: http://localhost:{port}")
+    protocol = "https" if ssl_enabled else "http"
+    logger.info(f"Dashboard: {protocol}://{host}:{port}")
     logger.info(f"Input:    {input_info.get('type', 'unknown').upper()} ({input_url})")
-    logger.info(f"Stream:   http://localhost:{port}/hls/stream.m3u8")
+    logger.info(f"Stream:   {protocol}://{host}:{port}/hls/stream.m3u8")
     print()
-
-    # Crear la app una sola vez y ejecutar
+    
+    # Create the app once
     app = create_app(app_context)
-
+    
+    # SSL context if enabled
+    ssl_context = None
+    if ssl_enabled:
+        cert_file = ssl_config.get("cert_file", "certs/cert.pem")
+        key_file = ssl_config.get("key_file", "certs/key.pem")
+        
+        if not os.path.exists(cert_file) or not os.path.exists(key_file):
+            logger.warning(f"SSL cert/key not found: {cert_file}, {key_file}")
+            logger.warning("Run: python scripts/generate_ssl_certs.py")
+            logger.warning("Falling back to HTTP")
+        else:
+            import ssl
+            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            ssl_context.load_cert_chain(cert_file, key_file)
+            logger.info(f"SSL enabled: {cert_file}")
+    
     uvicorn_config = uvicorn.Config(
         app,
         host=host,
         port=port,
         log_level="info",
         access_log=True,
+        ssl=ssl_context,
     )
     server = uvicorn.Server(uvicorn_config)
     server.run()

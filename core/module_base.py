@@ -6,9 +6,9 @@ the required methods. This ensures modules are interchangeable.
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional, Any, Callable
+from dataclasses import dataclass, field
 import logging
 import time
 import threading
@@ -16,17 +16,7 @@ import gc
 
 import numpy as np
 
-
-class ModuleState(str, Enum):
-    """Possible states of a processing module."""
-
-    IDLE = "idle"
-    STARTING = "starting"
-    RUNNING = "running"
-    STOPPING = "stopping"
-    ERROR = "error"
-    DISABLED = "disabled"
-    DEGRADED = "degraded"
+from core.schemas import PipelineData, ModuleStatus, ModuleState, PipelineState
 
 
 class CircuitState(str, Enum):
@@ -249,19 +239,16 @@ class MemoryManager:
         return self._chunk_counter % self.check_interval == 0
 
 
-@dataclass
-class ModuleStatus:
-    """Status information for a module."""
 
     name: str
     state: ModuleState
     enabled: bool
-    error_message: Optional[str] = None
+    error_message: str | None = None
     processed_chunks: int = 0
     last_process_time_ms: float = 0.0
     extra: dict = field(default_factory=dict)
-    circuit_state: Optional[str] = None
-    memory_mb: Optional[float] = None
+    circuit_state: str | None = None
+    memory_mb: float | None = None
 
     def to_dict(self) -> dict:
         result = {
@@ -293,19 +280,19 @@ class PipelineData:
     cumulative_duration: float = (
         0.0  # Accumulated duration from previous chunks (for sync)
     )
-    video_chunk_path: Optional[str] = None
-    audio_chunk_path: Optional[str] = None
-    audio_samples: Optional[np.ndarray] = None
+    video_chunk_path: str | None = None
+    audio_chunk_path: str | None = None
+    audio_samples: np.ndarray | None = None
     audio_sample_rate: int = 16000
-    transcript: Optional[str] = None
+    transcript: str | None = None
     transcript_segments: list = field(default_factory=list)
-    detected_language: Optional[str] = None
-    translated_text: Optional[str] = None
+    detected_language: str | None = None
+    translated_text: str | None = None
     translated_segments: list = field(default_factory=list)
-    subtitles_path: Optional[str] = None
-    dubbed_audio_path: Optional[str] = None
-    mixed_audio_path: Optional[str] = None
-    output_hls_path: Optional[str] = None
+    subtitles_path: str | None = None
+    dubbed_audio_path: str | None = None
+    mixed_audio_path: str | None = None
+    output_hls_path: str | None = None
     metadata: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
@@ -369,11 +356,11 @@ class BaseModule(ABC):
 
     _memory_manager = MemoryManager()
 
-    def __init__(self, name: str, config: Optional[dict] = None, circuit_breaker: Optional[CircuitBreaker] = None, retry_strategy: Optional[RetryStrategy] = None) -> None:
+    def __init__(self, name: str, config: dict | None = None, circuit_breaker: CircuitBreaker | None = None, retry_strategy: RetryStrategy | None = None) -> None:
         self.name = name
         self.enabled = True
         self._state = ModuleState.IDLE
-        self._error_message: Optional[str] = None
+        self._error_message: str | None = None
         self._processed_chunks = 0
         self._last_process_time_ms = 0.0
         self.logger = logging.getLogger(f"srt2web.module.{name}")

@@ -8,16 +8,16 @@ Supports:
 FFmpeg handles both modes natively.
 """
 
-import os
 import sys
-import glob
 import time
 import logging
 import subprocess
 import threading
+from pathlib import Path
 from typing import Optional
 
 from core.input_source import InputSource
+from core.module_base import ModuleStatus, ModuleState
 from core.ffmpeg_utils import ensure_ffmpeg
 
 logger = logging.getLogger("srt2web.input.rtmp")
@@ -77,7 +77,7 @@ class RTMPInput(InputSource):
     def set_output_dir(self, output_dir: str) -> None:
         """Set the output directory for chunks."""
         self._output_dir = output_dir
-        self._chunks_dir = os.path.join(output_dir, "chunks")
+        self._chunks_dir = str(Path(output_dir) / "chunks")
 
     def start(self) -> None:
         """Start FFmpeg RTMP receiver."""
@@ -88,8 +88,8 @@ class RTMPInput(InputSource):
 
         self._ffmpeg_path = ensure_ffmpeg()
 
-        self._chunks_dir = os.path.join(self._output_dir, "chunks")
-        os.makedirs(self._chunks_dir, exist_ok=True)
+        self._chunks_dir = str(Path(self._output_dir) / "chunks")
+        Path(self._chunks_dir).mkdir(parents=True, exist_ok=True)
 
         # Detectar soporte GPU para hwaccel
         from core.ffmpeg_utils import check_gpu_support
@@ -113,16 +113,16 @@ class RTMPInput(InputSource):
             self._hwaccel_enabled = False
             logger.info("RTMP Input: No GPU acceleration available, using CPU")
 
-        for f in glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")):
+        for f in Path(self._chunks_dir).glob("chunk_*.ts"):
             try:
-                os.remove(f)
+                f.unlink()
             except OSError:
                 pass
 
         # Reset cumulative duration tracking
         self._cumulative_duration = 0.0
 
-        chunk_pattern = os.path.join(self._chunks_dir, "chunk_%06d.ts")
+        chunk_pattern = str(Path(self._chunks_dir) / "chunk_%06d.ts")
 
         # Construir comando con soporte hwaccel
         cmd = [self._ffmpeg_path, "-y"]
@@ -281,14 +281,14 @@ class RTMPInput(InputSource):
         if not self._chunks_dir:
             return None
 
-        chunks = sorted(glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")))
+        chunks = sorted(Path(self._chunks_dir).glob("chunk_*.ts"))
 
         if not chunks or len(chunks) < 2:
             return None
 
         processable = []
         for chunk_path in chunks[:-1]:
-            fname = os.path.basename(chunk_path)
+            fname = chunk_path.name
             try:
                 idx = int(fname.replace("chunk_", "").replace(".ts", ""))
                 if idx > self._last_chunk_index:
@@ -349,21 +349,21 @@ class RTMPInput(InputSource):
             "receiving": self.is_receiving(),
         }
 
-    def get_status(self) -> dict:
+    def get_status(self) -> ModuleStatus:
         """Get status including GPU acceleration info."""
-        return {
-            "name": "input",
-            "state": "running" if self.is_receiving() else "idle",
-            "enabled": True,
-            "processed_chunks": self._last_chunk_index + 1 if self._last_chunk_index >= 0 else 0,
-            "last_process_time_ms": 0,
-            "extra": {
+        return ModuleStatus(
+            name="input",
+            state=ModuleState.RUNNING if self.is_receiving() else ModuleState.IDLE,
+            enabled=True,
+            processed_chunks=self._last_chunk_index + 1 if self._last_chunk_index >= 0 else 0,
+            last_process_time_ms=0.0,
+            extra={
                 "using_gpu": self._hwaccel_enabled,
                 "gpu_info": self._gpu_info,
                 "encoder_label": "NVDEC" if self._gpu_info.get("nvenc") else "QSV" if self._gpu_info.get("qsv") else "VAAPI" if self._gpu_info.get("vaapi") else "CPU",
                 "hwaccel": self._hwaccel_enabled,
             }
-        }
+        )
 
 
 _input_class = RTMPInput

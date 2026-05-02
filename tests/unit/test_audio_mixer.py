@@ -38,15 +38,15 @@ class TestAudioMixer:
 
     def test_start(self, temp_dir) -> None:
         mixer = AudioMixer(output_dir=temp_dir)
-        mixer._mixer_dir = os.path.join(temp_dir, "temp_mix")
-        os.makedirs(mixer._mixer_dir, exist_ok=True)
+        mixer._mixer_dir = Path(temp_dir) / "temp_mix"
+        mixer._mixer_dir.mkdir(parents=True, exist_ok=True)
         mixer._state = ModuleState.RUNNING
         assert mixer.state == ModuleState.RUNNING
 
     def test_do_process_missing_original(self, temp_dir) -> None:
         mixer = AudioMixer(output_dir=temp_dir)
-        mixer._mixer_dir = os.path.join(temp_dir, "temp_mix")
-        os.makedirs(mixer._mixer_dir, exist_ok=True)
+        mixer._mixer_dir = Path(temp_dir) / "temp_mix"
+        mixer._mixer_dir.mkdir(parents=True, exist_ok=True)
         data = PipelineData(
             audio_chunk_path=os.path.join(temp_dir, "missing.wav"),
             dubbed_audio_path=os.path.join(temp_dir, "tts.wav")
@@ -56,8 +56,8 @@ class TestAudioMixer:
 
     def test_do_process_only_original(self, temp_dir) -> None:
         mixer = AudioMixer(output_dir=temp_dir)
-        mixer._mixer_dir = os.path.join(temp_dir, "temp_mix")
-        os.makedirs(mixer._mixer_dir, exist_ok=True)
+        mixer._mixer_dir = Path(temp_dir) / "temp_mix"
+        mixer._mixer_dir.mkdir(parents=True, exist_ok=True)
         orig_path = os.path.join(temp_dir, "orig.wav")
         create_wav(orig_path, duration_s=4.0)
         data = PipelineData(audio_chunk_path=orig_path, dubbed_audio_path=None)
@@ -67,26 +67,26 @@ class TestAudioMixer:
 
     def test_do_process_both_available(self, temp_dir) -> None:
         mixer = AudioMixer(output_dir=temp_dir)
-        mixer._mixer_dir = os.path.join(temp_dir, "temp_mix")
-        os.makedirs(mixer._mixer_dir, exist_ok=True)
+        mixer._mixer_dir = Path(temp_dir) / "temp_mix"
+        mixer._mixer_dir.mkdir(parents=True, exist_ok=True)
         orig_path = os.path.join(temp_dir, "orig.wav")
         tts_path = os.path.join(temp_dir, "tts.wav")
         create_wav(orig_path, duration_s=4.0, sample_rate=16000)
         create_wav(tts_path, duration_s=3.0, sample_rate=22050)
-        expected_mix = os.path.join(mixer._mixer_dir, "mix_000001.wav")
+        expected_mix = mixer._mixer_dir / "mix_000001.wav"
         data = PipelineData(
             chunk_index=1, audio_chunk_path=orig_path,
             dubbed_audio_path=tts_path, duration=4.0
         )
         result = mixer._do_process(data)
         assert result.mixed_audio_path == expected_mix
-        assert os.path.exists(expected_mix)
+        assert expected_mix.exists()
         assert result.duration == pytest.approx(4.0, abs=0.1)
 
     def test_do_process_tts_longer_than_original(self, temp_dir) -> None:
         mixer = AudioMixer(output_dir=temp_dir)
-        mixer._mixer_dir = os.path.join(temp_dir, "temp_mix")
-        os.makedirs(mixer._mixer_dir, exist_ok=True)
+        mixer._mixer_dir = Path(temp_dir) / "temp_mix"
+        mixer._mixer_dir.mkdir(parents=True, exist_ok=True)
         orig_path = os.path.join(temp_dir, "orig.wav")
         tts_path = os.path.join(temp_dir, "tts.wav")
         create_wav(orig_path, duration_s=2.0, sample_rate=16000)

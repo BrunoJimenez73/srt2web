@@ -33,19 +33,21 @@ from core.exceptions import (
     ResourceExhaustedError,
     InfrastructureError,
 )
-from core.types import (
+from core.schemas import (
     PipelineState,
     ModuleState,
+    PipelineData,
+    ModuleStatus,
+    SystemMetrics,
+)
+from core.types import (
     LogLevel,
     InputType,
     OutputType,
     DeviceType,
     EncoderMode,
-    PipelineData,
-    ModuleStatus,
     PipelineStatus,
     LogMessage,
-    SystemMetrics,
     ChunkInfo,
     AudioConfig,
     VideoConfig,
@@ -67,6 +69,12 @@ from core.cuda_paths import (
 from core.logging_setup import (
     setup_logging,
     get_logger,
+)
+from core.hardware import (
+    detect_hardware,
+    get_optimal_device,
+    update_config_with_optimal_device,
+    HardwareType,
 )
 
 # Pipeline y módulos (legacy - para compatibilidad)
@@ -116,6 +124,14 @@ from core.constants import (
     ALLOWED_TTS_ENGINES,
     ALLOWED_ENCODER_MODES,
     EXTERNAL_URLS,
+)
+
+# Hardware auto-detection (Sugerencia 2)
+from core.hardware import (
+    HardwareType,
+    detect_hardware,
+    get_optimal_device,
+    update_config_with_optimal_device,
 )
 
 # Paths utilities

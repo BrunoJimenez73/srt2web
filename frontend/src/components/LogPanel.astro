@@ -3,7 +3,7 @@
 ---
 
 <div class="log-panel collapsed" role="region" aria-label="Panel de registros del sistema">
-  <div class="log-header" id="log-header" onclick="window.toggleLogPanel()">
+  <div class="log-header" id="log-header">
     <div class="log-header-left">
       <span class="log-collapse-icon" id="log-collapse-icon">▶</span>
       <span class="log-title">📋 Logs</span>
@@ -17,7 +17,7 @@
         aria-label="Filtrar registros"
         onclick="event.stopPropagation()"
       />
-      <button class="btn-clear" onclick="event.stopPropagation(); clearLogs()" aria-label="Limpiar todos los registros">Limpiar</button>
+      <button class="btn-clear" id="btn-clear-logs" aria-label="Limpiar todos los registros">Limpiar</button>
     </div>
   </div>
   <div class="log-content" id="log-content" role="log" aria-live="polite" aria-atomic="false">
@@ -129,6 +129,34 @@
   
   // Initialize log panel on component mount
   initLogPanel();
+  
+  // Add event listeners for LogPanel
+  document.addEventListener('DOMContentLoaded', function() {
+    // Toggle log panel
+    const logHeader = document.getElementById('log-header');
+    if (logHeader) {
+      logHeader.addEventListener('click', function() {
+        window.toggleLogPanel();
+      });
+    }
+    
+    // Stop propagation on search input
+    const logSearch = document.getElementById('log-search');
+    if (logSearch) {
+      logSearch.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    }
+    
+    // Clear logs button
+    const btnClearLogs = document.getElementById('btn-clear-logs');
+    if (btnClearLogs) {
+      btnClearLogs.addEventListener('click', function(e) {
+        e.stopPropagation();
+        clearLogs();
+      });
+    }
+  });
   
   // Setup search filter
   const searchInput = document.getElementById('log-search');

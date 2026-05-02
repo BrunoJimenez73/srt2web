@@ -85,16 +85,6 @@ output:
       list_size: 6
       audio_offset_ms: 0
       encoder_mode: auto
-  - name: file_1777589666302
-    type: file
-    enabled: true
-    config:
-      type: file
-      name: file_1777589666302
-      output_path: ./output/recording.mp4
-      save_video: true
-      save_audio: true
-      save_subs: true
   - name: recording_1777589702607
     type: recording
     enabled: true
@@ -106,7 +96,7 @@ output:
       codec: copy
       audio_codec: aac
 pipeline:
-  chunk_duration_sec: 4
+  chunk_duration_sec: 15
   mode: thread_parallel
   max_concurrent_chunks: 4
   buffer_size: 2
@@ -129,7 +119,7 @@ modules:
     enabled: true
     format: srt
     use_translated: true
-    chunk_duration: 4
+    chunk_duration: 15
   tts_engine:
     enabled: true
     engine: piper

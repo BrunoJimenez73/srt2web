@@ -5,7 +5,6 @@ Listens for incoming SRT connections (or connects to a caller)
 and writes MPEG-TS chunks to disk for pipeline processing.
 """
 
-import os
 import sys
 import glob
 import time
@@ -43,6 +42,7 @@ class SRTIngest(BaseModule):
         self._srt_latency_ms = 400
         self._srt_caller_address = ""
         self._chunk_duration = 4
+        self._output_dir = Path(output_dir)  # Convert to Path
         super().__init__("srt_ingest", config)
 
     def configure(self, config: dict) -> None:
@@ -70,13 +70,13 @@ class SRTIngest(BaseModule):
         self._ffmpeg_path = ensure_ffmpeg()
 
         # Create chunks directory
-        self._chunks_dir = os.path.join(self._output_dir, "chunks")
-        os.makedirs(self._chunks_dir, exist_ok=True)
-
+        self._chunks_dir = Path(self._output_dir) / "chunks"
+        self._chunks_dir.mkdir(parents=True, exist_ok=True)
+        
         # Clean old chunks
-        for f in glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")):
+        for f in self._chunks_dir.glob("chunk_*.ts"):
             try:
-                os.remove(f)
+                f.unlink()
             except OSError:
                 pass
 
@@ -93,7 +93,7 @@ class SRTIngest(BaseModule):
             )
 
         # Build FFmpeg command for segmented output
-        chunk_pattern = os.path.join(self._chunks_dir, "chunk_%06d.ts")
+        chunk_pattern = str(self._chunks_dir / "chunk_%06d.ts")
 
         cmd = [
             self._ffmpeg_path,
@@ -189,8 +189,11 @@ class SRTIngest(BaseModule):
         if not self._chunks_dir:
             return None
 
+        # Ensure _chunks_dir is a Path object
+        chunks_path = Path(self._chunks_dir) if isinstance(self._chunks_dir, str) else self._chunks_dir
+
         # Find all chunk files
-        chunks = sorted(glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")))
+        chunks = sorted(chunks_path.glob("chunk_*.ts"))
 
         if not chunks:
             return None
@@ -208,7 +211,7 @@ class SRTIngest(BaseModule):
         # Parse index from filename (chunk_000000.ts → 0)
         processable = []
         for chunk_path in chunks[:-1]:  # Exclude last (in-progress)
-            fname = os.path.basename(chunk_path)
+            fname = chunk_path.name
             try:
                 idx = int(fname.replace("chunk_", "").replace(".ts", ""))
                 if idx > self._last_chunk_index:
