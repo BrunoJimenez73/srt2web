@@ -2,6 +2,28 @@
 
 Todas las versiones notables se documentan en este archivo. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.6.9] - 2026-05-03
+
+### Agregado
+- ✅ Pytest markers configurados (unit, integration, e2e, performance, security, slow, gpu, cpu)
+- ✅ Justfile con comandos unificados de calidad (cross-platform)
+- ✅ API contract tests (test_api_contract.py - verifica /api/config, /api/status, /api/outputs)
+- ✅ WebSocket auth tests simplificados (test_websocket_auth.py)
+- ✅ Documentación ADRs: pipeline architecture, Pydantic compatibility
+- ✅ GitHub Pages workflow para documentación automática
+- ✅ Dockerfile actualizado a Python 3.12
+
+### Corregido
+- ❌ Pydantic v1/v2 import compatibility (config_manager.py)
+- ❌ getMetricClass() en effects.ts (warning/critical classes)
+- ❌ Vulnerabilidades seguridad fixeadas (0 restantes)
+- ❌ test_structured_log.py - missing import pytest
+
+### Cambiado
+- 🔄 222 unit tests with @pytest.mark.unit
+- 🔄 test_api_contract.py - /api/status returns dict (not list)
+- 🔄 .pre-commit-config.yaml - mypy and tsc hooks configurados
+
 ## [0.6.8] - 2026-05-03
 
 ### Agregado
