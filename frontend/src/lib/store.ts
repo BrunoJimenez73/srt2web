@@ -11,8 +11,7 @@
  * ✅ Compatibilidad 100% con código existente
  */
 
-import type { Config, Status, LogMessage } from './types';
-import type { OutputStatus } from './api';
+import type { Config, Status, LogMessage, OutputStatus } from './api';
 
 export interface DashboardState {
   config: Config | null;
