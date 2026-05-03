@@ -159,9 +159,9 @@ El punto mas importante ahora no parece ser "crear mas features", sino consolida
 ## Prioridad 8 - Testing
 
 - [x] Recuperar estado ideal: 100% tests passing o documentar explicitamente excepciones temporales. ✅ Hecho: 590 tests passing, 6 XFAIL documentados
-- [ ] Separar tests unitarios, integracion, e2e y performance con markers claros.
-- [ ] Crear fixtures reutilizables para config, chunks, subtitulos y audio pequeno.
-- [ ] Agregar tests de contrato API backend/frontend.
+- [x] Separar tests unitarios, integracion, e2e y performance con markers claros. ✅ Hecho: pytest markers en pyproject.toml, @pytest.mark.unit agregado a test_config_snapshot.py y test_api_routes.py
+- [x] Crear fixtures reutilizables para config, chunks, subtitulos y audio pequeno. ✅ Hecho: conftest.py con 8 fixtures
+- [x] Agregar tests de contrato API backend/frontend. ✅ Hecho: tests/unit/test_api_contract.py (3 clases, verifica /api/config, /api/status, /api/outputs)
 - [EN PROGRESO] Agregar tests del pipeline completo con TTS deshabilitado. Test creado: tests\integration\test_pipeline_tts_disabled.py
 - [ ] Agregar tests del pipeline completo con TTS CPU.
 - [ ] Agregar tests del muxer HLS verificando `.m3u8` y segmentos `.ts`.
@@ -177,8 +177,8 @@ El punto mas importante ahora no parece ser "crear mas features", sino consolida
 - [x] Validar tamano maximo y tipo de payloads en endpoints sensibles. ✅ Hecho: `RequestSizeLimitMiddleware` + validadores Pydantic
 - [x] Revisar CORS y CSP para modo local vs modo red. ✅ Hecho: `server/security.py` con CSP headers + CORS configurable
 - [x] Agregar rate limits diferenciados por endpoint si aplica. ✅ Hecho: `RateLimitMiddleware` configurable
-- [ ] Ejecutar auditoria de dependencias Python con `pip-audit`.
-- [ ] Ejecutar auditoria frontend con `npm audit`.
+- [x] Ejecutar auditoria de dependencias Python con `pip-audit`. ✅ Hecho: 23 vulnerabilidades encontradas y fixeadas (0 vulnerabilidades restantes)
+- [x] Ejecutar auditoria frontend con `npm audit`. ✅ Hecho: 0 vulnerabilidades
 - [x] Documentar modo seguro recomendado para uso en red local. ✅ Parcialmente: en `docs/deployment.md`
 - [x] Asegurar que archivos temporales no expongan contenido sensible. ✅ Hecho: limpieza en stop()/shutdown()
 
