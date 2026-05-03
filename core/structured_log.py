@@ -24,6 +24,7 @@ Uso:
 import json
 import logging
 import time
+import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Optional
@@ -37,6 +38,7 @@ def log_structured(
     stage: str,
     level: str = "info",
     chunk_index: Optional[int] = None,
+    correlation_id: Optional[str] = None,
     duration_ms: Optional[float] = None,
     status: str = "info",
     message: str = "",
@@ -50,6 +52,7 @@ def log_structured(
         stage: Etapa del procesamiento (transcribe, generate, mux, etc.)
         level: Nivel de log (debug, info, warning, error)
         chunk_index: Indice del chunk (opcional)
+        correlation_id: ID único para seguimiento de solicitudes relacionadas (opcional)
         duration_ms: Tiempo de ejecucion en milisegundos
         status: Estado del procesamiento (success, error, warning, info)
         message: Mensaje descriptivo
@@ -64,6 +67,8 @@ def log_structured(
 
     if chunk_index is not None:
         log_data["chunk_index"] = chunk_index
+    if correlation_id:
+        log_data["correlation_id"] = correlation_id
     if duration_ms is not None:
         log_data["duration_ms"] = round(duration_ms, 2)
     if message:
@@ -86,6 +91,7 @@ class ModuleLogger:
     Provee metodos convenientes para logging estructurado:
     - info(), warning(), error(), debug()
     - time_stage() como context manager para medir tiempos
+    - correlation_id tracking para seguimiento de solicitudes
     """
 
     def __init__(self, module_name: str):
@@ -97,6 +103,26 @@ class ModuleLogger:
         """
         self.module = module_name
         self._logger = logging.getLogger(f"srt2web.{module_name}")
+        self._correlation_id: Optional[str] = None
+
+    def set_correlation_id(self, correlation_id: Optional[str] = None) -> str:
+        """
+        Establecer o generar un correlation ID para el modulo.
+
+        Args:
+            correlation_id: ID existente o None para generar uno nuevo
+
+        Returns:
+            El correlation ID establecido
+        """
+        if correlation_id is None:
+            correlation_id = self.generate_correlation_id()
+        self._correlation_id = correlation_id
+        return correlation_id
+
+    def clear_correlation_id(self) -> None:
+        """Limpiar el correlation ID actual."""
+        self._correlation_id = None
 
     def _log(
         self,
@@ -110,6 +136,9 @@ class ModuleLogger:
         **kwargs,
     ) -> None:
         """Metodo interno para generar log estructurado."""
+        # Usar correlation_id del contexto si no se proporciona uno
+        if correlation_id is None:
+            correlation_id = self._correlation_id
         log_structured(
             module=self.module,
             stage=stage,
@@ -122,6 +151,10 @@ class ModuleLogger:
             extra=kwargs if kwargs else None,
         )
 
+    def generate_correlation_id(self) -> str:
+        """Genera un nuevo correlation ID único."""
+        return str(uuid.uuid4())
+
     def debug(
         self,
         stage: str,
@@ -131,7 +164,7 @@ class ModuleLogger:
         **kwargs,
     ) -> None:
         """Log nivel debug."""
-        self._log("debug", stage, chunk_index, duration_ms, "debug", message, **kwargs)
+        self._log("debug", stage, chunk_index, None, duration_ms, "debug", message, **kwargs)
 
     def info(
         self,
@@ -142,7 +175,7 @@ class ModuleLogger:
         **kwargs,
     ) -> None:
         """Log nivel info."""
-        self._log("info", stage, chunk_index, duration_ms, "success", message, **kwargs)
+        self._log("info", stage, chunk_index, None, duration_ms, "success", message, **kwargs)
 
     def warning(
         self,
@@ -153,7 +186,7 @@ class ModuleLogger:
         **kwargs,
     ) -> None:
         """Log nivel warning."""
-        self._log("warning", stage, chunk_index, duration_ms, "warning", message, **kwargs)
+        self._log("warning", stage, chunk_index, None, duration_ms, "warning", message, **kwargs)
 
     def error(
         self,
@@ -167,7 +200,7 @@ class ModuleLogger:
         """Log nivel error."""
         extra = {"error": error} if error else {}
         extra.update(kwargs)
-        self._log("error", stage, chunk_index, duration_ms, "error", message, **extra)
+        self._log("error", stage, chunk_index, None, duration_ms, "error", message, **extra)
 
     @contextmanager
     def time_stage(
@@ -175,6 +208,7 @@ class ModuleLogger:
         stage: str,
         chunk_index: Optional[int] = None,
         level: str = "info",
+        correlation_id: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -195,12 +229,16 @@ class ModuleLogger:
         finally:
             elapsed_ms = (time.perf_counter() - start) * 1000
             context["duration_ms"] = elapsed_ms
+            # Usar correlation_id del contexto si no se proporciona
+            if correlation_id is None:
+                correlation_id = self._correlation_id
             self._log(
                 level,
                 stage,
-                chunk_index=chunk_index,
-                duration_ms=elapsed_ms,
-                status="success" if level != "error" else "error",
+                chunk_index,
+                correlation_id,
+                elapsed_ms,
+                "success" if level != "error" else "error",
                 **kwargs,
             )
 
@@ -236,10 +274,6 @@ def parse_structured_log(log_line: str) -> Optional[dict]:
             return None
         end = log_line.rfind("}") + 1
         json_str = log_line[start:end]
-        return json.loads(json_str)
-    except (json.JSONDecodeError, ValueError):
-        return None
-end]
         return json.loads(json_str)
     except (json.JSONDecodeError, ValueError):
         return None

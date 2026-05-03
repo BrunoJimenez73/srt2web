@@ -109,7 +109,7 @@ El punto mas importante ahora no parece ser "crear mas features", sino consolida
 - [ ] Agregar tests de componentes Astro donde tenga sentido.
 - [x] Revisar accesibilidad del dashboard: foco, labels, roles, estados live y navegacion por teclado. ✅ Hecho: ver resumen accesibilidad abajo
 - [ ] Evitar logica compleja embebida en `.astro`; moverla a TypeScript testeable.
-- [ ] Configurar ESLint si no esta activo todavia.
+- [x] Configurar ESLint si no esta activo todavia. ✅ Hecho: eslint.config.js (flat config) con reglas TS y Astro, test files exempted
 - [x] Integrar Prettier con reglas consistentes para Astro, TS, CSS y Markdown. ✅ Hecho: pre-commit hook de prettier activo
 - [x] Eliminar todos los usos de `any` en el frontend. ✅ Hecho: tipos importados desde api.ts (WhisperModel, Language, Device, etc.), HlsErrorData interface, Window extension con saveConfig, memory_mb en ModuleStatus
 
@@ -147,7 +147,7 @@ El punto mas importante ahora no parece ser "crear mas features", sino consolida
 
 - [x] Estandarizar logs estructurados con campos: module, chunk_index, stage, duration_ms, status. (Hecho: core/structured_log.py creado con ModuleLogger y time_stage context manager)
 - [x] Mantener filtros de ruido, pero conservar logs completos en archivo para diagnostico. ✅ Hecho: `core/logging_setup.py` con RotatingFileHandler
-- [EN PROCESO] Agregar correlation id por chunk.
+- [x] Agregar correlation id por chunk. ✅ Hecho: `core/structured_log.py` con `correlation_id` en `log_structured()`, `ModuleLogger.set_correlation_id()`, `generate_correlation_id()`, soporte en `_log()` y `time_stage()`
 - [x] Exponer endpoint de health detallado: servidor, pipeline, GPU, FFmpeg, modelos, disco. ✅ Parcialmente: `/health` endpoint basico
 - [x] Agregar endpoint simple de readiness/liveness para despliegues. ✅ Hecho: endpoints /ready y /live en server/app.py
 - [x] Registrar eventos de arranque y parada de cada modulo. ✅ Hecho: logs en start()/stop() de cada modulo

@@ -12,7 +12,8 @@
     "build:docs": "astro build --outDir ../server/static",
     "preview": "astro preview",
     "astro": "astro",
-    "test": "vitest"
+    "test": "vitest",
+    "lint": "eslint \"src/**/*.{ts,astro}\""
   },
   "dependencies": {
     "@preact/signals-core": "^1.14.1",
