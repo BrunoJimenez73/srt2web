@@ -10,8 +10,19 @@ Todas las versiones notables se documentan en este archivo. El formato sigue [Ke
 - ✅ Tests de utilidades frontend (utils.test.ts - 15 tests)
 - ✅ Documentación de matriz de compatibilidad (docs/compatibility.md)
 - ✅ README.md actualizado con comandos rápidos y matriz de compatibilidad
-- ✅ Pytest markers configurados (unit, integration, e2e, live)
-- ✅ Makefile con comandos unificados de calidad
+- ✅ Pytest markers configurados (unit, integration, e2e, performance, security, slow, gpu, cpu)
+- ✅ Makefile y justfile con comandos unificados de calidad
+- ✅ Correlation ID para logs estructurados (core/structured_log.py)
+- ✅ Tests de logs estructurados (test_structured_log.py - 10 tests)
+- ✅ Tests API frontend (api.test.ts - 23 tests)
+- ✅ Benchmarks reproducibles (tests/benchmark/benchmark_pipeline.py)
+
+### Corregido
+- ❌ Pydantic v1/v2 import compatibility (config_manager.py)
+- ❌ getMetricClass() en effects.ts (warning/critical classes)
+- ❌ startMetricsEffects() aplicaba clase a elemento incorrecto
+- ❌ effects.test.ts expectations (critical at 90%+)
+- ❌ Vulnerabilidades seguridad en aiohttp, cryptography, onnx, pygments, pytest, requests
 
 ### Corregido
 - ❌ Tipos `any` eliminados del frontend (Player, ConfigCollector, Types)
