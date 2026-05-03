@@ -93,7 +93,7 @@ El punto mas importante ahora no parece ser "crear mas features", sino consolida
 - [x] Anadir docstrings Google-style en clases y funciones publicas criticas. (Parcial: añadido en ModuleStatus, continuar con otras clases)
 - [ ] Revisar funciones largas y dividirlas si superan una responsabilidad clara.
 - [x] Asegurar que I/O bloqueante no corra dentro del event loop principal. (Parcial: revisar en módulos que usan subprocess)
-- [ ] Revisar subprocess de FFmpeg/Piper para timeouts, cancelacion y limpieza de recursos.
+- [x] Revisar subprocess de FFmpeg/Piper para timeouts, cancelacion y limpieza de recursos. (Revisado: timeouts en run_ffmpeg_with_timeout, kill_process_gracefully, Piper _ensure_stopped con cleanup)
 - [ ] Crear tests unitarios para paths de error, timeouts y fallback CPU/GPU.
 
 ---
