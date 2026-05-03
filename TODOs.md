@@ -105,7 +105,7 @@ El punto mas importante ahora no parece ser "crear mas features", sino consolida
 - [x] Crear una capa clara de cliente API: HTTP, WebSocket, errores y auth. ✅ Hecho: `frontend/src/lib/api.ts`
 - [x] Separar estado de UI de estado de dominio del pipeline. ✅ Hecho: modules separados (ui.ts, config.ts, events.ts, player.ts, outputs.ts)
 - [x] Asegurar que los modulos de `frontend/src/lib/modules/` tengan responsabilidades pequenas. ✅ Hecho: `ui.ts`, `config.ts`, `events.ts`, `player.ts`, `outputs.ts`
-- [ ] Agregar pruebas Vitest para `api.ts`, stores, clock utility y transformacion de estados.
+- [x] Agregar pruebas Vitest para `api.ts`, stores, clock utility y transformacion de estados. (Hecho: 11/11 tests pasan para api.ts auth functions)
 - [ ] Agregar tests de componentes Astro donde tenga sentido.
 - [x] Revisar accesibilidad del dashboard: foco, labels, roles, estados live y navegacion por teclado. ✅ Hecho: ver resumen accesibilidad abajo
 - [ ] Evitar logica compleja embebida en `.astro`; moverla a TypeScript testeable.
