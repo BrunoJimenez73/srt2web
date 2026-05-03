@@ -189,16 +189,16 @@ El punto mas importante ahora no parece ser "crear mas features", sino consolida
 
 ## Prioridad 10 - DevOps y Automatizacion
 
-- [ ] Crear comandos unificados para calidad: test, lint, type-check, build.
-- [ ] Considerar `Makefile`, `justfile` o scripts cross-platform.
-- [ ] Ampliar pre-commit con mypy gradual.
-- [ ] Ampliar pre-commit con frontend type-check si el tiempo es aceptable.
+- [x] Crear comandos unificados para calidad: test, lint, type-check, build. ✅ Hecho: Makefile y justfile creados
+- [x] Considerar `Makefile`, `justfile` o scripts cross-platform. ✅ Hecho: ambos creados
+- [x] Ampliar pre-commit con mypy gradual. ✅ Hecho: mypy hooks en .pre-commit-config.yaml
+- [x] Ampliar pre-commit con frontend type-check si el tiempo es aceptable. ✅ Hecho: tsc hook en .pre-commit-config.yaml
 - [x] Configurar CI para backend tests. ✅ Hecho: matrix OS (ubuntu, windows, macos) en .github/workflows/ci.yml
 - [x] Configurar CI para frontend build y tests. ✅ Hecho: job frontend en ci.yml con tsc, build y tests
 - [x] Configurar CI para docs build. ✅ Hecho: `.github/workflows/docs.yml`
-- [ ] Publicar docs con GitHub Pages si se decide activarlo.
-- [ ] Revisar Dockerfile y docker-compose para que reflejen Python 3.12 y dependencias reales.
-- [ ] Documentar matriz de compatibilidad: Windows, Python, Node, FFmpeg, CUDA, ONNX Runtime.
+- [ ] Publicar docs con GitHub Pages si se decide activarlo. ❌ Fallido: Plan actual no soporta GitHub Pages (requiere repositorio público o plan de pago)
+- [x] Revisar Dockerfile y docker-compose para que reflejen Python 3.12 y dependencias reales. ✅ Hecho: Dockerfile actualizado a Python 3.12
+- [x] Documentar matriz de compatibilidad: Windows, Python, Node, FFmpeg, CUDA, ONNX Runtime. ✅ Hecho: docs/compatibility.md
 
 ---
 
