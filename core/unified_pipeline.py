@@ -446,6 +446,7 @@ class UnifiedPipeline:
                     continue
 
                 data.chunk_index = chunk_index
+                data.correlation_id = str(uuid.uuid4())
                 data.timestamp = time.time()
 
                 # Procesar secuencialmente
