@@ -16,9 +16,9 @@ WORKDIR /app
 
 # Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.10 \
+    python3.12 \
     python3-pip \
-    python3-venv \
+    python3.12-venv \
     nodejs \
     npm \
     ffmpeg \
@@ -28,7 +28,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Instalar dependencias de Python
 COPY requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3.12 install --no-cache-dir -r requirements.txt
 
 # Instalar dependencias del frontend y build
 COPY frontend/package*.json frontend/
