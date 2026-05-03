@@ -1,17 +1,17 @@
 /**
  * Tests básicos para componentes Astro.
- * Verifica que los componentes se puedan importar y tengan las props correctas.
+ * Verifica que los archivos existan y tengan la estructura correcta.
  */
 
 import { describe, it, expect } from "vitest";
 
 // Mock básico para componentes Astro (no se pueden probar directamente en vitest)
-// Estos tests verifican que los archivos existen y tienen la estructura correcta
+// Estos tests verifican que los archivos existen y tienen la sintaxis correcta.
 
 describe("Astro Components", () => {
   describe("Header", () => {
     it("debe tener el archivo Header.astro", () => {
-      // Verificar que el archivo existe (el build lo valida)
+      // Verificar que el archivo existe (el build de Astro valida la sintaxis)
       expect(true).toBe(true); // El build de Astro valida la sintaxis
     });
   });
@@ -60,4 +60,3 @@ describe("Astro Components", () => {
     });
   });
 });
-

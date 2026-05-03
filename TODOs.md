@@ -159,10 +159,13 @@ El punto mas importante ahora no parece ser "crear mas features", sino consolida
 ## Prioridad 8 - Testing
 
 - [x] Recuperar estado ideal: 100% tests passing o documentar explicitamente excepciones temporales. ✅ Hecho: 590 tests passing, 6 XFAIL documentados
-- [x] Separar tests unitarios, integracion, e2e y performance con markers claros. ✅ Hecho: pytest markers en pyproject.toml, @pytest.mark.unit agregado a test_config_snapshot.py y test_api_routes.py
+- [x] Separar tests unitarios, integracion, e2e y performance con markers claros. ✅ Hecho: pytest markers en pyproject.toml, @pytest.mark.unit agregado a test_config_snapshot.py, test_api_routes.py, test_async_pipeline_v2.py, test_security_middleware.py, test_ffmpeg_optimizations.py
 - [x] Crear fixtures reutilizables para config, chunks, subtitulos y audio pequeno. ✅ Hecho: conftest.py con 8 fixtures
 - [x] Agregar tests de contrato API backend/frontend. ✅ Hecho: tests/unit/test_api_contract.py (3 clases, verifica /api/config, /api/status, /api/outputs)
-- [EN PROGRESO] Agregar tests del pipeline completo con TTS deshabilitado. Test creado: tests\integration\test_pipeline_tts_disabled.py
+- [EN PROGRESO] Agregar tests del pipeline completo con TTS deshabilitado. Test creado: tests\integration\test_pipeline_tts_disabled.py (import errors - needs fix)
+- [EN PROGRESO] Agregar tests del muxer HLS verificando `.m3u8` y segmentos `.ts`. Test creado: tests\integration\test_hls_muxer.py (import errors - needs fix)
+- [ ] Agregar tests de WebSocket auth y reconexion.
+- [ ] Medir cobertura por paquete.
 - [ ] Agregar tests del pipeline completo con TTS CPU.
 - [ ] Agregar tests del muxer HLS verificando `.m3u8` y segmentos `.ts`.
 - [ ] Agregar tests de WebSocket auth y reconexion.
