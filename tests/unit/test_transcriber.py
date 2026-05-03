@@ -13,7 +13,6 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # Mock faster_whisper and torch before importing Transcriber
-# This handles the case where these are not installed in the test environment
 mock_fw = MagicMock()
 sys.modules["faster_whisper"] = mock_fw
 mock_torch = MagicMock()
@@ -22,6 +21,8 @@ sys.modules["torch"] = mock_torch
 from modules.transcriber import Transcriber
 from core.module_base import PipelineData, ModuleState
 
+
+@pytest.mark.unit
 class TestTranscriber:
     """Tests for Transcriber class."""
 
