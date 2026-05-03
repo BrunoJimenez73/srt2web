@@ -14,6 +14,7 @@ from modules.audio_extractor import AudioExtractor
 from core.module_base import PipelineData, ModuleState
 
 
+@pytest.mark.unit
 class TestAudioExtractor:
     """Tests for AudioExtractor class."""
 

@@ -14,6 +14,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 CONFIG_PATH = os.path.join(PROJECT_ROOT, 'config.yaml')
 
 
+@pytest.mark.unit
 class TestConfigReload:
     """Test config reload functionality."""
     

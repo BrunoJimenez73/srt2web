@@ -9,6 +9,7 @@ import shutil
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
+@pytest.mark.unit
 class TestRecordingOutputInitialization:
     """Test RecordingOutput initializes correctly."""
 

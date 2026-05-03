@@ -7,6 +7,7 @@ import time
 from unittest.mock import MagicMock, patch
 
 
+@pytest.mark.unit
 class TestCircuitBreaker:
     """Test suite for CircuitBreaker class."""
 

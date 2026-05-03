@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 
+@pytest.mark.unit
 class TestFrontendStructure:
     @pytest.fixture
     def frontend_root(self) -> None:

@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.structured_log import ModuleLogger, log_structured, parse_structured_log
 
 
+@pytest.mark.unit
 class TestCorrelationId:
     """Test correlation ID functionality."""
 

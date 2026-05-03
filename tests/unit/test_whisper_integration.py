@@ -16,6 +16,7 @@ from modules.transcriber import Transcriber
 from core.module_base import PipelineData, ModuleState
 
 
+@pytest.mark.unit
 class TestWhisperIntegration:
     """Integration tests for Whisper transcriber with real audio processing."""
     

@@ -17,6 +17,7 @@ sys.path.insert(0, PROJECT_ROOT)
 from core.config_schema import SRT2WebConfig
 
 
+@pytest.mark.unit
 class TestChunkDurationFallback:
     """Test chunk_duration fallback logic."""
     

@@ -15,6 +15,7 @@ from modules.video_muxer import VideoMuxer
 from core.module_base import PipelineData, ModuleState
 
 
+@pytest.mark.unit
 class TestableVideoMuxer(VideoMuxer):
     """Concrete VideoMuxer subclass for testing."""
 

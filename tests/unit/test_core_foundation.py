@@ -18,6 +18,7 @@ from core.exceptions import (
 )
 
 
+@pytest.mark.unit
 class TestExceptions:
     """Tests for exception classes."""
 

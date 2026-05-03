@@ -79,6 +79,7 @@ def pipeline_data():  # type: ignore
     )
 
 
+@pytest.mark.unit
 class TestCompositeOutput:
     """Tests para la clase CompositeOutput."""
 

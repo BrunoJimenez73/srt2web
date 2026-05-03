@@ -25,6 +25,7 @@ def temp_dir():  # type: ignore
         yield tmpdir
 
 
+@pytest.mark.unit
 class TestSubtitleGenerator:
     """Tests for SubtitleGenerator class."""
 

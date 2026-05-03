@@ -7,6 +7,7 @@ import numpy as np
 from core.module_base import BaseModule, PipelineData, ModuleState, ModuleStatus
 
 
+@pytest.mark.unit
 class TestModule(BaseModule):
     """Concrete implementation of BaseModule for testing."""
 

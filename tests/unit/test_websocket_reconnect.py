@@ -11,6 +11,7 @@ from unittest.mock import Mock, patch, MagicMock
 import time
 
 
+@pytest.mark.unit
 class TestWebSocketReconnect:
     """Test WebSocket reconnection behavior."""
     

@@ -8,6 +8,7 @@ import subprocess
 from unittest.mock import MagicMock, patch, call
 
 
+@pytest.mark.unit
 class TestFFmpegWatchdog:
     """Test suite for FFmpegWatchdog class."""
 

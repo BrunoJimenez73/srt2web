@@ -8,6 +8,7 @@ import sys
 import os
 import signal
 
+@pytest.mark.unit
 class TestFFmpegTimeouts:
     """Test FFmpeg timeout handling."""
 

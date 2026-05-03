@@ -14,6 +14,7 @@ from core.hardware import (
 )
 
 
+@pytest.mark.unit
 class TestHardwareType:
     """Test HardwareType enum."""
 

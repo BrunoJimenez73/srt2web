@@ -14,6 +14,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from core.config_manager import ConfigManager
 
 
+@pytest.mark.unit
 class TestConfigManager:
     """Tests for ConfigManager class."""
 

@@ -30,6 +30,7 @@ from modules.translator import Translator
 from core.module_base import PipelineData, ModuleState
 
 
+@pytest.mark.unit
 class TestTranslator:
     """Tests for Translator class."""
 

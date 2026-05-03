@@ -68,6 +68,7 @@ def mock_composite_output():  # type: ignore
     return composite
 
 
+@pytest.mark.unit
 class TestOutputAPI:
     """Tests para endpoints de API de outputs."""
 

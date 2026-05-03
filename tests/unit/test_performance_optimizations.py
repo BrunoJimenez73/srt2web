@@ -12,6 +12,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 CONFIG_PATH = str(PROJECT_ROOT / "config.yaml")
 
 
+@pytest.mark.unit
 class TestAudioMixerDurationCache:
     """Test the duration caching in AudioMixer."""
 

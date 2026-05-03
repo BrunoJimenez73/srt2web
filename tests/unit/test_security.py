@@ -15,6 +15,7 @@ from core.security import (
 )
 
 
+@pytest.mark.unit
 class TestPathSanitization:
     """Test path sanitization functions."""
 

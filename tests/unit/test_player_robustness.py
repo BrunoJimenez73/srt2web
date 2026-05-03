@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch, MagicMock
 import time
 
 
+@pytest.mark.unit
 class TestPlayerConfig:
     """Test player HLS configuration."""
     

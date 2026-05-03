@@ -7,6 +7,7 @@ import threading
 from unittest.mock import MagicMock, patch
 
 
+@pytest.mark.unit
 class TestModelCache:
     """Test suite for ModelCache singleton."""
 

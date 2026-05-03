@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 
+@pytest.mark.unit
 class TestCompleteRefactor:
     """Verifica todo el flujo de la refactorización."""
 

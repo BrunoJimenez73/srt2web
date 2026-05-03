@@ -34,6 +34,7 @@ def temp_dir():  # type: ignore
         yield tmpdir
 
 
+@pytest.mark.unit
 class TestAudioMixer:
     def test_start(self, temp_dir) -> None:
         mixer = AudioMixer(output_dir=temp_dir)

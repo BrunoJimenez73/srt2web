@@ -34,6 +34,7 @@ def temp_dir():  # type: ignore
         yield tmpdir
 
 
+@pytest.mark.unit
 class TestTTSEngine:
     """Tests for TTSEngine class."""
 

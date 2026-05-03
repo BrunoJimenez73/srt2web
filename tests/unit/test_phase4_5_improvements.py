@@ -8,6 +8,7 @@ import tempfile
 from unittest.mock import Mock, patch, MagicMock
 
 
+@pytest.mark.unit
 class TestGZipMiddleware:
     """Test GZip compression middleware."""
 

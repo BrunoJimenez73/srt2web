@@ -17,6 +17,7 @@ from modules.tts_engine import TTSEngine
 from core.module_base import PipelineData, ModuleState
 
 
+@pytest.mark.unit
 class TestTTSIntegration:
     """Integration tests for TTS engine with real audio synthesis."""
     

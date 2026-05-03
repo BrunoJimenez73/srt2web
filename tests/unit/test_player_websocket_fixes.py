@@ -12,6 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+@pytest.mark.unit
 class TestCSPHeaders:
     """Test that CSP headers allow HLS playback."""
 

@@ -21,6 +21,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 CONFIG_PATH = str(PROJECT_ROOT / "config.yaml")
 
 
+@pytest.mark.unit
 class TestPipelineDataFix:
     """Test that SRT input creates PipelineData correctly (dataclass syntax)."""
 

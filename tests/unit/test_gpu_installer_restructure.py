@@ -24,6 +24,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 # GPU Indicators Tests
 # ============================================================
 
+@pytest.mark.unit
 class TestGPUIndicators:
     """Tests for GPU indicator functionality in modules."""
 

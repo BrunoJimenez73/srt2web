@@ -6,6 +6,7 @@ import pytest
 from unittest.mock import patch
 
 
+@pytest.mark.unit
 class TestFFmpegUtils:
     """Test FFmpeg utility functions."""
 
