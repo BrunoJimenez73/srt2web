@@ -16,6 +16,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 CONFIG_PATH = str(PROJECT_ROOT / "config.yaml")
 
 
+@pytest.mark.unit
 class TestSanitizeModuleName:
     """Tests for sanitize_module_name function."""
 
