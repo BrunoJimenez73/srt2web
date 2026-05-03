@@ -14,13 +14,13 @@ interface HlsStatic {
 
 interface HlsInstance {
   loadSource(url: string): void;
-  attachMedia(media: HTMLMediaElement): void;
+  attachMedia(media: HTMLVideoElement): void;
   startLoad(): void;
   stopLoad(): void;
   recoverMediaError(): void;
   destroy(): void;
-  on(event: string, callback: (...args: any[]) => void): void;
-  once(event: string, callback: (...args: any[]) => void): void;
+  on(event: string, callback: (...args: unknown[]) => void): void;
+  once(event: string, callback: (...args: unknown[]) => void): void;
 }
 
 interface HlsConfig {
@@ -53,6 +53,12 @@ interface SubtitleCue {
   start: number;
   end: number;
   text: string;
+}
+
+interface HlsErrorData {
+  type: string;
+  fatal: boolean;
+  details: string;
 }
 
 // Health check state
@@ -261,11 +267,12 @@ export function initHlsPlayer(): void {
         startHealthCheck();
       });
 
-      hls.on(HlsEvents.ERROR, (_event, data) => {
-        console.warn('[HLS Error]', data.type, data.fatal, data.details);
+      hls.on(HlsEvents.ERROR, (_event, data: unknown) => {
+        const err = data as HlsErrorData;
+        console.warn('[HLS Error]', err.type, err.fatal, err.details);
         
-        if (data.fatal) {
-          switch (data.type) {
+        if (err.fatal) {
+          switch (err.type) {
             case HlsErrorTypes.NETWORK_ERROR:
               showError('Error de red - intentando reconectar...');
               hls?.startLoad();

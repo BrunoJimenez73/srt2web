@@ -7,11 +7,17 @@
  */
 
 // Import main types from api.ts (single source of truth)
-export type {
+import type {
   Config, Status, PipelineState, ModuleStatus, ModuleState,
   MetricsData, InputConfig, WebSocketMessage, HealthStatus,
   LogMessage, ModuleExtra, OutputStatus
 } from './api';
+
+export type {
+  Config, Status, PipelineState, ModuleStatus, ModuleState,
+  MetricsData, InputConfig, WebSocketMessage, HealthStatus,
+  LogMessage, ModuleExtra, OutputStatus
+};
 
 // ── Tipos específicos para configuración de salidas ──────────────────
 
@@ -157,10 +163,22 @@ export interface ConfigUpdateTimeouts {
   output?: ReturnType<typeof setTimeout>;
 }
 
-// Extensión de la interfaz Window para compatibilidad con HLS.js
+// Extensión de la interfaz Window para compatibilidad con HLS.js y handlers globales
 declare global {
   interface Window {
     // HLS player instance (set by player.astro)
-    player?: any;
+    player?: HlsInstance | HTMLVideoElement | null;
+    // Global saveConfig handler (set by pipeline-control.ts)
+    saveConfig?: () => void;
   }
+}
+
+interface HlsInstance {
+  loadSource(url: string): void;
+  attachMedia(media: HTMLVideoElement): void;
+  startLoad(): void;
+  stopLoad(): void;
+  destroy(): void;
+  on(event: string, callback: (...args: unknown[]) => void): void;
+  once(event: string, callback: (...args: unknown[]) => void): void;
 }
