@@ -1,11 +1,12 @@
 """
-Tests for FFmpeg optimizations.
+Tests for FFmpeg optimizations: process pool and optimized utilities.
 """
 
 import pytest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 
+@pytest.mark.unit
 class TestFFmpegUtilsOptimizations:
     """Test FFmpeg utils optimizations."""
 
