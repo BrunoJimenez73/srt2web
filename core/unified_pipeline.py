@@ -17,24 +17,21 @@ Características:
 """
 
 import asyncio
-import time
-import threading
-import queue
 import logging
-import psutil
-from core.hardware_monitor import HardwareMonitor
-from enum import Enum
-from typing import Optional, Callable, List, Dict, Any, Union
+import queue
+import threading
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Optional, Union
 
-from core.module_base import BaseModule, PipelineData, ModuleState
-from core.schemas import SystemMetrics, ModuleStatus as PydanticModuleStatus
-from core.exceptions import (
-    PipelineStateError,
-    ModuleProcessingError,
-    ChunkProcessingError,
-    wrap_exception
-)
+import psutil
+
+from core.exceptions import PipelineError, PipelineStateError
+from core.hardware_monitor import HardwareMonitor
+from core.module_base import BaseModule, PipelineData
+from core.schemas import SystemMetrics
 
 try:
     from modules.outputs.composite_output import CompositeOutput
@@ -43,9 +40,9 @@ except ImportError:
 
 try:
     from core.pipeline.strategies import (
-        create_strategy,
-        StrategyConfig,
         PipelineStrategy,
+        StrategyConfig,
+        create_strategy,
     )
 except ImportError:
     create_strategy = None
@@ -55,15 +52,26 @@ except ImportError:
 logger = logging.getLogger("srt2web.unified_pipeline")
 
 
+class _CompletedAwaitable:
+    """Awaitable no-op used for backward-compatible sync APIs."""
+
+    def __await__(self):
+        if False:
+            yield None
+        return None
+
+
 class PipelineMode(str, Enum):
     """Modos de operación del pipeline."""
-    SEQUENTIAL = "sequential"    # Secuencial, un chunk a la vez
+
+    SEQUENTIAL = "sequential"  # Secuencial, un chunk a la vez
     THREAD_PARALLEL = "thread_parallel"  # Paralelo con threads
-    ASYNCIO = "asyncio"          # Paralelo con asyncio nativo
+    ASYNCIO = "asyncio"  # Paralelo con asyncio nativo
 
 
 class PipelineState(str, Enum):
     """Estados posibles del pipeline."""
+
     IDLE = "idle"
     STARTING = "starting"
     RUNNING = "running"
@@ -74,10 +82,11 @@ class PipelineState(str, Enum):
 @dataclass
 class ChunkProcessor:
     """Trackea el estado de procesamiento de un chunk."""
+
     chunk_index: int
     timestamp: float
     data: Optional[PipelineData] = None
-    stages_completed: Dict[str, float] = field(default_factory=dict)
+    stages_completed: dict[str, float] = field(default_factory=dict)
     error: Optional[str] = None
     task: Optional[Union[threading.Thread, asyncio.Task]] = None
 
@@ -85,6 +94,7 @@ class ChunkProcessor:
 @dataclass
 class PipelineMetrics:
     """Métricas agregadas del pipeline."""
+
     chunks_processed: int = 0
     chunks_failed: int = 0
     total_processing_time: float = 0.0
@@ -123,7 +133,7 @@ class UnifiedPipeline:
     ):
         """
         Initialize unified pipeline.
-        
+
         Args:
             mode: Mode of operation
             max_concurrent_chunks: Maximum chunks processing simultaneously
@@ -133,35 +143,35 @@ class UnifiedPipeline:
         """
         # Initialize _initialized FIRST to avoid race conditions
         self._initialized = False
-        
+
         self.mode = mode
         self.max_concurrent_chunks = max_concurrent_chunks
         self.buffer_size = buffer_size
         self.retry_attempts = retry_attempts
         self.retry_delay = retry_delay
-        
+
         # Internal state
         self._state = PipelineState.IDLE
         # Metrics initialized via _metrics (Pydantic)
-        self._modules: List[BaseModule] = []
-        self._module_map: Dict[str, BaseModule] = {}
+        self._modules: list[BaseModule] = []
+        self._module_map: dict[str, BaseModule] = {}
         self._input_source = None
         self._output_sink = None
-        
+
         # Execution control - INITIALIZED EARLY TO AVOID RACE
         self._stop_event = threading.Event()
         self._semaphore = threading.Semaphore(max_concurrent_chunks)
-        self._tasks: List[Any] = []
+        self._tasks: list[Any] = []
         self._chunk_queue = queue.Queue(maxsize=buffer_size)
         self._output_queue = queue.Queue(maxsize=buffer_size)
-        self._results: Dict[int, ChunkProcessor] = {}
+        self._results: dict[int, ChunkProcessor] = {}
         self._input_thread: Optional[threading.Thread] = None
         self._output_thread: Optional[threading.Thread] = None
-        
+
         # Metrics
         self._pipeline_metrics = PipelineMetrics()
         self._system_metrics = SystemMetrics(cpu_percent=0, memory_mb=0, memory_percent=0)
-        
+
         # Callbacks
         self._on_log: Optional[Callable[[str, str], None]] = None
         self._on_state_change: Optional[Callable[[str], None]] = None
@@ -172,8 +182,6 @@ class UnifiedPipeline:
         self._hardware_monitor = HardwareMonitor()
         self._initialized = False  # Initialize to False BEFORE thread starts
 
-        logger.info(f"UnifiedPipeline initialized mode={mode.value} concurrent={max_concurrent_chunks}")
-
         # Initialize processing strategy (if available)
         self._strategy: Optional[PipelineStrategy] = None
         if create_strategy and StrategyConfig:
@@ -183,6 +191,13 @@ class UnifiedPipeline:
                 logger.info(f"Pipeline strategy initialized: {type(self._strategy).__name__}")
             except Exception as e:
                 logger.warning(f"Could not initialize strategy: {e}")
+
+        logger.info(f"UnifiedPipeline initialized mode={mode.value} concurrent={max_concurrent_chunks}")
+
+    @property
+    def metrics(self) -> "PipelineMetrics":
+        """Alias for _pipeline_metrics for backward compatibility."""
+        return self._pipeline_metrics
 
     @property
     def state(self) -> PipelineState:
@@ -202,7 +217,7 @@ class UnifiedPipeline:
         """Obtener fuente de entrada."""
         return self._input_source
 
-    def set_output_sinks(self, output_configs: List[dict]) -> None:
+    def set_output_sinks(self, output_configs: list[dict]) -> None:
         """Establecer múltiples destinos de salida."""
         from core.io_factory import OutputFactory
 
@@ -245,7 +260,7 @@ class UnifiedPipeline:
         """Obtener un módulo por nombre."""
         return self._module_map.get(name)
 
-    def get_modules(self) -> List[BaseModule]:
+    def get_modules(self) -> list[BaseModule]:
         """Obtener lista de todos los módulos registrados."""
         return list(self._modules)
 
@@ -274,7 +289,7 @@ class UnifiedPipeline:
     def process_with_strategy(self, data: PipelineData) -> PipelineData:
         """
         Procesar un chunk usando la estrategia configurada.
-        
+
         Si no hay estrategia configurada, retorna los datos sin procesar.
         Útil para testing o procesamiento manual de chunks.
         """
@@ -288,7 +303,7 @@ class UnifiedPipeline:
             logger.error(f"Strategy processing failed: {e}")
             raise
 
-    def get_strategy_metrics(self) -> Dict[str, Any]:
+    def get_strategy_metrics(self) -> dict[str, Any]:
         """Obtener métricas de la estrategia."""
         if self._strategy:
             return self._strategy.get_metrics()
@@ -311,7 +326,7 @@ class UnifiedPipeline:
             # Inicializar módulos
             for module in self._modules:
                 try:
-                    start_method = getattr(module, 'start', None)
+                    start_method = getattr(module, "start", None)
                     if start_method:
                         start_method()
                     logger.info(f"Module '{module.name}' initialized")
@@ -321,12 +336,12 @@ class UnifiedPipeline:
 
             # Inicializar input/output
             if self._input_source:
-                start_method = getattr(self._input_source, 'start', None)
+                start_method = getattr(self._input_source, "start", None)
                 if start_method:
                     start_method()
 
             if self._output_sink:
-                start_method = getattr(self._output_sink, 'start', None)
+                start_method = getattr(self._output_sink, "start", None)
                 if start_method:
                     start_method()
 
@@ -352,20 +367,20 @@ class UnifiedPipeline:
         self._on_state_change = on_state_change
 
         self._set_state(PipelineState.STARTING)
-        
+
         # Inicializar automáticamente si no se ha hecho antes
-        if not getattr(self, '_initialized', False):
+        if not getattr(self, "_initialized", False):
             # No podemos usar el event loop principal de FastAPI, ejecutamos en thread separado
             def run_init():
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 loop.run_until_complete(self.initialize())
                 self._initialized = True
-            
+
             init_thread = threading.Thread(target=run_init, daemon=True, name="pipeline-init")
             init_thread.start()
             init_thread.join(timeout=30)
-            
+
             if not self._initialized:
                 raise PipelineError("Pipeline initialization timed out after 30 seconds")
 
@@ -412,6 +427,7 @@ class UnifiedPipeline:
 
         self._set_state(PipelineState.RUNNING)
         self._log("info", "UnifiedPipeline started successfully")
+        return _CompletedAwaitable()
 
     def _run_sequential_loop(self) -> None:
         """Bucle de procesamiento secuencial."""
@@ -500,7 +516,7 @@ class UnifiedPipeline:
 
     def _worker_thread_loop(self) -> None:
         """Thread worker para procesamiento paralelo."""
-        logger.info(f"Worker thread started")
+        logger.info("Worker thread started")
 
         try:
             while not self._stop_event.is_set():
@@ -586,11 +602,7 @@ class UnifiedPipeline:
 
                 # Detectar chunk perdido: hay items en pending pero el siguiente
                 # esperado nunca llegó y pasó demasiado tiempo
-                if (
-                    pending
-                    and _last_pending_time > 0
-                    and (time.time() - _last_pending_time) > _LOST_CHUNK_TIMEOUT
-                ):
+                if pending and _last_pending_time > 0 and (time.time() - _last_pending_time) > _LOST_CHUNK_TIMEOUT:
                     self._log(
                         "warning",
                         f"Chunk {next_expected} appears lost after {_LOST_CHUNK_TIMEOUT}s — skipping to unblock output.",
@@ -615,7 +627,11 @@ class UnifiedPipeline:
                     await asyncio.sleep(0.1)
                     continue
 
-                data = await self._input_source.get_next_chunk() if asyncio.iscoroutinefunction(self._input_source.get_next_chunk) else self._input_source.get_next_chunk()
+                data = (
+                    await self._input_source.get_next_chunk()
+                    if asyncio.iscoroutinefunction(self._input_source.get_next_chunk)
+                    else self._input_source.get_next_chunk()
+                )
                 if data is None:
                     await asyncio.sleep(0.01)
                     continue
@@ -637,44 +653,69 @@ class UnifiedPipeline:
 
     async def _process_chunk_async(self, data: PipelineData) -> PipelineData:
         """Procesar un chunk en modo asyncio."""
-        async with self._semaphore:
-            chunk_start = time.perf_counter()
-            chunk_index = data.chunk_index
+        if hasattr(self._semaphore, "__aenter__"):
+            async with self._semaphore:
+                return await self._process_chunk_async_unlocked(data)
 
-            try:
-                for module in self._modules:
-                    if self._stop_event.is_set():
-                        break
+        await asyncio.to_thread(self._semaphore.acquire)
+        try:
+            return await self._process_chunk_async_unlocked(data)
+        finally:
+            self._semaphore.release()
 
-                    if not module.enabled:
-                        continue
+    async def _process_chunk(self, data: PipelineData) -> PipelineData:
+        """Backward-compatible async chunk processing alias."""
+        return await self._process_chunk_async(data)
 
-                    # Soporte para módulos sync y async
-                    if asyncio.iscoroutinefunction(module.process):
-                        data = await module.process(data)
-                    else:
-                        data = module.process(data)
+    async def _process_chunk_async_unlocked(self, data: PipelineData) -> PipelineData:
+        """Procesar un chunk asumiendo que el límite de concurrencia ya se tomó."""
+        chunk_start = time.perf_counter()
+        chunk_index = data.chunk_index
 
-                # Enviar a output
-                if self._output_sink and data:
-                    if asyncio.iscoroutinefunction(self._output_sink.write):
-                        await self._output_sink.write(data)
-                    else:
-                        self._output_sink.write(data)
+        try:
+            for module in self._modules:
+                if self._stop_event.is_set():
+                    break
 
-                elapsed = time.perf_counter() - chunk_start
-                self.metrics.chunks_processed += 1
-                self.metrics.total_processing_time += elapsed
+                if not module.enabled:
+                    continue
 
-                if self._on_chunk_complete:
-                    self._on_chunk_complete(chunk_index, data)
+                # Soporte para módulos sync y async
+                if asyncio.iscoroutinefunction(module.process):
+                    data = await module.process(data)
+                else:
+                    data = module.process(data)
 
-                return data
+            # Enviar a output
+            if self._output_sink and data:
+                if asyncio.iscoroutinefunction(self._output_sink.write):
+                    await self._output_sink.write(data)
+                else:
+                    self._output_sink.write(data)
 
-            except Exception as e:
-                self.metrics.chunks_failed += 1
-                self._log("error", f"Error processing chunk {chunk_index}: {e}")
-                raise
+            elapsed = time.perf_counter() - chunk_start
+            self.metrics.chunks_processed += 1
+            self.metrics.total_processing_time += elapsed
+
+            if self._on_chunk_complete:
+                self._on_chunk_complete(chunk_index, data)
+
+            return data
+
+        except Exception as e:
+            self.metrics.chunks_failed += 1
+            self._log("error", f"Error processing chunk {chunk_index}: {e}")
+            raise
+
+    def get_metrics(self) -> dict[str, Any]:
+        """Return pipeline metrics as a plain dictionary."""
+        return {
+            "chunks_processed": self.metrics.chunks_processed,
+            "chunks_failed": self.metrics.chunks_failed,
+            "avg_processing_time": self.metrics.avg_processing_time,
+            "total_processing_time": self.metrics.total_processing_time,
+            "uptime": self.metrics.uptime,
+        }
 
     async def stop(self) -> None:
         """Detener pipeline gracefulmente."""
@@ -706,7 +747,7 @@ class UnifiedPipeline:
         # Detener módulos
         for module in self._modules:
             try:
-                stop_method = getattr(module, 'stop', None)
+                stop_method = getattr(module, "stop", None)
                 if stop_method:
                     stop_method()
             except Exception as e:
@@ -716,7 +757,7 @@ class UnifiedPipeline:
         if self._input_source:
             try:
                 self._log("info", f"Calling stop() on input_source: {type(self._input_source).__name__}")
-                stop_method = getattr(self._input_source, 'stop', None)
+                stop_method = getattr(self._input_source, "stop", None)
                 if stop_method:
                     stop_method()
                 self._log("info", "Input source stop() completed")
@@ -725,7 +766,7 @@ class UnifiedPipeline:
 
         if self._output_sink:
             try:
-                stop_method = getattr(self._output_sink, 'stop', None)
+                stop_method = getattr(self._output_sink, "stop", None)
                 if stop_method:
                     stop_method()
             except Exception as e:
@@ -735,14 +776,29 @@ class UnifiedPipeline:
         self._initialized = False  # Force re-initialization on next start
         self._log("info", "UnifiedPipeline stopped successfully")
 
+    async def shutdown(self) -> None:
+        """Backward-compatible full shutdown for tests and integrations."""
+        await self.stop()
+        for module in self._modules:
+            shutdown_method = getattr(module, "shutdown", None)
+            if shutdown_method:
+                result = shutdown_method()
+                if asyncio.iscoroutine(result):
+                    await result
+        if self._output_sink:
+            shutdown_method = getattr(self._output_sink, "shutdown", None)
+            if shutdown_method:
+                result = shutdown_method()
+                if asyncio.iscoroutine(result):
+                    await result
+        self._initialized = False
+
     def get_status(self) -> dict:
         """Obtener estado completo del pipeline."""
         # Leer memoria del proceso UNA SOLA VEZ para todos los módulos
         process_memory_mb: Optional[float] = None
         try:
-            process_memory_mb = round(
-                psutil.Process().memory_info().rss / 1024 / 1024, 1
-            )
+            process_memory_mb = round(psutil.Process().memory_info().rss / 1024 / 1024, 1)
         except Exception:
             pass
 
@@ -750,47 +806,52 @@ class UnifiedPipeline:
         for module in self._modules:
             try:
                 status = module.get_status()
-                status_dict = status.to_dict() if getattr(status, 'to_dict', None) else status
+                status_dict = status.to_dict() if getattr(status, "to_dict", None) else status
                 # Inyectar memoria centralizada en cada módulo
                 if isinstance(status_dict, dict) and process_memory_mb is not None:
                     status_dict["memory_mb"] = process_memory_mb
                 modules_status.append(status_dict)
             except Exception:
-                modules_status.append({
-                    "name": module.name,
-                    "state": "unknown",
-                    "enabled": module.enabled,
-                    "processed_chunks": 0,
-                    "last_process_time_ms": 0,
-                })
+                modules_status.append(
+                    {
+                        "name": module.name,
+                        "state": "unknown",
+                        "enabled": module.enabled,
+                        "processed_chunks": 0,
+                        "last_process_time_ms": 0,
+                    }
+                )
 
-        # Agregar status del output sink al final de la lista
+        # Agregar status del output sink al final de la lista when it is not
+        # already registered as a normal processing module.
         try:
-            output_status = self._get_output_module_status()
-            modules_status.append(output_status)
+            has_video_muxer_module = any(status.get("name") == "video_muxer" for status in modules_status)
+            if not has_video_muxer_module:
+                output_status = self._get_output_module_status()
+                modules_status.append(output_status)
         except Exception:
             pass
-        
+
         # Agregar status del input source al inicio de la lista
         try:
             if self._input_source:
-                get_status_method = getattr(self._input_source, 'get_status', None)
+                get_status_method = getattr(self._input_source, "get_status", None)
                 if get_status_method:
                     input_status = get_status_method()
                     if isinstance(input_status, dict):
                         # Ensure it has the right name for the frontend
-                        if 'name' not in input_status:
-                            input_status['name'] = 'input'
+                        if "name" not in input_status:
+                            input_status["name"] = "input"
                         modules_status.insert(0, input_status)
         except Exception:
             pass
 
         # Métricas del pipeline
         avg_time = self._pipeline_metrics.avg_processing_time
-        
+
         # Métricas del sistema
         system_metrics = self._hardware_monitor.get_system_metrics()
-        
+
         return {
             "state": self._state.value,
             "mode": self.mode.value,
@@ -814,7 +875,7 @@ class UnifiedPipeline:
             self._log("info", f"Reconfigured pipeline chunk_duration: {new_chunk_duration}s")
         except Exception as e:
             self._log("warning", f"Could not update chunk_duration: {e}")
-        
+
         for module in self._modules:
             try:
                 mod_config = config_manager.get_module_config(module.name)
@@ -822,14 +883,14 @@ class UnifiedPipeline:
                 self._log("info", f"Reconfigured module: {module.name}")
             except Exception as e:
                 self._log("error", f"Failed to reconfigure {module.name}: {e}")
-        
+
         # Also update input source config if it has chunk_duration
         if self._input_source:
             try:
                 input_type = config_manager.get("input.type", "srt")
                 input_config = config_manager.get_section("input").get(input_type, {})
                 input_config["chunk_duration_sec"] = self._chunk_duration
-                configure_method = getattr(self._input_source, 'configure', None)
+                configure_method = getattr(self._input_source, "configure", None)
                 if configure_method:
                     configure_method(input_config)
                 self._log("info", f"Reconfigured input source: {input_type}")
@@ -847,26 +908,25 @@ class UnifiedPipeline:
 
     def _get_output_module_status(self) -> dict:
         """Compatibilidad con frontend (método existente)."""
-        from core.module_base import ModuleState
         state = "running" if self.is_running else "idle"
-        
+
         # Obtener estado real del output sink (usualmente video_muxer)
         sink = self._output_sink if self._output_sink else self._module_map.get("video_muxer")
         extra = {}
         processed_chunks = self.metrics.chunks_processed
         last_process_time_ms = 0
-        
+
         if sink:
             try:
                 status = sink.get_status()
-                status_dict = status.to_dict() if getattr(status, 'to_dict', None) else status
+                status_dict = status.to_dict() if getattr(status, "to_dict", None) else status
                 if isinstance(status_dict, dict):
-                    processed_chunks = status_dict.get('processed_chunks', processed_chunks)
-                    last_process_time_ms = status_dict.get('last_process_time_ms', last_process_time_ms)
-                    extra = status_dict.get('extra', {})
+                    processed_chunks = status_dict.get("processed_chunks", processed_chunks)
+                    last_process_time_ms = status_dict.get("last_process_time_ms", last_process_time_ms)
+                    extra = status_dict.get("extra", {})
             except Exception:
                 pass
-        
+
         return {
             "name": "output",
             "state": state,

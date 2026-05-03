@@ -7,18 +7,18 @@
     <span class="process-title">📤 OUTPUT</span>
     <span class="gpu-badge" id="output-gpu-badge" style="display: none;">GPU</span>
   </div>
-  
+
   <div class="process-content">
     <!-- Lista de salidas configuradas -->
     <div class="outputs-list" id="outputs-list"></div>
-    
+
     <!-- Sección añadir salida -->
     <div class="add-output-section">
       <button class="btn-add-output" id="btn-add-output-toggle">
         <span class="add-icon">▶</span>
         <span>+ Añadir salida</span>
       </button>
-      
+
       <div class="add-output-form" id="add-output-form" style="display: none;">
         <div class="form-group">
           <label class="form-label">Tipo de salida</label>
@@ -30,7 +30,7 @@
             <option value="file">📁 File</option>
           </select>
         </div>
-        
+
         <!-- Web Player Settings -->
         <div class="output-type-settings" id="settings-web">
           <div class="form-row">
@@ -44,7 +44,7 @@
             </div>
           </div>
         </div>
-        
+
         <!-- Recording Settings -->
         <div class="output-type-settings" id="settings-recording" style="display: none;">
           <div class="form-group">
@@ -70,7 +70,7 @@
             </div>
           </div>
         </div>
-        
+
         <!-- SRT Settings -->
         <div class="output-type-settings" id="settings-srt" style="display: none;">
           <div class="form-group">
@@ -110,7 +110,7 @@
             </div>
           </div>
         </div>
-        
+
         <!-- RTMP Settings -->
         <div class="output-type-settings" id="settings-rtmp" style="display: none;">
           <div class="form-group">
@@ -137,7 +137,7 @@
             </div>
           </div>
         </div>
-        
+
         <!-- File Settings -->
         <div class="output-type-settings" id="settings-file" style="display: none;">
           <div class="form-group">
@@ -168,29 +168,35 @@
             </select>
           </div>
         </div>
-        
+
         <button class="btn-create-output" id="btn-create-output">Crear Salida</button>
       </div>
     </div>
-    
+
     <!-- Métricas del OUTPUT -->
     <div class="form-group" id="output-metrics">
       <label class="form-label">Métricas</label>
       <div class="metrics-row">
         <div class="metric-mini">
           <span class="metric-label">Tiempo</span>
-          <span class="metric-value" id="module-time-output">--</span>
+          <span class="metric-value" id="module-time-video_muxer">--</span>
+        </div>
+        <div class="metric-mini">
+          <span class="metric-label">Memoria</span>
+          <span class="metric-value" id="module-memory-video_muxer">--</span>
         </div>
         <div class="metric-mini">
           <span class="metric-label">Chunks</span>
-          <span class="metric-value" id="module-chunks-output">--</span>
+          <span class="metric-value" id="module-chunks-video_muxer">--</span>
         </div>
         <div class="metric-mini">
           <span class="metric-label">Encoder</span>
-          <span class="metric-value" id="module-encoder-output">--</span>
+          <span class="metric-value" id="module-encoder-video_muxer">--</span>
         </div>
       </div>
     </div>
+    <!-- GPU Badge -->
+    <span class="gpu-badge" id="gpu-badge-video_muxer">CPU</span>
   </div>
 </div>
 
@@ -562,7 +568,7 @@
   }
 
   /* Toggle styles */
-  
+
 </style>
 
 <script>
@@ -587,7 +593,7 @@
       const isExpanded = expandedOutputs.has(o.name);
       const item = document.createElement('div');
       item.className = `output-item${o.state === 'running' ? ' active' : ''}`;
-      
+
       let detailsHtml = '';
       if (o.stream_info) {
         detailsHtml = `
@@ -710,9 +716,9 @@
     const type = (document.getElementById('new-output-type') as HTMLSelectElement)?.value || 'web';
     const timestamp = Date.now();
     const name = `${type}_${timestamp}`;
-    
+
     let config: Record<string, any> = { type, name };
-    
+
     if (type === 'web') {
       config = Object.assign({}, config, {
         segment_duration: parseInt((document.getElementById('output-web-segment') as HTMLInputElement)?.value || '4'),
@@ -750,7 +756,7 @@
         save_subs: (document.getElementById('output-file-subs') as HTMLSelectElement)?.value === 'true'
       });
     }
-    
+
     const success = await addOutput({ name, type, config });
     if (success) {
       expandedOutputs.add(name);

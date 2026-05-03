@@ -1,35 +1,38 @@
 """
 FFmpeg Wrapper - Unified interface for FFmpeg process management.
 
-Provides a high-level API for running FFmpeg commands, managing long-running 
+Provides a high-level API for running FFmpeg commands, managing long-running
 streams, and handling output/error logs consistently across the project.
 """
 
-import subprocess
 import logging
-import os
-import signal
 import platform
+import subprocess
 import threading
 import time
-from typing import List, Optional, Dict, Any, Callable
-from core.module_base import BaseModule
+from collections.abc import Callable
+from typing import Optional
+
 from core.ffmpeg_utils import find_ffmpeg, find_ffprobe
+from core.module_base import BaseModule
 
 logger = logging.getLogger("srt2web.ffmpeg_wrapper")
+
 
 class FFmpegProcess:
     """
     Manages a single long-running FFmpeg process.
     """
+
     def __init__(
-        self, 
-        args: List[str], 
-        name: str = "ffmpeg", 
+        self,
+        args: list[str],
+        name: str = "ffmpeg",
         on_stderr: Optional[Callable[[str], None]] = None,
-        creation_flags: Optional[int] = None
+        creation_flags: Optional[int] = None,
     ):
-        self.args = args
+        # Convert all args to strings to avoid WindowsPath issues
+        self.args = [str(arg) for arg in args]
         self.name = name
         self.on_stderr = on_stderr
         self.creation_flags = creation_flags
@@ -40,26 +43,24 @@ class FFmpegProcess:
     def start(self):
         """Starts the FFmpeg process."""
         logger.info(f"Starting FFmpeg process [{self.name}]: {' '.join(self.args)}")
-        
+
         try:
             self._process = subprocess.Popen(
                 self.args,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 universal_newlines=True,
-                encoding='utf-8',
+                encoding="utf-8",
                 creationflags=self.creation_flags,
-                bufsize=1
+                bufsize=1,
             )
-            
+
             # Start stderr monitoring thread
             self._stderr_thread = threading.Thread(
-                target=self._read_stderr, 
-                daemon=True, 
-                name=f"ffmpeg-stderr-{self.name}"
+                target=self._read_stderr, daemon=True, name=f"ffmpeg-stderr-{self.name}"
             )
             self._stderr_thread.start()
-            
+
         except Exception as e:
             logger.error(f"Failed to start FFmpeg process [{self.name}]: {e}")
             raise
@@ -68,7 +69,7 @@ class FFmpegProcess:
         """Reads FFmpeg stderr line by line."""
         if not self._process or not self._process.stderr:
             return
-            
+
         try:
             for line in self._process.stderr:
                 if self._stop_event.is_set():
@@ -81,26 +82,26 @@ class FFmpegProcess:
     def stop(self, timeout: float = 5.0):
         """Stops the FFmpeg process gracefully then forcefully."""
         self._stop_event.set()
-        
+
         if not self._process:
             return
 
         try:
             # Try SIGTERM first
             self._process.terminate()
-            
+
             # Wait for process to exit
             start_wait = time.time()
             while time.time() - start_wait < timeout:
                 if self._process.poll() is not None:
                     break
                 time.sleep(0.1)
-            
+
             # Force kill if still running
             if self._process.poll() is None:
                 logger.warning(f"FFmpeg process [{self.name}] did not terminate, killing...")
                 self._process.kill()
-                
+
         except Exception as e:
             logger.error(f"Error stopping FFmpeg process [{self.name}]: {e}")
         finally:
@@ -122,36 +123,38 @@ class FFmpegWrapper:
     """
     High-level wrapper for FFmpeg and FFprobe operations.
     """
+
     def __init__(self, name: str = "ffmpeg_wrapper"):
         self.name = name
-        self.ffmpeg_path = find_ffmpeg()
-        self.ffprobe_path = find_ffprobe()
+        self.ffmpeg_path = str(find_ffmpeg())
+        self.ffprobe_path = str(find_ffprobe())
         self._creation_flags = self._get_default_creation_flags()
 
     def _get_default_creation_flags(self) -> Optional[int]:
         """Returns Windows-specific flags to hide console windows."""
         if platform.system() == "Windows":
-            import subprocess
             # CREATE_NO_WINDOW = 0x08000000
             return 0x08000000
         return None
 
-    def run_command(self, args: List[str], capture_output: bool = True, timeout: Optional[float] = None) -> subprocess.CompletedProcess:
+    def run_command(
+        self, args: list[str], capture_output: bool = True, timeout: Optional[float] = None
+    ) -> subprocess.CompletedProcess:
         """
         Runs a short-lived FFmpeg command.
         """
         full_args = [self.ffmpeg_path] + args
         logger.debug(f"Running FFmpeg command: {' '.join(full_args)}")
-        
+
         try:
             return subprocess.run(
                 full_args,
                 capture_output=capture_output,
                 text=True,
-                encoding='utf-8',
+                encoding="utf-8",
                 timeout=timeout,
                 creationflags=self._creation_flags,
-                check=True
+                check=True,
             )
         except subprocess.CalledProcessError as e:
             logger.error(f"FFmpeg command failed: {e.stderr}")
@@ -160,41 +163,35 @@ class FFmpegWrapper:
             logger.error(f"Unexpected error running FFmpeg: {e}")
             raise
 
-    def run_probe(self, args: List[str], capture_output: bool = True) -> subprocess.CompletedProcess:
+    def run_probe(self, args: list[str], capture_output: bool = True) -> subprocess.CompletedProcess:
         """
         Runs an FFprobe command.
         """
         full_args = [self.ffprobe_path] + args
         logger.debug(f"Running FFprobe command: {' '.join(full_args)}")
-        
+
         try:
             return subprocess.run(
                 full_args,
                 capture_output=capture_output,
                 text=True,
-                encoding='utf-8',
+                encoding="utf-8",
                 creationflags=self._creation_flags,
-                check=True
+                check=True,
             )
         except subprocess.CalledProcessError as e:
             logger.error(f"FFprobe command failed: {e.stderr}")
             raise
 
     def create_process(
-        self, 
-        args: List[str], 
-        process_name: str = "ffmpeg", 
-        on_stderr: Optional[Callable[[str], None]] = None
+        self, args: list[str], process_name: str = "ffmpeg", on_stderr: Optional[Callable[[str], None]] = None
     ) -> FFmpegProcess:
         """
         Creates and returns a managed FFmpeg process.
         """
         full_args = [self.ffmpeg_path] + args
         return FFmpegProcess(
-            args=full_args, 
-            name=process_name, 
-            on_stderr=on_stderr, 
-            creation_flags=self._creation_flags
+            args=full_args, name=process_name, on_stderr=on_stderr, creation_flags=self._creation_flags
         )
 
 
@@ -203,6 +200,7 @@ class FFmpegModule(BaseModule):
     Base class for modules that use FFmpeg.
     Provides common FFmpeg functionality and wrapper instance.
     """
+
     def __init__(self, module_name: str, config: Optional[dict] = None):
         super().__init__(module_name, config)
         self.ffmpeg = FFmpegWrapper(name=module_name)

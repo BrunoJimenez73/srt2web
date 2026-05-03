@@ -1,6 +1,6 @@
 /**
  * API Client - Llamadas HTTP y WebSocket al backend SRT2Web.
- * 
+ *
  * Proporciona funciones tipadas para interactuar con el servidor.
  * Los tipos se definen en `types/api.ts`.
  */
@@ -131,12 +131,12 @@ export async function apiCall<T>(method: string, path: string, body?: unknown): 
   const cleanPath = path.replace(/^\/+/, '');
   const url = cleanPath ? `${base}/${cleanPath}` : base;
   const options: RequestInit = { method };
-  
+
   if (body) {
     options.body = JSON.stringify(body);
     options.headers = { 'Content-Type': 'application/json' };
   }
-  
+
   const res = await fetchWithAuth(url, options);
   if (!res.ok) {
     const errorText = await res.text().catch(() => res.statusText);
@@ -251,11 +251,11 @@ export class WSClient {
 
   connect(): void {
     this.ws = new WebSocket(this.url);
-    
+
     this.ws.onopen = () => {
       this.reconnectAttempts = 0;
     };
-    
+
     this.ws.onmessage = (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data) as WebSocketMessage;
@@ -264,11 +264,11 @@ export class WSClient {
         console.error('Failed to parse WebSocket message:', e.data);
       }
     };
-    
+
     this.ws.onerror = (e: Event) => {
       this.onErrorHandler?.(e);
     };
-    
+
     this.ws.onclose = () => {
       this.onCloseHandler?.();
       this.attemptReconnect();

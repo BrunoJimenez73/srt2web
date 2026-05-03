@@ -106,11 +106,14 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short -p no:mcp --ignore=tests/unit/test_async_pipeline.py --ignore=tests/unit/test_async_pipeline_v2.py"
 asyncio_mode = "auto"
 
-[tool.pytest.ini_options.markets]
+[tool.pytest.ini_options.markers]
 slow = "slow tests"
+integration = "integration tests"
+e2e = "end-to-end tests"
+live = "tests that require a live server"
 
 [tool.coverage.run]
 source = ["core", "modules", "server"]

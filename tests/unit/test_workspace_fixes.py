@@ -9,7 +9,6 @@ Tests for:
 - Astro component type declarations
 """
 
-import pytest
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -22,9 +21,9 @@ class TestTypeScriptModuleResolution:
         """Test that api.ts module exists with required exports."""
         api_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "api.ts"
         assert api_path.exists(), "api.ts module should exist"
-        
+
         content = api_path.read_text(encoding="utf-8")
-        
+
         # Check required exports
         assert "export function getAuthToken" in content
         assert "export function setAuthToken" in content
@@ -41,7 +40,7 @@ class TestTypeScriptModuleResolution:
         """Test that utils/index.ts barrel export exists."""
         utils_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "utils" / "index.ts"
         assert utils_path.exists(), "utils/index.ts should exist"
-        
+
         content = utils_path.read_text(encoding="utf-8")
         assert "export" in content
         assert "performance" in content or "formatTimestamp" in content
@@ -58,7 +57,7 @@ class TestTypeScriptModuleResolution:
         """Test that astro.d.ts type declarations exist."""
         astro_dts_path = PROJECT_ROOT / "frontend" / "src" / "astro.d.ts"
         assert astro_dts_path.exists(), "astro.d.ts should exist"
-        
+
         content = astro_dts_path.read_text(encoding="utf-8")
         assert "declare module '*.astro'" in content
 
@@ -70,7 +69,7 @@ class TestAuthenticationTokenManagement:
         """Test that clearAuthToken function exists and removes token."""
         api_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "api.ts"
         content = api_path.read_text(encoding="utf-8")
-        
+
         assert "export function clearAuthToken" in content
         assert "localStorage.removeItem" in content
 
@@ -78,7 +77,7 @@ class TestAuthenticationTokenManagement:
         """Test that WebSocket URL includes token as query parameter."""
         api_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "api.ts"
         content = api_path.read_text(encoding="utf-8")
-        
+
         # Check that getWebSocketUrl adds token
         assert "?token=" in content or "token=" in content
         assert "encodeURIComponent" in content
@@ -108,7 +107,7 @@ class TestDashboardInputOutputHandlers:
         """Test that dashboard has input/output initialization comments."""
         dashboard_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "dashboard.ts"
         content = dashboard_path.read_text(encoding="utf-8")
-        
+
         assert "Input type change" in content or "input" in content.lower()
         assert "Output format change" in content or "output" in content.lower()
 
@@ -120,14 +119,14 @@ class TestLogPanelSearchFilter:
         """Test that LogPanel has search input styles."""
         logpanel_path = PROJECT_ROOT / "frontend" / "src" / "components" / "LogPanel.astro"
         content = logpanel_path.read_text(encoding="utf-8")
-        
+
         assert ".log-search" in content
 
     def test_log_panel_has_filter_logic(self) -> None:
         """Test that LogPanel has filter logic."""
         logpanel_path = PROJECT_ROOT / "frontend" / "src" / "components" / "LogPanel.astro"
         content = logpanel_path.read_text(encoding="utf-8")
-        
+
         assert "currentFilter" in content
         assert "entry.dataset.message" in content
 
@@ -135,7 +134,7 @@ class TestLogPanelSearchFilter:
         """Test that log entries have data attributes for filtering."""
         logpanel_path = PROJECT_ROOT / "frontend" / "src" / "components" / "LogPanel.astro"
         content = logpanel_path.read_text(encoding="utf-8")
-        
+
         assert "entry.dataset.level" in content
         assert "entry.dataset.message" in content
 
@@ -143,7 +142,7 @@ class TestLogPanelSearchFilter:
         """Test that log entries have level-specific styles."""
         logpanel_path = PROJECT_ROOT / "frontend" / "src" / "components" / "LogPanel.astro"
         content = logpanel_path.read_text(encoding="utf-8")
-        
+
         # Check for level-specific styles
         assert '[data-level="info"]' in content
         assert '[data-level="success"]' in content
@@ -158,14 +157,14 @@ class TestTypeScriptConfiguration:
         """Test that tsconfig.json has ignoreDeprecations option."""
         tsconfig_path = PROJECT_ROOT / "frontend" / "tsconfig.json"
         content = tsconfig_path.read_text(encoding="utf-8")
-        
+
         assert "ignoreDeprecations" in content
 
     def test_tsconfig_has_base_url(self) -> None:
         """Test that tsconfig.json has baseUrl for path aliases."""
         tsconfig_path = PROJECT_ROOT / "frontend" / "tsconfig.json"
         content = tsconfig_path.read_text(encoding="utf-8")
-        
+
         assert "baseUrl" in content
         assert '"@/*"' in content or '"@/*":' in content
 
@@ -177,18 +176,22 @@ class TestAstroConfiguration:
         """Test that astro.config.mjs uses node: prefix for imports."""
         astro_config_path = PROJECT_ROOT / "frontend" / "astro.config.mjs"
         content = astro_config_path.read_text(encoding="utf-8")
-        
+
         assert "node:url" in content or "node:path" in content
 
     def test_astro_config_outdir_at_top_level(self) -> None:
         """Test that outDir is at top level (not in build)."""
         astro_config_path = PROJECT_ROOT / "frontend" / "astro.config.mjs"
         content = astro_config_path.read_text(encoding="utf-8")
-        
+
         # outDir should be at top level, not inside build
         assert "outDir:" in content
         # Should not have build: { outDir: }
-        assert '"build":' not in content or "outDir" not in content.split('"build":')[1].split("}")[0] if '"build":' in content else True
+        assert (
+            '"build":' not in content or "outDir" not in content.split('"build":')[1].split("}")[0]
+            if '"build":' in content
+            else True
+        )
 
 
 class TestFrontendTypes:
@@ -218,5 +221,5 @@ class TestFrontendTypes:
         if not types_path.exists():
             types_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "types.d.ts"
         content = types_path.read_text(encoding="utf-8")
-        
+
         assert "ConfigUpdateTimeouts" in content or "config_update" in content.lower() or "Timeouts" in content

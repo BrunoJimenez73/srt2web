@@ -1,16 +1,16 @@
 /**
  * Tipos de datos para gestión de salidas múltiples.
- * 
- * NOTA: Los tipos principales (ModuleExtra, OutputStatus, etc.) 
+ *
+ * NOTA: Los tipos principales (ModuleExtra, OutputStatus, etc.)
  * ahora viven en `api.ts` como única fuente de verdad.
  * Este archivo solo contiene tipos específicos para el sistema de salidas.
  */
 
 // Re-export shared types via barrel (api.ts es la fuente de verdad)
-export type { 
-  Config, Status, PipelineState, ModuleStatus, ModuleState, 
-  MetricsData, InputConfig, WebSocketMessage, HealthStatus, 
-  LogMessage, ModuleExtra 
+export type {
+  Config, Status, PipelineState, ModuleStatus, ModuleState,
+  MetricsData, InputConfig, WebSocketMessage, HealthStatus,
+  LogMessage, ModuleExtra
 } from './shared-types';
 
 // Importar OutputStatus desde api.ts para usarlo en este archivo
@@ -82,11 +82,11 @@ export interface WebOutputConfig extends BaseOutputConfig {
 }
 
 // Tipo unión para todas las configuraciones de salida (usado en outputs.ts)
-export type AnyOutputConfig = 
-  | RecordingOutputConfig 
-  | SrtOutputConfig 
-  | FileOutputConfig 
-  | RtmpOutputConfig 
+export type AnyOutputConfig =
+  | RecordingOutputConfig
+  | SrtOutputConfig
+  | FileOutputConfig
+  | RtmpOutputConfig
   | WebOutputConfig;
 
 // ── Tipos para estado y gestión de salidas ───────────────────────────

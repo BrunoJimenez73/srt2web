@@ -8,17 +8,17 @@ Supports:
 FFmpeg handles both modes natively.
 """
 
-import sys
-import time
 import logging
 import subprocess
+import sys
 import threading
+import time
 from pathlib import Path
 from typing import Optional
 
-from core.input_source import InputSource
-from core.module_base import ModuleStatus, ModuleState
 from core.ffmpeg_utils import ensure_ffmpeg
+from core.input_source import InputSource
+from core.module_base import ModuleState, ModuleStatus
 
 logger = logging.getLogger("srt2web.input.rtmp")
 
@@ -93,6 +93,7 @@ class RTMPInput(InputSource):
 
         # Detectar soporte GPU para hwaccel
         from core.ffmpeg_utils import check_gpu_support
+
         self._gpu_info = check_gpu_support(self._ffmpeg_path)
         logger.info(f"RTMP Input GPU support: {self._gpu_info}")
 
@@ -137,22 +138,37 @@ class RTMPInput(InputSource):
                 cmd.extend(["-hwaccel", "vaapi"])
 
         # Resto del comando - use listen mode for server
-        cmd.extend([
-            "-rtmp_listen", "1",  # FFmpeg acts as RTMP server
-            "-i", self._url.split("?")[0],  # Use URL without query params
-            "-fflags", "nobuffer",
-            "-analyzeduration", "10000000",
-            "-probesize", "10000000",
-            "-c:v", "copy",
-            "-c:a", "copy",
-            "-bsf:v", "h264_mp4toannexb",  # Convert from MP4 to AnnexB for TS
-            "-f", "segment",
-            "-segment_time", str(self._chunk_duration),
-            "-segment_format", "mpegts",
-            "-reset_timestamps", "1",
-            "-max_muxing_queue_size", "8192",
-            chunk_pattern,
-        ])
+        cmd.extend(
+            [
+                "-rtmp_listen",
+                "1",  # FFmpeg acts as RTMP server
+                "-i",
+                self._url.split("?")[0],  # Use URL without query params
+                "-fflags",
+                "nobuffer",
+                "-analyzeduration",
+                "10000000",
+                "-probesize",
+                "10000000",
+                "-c:v",
+                "copy",
+                "-c:a",
+                "copy",
+                "-bsf:v",
+                "h264_mp4toannexb",  # Convert from MP4 to AnnexB for TS
+                "-f",
+                "segment",
+                "-segment_time",
+                str(self._chunk_duration),
+                "-segment_format",
+                "mpegts",
+                "-reset_timestamps",
+                "1",
+                "-max_muxing_queue_size",
+                "8192",
+                chunk_pattern,
+            ]
+        )
 
         logger.info(f"Starting RTMP input in LISTEN mode: {self._url}")
 
@@ -170,7 +186,7 @@ class RTMPInput(InputSource):
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,  # Merge stderr into stdout
             text=True,
-            creationflags=creation_flags
+            creationflags=creation_flags,
         )
 
         logger.info(f"FFmpeg started with PID {self._ffmpeg_proc.pid}, URL: {self._url}")
@@ -245,7 +261,7 @@ class RTMPInput(InputSource):
                 # Check if process is still running
                 if self._ffmpeg_proc.poll() is not None:
                     break
-                    
+
                 # Read available stdout
                 line = self._ffmpeg_proc.stdout.readline()
                 if not line:
@@ -254,14 +270,19 @@ class RTMPInput(InputSource):
                         break
                     time.sleep(0.1)
                     continue
-                
+
                 line = line.strip()
                 if line:
                     if "error" in line.lower() or "Error" in line:
                         logger.error(f"[FFmpeg] {line}")
                     elif "warning" in line.lower() or "Warning" in line:
                         logger.warning(f"[FFmpeg] {line}")
-                    elif "input" in line.lower() or "output" in line.lower() or "stream" in line.lower() or "listening" in line.lower():
+                    elif (
+                        "input" in line.lower()
+                        or "output" in line.lower()
+                        or "stream" in line.lower()
+                        or "listening" in line.lower()
+                    ):
                         logger.info(f"[FFmpeg] {line}")
                     else:
                         logger.debug(f"[FFmpeg] {line}")
@@ -303,8 +324,8 @@ class RTMPInput(InputSource):
         idx, chunk_path = processable[0]
         self._last_chunk_index = idx
 
-        from core.module_base import PipelineData
         from core.ffmpeg_utils import get_video_duration
+        from core.module_base import PipelineData
 
         actual_duration = get_video_duration(chunk_path) or self._chunk_duration
 
@@ -322,16 +343,14 @@ class RTMPInput(InputSource):
         # Update cumulative for next chunk
         self._cumulative_duration += actual_duration
 
-        logger.info(
-            f"New RTMP chunk: {chunk_path} (cumulative: {chunk_cumulative:.3f}s)"
-        )
+        logger.info(f"New RTMP chunk: {chunk_path} (cumulative: {chunk_cumulative:.3f}s)")
 
         return PipelineData(
             chunk_index=idx,
             timestamp=time.time(),
             duration=actual_duration,
             cumulative_duration=chunk_cumulative,
-            video_chunk_path=chunk_path,
+            video_chunk_path=str(chunk_path),
         )
 
     def is_receiving(self) -> bool:
@@ -360,9 +379,15 @@ class RTMPInput(InputSource):
             extra={
                 "using_gpu": self._hwaccel_enabled,
                 "gpu_info": self._gpu_info,
-                "encoder_label": "NVDEC" if self._gpu_info.get("nvenc") else "QSV" if self._gpu_info.get("qsv") else "VAAPI" if self._gpu_info.get("vaapi") else "CPU",
+                "encoder_label": "NVDEC"
+                if self._gpu_info.get("nvenc")
+                else "QSV"
+                if self._gpu_info.get("qsv")
+                else "VAAPI"
+                if self._gpu_info.get("vaapi")
+                else "CPU",
                 "hwaccel": self._hwaccel_enabled,
-            }
+            },
         )
 
 

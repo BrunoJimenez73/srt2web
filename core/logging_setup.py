@@ -7,9 +7,10 @@ Extraído para mejorar mantenibilidad.
 
 import logging
 import re
-from pathlib import Path
 from logging.handlers import RotatingFileHandler
-from typing import Optional, List, Pattern
+from pathlib import Path
+from re import Pattern
+from typing import Optional
 
 
 class BroadcastHandler(logging.Handler):
@@ -44,7 +45,7 @@ class ConsoleFilter(logging.Filter):
         return True
 
 
-def get_filter_patterns() -> List[str]:
+def get_filter_patterns() -> list[str]:
     """Patterns to filter from frontend logs (noisy but non-critical)."""
     return [
         "[FFmpeg]",
@@ -69,15 +70,13 @@ def get_filter_patterns() -> List[str]:
     ]
 
 
-def _compile_filter_pattern(patterns: List[str]) -> Pattern:
+def _compile_filter_pattern(patterns: list[str]) -> Pattern:
     """Compile all filter patterns into a single regex for O(1) matching."""
     escaped = [re.escape(p) for p in patterns]
     return re.compile("|".join(escaped))
 
 
-def setup_logging(
-    log_file: Optional[str] = None, log_broadcaster=None, log_level: int = logging.DEBUG
-) -> None:
+def setup_logging(log_file: Optional[str] = None, log_broadcaster=None, log_level: int = logging.DEBUG) -> None:
     """
     Configure logging with console, file, and WebSocket broadcast.
 
@@ -137,9 +136,7 @@ def setup_logging(
     # Broadcast handler (sends to WebSocket clients)
     broadcast = FilteredBroadcastHandler()
     broadcast.setLevel(logging.DEBUG)
-    broadcast.setFormatter(
-        logging.Formatter("%(levelname)-5s │ %(name)s │ %(message)s")
-    )
+    broadcast.setFormatter(logging.Formatter("%(levelname)-5s │ %(name)s │ %(message)s"))
 
     # File handler - persists logs to disk for debugging crashes
     if log_file is None:

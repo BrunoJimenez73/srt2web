@@ -5,11 +5,10 @@ Provides WebRTC streaming capabilities with subtitle support via data channels.
 """
 
 import logging
-import threading
-from typing import Optional, Dict
+from typing import Optional
 
+from core.module_base import ModuleState, ModuleStatus, PipelineData
 from core.output_sink import OutputSink
-from core.module_base import PipelineData, ModuleStatus, ModuleState
 
 logger = logging.getLogger("srt2web.output.webrtc")
 
@@ -17,7 +16,7 @@ logger = logging.getLogger("srt2web.output.webrtc")
 class WebRTCOutput(OutputSink):
     """
     WebRTC output sink using aiortc for streaming.
-    
+
     Provides real-time streaming via WebRTC with support for:
     - Video/audio tracks
     - Data channel for subtitles
@@ -25,18 +24,19 @@ class WebRTCOutput(OutputSink):
 
     def __init__(self, config: dict):
         super().__init__("webrtc", config)
-        
+
         # Import and initialize WebRTC engine
         from modules.webrtc_engine import WebRTCEngine
+
         self._engine = WebRTCEngine(config)
-        
+
         # State
-        self._engines: Dict[str, any] = {'webrtc': self._engine}
+        self._engines: dict[str, any] = {"webrtc": self._engine}
         self._running = False
-        
+
         # Directory
         self._output_dir = config.get("output_dir", "./output")
-        
+
         logger.info("WebRTC output initialized")
 
     def configure(self, config: dict) -> None:
@@ -68,11 +68,7 @@ class WebRTCOutput(OutputSink):
 
     def get_stream_info(self) -> dict:
         """Get WebRTC stream information."""
-        return {
-            "type": "webrtc",
-            "engine": "aiortc",
-            "status": "running" if self._running else "stopped"
-        }
+        return {"type": "webrtc", "engine": "aiortc", "status": "running" if self._running else "stopped"}
 
     @property
     def _webrtc_engine(self) -> Optional[any]:
@@ -93,10 +89,11 @@ class WebRTCOutput(OutputSink):
                 "using_gpu": False,
                 "gpu_available": {},
                 "encoder_label": "CPU (WebRTC)",
-            }
+            },
         )
 
 
 # Auto-register in factory
 from core.io_factory import OutputFactory
+
 OutputFactory.register("webrtc", WebRTCOutput)

@@ -5,17 +5,17 @@ Handles FFmpeg binary detection, download, and common operations
 like SRT ingestion and HLS packaging.
 """
 
-import os
-import sys
-import shutil
 import logging
+import os
 import platform
+import shutil
 import subprocess
+import sys
+import tarfile
 import urllib.request
 import zipfile
-import tarfile
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
 logger = logging.getLogger("srt2web.ffmpeg")
 
@@ -41,15 +41,15 @@ def find_ffmpeg() -> Optional[str]:
     1. Cached path (if already found)
     2. Project bin/ directory
     3. System PATH
-    
+
     Returns the full path to ffmpeg, or None if not found.
     """
     global _cached_ffmpeg_path
-    
+
     # Return cached path if available
     if _cached_ffmpeg_path and Path(_cached_ffmpeg_path).exists():
         return _cached_ffmpeg_path
-    
+
     # Check project bin/ directory first
     bin_dir = get_project_bin_dir()
     if platform.system() == "Windows":
@@ -61,21 +61,21 @@ def find_ffmpeg() -> Optional[str]:
         logger.info(f"Found FFmpeg in project bin: {local_ffmpeg}")
         _cached_ffmpeg_path = str(local_ffmpeg)
         return str(local_ffmpeg)
-    
+
     # Also check inside extracted folder structure
     for candidate in bin_dir.rglob("ffmpeg*"):
         if candidate.is_file() and candidate.stem == "ffmpeg":
             logger.info(f"Found FFmpeg in project bin: {candidate}")
             _cached_ffmpeg_path = str(candidate)
             return str(candidate)
-    
+
     # Check system PATH
     system_ffmpeg = shutil.which("ffmpeg")
     if system_ffmpeg:
         logger.info(f"Found FFmpeg in PATH: {system_ffmpeg}")
         _cached_ffmpeg_path = system_ffmpeg
         return system_ffmpeg
-    
+
     logger.warning("FFmpeg not found")
     return None
 
@@ -83,29 +83,29 @@ def find_ffmpeg() -> Optional[str]:
 def find_ffprobe() -> Optional[str]:
     """Find the FFprobe binary (same search logic as FFmpeg)."""
     global _cached_ffprobe_path
-    
+
     # Return cached path if available
     if _cached_ffprobe_path and Path(_cached_ffprobe_path).exists():
         return _cached_ffprobe_path
-    
+
     bin_dir = get_project_bin_dir()
     exe = "ffprobe.exe" if platform.system() == "Windows" else "ffprobe"
-    
+
     local = bin_dir / exe
     if local.exists():
         _cached_ffprobe_path = str(local)
         return str(local)
-    
+
     for candidate in bin_dir.rglob("ffprobe*"):
         if candidate.is_file() and candidate.stem == "ffprobe":
             _cached_ffprobe_path = str(candidate)
             return str(candidate)
-    
+
     system = shutil.which("ffprobe")
     if system:
         _cached_ffprobe_path = system
         return system
-    
+
     return None
 
 
@@ -139,7 +139,7 @@ def check_gpu_support(ffmpeg_path: str) -> dict:
         )
         # FFmpeg imprime la lista de encoders por stderr, NO por stdout
         output = (result.stderr + result.stdout).lower()
-        
+
         if result.returncode != 0:
             logger.warning(f"FFmpeg -encoders command failed (RC={result.returncode}). Stderr: {result.stderr}")
 
@@ -157,22 +157,25 @@ def get_video_duration(file_path: str, ffprobe_path: Optional[str] = None) -> fl
     """Get the exact duration of a video/audio file using ffprobe."""
     if ffprobe_path is None:
         ffprobe_path = find_ffprobe()
-    
+
     if not ffprobe_path:
         return 0.0
-        
+
     try:
         cmd = [
             ffprobe_path,
-            "-v", "error",
-            "-show_entries", "format=duration",
-            "-of", "default=noprint_wrappers=1:nokey=1",
-            file_path
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            file_path,
         ]
         result = subprocess.run(
-            cmd, 
-            capture_output=True, 
-            text=True, 
+            cmd,
+            capture_output=True,
+            text=True,
             timeout=3,  # Reduced timeout for duration check
             creationflags=_get_creation_flags(),
         )
@@ -199,40 +202,37 @@ def check_srt_support(ffmpeg_path: str) -> bool:
 def download_ffmpeg(progress_callback=None) -> Optional[str]:
     """
     Download pre-built FFmpeg binaries for the current platform.
-    
+
     Args:
         progress_callback: Optional callable(downloaded_bytes, total_bytes)
-    
+
     Returns:
         Path to the ffmpeg binary, or None on failure.
     """
     system = platform.system()
     if system not in FFMPEG_URLS:
-        logger.error(
-            f"No pre-built FFmpeg available for {system}. "
-            "Please install FFmpeg manually."
-        )
+        logger.error(f"No pre-built FFmpeg available for {system}. " "Please install FFmpeg manually.")
         return None
-    
+
     url = FFMPEG_URLS[system]
     bin_dir = get_project_bin_dir()
     bin_dir.mkdir(parents=True, exist_ok=True)
-    
+
     try:
         logger.info(f"Downloading FFmpeg from {url}...")
-        
+
         # Download with progress
         archive_path = bin_dir / ("ffmpeg_download.zip" if system == "Windows" else "ffmpeg_download.zip")
-        
+
         def _reporthook(block_num, block_size, total_size):
             if progress_callback and total_size > 0:
                 downloaded = block_num * block_size
                 progress_callback(downloaded, total_size)
-        
+
         urllib.request.urlretrieve(url, str(archive_path), _reporthook)
-        
+
         logger.info("Extracting FFmpeg...")
-        
+
         # Extract
         if str(archive_path).endswith(".zip"):
             with zipfile.ZipFile(archive_path, "r") as zf:
@@ -240,10 +240,10 @@ def download_ffmpeg(progress_callback=None) -> Optional[str]:
         elif str(archive_path).endswith((".tar.gz", ".tar.xz")):
             with tarfile.open(archive_path, "r:*") as tf:
                 tf.extractall(bin_dir)
-        
+
         # Clean up archive
         archive_path.unlink(missing_ok=True)
-        
+
         # Find the extracted binary
         ffmpeg_path = find_ffmpeg()
         if ffmpeg_path:
@@ -258,7 +258,7 @@ def download_ffmpeg(progress_callback=None) -> Optional[str]:
         else:
             logger.error("FFmpeg binary not found after extraction")
             return None
-    
+
     except Exception as e:
         logger.error(f"Failed to download FFmpeg: {e}")
         return None
@@ -267,22 +267,22 @@ def download_ffmpeg(progress_callback=None) -> Optional[str]:
 def ensure_ffmpeg(progress_callback=None) -> str:
     """
     Ensure FFmpeg is available. Downloads if necessary.
-    
+
     Returns:
         Path to the ffmpeg binary.
-    
+
     Raises:
         RuntimeError: If FFmpeg cannot be found or downloaded.
     """
     path = find_ffmpeg()
     if path:
         return path
-    
+
     logger.info("FFmpeg not found. Attempting to download...")
     path = download_ffmpeg(progress_callback)
     if path:
         return path
-    
+
     raise RuntimeError(
         "FFmpeg is required but could not be found or downloaded. "
         "Please install FFmpeg manually: https://ffmpeg.org/download.html"
@@ -292,11 +292,11 @@ def ensure_ffmpeg(progress_callback=None) -> str:
 def _get_creation_flags() -> int:
     """
     Get platform-specific creation flags for subprocess.
-    
+
     On Windows:
     - CREATE_NO_WINDOW: Hide console window
     - BELOW_NORMAL_PRIORITY_CLASS: Lower priority for better GPU utilization
-    
+
     Returns:
         Creation flags integer
     """
@@ -307,29 +307,29 @@ def _get_creation_flags() -> int:
 
 
 def run_ffmpeg(
-    args: List[str],
+    args: list[str],
     ffmpeg_path: Optional[str] = None,
     timeout: Optional[int] = None,
     capture_output: bool = True,
 ) -> subprocess.CompletedProcess:
     """
     Run an FFmpeg command with the given arguments.
-    
+
     Args:
         args: Arguments to pass to FFmpeg (without the ffmpeg binary itself)
         ffmpeg_path: Path to FFmpeg binary (auto-detected if None)
         timeout: Command timeout in seconds (default: 5s)
         capture_output: Whether to capture stdout/stderr
-    
+
     Returns:
         CompletedProcess instance
     """
     if ffmpeg_path is None:
         ffmpeg_path = ensure_ffmpeg()
-    
+
     cmd = [ffmpeg_path] + args
     logger.debug(f"Running: {' '.join(cmd)}")
-    
+
     return subprocess.run(
         cmd,
         capture_output=capture_output,
@@ -340,25 +340,25 @@ def run_ffmpeg(
 
 
 def start_ffmpeg_process(
-    args: List[str],
+    args: list[str],
     ffmpeg_path: Optional[str] = None,
 ) -> subprocess.Popen:
     """
     Start a long-running FFmpeg process (e.g., SRT listener).
-    
+
     Args:
         args: Arguments to pass to FFmpeg
         ffmpeg_path: Path to FFmpeg binary (auto-detected if None)
-    
+
     Returns:
         Popen instance for the running process
     """
     if ffmpeg_path is None:
         ffmpeg_path = ensure_ffmpeg()
-    
+
     cmd = [ffmpeg_path] + args
     logger.info(f"Starting FFmpeg process: {' '.join(cmd)}")
-    
+
     return subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
@@ -370,12 +370,11 @@ def start_ffmpeg_process(
 
 def cleanup_ffmpeg_processes() -> None:
     """Clean up any orphaned FFmpeg processes."""
-    import subprocess
     import platform
-    import time
-    
+    import subprocess
+
     logger = logging.getLogger("srt2web.ffmpeg")
-    
+
     try:
         if platform.system() == "Windows":
             # Use taskkill to kill FFmpeg processes
@@ -383,9 +382,7 @@ def cleanup_ffmpeg_processes() -> None:
                 ["taskkill", "/F", "/IM", "ffmpeg.exe"],
                 capture_output=True,
                 text=True,
-                creationflags=subprocess.CREATE_NO_WINDOW
-                if hasattr(subprocess, "CREATE_NO_WINDOW")
-                else 0,
+                creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
             )
             if result.returncode == 0:
                 logger.info("Cleaned up orphaned FFmpeg processes")
@@ -408,21 +405,21 @@ def cleanup_ffmpeg_processes() -> None:
 
 def kill_process_gracefully(process, timeout: int = 5):
     """Kill a process gracefully with timeout."""
-    import signal
     import platform
-    
+    import signal
+
     logger = logging.getLogger("srt2web.ffmpeg")
-    
+
     if process is None:
         return
-    
+
     try:
         # First try graceful termination
         if platform.system() == "Windows":
             process.terminate()
         else:
             process.send_signal(signal.SIGTERM)
-        
+
         # Wait for process to terminate
         try:
             process.wait(timeout=timeout)
@@ -430,64 +427,59 @@ def kill_process_gracefully(process, timeout: int = 5):
             return
         except subprocess.TimeoutExpired:
             logger.warning(f"Process {process.pid} did not terminate gracefully, forcing kill")
-        
+
         # Force kill if graceful termination failed
         if platform.system() == "Windows":
             process.kill()
         else:
             process.send_signal(signal.SIGKILL)
-        
+
         try:
             process.wait(timeout=2)
             logger.info(f"Process {process.pid} killed forcefully")
         except subprocess.TimeoutExpired:
             logger.error(f"Failed to kill process {process.pid}")
-            
+
     except Exception as e:
         logger.error(f"Error killing process {process.pid}: {e}")
 
 
 def run_ffmpeg_with_timeout(cmd: list, timeout: int = 30, **kwargs):
     """Run FFmpeg command with timeout and proper error handling."""
-    import subprocess
     import platform
-    
+    import subprocess
+
     logger = logging.getLogger("srt2web.ffmpeg")
-    
+
     # Add timeout to command if supported
     if timeout and platform.system() != "Windows":
         cmd = ["timeout", str(timeout)] + cmd
-    
+
     try:
         # Set creation flags for Windows to hide console
         creationflags = 0
         if platform.system() == "Windows":
             creationflags = subprocess.CREATE_NO_WINDOW
-        
+
         process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            creationflags=creationflags,
-            **kwargs
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=creationflags, **kwargs
         )
-        
+
         stdout, stderr = process.communicate(timeout=timeout)
-        
+
         if process.returncode != 0:
             logger.error(f"FFmpeg command failed: {' '.join(cmd)}")
             logger.error(f"Error: {stderr}")
             raise subprocess.CalledProcessError(process.returncode, cmd, stderr)
-        
+
         return stdout, stderr
-        
+
     except subprocess.TimeoutExpired:
         logger.error(f"FFmpeg command timed out after {timeout} seconds: {' '.join(cmd)}")
         kill_process_gracefully(process, timeout=5)
         raise
     except Exception as e:
         logger.error(f"Error running FFmpeg command: {e}")
-        if 'process' in locals():
+        if "process" in locals():
             kill_process_gracefully(process, timeout=5)
         raise

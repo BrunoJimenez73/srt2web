@@ -5,32 +5,29 @@ Entry point: starts the FastAPI server, initializes the pipeline,
 and opens the browser to the dashboard.
 """
 
-import os
-import sys
-import signal
-import threading
 import logging
+import os
+import signal
+import sys
+import threading
 import webbrowser
-import atexit
+from types import FrameType
+from typing import Any
+
 import uvicorn
 
-from typing import Tuple
-from types import FrameType
-
-from core.cuda_paths import setup_cuda_environment
-from core import get_project_root, get_config_path, SERVER_PORT_DEFAULT, SERVER_HOST
+from core import SERVER_HOST, SERVER_PORT_DEFAULT, get_config_path, get_project_root
 from core.config_manager import ConfigManager
-from core.unified_pipeline import UnifiedPipeline, PipelineMode
-from core.ffmpeg_utils import find_ffmpeg
+from core.cuda_paths import setup_cuda_environment
 from core.io_factory import InputFactory, OutputFactory, auto_discover
+from core.unified_pipeline import PipelineMode, UnifiedPipeline
 from modules.audio_extractor import AudioExtractor
+from modules.audio_mixer import AudioMixer
+from modules.subtitle_generator import SubtitleGenerator
 from modules.transcriber import Transcriber
 from modules.translator import Translator
-from modules.subtitle_generator import SubtitleGenerator
 from modules.tts_engine import TTSEngine
-from modules.audio_mixer import AudioMixer
 from server.app import create_app
-from server.ws_routes import log_broadcaster
 
 # Setup CUDA paths - must be called before any GPU-related imports
 setup_cuda_environment()
@@ -89,9 +86,7 @@ def setup_logging() -> None:
     logging.getLogger("srt2web.main").info("Logging initialized")
 
 
-def build_pipeline(
-    config: ConfigManager, output_dir: str
-) -> Tuple[UnifiedPipeline, Any]:
+def build_pipeline(config: ConfigManager, output_dir: str) -> tuple[UnifiedPipeline, Any]:
     """
     Build the processing pipeline with modular input/output.
 
@@ -111,9 +106,7 @@ def build_pipeline(
 
     # Create input source
     logger = logging.getLogger("srt2web.main")
-    logger.info(
-        f"Creating input source: {input_type} (chunk_duration={chunk_duration})"
-    )
+    logger.info(f"Creating input source: {input_type} (chunk_duration={chunk_duration})")
     input_source = InputFactory.create(input_type, type_config)
     input_source.set_output_dir(output_dir)
 
@@ -174,9 +167,7 @@ def build_pipeline(
 
     # 1. Extract audio from the video chunk
     audio_extractor_config = config.get_module_config("audio_extractor")
-    audio_extractor = AudioExtractor(
-        config=audio_extractor_config, output_dir=output_dir
-    )
+    audio_extractor = AudioExtractor(config=audio_extractor_config, output_dir=output_dir)
     pipeline.register_module(audio_extractor)
 
     # 2. Transcribe the audio
@@ -191,9 +182,7 @@ def build_pipeline(
 
     # 4. Generate subtitles
     subs_config = config.get_module_config("subtitle_generator")
-    subs_config[
-        "chunk_duration"
-    ] = chunk_duration  # Override module's chunk_duration with pipeline value
+    subs_config["chunk_duration"] = chunk_duration  # Override module's chunk_duration with pipeline value
     subtitle_generator = SubtitleGenerator(config=subs_config, output_dir=output_dir)
     pipeline.register_module(subtitle_generator)
 
@@ -206,7 +195,7 @@ def build_pipeline(
     mixer_config = config.get_module_config("audio_mixer")
     audio_mixer = AudioMixer(config=mixer_config, output_dir=output_dir)
     pipeline.register_module(audio_mixer)
-    
+
     # Log actual configuration values
     buffer_size = config.get("pipeline.buffer_size", 5)
     num_workers = config.get("pipeline.max_concurrent_chunks", 3)
@@ -219,18 +208,19 @@ def build_pipeline(
 def main() -> None:
     """Main entry point."""
     logger = logging.getLogger("srt2web.main")
-    
+
     # Load config for server settings
     config_manager = ConfigManager(get_config_path())
-    config = config_manager.load_config()
-    
+    config = config_manager._config
+
     host = config.get("server", {}).get("host", SERVER_HOST)
     port = config.get("server", {}).get("port", SERVER_PORT_DEFAULT)
     ssl_config = config.get("server", {}).get("ssl", {})
     ssl_enabled = ssl_config.get("enabled", False)
-    
+
     # Initialize components
-    input_source = InputFactory.create(config)
+    input_type = config.get("pipeline", {}).get("input_type", "srt")
+    input_source = InputFactory.create(input_type, config)
     modules = [
         AudioExtractor(),
         Transcriber(),
@@ -239,76 +229,90 @@ def main() -> None:
         SubtitleGenerator(),
         AudioMixer(),
     ]
-    output_sink = OutputFactory.create(config)
-    
-    pipeline = UnifiedPipeline(
-        input_source=input_source,
-        modules=modules,
-        output_sink=output_sink,
-        mode=PipelineMode.SEQUENTIAL,
-    )
-    
+    output_type = config.get("pipeline", {}).get("output_type", "web")
+    output_sink = OutputFactory.create(output_type, config)
+
+    pipeline = UnifiedPipeline(mode=PipelineMode.SEQUENTIAL)
+    pipeline.set_input_source(input_source)
+    pipeline.set_output_sink(output_sink)
+    for module in modules:
+        pipeline.register_module(module)
+
+    # Get log_broadcaster for app_context
+    from server.ws_routes import log_broadcaster
+
     app_context = {
         "pipeline": pipeline,
+        "config": config_manager,
         "config_manager": config_manager,
+        "log_broadcast": log_broadcaster.broadcast,
     }
-    
+
     # Setup browser opener
     def open_browser() -> None:
         url = f"http{'s' if ssl_enabled else ''}://{host}:{port}"
         logger.info(f"Opening browser: {url}")
         webbrowser.open(url)
-    
-    browser_thread = threading.Thread(target=open_browser, args=(host, port), daemon=True)
+
+    browser_thread = threading.Thread(target=open_browser, daemon=True)
     browser_thread.start()
-    
+
     # Register signal handlers for graceful shutdown
     def handle_exit(signum: int, frame: FrameType | None) -> None:
         logger.info("Shutdown signal received. Cleaning up...")
         _shutdown(app_context)
         sys.exit(0)
-    
+
     signal.signal(signal.SIGINT, handle_exit)
     signal.signal(signal.SIGTERM, handle_exit)
-    
+
     # Get connection info for logging
     input_info = input_source.get_connection_info()
     input_url = input_info.get("url", f"port {input_info.get('port', 'N/A')}")
-    
+
     # Start server
     protocol = "https" if ssl_enabled else "http"
     logger.info(f"Dashboard: {protocol}://{host}:{port}")
     logger.info(f"Input:    {input_info.get('type', 'unknown').upper()} ({input_url})")
     logger.info(f"Stream:   {protocol}://{host}:{port}/hls/stream.m3u8")
     print()
-    
+
     # Create the app once
     app = create_app(app_context)
-    
+
     # SSL context if enabled
     ssl_context = None
     if ssl_enabled:
         cert_file = ssl_config.get("cert_file", "certs/cert.pem")
         key_file = ssl_config.get("key_file", "certs/key.pem")
-        
+
         if not os.path.exists(cert_file) or not os.path.exists(key_file):
             logger.warning(f"SSL cert/key not found: {cert_file}, {key_file}")
             logger.warning("Run: python scripts/generate_ssl_certs.py")
             logger.warning("Falling back to HTTP")
         else:
             import ssl
+
             ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
             ssl_context.load_cert_chain(cert_file, key_file)
             logger.info(f"SSL enabled: {cert_file}")
-    
-    uvicorn_config = uvicorn.Config(
-        app,
-        host=host,
-        port=port,
-        log_level="info",
-        access_log=True,
-        ssl=ssl_context,
-    )
+        uvicorn_config = uvicorn.Config(
+            app,
+            host=host,
+            port=port,
+            log_level="info",
+            access_log=True,
+            ssl_certfile=cert_file,
+            ssl_keyfile=key_file,
+        )
+    else:
+        uvicorn_config = uvicorn.Config(
+            app,
+            host=host,
+            port=port,
+            log_level="info",
+            access_log=True,
+        )
     server = uvicorn.Server(uvicorn_config)
     server.run()
 

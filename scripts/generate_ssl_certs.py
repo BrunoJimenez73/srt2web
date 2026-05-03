@@ -8,7 +8,6 @@ Usage:
 """
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -27,6 +26,7 @@ def generate_certs(cert_dir: str = "certs") -> None:
 
     # Check openssl is available
     import subprocess
+
     try:
         subprocess.run(
             ["openssl", "version"],
@@ -42,14 +42,25 @@ def generate_certs(cert_dir: str = "certs") -> None:
 
     # Generate self-signed certificate
     cmd = [
-        "openssl", "req", "-x509", "-newkey", "rsa:4096",
-        "-nodes", "-out", str(cert_file), "-keyout", str(key_file),
-        "-days", "365", "-subj", "/CN=localhost",
+        "openssl",
+        "req",
+        "-x509",
+        "-newkey",
+        "rsa:4096",
+        "-nodes",
+        "-out",
+        str(cert_file),
+        "-keyout",
+        str(key_file),
+        "-days",
+        "365",
+        "-subj",
+        "/CN=localhost",
     ]
 
     try:
         subprocess.run(cmd, check=True, capture_output=True)
-        print(f"Generated SSL certificates:")
+        print("Generated SSL certificates:")
         print(f"  Cert: {cert_file}")
         print(f"  Key:  {key_file}")
         print("\nWARNING: These are self-signed certificates for development only!")
@@ -60,9 +71,7 @@ def generate_certs(cert_dir: str = "certs") -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Generate SSL certificates for SRT2Web"
-    )
+    parser = argparse.ArgumentParser(description="Generate SSL certificates for SRT2Web")
     parser.add_argument(
         "--cert-dir",
         default="certs",

@@ -10,9 +10,9 @@ into separate modules under server/routes/ and server/validators.py
 
 import logging
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
-from server.routes import pipeline, config, modules, outputs
+from server.routes import config, modules, outputs, pipeline
 
 logger = logging.getLogger("srt2web.api")
 
@@ -54,9 +54,7 @@ def create_api_router() -> APIRouter:
         if not input_source:
             raise HTTPException(400, "No input source configured")
 
-        logger.info(
-            f"[API] input/control/play called - input_source type: {type(input_source).__name__}"
-        )
+        logger.info(f"[API] input/control/play called - input_source type: {type(input_source).__name__}")
 
         # Check if input source has play method (FileInput)
         if hasattr(input_source, "play"):
@@ -75,9 +73,7 @@ def create_api_router() -> APIRouter:
         if not input_source:
             raise HTTPException(400, "No input source configured")
 
-        logger.info(
-            f"[API] input/control/pause called - input_source type: {type(input_source).__name__}"
-        )
+        logger.info(f"[API] input/control/pause called - input_source type: {type(input_source).__name__}")
 
         # Check if input source has pause method (FileInput)
         if hasattr(input_source, "pause"):
@@ -139,9 +135,7 @@ def create_api_router() -> APIRouter:
         srt_mode = config.get("input.srt.mode", "listener")
         caller_address = config.get("input.srt.caller_address", "")
 
-        network = get_network_info(
-            srt_port=srt_port, server_port=server_port, latency_ms=latency_ms
-        )
+        network = get_network_info(srt_port=srt_port, server_port=server_port, latency_ms=latency_ms)
 
         network["srt_mode"] = srt_mode
         network["caller_address"] = caller_address
@@ -163,6 +157,7 @@ def create_api_router() -> APIRouter:
             - pipeline: pipeline state and stats
         """
         from time import time as get_time
+
         import psutil
 
         ctx = _ctx(request)
@@ -215,9 +210,7 @@ def create_api_router() -> APIRouter:
         input_src = pipeline.get_input_source()
         if input_src:
             input_health = {
-                "receiving": input_src.is_receiving()
-                if hasattr(input_src, "is_receiving")
-                else False,
+                "receiving": input_src.is_receiving() if hasattr(input_src, "is_receiving") else False,
                 "type": getattr(input_src, "name", "unknown"),
             }
 
@@ -225,9 +218,7 @@ def create_api_router() -> APIRouter:
         output_snk = pipeline.get_output_sink()
         if output_snk:
             output_health = {
-                "streaming": output_snk.is_streaming()
-                if hasattr(output_snk, "is_streaming")
-                else False,
+                "streaming": output_snk.is_streaming() if hasattr(output_snk, "is_streaming") else False,
                 "type": getattr(output_snk, "name", "unknown"),
             }
 
@@ -259,6 +250,23 @@ def create_api_router() -> APIRouter:
     @router.get("/srt-info")
     async def srt_info(request: Request):
         """Get SRT connection information (legacy - use /input-info)."""
-        return await input_info(request)
+        ctx = _ctx(request)
+        input_source = ctx.get("input_source")
+        if input_source:
+            return input_source.get_connection_info()
+
+        config = ctx["config"]
+        host = config.get("server.host", "127.0.0.1")
+        port = config.get("input.srt.listen_port", 9000)
+        latency_ms = config.get("input.srt.latency_ms", 1000)
+        return {
+            "url": f"srt://{host}:{port}?mode=listener&latency={latency_ms}",
+            "host": host,
+            "port": port,
+            "srt_port": port,
+            "mode": config.get("input.srt.mode", "listener"),
+            "latency_ms": latency_ms,
+            "receiving": False,
+        }
 
     return router

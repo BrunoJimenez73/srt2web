@@ -4,8 +4,7 @@ Output management routes for SRT2Web API.
 
 import logging
 
-from fastapi import APIRouter, Request, HTTPException
-
+from fastapi import APIRouter, HTTPException, Request
 
 logger = logging.getLogger("srt2web.api.outputs")
 
@@ -22,21 +21,13 @@ def _sync_outputs_to_config(request: Request, composite) -> None:
     config = ctx["config"]
 
     output_list = []
-    for name in (
-        composite.get_output_names() if hasattr(composite, "get_output_names") else []
-    ):
-        output = (
-            composite.get_output_by_name(name)
-            if hasattr(composite, "get_output_by_name")
-            else None
-        )
+    for name in composite.get_output_names() if hasattr(composite, "get_output_names") else []:
+        output = composite.get_output_by_name(name) if hasattr(composite, "get_output_by_name") else None
         if not output:
             continue
         entry = {
             "name": name,
-            "type": getattr(
-                output, "name", name.rsplit("_", 1)[0] if "_" in name else name
-            ),
+            "type": getattr(output, "name", name.rsplit("_", 1)[0] if "_" in name else name),
             "enabled": getattr(output, "enabled", True),
             "config": getattr(output, "config", {}),
         }
@@ -76,6 +67,8 @@ async def list_outputs(request: Request):
 
     # Fallback para sink simple
     status = composite.get_status() if hasattr(composite, "get_status") else {}
+    if hasattr(status, "to_dict"):
+        status = status.to_dict()
     return {
         "outputs": [
             {
@@ -85,9 +78,7 @@ async def list_outputs(request: Request):
                 "enabled": True,
                 "processed_chunks": status.get("processed_chunks", 0),
                 "last_process_time_ms": status.get("last_process_time_ms", 0),
-                "stream_info": composite.get_stream_info()
-                if hasattr(composite, "get_stream_info")
-                else {},
+                "stream_info": composite.get_stream_info() if hasattr(composite, "get_stream_info") else {},
             }
         ]
     }
@@ -175,13 +166,8 @@ async def remove_output(request: Request, output_name: str):
         raise HTTPException(404, "Composite output not available")
 
     # No permitir eliminar el último output
-    if (
-        hasattr(composite, "get_output_names")
-        and len(composite.get_output_names()) <= 1
-    ):
-        raise HTTPException(
-            400, "Cannot remove the last output. Add another output first."
-        )
+    if hasattr(composite, "get_output_names") and len(composite.get_output_names()) <= 1:
+        raise HTTPException(400, "Cannot remove the last output. Add another output first.")
 
     if not composite.remove_output(output_name):
         raise HTTPException(404, f"Output '{output_name}' not found")

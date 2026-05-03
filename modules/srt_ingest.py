@@ -5,17 +5,16 @@ Listens for incoming SRT connections (or connects to a caller)
 and writes MPEG-TS chunks to disk for pipeline processing.
 """
 
-import sys
-import glob
-import time
 import logging
 import subprocess
+import sys
 import threading
+import time
 from pathlib import Path
 from typing import Optional
 
-from core.module_base import BaseModule, PipelineData, ModuleState
 from core.ffmpeg_utils import ensure_ffmpeg
+from core.module_base import BaseModule, ModuleState, PipelineData
 
 logger = logging.getLogger("srt2web.module.srt_ingest")
 
@@ -51,9 +50,7 @@ class SRTIngest(BaseModule):
         self._srt_port = config.get("listen_port", self._srt_port)
         self._srt_mode = config.get("mode", self._srt_mode)
         self._srt_latency_ms = config.get("latency_ms", self._srt_latency_ms)
-        self._srt_caller_address = config.get(
-            "caller_address", self._srt_caller_address
-        )
+        self._srt_caller_address = config.get("caller_address", self._srt_caller_address)
         self._chunk_duration = config.get("chunk_duration_sec", self._chunk_duration)
         self.enabled = True  # Always enabled — it's the input
 
@@ -72,7 +69,7 @@ class SRTIngest(BaseModule):
         # Create chunks directory
         self._chunks_dir = Path(self._output_dir) / "chunks"
         self._chunks_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Clean old chunks
         for f in self._chunks_dir.glob("chunk_*.ts"):
             try:
@@ -83,14 +80,9 @@ class SRTIngest(BaseModule):
         # Build SRT URL
         latency_us = self._srt_latency_ms * 1000
         if self._srt_mode == "caller" and self._srt_caller_address:
-            srt_url = (
-                f"srt://{self._srt_caller_address}:{self._srt_port}"
-                f"?mode=caller&latency={latency_us}"
-            )
+            srt_url = f"srt://{self._srt_caller_address}:{self._srt_port}" f"?mode=caller&latency={latency_us}"
         else:
-            srt_url = (
-                f"srt://0.0.0.0:{self._srt_port}?mode=listener&latency={latency_us}"
-            )
+            srt_url = f"srt://0.0.0.0:{self._srt_port}?mode=listener&latency={latency_us}"
 
         # Build FFmpeg command for segmented output
         chunk_pattern = str(self._chunks_dir / "chunk_%06d.ts")
@@ -129,9 +121,7 @@ class SRTIngest(BaseModule):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            creationflags=(
-                subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            ),
+            creationflags=(subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0),
         )
 
         # Monitor thread reads stderr for logs

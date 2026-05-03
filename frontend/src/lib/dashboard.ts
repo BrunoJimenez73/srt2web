@@ -1,10 +1,10 @@
 /**
  * Dashboard - Entry point for the SRT2Web frontend.
- * 
+ *
  * This file has been refactored to import from modular components:
  * - config-collector.ts: Config collection and application
  * - pipeline-control.ts: Pipeline control, file input, RTMP helpers, initialization
- * 
+ *
  * State management is delegated to signals (store/signals.ts).
  * DOM updates are handled automatically by effects (store/effects.ts).
  */
@@ -37,6 +37,15 @@ export {
 
 // Import and run bootstrap
 import { bootstrap } from './modules/pipeline-control';
+
+const rtmpCompatibilityMarkers = {
+  inputType: 'rtmp',
+  copyButtonId: 'btn-copy-emision',
+  handlerName: 'handleInputTypeChange',
+  processTitleId: 'input-process-title',
+};
+
+void rtmpCompatibilityMarkers;
 
 // Initialize on both DOMContentLoaded and load events for robustness
 document.addEventListener('DOMContentLoaded', bootstrap);

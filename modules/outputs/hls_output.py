@@ -10,18 +10,18 @@ Configuración (output.web o output.hls):
     audio_offset_ms: Offset de audio en milisegundos (default: 0)
 """
 
-import os
-import sys
 import glob
+import os
 import subprocess
+import sys
 import threading
 from typing import Optional
 
-from core.output_sink import OutputSink
-from core.module_base import PipelineData, ModuleStatus, ModuleState
-from core.ffmpeg_utils import ensure_ffmpeg, check_gpu_support
 from core.encoder_config import EncoderConfig
 from core.ffmpeg_pool import shutdown_pool
+from core.ffmpeg_utils import check_gpu_support, ensure_ffmpeg
+from core.module_base import ModuleState, ModuleStatus, PipelineData
+from core.output_sink import OutputSink
 
 
 class HLSOutput(OutputSink):
@@ -119,13 +119,9 @@ class HLSOutput(OutputSink):
                 f.write(
                     f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="/subtitles/subs.vtt"\n'
                 )
-                f.write(
-                    '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"\n'
-                )
+                f.write('#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"\n')
                 f.write("stream.m3u8\n")
-            self.logger.info(
-                f"Created initial master playlist with language: {self._subtitle_language_name}"
-            )
+            self.logger.info(f"Created initial master playlist with language: {self._subtitle_language_name}")
         except Exception as e:
             self.logger.error(f"Failed to create initial master playlist: {e}")
 
@@ -158,9 +154,7 @@ class HLSOutput(OutputSink):
         audio_input = data.mixed_audio_path or data.dubbed_audio_path
 
         # Calcular offset de tiempo - usar cumulative_duration para sincronizar con subtitles
-        offset_sec = (
-            f"{getattr(data, 'cumulative_duration', self._total_duration_emitted):.3f}"
-        )
+        offset_sec = f"{getattr(data, 'cumulative_duration', self._total_duration_emitted):.3f}"
         chunk_duration = data.duration or self._segment_duration
 
         # Guardar duración para el manifest
@@ -213,9 +207,7 @@ class HLSOutput(OutputSink):
                 stderr=subprocess.PIPE,
                 text=True,
                 timeout=60,
-                creationflags=(
-                    subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-                ),
+                creationflags=(subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0),
             )
             if result.returncode != 0:
                 self.logger.error(f"FFmpeg mux error: {result.stderr[-500:]}")
@@ -297,9 +289,7 @@ class HLSOutput(OutputSink):
             encoder = "libx264"
             preset = self._encoder_config.video_preset
             extra_args = self._encoder_config.get_cpu_args()
-            self.logger.info(
-                f"Using CPU encoder libx264 (preset: {preset}, crf: {self._encoder_config.video_crf})"
-            )
+            self.logger.info(f"Using CPU encoder libx264 (preset: {preset}, crf: {self._encoder_config.video_crf})")
 
         return encoder, preset, extra_args
 
@@ -317,11 +307,7 @@ class HLSOutput(OutputSink):
                 for old_seg in segments[: -self._list_size]:
                     try:
                         os.remove(old_seg)
-                        old_idx = int(
-                            os.path.basename(old_seg)
-                            .replace("seg_", "")
-                            .replace(".ts", "")
-                        )
+                        old_idx = int(os.path.basename(old_seg).replace("seg_", "").replace(".ts", ""))
                         self._segment_durations.pop(old_idx, None)
                     except (OSError, ValueError):
                         pass
@@ -331,11 +317,7 @@ class HLSOutput(OutputSink):
             media_seq = 0
             if segments:
                 try:
-                    media_seq = int(
-                        os.path.basename(segments[0])
-                        .replace("seg_", "")
-                        .replace(".ts", "")
-                    )
+                    media_seq = int(os.path.basename(segments[0]).replace("seg_", "").replace(".ts", ""))
                 except ValueError:
                     media_seq = 0
 
@@ -351,9 +333,7 @@ class HLSOutput(OutputSink):
                 seg_name = os.path.basename(seg_path)
                 try:
                     seg_idx = int(seg_name.replace("seg_", "").replace(".ts", ""))
-                    dur = self._segment_durations.get(
-                        seg_idx, float(self._segment_duration)
-                    )
+                    dur = self._segment_durations.get(seg_idx, float(self._segment_duration))
                     media_lines.append(f"#EXTINF:{dur:.3f},")
                 except ValueError:
                     media_lines.append(f"#EXTINF:{self._segment_duration}.000,")
@@ -386,9 +366,7 @@ class HLSOutput(OutputSink):
                     '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"'
                 )
             else:
-                master_lines.append(
-                    '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2"'
-                )
+                master_lines.append('#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2"')
 
             master_lines.append("stream.m3u8")
 

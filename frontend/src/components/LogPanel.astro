@@ -9,11 +9,11 @@
       <span class="log-title">📋 Logs</span>
     </div>
     <div class="log-actions">
-      <input 
-        type="text" 
-        class="log-search" 
-        id="log-search" 
-        placeholder="Filtrar..." 
+      <input
+        type="text"
+        class="log-search"
+        id="log-search"
+        placeholder="Filtrar..."
         aria-label="Filtrar registros"
         onclick="event.stopPropagation()"
       />
@@ -40,15 +40,15 @@
     outline: none;
     transition: border-color 0.2s;
   }
-  
+
   .log-search:focus {
     border-color: #3b82f6;
   }
-  
+
   .log-search::placeholder {
     color: rgba(255, 255, 255, 0.5);
   }
-  
+
   .log-entry {
     padding: 2px 8px;
     font-size: 12px;
@@ -57,27 +57,27 @@
     word-break: break-all;
     border-left: 3px solid transparent;
   }
-  
+
   .log-entry[data-level="info"] {
     border-left-color: #3b82f6;
     background: rgba(59, 130, 246, 0.1);
   }
-  
+
   .log-entry[data-level="success"] {
     border-left-color: #22c55e;
     background: rgba(34, 197, 94, 0.1);
   }
-  
+
   .log-entry[data-level="warning"] {
     border-left-color: #f59e0b;
     background: rgba(245, 158, 11, 0.1);
   }
-  
+
   .log-entry[data-level="error"] {
     border-left-color: #ef4444;
     background: rgba(239, 68, 68, 0.1);
   }
-  
+
   .log-entry.hidden {
     display: none;
   }
@@ -85,10 +85,10 @@
 
 <script>
   import { initLogPanel } from '../lib/modules/logpanel';
-  
+
   // Current filter state for log search
   let currentFilter = '';
-  
+
   // Filter log entries based on search input
   function filterLogs(searchTerm: string): void {
     currentFilter = searchTerm.toLowerCase();
@@ -103,18 +103,18 @@
       }
     });
   }
-  
+
   // Add a log entry with data attributes for filtering
   function addLogEntry(level: string, message: string, timestamp: string): void {
     const logContent = document.getElementById('log-content');
     if (!logContent) return;
-    
+
     const entry = document.createElement('div');
     entry.className = 'log-entry';
     entry.dataset.level = level;
     entry.dataset.message = message;
     entry.textContent = `[${timestamp}] ${message}`;
-    
+
     // Apply filter if active
     if (currentFilter) {
       const msgLower = message.toLowerCase();
@@ -122,14 +122,14 @@
         entry.classList.add('hidden');
       }
     }
-    
+
     logContent.appendChild(entry);
     logContent.scrollTop = logContent.scrollHeight;
   }
-  
+
   // Initialize log panel on component mount
   initLogPanel();
-  
+
   // Add event listeners for LogPanel
   document.addEventListener('DOMContentLoaded', function() {
     // Toggle log panel
@@ -139,7 +139,7 @@
         window.toggleLogPanel();
       });
     }
-    
+
     // Stop propagation on search input
     const logSearch = document.getElementById('log-search');
     if (logSearch) {
@@ -147,7 +147,7 @@
         e.stopPropagation();
       });
     }
-    
+
     // Clear logs button
     const btnClearLogs = document.getElementById('btn-clear-logs');
     if (btnClearLogs) {
@@ -157,7 +157,7 @@
       });
     }
   });
-  
+
   // Setup search filter
   const searchInput = document.getElementById('log-search');
   if (searchInput) {
@@ -165,7 +165,7 @@
       filterLogs((e.target as HTMLInputElement).value);
     });
   }
-  
+
   // Expose functions globally
   (window as unknown as { addLogEntry: typeof addLogEntry }).addLogEntry = addLogEntry;
 </script>

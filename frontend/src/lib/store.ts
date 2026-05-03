@@ -1,7 +1,7 @@
 /**
  * [x] --- No longer needed. Use signals from './store/signals' instead.
  * Dashboard State Store - Gestión centralizada de estado.
- * 
+ *
  * Patrón: Store observable con suscriptores.
  * Características:
  * ✅ Estado centralizado y tipado
@@ -91,7 +91,7 @@ class DashboardStore {
    */
   subscribe(listener: StateListener): () => void {
     this.listeners.add(listener);
-    
+
     // Notificar inmediatamente con estado actual
     listener(this.getState());
 

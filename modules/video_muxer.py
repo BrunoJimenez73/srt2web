@@ -5,18 +5,15 @@ Takes video chunks (with optional processed audio and subtitles)
 and generates HLS output (m3u8 + ts segments) for web playback.
 """
 
-import sys
-import glob
 import logging
-import subprocess
 import threading
 import time
 from pathlib import Path
 from typing import Optional
 
-from core.module_base import BaseModule, PipelineData, ModuleState, ModuleStatus
-from core.ffmpeg_utils import ensure_ffmpeg
 from core.encoder_config import EncoderConfig
+from core.ffmpeg_utils import ensure_ffmpeg
+from core.module_base import BaseModule, ModuleState, ModuleStatus, PipelineData
 
 logger = logging.getLogger("srt2web.module.video_muxer")
 logger.setLevel(logging.INFO)
@@ -55,9 +52,7 @@ class VideoMuxer(BaseModule):
 
     def configure(self, config: dict) -> None:
         super().configure(config)
-        self._hls_segment_duration = config.get(
-            "hls_segment_duration", self._hls_segment_duration
-        )
+        self._hls_segment_duration = config.get("hls_segment_duration", self._hls_segment_duration)
         self._hls_list_size = 4  # Optimized for lower latency
         self._audio_offset_ms = config.get("audio_offset_ms", self._audio_offset_ms)
         # Video quality settings
@@ -100,9 +95,7 @@ class VideoMuxer(BaseModule):
 
         self._segment_index = 0
         self._state = ModuleState.RUNNING
-        logger.info(
-            f"VideoMuxer ready. Audio Offset: {self._audio_offset_ms}ms, HLS output at: {self._hls_dir}"
-        )
+        logger.info(f"VideoMuxer ready. Audio Offset: {self._audio_offset_ms}ms, HLS output at: {self._hls_dir}")
 
     def stop(self) -> None:
         """Cleanup."""
@@ -115,26 +108,26 @@ class VideoMuxer(BaseModule):
         """
         # Track processing time
         start_time = time.perf_counter()
-        
+
         self._log("info", f"[VideoMuxer.write] Received data chunk {getattr(data, 'chunk_index', 'None')}")
-        
-        if hasattr(data, 'video_path') and not hasattr(data, 'video_chunk_path'):
+
+        if hasattr(data, "video_path") and not hasattr(data, "video_chunk_path"):
             data.video_chunk_path = data.video_path
-        elif not hasattr(data, 'video_chunk_path'):
-            if isinstance(data, dict) and 'video_path' in data:
-                data.video_chunk_path = data['video_path']
-        
-        if not hasattr(data, 'video_chunk_path') or not data.video_chunk_path:
-            self._log("warning", f"[VideoMuxer.write] No video_chunk_path available")
+        elif not hasattr(data, "video_chunk_path"):
+            if isinstance(data, dict) and "video_path" in data:
+                data.video_chunk_path = data["video_path"]
+
+        if not hasattr(data, "video_chunk_path") or not data.video_chunk_path:
+            self._log("warning", "[VideoMuxer.write] No video_chunk_path available")
             return data
-        
+
         # Process the data
         try:
             result = self.process(data)
         except Exception as e:
             self._log("error", f"[VideoMuxer.write] Error: {e}")
             return data
-        
+
         elapsed = (time.perf_counter() - start_time) * 1000
         self._last_process_time_ms = elapsed
         self._processed_chunks += 1
@@ -154,6 +147,7 @@ class VideoMuxer(BaseModule):
         # Copy input to HLS segment (passthrough - no re-encoding)
         try:
             import shutil
+
             dest_path = self._hls_dir / segment_name
             shutil.copy2(input_path, dest_path)
         except Exception:
@@ -198,7 +192,7 @@ class VideoMuxer(BaseModule):
                             del self._segment_durations[old_idx]
                     except (OSError, ValueError):
                         pass
-                all_segments = all_segments[-self._hls_list_size : ]
+                all_segments = all_segments[-self._hls_list_size :]
 
             # Calculate media sequence number
             media_seq = 0
@@ -223,9 +217,7 @@ class VideoMuxer(BaseModule):
                 try:
                     seg_idx = int(seg_path.stem.replace("seg_", ""))
                     # Use cached duration or fallback to default
-                    dur = self._segment_durations.get(
-                        seg_idx, float(self._hls_segment_duration)
-                    )
+                    dur = self._segment_durations.get(seg_idx, float(self._hls_segment_duration))
                     media_lines.append(f"#EXTINF:{dur:.3f},")
                 except ValueError:
                     media_lines.append(f"#EXTINF:{self._hls_segment_duration}.000,")
@@ -256,9 +248,7 @@ class VideoMuxer(BaseModule):
                     '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"'
                 )
             else:
-                master_lines.append(
-                    '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2"'
-                )
+                master_lines.append('#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2"')
 
             master_lines.append("stream.m3u8")
 
@@ -271,7 +261,7 @@ class VideoMuxer(BaseModule):
     def get_status(self) -> ModuleStatus:
         """Get current status including GPU encoder info."""
         status = super().get_status()
-        
+
         # --- Lógica de Asunción de NVENC/GPU ---
         encoder_mode = self._encoder_config.encoder_mode
         using_gpu = False
@@ -310,12 +300,11 @@ class VideoMuxer(BaseModule):
                 using_gpu = True
                 actual_encoder = "h264_vaapi"
                 encoder_label = "H.264 VAAPI"
-        
+
         # Si no hay GPU, el encoder sigue siendo libx264 (CPU)
         if not using_gpu:
-             actual_encoder = "libx264"
-             encoder_label = "H.264 CPU"
-
+            actual_encoder = "libx264"
+            encoder_label = "H.264 CPU"
 
         # Reportar estado
         status.extra["encoder_mode"] = encoder_mode
@@ -326,9 +315,9 @@ class VideoMuxer(BaseModule):
         status.extra["encoder_label"] = encoder_label
 
         # WebRTC override
-        if hasattr(self, '_engine') and self._engine == 'webrtc':
+        if hasattr(self, "_engine") and self._engine == "webrtc":
             status.extra["using_gpu"] = False
             status.extra["encoder_label"] = "CPU (WebRTC)"
             status.extra["actual_encoder"] = "webrtc"
-            
+
         return status

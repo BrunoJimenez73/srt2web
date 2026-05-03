@@ -10,11 +10,10 @@ Tests for:
 - Output multi-output management
 """
 
-import pytest
-import json
-import yaml
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+
+import pytest
+import yaml
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
@@ -26,7 +25,7 @@ class TestConfigPersistence:
         """Test that config.yaml exists and is valid."""
         config_path = PROJECT_ROOT / "config.yaml"
         assert config_path.exists(), "config.yaml should exist"
-        
+
         content = config_path.read_text(encoding="utf-8")
         config = yaml.safe_load(content)
         assert config is not None
@@ -35,7 +34,7 @@ class TestConfigPersistence:
         """Test that config.yaml has all required sections."""
         config_path = PROJECT_ROOT / "config.yaml"
         config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-        
+
         required_sections = ["pipeline", "modules", "input", "output"]
         for section in required_sections:
             assert section in config, f"Config should have '{section}' section"
@@ -44,15 +43,15 @@ class TestConfigPersistence:
         """Test that Piper TTS voice is configured in config.yaml."""
         config_path = PROJECT_ROOT / "config.yaml"
         config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-        
+
         tts_config = config.get("modules", {}).get("tts_engine", {})
         assert "voice" in tts_config, "TTS config should have 'voice' setting"
-        
+
     def test_config_chunk_duration_persists(self) -> None:
         """Test that chunk_duration_sec is configured."""
         config_path = PROJECT_ROOT / "config.yaml"
         config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-        
+
         chunk_duration = config.get("pipeline", {}).get("chunk_duration_sec")
         assert chunk_duration is not None, "chunk_duration_sec should be configured"
         assert isinstance(chunk_duration, (int, float)), "chunk_duration should be numeric"
@@ -61,7 +60,7 @@ class TestConfigPersistence:
         """Test that HLS output settings are configured."""
         config_path = PROJECT_ROOT / "config.yaml"
         config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-        
+
         output_config = config.get("output", {}).get("web", {})
         assert "segment_duration" in output_config
         assert "list_size" in output_config
@@ -80,7 +79,7 @@ class TestPiperVoices:
         models_dir = PROJECT_ROOT / "models" / "piper"
         if not models_dir.exists():
             pytest.skip("Piper models directory does not exist")
-            
+
         # Check for .onnx or .json files (Piper voice models)
         voice_files = list(models_dir.glob("*.onnx")) + list(models_dir.glob("*.json"))
         assert len(voice_files) > 0, "At least one Piper voice model should exist"
@@ -89,11 +88,11 @@ class TestPiperVoices:
         """Test that config.yaml has Piper voices listed."""
         config_path = PROJECT_ROOT / "config.yaml"
         config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-        
+
         # Config should have TTS voice configured
         tts_config = config.get("modules", {}).get("tts_engine", {})
         voice = tts_config.get("voice", "")
-        
+
         # Voice should contain language code (e.g., en_US, es_ES)
         assert voice, "TTS voice should be configured"
 
@@ -109,13 +108,14 @@ class TestModuleStatusIndicators:
             content = dashboard_path.read_text(encoding="utf-8")
             if "updateStatus" in content or "getStatus" in content:
                 return  # Found in dashboard.ts
-        
+
         # Check pipeline-control.ts
         pipeline_control_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "pipeline-control.ts"
         if pipeline_control_path.exists():
             content = pipeline_control_path.read_text(encoding="utf-8")
-            assert "updateStatus" in content or "getStatus" in content or "getModuleStatus" in content, \
-                "Should have status handling in pipeline-control.ts"
+            assert (
+                "updateStatus" in content or "getStatus" in content or "getModuleStatus" in content
+            ), "Should have status handling in pipeline-control.ts"
         else:
             raise AssertionError("Neither dashboard.ts nor pipeline-control.ts found")
 
@@ -123,43 +123,49 @@ class TestModuleStatusIndicators:
         """Test that all modules are handled in status updates."""
         # Check pipeline-control.ts
         pipeline_control_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "pipeline-control.ts"
-        
+
         # Check also store/signals.ts which may have module references
         signals_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "store" / "signals.ts"
-        
+
         content = ""
         if pipeline_control_path.exists():
             content += pipeline_control_path.read_text(encoding="utf-8")
         if signals_path.exists():
             content += signals_path.read_text(encoding="utf-8")
-        
+
         # Check that the code references module names in signals or types
         required_modules = [
-            "audio_extractor", "transcriber", "translator", "tts_engine",
-            "subtitle_generator", "audio_mixer", "video_muxer"
+            "audio_extractor",
+            "transcriber",
+            "translator",
+            "tts_engine",
+            "subtitle_generator",
+            "audio_mixer",
+            "video_muxer",
         ]
-        
+
         # These modules should be referenced in types or status handling
         # Check in shared-types.ts or signals
         types_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "shared-types.ts"
         if types_path.exists():
             content += types_path.read_text(encoding="utf-8")
-        
+
         # If not found in TypeScript, check if module names are defined in API response types
         # The modules are likely referenced by name in the backend, so we check if there's any reference
         has_module_references = any(m in content for m in required_modules) if content else True
-        assert has_module_references or len(content) > 0, \
-            "Module names should be referenced in TypeScript types or signals"
+        assert (
+            has_module_references or len(content) > 0
+        ), "Module names should be referenced in TypeScript types or signals"
 
     def test_indicator_ids_exist_in_components(self) -> None:
         """Test that indicator IDs are defined in component cards."""
         components = {
             "InputCard.astro": "indicator-input",
-            "WhisperCard.astro": "indicator-whisper", 
+            "WhisperCard.astro": "indicator-whisper",
             "HlsCard.astro": "indicator-video-muxer",
             "OutputCard.astro": "indicator-output",
         }
-        
+
         for component, indicator_id in components.items():
             component_path = PROJECT_ROOT / "frontend" / "src" / "components" / component
             if component_path.exists():
@@ -178,7 +184,7 @@ class TestGPUBadgeDisplay:
             ("TtsCard.astro", "tts-gpu-badge"),
             ("HlsCard.astro", "hls-gpu-badge"),
         ]
-        
+
         for component, badge_id in components_to_check:
             component_path = PROJECT_ROOT / "frontend" / "src" / "components" / component
             if component_path.exists():
@@ -193,15 +199,16 @@ class TestGPUBadgeDisplay:
             PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "pipeline-control.ts",
             PROJECT_ROOT / "frontend" / "src" / "lib" / "store" / "effects.ts",
         ]
-        
+
         content = ""
         for path in files_to_check:
             if path.exists():
                 content += path.read_text(encoding="utf-8")
-        
+
         # Check for badge-related logic (search for GPU badge implementation)
-        assert "gpu" in content.lower() or "badge" in content.lower(), \
-            "Should have GPU badge logic in dashboard modules"
+        assert (
+            "gpu" in content.lower() or "badge" in content.lower()
+        ), "Should have GPU badge logic in dashboard modules"
 
 
 class TestDeviceEncoderMetrics:
@@ -231,12 +238,12 @@ class TestDeviceEncoderMetrics:
             PROJECT_ROOT / "frontend" / "src" / "lib" / "store" / "effects.ts",
             PROJECT_ROOT / "frontend" / "src" / "lib" / "shared-types.ts",
         ]
-        
+
         content = ""
         for path in files_to_check:
             if path.exists():
                 content += path.read_text(encoding="utf-8")
-        
+
         # Check for extra field handling (module status extra for device/encoder info)
         assert "extra" in content, "Should have extra field handling in types or effects"
 
@@ -249,7 +256,7 @@ class TestBackendStatusAPI:
         # Check that unified_pipeline.py has get_status method
         pipeline_path = PROJECT_ROOT / "core" / "unified_pipeline.py"
         assert pipeline_path.exists()
-        
+
         content = pipeline_path.read_text(encoding="utf-8")
         assert "def get_status" in content, "Pipeline should have get_status method"
 
@@ -257,7 +264,7 @@ class TestBackendStatusAPI:
         """Test that pipeline status includes 'extra' field with device/encoder info."""
         pipeline_path = PROJECT_ROOT / "core" / "unified_pipeline.py"
         content = pipeline_path.read_text(encoding="utf-8")
-        
+
         # The _get_output_module_status should return 'extra' with encoder_mode
         assert '"extra":' in content or "'extra':" in content, "Status should include 'extra' field"
 
@@ -290,7 +297,7 @@ class TestOutputMultiOutput:
         """Test that OutputCard has '+ Añadir salida' button."""
         output_card_path = PROJECT_ROOT / "frontend" / "src" / "components" / "OutputCard.astro"
         assert output_card_path.exists()
-        
+
         content = output_card_path.read_text(encoding="utf-8")
         assert "Añadir salida" in content, "OutputCard should have add button"
 
@@ -298,7 +305,7 @@ class TestOutputMultiOutput:
         """Test that OutputCard has delete buttons for outputs."""
         output_card_path = PROJECT_ROOT / "frontend" / "src" / "components" / "OutputCard.astro"
         content = output_card_path.read_text(encoding="utf-8")
-        
+
         assert "Eliminar" in content or "delete" in content.lower(), "OutputCard should have delete button"
 
     def test_api_routes_has_outputs_endpoint(self) -> None:
@@ -328,15 +335,16 @@ class TestMetricsDisplay:
             PROJECT_ROOT / "frontend" / "src" / "lib" / "store" / "signals.ts",
             PROJECT_ROOT / "frontend" / "src" / "lib" / "store" / "effects.ts",
         ]
-        
+
         content = ""
         for path in files_to_check:
             if path.exists():
                 content += path.read_text(encoding="utf-8")
-        
+
         # Check for time-related handling (last_process_time_ms is in backend)
-        assert "process_time" in content.lower() or "last_process" in content.lower(), \
-            "Should handle time metrics in dashboard modules"
+        assert (
+            "process_time" in content.lower() or "last_process" in content.lower()
+        ), "Should handle time metrics in dashboard modules"
 
     def test_chunks_metric_in_dashboard(self) -> None:
         """Test that chunks metric handling exists in pipeline modules."""
@@ -346,15 +354,16 @@ class TestMetricsDisplay:
             PROJECT_ROOT / "frontend" / "src" / "lib" / "store" / "signals.ts",
             PROJECT_ROOT / "frontend" / "src" / "lib" / "store" / "effects.ts",
         ]
-        
+
         content = ""
         for path in files_to_check:
             if path.exists():
                 content += path.read_text(encoding="utf-8")
-        
+
         # Check for chunks handling
-        assert "processed_chunks" in content.lower() or "chunks" in content.lower(), \
-            "Should handle chunks metrics in dashboard modules"
+        assert (
+            "processed_chunks" in content.lower() or "chunks" in content.lower()
+        ), "Should handle chunks metrics in dashboard modules"
 
     def test_metrics_display_logic(self) -> None:
         """Test that metrics display logic exists."""
@@ -364,16 +373,16 @@ class TestMetricsDisplay:
             PROJECT_ROOT / "frontend" / "src" / "lib" / "store" / "effects.ts",
             PROJECT_ROOT / "frontend" / "src" / "lib" / "store" / "signals.ts",
         ]
-        
+
         content = ""
         for path in files_to_check:
             if path.exists():
                 content += path.read_text(encoding="utf-8")
-        
+
         # Check for metrics handling (textContent is in effects, status updates in signals)
-        has_metrics_logic = any(keyword in content.lower() for keyword in [
-            "textcontent", "updatestatus", "signals", "effect", "metrics"
-        ])
+        has_metrics_logic = any(
+            keyword in content.lower() for keyword in ["textcontent", "updatestatus", "signals", "effect", "metrics"]
+        )
         assert has_metrics_logic, "Should have metrics display logic in dashboard modules"
 
 
@@ -387,22 +396,23 @@ class TestRefreshModuleStatus:
             PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "pipeline-control.ts",
             PROJECT_ROOT / "frontend" / "src" / "lib" / "api.ts",
         ]
-        
+
         content = ""
         for path in files_to_check:
             if path.exists():
                 content += path.read_text(encoding="utf-8")
-        
+
         # Should have getStatus or API calls
-        assert "getStatus" in content or "/api/status" in content or "fetch" in content.lower(), \
-            "Should fetch status from API in dashboard modules"
+        assert (
+            "getStatus" in content or "/api/status" in content or "fetch" in content.lower()
+        ), "Should fetch status from API in dashboard modules"
 
     def test_status_update_interval(self) -> None:
         """Test that status polling is set up."""
         # Check effects.ts or dashboard.ts for interval
         effects_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "store" / "effects.ts"
         dashboard_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "dashboard.ts"
-        
+
         found_interval = False
         for path in [effects_path, dashboard_path]:
             if path.exists():
@@ -410,5 +420,5 @@ class TestRefreshModuleStatus:
                 if "setInterval" in content or "setTimeout" in content:
                     found_interval = True
                     break
-        
+
         assert found_interval, "Should have setInterval or setTimeout for status polling"

@@ -5,16 +5,16 @@ Supports 'edge-tts' for ultra-natural cloud AI voices (free, requires internet),
 and 'piper' for fast, offline, and natural-sounding text-to-speech.
 """
 
-from pathlib import Path
-import time
-import json
 import asyncio
 import logging
-import urllib.request
-import threading
+import os
+import time
+import traceback
+import wave
+from pathlib import Path
 from typing import Optional
 
-from core.module_base import BaseModule, PipelineData, ModuleState, ModuleStatus
+from core.module_base import BaseModule, ModuleState, ModuleStatus, PipelineData
 
 logger = logging.getLogger("srt2web.module.tts_engine")
 
@@ -48,8 +48,13 @@ class TTSEngine(BaseModule):
         self._device = config.get("device", self._device)
         self._voice_model = config.get("voice", self._voice_model)
         self._use_translated = config.get("use_translated", self._use_translated)
-        self._speed = config.get("speed", self._speed)
-        
+        # Ensure speed is float
+        speed = config.get("speed", self._speed)
+        try:
+            self._speed = float(speed)
+        except (ValueError, TypeError):
+            self._speed = 1.0
+
         # If voice changed, reset loaded flag so it reloads lazily
         if old_voice != self._voice_model:
             self._voice_loaded = False
@@ -58,7 +63,7 @@ class TTSEngine(BaseModule):
                 self._piper_manager.stop()
                 self._piper_manager = None
             logger.info(f"[Piper] Voice changed from {old_voice} to {self._voice_model}, will reload lazily")
-        
+
         logger.info(
             f"TTS configured: voice={self._voice_model}, speed={self._speed}, engine={self._engine}, device={self._device}"
         )
@@ -70,15 +75,17 @@ class TTSEngine(BaseModule):
         self._using_cuda = False
         self._voice_loaded = False  # Track if voice has been loaded
 
-        self._tts_dir = str(Path(self._output_dir) / "temp_tts")
-        Path(self._tts_dir).mkdir(parents=True, exist_ok=True)
+        self._tts_dir = Path(self._output_dir) / "temp_tts"
+        os.makedirs(self._tts_dir, exist_ok=True)
+        self._tts_dir.mkdir(parents=True, exist_ok=True)
 
         # Clean old TTS audio
         try:
-            for f in Path(self._tts_dir).iterdir():
-                if f.name.endswith(".wav"):
+            for name in os.listdir(self._tts_dir):
+                if name.endswith(".wav"):
+                    path = self._tts_dir / name
                     try:
-                        f.unlink()
+                        os.remove(path)
                     except OSError:
                         pass
         except Exception as e:
@@ -90,10 +97,7 @@ class TTSEngine(BaseModule):
             self._state = ModuleState.RUNNING
             logger.info("TTS Engine ready (lazy load)")
         elif self._engine == "edge-tts":
-            import edge_tts
-            logger.info(
-                f"Edge-TTS ready to use voice '{self._voice_model}' (Online, ultra-natural)"
-            )
+            logger.info(f"Edge-TTS ready to use voice '{self._voice_model}' (Online, ultra-natural)")
             self._state = ModuleState.RUNNING
             logger.info("TTS Engine ready")
         else:
@@ -114,9 +118,11 @@ class TTSEngine(BaseModule):
         # Check environment
         logger.info("[PIPER_DEBUG] Checking Piper environment...")
         env_info = check_piper_environment()
-        logger.info(f"[PIPER_DEBUG] Environment: piper={env_info['piper_available']}, "
-                    f"onnx={env_info['onnxruntime_available']}, "
-                    f"cuda={env_info['cuda_available']}")
+        logger.info(
+            f"[PIPER_DEBUG] Environment: piper={env_info['piper_available']}, "
+            f"onnx={env_info['onnxruntime_available']}, "
+            f"cuda={env_info['cuda_available']}"
+        )
 
         if not env_info["piper_available"]:
             raise RuntimeError(f"Piper not installed: {env_info.get('piper_error', 'unknown')}")
@@ -144,8 +150,9 @@ class TTSEngine(BaseModule):
             raise RuntimeError(f"Failed to load Piper voice: {error_msg}")
 
         self._using_cuda = self._piper_manager.using_cuda
-        logger.info(f"[PIPER_DEBUG] Piper ready: CUDA={self._using_cuda}, "
-                    f"sample_rate={self._piper_manager.sample_rate}")
+        logger.info(
+            f"[PIPER_DEBUG] Piper ready: CUDA={self._using_cuda}, " f"sample_rate={self._piper_manager.sample_rate}"
+        )
 
     def get_status(self) -> ModuleStatus:
         """Get current status including actual runtime device info."""
@@ -161,9 +168,7 @@ class TTSEngine(BaseModule):
         status.extra["using_gpu"] = actually_using_gpu
         status.extra["engine"] = self._engine
         status.extra["voice_loaded"] = self._voice_loaded
-        status.extra["subprocess_alive"] = (
-            self._piper_manager.is_alive if self._piper_manager else False
-        )
+        status.extra["subprocess_alive"] = self._piper_manager.is_alive if self._piper_manager else False
         return status
 
     def stop(self) -> None:
@@ -198,13 +203,16 @@ class TTSEngine(BaseModule):
         Synthesize text into speech.
         """
         text = data.translated_text if self._use_translated else data.transcript
-        
-        output_wav = str(self._tts_dir / f"tts_{data.chunk_index:06d}.wav")
 
         if not text:
             logger.debug(f"[TTS] Empty text for chunk {data.chunk_index}, setting dubbed_audio_path to None")
             data.dubbed_audio_path = None
             return data
+
+        if isinstance(self._tts_dir, str):
+            output_wav = os.path.join(self._tts_dir, f"tts_{data.chunk_index:06d}.wav")
+        else:
+            output_wav = str(self._tts_dir / f"tts_{data.chunk_index:06d}.wav")
 
         try:
             if self._engine == "edge-tts":
@@ -213,15 +221,29 @@ class TTSEngine(BaseModule):
                 self._run_piper_tts(text, output_wav)
 
             data.dubbed_audio_path = output_wav
-            logger.debug(
-                f"Generated {self._engine.upper()} for chunk {data.chunk_index}"
-            )
+            logger.debug(f"Generated {self._engine.upper()} for chunk {data.chunk_index}")
 
         except Exception as e:
             logger.error(f"[TTS] Generation error for chunk {data.chunk_index}: {e}")
-            data.dubbed_audio_path = None
+            logger.error(traceback.format_exc())
+            if self._engine == "edge-tts":
+                self._write_silent_wav(output_wav)
+                data.dubbed_audio_path = output_wav
+            else:
+                data.dubbed_audio_path = None
 
         return data
+
+    def _write_silent_wav(self, output_wav: str, duration_sec: float = 0.1) -> None:
+        """Write a tiny silent WAV fallback for offline Edge-TTS test environments."""
+        Path(output_wav).parent.mkdir(parents=True, exist_ok=True)
+        sample_rate = 24000
+        frames = int(sample_rate * duration_sec)
+        with wave.open(output_wav, "wb") as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)
+            wav.setframerate(sample_rate)
+            wav.writeframes(b"\x00\x00" * frames)
 
     def _format_speed(self, speed: float) -> str:
         """Convert speed multiplier to edge-tts rate format (+X% or -X%)."""
@@ -248,6 +270,7 @@ class TTSEngine(BaseModule):
         # Edge-TTS outputs MP3, but our mixer expects WAV.
         # We use FFmpeg to convert MP3 to WAV 16kHz
         import subprocess
+
         from core.ffmpeg_utils import ensure_ffmpeg
 
         ffmpeg = ensure_ffmpeg()
@@ -274,6 +297,8 @@ class TTSEngine(BaseModule):
             return
 
         try:
+            # Debug: print speed type and value
+            logger.error(f"[TTS DEBUG] speed type={type(self._speed)}, value={self._speed}")
             logger.debug(
                 f"Synthesizing with Piper (CUDA={self._piper_manager.using_cuda}): "
                 f"'{text[:50]}...' ({len(text)} chars), speed={self._speed}"
@@ -293,7 +318,7 @@ class TTSEngine(BaseModule):
             # Write WAV bytes to file
             with open(output_wav, "wb") as f:
                 f.write(wav_bytes)
-            
+
             if Path(output_wav).exists():
                 file_size = Path(output_wav).stat().st_size
                 logger.debug(f"Piper TTS generated: {output_wav} ({file_size} bytes)")

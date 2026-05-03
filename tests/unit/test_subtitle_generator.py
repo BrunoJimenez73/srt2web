@@ -5,16 +5,17 @@ Unit tests for SubtitleGenerator module.
 import os
 import sys
 import tempfile
-import pytest
-from unittest.mock import patch, MagicMock, mock_open
 from pathlib import Path
+from unittest.mock import mock_open, patch
+
+import pytest
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from core.module_base import ModuleState, PipelineData
 from modules.subtitle_generator import SubtitleGenerator
-from core.module_base import PipelineData, ModuleState
 
 
 @pytest.fixture
@@ -42,9 +43,7 @@ class TestSubtitleGenerator:
 
             assert gen.state == ModuleState.RUNNING
             mock_makedirs.assert_called()
-            mocked_file.assert_called_with(
-                os.path.join("/tmp", "subtitles", "subs.vtt"), "w", encoding="utf-8"
-            )
+            mocked_file.assert_called_with(os.path.join("/tmp", "subtitles", "subs.vtt"), "w", encoding="utf-8")
             mocked_file().write.assert_called_once_with("WEBVTT\n\n")
 
     def test_format_timestamp(self) -> None:
@@ -69,7 +68,7 @@ class TestSubtitleGenerator:
         assert result.subtitles_path is not None
         assert os.path.exists(gen._vtt_path)
 
-        with open(gen._vtt_path, "r", encoding="utf-8") as f:
+        with open(gen._vtt_path, encoding="utf-8") as f:
             content = f.read()
         assert "WEBVTT" in content
         assert "Hola Mundo" in content
@@ -96,7 +95,7 @@ class TestSubtitleGenerator:
 
         gen._do_process(data)
 
-        with open(gen._vtt_path, "r", encoding="utf-8") as f:
+        with open(gen._vtt_path, encoding="utf-8") as f:
             content = f.read()
         assert "Hello" in content
 
@@ -174,7 +173,7 @@ class TestSubtitleGeneratorTiming:
         gen._do_process(data2)
 
         # Read the VTT file
-        with open(gen._vtt_path, "r", encoding="utf-8") as f:
+        with open(gen._vtt_path, encoding="utf-8") as f:
             content = f.read()
 
         # SubtitleGenerator uses absolute cumulative timing (cumulative_duration + segment start)
@@ -192,10 +191,7 @@ class TestRollingWindow:
         gen = SubtitleGenerator()
         gen._max_vtt_entries = 5
 
-        gen._vtt_entries = [
-            {"start": float(i), "end": float(i + 1), "text": f"Entry {i}"}
-            for i in range(10)
-        ]
+        gen._vtt_entries = [{"start": float(i), "end": float(i + 1), "text": f"Entry {i}"} for i in range(10)]
 
         gen._trim_vtt_entries()
         assert len(gen._vtt_entries) == 5
@@ -230,7 +226,7 @@ class TestRollingWindow:
         gen._rewrite_vtt_file()
 
         assert os.path.exists(gen._vtt_path)
-        with open(gen._vtt_path, "r", encoding="utf-8") as f:
+        with open(gen._vtt_path, encoding="utf-8") as f:
             content = f.read()
 
         assert content.startswith("WEBVTT")

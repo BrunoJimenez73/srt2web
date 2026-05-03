@@ -20,7 +20,7 @@
         <option value="webrtc">WebRTC (Baja latencia)</option>
       </select>
     </div>
-    
+
     <!-- HLS Settings -->
     <div class="hls-settings">
       <div class="form-group">
@@ -35,7 +35,7 @@
       </div>
       <div class="form-group">
         <label class="form-label">CRF: <span id="hls-crf-value">18</span></label>
-        <input type="range" class="form-range" id="hls-crf" min="0" max="51" value="18" 
+        <input type="range" class="form-range" id="hls-crf" min="0" max="51" value="18"
                 oninput="document.getElementById('hls-crf-value').textContent = this.value; window.updateVideoMuxerConfig();" />
       </div>
       <div class="form-group">
@@ -61,7 +61,7 @@
         </select>
       </div>
     </div>
-    
+
      <!-- WebRTC Settings -->
      <div class="webrtc-settings">
        <div class="form-group">
@@ -133,7 +133,7 @@
         </select>
       </div>
     </div>
-    
+
     <!-- Metrics -->
     <div class="form-group" id="video-muxer-metrics">
       <label class="form-label">Métricas</label>
@@ -143,14 +143,20 @@
           <span class="metric-value" id="module-time-video_muxer">--</span>
         </div>
         <div class="metric-mini">
-          <span class="metric-label">Encoder</span>
-          <span class="metric-value" id="module-encoder-video_muxer">--</span>
+          <span class="metric-label">Memoria</span>
+          <span class="metric-value" id="module-memory-video_muxer">--</span>
         </div>
         <div class="metric-mini">
           <span class="metric-label">Chunks</span>
           <span class="metric-value" id="module-chunks-video_muxer">--</span>
         </div>
+        <div class="metric-mini">
+          <span class="metric-label">Encoder</span>
+          <span class="metric-value" id="module-encoder-video_muxer">--</span>
+        </div>
       </div>
+      <!-- GPU Badge -->
+      <span class="gpu-badge" id="gpu-badge-video_muxer">CPU</span>
     </div>
   </div>
 </div>
@@ -379,10 +385,10 @@
   // Expose engine change handler to window
   window.handleEngineChange = function(engine: string) {
     console.log('Engine changed to:', engine);
-    
+
     const hlsSettings = document.querySelector('.hls-settings') as HTMLElement;
     const webrtcSettings = document.querySelector('.webrtc-settings') as HTMLElement;
-    
+
     if (engine === 'hls') {
       if (hlsSettings) hlsSettings.style.display = 'flex';
       if (webrtcSettings) webrtcSettings.style.display = 'none';
@@ -403,7 +409,7 @@
     const audioCodec = document.getElementById('webrtc-audio-codec') as HTMLSelectElement;
     const audioBitrate = document.getElementById('webrtc-audio-bitrate') as HTMLSelectElement;
     const audioSampleRate = document.getElementById('webrtc-audio-sample-rate') as HTMLSelectElement;
-    
+
     // Send config update to backend
     const configUpdate = {
       encoder_mode: webrtcEncoder?.value,
@@ -415,7 +421,7 @@
       audio_bitrate: audioBitrate?.value,
       audio_sample_rate: audioSampleRate?.value ? parseInt(audioSampleRate.value) : undefined
     };
-    
+
     // Send to backend via API
     if (window.apiCall) {
       window.apiCall('PUT', '/config/video_muxer', configUpdate).catch(err => {
@@ -428,12 +434,12 @@
   window.updateVideoMuxerConfig = function() {
     const engineSelect = document.getElementById('video-muxer-engine') as HTMLSelectElement;
     const engine = engineSelect?.value;
-    
+
     // Prepare config update
     const configUpdate: Record<string, any> = {
       engine: engine
     };
-    
+
     // Add engine-specific settings
     if (engine === 'webrtc') {
       const videoCodec = document.getElementById('webrtc-video-codec') as HTMLSelectElement;
@@ -443,18 +449,18 @@
       const audioCodec = document.getElementById('webrtc-audio-codec') as HTMLSelectElement;
       const audioBitrate = document.getElementById('webrtc-audio-bitrate') as HTMLSelectElement;
       const audioSampleRate = document.getElementById('webrtc-audio-sample-rate') as HTMLSelectElement;
-      
+
       configUpdate['engine'] = 'webrtc';
       configUpdate['video_codec'] = videoCodec?.value;
       configUpdate['video_bitrate'] = videoBitrate?.value;
-      
+
       // Parse resolution
       if (videoResolution?.value) {
         const [width, height] = videoResolution.value.split('x');
         configUpdate['video_width'] = parseInt(width);
         configUpdate['video_height'] = parseInt(height);
       }
-      
+
       configUpdate['video_fps'] = parseInt(videoFPS?.value || '30');
       configUpdate['audio_codec'] = audioCodec?.value;
       configUpdate['audio_bitrate'] = audioBitrate?.value;
@@ -466,14 +472,14 @@
       const hlsAudioOffset = document.getElementById('hls-audio-offset') as HTMLInputElement;
       const hlsAudioCodec = document.getElementById('hls-audio-codec') as HTMLSelectElement;
       const hlsAudioBitrate = document.getElementById('hls-audio-bitrate') as HTMLSelectElement;
-      
+
       configUpdate['encoder_mode'] = hlsEncoder?.value;
       configUpdate['video_crf'] = parseInt(hlsCrf?.value || '18');
       configUpdate['audio_offset_ms'] = parseInt(hlsAudioOffset?.value || '0');
       configUpdate['audio_codec'] = hlsAudioCodec?.value;
       configUpdate['audio_bitrate'] = hlsAudioBitrate?.value;
     }
-    
+
     // Send to backend via API
     if (window.apiCall) {
       window.apiCall('PUT', '/config/video_muxer', configUpdate).catch(err => {

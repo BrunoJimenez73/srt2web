@@ -1,7 +1,7 @@
 # ⚙️ PLAN DE ACCIÓN EJECUTABLE
 
-**Versión:** 1.0  
-**Estado:** Listo para implementar  
+**Versión:** 1.0
+**Estado:** Listo para implementar
 **Estimado:** 6-12 semanas
 
 ---
@@ -11,6 +11,7 @@
 ### Paso 1.1: Configurar Control de Código
 
 - [ ] **Git configuration**
+
   ```bash
   git config core.editor vim
   git config user.name "Tu Nombre"
@@ -18,12 +19,14 @@
   ```
 
 - [ ] **Pre-commit hooks**
+
   ```bash
   pip install pre-commit --break-system-packages
   npm install husky lint-staged --save-dev
   ```
-  
+
   Crear `.pre-commit-config.yaml`:
+
   ```yaml
   repos:
     - repo: https://github.com/psf/black
@@ -41,6 +44,7 @@
   ```
 
 - [ ] **Configurar .gitignore**
+
   ```
   # Python
   __pycache__/
@@ -50,23 +54,23 @@
   venv/
   .env
   .env.local
-  
+
   # Node
   node_modules/
   dist/
   .next/
   out/
-  
+
   # IDEs
   .vscode/
   .idea/
   *.swp
   *.swo
-  
+
   # OS
   .DS_Store
   Thumbs.db
-  
+
   # Logs
   logs/
   *.log
@@ -75,6 +79,7 @@
 ### Paso 1.2: Configurar Backend (Python)
 
 - [ ] **Crear estructura de proyecto**
+
   ```bash
   mkdir -p src/{domain,application,infrastructure,presentation}
   mkdir -p tests/{unit,integration}
@@ -82,11 +87,12 @@
   ```
 
 - [ ] **Instalar dependencias base**
+
   ```bash
   # Usar Poetry
   pip install poetry --break-system-packages
   poetry init
-  
+
   # O con pip
   python -m venv venv
   source venv/bin/activate
@@ -94,12 +100,13 @@
   ```
 
 - [ ] **Configurar pyproject.toml**
+
   ```toml
   [tool.poetry]
   name = "miproyecto"
   version = "0.1.0"
   description = "Descripción del proyecto"
-  
+
   [tool.poetry.dependencies]
   python = "^3.11"
   fastapi = "^0.104.0"
@@ -108,7 +115,7 @@
   pydantic-settings = "^2.0.0"
   alembic = "^1.12.0"
   python-dotenv = "^1.0.0"
-  
+
   [tool.poetry.group.dev.dependencies]
   pytest = "^7.4.0"
   pytest-asyncio = "^0.21.0"
@@ -117,14 +124,14 @@
   flake8 = "^6.0.0"
   isort = "^5.12.0"
   mypy = "^1.4.0"
-  
+
   [tool.black]
   line-length = 88
   target-version = ['py311']
-  
+
   [tool.isort]
   profile = "black"
-  
+
   [tool.mypy]
   strict = true
   python_version = "3.11"
@@ -132,6 +139,7 @@
   ```
 
 - [ ] **Crear Makefile**
+
   ```makefile
   .PHONY: install test lint format type-check clean
 
@@ -161,6 +169,7 @@
 ### Paso 1.3: Configurar Frontend (Astro + TypeScript)
 
 - [ ] **Crear proyecto Astro**
+
   ```bash
   npm create astro@latest -- --template minimal
   cd proyecto-astro
@@ -168,18 +177,21 @@
   ```
 
 - [ ] **Instalar integraciones esenciales**
+
   ```bash
   npx astro add react tailwind
   npm install -D @astrojs/sitemap astro-compress
   ```
 
 - [ ] **Crear structure**
+
   ```bash
   mkdir -p src/{components,layouts,pages,lib,types,assets/{images,styles}}
   touch src/types/index.ts
   ```
 
 - [ ] **Configurar tsconfig.json**
+
   ```json
   {
     "extends": "astro/tsconfigs/strict",
@@ -197,6 +209,7 @@
   ```
 
 - [ ] **Configurar package.json scripts**
+
   ```json
   {
     "scripts": {
@@ -227,26 +240,31 @@
 ### Paso 1.4: Configurar Git Workflow
 
 - [ ] **Crear branches**
+
   ```bash
   git checkout -b develop
   git checkout -b feature/initial-setup
   ```
 
 - [ ] **Crear template para PRs**
-  
+
   `.github/pull_request_template.md`:
+
   ```markdown
   ## Description
+
   Describe your changes here
-  
+
   ## Type of Change
+
   - [ ] Bug fix
   - [ ] New feature
   - [ ] Breaking change
-  
+
   ## How Has This Been Tested?
-  
+
   ## Checklist
+
   - [ ] Tests pass locally
   - [ ] Code is formatted (black/prettier)
   - [ ] Type checks pass
@@ -260,8 +278,9 @@
 ### Paso 2.1: Backend Base Structure
 
 - [ ] **Crear modelos de dominio**
-  
+
   `src/domain/entities/user.py`:
+
   ```python
   from dataclasses import dataclass
   from datetime import datetime
@@ -285,8 +304,9 @@
   ```
 
 - [ ] **Crear excepciones personalizadas**
-  
+
   `src/domain/exceptions.py`:
+
   ```python
   class DomainException(Exception):
       """Excepción base del dominio."""
@@ -306,8 +326,9 @@
   ```
 
 - [ ] **Crear interfaces de repositorio**
-  
+
   `src/domain/repositories/user_repository.py`:
+
   ```python
   from abc import ABC, abstractmethod
   from typing import Optional, List
@@ -343,8 +364,9 @@
   ```
 
 - [ ] **Crear DTOs**
-  
+
   `src/application/dtos/user_dto.py`:
+
   ```python
   from pydantic import BaseModel, EmailStr, field_validator
 
@@ -373,8 +395,9 @@
   ```
 
 - [ ] **Crear service layer**
-  
+
   `src/application/services/user_service.py`:
+
   ```python
   from typing import Optional, List
   from src.domain.entities.user import User
@@ -415,8 +438,9 @@
 ### Paso 2.2: Database Setup
 
 - [ ] **Crear configuración de BD**
-  
+
   `src/infrastructure/database/config.py`:
+
   ```python
   from sqlalchemy import create_engine
   from sqlalchemy.orm import sessionmaker, declarative_base
@@ -442,8 +466,9 @@
   ```
 
 - [ ] **Crear modelos de BD**
-  
+
   `src/infrastructure/database/models/user_model.py`:
+
   ```python
   from sqlalchemy import Column, Integer, String, Boolean, DateTime
   from datetime import datetime
@@ -463,15 +488,17 @@
   ```
 
 - [ ] **Crear migraciones con Alembic**
+
   ```bash
   alembic init -t async alembic
   ```
-  
+
   `alembic/env.py` - Configurar para generar automáticamente
 
 - [ ] **Implementar repositorio**
-  
+
   `src/infrastructure/database/repositories/user_repository.py`:
+
   ```python
   from sqlalchemy.orm import Session
   from typing import Optional, List
@@ -511,8 +538,9 @@
 ### Paso 2.3: Frontend Components
 
 - [ ] **Crear Layout base**
-  
+
   `src/layouts/BaseLayout.astro`:
+
   ```astro
   ---
   interface Props {
@@ -546,8 +574,9 @@
   ```
 
 - [ ] **Crear componentes UI base**
-  
+
   `src/components/Button.astro`:
+
   ```astro
   ---
   interface Props {
@@ -585,8 +614,9 @@
   ```
 
 - [ ] **Crear tipos TypeScript**
-  
+
   `src/types/index.ts`:
+
   ```typescript
   export interface User {
     id: number;
@@ -597,7 +627,7 @@
   }
 
   export interface ApiResponse<T> {
-    status: 'success' | 'error';
+    status: "success" | "error";
     data?: T;
     error?: string;
   }
@@ -617,13 +647,15 @@
 ### Paso 3.1: Backend Testing
 
 - [ ] **Setup pytest**
+
   ```bash
   pip install pytest pytest-asyncio pytest-cov pytest-mock --break-system-packages
   ```
 
 - [ ] **Crear conftest.py**
-  
+
   `tests/conftest.py`:
+
   ```python
   import pytest
   from sqlalchemy import create_engine
@@ -655,8 +687,9 @@
   ```
 
 - [ ] **Crear tests unitarios**
-  
+
   `tests/unit/test_user_service.py`:
+
   ```python
   import pytest
   from src.application.services.user_service import UserApplicationService
@@ -667,15 +700,15 @@
   async def test_create_user(user_repository):
       """Test crear usuario."""
       service = UserApplicationService(user_repository)
-      
+
       user_dto = UserCreateDTO(
           email="test@example.com",
           name="Test User",
           password="password123"
       )
-      
+
       result = await service.create_user(user_dto)
-      
+
       assert result.email == "test@example.com"
       assert result.name == "Test User"
 
@@ -683,7 +716,7 @@
   async def test_user_not_found(user_repository):
       """Test usuario no encontrado."""
       service = UserApplicationService(user_repository)
-      
+
       with pytest.raises(UserNotFoundError):
           await service.get_user(999)
   ```
@@ -696,25 +729,28 @@
 ### Paso 3.2: Frontend Testing
 
 - [ ] **Setup Jest**
+
   ```bash
   npm install -D jest @testing-library/react @testing-library/astro ts-jest
   ```
 
 - [ ] **Crear jest.config.js**
+
   ```javascript
   export default {
-    preset: 'ts-jest',
-    testEnvironment: 'jsdom',
+    preset: "ts-jest",
+    testEnvironment: "jsdom",
     moduleNameMapper: {
-      '^@/(.*)$': '<rootDir>/src/$1',
+      "^@/(.*)$": "<rootDir>/src/$1",
     },
-    setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+    setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
   };
   ```
 
 - [ ] **Crear tests de componentes**
-  
+
   `src/components/__tests__/Button.test.tsx`:
+
   ```typescript
   import { render, screen } from '@testing-library/react';
   import Button from '../Button';
@@ -741,13 +777,15 @@
 ### Paso 4.1: Backend Security
 
 - [ ] **Implementar autenticación JWT**
+
   ```bash
   pip install python-jose bcrypt --break-system-packages
   ```
 
 - [ ] **Crear servicios de auth**
-  
+
   `src/infrastructure/security/auth.py`:
+
   ```python
   from datetime import datetime, timedelta
   from jose import JWTError, jwt
@@ -776,8 +814,9 @@
   ```
 
 - [ ] **Configurar CORS y headers**
-  
+
   `src/presentation/main.py`:
+
   ```python
   from fastapi import FastAPI
   from fastapi.middleware.cors import CORSMiddleware
@@ -796,27 +835,29 @@
 ### Paso 4.2: Frontend Security
 
 - [ ] **Implementar Content Security Policy**
-  
+
   `astro.config.mjs`:
+
   ```javascript
   export default defineConfig({
     vite: {
       ssr: {
-        noExternal: ['sharp']
-      }
+        noExternal: ["sharp"],
+      },
     },
     middleware: true,
   });
   ```
-  
+
   `src/middleware.ts`:
+
   ```typescript
-  import { defineMiddleware } from 'astro:middleware';
+  import { defineMiddleware } from "astro:middleware";
 
   export const onRequest = defineMiddleware(({ request, response }, next) => {
-    response.headers.set('X-Content-Type-Options', 'nosniff');
-    response.headers.set('X-Frame-Options', 'DENY');
-    response.headers.set('X-XSS-Protection', '1; mode=block');
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("X-Frame-Options", "DENY");
+    response.headers.set("X-XSS-Protection", "1; mode=block");
     return next();
   });
   ```
@@ -830,12 +871,14 @@
 ### Paso 4.3: Dependency Scanning
 
 - [ ] **Python vulnerabilities**
+
   ```bash
   pip install safety --break-system-packages
   safety check
   ```
 
 - [ ] **JavaScript vulnerabilities**
+
   ```bash
   npm audit
   npm install -D snyk
@@ -864,8 +907,9 @@
 ### Paso 5.1: CI/CD Setup
 
 - [ ] **Crear GitHub Actions workflow**
-  
+
   `.github/workflows/ci.yml`:
+
   ```yaml
   name: CI/CD Pipeline
   on: [push, pull_request]
@@ -877,7 +921,7 @@
         - uses: actions/checkout@v3
         - uses: actions/setup-python@v4
           with:
-            python-version: '3.11'
+            python-version: "3.11"
         - run: pip install poetry
         - run: poetry install
         - run: poetry run pytest tests/ --cov=src
@@ -890,7 +934,7 @@
         - uses: actions/checkout@v3
         - uses: actions/setup-node@v3
           with:
-            node-version: '18'
+            node-version: "18"
         - run: npm install
         - run: npm run type-check
         - run: npm run lint
@@ -910,8 +954,9 @@
 ### Paso 5.2: Logging y Monitoring
 
 - [ ] **Configurar logging estruturado**
-  
+
   `src/core/logging.py`:
+
   ```python
   import logging
   import json
@@ -931,8 +976,9 @@
   ```
 
 - [ ] **Implementar health checks**
-  
+
   `src/presentation/api/health.py`:
+
   ```python
   from fastapi import APIRouter, Depends
   from sqlalchemy.orm import Session
@@ -952,8 +998,9 @@
 ### Paso 5.3: Containerización
 
 - [ ] **Crear Dockerfile**
-  
+
   `Dockerfile`:
+
   ```dockerfile
   # Backend
   FROM python:3.11-slim
@@ -971,10 +1018,11 @@
   ```
 
 - [ ] **Crear docker-compose.yml**
-  
+
   `docker-compose.yml`:
+
   ```yaml
-  version: '3.8'
+  version: "3.8"
   services:
     backend:
       build: .
@@ -1026,4 +1074,3 @@
 ---
 
 **Siguiente paso:** Seleccionar FASE 1 y comenzar implementación
-

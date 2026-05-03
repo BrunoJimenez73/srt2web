@@ -2,12 +2,14 @@
 Unit tests for Pipeline.
 """
 
-import pytest
 import time
-from unittest.mock import Mock, MagicMock
-from core.unified_pipeline import UnifiedPipeline as Pipeline, PipelineState
-from core.module_base import BaseModule, PipelineData, ModuleState
+
+import pytest
+
 from core.exceptions import PipelineStateError
+from core.module_base import BaseModule, ModuleState, PipelineData
+from core.unified_pipeline import PipelineState
+from core.unified_pipeline import UnifiedPipeline as Pipeline
 
 
 class DummyModule(BaseModule):
@@ -107,7 +109,7 @@ class TestPipeline:
         pipeline.start()
 
         await pipeline.stop()
-        
+
         # Give it a moment to transition state
         for _ in range(10):
             if pipeline.state in (PipelineState.STOPPING, PipelineState.IDLE):
@@ -147,8 +149,6 @@ class TestPipeline:
         pipeline = Pipeline()
         module = DummyModule("test")
         pipeline.register_module(module)
-
-        import asyncio
 
         async def mock_initialize():
             pass
@@ -266,9 +266,9 @@ class TestPipeline:
         """Test getting pipeline status."""
         pipeline = Pipeline()
         pipeline.register_module(DummyModule("mod1"))
-        
+
         status = pipeline.get_status()
-        
+
         assert "state" in status
         assert "modules" in status
         assert status["state"] == "idle"
@@ -300,20 +300,21 @@ class TestPipeline:
     def test_chunk_index_tracking(self) -> None:
         """Test that chunk tracking works."""
         pipeline = Pipeline()
-        
+
         # Initialize the pipeline (handle Python 3.14+ asyncio)
         import asyncio
+
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
         loop.run_until_complete(pipeline.initialize())
-        
+
         # Check that the pipeline has chunk-related properties
         # _chunk_index is a property that returns metrics.chunks_processed
-        assert hasattr(Pipeline, '_chunk_index'), "UnifiedPipeline should have _chunk_index property"
-        
+        assert hasattr(Pipeline, "_chunk_index"), "UnifiedPipeline should have _chunk_index property"
+
         # chunks_processed should be accessible after initialization
         try:
             index = pipeline._chunk_index

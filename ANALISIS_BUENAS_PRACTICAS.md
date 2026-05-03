@@ -1,12 +1,13 @@
 # 🎯 ANÁLISIS DETALLADO DE BUENAS PRÁCTICAS
 
-**Proyecto:** [Tu Proyecto]  
-**Fecha:** 2026-05-01  
+**Proyecto:** [Tu Proyecto]
+**Fecha:** 2026-05-01
 **Versión:** 1.0
 
 ---
 
 ## 📋 TABLA DE CONTENIDOS
+
 1. [Python Best Practices](#python-best-practices)
 2. [TypeScript Best Practices](#typescript-best-practices)
 3. [Astro Best Practices](#astro-best-practices)
@@ -95,7 +96,7 @@ from enum import Enum
 @dataclass
 class User:
     """Representa un usuario en el sistema.
-    
+
     Attributes:
         id: Identificador único del usuario
         email: Email del usuario (debe ser único)
@@ -114,19 +115,19 @@ def calculate_total_price(
     discount_percentage: Optional[float] = None
 ) -> float:
     """Calcula el precio total de una lista de items.
-    
+
     Args:
         items: Lista de items con estructura {'price': float, 'quantity': int}
         tax_rate: Tasa de impuesto a aplicar (defecto 0)
         discount_percentage: Porcentaje de descuento a aplicar
-        
+
     Returns:
         float: Precio total después de impuestos y descuentos
-        
+
     Raises:
         ValueError: Si tax_rate o discount_percentage están fuera de rango
         TypeError: Si items no es una lista
-        
+
     Example:
         >>> items = [{'price': 100, 'quantity': 2}]
         >>> calculate_total_price(items, tax_rate=0.1)
@@ -134,37 +135,37 @@ def calculate_total_price(
     """
     if not isinstance(items, list):
         raise TypeError("items debe ser una lista")
-    
+
     if not 0 <= tax_rate <= 1:
         raise ValueError("tax_rate debe estar entre 0 y 1")
-    
+
     subtotal = sum(item['price'] * item.get('quantity', 1) for item in items)
-    
+
     if discount_percentage:
         if not 0 <= discount_percentage <= 100:
             raise ValueError("discount_percentage debe estar entre 0 y 100")
         subtotal *= (1 - discount_percentage / 100)
-    
+
     return subtotal * (1 + tax_rate)
 
 # ✓ Context managers
 class DatabaseConnection:
     """Gestor de conexión a base de datos."""
-    
+
     def __init__(self, connection_string: str) -> None:
         self.connection_string = connection_string
         self.conn = None
-    
+
     def __enter__(self) -> 'DatabaseConnection':
         """Abre la conexión."""
         self.conn = self._create_connection()
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         """Cierra la conexión siempre."""
         if self.conn:
             self.conn.close()
-    
+
     def _create_connection(self):
         """Crea la conexión a la BD."""
         # Implementación
@@ -198,7 +199,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     name: str
     age: int
-    
+
     @field_validator('name')
     @classmethod
     def name_not_empty(cls, v: str) -> str:
@@ -206,7 +207,7 @@ class UserCreate(BaseModel):
         if not v.strip():
             raise ValueError('El nombre no puede estar vacío')
         return v.strip()
-    
+
     @field_validator('age')
     @classmethod
     def age_valid(cls, v: int) -> int:
@@ -222,7 +223,7 @@ class DomainException(Exception):
 
 class UserNotFoundError(DomainException):
     """Se lanza cuando no se encuentra un usuario."""
-    
+
     def __init__(self, user_id: int) -> None:
         self.user_id = user_id
         super().__init__(f"Usuario con id {user_id} no encontrado")
@@ -303,7 +304,7 @@ Base = declarative_base()
 class UserModel(Base):
     """Modelo de usuario en BD."""
     __tablename__ = "users"
-    
+
     id: int = Column(Integer, primary_key=True)
     email: str = Column(String(255), unique=True, nullable=False, index=True)
     name: str = Column(String(255), nullable=False)
@@ -314,17 +315,17 @@ from abc import ABC, abstractmethod
 
 class UserRepository(ABC):
     """Interfaz para repositorio de usuarios."""
-    
+
     @abstractmethod
     async def get_by_id(self, user_id: int) -> Optional[User]:
         """Obtiene un usuario por ID."""
         pass
-    
+
     @abstractmethod
     async def get_by_email(self, email: str) -> Optional[User]:
         """Obtiene un usuario por email."""
         pass
-    
+
     @abstractmethod
     async def save(self, user: User) -> User:
         """Guarda un usuario."""
@@ -332,22 +333,22 @@ class UserRepository(ABC):
 
 class SQLAlchemyUserRepository(UserRepository):
     """Implementación de repositorio con SQLAlchemy."""
-    
+
     def __init__(self, session: Session) -> None:
         self.session = session
-    
+
     async def get_by_id(self, user_id: int) -> Optional[User]:
         result = self.session.query(UserModel).filter(
             UserModel.id == user_id
         ).first()
         return self._map_to_domain(result) if result else None
-    
+
     async def get_by_email(self, email: str) -> Optional[User]:
         result = self.session.query(UserModel).filter(
             UserModel.email == email
         ).first()
         return self._map_to_domain(result) if result else None
-    
+
     async def save(self, user: User) -> User:
         model = UserModel(
             email=user.email,
@@ -357,7 +358,7 @@ class SQLAlchemyUserRepository(UserRepository):
         self.session.commit()
         user.id = model.id
         return user
-    
+
     @staticmethod
     def _map_to_domain(model: UserModel) -> User:
         """Mapea modelo BD a entidad de dominio."""
@@ -371,7 +372,7 @@ class SQLAlchemyUserRepository(UserRepository):
 def get_users_with_posts(session: Session) -> List[User]:
     """Obtiene usuarios con sus posts (evita N+1)."""
     from sqlalchemy.orm import joinedload
-    
+
     return session.query(UserModel).options(
         joinedload(UserModel.posts)
     ).all()
@@ -449,7 +450,7 @@ async def get_current_user(
             raise HTTPException(status_code=401)
     except JWTError:
         raise HTTPException(status_code=401)
-    
+
     user = await user_repository.get_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401)
@@ -463,13 +464,13 @@ async def create_user(
     db: Session = Depends(get_db)
 ) -> UserResponse:
     """Crea un nuevo usuario.
-    
+
     - **email**: Email único del usuario
     - **name**: Nombre completo
-    
+
     Returns:
         UserResponse: Usuario creado
-        
+
     Raises:
         HTTPException: Si el email ya existe (400)
         HTTPException: Si no está autenticado (401)
@@ -477,7 +478,7 @@ async def create_user(
     # Verificar que el usuario tenga permisos
     if not current_user.is_admin:
         raise HTTPException(status_code=403)
-    
+
     # Verificar que el email no exista
     existing = await user_repository.get_by_email(user_create.email)
     if existing:
@@ -485,14 +486,14 @@ async def create_user(
             status_code=400,
             detail="El email ya está registrado"
         )
-    
+
     # Crear usuario
     new_user = User(
         email=user_create.email,
         name=user_create.name
     )
     saved_user = await user_repository.save(new_user)
-    
+
     return UserResponse.model_validate(saved_user)
 
 # ✓ Versionado de API
@@ -563,14 +564,14 @@ def test_user_not_found_error():
 async def test_create_user(db_session):
     """Test de integración para crear usuario."""
     repository = SQLAlchemyUserRepository(db_session)
-    
+
     user = User(
         email="new@example.com",
         name="New User"
     )
-    
+
     saved_user = await repository.save(user)
-    
+
     assert saved_user.id is not None
     assert saved_user.email == "new@example.com"
 
@@ -579,9 +580,9 @@ async def test_create_user(db_session):
 def test_external_api_call(mock_get):
     """Test con mock de llamada externa."""
     mock_get.return_value.json.return_value = {'id': 1, 'name': 'User'}
-    
+
     result = fetch_external_user(1)
-    
+
     assert result['id'] == 1
     mock_get.assert_called_once()
 ```
@@ -616,7 +617,7 @@ def test_external_api_call(mock_get):
     "allowUnusedLabels": false,
     "allowUnreachableCode": false,
     "exactOptionalPropertyTypes": true,
-    
+
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
@@ -624,7 +625,7 @@ def test_external_api_call(mock_get):
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    
+
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
@@ -722,14 +723,14 @@ function validateEmail(email: string): email is string {
 // ✓ Type narrowing
 function handleApiResponse(response: ApiResponse<User>): void {
   switch (response.status) {
-    case 'success':
-      console.log('Usuario:', response.data);
+    case "success":
+      console.log("Usuario:", response.data);
       break;
-    case 'error':
+    case "error":
       console.error(`Error ${response.code}: ${response.error}`);
       break;
-    case 'loading':
-      console.log('Cargando...');
+    case "loading":
+      console.log("Cargando...");
       break;
   }
 }
@@ -741,7 +742,7 @@ async function fetchUser(userId: string): Promise<Result<User>> {
     if (!response.ok) {
       return {
         ok: false,
-        error: new Error(`HTTP ${response.status}`)
+        error: new Error(`HTTP ${response.status}`),
       };
     }
     const data = await response.json();
@@ -749,13 +750,13 @@ async function fetchUser(userId: string): Promise<Result<User>> {
   } catch (error) {
     return {
       ok: false,
-      error: error instanceof Error ? error : new Error('Unknown error')
+      error: error instanceof Error ? error : new Error("Unknown error"),
     };
   }
 }
 
 // ✓ Nullish coalescing y optional chaining
-const userName = user?.profile?.name ?? 'Anonymous';
+const userName = user?.profile?.name ?? "Anonymous";
 const age = user?.age ?? 0;
 
 // ✓ Type-safe event handlers
@@ -784,13 +785,13 @@ abstract class BaseRepository<T> {
 
   async create(data: Partial<T>): Promise<T> {
     // implementación
-    throw new Error('Not implemented');
+    throw new Error("Not implemented");
   }
 }
 
 class UserRepository extends BaseRepository<User> {
-  protected tableName = 'users';
-  
+  protected tableName = "users";
+
   override async findById(id: string): Promise<User | null> {
     // implementación específica
     return null;
@@ -920,18 +921,18 @@ describe('Button Component', () => {
 
 ```javascript
 // astro.config.mjs
-import { defineConfig } from 'astro/config';
-import react from '@astrojs/react';
-import tailwind from '@astrojs/tailwind';
-import sitemap from '@astrojs/sitemap';
-import compress from 'astro-compress';
+import { defineConfig } from "astro/config";
+import react from "@astrojs/react";
+import tailwind from "@astrojs/tailwind";
+import sitemap from "@astrojs/sitemap";
+import compress from "astro-compress";
 
 export default defineConfig({
-  site: 'https://example.com',
-  
+  site: "https://example.com",
+
   // ✓ Output mode
-  output: 'hybrid', // SSR + SSG
-  
+  output: "hybrid", // SSR + SSG
+
   // ✓ Integrations
   integrations: [
     react(),
@@ -945,24 +946,26 @@ export default defineConfig({
   // ✓ Vite config
   vite: {
     ssr: {
-      external: ['sharp']
-    }
+      external: ["sharp"],
+    },
   },
 
   // ✓ Performance
   image: {
-    service: { entrypoint: 'astro/assets/services/sharp' },
-    remotePatterns: [{
-      protocol: 'https',
-      hostname: '**.example.com'
-    }]
+    service: { entrypoint: "astro/assets/services/sharp" },
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.example.com",
+      },
+    ],
   },
 
   // ✓ Markdown
   markdown: {
-    syntaxHighlight: 'shiki',
+    syntaxHighlight: "shiki",
     shikiConfig: {
-      theme: 'github-dark',
+      theme: "github-dark",
       wrap: true,
     },
     rehypePlugins: [],
@@ -1041,7 +1044,7 @@ const headings = [
   <h1>{title}</h1>
   {description && <p>{description}</p>}
   {featured && <span class="badge">Featured</span>}
-  
+
   <slot />
 </div>
 
@@ -1051,7 +1054,7 @@ const headings = [
     border: 1px solid #e0e0e0;
     border-radius: 8px;
   }
-  
+
   .badge {
     background-color: #ffd700;
     padding: 0.25rem 0.5rem;
@@ -1070,13 +1073,13 @@ import SearchForm from '../components/SearchForm.tsx';
 
 <Layout>
   <h1>Mi Sitio</h1>
-  
+
   <!-- Static HTML -->
   <p>Este contenido es estático y se sirve sin JavaScript</p>
-  
+
   <!-- Interactive Island (React) -->
   <Counter client:load />
-  
+
   <!-- Island que carga en idle -->
   <SearchForm client:idle />
 </Layout>
@@ -1088,7 +1091,7 @@ import { useState } from 'react';
 
 export default function Counter() {
   const [count, setCount] = useState(0);
-  
+
   return (
     <div>
       <p>Contador: {count}</p>
@@ -1208,12 +1211,13 @@ class DIContainer {
 // Uso:
 const container = new DIContainer();
 
-container.register('userRepository', () => new SqlUserRepository(db));
-container.register('userService', () => 
-  new UserApplicationService(container.resolve('userRepository'))
+container.register("userRepository", () => new SqlUserRepository(db));
+container.register(
+  "userService",
+  () => new UserApplicationService(container.resolve("userRepository")),
 );
 
-const userService = container.resolve('userService');
+const userService = container.resolve("userService");
 ```
 
 ---
@@ -1268,20 +1272,20 @@ module.exports = {
 
 ```typescript
 // Button component variations
-type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
-type ButtonSize = 'sm' | 'md' | 'lg';
+type ButtonVariant = "primary" | "secondary" | "outline" | "ghost";
+type ButtonSize = "sm" | "md" | "lg";
 
 const buttonVariants = {
-  primary: 'bg-blue-500 text-white hover:bg-blue-600',
-  secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300',
-  outline: 'border-2 border-blue-500 text-blue-500 hover:bg-blue-50',
-  ghost: 'text-blue-500 hover:bg-blue-50',
+  primary: "bg-blue-500 text-white hover:bg-blue-600",
+  secondary: "bg-gray-200 text-gray-900 hover:bg-gray-300",
+  outline: "border-2 border-blue-500 text-blue-500 hover:bg-blue-50",
+  ghost: "text-blue-500 hover:bg-blue-50",
 };
 
 const buttonSizes = {
-  sm: 'px-3 py-1 text-sm',
-  md: 'px-4 py-2 text-base',
-  lg: 'px-6 py-3 text-lg',
+  sm: "px-3 py-1 text-sm",
+  md: "px-4 py-2 text-base",
+  lg: "px-6 py-3 text-lg",
 };
 ```
 
@@ -1293,9 +1297,9 @@ const buttonSizes = {
 
 ```javascript
 // ✓ Code splitting
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense } from "react";
 
-const HeavyComponent = lazy(() => import('./HeavyComponent'));
+const HeavyComponent = lazy(() => import("./HeavyComponent"));
 
 function App() {
   return (
@@ -1306,16 +1310,16 @@ function App() {
 }
 
 // ✓ Image optimization
-<img 
+<img
   srcSet="image-200w.jpg 200w, image-400w.jpg 400w"
   sizes="(max-width: 600px) 200px, 400px"
   src="image-400w.jpg"
   alt="Description"
   loading="lazy"
-/>
+/>;
 
 // ✓ Web Vitals monitoring
-import { getCLS, getFID, getFCP, getLCP, getTTFB } from 'web-vitals';
+import { getCLS, getFID, getFCP, getLCP, getTTFB } from "web-vitals";
 
 function onPerfEntry(metric) {
   if (metric.value < thresholds[metric.name]) {
@@ -1371,16 +1375,16 @@ async def process_multiple_items(items: List[int]):
 
 ## 📊 RESUMEN DE MÉTRICAS ESPERADAS
 
-| Métrica | Target | Tool |
-|---------|--------|------|
-| TypeScript strict | 100% | `tsconfig.json` |
-| Test coverage | >= 80% | Jest/pytest |
-| Lighthouse | >= 90 | Lighthouse CLI |
-| LCP (Core Web Vitals) | < 2.5s | PageSpeed Insights |
-| Type errors | 0 | mypy/tsc |
-| Linting errors | 0 | ESLint/Flake8 |
-| Security vulnerabilities | 0 | npm audit |
-| Code duplication | < 3% | SonarQube |
+| Métrica                  | Target | Tool               |
+| ------------------------ | ------ | ------------------ |
+| TypeScript strict        | 100%   | `tsconfig.json`    |
+| Test coverage            | >= 80% | Jest/pytest        |
+| Lighthouse               | >= 90  | Lighthouse CLI     |
+| LCP (Core Web Vitals)    | < 2.5s | PageSpeed Insights |
+| Type errors              | 0      | mypy/tsc           |
+| Linting errors           | 0      | ESLint/Flake8      |
+| Security vulnerabilities | 0      | npm audit          |
+| Code duplication         | < 3%   | SonarQube          |
 
 ---
 

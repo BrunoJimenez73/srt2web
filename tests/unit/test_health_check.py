@@ -2,9 +2,6 @@
 Tests for Pipeline Status API endpoint (replaces health check).
 """
 
-import pytest
-from unittest.mock import MagicMock, patch
-
 
 class TestStatusEndpoint:
     """Test suite for /api/status endpoint."""

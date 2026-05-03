@@ -5,18 +5,19 @@ All processing modules must inherit from BaseModule and implement
 the required methods. This ensures modules are interchangeable.
 """
 
-from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Optional, Any, Callable
-from dataclasses import dataclass, field
-import logging
-import time
-import threading
 import gc
+import logging
+import threading
+import time
+from abc import ABC, abstractmethod
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
 
 import numpy as np
 
-from core.schemas import PipelineData, ModuleStatus, ModuleState, PipelineState
+from core.schemas import ModuleState, ModuleStatus, PipelineData
 
 
 class CircuitState(str, Enum):
@@ -112,7 +113,9 @@ class CircuitBreaker:
 class RetryStrategy:
     """Retry strategy with exponential backoff."""
 
-    def __init__(self, max_retries: int = 3, base_delay: float = 0.5, max_delay: float = 10.0, exponential_base: float = 2.0) -> None:
+    def __init__(
+        self, max_retries: int = 3, base_delay: float = 0.5, max_delay: float = 10.0, exponential_base: float = 2.0
+    ) -> None:
         self.max_retries = max_retries
         self.base_delay = base_delay
         self.max_delay = max_delay
@@ -172,7 +175,9 @@ class MemoryManager:
     when thresholds are exceeded.
     """
 
-    def __init__(self, max_memory_mb: float = 3072.0, gc_threshold_mb: float = 2048.0, check_interval: int = 10) -> None:
+    def __init__(
+        self, max_memory_mb: float = 3072.0, gc_threshold_mb: float = 2048.0, check_interval: int = 10
+    ) -> None:
         self.max_memory_mb = max_memory_mb
         self.gc_threshold_mb = gc_threshold_mb
         self.check_interval = check_interval
@@ -209,17 +214,13 @@ class MemoryManager:
                 time_since_gc = time.time() - self._last_gc_time
 
                 if time_since_gc > self._min_gc_interval:
-                    self.logger.info(
-                        f"Memory high ({memory_mb:.0f}MB). Running garbage collection..."
-                    )
+                    self.logger.info(f"Memory high ({memory_mb:.0f}MB). Running garbage collection...")
                     gc.collect()
                     self._last_gc_time = time.time()
                     info["gc_triggered"] = True
 
                     new_memory = process.memory_info().rss / 1024 / 1024
-                    self.logger.info(
-                        f"GC complete. Memory: {new_memory:.0f}MB (freed {memory_mb - new_memory:.0f}MB)"
-                    )
+                    self.logger.info(f"GC complete. Memory: {new_memory:.0f}MB (freed {memory_mb - new_memory:.0f}MB)")
                     info["memory_after_gc"] = round(new_memory, 1)
 
             if memory_mb > self.max_memory_mb:
@@ -237,8 +238,6 @@ class MemoryManager:
     def should_check(self) -> bool:
         """Check if it's time to run memory check."""
         return self._chunk_counter % self.check_interval == 0
-
-
 
     name: str
     state: ModuleState
@@ -277,9 +276,7 @@ class PipelineData:
     chunk_index: int = 0
     timestamp: float = 0.0
     duration: float = 0.0
-    cumulative_duration: float = (
-        0.0  # Accumulated duration from previous chunks (for sync)
-    )
+    cumulative_duration: float = 0.0  # Accumulated duration from previous chunks (for sync)
     video_chunk_path: str | None = None
     audio_chunk_path: str | None = None
     audio_samples: np.ndarray | None = None
@@ -356,7 +353,13 @@ class BaseModule(ABC):
 
     _memory_manager = MemoryManager()
 
-    def __init__(self, name: str, config: dict | None = None, circuit_breaker: CircuitBreaker | None = None, retry_strategy: RetryStrategy | None = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        config: dict | None = None,
+        circuit_breaker: CircuitBreaker | None = None,
+        retry_strategy: RetryStrategy | None = None,
+    ) -> None:
         self.name = name
         self.enabled = True
         self._state = ModuleState.IDLE
@@ -400,18 +403,12 @@ class BaseModule(ABC):
             self._circuit_breaker.failure_threshold = cb_config.get(
                 "failure_threshold", self._circuit_breaker.failure_threshold
             )
-            self._circuit_breaker.timeout = cb_config.get(
-                "timeout", self._circuit_breaker.timeout
-            )
+            self._circuit_breaker.timeout = cb_config.get("timeout", self._circuit_breaker.timeout)
 
         retry_config = config.get("retry", {})
         if retry_config:
-            self._retry_strategy.max_retries = retry_config.get(
-                "max_retries", self._retry_strategy.max_retries
-            )
-            self._retry_strategy.base_delay = retry_config.get(
-                "base_delay", self._retry_strategy.base_delay
-            )
+            self._retry_strategy.max_retries = retry_config.get("max_retries", self._retry_strategy.max_retries)
+            self._retry_strategy.base_delay = retry_config.get("base_delay", self._retry_strategy.base_delay)
 
     @abstractmethod
     def start(self) -> None:
@@ -444,9 +441,7 @@ class BaseModule(ABC):
         Override in subclasses to provide degraded but functional behavior.
         Default: return data unchanged (skip this module's processing).
         """
-        self.logger.warning(
-            f"Module {self.name} in degraded mode, skipping processing for chunk {data.chunk_index}"
-        )
+        self.logger.warning(f"Module {self.name} in degraded mode, skipping processing for chunk {data.chunk_index}")
         self._state = ModuleState.DEGRADED
         return data
 
@@ -490,9 +485,7 @@ class BaseModule(ABC):
                 if self._state == ModuleState.DEGRADED:
                     self._state = ModuleState.RUNNING
 
-                self.logger.debug(
-                    f"Processed chunk {data.chunk_index} in {elapsed:.1f}ms"
-                )
+                self.logger.debug(f"Processed chunk {data.chunk_index} in {elapsed:.1f}ms")
 
                 self._check_memory()
 
@@ -502,6 +495,12 @@ class BaseModule(ABC):
                 last_error = e
                 self._circuit_breaker.record_failure()
 
+                # Print full traceback for debugging
+                import traceback
+
+                tb_lines = traceback.format_exception(type(e), e, e.__traceback__)
+                self.logger.error(f"Full traceback for {self.name}: {''.join(tb_lines)}")
+
                 if attempt < self._retry_strategy.max_retries:
                     delay = self._retry_strategy.get_delay(attempt)
                     self.logger.warning(
@@ -510,10 +509,7 @@ class BaseModule(ABC):
                     )
                     time.sleep(delay)
                 else:
-                    self.logger.error(
-                        f"All retries exhausted for {self.name} "
-                        f"(chunk {data.chunk_index}): {e}"
-                    )
+                    self.logger.error(f"All retries exhausted for {self.name} " f"(chunk {data.chunk_index}): {e}")
 
         elapsed = (time.perf_counter() - start_time) * 1000
         self._last_process_time_ms = elapsed
@@ -527,9 +523,7 @@ class BaseModule(ABC):
         if self._memory_manager.should_check():
             mem_info = self._memory_manager.check()
             if mem_info.get("gc_triggered"):
-                self.logger.info(
-                    f"Memory after GC: {mem_info.get('memory_after_gc', 'N/A')}MB"
-                )
+                self.logger.info(f"Memory after GC: {mem_info.get('memory_after_gc', 'N/A')}MB")
 
     def get_status(self) -> ModuleStatus:
         """Get current status of this module (sin llamar a psutil por módulo)."""

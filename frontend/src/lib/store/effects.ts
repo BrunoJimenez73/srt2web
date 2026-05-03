@@ -123,6 +123,12 @@ function stopStatusEffects(): void {
 
 let _efMetrics: (() => void) | null = null;
 
+function getMetricClass(value: number): string {
+  if (value < 50) return 'low';
+  if (value < 80) return 'medium';
+  return 'high';
+}
+
 function startMetricsEffects(): void {
   _efMetrics = effect(() => {
     const metrics = systemMetrics.value;
@@ -131,39 +137,36 @@ function startMetricsEffects(): void {
     // CPU
     const cpuBar = el<HTMLDivElement>('metric-cpu-bar');
     const cpuValue = el<HTMLSpanElement>('metric-cpu-value');
-    const cpuItem = el<HTMLDivElement>('metric-cpu');
-    if (cpuBar) cpuBar.style.width = `${metrics.cpu}%`;
-    if (cpuValue) cpuValue.textContent = `${metrics.cpu.toFixed(0)}%`;
-    if (cpuItem) {
-      cpuItem.classList.toggle('warning', metrics.cpu > 70);
-      cpuItem.classList.toggle('critical', metrics.cpu > 90);
+    if (cpuBar) {
+      cpuBar.style.width = `${metrics.cpu}%`;
+      cpuBar.classList.remove('low', 'medium', 'high');
+      cpuBar.classList.add(getMetricClass(metrics.cpu));
     }
+    if (cpuValue) cpuValue.textContent = `${metrics.cpu.toFixed(0)}%`;
 
     // Memory
     const memBar = el<HTMLDivElement>('metric-memory-bar');
     const memValue = el<HTMLSpanElement>('metric-memory-value');
     const memPercent = el<HTMLSpanElement>('metric-memory-percent');
-    const memItem = el<HTMLDivElement>('metric-memory');
-    if (memBar) memBar.style.width = `${metrics.memoryPercent}%`;
+    if (memBar) {
+      memBar.style.width = `${metrics.memoryPercent}%`;
+      memBar.classList.remove('low', 'medium', 'high');
+      memBar.classList.add(getMetricClass(metrics.memoryPercent));
+    }
     if (memValue) memValue.textContent = `${metrics.memoryMb.toFixed(0)} MB`;
     if (memPercent) memPercent.textContent = `${metrics.memoryPercent.toFixed(0)}%`;
-    if (memItem) {
-      memItem.classList.toggle('warning', metrics.memoryPercent > 70);
-      memItem.classList.toggle('critical', metrics.memoryPercent > 90);
-    }
 
     // GPU
     const gpuBar = el<HTMLDivElement>('metric-gpu-bar');
     const gpuValue = el<HTMLSpanElement>('metric-gpu-value');
     const gpuMem = el<HTMLSpanElement>('metric-gpu-memory');
-    const gpuItem = el<HTMLDivElement>('metric-gpu');
-    if (gpuBar) gpuBar.style.width = `${metrics.gpuUtil}%`;
+    if (gpuBar) {
+      gpuBar.style.width = `${metrics.gpuUtil}%`;
+      gpuBar.classList.remove('low', 'medium', 'high');
+      gpuBar.classList.add(getMetricClass(metrics.gpuUtil));
+    }
     if (gpuValue) gpuValue.textContent = `${metrics.gpuUtil.toFixed(0)}%`;
     if (gpuMem) gpuMem.textContent = metrics.gpuMemMb > 0 ? `${metrics.gpuMemMb.toFixed(0)} MB` : 'N/A';
-    if (gpuItem) {
-      gpuItem.classList.toggle('warning', metrics.gpuUtil > 80);
-      gpuItem.classList.toggle('critical', metrics.gpuUtil > 95);
-    }
 
     // Throughput
     const tpBar = el<HTMLDivElement>('metric-throughput-bar');
@@ -205,11 +208,12 @@ function startModuleMetricsEffects(): void {
       'module-encoder-audio_mixer', 'module-encoder-video_muxer',
     ];
 
-    // Per-module time + chunks + GPU badge
+    // Per-module time + chunks + memory + encoder + GPU badge
     for (const name of ['transcriber', 'translator', 'tts_engine', 'subtitle_generator', 'audio_mixer']) {
       const mod = moduleMap[name];
       const timeEl = el<HTMLSpanElement>(`module-time-${name}`);
       const chunksEl = el<HTMLSpanElement>(`module-chunks-${name}`);
+      const memoryEl = el<HTMLSpanElement>(`module-memory-${name}`);
       const encoderEl = el<HTMLSpanElement>(`module-encoder-${name}`);
 
       if (timeEl) {
@@ -226,6 +230,10 @@ function startModuleMetricsEffects(): void {
 
       if (chunksEl) {
         chunksEl.textContent = String(mod?.processed_chunks ?? 0);
+      }
+
+      if (memoryEl) {
+        memoryEl.textContent = mod?.memory_mb !== undefined ? `${Math.round(mod.memory_mb)} MB` : '--';
       }
 
       if (encoderEl && mod?.extra) {
@@ -248,8 +256,10 @@ function startModuleMetricsEffects(): void {
 
     // Video muxer special (it's an OutputSink, not in modules list)
     const vmTimeEl = el<HTMLSpanElement>('module-time-video_muxer');
+    const vmMemoryEl = el<HTMLSpanElement>('module-memory-video_muxer');
     const vmChunksEl = el<HTMLSpanElement>('module-chunks-video_muxer');
     const vmEncoderEl = el<HTMLSpanElement>('module-encoder-video_muxer');
+    const vmBadge = el<HTMLSpanElement>('gpu-badge-video_muxer');
     const vmStatus = moduleMap['video_muxer'] ?? moduleMap['output'];
 
     if (vmTimeEl) {
@@ -262,6 +272,9 @@ function startModuleMetricsEffects(): void {
         vmTimeEl.textContent = '--';
       }
     }
+    if (vmMemoryEl) {
+      vmMemoryEl.textContent = vmStatus?.memory_mb !== undefined ? `${Math.round(vmStatus.memory_mb)} MB` : '--';
+    }
     if (vmChunksEl) {
       vmChunksEl.textContent = String(vmStatus?.processed_chunks ?? status?.chunks_processed ?? 0);
     }
@@ -269,6 +282,16 @@ function startModuleMetricsEffects(): void {
       const label = vmStatus?.extra?.encoder_label
         ?? (vmStatus?.extra?.using_gpu ? 'GPU' : 'CPU');
       vmEncoderEl.textContent = label;
+    }
+    // GPU badge for video_muxer
+    if (vmBadge && vmStatus?.extra) {
+      const isActive = running && vmStatus.enabled && (vmStatus.processed_chunks ?? 0) > 0;
+      if (vmStatus.extra.using_gpu) {
+        vmBadge.style.display = 'inline';
+        vmBadge.classList.toggle('active', isActive);
+      } else {
+        vmBadge.style.display = 'none';
+      }
     }
 
     // Input module metrics (srt_input, rtmp_input, etc.)

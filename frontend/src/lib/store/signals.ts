@@ -98,7 +98,7 @@ export const connectionUrls = computed(() => {
   const inputTypeValue = pipelineConfig.value?.input?.type ?? 'srt';
   // Update reactive signal
   inputType.value = inputTypeValue as 'srt' | 'rtmp' | 'file';
-  
+
   const srtPort = cfg?.input?.srt?.port ?? 9000;
   const rtmpPort = cfg?.input?.rtmp?.port ?? 1935;
   const serverPort = cfg?.server?.port ?? 9999;

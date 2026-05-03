@@ -9,9 +9,10 @@ Verifica que:
 6. La arquitectura es correcta (señales → efectos → DOM)
 """
 
-import pytest
-from pathlib import Path
 import re
+from pathlib import Path
+
+import pytest
 
 
 class TestCompleteRefactor:
@@ -50,18 +51,12 @@ class TestCompleteRefactor:
         assert "pipelineConfig = signal" in content, "Missing pipelineConfig signal"
         assert "wsConnected = signal" in content, "Missing wsConnected signal"
         assert "connectionMode = signal" in content, "Missing connectionMode signal"
-        assert (
-            "isOperationPending = signal" in content
-        ), "Missing isOperationPending signal"
-        assert (
-            "throughputHistory = signal" in content
-        ), "Missing throughputHistory signal"
+        assert "isOperationPending = signal" in content, "Missing isOperationPending signal"
+        assert "throughputHistory = signal" in content, "Missing throughputHistory signal"
 
         # Valores computados
         assert "pipelineState = computed" in content, "Missing pipelineState computed"
-        assert (
-            "isPipelineRunning = computed" in content
-        ), "Missing isPipelineRunning computed"
+        assert "isPipelineRunning = computed" in content, "Missing isPipelineRunning computed"
         assert "connectionUrls = computed" in content, "Missing connectionUrls computed"
         assert "throughputAvg = computed" in content, "Missing throughputAvg computed"
 
@@ -77,9 +72,7 @@ class TestCompleteRefactor:
 
         # Verificar que los efectos usan .value (suscripción a señales)
         value_refs = re.findall(r"\w+\.value", content)
-        assert (
-            len(value_refs) > 10
-        ), f"Too few signal .value references: {len(value_refs)}"
+        assert len(value_refs) > 10, f"Too few signal .value references: {len(value_refs)}"
 
         # Verificar efectos específicos
         assert "pipelineStatus.value" in content, "Effects should use pipelineStatus"
@@ -93,21 +86,11 @@ class TestCompleteRefactor:
         content = effects_file.read_text(encoding="utf-8")
 
         # Verificar que hay efectos para diferentes partes del DOM
-        assert (
-            "status-dot" in content or "status-text" in content
-        ), "Should update status indicators"
-        assert (
-            "metric-cpu" in content or "metric-memory" in content
-        ), "Should update metrics"
-        assert (
-            "url-emision" in content
-            or "url-stream" in content
-            or "url-player" in content
-        ), "Should update URLs"
+        assert "status-dot" in content or "status-text" in content, "Should update status indicators"
+        assert "metric-cpu" in content or "metric-memory" in content, "Should update metrics"
+        assert "url-emision" in content or "url-stream" in content or "url-player" in content, "Should update URLs"
         assert "ws-status" in content, "Should update WS status"
-        assert (
-            "module-time-" in content or "module-chunks-" in content
-        ), "Should update module metrics"
+        assert "module-time-" in content or "module-chunks-" in content, "Should update module metrics"
 
     def test_5_store_index_exports_all(self, src_lib) -> None:
         """Verifica que store/index.ts exporta todo correctamente."""
@@ -136,7 +119,7 @@ class TestCompleteRefactor:
             src_lib / "store" / "signals.ts",
             src_lib / "modules" / "pipeline-control.ts",
         ]
-        
+
         content = ""
         for f in files_to_check:
             if f.exists():
@@ -145,7 +128,7 @@ class TestCompleteRefactor:
         # Verificar imports de señales (now in signals.ts)
         assert "pipelineStatus" in content or "pipelineStatus" in content.lower()
         assert "pipelineConfig" in content or "pipelineConfig" in content.lower()
-        
+
         # Verify signals are being used
         assert ".value" in content, "Should use signal .value"
 
@@ -157,7 +140,7 @@ class TestCompleteRefactor:
             src_lib / "modules" / "pipeline-control.ts",
             src_lib / "modules" / "config-collector.ts",
         ]
-        
+
         content = ""
         for f in files_to_check:
             if f.exists():
@@ -190,9 +173,7 @@ class TestCompleteRefactor:
         # Contar referencias a connectionMode (pueden haber 2: una de signals, otra de legacy)
         lines = content.split("\n")
         connection_mode_lines = [line for line in lines if "connectionMode" in line]
-        assert (
-            len(connection_mode_lines) <= 2
-        ), f"Too many connectionMode references: {len(connection_mode_lines)}"
+        assert len(connection_mode_lines) <= 2, f"Too many connectionMode references: {len(connection_mode_lines)}"
 
     def test_10_modules_integrated(self, src_lib) -> None:
         """Verifica que los módulos (api.ts, config.ts, etc.) están integrados."""

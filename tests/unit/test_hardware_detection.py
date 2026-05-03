@@ -3,11 +3,12 @@ Tests for Hardware Auto-Detection (Sugerencia 2).
 """
 
 import pytest
+
 from core.hardware import (
     HardwareType,
     detect_cuda,
-    detect_mps,
     detect_hardware,
+    detect_mps,
     get_optimal_device,
     update_config_with_optimal_device,
 )
@@ -31,9 +32,9 @@ class TestDetectCUDA:
         result = detect_cuda()
         assert isinstance(result, dict)
         assert "available" in result
-        assert "device_count"in result
-        assert "devices"in result
-        assert "error"in result
+        assert "device_count" in result
+        assert "devices" in result
+        assert "error" in result
 
     def test_detect_cuda_structure(self):
         """Verify result structure."""
@@ -50,16 +51,17 @@ class TestDetectMPS:
         """detect_mps() should return a dict."""
         result = detect_mps()
         assert isinstance(result, dict)
-        assert "available"in result
-        assert "error"in result
+        assert "available" in result
+        assert "error" in result
 
     def test_detect_mps_not_on_mac(self):
         """On non-macOS, should return not available."""
         import sys
+
         if sys.platform != "darwin":
             result = detect_mps()
             assert result["available"] is False
-            assert "only available on macOS"in result.get("error", "")
+            assert "only available on macOS" in result.get("error", "")
 
 
 class TestDetectHardware:
@@ -69,10 +71,10 @@ class TestDetectHardware:
         """detect_hardware() should return a dict."""
         result = detect_hardware()
         assert isinstance(result, dict)
-        assert "cuda"in result
-        assert "mps"in result
-        assert "cpu_always"in result
-        assert "recommended"in result
+        assert "cuda" in result
+        assert "mps" in result
+        assert "cpu_always" in result
+        assert "recommended" in result
 
     def test_detect_hardware_cpu_always_true(self):
         """CPU should always be available."""
@@ -161,7 +163,7 @@ class TestUpdateConfigWithOptimalDevice:
         }
         try:
             updated = update_config_with_optimal_device(config)
-            assert "transcriber"in updated
+            assert "transcriber" in updated
         except Exception as e:
             pytest.fail(f"update_config_with_optimal_device failed: {e}")
 

@@ -4,13 +4,13 @@ Integration tests for the refactored pipeline components.
 These tests verify that the new components work together correctly.
 """
 
-import pytest
 import asyncio
-from typing import List
 
-from core.unified_pipeline import UnifiedPipeline
+import pytest
+
 from core.module_interface import BaseModule
-from core.types import PipelineData, ModuleState
+from core.schemas import ModuleState, PipelineData
+from core.unified_pipeline import UnifiedPipeline
 
 
 class IntegrationTestModule(BaseModule):
@@ -20,7 +20,7 @@ class IntegrationTestModule(BaseModule):
         super().__init__(name)
         self.delay = delay
         self.fail_rate = fail_rate
-        self.processed_chunks: List[int] = []
+        self.processed_chunks: list[int] = []
 
     async def initialize(self) -> None:
         self._set_state(ModuleState.INITIALIZING)
@@ -28,10 +28,7 @@ class IntegrationTestModule(BaseModule):
         self._set_state(ModuleState.READY)
 
     async def process(self, data: PipelineData) -> PipelineData:
-        if (
-            self.fail_rate > 0
-            and len(self.processed_chunks) % int(1 / self.fail_rate) == 0
-        ):
+        if self.fail_rate > 0 and len(self.processed_chunks) % int(1 / self.fail_rate) == 0:
             raise ValueError(f"Simulated failure in {self.name}")
 
         self._start_processing()
@@ -263,7 +260,5 @@ class TestExceptionHierarchyIntegration:
         try:
             raise ValueError("Original error")
         except ValueError as e:
-            error = ModuleProcessingError(
-                "Processing failed", module="test", context={"original": str(e)}
-            )
+            error = ModuleProcessingError("Processing failed", module="test", context={"original": str(e)})
             assert "Original error" in str(error.context.values())

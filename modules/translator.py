@@ -4,15 +4,14 @@ Translator Module — translates transcribed text.
 Uses argostranslate for completely offline, free machine translation.
 """
 
-import os
-import logging
 import hashlib
-from functools import lru_cache
+import logging
+import os
 from pathlib import Path
 from typing import Optional
 
-from core.module_base import BaseModule, PipelineData, ModuleState
 from core.model_cache import ModelCache
+from core.module_base import BaseModule, ModuleState, PipelineData
 
 logger = logging.getLogger("srt2web.module.translator")
 
@@ -60,11 +59,7 @@ class Translator(BaseModule):
             model_needs_reload = True
 
         # Case 2: We were waiting for language but now have a fixed source language
-        elif (
-            self._waiting_for_language
-            and not new_waiting_for_language
-            and new_source_lang != "auto"
-        ):
+        elif self._waiting_for_language and not new_waiting_for_language and new_source_lang != "auto":
             model_needs_reload = True
 
         # Reload model if needed
@@ -88,9 +83,7 @@ class Translator(BaseModule):
             self._argos_installed = True
 
             # Setup Argos packages cache dir if needed
-            os.environ["ARGOS_PACKAGES_DIR"] = str(
-                (Path(".") / "models" / "argos").resolve()
-            )
+            os.environ["ARGOS_PACKAGES_DIR"] = str((Path(".") / "models" / "argos").resolve())
 
             # Only load model if not waiting for language (i.e., source_lang is not auto)
             if not self._waiting_for_language:
@@ -140,11 +133,7 @@ class Translator(BaseModule):
             available_packages = argostranslate.package.get_available_packages()
 
             target_pkg = next(
-                (
-                    pkg
-                    for pkg in available_packages
-                    if pkg.from_code == source_lang and pkg.to_code == target_lang
-                ),
+                (pkg for pkg in available_packages if pkg.from_code == source_lang and pkg.to_code == target_lang),
                 None,
             )
 
@@ -154,16 +143,10 @@ class Translator(BaseModule):
                 logger.info(success_msg)
                 self.logger.info(success_msg)  # Broadcast to web UI
             else:
-                raise ValueError(
-                    f"No translation package found from '{source_lang}' to '{target_lang}'"
-                )
+                raise ValueError(f"No translation package found from '{source_lang}' to '{target_lang}'")
 
         # Get the actual translation function
-        self._translation_pipeline = (
-            argostranslate.translate.get_translation_from_codes(
-                source_lang, target_lang
-            )
-        )
+        self._translation_pipeline = argostranslate.translate.get_translation_from_codes(source_lang, target_lang)
 
     def stop(self) -> None:
         """Cleanup."""
@@ -208,9 +191,7 @@ class Translator(BaseModule):
                     self._load_model(source_lang, self._target_lang)
                     self._current_source_lang = source_lang
                     self._waiting_for_language = False
-                    logger.info(
-                        f"Translator switched to {self._source_lang} -> {self._target_lang}"
-                    )
+                    logger.info(f"Translator switched to {self._source_lang} -> {self._target_lang}")
 
             # Translate full text
             data.translated_text = self._translate_cached(data.transcript)
@@ -229,10 +210,10 @@ class Translator(BaseModule):
                 data.translated_segments = translated_segs
 
             logger.info(f"Translated: {data.translated_text}")
-            hit_rate = (
-                round(self._cache_hits / max(1, self._cache_hits + self._cache_misses) * 100, 1)
+            hit_rate = round(self._cache_hits / max(1, self._cache_hits + self._cache_misses) * 100, 1)
+            logger.debug(
+                f"Translation cache hit rate: {hit_rate}% ({self._cache_hits} hits / {self._cache_misses} misses)"
             )
-            logger.debug(f"Translation cache hit rate: {hit_rate}% ({self._cache_hits} hits / {self._cache_misses} misses)")
 
         except Exception as e:
             logger.error(f"Translation error: {e}")

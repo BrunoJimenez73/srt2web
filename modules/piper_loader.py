@@ -10,15 +10,15 @@ subprocess can use CUDA without the cuDNN 8.x symbol loading issues that
 crash the main Python process.
 """
 
-import os
-import sys
-import json
-import subprocess
-import threading
-import tempfile
 import base64
-import time
+import json
 import logging
+import os
+import subprocess
+import sys
+import tempfile
+import threading
+import time
 from pathlib import Path
 
 logger = logging.getLogger("srt2web.module.tts_engine")
@@ -28,7 +28,7 @@ logger = logging.getLogger("srt2web.module.tts_engine")
 # Runs in a subprocess, loads Piper with GPU, and handles synthesis
 # requests via stdin/stdout JSON IPC.
 # ──────────────────────────────────────────────────────────────────────
-PERSISTENT_WORKER_SCRIPT = r'''
+PERSISTENT_WORKER_SCRIPT = r"""
 import sys
 import os
 import json
@@ -117,7 +117,7 @@ def main():
                 continue
 
             text = cmd.get("text", "")
-            speed = cmd.get("speed", 1.0)
+            speed = float(cmd.get("speed", 1.0))
 
             try:
                 import struct
@@ -175,7 +175,9 @@ def main():
                     "sample_rate": sample_rate
                 }
             except Exception as e:
-                resp = {"status": "error", "error": str(e)}
+                trace = traceback.format_exc()
+                print(f"[PERSISTENT] Error during synthesis: {trace}", file=sys.stderr, flush=True)
+                resp = {"status": "error", "error": str(e), "traceback": trace}
 
             print(json.dumps(resp), flush=True)
 
@@ -194,7 +196,7 @@ def main():
 
 if __name__ == "__main__":
     main()
-'''
+"""
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -241,15 +243,14 @@ class PiperSubprocessManager:
             self._ensure_stopped()
 
             # Write worker script to temp file
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".py", delete=False, encoding="utf-8"
-            ) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as f:
                 f.write(PERSISTENT_WORKER_SCRIPT)
                 self._script_path = f.name
 
             # Build environment with CUDA paths and FFmpeg
             env = os.environ.copy()
             import site
+
             cuda_paths = []
             for sp in site.getsitepackages():
                 for subdir in ("nvidia/cudnn/bin", "nvidia/cublas_cu11/bin"):
@@ -263,6 +264,7 @@ class PiperSubprocessManager:
             # Pass FFmpeg path for speed adjustment
             try:
                 from core.ffmpeg_utils import ensure_ffmpeg
+
                 ffmpeg_path = ensure_ffmpeg()
                 env["FFMPEG_PATH"] = ffmpeg_path
             except Exception:
@@ -279,15 +281,11 @@ class PiperSubprocessManager:
                 text=True,
                 bufsize=1,  # Line buffered
                 env=env,
-                creationflags=(
-                    subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-                ),
+                creationflags=(subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0),
             )
 
             # Start stderr reader thread (prevents deadlock)
-            self._stderr_thread = threading.Thread(
-                target=self._read_stderr, daemon=True, name="piper-stderr"
-            )
+            self._stderr_thread = threading.Thread(target=self._read_stderr, daemon=True, name="piper-stderr")
             self._stderr_thread.start()
 
             # Send load command
@@ -362,6 +360,7 @@ class PiperSubprocessManager:
 
             # Read response with timeout
             import select
+
             if sys.platform == "win32":
                 # Windows: use threading timer
                 response_line = [None]
@@ -415,19 +414,56 @@ class PiperSubprocessManager:
             pass
 
     def _ensure_stopped(self):
-        """Stop subprocess if running (must be called with lock held)."""
+        """Stop subprocess if running (must be called with lock held).
+
+        The persistent Piper worker communicates via a JSON line protocol on
+        ``stdin``/``stdout``.  When we request a graceful shutdown we must also
+        consume the JSON response that the worker writes before it exits.  If we
+        ignore that response the worker can block on a full stdout pipe, leaving
+        the subprocess alive and causing the test suite to hang.
+        """
         if self._proc:
             try:
-                # Try graceful shutdown
+                # Try graceful shutdown: send the ``shutdown`` command and read the response.
                 if self._proc.stdin:
                     try:
-                        self._proc.stdin.write(json.dumps({"action": "shutdown"}) + "\n")
+                        shutdown_cmd = json.dumps({"action": "shutdown"}) + "\n"
+                        self._proc.stdin.write(shutdown_cmd)
                         self._proc.stdin.flush()
+                        # Read the JSON response (if any) to unblock the worker.
+                        if self._proc.stdout:
+                            # Use a short timeout to avoid hanging indefinitely.
+                            try:
+                                # ``select`` works on Unix; on Windows we fall back to a thread read.
+                                if sys.platform != "win32":
+                                    import select
+
+                                    ready, _, _ = select.select([self._proc.stdout], [], [], 3)
+                                    if ready:
+                                        self._proc.stdout.readline()
+                                else:
+                                    # Windows: read in a separate thread with timeout.
+                                    response_line = [None]
+
+                                    def _read():
+                                        try:
+                                            response_line[0] = self._proc.stdout.readline()
+                                        except Exception:
+                                            pass
+
+                                    t = threading.Thread(target=_read)
+                                    t.start()
+                                    t.join(3)
+                            except Exception:
+                                # If reading fails we still attempt to wait for termination.
+                                pass
+                        # Wait for the process to exit gracefully.
                         self._proc.wait(timeout=3)
                     except Exception:
+                        # If anything goes wrong we fall back to force‑kill.
                         pass
 
-                # Force kill if still running
+                # Force kill if still running after graceful attempt.
                 if self._proc.poll() is None:
                     if sys.platform == "win32":
                         subprocess.run(
@@ -437,13 +473,30 @@ class PiperSubprocessManager:
                         )
                     else:
                         self._proc.kill()
+                    # Ensure the process is reaped.
                     self._proc.wait(timeout=5)
             except Exception as e:
                 logger.debug(f"[PiperManager] Cleanup: {e}")
             finally:
+                # Close any open pipes to avoid resource leaks.
+                try:
+                    if self._proc.stdin:
+                        self._proc.stdin.close()
+                except Exception:
+                    pass
+                try:
+                    if self._proc.stdout:
+                        self._proc.stdout.close()
+                except Exception:
+                    pass
+                try:
+                    if self._proc.stderr:
+                        self._proc.stderr.close()
+                except Exception:
+                    pass
                 self._proc = None
 
-        # Clean up temp script
+        # Clean up the temporary worker script file.
         if self._script_path:
             try:
                 os.unlink(self._script_path)
@@ -451,6 +504,7 @@ class PiperSubprocessManager:
                 pass
             self._script_path = None
 
+        # Reset internal state flags.
         self._model_loaded = False
         self._using_cuda = False
 
@@ -534,11 +588,7 @@ if __name__ == "__main__":
 
 
 def load_piper_model_subprocess(
-    voice_name: str,
-    model_path: str,
-    config_path: str,
-    device: str = "auto",
-    timeout: int = 90
+    voice_name: str, model_path: str, config_path: str, device: str = "auto", timeout: int = 90
 ) -> dict:
     """
     Load Piper model in a one-shot subprocess (validates model works).
@@ -548,9 +598,7 @@ def load_piper_model_subprocess(
     """
     start_time = time.time()
 
-    with tempfile.NamedTemporaryFile(
-        mode='w', suffix='.py', delete=False, encoding='utf-8'
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as f:
         f.write(LOADER_SCRIPT)
         script_path = f.name
 
@@ -559,6 +607,7 @@ def load_piper_model_subprocess(
         logger.info(f"[PIPER_DEBUG] Timeout: {timeout}s, Device: {device}")
 
         import site
+
         env = os.environ.copy()
         cuda_paths = []
 
@@ -579,7 +628,7 @@ def load_piper_model_subprocess(
             capture_output=True,
             text=True,
             timeout=timeout,
-            env=env
+            env=env,
         )
 
         elapsed = time.time() - start_time
@@ -587,7 +636,7 @@ def load_piper_model_subprocess(
 
         stderr_lines = []
         if result.stderr:
-            for line in result.stderr.strip().split('\n'):
+            for line in result.stderr.strip().split("\n"):
                 if line.strip():
                     stderr_lines.append(line.strip())
                     logger.info(f"[PIPER_DEBUG] {line.strip()}")
@@ -606,7 +655,7 @@ def load_piper_model_subprocess(
 
         try:
             stdout = result.stdout.strip()
-            json_start = stdout.find('{')
+            json_start = stdout.find("{")
             if json_start >= 0:
                 data = json.loads(stdout[json_start:])
             else:
@@ -640,17 +689,19 @@ def check_piper_environment() -> dict:
         "providers": [],
         "cuda_available": False,
         "python_path": sys.executable,
-        "python_version": sys.version
+        "python_version": sys.version,
     }
 
     try:
         import piper
+
         result["piper_available"] = True
     except ImportError as e:
         result["piper_error"] = str(e)
 
     try:
         import onnxruntime as ort
+
         result["onnxruntime_available"] = True
         result["onnx_version"] = ort.__version__
         result["providers"] = ort.get_available_providers()

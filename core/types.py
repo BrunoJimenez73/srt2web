@@ -5,20 +5,21 @@ Este módulo define tipos y estructuras de datos compartidas entre módulos,
 facilitando la consistencia y el type checking.
 """
 
-from enum import Enum
-from typing import Any, Dict, List, Optional, Union
-from dataclasses import dataclass, field
 import time
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
 
-from core.schemas import PipelineData, ModuleStatus, ModuleState, PipelineState
-
+from core.schemas import ModuleStatus, PipelineState
 
 # ============================================================================
 # Enums (mantener los que no están en schemas)
 # ============================================================================
 
+
 class LogLevel(str, Enum):
     """Niveles de log."""
+
     DEBUG = "debug"
     INFO = "info"
     SUCCESS = "success"
@@ -29,6 +30,7 @@ class LogLevel(str, Enum):
 
 class InputType(str, Enum):
     """Tipos de input soportados."""
+
     SRT = "srt"
     RTMP = "rtmp"
     FILE = "file"
@@ -37,6 +39,7 @@ class InputType(str, Enum):
 
 class OutputType(str, Enum):
     """Tipos de output soportados."""
+
     HLS = "hls"
     WEBRTC = "webrtc"
     SRT = "srt"
@@ -45,6 +48,7 @@ class OutputType(str, Enum):
 
 class DeviceType(str, Enum):
     """Tipos de dispositivo para procesamiento."""
+
     CPU = "cpu"
     CUDA = "cuda"
     MPS = "mps"
@@ -53,6 +57,7 @@ class DeviceType(str, Enum):
 
 class EncoderMode(str, Enum):
     """Modos de encoding de video."""
+
     SOFTWARE = "software"
     NVENC = "nvenc"  # NVIDIA
     VIDEOTOOLBOX = "videotoolbox"  # Apple
@@ -65,31 +70,32 @@ class PipelineStatus:
     """
     Estado general del pipeline.
     """
+
     state: PipelineState = PipelineState.IDLE
-    
+
     # Módulos
-    modules: Dict[str, ModuleStatus] = field(default_factory=dict)
-    
+    modules: dict[str, ModuleStatus] = field(default_factory=dict)
+
     # Métricas generales
     uptime: float = 0.0
     start_time: float | None = None
     total_chunks_processed: int = 0
-    
+
     # Información del sistema
     cpu_usage: float = 0.0
     memory_usage: float = 0.0
     gpu_usage: float = 0.0
     gpu_memory_usage: float = 0.0
-    
+
     # Configuración actual
     input_type: InputType = InputType.SRT
     output_type: OutputType = OutputType.HLS
-    
+
     @property
     def is_running(self) -> bool:
         """Verifica si el pipeline está corriendo."""
         return self.state in [PipelineState.RUNNING, PipelineState.STARTING]
-    
+
     @property
     def all_modules_healthy(self) -> bool:
         """Verifica si todos los módulos están saludables."""
@@ -101,19 +107,21 @@ class LogMessage:
     """
     Mensaje de log estructurado.
     """
+
     level: LogLevel
     message: str
     module: str | None = None
     timestamp: float = field(default_factory=time.time)
-    context: Dict[str, Any] = field(default_factory=dict)
-    
+    context: dict[str, Any] = field(default_factory=dict)
+
     @property
     def iso_timestamp(self) -> str:
         """Obtiene el timestamp en formato ISO."""
         from datetime import datetime
+
         return datetime.fromtimestamp(self.timestamp).isoformat()
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convierte el mensaje a diccionario."""
         return {
             "level": self.level.value,
@@ -129,6 +137,7 @@ class SystemMetrics:
     """
     Métricas del sistema.
     """
+
     cpu_percent: float = 0.0
     memory_percent: float = 0.0
     memory_used_mb: float = 0.0
@@ -136,7 +145,7 @@ class SystemMetrics:
     disk_percent: float = 0.0
     disk_used_gb: float = 0.0
     disk_total_gb: float = 0.0
-    
+
     # GPU (si está disponible)
     gpu_available: bool = False
     gpu_name: str | None = None
@@ -144,13 +153,13 @@ class SystemMetrics:
     gpu_memory_used_mb: float = 0.0
     gpu_memory_total_mb: float = 0.0
     gpu_temperature: float | None = None
-    
+
     # Proceso actual
     process_cpu_percent: float = 0.0
     process_memory_percent: float = 0.0
     process_memory_used_mb: float = 0.0
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convierte las métricas a diccionario."""
         return {
             "cpu_percent": self.cpu_percent,
@@ -177,13 +186,14 @@ class ChunkInfo:
     """
     Información sobre un chunk de video/audio.
     """
+
     index: int
     path: str
     duration: float
     start_time: float
     end_time: float
     size_bytes: int = 0
-    
+
     @property
     def is_valid(self) -> bool:
         """Verifica si el chunk es válido."""
@@ -195,6 +205,7 @@ class AudioConfig:
     """
     Configuración de audio.
     """
+
     sample_rate: int = 16000
     channels: int = 1
     format: str = "s16le"  # Signed 16-bit little-endian
@@ -206,6 +217,7 @@ class VideoConfig:
     """
     Configuración de video.
     """
+
     width: int = 1920
     height: int = 1080
     fps: float = 30.0
@@ -220,6 +232,7 @@ class HLSConfig:
     """
     Configuración de salida HLS.
     """
+
     segment_duration: float = 6.0  # segundos
     playlist_size: int = 5  # número máximo de segmentos en playlist
     allow_cache: bool = True

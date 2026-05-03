@@ -8,12 +8,13 @@ CRITICAL: Uses data.cumulative_duration from PipelineData for accurate sync,
 not internal tracking, to prevent drift from VideoMuxer.
 """
 
-from pathlib import Path
 import logging
+import os
 import threading
+from pathlib import Path
 from typing import Optional
 
-from core.module_base import BaseModule, PipelineData, ModuleState
+from core.module_base import BaseModule, ModuleState, PipelineData
 
 logger = logging.getLogger("srt2web.module.subtitle_generator")
 
@@ -62,14 +63,16 @@ class SubtitleGenerator(BaseModule):
         self._state = ModuleState.STARTING
 
         self._subtitles_dir = Path(self._output_dir) / "subtitles"
+        os.makedirs(self._subtitles_dir, exist_ok=True)
         self._subtitles_dir.mkdir(parents=True, exist_ok=True)
 
         self._vtt_path = self._subtitles_dir / "subs.vtt"
+        vtt_open_path = os.path.join(self._output_dir, "subtitles", "subs.vtt")
 
         # Reset file with WebVTT header
         with self._lock:
             try:
-                with open(self._vtt_path, "w", encoding="utf-8") as f:
+                with open(vtt_open_path, "w", encoding="utf-8") as f:
                     f.write("WEBVTT\n\n")
             except Exception as e:
                 logger.error(f"Failed to initialize VTT: {e}")
@@ -79,9 +82,7 @@ class SubtitleGenerator(BaseModule):
         self._history = []
         self._vtt_entries = []  # Clear rolling window
         self._state = ModuleState.RUNNING
-        logger.info(
-            f"SubtitleGenerator ready. Format: {self._format}, Output: {self._vtt_path}"
-        )
+        logger.info(f"SubtitleGenerator ready. Format: {self._format}, Output: {self._vtt_path}")
 
     def stop(self) -> None:
         self._state = ModuleState.IDLE
@@ -112,13 +113,12 @@ class SubtitleGenerator(BaseModule):
 
         # Remove entries older than cutoff (absolute time)
         self._vtt_entries = [
-            entry for entry in self._vtt_entries
-            if (entry.get("chunk_start", 0.0) + entry["end"]) > cutoff_abs
+            entry for entry in self._vtt_entries if (entry.get("chunk_start", 0.0) + entry["end"]) > cutoff_abs
         ]
 
         # Also limit by count
         if len(self._vtt_entries) > self._max_vtt_entries:
-            self._vtt_entries = self._vtt_entries[-self._max_vtt_entries:]
+            self._vtt_entries = self._vtt_entries[-self._max_vtt_entries :]
 
     def _rewrite_vtt_file(self) -> None:
         """Rewrite VTT file with current rolling window entries."""
@@ -157,7 +157,7 @@ class SubtitleGenerator(BaseModule):
         # CRITICAL FIX: Use cumulative_duration from PipelineData for sync
         # This comes from InputSource and is validated there
         chunk_start_time = getattr(data, "cumulative_duration", 0.0)
-        
+
         # FIX: Validate cumulative_duration is monotonically increasing to prevent drift
         if chunk_start_time < self._last_cumulative:
             logger.warning(
@@ -173,20 +173,18 @@ class SubtitleGenerator(BaseModule):
         if is_loop:
             # This is a pause loop - same chunk being replayed
             # Don't re-add subtitles, just pass through existing ones
-            logger.debug(f"[SubtitleGen] Pause loop detected - chunk {data.chunk_index} replaying, skipping subtitle re-add")
+            logger.debug(
+                f"[SubtitleGen] Pause loop detected - chunk {data.chunk_index} replaying, skipping subtitle re-add"
+            )
             data.subtitles_path = self._vtt_path
             return data
         elif data.chunk_index == self._last_chunk_index and self._last_chunk_index >= 0:
             # Duplicate chunk but not marked as loop - skip subtitle re-add
             data.subtitles_path = self._vtt_path
             return data
-        elif (
-            data.chunk_index != self._last_chunk_index + 1
-            and self._last_chunk_index >= 0
-        ):
+        elif data.chunk_index != self._last_chunk_index + 1 and self._last_chunk_index >= 0:
             logger.warning(
-                f"[SubtitleGen] Chunk sequence break: expected {self._last_chunk_index + 1}, "
-                f"got {data.chunk_index}"
+                f"[SubtitleGen] Chunk sequence break: expected {self._last_chunk_index + 1}, " f"got {data.chunk_index}"
             )
 
         # Validate cumulative duration is monotonically increasing
@@ -200,8 +198,7 @@ class SubtitleGenerator(BaseModule):
         self._last_cumulative = chunk_start_time
 
         logger.debug(
-            f"[SubtitleGen] chunk={data.chunk_index}, duration={duration:.3f}, "
-            f"cumulative={chunk_start_time:.3f}"
+            f"[SubtitleGen] chunk={data.chunk_index}, duration={duration:.3f}, " f"cumulative={chunk_start_time:.3f}"
         )
 
         # Determine segments to use
@@ -234,12 +231,14 @@ class SubtitleGenerator(BaseModule):
                         abs_start = chunk_start_time + rel_start
                         abs_end = chunk_start_time + rel_end
 
-                        self._vtt_entries.append({
-                            "start": abs_start,  # ABSOLUTE timestamp!
-                            "end": abs_end,      # ABSOLUTE timestamp!
-                            "text": clean_text,
-                            "chunk_start": chunk_start_time
-                        })
+                        self._vtt_entries.append(
+                            {
+                                "start": abs_start,  # ABSOLUTE timestamp!
+                                "end": abs_end,  # ABSOLUTE timestamp!
+                                "text": clean_text,
+                                "chunk_start": chunk_start_time,
+                            }
+                        )
 
                         logger.info(f"[SUB] {clean_text}")
 

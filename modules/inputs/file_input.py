@@ -13,18 +13,16 @@ Configuración (input.file):
     chunk_duration_sec: Duración de cada chunk (default: 15)
 """
 
-import sys
-import time
-import logging
-from pathlib import Path
 import subprocess
+import sys
 import threading
+import time
 from pathlib import Path
 from typing import Optional
 
-from core.input_source import InputSource
-from core.module_base import PipelineData, ModuleStatus, ModuleState
 from core.ffmpeg_utils import ensure_ffmpeg, get_video_duration
+from core.input_source import InputSource
+from core.module_base import ModuleState, ModuleStatus, PipelineData
 
 
 class FileInput(InputSource):
@@ -73,7 +71,7 @@ class FileInput(InputSource):
         # Obtener duración del archivo si aún no la tenemos
         if self._file_duration == 0.0 and self._file_path and Path(self._file_path).exists():
             self._file_duration = get_video_duration(self._file_path) or 0.0
-            
+
         return {
             "type": "file",
             "path": self._file_path,
@@ -89,7 +87,9 @@ class FileInput(InputSource):
     def pause(self) -> None:
         """Pausar la reproducción - marca como pausado para detener envío de chunks."""
         self._is_paused = True
-        self.logger.info(f"[FILE INPUT] PAUSE called - is_paused={self._is_paused}, position={self._current_position:.2f}s")
+        self.logger.info(
+            f"[FILE INPUT] PAUSE called - is_paused={self._is_paused}, position={self._current_position:.2f}s"
+        )
 
     def play(self) -> None:
         """Reanudar la reproducción."""
@@ -107,15 +107,15 @@ class FileInput(InputSource):
         if not self._file_path or not os.path.exists(self._file_path):
             self.logger.error("Cannot seek: file not configured or not found")
             return
-            
+
         # Obtener duración si no la tenemos
         if self._file_duration == 0.0:
             self._file_duration = get_video_duration(self._file_path) or 0.0
-            
+
         # Validar posición
         position = max(0, min(position, self._file_duration))
         self._current_position = position
-        
+
         # Reiniciar desde la nueva posición
         self._restart_from_position(position)
         self.logger.info(f"Seeked to position: {position:.2f}s")
@@ -124,31 +124,31 @@ class FileInput(InputSource):
         """Reiniciar FFmpeg desde una posición específica."""
         self._stop_current()
         time.sleep(0.3)
-        
+
         # Ensure chunks directory exists
         if not self._chunks_dir:
             self._chunks_dir = os.path.join(self._output_dir or "./output", "chunks")
         os.makedirs(self._chunks_dir, exist_ok=True)
-        
+
         # Limpiar chunks antiguos
         for f in glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")):
             try:
                 os.remove(f)
             except OSError:
                 pass
-        
+
         self._last_chunk_index = -1
         self._cumulative_duration = position  # Ajustar duración acumulada
         self._file_finished = False
-        
+
         # Ensure FFmpeg path is set
         if not self._ffmpeg_path:
             self._ffmpeg_path = ensure_ffmpeg()
-        
+
         # Reconstruir comando FFmpeg con -ss para start time
         chunk_pattern = os.path.join(self._chunks_dir, "chunk_%06d.ts")
         cmd = [self._ffmpeg_path, "-y"]
-        
+
         # Añadir hwaccel
         if self._hwaccel_enabled:
             if self._gpu_info.get("nvenc"):
@@ -157,40 +157,49 @@ class FileInput(InputSource):
                 cmd.extend(["-hwaccel", "qsv", "-hwaccel_device", self._hwaccel_device])
             elif self._gpu_info.get("vaapi"):
                 cmd.extend(["-hwaccel", "vaapi"])
-        
+
         # Input con seek position
-        cmd.extend([
-            "-ss", str(position),  # Seek al inicio
-            "-i", self._file_path,
-            "-force_key_frames", f"expr:gte(t,n*{self._chunk_duration})",
-            "-c", "copy",
-            "-f", "segment",
-            "-segment_time", str(self._chunk_duration),
-            "-segment_format", "mpegts",
-            "-reset_timestamps", "1",
-            "-strftime", "0",
-        ])
-        
+        cmd.extend(
+            [
+                "-ss",
+                str(position),  # Seek al inicio
+                "-i",
+                self._file_path,
+                "-force_key_frames",
+                f"expr:gte(t,n*{self._chunk_duration})",
+                "-c",
+                "copy",
+                "-f",
+                "segment",
+                "-segment_time",
+                str(self._chunk_duration),
+                "-segment_format",
+                "mpegts",
+                "-reset_timestamps",
+                "1",
+                "-strftime",
+                "0",
+            ]
+        )
+
         if self._loop:
             cmd.extend(["-stream_loop", "-1"])
-        
+
         if self._speed != 1.0:
             cmd.extend(["-filter:v", f"setpts={1.0 / self._speed}*PTS"])
-        
+
         cmd.append(chunk_pattern)
-        
+
         self.logger.info(f"Restarting file input from {position:.2f}s: {self._file_path}")
-        
+
         self._ffmpeg_proc = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            creationflags=(
-                subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            ),
+            creationflags=(subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0),
         )
-        
+
         self._monitor_thread = threading.Thread(
             target=self._monitor_ffmpeg,
             daemon=True,
@@ -221,7 +230,7 @@ class FileInput(InputSource):
     def _start_ffmpeg(self) -> None:
         """Start FFmpeg process for file reading."""
         self.logger.info("[FILE INPUT] _start_ffmpeg() called - initializing FFmpeg")
-        
+
         self._stop_current()
         time.sleep(0.3)
 
@@ -235,6 +244,7 @@ class FileInput(InputSource):
 
         # Detectar soporte GPU para hwaccel
         from core.ffmpeg_utils import check_gpu_support
+
         self._gpu_info = check_gpu_support(self._ffmpeg_path)
 
         # Habilitar hwaccel si hay GPU disponible
@@ -273,22 +283,26 @@ class FileInput(InputSource):
                 cmd.extend(["-hwaccel", "vaapi"])
 
         # Resto del comando
-        cmd.extend([
-            "-i", self._file_path,
-            "-force_key_frames", f"expr:gte(t,n*{self._chunk_duration})",
-            "-c",
-            "copy",
-            "-f",
-            "segment",
-            "-segment_time",
-            str(self._chunk_duration),
-            "-segment_format",
-            "mpegts",
-            "-reset_timestamps",
-            "1",
-            "-strftime",
-            "0",
-        ])
+        cmd.extend(
+            [
+                "-i",
+                self._file_path,
+                "-force_key_frames",
+                f"expr:gte(t,n*{self._chunk_duration})",
+                "-c",
+                "copy",
+                "-f",
+                "segment",
+                "-segment_time",
+                str(self._chunk_duration),
+                "-segment_format",
+                "mpegts",
+                "-reset_timestamps",
+                "1",
+                "-strftime",
+                "0",
+            ]
+        )
 
         if self._loop:
             cmd.extend(["-stream_loop", "-1"])
@@ -306,9 +320,7 @@ class FileInput(InputSource):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            creationflags=(
-                subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            ),
+            creationflags=(subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0),
         )
 
         # Hilo monitor
@@ -355,21 +367,21 @@ class FileInput(InputSource):
                 idx = self._last_chunk_index
                 actual_duration = self._last_chunk_duration or self._chunk_duration
                 chunk_cumulative = self._cumulative_duration - actual_duration
-                
+
                 self.logger.debug(f"[FILE INPUT] Paused - looping last chunk {idx} for frozen frame")
-                
+
                 return PipelineData(
                     chunk_index=idx,
                     timestamp=time.time(),
                     duration=actual_duration,
                     cumulative_duration=chunk_cumulative,
-                    video_chunk_path=chunk_path,
-                    metadata={"is_loop": True}  # Mark as loop for modules
+                    video_chunk_path=str(chunk_path),
+                    metadata={"is_loop": True},  # Mark as loop for modules
                 )
             else:
-                self.logger.debug(f"[FILE INPUT] Paused - no last chunk available yet")
+                self.logger.debug("[FILE INPUT] Paused - no last chunk available yet")
             return None
-            
+
         if not self._chunks_dir:
             return None
 
@@ -476,9 +488,15 @@ class FileInput(InputSource):
             extra={
                 "using_gpu": self._hwaccel_enabled,
                 "gpu_info": self._gpu_info,
-                "encoder_label": "NVDEC" if self._gpu_info.get("nvenc") else "QSV" if self._gpu_info.get("qsv") else "VAAPI" if self._gpu_info.get("vaapi") else "CPU",
+                "encoder_label": "NVDEC"
+                if self._gpu_info.get("nvenc")
+                else "QSV"
+                if self._gpu_info.get("qsv")
+                else "VAAPI"
+                if self._gpu_info.get("vaapi")
+                else "CPU",
                 "hwaccel": self._hwaccel_enabled,
-            }
+            },
         )
 
     def _monitor_ffmpeg(self) -> None:

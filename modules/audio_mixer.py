@@ -11,14 +11,14 @@ Key features:
 - Duration validation: measures actual output duration
 """
 
-from pathlib import Path
-import sys
 import logging
 import subprocess
+import sys
+from pathlib import Path
 from typing import Optional
 
-from core.module_base import BaseModule, PipelineData, ModuleState
 from core.ffmpeg_utils import ensure_ffmpeg
+from core.module_base import BaseModule, ModuleState, PipelineData
 
 logger = logging.getLogger("srt2web.module.audio_mixer")
 
@@ -45,22 +45,20 @@ class AudioMixer(BaseModule):
 
     def configure(self, config: dict) -> None:
         super().configure(config)
-        self._original_volume = float(
-            config.get("original_volume", self._original_volume)
-        )
+        self._original_volume = float(config.get("original_volume", self._original_volume))
         self._tts_volume = float(config.get("tts_volume", self._tts_volume))
 
     def start(self) -> None:
         """Initialize directory."""
         self._state = ModuleState.STARTING
         self._ffmpeg_path = ensure_ffmpeg()
-        
+
         self._mixer_dir = Path(self._output_dir) / "temp_mix"
         self._mixer_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Clear duration cache on start
         self._duration_cache.clear()
-        
+
         # Clean old files
         for f in self._mixer_dir.iterdir():
             if f.suffix == ".wav":
@@ -70,9 +68,7 @@ class AudioMixer(BaseModule):
                     pass
 
         self._state = ModuleState.RUNNING
-        logger.info(
-            f"AudioMixer ready with volumes orig={self._original_volume}, tts={self._tts_volume}"
-        )
+        logger.info(f"AudioMixer ready with volumes orig={self._original_volume}, tts={self._tts_volume}")
 
     def stop(self) -> None:
         """Cleanup temporary files."""
@@ -93,6 +89,7 @@ class AudioMixer(BaseModule):
         Duration is exact by construction (no ffprobe verification needed).
         """
         import wave
+
         import numpy as np
 
         orig_audio = data.audio_chunk_path
@@ -127,7 +124,7 @@ class AudioMixer(BaseModule):
             if orig_channels > 1:
                 orig_samples = orig_samples.reshape(-1, orig_channels).mean(axis=1)
 
-# Read TTS audio (from Piper: 22050Hz, 16-bit, mono)
+            # Read TTS audio (from Piper: 22050Hz, 16-bit, mono)
             with wave.open(str(tts_audio), "rb") as wf:
                 tts_sr = wf.getframerate()
                 tts_raw = wf.readframes(wf.getnframes())
@@ -154,7 +151,7 @@ class AudioMixer(BaseModule):
                 tts_samples = tts_samples[:target_samples]
 
             # Mix: apply volumes and add
-            mixed = (orig_samples * self._original_volume + tts_samples * self._tts_volume)
+            mixed = orig_samples * self._original_volume + tts_samples * self._tts_volume
             mixed = np.clip(mixed, -32768, 32767).astype(np.int16)
 
             # Write output WAV
@@ -209,12 +206,12 @@ class AudioMixer(BaseModule):
             ]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
             duration = float(result.stdout.strip())
-            
+
             # Cache the result (limit cache size)
             if len(self._duration_cache) > 100:
                 self._duration_cache.clear()
             self._duration_cache[cache_key] = duration
-            
+
             return duration
         except Exception as e:
             logger.debug(f"Duration query failed for {audio_path}: {e}")

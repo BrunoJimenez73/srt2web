@@ -9,11 +9,13 @@ Models are cached in memory and can be preloaded on startup
 to reduce first-chunk latency.
 """
 
-import os
 import logging
+import os
 import threading
-from typing import Dict, Any, Optional
 from pathlib import Path
+from typing import Any, Optional
+
+from core.paths import get_project_root
 
 logger = logging.getLogger("srt2web.model_cache")
 
@@ -44,8 +46,8 @@ class ModelCache:
             return
 
         self._initialized = True
-        self._whisper_models: Dict[str, Any] = {}
-        self._argos_indexes: Dict[str, Any] = {}
+        self._whisper_models: dict[str, Any] = {}
+        self._argos_indexes: dict[str, Any] = {}
         self._models_loaded = False
         self._preload_thread: Optional[threading.Thread] = None
         self._preload_done = threading.Event()
@@ -55,14 +57,28 @@ class ModelCache:
 
     def _get_cache_dir(self) -> Path:
         """Get the cache directory for models."""
-        if os.name == "nt":
-            base = Path(os.environ.get("LOCALAPPDATA", Path.home()))
-        else:
-            base = Path.home()
+        explicit_cache_dir = os.environ.get("SRT2WEB_CACHE_DIR")
+        if explicit_cache_dir:
+            cache_dir = Path(explicit_cache_dir).expanduser()
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            return cache_dir
 
-        cache_dir = base / ".cache" / "srt2web"
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        return cache_dir
+        bases = []
+        if os.name == "nt":
+            bases.append(Path(os.environ.get("LOCALAPPDATA", Path.home())))
+        else:
+            bases.append(Path.home())
+        bases.append(get_project_root())
+
+        for base in bases:
+            cache_dir = base / ".cache" / "srt2web"
+            try:
+                cache_dir.mkdir(parents=True, exist_ok=True)
+                return cache_dir
+            except OSError as exc:
+                logger.warning("Could not use model cache directory %s: %s", cache_dir, exc)
+
+        raise RuntimeError("Could not create a writable model cache directory")
 
     @property
     def whisper_cache_dir(self) -> Path:
@@ -219,9 +235,7 @@ class ModelCache:
                 logger.debug(f"New API failed, trying fallback: {e}")
 
             # Fallback: use get_translation_from_codes directly
-            pair = argostranslate.translate.get_translation_from_codes(
-                source_lang, target_lang
-            )
+            pair = argostranslate.translate.get_translation_from_codes(source_lang, target_lang)
             if pair:
                 self._argos_indexes[cache_key] = pair
                 logger.info(f"Argos pair loaded via fallback: {cache_key}")

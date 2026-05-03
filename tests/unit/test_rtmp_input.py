@@ -12,7 +12,7 @@ This test file covers:
 
 import subprocess
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
@@ -60,7 +60,7 @@ class TestRTMPFFmpegCommand:
     def test_rtmp_listen_option_in_command(self) -> None:
         """Test FFmpeg command includes -rtmp_listen option."""
         rtmp_input_path = PROJECT_ROOT / "modules" / "inputs" / "rtmp_input.py"
-        with open(rtmp_input_path, "r") as f:
+        with open(rtmp_input_path) as f:
             content = f.read()
 
         assert (
@@ -70,7 +70,7 @@ class TestRTMPFFmpegCommand:
     def test_h264_mp4toannexb_filter(self) -> None:
         """Test FFmpeg command includes h264_mp4toannexb bitstream filter."""
         rtmp_input_path = PROJECT_ROOT / "modules" / "inputs" / "rtmp_input.py"
-        with open(rtmp_input_path, "r") as f:
+        with open(rtmp_input_path) as f:
             content = f.read()
 
         assert (
@@ -80,17 +80,15 @@ class TestRTMPFFmpegCommand:
     def test_segment_output_for_chunks(self) -> None:
         """Test FFmpeg uses segment output for chunking."""
         rtmp_input_path = PROJECT_ROOT / "modules" / "inputs" / "rtmp_input.py"
-        with open(rtmp_input_path, "r") as f:
+        with open(rtmp_input_path) as f:
             content = f.read()
 
-        assert (
-            "-f" in content and "segment" in content
-        ), "FFmpeg should use segment format for chunking"
+        assert "-f" in content and "segment" in content, "FFmpeg should use segment format for chunking"
 
     def test_mpegts_format(self) -> None:
         """Test FFmpeg outputs MPEG-TS format."""
         rtmp_input_path = PROJECT_ROOT / "modules" / "inputs" / "rtmp_input.py"
-        with open(rtmp_input_path, "r") as f:
+        with open(rtmp_input_path) as f:
             content = f.read()
 
         assert "mpegts" in content, "FFmpeg should use mpegts format"
@@ -107,16 +105,16 @@ class TestRTMPConfigHandling:
             PROJECT_ROOT / "server" / "routes" / "pipeline.py",
             PROJECT_ROOT / "server" / "routes" / "config.py",
         ]
-        
+
         content = ""
         for path in files_to_check:
             if path.exists():
                 content += path.read_text(encoding="utf-8")
-        
+
         # If old api_routes.py is missing, check the module that handles input
         if not content:
             raise AssertionError("No API route files found")
-        
+
         assert "rtmp" in content.lower(), "API routes should handle RTMP configuration"
 
     def test_rtmp_url_generation_in_api(self) -> None:
@@ -126,19 +124,19 @@ class TestRTMPConfigHandling:
             PROJECT_ROOT / "server" / "routes" / "pipeline.py",
             PROJECT_ROOT / "server" / "routes" / "config.py",
         ]
-        
+
         content = ""
         for path in files_to_check:
             if path.exists():
                 content += path.read_text(encoding="utf-8")
-        
+
         # Should generate URL with port, app, stream_key
         assert "rtmp://" in content, "API should generate rtmp:// URL"
 
     def test_rtmp_listen_port_config(self) -> None:
         """Test RTMP listen_port config is read."""
         config_path = PROJECT_ROOT / "config.yaml"
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             content = f.read()
 
         assert (
@@ -154,7 +152,7 @@ class TestRTMPFrontend:
         utils_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "utils" / "index.ts"
         assert utils_path.exists(), "Utils file should exist"
 
-        with open(utils_path, "r") as f:
+        with open(utils_path) as f:
             content = f.read()
 
         assert "getRTMPUrl" in content, "getRTMPUrl function should be defined in utils"
@@ -162,7 +160,7 @@ class TestRTMPFrontend:
     def test_rtmp_url_format(self) -> None:
         """Test getRTMPUrl generates correct format."""
         utils_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "utils" / "index.ts"
-        with open(utils_path, "r") as f:
+        with open(utils_path) as f:
             content = f.read()
 
         # Should generate rtmp://ip:port/app/streamkey format
@@ -170,20 +168,16 @@ class TestRTMPFrontend:
 
     def test_status_card_has_url_emision(self) -> None:
         """Test StatusCard has url-emision element."""
-        status_card_path = (
-            PROJECT_ROOT / "frontend" / "src" / "components" / "StatusCard.astro"
-        )
-        with open(status_card_path, "r", encoding="utf-8") as f:
+        status_card_path = PROJECT_ROOT / "frontend" / "src" / "components" / "StatusCard.astro"
+        with open(status_card_path, encoding="utf-8") as f:
             content = f.read()
 
         assert "url-emision" in content, "StatusCard should have url-emision element"
 
     def test_input_card_rtmp_settings(self) -> None:
         """Test InputCard has RTMP settings."""
-        input_card_path = (
-            PROJECT_ROOT / "frontend" / "src" / "components" / "InputCard.astro"
-        )
-        with open(input_card_path, "r", encoding="utf-8") as f:
+        input_card_path = PROJECT_ROOT / "frontend" / "src" / "components" / "InputCard.astro"
+        with open(input_card_path, encoding="utf-8") as f:
             content = f.read()
 
         assert "input-rtmp" in content, "InputCard should have RTMP settings section"
@@ -195,7 +189,7 @@ class TestStopBatRTMPPort:
     def test_stop_bat_checks_port_1935(self) -> None:
         """Test Stop.bat checks port 1935."""
         stop_bat_path = PROJECT_ROOT / "Stop.bat"
-        with open(stop_bat_path, "r") as f:
+        with open(stop_bat_path) as f:
             content = f.read()
 
         assert "1935" in content, "Stop.bat should check port 1935 for RTMP"
@@ -207,9 +201,7 @@ class TestRTMPInputIntegration:
     @patch("modules.inputs.rtmp_input.subprocess.Popen")
     @patch("core.ffmpeg_utils.ensure_ffmpeg")
     @patch("core.ffmpeg_utils.check_gpu_support")
-    def test_rtmp_input_start_creates_process(
-        self, mock_gpu, mock_ffmpeg, mock_popen
-    ) -> None:
+    def test_rtmp_input_start_creates_process(self, mock_gpu, mock_ffmpeg, mock_popen) -> None:
         """Test RTMP input start creates FFmpeg process."""
         mock_ffmpeg.return_value = "ffmpeg"
         mock_gpu.return_value = {
@@ -279,9 +271,7 @@ class TestFFmpegRTMPProtocol:
 
     def test_ffmpeg_has_rtmp_protocol(self) -> None:
         """Test system FFmpeg supports RTMP protocol."""
-        result = subprocess.run(
-            ["ffprobe", "-protocols"], capture_output=True, text=True, timeout=10
-        )
+        result = subprocess.run(["ffprobe", "-protocols"], capture_output=True, text=True, timeout=10)
 
         assert "rtmp" in result.stdout.lower(), "FFmpeg should support RTMP protocol"
 
@@ -305,18 +295,16 @@ class TestRTMPStatusDisplay:
     def test_update_urls_handles_rtmp(self) -> None:
         """Test updateUrls function handles RTMP type."""
         dashboard_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "dashboard.ts"
-        with open(dashboard_path, "r") as f:
+        with open(dashboard_path) as f:
             content = f.read()
 
         # Should have logic to handle different input types
-        assert (
-            "inputType" in content or "rtmp" in content
-        ), "updateUrls should handle input type selection"
+        assert "inputType" in content or "rtmp" in content, "updateUrls should handle input type selection"
 
     def test_copy_button_handles_emision_url(self) -> None:
         """Test copy button works with emission URL."""
         dashboard_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "dashboard.ts"
-        with open(dashboard_path, "r") as f:
+        with open(dashboard_path) as f:
             content = f.read()
 
         assert "btn-copy-emision" in content, "Should have copy button for emission URL"
@@ -324,21 +312,17 @@ class TestRTMPStatusDisplay:
     def test_handle_input_type_changes_url(self) -> None:
         """Test handleInputTypeChange updates URL display."""
         dashboard_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "dashboard.ts"
-        with open(dashboard_path, "r") as f:
+        with open(dashboard_path) as f:
             content = f.read()
 
-        assert (
-            "handleInputTypeChange" in content
-        ), "Should have input type change handler"
+        assert "handleInputTypeChange" in content, "Should have input type change handler"
 
     def test_url_label_changes_with_type(self) -> None:
         """Test URL label changes (SRT/RTMP/FILE) based on type."""
         dashboard_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "dashboard.ts"
-        with open(dashboard_path, "r") as f:
+        with open(dashboard_path) as f:
             content = f.read()
 
         # Should update title/label based on input type
-        assert (
-            "input-process-title" in content
-        ), "Should update process title based on input type"
+        assert "input-process-title" in content, "Should update process title based on input type"
         assert "rtmp" in content.lower(), "Should handle RTMP input type"

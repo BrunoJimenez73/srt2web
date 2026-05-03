@@ -1,0 +1,47 @@
+---
+/**
+ * Componente Card — contenedor de contenido con variantes y sombras.
+ */
+export interface Props {
+  /** Variante de la tarjeta */
+  variant?: 'default' | 'bordered' | 'elevated';
+  /** Padding interno */
+  padding?: 'none' | 'sm' | 'md' | 'lg';
+  /** Clases CSS adicionales */
+  class?: string;
+  /** Si es interactivo (hover state) */
+  interactive?: boolean;
+}
+
+const {
+  variant = 'default',
+  padding = 'md',
+  class: className = '',
+  interactive = false,
+} = Astro.props;
+
+const BASE = 'rounded-xl bg-white dark:bg-gray-900';
+
+const VARIANTS = {
+  default:  'shadow-sm',
+  bordered: 'border border-gray-200 dark:border-gray-700',
+  elevated: 'shadow-lg',
+};
+
+const PADDINGS = {
+  none: '',
+  sm:   'p-4',
+  md:   'p-6',
+  lg:   'p-8',
+};
+
+const INTERACTIVE = interactive
+  ? 'cursor-pointer transition-shadow duration-200 hover:shadow-md hover:-translate-y-0.5'
+  : '';
+
+const classes = [BASE, VARIANTS[variant], PADDINGS[padding], INTERACTIVE, className].join(' ');
+---
+
+<div class={classes}>
+  <slot />
+</div>

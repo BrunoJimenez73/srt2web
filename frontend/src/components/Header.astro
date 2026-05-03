@@ -21,7 +21,7 @@ const { version = 'Astro' } = Astro.props;
     <span class="logo-text">SRT2Web</span>
     <span class="version-badge">{version}</span>
   </div>
-  
+
   <div class="header-right">
     <a href="/docs/" class="btn-docs" target="_blank">
       📚 Docs
@@ -30,7 +30,7 @@ const { version = 'Astro' } = Astro.props;
       <span class="ws-status-dot"></span>
       <span class="ws-status-label">WS OFF</span>
     </div>
-    
+
     <!-- Security Toggle -->
     <div class="security-wrapper">
       <button class="btn-secure" id="btn-secure-toggle">
@@ -53,7 +53,7 @@ const { version = 'Astro' } = Astro.props;
         </div>
       </div>
     </div>
-    
+
     <span id="live-clock" class="live-clock">--:--:--</span>
     <button class="btn-save" id="btn-save-config" onclick="saveConfig()" aria-label="Guardar configuración actual">
       <span class="btn-text">💾 Guardar Config</span>
@@ -419,16 +419,16 @@ const { version = 'Astro' } = Astro.props;
     const token = tokenInput.value.trim();
     setAuthToken(token);
     updateSecureState();
-    
+
     // Show toast
     const toastEvent = new CustomEvent('toast', {
-      detail: { 
+      detail: {
         message: token ? '🔐 Token guardado. Recarga para aplicar.' : '🔓 Autenticación desactivada.',
         type: token ? 'success' : 'info'
       }
     });
     document.dispatchEvent(toastEvent);
-    
+
     // Close panel
     panel.classList.remove('open');
     arrow.classList.remove('open');

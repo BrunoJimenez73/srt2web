@@ -1,8 +1,10 @@
-from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any, List
 from enum import Enum
 from pathlib import Path
+from typing import Any, Optional
+
 import numpy as np
+from pydantic import BaseModel, Field
+
 
 class PipelineState(str, Enum):
     IDLE = "idle"
@@ -11,8 +13,10 @@ class PipelineState(str, Enum):
     STOPPING = "stopping"
     ERROR = "error"
 
+
 class ModuleState(str, Enum):
     IDLE = "idle"
+    INITIALIZING = "initializing"
     RUNNING = "running"
     PROCESSING = "processing"
     STARTING = "starting"
@@ -22,14 +26,16 @@ class ModuleState(str, Enum):
     DISABLED = "disabled"
     DEGRADED = "degraded"
 
+
 class PipelineData(BaseModel):
     """
     Strict data model for chunks moving through the pipeline.
     Replaces generic dicts to ensure all modules have required data.
     """
+
     # Core identification and timing
     chunk_index: int = 0
-    timestamp: float = Field(default_factory=lambda: __import__('time').time)
+    timestamp: float = Field(default_factory=lambda: __import__("time").time)
     duration: float = 0.0
     cumulative_duration: float = 0.0
 
@@ -45,24 +51,26 @@ class PipelineData(BaseModel):
 
     # Text processing results
     transcript: Optional[str] = None
-    transcript_segments: List[Dict[str, Any]] = Field(default_factory=list)
+    transcript_segments: list[dict[str, Any]] = Field(default_factory=list)
     detected_language: Optional[str] = None
     translation: Optional[str] = None
-    translated_segments: List[Dict[str, Any]] = Field(default_factory=list)
-    subtitles: Optional[List[Dict[str, Any]]] = None
+    translated_segments: list[dict[str, Any]] = Field(default_factory=list)
+    subtitles: Optional[list[dict[str, Any]]] = None
 
     # Metadata and error tracking
-    metadata: Dict[str, Any] = Field(default_factory=dict)
-    errors: List[str] = Field(default_factory=list)
-    warnings: List[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    errors: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
 
     class Config:
         arbitrary_types_allowed = True  # For numpy arrays
+
 
 class ModuleStatus(BaseModel):
     """
     Strict model for module health and performance metrics.
     """
+
     name: str
     state: ModuleState
     enabled: bool
@@ -73,9 +81,9 @@ class ModuleStatus(BaseModel):
     average_processing_time: float = 0.0
     circuit_state: Optional[str] = None
     memory_mb: Optional[float] = None
-    extra: Dict[str, Any] = Field(default_factory=dict)
+    extra: dict[str, Any] = Field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "state": self.state.value,
@@ -90,10 +98,12 @@ class ModuleStatus(BaseModel):
             "extra": self.extra,
         }
 
+
 class SystemMetrics(BaseModel):
     """
     System resource usage.
     """
+
     cpu_percent: float
     memory_mb: float
     memory_percent: float

@@ -12,9 +12,9 @@ import copy
 import logging
 from pathlib import Path
 from typing import Any, Optional
-from pydantic import ValidationError
 
 import yaml
+from pydantic import ValidationError
 
 from core.config_schema import SRT2WebConfig
 from core.hardware import update_config_with_optimal_device
@@ -74,7 +74,7 @@ class ConfigManager:
 
         if Path(self._config_path).exists():
             try:
-                with open(self._config_path, "r", encoding="utf-8") as f:
+                with open(self._config_path, encoding="utf-8") as f:
                     file_config = yaml.safe_load(f) or {}
 
                 # Merge con defaults
@@ -84,17 +84,13 @@ class ConfigManager:
                 try:
                     validated_config = SRT2WebConfig.from_dict(merged_config)
                     self._config = validated_config.to_dict()
-                    
+
                     # AUTO-DETECT HARDWARE (Sugerencia 2)
                     self._config = update_config_with_optimal_device(self._config)
-                    
-                    logger.info(
-                        f"Configuration loaded and validated from {self._config_path}"
-                    )
+
+                    logger.info(f"Configuration loaded and validated from {self._config_path}")
                 except ValidationError as ve:
-                    logger.error(
-                        f"Configuration validation error in {self._config_path}:\n{ve}"
-                    )
+                    logger.error(f"Configuration validation error in {self._config_path}:\n{ve}")
                     logger.warning("Using defaults due to validation failure.")
                     self._config = default_config
             except Exception as e:
@@ -102,9 +98,7 @@ class ConfigManager:
                 logger.warning("Using defaults due to load failure.")
                 self._config = default_config
         else:
-            logger.info(
-                f"Config file not found at {self._config_path}. Using defaults."
-            )
+            logger.info(f"Config file not found at {self._config_path}. Using defaults.")
             # AUTO-DETECT HARDWARE even for defaults (Sugerencia 2)
             self._config = update_config_with_optimal_device(default_config)
             self._config = default_config
@@ -176,15 +170,11 @@ class ConfigManager:
 
     def update_from_dict(self, data: dict) -> None:
         """Update configuration from a dictionary (partial update) with validation."""
-        logger.debug(
-            f"[update_from_dict] BEFORE merge - input.srt: {data.get('input', {}).get('srt', {})}"
-        )
+        logger.debug(f"[update_from_dict] BEFORE merge - input.srt: {data.get('input', {}).get('srt', {})}")
 
         new_config = _deep_merge(self._config, data)
 
-        logger.debug(
-            f"[update_from_dict] AFTER merge - input.srt: {new_config.get('input', {}).get('srt', {})}"
-        )
+        logger.debug(f"[update_from_dict] AFTER merge - input.srt: {new_config.get('input', {}).get('srt', {})}")
 
         try:
             # Validar que el resultado del merge sigue siendo válido

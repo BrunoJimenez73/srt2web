@@ -2,9 +2,9 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build:
@@ -14,38 +14,38 @@ jobs:
         python-version: ["3.10", "3.11", "3.12"]
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-        cache: 'pip'
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install ruff pytest pytest-asyncio pytest-cov
-        pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest pytest-asyncio pytest-cov
+          pip install -r requirements.txt
 
-    - name: Lint with Ruff
-      run: |
-        ruff check .
-        ruff format --check .
+      - name: Lint with Ruff
+        run: |
+          ruff check .
+          ruff format --check .
 
-    - name: Type check with MyPy
-      run: |
-        pip install mypy
-        mypy core/ modules/ server/ --ignore-missing-imports
+      - name: Type check with MyPy
+        run: |
+          pip install mypy
+          mypy core/ modules/ server/ --ignore-missing-imports
 
-    - name: Run tests
-      run: |
-        python -m pytest tests/unit/ -v --cov=core --cov=modules --cov-report=xml
+      - name: Run tests
+        run: |
+          python -m pytest tests/unit/ -v --cov=core --cov=modules --cov-report=xml
 
-    - name: Upload coverage
-      uses: codecov/codecov-action@v4
-      with:
-        file: ./coverage.xml
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
 
   frontend:
     runs-on: ubuntu-latest
@@ -54,26 +54,26 @@ jobs:
         working-directory: frontend
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Type check
-      run: npx tsc --noEmit
+      - name: Type check
+        run: npx tsc --noEmit
 
-    - name: Lint
-      run: npx eslint src/
+      - name: Lint
+        run: npx eslint src/
 
-    - name: Build
-      run: npm run build:local
+      - name: Build
+        run: npm run build:local
 
   docker:
     runs-on: ubuntu-latest
@@ -81,23 +81,23 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    - name: Login to GitHub Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Build and push
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        push: true
-        tags: ghcr.io/${{ github.repository }}/srt2web:latest
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository }}/srt2web:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

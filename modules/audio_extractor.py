@@ -6,15 +6,14 @@ which is the required format for Whisper transcription.
 Optimized for speed with GPU acceleration (NVDEC) when available.
 """
 
-import sys
 import logging
 import subprocess
 from pathlib import Path
 from typing import Optional
 
-from core.module_base import PipelineData, ModuleState
-from core.ffmpeg_wrapper import FFmpegModule
 from core.ffmpeg_utils import check_gpu_support
+from core.ffmpeg_wrapper import FFmpegModule
+from core.module_base import ModuleState, PipelineData
 
 logger = logging.getLogger("srt2web.module.audio_extractor")
 
@@ -87,21 +86,29 @@ class AudioExtractor(FFmpegModule):
         # Optimized for speed: 8kHz is sufficient for Whisper and faster to process
         # Uses GPU decoding (NVDEC) when available for ~30-40% speedup
         cmd = ["-y"]
-        
+
         # GPU acceleration for decoding (if available)
         if self._gpu_info.get("nvdec"):
             cmd.extend(["-hwaccel", "cuda", "-hwaccel_output_format", "cuda"])
-        
-        cmd.extend([
-            "-i", input_path,
-            "-vn",                      # No video
-            "-ar", "8000",              # 8kHz sample rate (faster than 16kHz)
-            "-ac", "1",                 # Mono
-            "-c:a", "pcm_s16le",        # 16-bit PCM
-            "-threads", "2",            # Fewer threads for lower overhead
-            "-f", "wav",
-            output_path,
-        ])
+
+        cmd.extend(
+            [
+                "-i",
+                input_path,
+                "-vn",  # No video
+                "-ar",
+                "8000",  # 8kHz sample rate (faster than 16kHz)
+                "-ac",
+                "1",  # Mono
+                "-c:a",
+                "pcm_s16le",  # 16-bit PCM
+                "-threads",
+                "2",  # Fewer threads for lower overhead
+                "-f",
+                "wav",
+                output_path,
+            ]
+        )
 
         try:
             # Use wrapper to run command with project-wide defaults (priority, window flags)
@@ -109,7 +116,7 @@ class AudioExtractor(FFmpegModule):
             if result.returncode != 0:
                 logger.error(f"FFmpeg audio extraction error: {result.stderr[-500:]}")
                 return data
-                 
+
             if Path(output_path).exists():
                 data.audio_chunk_path = output_path
                 self.logger.debug(f"Extracted audio for chunk {data.chunk_index}")

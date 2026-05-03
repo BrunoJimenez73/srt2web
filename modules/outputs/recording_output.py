@@ -25,17 +25,17 @@ Configuración (output.recording):
 """
 
 import os
-import sys
+import shutil
 import subprocess
+import sys
 import threading
 import time
-import shutil
-from typing import Optional, List
 from datetime import datetime
+from typing import Optional
 
+from core.ffmpeg_utils import check_gpu_support, ensure_ffmpeg
+from core.module_base import ModuleState, ModuleStatus, PipelineData
 from core.output_sink import OutputSink
-from core.module_base import PipelineData, ModuleStatus, ModuleState
-from core.ffmpeg_utils import ensure_ffmpeg, check_gpu_support
 
 
 class RecordingOutput(OutputSink):
@@ -66,8 +66,8 @@ class RecordingOutput(OutputSink):
         self._file_start_time: float = 0.0
         self._pending_data: Optional[PipelineData] = None
         self._recording_dir: str = ""
-        self._saved_video_paths: List[str] = []
-        self._saved_audio_paths: List[str] = []
+        self._saved_video_paths: list[str] = []
+        self._saved_audio_paths: list[str] = []
         self._latest_subs_path: Optional[str] = None
 
         self._apply_config(config)
@@ -117,16 +117,14 @@ class RecordingOutput(OutputSink):
             "subtitles": self._subtitles,
             "processed_chunks": self._processed_chunks,
             "bytes_written": self._bytes_written,
-            "recording_duration_sec": time.time() - self._file_start_time
-            if self._file_start_time
-            else 0,
+            "recording_duration_sec": time.time() - self._file_start_time if self._file_start_time else 0,
         }
 
     def get_status(self) -> ModuleStatus:
         """Obtener estado del output."""
         recording_duration = time.time() - self._file_start_time if self._file_start_time else 0
         video_bitrate = self._video_bitrate if self._quality_mode == "cbr" else f"CRF{self._video_crf}"
-        
+
         return ModuleStatus(
             name="recording_output",
             state=ModuleState.RUNNING if self._running else ModuleState.IDLE,
@@ -152,17 +150,9 @@ class RecordingOutput(OutputSink):
                 "saved_videos": len(self._saved_video_paths),
                 "saved_audios": len(self._saved_audio_paths),
             },
-        )
-        input_audio = (
-            getattr(self._pending_data, "mixed_audio_path", None)
-            if self._pending_data
-            else None
-        )
-        input_subs = (
-            getattr(self._pending_data, "subtitles_path", None)
-            if self._pending_data
-            else None
-        )
+        ).to_dict()
+        input_audio = getattr(self._pending_data, "mixed_audio_path", None) if self._pending_data else None
+        input_subs = getattr(self._pending_data, "subtitles_path", None) if self._pending_data else None
         return self._build_ffmpeg_cmd(output_file, input_video, input_audio, input_subs)
 
     def _get_next_output_path(self) -> str:
@@ -201,9 +191,7 @@ class RecordingOutput(OutputSink):
         os.makedirs(os.path.dirname(self._output_path) or ".", exist_ok=True)
 
         if not self._recording_dir:
-            self._recording_dir = os.path.join(
-                self._output_dir or "./output", "recording"
-            )
+            self._recording_dir = os.path.join(self._output_dir or "./output", "recording")
             os.makedirs(self._recording_dir, exist_ok=True)
 
         self._current_file = self._get_next_output_path()
@@ -306,9 +294,7 @@ class RecordingOutput(OutputSink):
             if subs_srt and os.path.exists(subs_srt):
                 cmd.extend(["-i", subs_srt])
 
-        has_subs_input = (
-            subs_srt is not None and os.path.exists(subs_srt) if subs_srt else False
-        )
+        has_subs_input = subs_srt is not None and os.path.exists(subs_srt) if subs_srt else False
 
         # Map inputs
         if has_audio and has_subs_input:
@@ -371,16 +357,12 @@ class RecordingOutput(OutputSink):
                 capture_output=True,
                 text=True,
                 timeout=300,
-                creationflags=(
-                    subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-                ),
+                creationflags=(subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0),
             )
             if result.returncode == 0:
                 size = os.path.getsize(output_file)
                 self._bytes_written = size
-                self.logger.info(
-                    f"Recording saved: {output_file} ({size / (1024*1024):.1f} MB)"
-                )
+                self.logger.info(f"Recording saved: {output_file} ({size / (1024*1024):.1f} MB)")
             else:
                 self.logger.error(f"Concat failed: {result.stderr[-500:]}")
         except subprocess.TimeoutExpired:
@@ -400,9 +382,7 @@ class RecordingOutput(OutputSink):
         self.logger.debug(f"Recording write: processing chunk {data.chunk_index}")
 
         if not self._recording_dir:
-            self._recording_dir = os.path.join(
-                self._output_dir or "./output", "recording"
-            )
+            self._recording_dir = os.path.join(self._output_dir or "./output", "recording")
             os.makedirs(self._recording_dir, exist_ok=True)
             self.logger.info(f"Recording dir: {self._recording_dir}")
 
@@ -414,16 +394,10 @@ class RecordingOutput(OutputSink):
             self._latest_subs_path = subs_path
 
         # Check for video_path (set by VideoMuxer) or video_chunk_path (from input)
-        video_path = getattr(data, "video_path", None) or getattr(
-            data, "video_chunk_path", None
-        )
-        audio_path = getattr(data, "mixed_audio_path", None) or getattr(
-            data, "audio_path", None
-        )
+        video_path = getattr(data, "video_path", None) or getattr(data, "video_chunk_path", None)
+        audio_path = getattr(data, "mixed_audio_path", None) or getattr(data, "audio_path", None)
 
-        self.logger.info(
-            f"[Recording] chunk {chunk_idx}: video={bool(video_path)}, audio={bool(audio_path)}"
-        )
+        self.logger.info(f"[Recording] chunk {chunk_idx}: video={bool(video_path)}, audio={bool(audio_path)}")
 
         if video_path and os.path.exists(video_path):
             saved_video = os.path.join(self._recording_dir, f"rec_v_{chunk_idx:06d}.ts")
@@ -434,16 +408,12 @@ class RecordingOutput(OutputSink):
             except Exception as e:
                 self.logger.warning(f"Could not copy video chunk: {e}")
         elif video_path:
-            self.logger.warning(
-                f"[Recording] video path exists but file not found: {video_path}"
-            )
+            self.logger.warning(f"[Recording] video path exists but file not found: {video_path}")
         else:
             self.logger.debug(f"[Recording] no video path for chunk {chunk_idx}")
 
         if audio_path and os.path.exists(audio_path):
-            saved_audio = os.path.join(
-                self._recording_dir, f"rec_a_{chunk_idx:06d}.wav"
-            )
+            saved_audio = os.path.join(self._recording_dir, f"rec_a_{chunk_idx:06d}.wav")
             try:
                 shutil.copy2(audio_path, saved_audio)
                 self._saved_audio_paths.append(saved_audio)
@@ -469,7 +439,7 @@ class RecordingOutput(OutputSink):
         output_srt = os.path.join(self._recording_dir, "recording_subs.srt")
 
         try:
-            with open(vtt_file, "r", encoding="utf-8") as f:
+            with open(vtt_file, encoding="utf-8") as f:
                 content = f.read()
 
             with open(output_srt, "w", encoding="utf-8") as out:

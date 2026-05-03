@@ -3,13 +3,12 @@ Composite Output - Gestiona múltiples salidas simultáneamente.
 Delega el trabajo a cada salida individual.
 """
 
-import threading
-import time
 import logging
-from typing import Dict, List, Optional
+import threading
 from dataclasses import dataclass
+from typing import Optional
 
-from core.module_base import PipelineData, ModuleStatus, ModuleState
+from core.module_base import ModuleState, ModuleStatus, PipelineData
 from core.output_sink import OutputSink
 from modules.outputs.base import BaseOutput
 
@@ -19,6 +18,7 @@ logger = logging.getLogger("srt2web.output.composite")
 @dataclass
 class OutputStatus:
     """Estado de una salida individual."""
+
     name: str
     state: str
     enabled: bool
@@ -36,9 +36,9 @@ class CompositeOutput(BaseOutput):
 
     def __init__(self, config: dict):
         super().__init__("composite", config)
-        self._outputs: Dict[str, OutputSink] = {}
-        self._errors: Dict[str, str] = {}
-        self._reconnect_attempts: Dict[str, int] = {}
+        self._outputs: dict[str, OutputSink] = {}
+        self._errors: dict[str, str] = {}
+        self._reconnect_attempts: dict[str, int] = {}
         self._max_reconnect_attempts = 3
         self._reconnect_delay = 5.0  # segundos
         self._lock = threading.Lock()
@@ -131,7 +131,7 @@ class CompositeOutput(BaseOutput):
                 first_output = list(self._outputs.values())[0]
 
         # Base del primer output o defaults
-        if first_output and hasattr(first_output, 'get_status'):
+        if first_output and hasattr(first_output, "get_status"):
             try:
                 first_status = first_output.get_status()
                 state = first_status.state
@@ -164,15 +164,10 @@ class CompositeOutput(BaseOutput):
                         "enabled": output_status.enabled,
                         "processed_chunks": output_status.processed_chunks,
                         "last_process_time_ms": output_status.last_process_time_ms,
-                        "extra": output_status.extra
+                        "extra": output_status.extra,
                     }
                 except Exception as e:
-                    outputs_dict[name] = {
-                        "name": name,
-                        "state": "error",
-                        "enabled": True,
-                        "error": str(e)
-                    }
+                    outputs_dict[name] = {"name": name, "state": "error", "enabled": True, "error": str(e)}
 
         extra["type"] = "composite"
         extra["outputs"] = outputs_dict
@@ -184,7 +179,7 @@ class CompositeOutput(BaseOutput):
             enabled=enabled,
             processed_chunks=processed_chunks,
             last_process_time_ms=last_process_time_ms,
-            extra=extra
+            extra=extra,
         )
 
     def get_output_status(self, name: str) -> Optional[OutputStatus]:
@@ -205,76 +200,85 @@ class CompositeOutput(BaseOutput):
                         error=self._errors.get(name),
                         processed_chunks=output_status.get("processed_chunks", 0),
                         last_process_time_ms=output_status.get("last_process_time_ms", 0.0),
-                        extra=output_status.get("extra", {})
+                        extra=output_status.get("extra", {}),
                     )
                 else:
                     # Assume it's a ModuleStatus or similar object
                     return OutputStatus(
                         name=name,
-                        state=getattr(output_status, 'state', 'unknown'),
-                        enabled=getattr(output_status, 'enabled', True),
+                        state=getattr(output_status, "state", "unknown"),
+                        enabled=getattr(output_status, "enabled", True),
                         error=self._errors.get(name),
-                        processed_chunks=getattr(output_status, 'processed_chunks', 0),
-                        last_process_time_ms=getattr(output_status, 'last_process_time_ms', 0.0),
-                        extra=getattr(output_status, 'extra', {})
+                        processed_chunks=getattr(output_status, "processed_chunks", 0),
+                        last_process_time_ms=getattr(output_status, "last_process_time_ms", 0.0),
+                        extra=getattr(output_status, "extra", {}),
                     )
             except Exception as e:
-                return OutputStatus(
-                    name=name,
-                    state="error",
-                    enabled=True,
-                    error=str(e)
-                )
+                return OutputStatus(name=name, state="error", enabled=True, error=str(e))
             except Exception as e:
-                return OutputStatus(
-                    name=name,
-                    state="error",
-                    enabled=True,
-                    error=str(e)
-                )
+                return OutputStatus(name=name, state="error", enabled=True, error=str(e))
 
-    def get_all_output_statuses(self) -> List[dict]:
+    def get_all_output_statuses(self) -> list[dict]:
         """Obtener estado de todas las salidas como diccionarios."""
         with self._lock:
             statuses = []
             for name, output in self._outputs.items():
                 try:
                     output_status = output.get_status()  # ModuleStatus (Pydantic)
-                    statuses.append({
-                        "name": name,
-                        "type": getattr(output, 'name', type(output).__name__.lower().replace('output', '')),
-                        "state": output_status.state.value if hasattr(output_status, 'state') else "unknown",
-                        "enabled": output_status.enabled if hasattr(output_status, 'enabled') else True,
-                        "error": self._errors.get(name),
-                        "processed_chunks": output_status.processed_chunks if hasattr(output_status, 'processed_chunks') else 0,
-                        "last_process_time_ms": output_status.last_process_time_ms if hasattr(output_status, 'last_process_time_ms') else 0.0,
-                        "extra": output_status.extra if hasattr(output_status, 'extra') else {},
-                        "stream_info": output.get_stream_info() if hasattr(output, 'get_stream_info') else {},
-                    })
+                    if isinstance(output_status, dict):
+                        state = output_status.get("state", "unknown")
+                        enabled = output_status.get("enabled", True)
+                        processed_chunks = output_status.get("processed_chunks", 0)
+                        last_process_time_ms = output_status.get("last_process_time_ms", 0.0)
+                        extra = output_status.get("extra", {})
+                    else:
+                        state_value = getattr(output_status, "state", "unknown")
+                        state = state_value.value if hasattr(state_value, "value") else state_value
+                        enabled = getattr(output_status, "enabled", True)
+                        processed_chunks = getattr(output_status, "processed_chunks", 0)
+                        last_process_time_ms = getattr(output_status, "last_process_time_ms", 0.0)
+                        extra = getattr(output_status, "extra", {})
+                    statuses.append(
+                        {
+                            "name": name,
+                            "type": getattr(output, "name", type(output).__name__.lower().replace("output", "")),
+                            "state": state,
+                            "enabled": enabled,
+                            "error": self._errors.get(name),
+                            "processed_chunks": processed_chunks,
+                            "last_process_time_ms": last_process_time_ms,
+                            "extra": extra,
+                            "stream_info": output.get_stream_info() if hasattr(output, "get_stream_info") else {},
+                        }
+                    )
                 except Exception as e:
-                    statuses.append({
-                        "name": name,
-                        "type": type(output).__name__.lower().replace('output', ''),
-                        "state": "error",
-                        "enabled": getattr(output, 'enabled', True),
-                        "error": f"Error al obtener estado: {str(e)}",
-                        "processed_chunks": 0,
-                        "last_process_time_ms": 0.0,
-                        "extra": {},
-                        "stream_info": {},
-                    })
+                    statuses.append(
+                        {
+                            "name": name,
+                            "type": type(output).__name__.lower().replace("output", ""),
+                            "state": "error",
+                            "enabled": getattr(output, "enabled", True),
+                            "error": f"Error al obtener estado: {e!s}",
+                            "processed_chunks": 0,
+                            "last_process_time_ms": 0.0,
+                            "extra": {},
+                            "stream_info": {},
+                        }
+                    )
                 except Exception as e:
-                    statuses.append({
-                        "name": name,
-                        "type": type(output).__name__.lower().replace('output', ''),
-                        "state": "error",
-                        "enabled": getattr(output, 'enabled', True),
-                        "error": f"Error al obtener estado: {str(e)}",
-                        "processed_chunks": 0,
-                        "last_process_time_ms": 0.0,
-                        "extra": {},
-                        "stream_info": {},
-                    })
+                    statuses.append(
+                        {
+                            "name": name,
+                            "type": type(output).__name__.lower().replace("output", ""),
+                            "state": "error",
+                            "enabled": getattr(output, "enabled", True),
+                            "error": f"Error al obtener estado: {e!s}",
+                            "processed_chunks": 0,
+                            "last_process_time_ms": 0.0,
+                            "extra": {},
+                            "stream_info": {},
+                        }
+                    )
             return statuses
 
     def is_output_enabled(self, name: str) -> bool:
@@ -283,9 +287,9 @@ class CompositeOutput(BaseOutput):
             if name not in self._outputs:
                 return False
             output = self._outputs[name]
-            if hasattr(output, 'enabled'):
+            if hasattr(output, "enabled"):
                 return output.enabled
-            if hasattr(output, '_enabled'):
+            if hasattr(output, "_enabled"):
                 return output._enabled
             return True
 
@@ -295,10 +299,10 @@ class CompositeOutput(BaseOutput):
             if name not in self._outputs:
                 return False
             output = self._outputs[name]
-            if hasattr(output, 'enabled'):
+            if hasattr(output, "enabled"):
                 output.enabled = enable
                 return True
-            if hasattr(output, '_enabled'):
+            if hasattr(output, "_enabled"):
                 output._enabled = enable
                 return True
             return False
@@ -317,12 +321,12 @@ class CompositeOutput(BaseOutput):
                 return True
             return False
 
-    def get_output_names(self) -> List[str]:
+    def get_output_names(self) -> list[str]:
         """Obtener lista de nombres de salidas."""
         with self._lock:
             return list(self._outputs.keys())
 
-    def get_output_types(self) -> List[str]:
+    def get_output_types(self) -> list[str]:
         """Obtener lista de tipos de salidas."""
         with self._lock:
             return [type(output).__name__ for output in self._outputs.values()]
@@ -332,7 +336,7 @@ class CompositeOutput(BaseOutput):
         with self._lock:
             return self._outputs.get(name)
 
-    def get_output_errors(self) -> Dict[str, str]:
+    def get_output_errors(self) -> dict[str, str]:
         """Obtener todos los errores de salidas."""
         with self._lock:
             return self._errors.copy()
@@ -350,8 +354,10 @@ def _register():
     """Auto-register this output module."""
     try:
         from core.io_factory import OutputFactory
+
         OutputFactory.register("composite", CompositeOutput)
     except ImportError:
         pass
+
 
 _register()
