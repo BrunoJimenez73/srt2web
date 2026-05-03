@@ -14,7 +14,20 @@ from pathlib import Path
 from typing import Any, Optional
 
 import yaml
-from pydantic import ValidationError
+
+# Handle Pydantic v1 vs v2 import
+try:
+    from pydantic import ValidationError  # Pydantic v2
+except ImportError:
+    try:
+        from pydantic.v1 import ValidationError  # Pydantic v1
+    except ImportError:
+        try:
+            from pydantic_core import ValidationError  # Pydantic v2 (core)
+        except ImportError:
+            # Fallback - define a basic ValidationError
+            class ValidationError(Exception):
+                pass
 
 from core.config_schema import SRT2WebConfig
 from core.hardware import update_config_with_optimal_device
@@ -170,7 +183,7 @@ class ConfigManager:
         logger.debug(f"[update_from_dict] AFTER merge - input.srt: {new_config.get('input', {}).get('srt', {})}")
 
         try:
-            # Validar que el resultado del merge sigue siendo válido
+            # Validar que el resultado del merge siga siendo válido
             validated_config = SRT2WebConfig.from_dict(new_config)
             self._config = validated_config.to_dict()
 

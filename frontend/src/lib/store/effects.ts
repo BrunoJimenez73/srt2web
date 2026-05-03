@@ -124,9 +124,9 @@ function stopStatusEffects(): void {
 let _efMetrics: (() => void) | null = null;
 
 function getMetricClass(value: number): string {
-  if (value < 50) return 'low';
-  if (value < 80) return 'medium';
-  return 'high';
+  if (value < 70) return 'low';
+  if (value < 90) return 'warning';
+  return 'critical';
 }
 
 function startMetricsEffects(): void {
@@ -135,12 +135,15 @@ function startMetricsEffects(): void {
     const tpAvg = throughputAvg.value;
 
     // CPU
+    const cpuItem = el<HTMLDivElement>('metric-cpu');
     const cpuBar = el<HTMLDivElement>('metric-cpu-bar');
     const cpuValue = el<HTMLSpanElement>('metric-cpu-value');
     if (cpuBar) {
       cpuBar.style.width = `${metrics.cpu}%`;
-      cpuBar.classList.remove('low', 'medium', 'high');
-      cpuBar.classList.add(getMetricClass(metrics.cpu));
+    }
+    if (cpuItem) {
+      cpuItem.classList.remove('low', 'warning', 'critical');
+      cpuItem.classList.add(getMetricClass(metrics.cpu));
     }
     if (cpuValue) cpuValue.textContent = `${metrics.cpu.toFixed(0)}%`;
 

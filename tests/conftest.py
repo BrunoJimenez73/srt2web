@@ -140,31 +140,81 @@ output:
 def sample_srt_content() -> str:
     """Sample SRT subtitle content for testing."""
     return """1
-00:00:00,000 --> 00:00:02,000
+00:00:01,000 --> 00:00:04,000
 Hello world
 
 2
-00:00:02,000 --> 00:00:04,000
+00:00:05,000 --> 00:00:08,000
 This is a test
 
 3
-00:00:04,000 --> 00:00:06,000
-Testing subtitle parsing
+00:00:09,000 --> 00:00:12,000
+Subtitle example
 """
 
 
 @pytest.fixture
-def sample_pipeline_data() -> dict:
-    """Sample PipelineData for testing."""
+def small_audio_chunk() -> dict:
+    """Small audio chunk for testing."""
+    import tempfile
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+        f.write(b'\x00\x00\x00\x00')  # Minimal WAV header
+        path = f.name
     return {
-        "chunk_index": 0,
-        "timestamp": 1234567890.0,
-        "duration": 4.0,
-        "video_chunk_path": "/tmp/test_chunk.ts",
-        "audio_chunk_path": "/tmp/test_audio.wav",
-        "transcript": "Hello world",
-        "translated_text": "Hola mundo",
+        "path": path,
+        "duration": 2.0,
+        "sample_rate": 16000,
+        "channels": 1,
     }
+
+
+@pytest.fixture
+def mock_whisper_model():
+    """Mock Whisper model for testing."""
+    model = MagicMock()
+    model.transcribe.return_value = {
+        "segments": [
+            {"start": 0.0, "end": 2.0, "text": "Hello"},
+            {"start": 2.0, "end": 4.0, "text": "world"},
+        ]
+    }
+    return model
+
+
+@pytest.fixture
+def config_factory():
+    """Factory for creating test configurations."""
+    from core.config_manager import ConfigManager
+    cm = ConfigManager()
+    def _factory(**overrides):
+        config = cm.get()
+        for key, value in overrides.items():
+            if "." in key:
+                section, field = key.split(".", 1)
+                setattr(getattr(config, section), field, value)
+            else:
+                setattr(config, key, value)
+        return config
+    return _factory
+
+
+@pytest.fixture
+def chunk_factory():
+    """Factory for creating PipelineData chunks."""
+    from core.pipeline.base import PipelineData
+    def _factory(**overrides):
+        defaults = {
+            "chunk_index": 0,
+            "timestamp": 1234567890.0,
+            "duration": 4.0,
+            "video_chunk_path": "/tmp/test_chunk.ts",
+            "audio_chunk_path": "/tmp/test_audio.wav",
+            "transcript": "Hello world",
+            "translated_text": "Hola mundo",
+        }
+        defaults.update(overrides)
+        return PipelineData(**defaults)
+    return _factory
 
 
 @pytest.fixture

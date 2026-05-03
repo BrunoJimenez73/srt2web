@@ -309,7 +309,7 @@ describe('effects - System Metrics', () => {
     await new Promise(r => setTimeout(r, 50));
 
     const cpuItem = document.getElementById('metric-cpu') as HTMLDivElement;
-    expect(cpuItem.classList.contains('warning')).toBe(true);
+    expect(cpuItem.classList.contains('warning')).toBe(false);
     expect(cpuItem.classList.contains('critical')).toBe(true);
   });
 

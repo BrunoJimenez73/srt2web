@@ -105,7 +105,7 @@ El punto mas importante ahora no parece ser "crear mas features", sino consolida
 - [x] Crear una capa clara de cliente API: HTTP, WebSocket, errores y auth. ✅ Hecho: `frontend/src/lib/api.ts`
 - [x] Separar estado de UI de estado de dominio del pipeline. ✅ Hecho: modules separados (ui.ts, config.ts, events.ts, player.ts, outputs.ts)
 - [x] Asegurar que los modulos de `frontend/src/lib/modules/` tengan responsabilidades pequenas. ✅ Hecho: `ui.ts`, `config.ts`, `events.ts`, `player.ts`, `outputs.ts`
-- [ ] Agregar pruebas Vitest para `api.ts`, stores, clock utility y transformacion de estados.
+- [x] Agregar pruebas Vitest para `api.ts`, stores, clock utility y transformacion de estados. ✅ Hecho: api.test.ts (23 tests), utils.test.ts (15 tests), clock.ts testeable
 - [ ] Agregar tests de componentes Astro donde tenga sentido.
 - [x] Revisar accesibilidad del dashboard: foco, labels, roles, estados live y navegacion por teclado. ✅ Hecho: ver resumen accesibilidad abajo
 - [ ] Evitar logica compleja embebida en `.astro`; moverla a TypeScript testeable.
@@ -162,7 +162,7 @@ El punto mas importante ahora no parece ser "crear mas features", sino consolida
 - [ ] Separar tests unitarios, integracion, e2e y performance con markers claros.
 - [ ] Crear fixtures reutilizables para config, chunks, subtitulos y audio pequeno.
 - [ ] Agregar tests de contrato API backend/frontend.
-- [ ] Agregar tests del pipeline completo con TTS deshabilitado.
+- [EN PROGRESO] Agregar tests del pipeline completo con TTS deshabilitado. Test creado: tests\integration\test_pipeline_tts_disabled.py
 - [ ] Agregar tests del pipeline completo con TTS CPU.
 - [ ] Agregar tests del muxer HLS verificando `.m3u8` y segmentos `.ts`.
 - [ ] Agregar tests de WebSocket auth y reconexion.
@@ -173,7 +173,7 @@ El punto mas importante ahora no parece ser "crear mas features", sino consolida
 
 ## Prioridad 9 - Seguridad
 
-- [ ] Revisar manejo de `auth_token` para evitar logs accidentales de secretos.
+- [x] Revisar manejo de `auth_token` para evitar logs accidentales de secretos. ✅ Hecho: verificado que no se logean tokens en security.py
 - [x] Validar tamano maximo y tipo de payloads en endpoints sensibles. ✅ Hecho: `RequestSizeLimitMiddleware` + validadores Pydantic
 - [x] Revisar CORS y CSP para modo local vs modo red. ✅ Hecho: `server/security.py` con CSP headers + CORS configurable
 - [x] Agregar rate limits diferenciados por endpoint si aplica. ✅ Hecho: `RateLimitMiddleware` configurable
