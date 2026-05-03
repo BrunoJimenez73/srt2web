@@ -103,6 +103,7 @@ class ModuleLogger:
         level: str,
         stage: str,
         chunk_index: Optional[int] = None,
+        correlation_id: Optional[str] = None,
         duration_ms: Optional[float] = None,
         status: str = "info",
         message: str = "",
@@ -114,6 +115,7 @@ class ModuleLogger:
             stage=stage,
             level=level,
             chunk_index=chunk_index,
+            correlation_id=correlation_id,
             duration_ms=duration_ms,
             status=status,
             message=message,
@@ -234,6 +236,10 @@ def parse_structured_log(log_line: str) -> Optional[dict]:
             return None
         end = log_line.rfind("}") + 1
         json_str = log_line[start:end]
+        return json.loads(json_str)
+    except (json.JSONDecodeError, ValueError):
+        return None
+end]
         return json.loads(json_str)
     except (json.JSONDecodeError, ValueError):
         return None

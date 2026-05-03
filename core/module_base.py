@@ -296,6 +296,7 @@ class PipelineData:
     timestamp: float = 0.0
     duration: float = 0.0
     cumulative_duration: float = 0.0  # Accumulated duration from previous chunks (for sync)
+    correlation_id: str = ""  # Unique ID to track chunk across all stages
     video_chunk_path: str | None = None
     audio_chunk_path: str | None = None
     audio_samples: np.ndarray | None = None
