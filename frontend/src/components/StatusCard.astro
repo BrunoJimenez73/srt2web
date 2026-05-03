@@ -6,10 +6,10 @@ interface Props {
 const { state = 'idle' } = Astro.props;
 ---
 
-<div class="status-card" id="status-card">
+<div class="status-card" id="status-card" role="region" aria-label="Estado del pipeline">
   <div class="status-top">
     <div class="status-left">
-      <span class="status-dot" id="status-dot"></span>
+      <span class="status-dot" id="status-dot" role="status" aria-live="polite"></span>
       <span class="status-text" id="status-text">APAGADO</span>
     </div>
     <div class="mode-selector">
@@ -27,27 +27,6 @@ const { state = 'idle' } = Astro.props;
       </button>
     </div>
   </div>
-</div>
-
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    // Stop pipeline button
-    const btnStop = document.getElementById('btn-stop');
-    if (btnStop) {
-      btnStop.addEventListener('click', function() {
-        if (window.stopPipeline) window.stopPipeline();
-      });
-    }
-
-    // Start pipeline button
-    const btnStart = document.getElementById('btn-start');
-    if (btnStart) {
-      btnStart.addEventListener('click', function() {
-        if (window.startPipeline) window.startPipeline();
-      });
-    }
-  });
-</script>
   <div class="urls-row">
     <div class="url-item">
       <span class="url-label" id="url-emision-label">SRT:</span>
@@ -73,3 +52,23 @@ const { state = 'idle' } = Astro.props;
     <input type="text" class="form-input" id="emitter-address" placeholder="203.0.113.xx" />
   </div>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Stop pipeline button
+    const btnStop = document.getElementById('btn-stop');
+    if (btnStop) {
+      btnStop.addEventListener('click', function() {
+        if (window.stopPipeline) window.stopPipeline();
+      });
+    }
+
+    // Start pipeline button
+    const btnStart = document.getElementById('btn-start');
+    if (btnStart) {
+      btnStart.addEventListener('click', function() {
+        if (window.startPipeline) window.startPipeline();
+      });
+    }
+  });
+</script>

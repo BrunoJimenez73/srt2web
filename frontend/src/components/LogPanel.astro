@@ -3,9 +3,9 @@
 ---
 
 <div class="log-panel collapsed" role="region" aria-label="Panel de registros del sistema">
-  <div class="log-header" id="log-header">
+  <div class="log-header" id="log-header" role="button" tabindex="0" aria-expanded="false" aria-controls="log-content">
     <div class="log-header-left">
-      <span class="log-collapse-icon" id="log-collapse-icon">▶</span>
+      <span class="log-collapse-icon" id="log-collapse-icon" aria-hidden="true">▶</span>
       <span class="log-title">📋 Logs</span>
     </div>
     <div class="log-actions">
@@ -20,8 +20,8 @@
       <button class="btn-clear" id="btn-clear-logs" aria-label="Limpiar todos los registros">Limpiar</button>
     </div>
   </div>
-  <div class="log-content" id="log-content" role="log" aria-live="polite" aria-atomic="false">
-    <div class="log-empty" id="log-empty">
+  <div class="log-content" id="log-content" role="log" aria-live="polite" aria-atomic="false" aria-relevant="additions text">
+    <div class="log-empty" id="log-empty" role="status">
       <span class="log-empty-icon">📝</span>
       <span class="log-empty-text">Sin registros aún</span>
     </div>
@@ -137,6 +137,16 @@
     if (logHeader) {
       logHeader.addEventListener('click', function() {
         window.toggleLogPanel();
+        const panel = document.querySelector('.log-panel');
+        logHeader.setAttribute('aria-expanded', panel?.classList.contains('collapsed') ? 'false' : 'true');
+      });
+      logHeader.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          window.toggleLogPanel();
+          const panel = document.querySelector('.log-panel');
+          logHeader.setAttribute('aria-expanded', panel?.classList.contains('collapsed') ? 'false' : 'true');
+        }
       });
     }
 

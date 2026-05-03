@@ -33,22 +33,22 @@ const { version = 'Astro' } = Astro.props;
 
     <!-- Security Toggle -->
     <div class="security-wrapper">
-      <button class="btn-secure" id="btn-secure-toggle">
-        <span class="secure-icon">🔐</span>
+      <button class="btn-secure" id="btn-secure-toggle" aria-label="Configurar autenticación" aria-expanded="false" aria-controls="secure-panel">
+        <span class="secure-icon" aria-hidden="true">🔐</span>
         <span class="secure-label" id="secure-label">Secure OFF</span>
         <span class="secure-arrow" id="secure-arrow">▾</span>
       </button>
       <div class="secure-panel" id="secure-panel">
         <div class="secure-panel-header">
           <span>Token de autenticación</span>
-          <button class="btn-close-panel" id="btn-close-secure">✕</button>
+          <button class="btn-close-panel" id="btn-close-secure" aria-label="Cerrar panel de autenticación">✕</button>
         </div>
         <div class="secure-input-row">
-          <input type="password" class="secure-input" id="secure-token-input" placeholder="Ingresa token..." />
-          <button class="btn-eye" id="btn-eye-token" title="Mostrar/Ocultar">👁</button>
+          <input type="password" class="secure-input" id="secure-token-input" placeholder="Ingresa token..." aria-label="Token de autenticación" />
+          <button class="btn-eye" id="btn-eye-token" aria-label="Mostrar u ocultar token" title="Mostrar/Ocultar">👁</button>
         </div>
         <div class="secure-actions">
-          <button class="btn-gen" id="btn-gen-token" title="Generar token">🎲</button>
+          <button class="btn-gen" id="btn-gen-token" aria-label="Generar token aleatorio" title="Generar token">🎲</button>
           <button class="btn-save-token" id="btn-save-secure">💾 Guardar</button>
         </div>
       </div>
@@ -371,6 +371,7 @@ const { version = 'Astro' } = Astro.props;
     e.stopPropagation();
     panel.classList.toggle('open');
     arrow.classList.toggle('open');
+    btnToggle.setAttribute('aria-expanded', panel.classList.contains('open') ? 'true' : 'false');
     updateSecureState();
   });
 
@@ -378,6 +379,7 @@ const { version = 'Astro' } = Astro.props;
   btnClose?.addEventListener('click', () => {
     panel.classList.remove('open');
     arrow.classList.remove('open');
+    btnToggle.setAttribute('aria-expanded', 'false');
   });
 
   // Close on click outside
@@ -385,6 +387,7 @@ const { version = 'Astro' } = Astro.props;
     if (!panel.contains(e.target as Node) && !btnToggle.contains(e.target as Node)) {
       panel.classList.remove('open');
       arrow.classList.remove('open');
+      btnToggle.setAttribute('aria-expanded', 'false');
     }
   });
 
@@ -436,4 +439,14 @@ const { version = 'Astro' } = Astro.props;
 
   // Initial state
   updateSecureState();
+
+  // Close panel on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && panel.classList.contains('open')) {
+      panel.classList.remove('open');
+      arrow.classList.remove('open');
+      btnToggle.setAttribute('aria-expanded', 'false');
+      btnToggle.focus();
+    }
+  });
 </script>

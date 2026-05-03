@@ -6,15 +6,12 @@
  * Este archivo solo contiene tipos específicos para el sistema de salidas.
  */
 
-// Re-export shared types via barrel (api.ts es la fuente de verdad)
+// Import main types from api.ts (single source of truth)
 export type {
   Config, Status, PipelineState, ModuleStatus, ModuleState,
   MetricsData, InputConfig, WebSocketMessage, HealthStatus,
-  LogMessage, ModuleExtra
-} from './shared-types';
-
-// Importar OutputStatus desde api.ts para usarlo en este archivo
-import type { OutputStatus } from './api';
+  LogMessage, ModuleExtra, OutputStatus
+} from './api';
 
 // ── Tipos específicos para configuración de salidas ──────────────────
 

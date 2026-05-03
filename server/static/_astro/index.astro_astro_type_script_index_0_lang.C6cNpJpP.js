@@ -3,29 +3,29 @@ const __vite__mapDeps = (
   m = __vite__mapDeps,
   d = m.f ||
     (m.f = [
-      "_astro/keyboard-shortcuts.DWUtHfJE.js",
+      "_astro/keyboard-shortcuts.DgyJLEf3.js",
       "_astro/store.CIQbH6Sf.js",
       "_astro/index.BpSbb1Lw.js",
     ]),
 ) => i.map((i) => d[i]);
 import {
-  D as g,
-  a as L,
+  D as y,
+  a as R,
   u as Ze,
   b as Re,
   M as _,
   c as Je,
   W as Qe,
-  I as G,
+  I as j,
   d as Xe,
   e as Te,
   f as et,
 } from "./api.CUNSBO6C.js";
-import { s as f, c as A } from "./index.BpSbb1Lw.js";
+import { s as f, c as $ } from "./index.BpSbb1Lw.js";
 import { i as tt, f as Ce } from "./logpanel.Co3ahUsz.js";
 import {
-  j as h,
-  p as N,
+  j as b,
+  p as M,
   a as Pe,
   s as nt,
   t as Ne,
@@ -33,9 +33,9 @@ import {
   w as Ue,
   b as it,
   d as st,
-  e as V,
-  f as E,
-  u as U,
+  e as z,
+  f as v,
+  u as A,
   r as ut,
 } from "./store.CIQbH6Sf.js";
 const lt = (function () {
@@ -51,53 +51,53 @@ const lt = (function () {
   Oe = function (t, n, i) {
     let o = Promise.resolve();
     if (n && n.length > 0) {
-      let m = function (r) {
+      let E = function (c) {
         return Promise.all(
-          r.map((c) =>
-            Promise.resolve(c).then(
-              (y) => ({ status: "fulfilled", value: y }),
-              (y) => ({ status: "rejected", reason: y }),
+          c.map((d) =>
+            Promise.resolve(d).then(
+              (r) => ({ status: "fulfilled", value: r }),
+              (r) => ({ status: "rejected", reason: r }),
             ),
           ),
         );
       };
       document.getElementsByTagName("link");
       const l = document.querySelector("meta[property=csp-nonce]"),
-        d = l?.nonce || l?.getAttribute("nonce");
-      o = m(
-        n.map((r) => {
-          if (((r = rt(r)), r in we)) return;
-          we[r] = !0;
-          const c = r.endsWith(".css"),
-            y = c ? '[rel="stylesheet"]' : "";
-          if (document.querySelector(`link[href="${r}"]${y}`)) return;
+        m = l?.nonce || l?.getAttribute("nonce");
+      o = E(
+        n.map((c) => {
+          if (((c = rt(c)), c in we)) return;
+          we[c] = !0;
+          const d = c.endsWith(".css"),
+            r = d ? '[rel="stylesheet"]' : "";
+          if (document.querySelector(`link[href="${c}"]${r}`)) return;
           const p = document.createElement("link");
           if (
-            ((p.rel = c ? "stylesheet" : lt),
-            c || (p.as = "script"),
+            ((p.rel = d ? "stylesheet" : lt),
+            d || (p.as = "script"),
             (p.crossOrigin = ""),
-            (p.href = r),
-            d && p.setAttribute("nonce", d),
+            (p.href = c),
+            m && p.setAttribute("nonce", m),
             document.head.appendChild(p),
-            c)
+            d)
           )
-            return new Promise((b, a) => {
-              p.addEventListener("load", b),
+            return new Promise((B, h) => {
+              p.addEventListener("load", B),
                 p.addEventListener("error", () =>
-                  a(new Error(`Unable to preload CSS for ${r}`)),
+                  h(new Error(`Unable to preload CSS for ${c}`)),
                 );
             });
         }),
       );
     }
-    function s(l) {
-      const d = new Event("vite:preloadError", { cancelable: !0 });
-      if (((d.payload = l), window.dispatchEvent(d), !d.defaultPrevented))
+    function u(l) {
+      const m = new Event("vite:preloadError", { cancelable: !0 });
+      if (((m.payload = l), window.dispatchEvent(m), !m.defaultPrevented))
         throw l;
     }
     return o.then((l) => {
-      for (const d of l || []) d.status === "rejected" && s(d.reason);
-      return t().catch(s);
+      for (const m of l || []) m.status === "rejected" && u(m.reason);
+      return t().catch(u);
     });
   };
 let ke = !1;
@@ -113,14 +113,14 @@ function Le() {
   const e = document.getElementById("live-clock");
   e && (e.textContent = new Date().toLocaleTimeString("en-US", { hour12: !1 }));
 }
-var k = ((e) => (
+var L = ((e) => (
   (e.STOPPED = "stopped"),
   (e.RUNNING = "running"),
   (e.STARTING = "starting"),
   (e.STOPPING = "stopping"),
   (e.ERROR = "error"),
   e
-))(k || {});
+))(L || {});
 function dt(e) {
   switch (e) {
     case "running":
@@ -135,32 +135,32 @@ function dt(e) {
       return "stopped";
   }
 }
-function u(e) {
+function s(e) {
   return document.getElementById(e);
 }
 function ct() {
-  h(() => {
-    const e = N.value,
-      t = u("status-dot"),
-      n = u("status-text");
+  b(() => {
+    const e = M.value,
+      t = s("status-dot"),
+      n = s("status-text");
     if (!t || !n) return;
     const i = dt(e?.state);
-    t.classList.toggle("running", i === k.RUNNING),
-      t.classList.toggle("error", i === k.ERROR),
-      (n.textContent = i === k.RUNNING ? "ACTIVO" : "APAGADO");
-    const o = u("btn-start"),
-      s = u("btn-stop");
+    t.classList.toggle("running", i === L.RUNNING),
+      t.classList.toggle("error", i === L.ERROR),
+      (n.textContent = i === L.RUNNING ? "ACTIVO" : "APAGADO");
+    const o = s("btn-start"),
+      u = s("btn-stop");
     if (o) {
-      const l = i === k.RUNNING;
+      const l = i === L.RUNNING;
       (o.disabled = l), (o.style.opacity = l ? "0.5" : "1");
     }
-    if (s) {
-      const l = i === k.RUNNING;
-      (s.disabled = !l), (s.style.opacity = l ? "1" : "0.5");
+    if (u) {
+      const l = i === L.RUNNING;
+      (u.disabled = !l), (u.style.opacity = l ? "1" : "0.5");
     }
   }),
-    h(() => {
-      const t = N.value?.modules ?? [],
+    b(() => {
+      const t = M.value?.modules ?? [],
         n = Pe.value,
         i = {
           srt_input: "indicator-input",
@@ -180,61 +180,61 @@ function ct() {
           file_output: "indicator-output",
         };
       for (const o of t) {
-        const s = i[o.name];
-        if (!s) continue;
-        const l = u(s);
+        const u = i[o.name];
+        if (!u) continue;
+        const l = s(u);
         l && l.classList.toggle("active", n && o.enabled);
       }
     }),
-    h(() => {
-      const e = N.value,
-        t = u("pipeline-indicator");
+    b(() => {
+      const e = M.value,
+        t = s("pipeline-indicator");
       t && t.classList.toggle("active", e?.state === "running");
     });
 }
-function F(e) {
+function D(e) {
   return e < 50 ? "low" : e < 80 ? "medium" : "high";
 }
 function mt() {
-  h(() => {
+  b(() => {
     const e = nt.value,
       t = Ne.value,
-      n = u("metric-cpu-bar"),
-      i = u("metric-cpu-value");
+      n = s("metric-cpu-bar"),
+      i = s("metric-cpu-value");
     n &&
       ((n.style.width = `${e.cpu}%`),
       n.classList.remove("low", "medium", "high"),
-      n.classList.add(F(e.cpu))),
+      n.classList.add(D(e.cpu))),
       i && (i.textContent = `${e.cpu.toFixed(0)}%`);
-    const o = u("metric-memory-bar"),
-      s = u("metric-memory-value"),
-      l = u("metric-memory-percent");
+    const o = s("metric-memory-bar"),
+      u = s("metric-memory-value"),
+      l = s("metric-memory-percent");
     o &&
       ((o.style.width = `${e.memoryPercent}%`),
       o.classList.remove("low", "medium", "high"),
-      o.classList.add(F(e.memoryPercent))),
-      s && (s.textContent = `${e.memoryMb.toFixed(0)} MB`),
+      o.classList.add(D(e.memoryPercent))),
+      u && (u.textContent = `${e.memoryMb.toFixed(0)} MB`),
       l && (l.textContent = `${e.memoryPercent.toFixed(0)}%`);
-    const d = u("metric-gpu-bar"),
-      m = u("metric-gpu-value"),
-      r = u("metric-gpu-memory");
-    d &&
-      ((d.style.width = `${e.gpuUtil}%`),
-      d.classList.remove("low", "medium", "high"),
-      d.classList.add(F(e.gpuUtil))),
-      m && (m.textContent = `${e.gpuUtil.toFixed(0)}%`),
-      r &&
-        (r.textContent =
+    const m = s("metric-gpu-bar"),
+      E = s("metric-gpu-value"),
+      c = s("metric-gpu-memory");
+    m &&
+      ((m.style.width = `${e.gpuUtil}%`),
+      m.classList.remove("low", "medium", "high"),
+      m.classList.add(D(e.gpuUtil))),
+      E && (E.textContent = `${e.gpuUtil.toFixed(0)}%`),
+      c &&
+        (c.textContent =
           e.gpuMemMb > 0 ? `${e.gpuMemMb.toFixed(0)} MB` : "N/A");
-    const c = u("metric-throughput-bar"),
-      y = u("metric-throughput-value");
-    c && (c.style.width = `${Math.min(t * 10, 100)}%`),
-      y && (y.textContent = `${t.toFixed(2)}/s`);
+    const d = s("metric-throughput-bar"),
+      r = s("metric-throughput-value");
+    d && (d.style.width = `${Math.min(t * 10, 100)}%`),
+      r && (r.textContent = `${t.toFixed(2)}/s`);
   });
 }
 function pt() {
-  h(() => {
-    const e = N.value,
+  b(() => {
+    const e = M.value,
       t = e?.modules ?? [],
       n = Pe.value,
       i = Ne.value,
@@ -246,56 +246,72 @@ function pt() {
       "subtitle_generator",
       "audio_mixer",
     ]) {
-      const v = o[a],
-        B = u(`module-time-${a}`),
-        R = u(`module-chunks-${a}`),
-        T = u(`module-encoder-${a}`);
-      if (B)
-        if (v?.last_process_time_ms !== void 0 && v.last_process_time_ms > 0) {
-          const I = v.last_process_time_ms;
-          B.textContent =
+      const g = o[a],
+        x = s(`module-time-${a}`),
+        P = s(`module-chunks-${a}`),
+        N = s(`module-memory-${a}`),
+        U = s(`module-encoder-${a}`);
+      if (x)
+        if (g?.last_process_time_ms !== void 0 && g.last_process_time_ms > 0) {
+          const I = g.last_process_time_ms;
+          x.textContent =
             I < 1e3 ? `${Math.round(I)}ms` : `${(I / 1e3).toFixed(1)}s`;
         } else if (n && i > 0) {
           const I = (1e3 / i).toFixed(0);
-          B.textContent = `${I}ms`;
-        } else B.textContent = "--";
+          x.textContent = `${I}ms`;
+        } else x.textContent = "--";
       if (
-        (R && (R.textContent = String(v?.processed_chunks ?? 0)), T && v?.extra)
+        (P && (P.textContent = String(g?.processed_chunks ?? 0)),
+        N &&
+          (N.textContent =
+            g?.memory_mb !== void 0 ? `${Math.round(g.memory_mb)} MB` : "--"),
+        U && g?.extra)
       ) {
-        const I = v.extra.encoder_label || (v.extra.using_gpu ? "GPU" : "CPU");
-        T.textContent = I;
+        const I = g.extra.encoder_label || (g.extra.using_gpu ? "GPU" : "CPU");
+        U.textContent = I;
       }
-      const x = u(`gpu-badge-${a}`);
-      if (x && v?.extra) {
-        const I = n && v.enabled && (v.processed_chunks ?? 0) > 0;
-        v.extra.using_gpu
-          ? ((x.style.display = "inline"), x.classList.toggle("active", I))
-          : (x.style.display = "none");
+      const S = s(`gpu-badge-${a}`);
+      if (S && g?.extra) {
+        const I = n && g.enabled && (g.processed_chunks ?? 0) > 0;
+        g.extra.using_gpu
+          ? ((S.style.display = "inline"), S.classList.toggle("active", I))
+          : (S.style.display = "none");
       }
     }
-    const s = u("module-time-video_muxer"),
-      l = u("module-chunks-video_muxer"),
-      d = u("module-encoder-video_muxer"),
-      m = o.video_muxer ?? o.output;
-    if (s)
-      if (m?.last_process_time_ms !== void 0 && m.last_process_time_ms > 0) {
-        const a = m.last_process_time_ms;
-        s.textContent =
+    const u = s("module-time-video_muxer"),
+      l = s("module-memory-video_muxer"),
+      m = s("module-chunks-video_muxer"),
+      E = s("module-encoder-video_muxer"),
+      c = s("gpu-badge-video_muxer"),
+      d = o.video_muxer ?? o.output;
+    if (u)
+      if (d?.last_process_time_ms !== void 0 && d.last_process_time_ms > 0) {
+        const a = d.last_process_time_ms;
+        u.textContent =
           a < 1e3 ? `${Math.round(a)}ms` : `${(a / 1e3).toFixed(1)}s`;
       } else
         n && i > 0
-          ? (s.textContent = `${(1e3 / i).toFixed(0)}ms`)
-          : (s.textContent = "--");
+          ? (u.textContent = `${(1e3 / i).toFixed(0)}ms`)
+          : (u.textContent = "--");
     if (
       (l &&
-        (l.textContent = String(
-          m?.processed_chunks ?? e?.chunks_processed ?? 0,
+        (l.textContent =
+          d?.memory_mb !== void 0 ? `${Math.round(d.memory_mb)} MB` : "--"),
+      m &&
+        (m.textContent = String(
+          d?.processed_chunks ?? e?.chunks_processed ?? 0,
         )),
-      d)
+      E)
     ) {
       const a =
-        m?.extra?.encoder_label ?? (m?.extra?.using_gpu ? "GPU" : "CPU");
-      d.textContent = a;
+        d?.extra?.encoder_label ?? (d?.extra?.using_gpu ? "GPU" : "CPU");
+      E.textContent = a;
+    }
+    if (c && d?.extra) {
+      const a = n && d.enabled && (d.processed_chunks ?? 0) > 0;
+      d.extra.using_gpu
+        ? ((c.style.display = "inline"), c.classList.toggle("active", a))
+        : (c.style.display = "none");
     }
     const r =
         o.srt_input ??
@@ -303,45 +319,45 @@ function pt() {
         o.file_input ??
         o.audio_extractor ??
         o.input,
-      c = u("module-time-input"),
-      y = u("module-chunks-input"),
-      p = u("gpu-badge-input"),
-      b = u("module-encoder-input");
-    if (c)
+      p = s("module-time-input"),
+      B = s("module-chunks-input"),
+      h = s("gpu-badge-input"),
+      T = s("module-encoder-input");
+    if (p)
       if (r?.last_process_time_ms !== void 0 && r.last_process_time_ms > 0) {
         const a = r.last_process_time_ms;
-        c.textContent =
+        p.textContent =
           a < 1e3 ? `${Math.round(a)}ms` : `${(a / 1e3).toFixed(1)}s`;
       } else
         n && i > 0
-          ? (c.textContent = `${(1e3 / i).toFixed(0)}ms`)
+          ? (p.textContent = `${(1e3 / i).toFixed(0)}ms`)
           : r?.enabled
             ? r?.state === "error"
-              ? ((c.textContent = "ERROR"), (c.style.color = "var(--error)"))
-              : (c.textContent = "IDLE")
-            : (c.textContent = "--");
-    if ((y && r && (y.textContent = String(r.processed_chunks ?? 0)), p && r)) {
+              ? ((p.textContent = "ERROR"), (p.style.color = "var(--error)"))
+              : (p.textContent = "IDLE")
+            : (p.textContent = "--");
+    if ((B && r && (B.textContent = String(r.processed_chunks ?? 0)), h && r)) {
       const a = r.extra?.using_gpu === !0,
-        v = n && (r.processed_chunks ?? 0) > 0;
+        g = n && (r.processed_chunks ?? 0) > 0;
       r.enabled && a
-        ? ((p.style.display = "inline"),
-          p.classList.toggle("active", v),
-          (p.textContent = "GPU"))
-        : (p.style.display = "none");
+        ? ((h.style.display = "inline"),
+          h.classList.toggle("active", g),
+          (h.textContent = "GPU"))
+        : (h.style.display = "none");
     }
-    if (b && r) {
+    if (T && r) {
       const a = r.extra?.encoder_label || (r.extra?.using_gpu ? "GPU" : "CPU");
-      b.textContent = a;
+      T.textContent = a;
     }
   });
 }
 function gt() {
-  h(() => {
+  b(() => {
     const e = ot.value,
-      t = u("url-emision-label"),
-      n = u("url-emision"),
-      i = u("url-stream"),
-      o = u("url-player");
+      t = s("url-emision-label"),
+      n = s("url-emision"),
+      i = s("url-stream"),
+      o = s("url-player");
     t && (t.textContent = e.primaryLabel),
       n && (n.textContent = e.primaryUrl),
       i && (i.textContent = e.streamUrl),
@@ -349,50 +365,50 @@ function gt() {
   });
 }
 function yt() {
-  h(() => {
+  b(() => {
     const e = Ue.value,
-      t = u("ws-status-badge");
+      t = s("ws-status-badge");
     t &&
       ((t.textContent = e ? "WS ON" : "WS OFF"),
       t.classList.toggle("active", e));
   });
 }
 function vt() {
-  h(() => {
-    N.value;
-    const e = u("live-clock");
+  b(() => {
+    M.value;
+    const e = s("live-clock");
     e &&
       (e.textContent = new Date().toLocaleTimeString("en-US", { hour12: !1 }));
   }),
     at();
 }
 function Et() {
-  h(() => {
+  b(() => {
     const e = it.value,
-      t = u("remote-config"),
-      n = u("btn-mode-local"),
-      i = u("btn-mode-remote");
+      t = s("remote-config"),
+      n = s("btn-mode-local"),
+      i = s("btn-mode-remote");
     t && (t.style.display = e === "remote" ? "" : "none"),
       n && n.classList.toggle("active", e === "local"),
       i && i.classList.toggle("active", e === "remote");
   });
 }
 function ft() {
-  h(() => {
-    st.value, V.value;
+  b(() => {
+    st.value, z.value;
   });
 }
 function _t() {
   ct(), mt(), pt(), gt(), yt(), vt(), Et(), ft();
 }
-function Ae() {
+function Me() {
   const e = document.getElementById("input-type")?.value || "srt";
   document.getElementById("output-type")?.value;
   const t = parseInt(
       document.getElementById("input-chunk-duration")?.value ||
         document.getElementById("input-rtmp-chunk")?.value ||
         document.getElementById("input-file-chunk")?.value ||
-        String(g.CHUNK_DURATION),
+        String(y.CHUNK_DURATION),
     ),
     n = { type: e };
   e === "srt"
@@ -424,7 +440,7 @@ function Ae() {
           loop: document.getElementById("input-file-loop")?.value === "true",
           speed: parseFloat(
             document.getElementById("input-file-speed")?.value ||
-              String(g.TTS_SPEED),
+              String(y.TTS_SPEED),
           ),
           chunk_duration_sec: t,
         });
@@ -432,9 +448,9 @@ function Ae() {
     audio_extractor: { enabled: !0 },
     transcriber: {
       enabled: document.getElementById("whisper-enabled")?.checked ?? !0,
-      model: document.getElementById("whisper-model")?.value || g.WHISPER_MODEL,
+      model: document.getElementById("whisper-model")?.value || y.WHISPER_MODEL,
       language:
-        document.getElementById("whisper-lang")?.value || g.WHISPER_LANGUAGE,
+        document.getElementById("whisper-lang")?.value || y.WHISPER_LANGUAGE,
       device: document.getElementById("whisper-device")?.value || "auto",
       beam_size: 2,
     },
@@ -442,10 +458,10 @@ function Ae() {
       enabled: document.getElementById("translator-enabled")?.checked ?? !0,
       source_lang:
         document.getElementById("translator-source")?.value ||
-        g.WHISPER_LANGUAGE,
+        y.WHISPER_LANGUAGE,
       target_lang:
         document.getElementById("translator-target")?.value ||
-        g.TRANSLATE_TARGET,
+        y.TRANSLATE_TARGET,
     },
     tts_engine: {
       enabled: document.getElementById("tts-enabled")?.checked ?? !0,
@@ -457,14 +473,14 @@ function Ae() {
           : document.getElementById("tts-voice-edge")?.value ||
             "es-ES-ElviraNeural",
       speed: parseFloat(
-        document.getElementById("tts-speed")?.value || String(g.TTS_SPEED),
+        document.getElementById("tts-speed")?.value || String(y.TTS_SPEED),
       ),
       device: document.getElementById("tts-device")?.value || "auto",
     },
     subtitle_generator: {
       enabled: document.getElementById("subtitle-enabled")?.checked ?? !0,
       format:
-        document.getElementById("subtitle-format")?.value || g.SUBTITLE_FORMAT,
+        document.getElementById("subtitle-format")?.value || y.SUBTITLE_FORMAT,
       use_translated:
         document.getElementById("subtitle-use-translated")?.value === "true",
       chunk_duration: t,
@@ -473,15 +489,15 @@ function Ae() {
       enabled: document.getElementById("audio-mixer-enabled")?.checked ?? !1,
       original_volume: parseFloat(
         document.getElementById("audio-mixer-original-volume")?.value ||
-          String(g.ORIGINAL_VOLUME),
+          String(y.ORIGINAL_VOLUME),
       ),
       tts_volume: parseFloat(
         document.getElementById("audio-mixer-dubbed-volume")?.value ||
-          String(g.TTS_VOLUME),
+          String(y.TTS_VOLUME),
       ),
       dubbed_volume: parseFloat(
         document.getElementById("audio-mixer-dubbed-volume")?.value ||
-          String(g.TTS_VOLUME),
+          String(y.TTS_VOLUME),
       ),
     },
     video_muxer: {
@@ -489,19 +505,19 @@ function Ae() {
       engine: document.getElementById("video-muxer-engine")?.value || "hls",
       hls_segment_duration: parseInt(
         document.getElementById("hls-segment")?.value ||
-          String(g.SEGMENT_DURATION),
+          String(y.SEGMENT_DURATION),
       ),
       hls_list_size: parseInt(
-        document.getElementById("hls-list")?.value || String(g.LIST_SIZE),
+        document.getElementById("hls-list")?.value || String(y.LIST_SIZE),
       ),
       audio_offset_ms: parseInt(
         document.getElementById("hls-audio-offset")?.value ||
-          String(g.AUDIO_OFFSET),
+          String(y.AUDIO_OFFSET),
       ),
       encoder_mode: document.getElementById("hls-encoder")?.value || "auto",
       video_quality: "medium",
       video_crf: parseInt(
-        document.getElementById("hls-crf")?.value || String(g.CRF),
+        document.getElementById("hls-crf")?.value || String(y.CRF),
       ),
       audio_codec:
         (document.getElementById("video-muxer-engine")?.value === "webrtc"
@@ -521,8 +537,8 @@ function Ae() {
       ...(() => {
         const o = document.getElementById("webrtc-video-resolution");
         if (o?.value) {
-          const [s, l] = o.value.split("x").map(Number);
-          return { video_width: s, video_height: l };
+          const [u, l] = o.value.split("x").map(Number);
+          return { video_width: u, video_height: l };
         }
         return {};
       })(),
@@ -541,30 +557,30 @@ function Ae() {
     modules: i,
   };
 }
-function W(e) {
+function H(e) {
   const t = document.getElementById("input-type"),
     n = document.getElementById("output-type"),
     i = document.getElementById("whisper-enabled"),
     o = document.getElementById("whisper-model"),
-    s = document.getElementById("whisper-lang"),
+    u = document.getElementById("whisper-lang"),
     l = document.getElementById("whisper-device"),
-    d = document.getElementById("translator-enabled"),
-    m = document.getElementById("translator-source"),
-    r = document.getElementById("translator-target"),
-    c = document.getElementById("tts-enabled"),
-    y = document.getElementById("tts-engine"),
+    m = document.getElementById("translator-enabled"),
+    E = document.getElementById("translator-source"),
+    c = document.getElementById("translator-target"),
+    d = document.getElementById("tts-enabled"),
+    r = document.getElementById("tts-engine"),
     p = document.getElementById("tts-device"),
-    b = document.getElementById("tts-device-group"),
-    a = document.getElementById("tts-voice-edge"),
-    v = document.getElementById("tts-voice-piper"),
-    B = document.getElementById("tts-voice-edge-group"),
-    R = document.getElementById("tts-voice-piper-group"),
-    T = document.getElementById("tts-speed"),
-    x = document.getElementById("subtitle-enabled"),
-    I = document.getElementById("subtitle-format"),
-    j = document.getElementById("subtitle-use-translated"),
-    z = document.getElementById("muxer-enabled"),
-    H = document.getElementById("video-muxer-engine"),
+    B = document.getElementById("tts-device-group"),
+    h = document.getElementById("tts-voice-edge"),
+    T = document.getElementById("tts-voice-piper"),
+    a = document.getElementById("tts-voice-edge-group"),
+    g = document.getElementById("tts-voice-piper-group"),
+    x = document.getElementById("tts-speed"),
+    P = document.getElementById("subtitle-enabled"),
+    N = document.getElementById("subtitle-format"),
+    U = document.getElementById("subtitle-use-translated"),
+    S = document.getElementById("muxer-enabled"),
+    I = document.getElementById("video-muxer-engine"),
     K = document.getElementById("hls-segment"),
     q = document.getElementById("hls-list"),
     Y = document.getElementById("hls-encoder"),
@@ -577,61 +593,61 @@ function W(e) {
   const ee = document.getElementById("input-srt-port"),
     te = document.getElementById("input-srt-mode"),
     ne = document.getElementById("input-srt-latency"),
-    S = e.input?.srt;
-  ee && S?.listen_port && (ee.value = String(S.listen_port)),
-    te && S?.mode && (te.value = S.mode),
-    ne && S?.latency_ms && (ne.value = String(S.latency_ms));
+    C = e.input?.srt;
+  ee && C?.listen_port && (ee.value = String(C.listen_port)),
+    te && C?.mode && (te.value = C.mode),
+    ne && C?.latency_ms && (ne.value = String(C.latency_ms));
   const oe = document.getElementById("input-chunk-duration"),
     ie = document.getElementById("input-rtmp-chunk"),
     se = document.getElementById("input-file-chunk"),
-    O = e.pipeline?.chunk_duration_sec || g.CHUNK_DURATION;
-  oe && (oe.value = String(S?.chunk_duration_sec || O));
-  const C = e.input?.rtmp,
-    w = e.input?.file;
-  ie && (ie.value = String(C?.chunk_duration_sec || O));
+    F = e.pipeline?.chunk_duration_sec || y.CHUNK_DURATION;
+  oe && (oe.value = String(C?.chunk_duration_sec || F));
+  const w = e.input?.rtmp,
+    k = e.input?.file;
+  ie && (ie.value = String(w?.chunk_duration_sec || F));
   const ue = document.getElementById("input-rtmp-url"),
     le = document.getElementById("input-rtmp-mode"),
     re = document.getElementById("input-rtmp-app");
-  ue && C?.url && (ue.value = C.url),
-    le && C?.mode && (le.value = C.mode),
-    re && C?.app && (re.value = C.app);
+  ue && w?.url && (ue.value = w.url),
+    le && w?.mode && (le.value = w.mode),
+    re && w?.app && (re.value = w.app);
   const ae = document.getElementById("input-file-path"),
     de = document.getElementById("input-file-loop"),
     ce = document.getElementById("input-file-speed");
-  ae && w?.path && (ae.value = w.path),
-    de && w?.loop !== void 0 && (de.value = w.loop ? "true" : "false"),
-    ce && w?.speed && (ce.value = String(w.speed)),
-    se && (se.value = String(w?.chunk_duration_sec || O));
+  ae && k?.path && (ae.value = k.path),
+    de && k?.loop !== void 0 && (de.value = k.loop ? "true" : "false"),
+    ce && k?.speed && (ce.value = String(k.speed)),
+    se && (se.value = String(k?.chunk_duration_sec || F));
   const Ye =
     e.output?.type === "web" ? "webplayer" : e.output?.type || "webplayer";
   if (
     (n && ((n.value = Ye), ht()),
     i && (i.checked = e.modules.transcriber.enabled),
     o && (o.value = e.modules.transcriber.model),
-    s && (s.value = e.modules.transcriber.language),
+    u && (u.value = e.modules.transcriber.language),
     l && (l.value = e.modules.transcriber.device),
-    d && (d.checked = e.modules.translator.enabled),
-    m && (m.value = e.modules.translator.source_lang),
-    r && (r.value = e.modules.translator.target_lang),
-    c && (c.checked = e.modules.tts_engine.enabled),
-    y &&
-      ((y.value = e.modules.tts_engine.engine || "edge-tts"),
-      b && (b.style.display = y.value === "piper" ? "block" : "none"),
-      B && R))
+    m && (m.checked = e.modules.translator.enabled),
+    E && (E.value = e.modules.translator.source_lang),
+    c && (c.value = e.modules.translator.target_lang),
+    d && (d.checked = e.modules.tts_engine.enabled),
+    r &&
+      ((r.value = e.modules.tts_engine.engine || "edge-tts"),
+      B && (B.style.display = r.value === "piper" ? "block" : "none"),
+      a && g))
   ) {
-    const Se = y.value === "edge-tts";
-    (B.style.display = Se ? "block" : "none"),
-      (R.style.display = Se ? "none" : "block");
+    const Se = r.value === "edge-tts";
+    (a.style.display = Se ? "block" : "none"),
+      (g.style.display = Se ? "none" : "block");
   }
   p && (p.value = e.modules.tts_engine.device || "auto"),
-    a && (a.value = e.modules.tts_engine.voice || "es-ES-AlvaroNeural"),
-    v && (v.value = e.modules.tts_engine.voice || "es_ES-sharvard-medium"),
-    T && (T.value = String(e.modules.tts_engine.speed)),
-    x && (x.checked = e.modules.subtitle_generator.enabled),
-    I && (I.value = e.modules.subtitle_generator.format),
-    j && (j.value = String(e.modules.subtitle_generator.use_translated)),
-    z && (z.checked = e.modules.video_muxer.enabled),
-    H && (H.value = e.modules.video_muxer.engine || "hls");
+    h && (h.value = e.modules.tts_engine.voice || "es-ES-AlvaroNeural"),
+    T && (T.value = e.modules.tts_engine.voice || "es_ES-sharvard-medium"),
+    x && (x.value = String(e.modules.tts_engine.speed)),
+    P && (P.checked = e.modules.subtitle_generator.enabled),
+    N && (N.value = e.modules.subtitle_generator.format),
+    U && (U.value = String(e.modules.subtitle_generator.use_translated)),
+    S && (S.checked = e.modules.video_muxer.enabled),
+    I && (I.value = e.modules.video_muxer.engine || "hls");
   const me = document.getElementById("audio-mixer-enabled");
   me && (me.checked = e.modules.audio_mixer?.enabled ?? !1);
   const pe = document.getElementById("audio-mixer-original-volume");
@@ -696,68 +712,68 @@ function ht() {
   const e = document.getElementById("output-type");
   e && (e.value = e.value);
 }
-async function Fe() {
+async function Ae() {
   try {
-    E("INFO", _.PIPELINE_STARTING), await Xe();
+    v("INFO", _.PIPELINE_STARTING), await Xe();
     const e = await Te();
-    U(e), E("INFO", _.PIPELINE_STARTED);
+    A(e), v("INFO", _.PIPELINE_STARTED);
   } catch (e) {
-    E("ERROR", `Error: ${e.message}`);
+    v("ERROR", `Error: ${e.message}`);
   }
 }
-async function Me() {
+async function Fe() {
   if (confirm(_.PIPELINE_CONFIRM_STOP))
     try {
-      E("INFO", _.PIPELINE_STOPPING), await et();
+      v("INFO", _.PIPELINE_STOPPING), await et();
       const e = await Te();
-      U(e), ut(), E("INFO", _.PIPELINE_STOPPED);
+      A(e), ut(), v("INFO", _.PIPELINE_STOPPED);
     } catch (e) {
-      E("ERROR", `Error: ${e.message}`);
+      v("ERROR", `Error: ${e.message}`);
     }
 }
 async function $e() {
   try {
-    const e = Ae(),
+    const e = Me(),
       t = parseInt(
         document.getElementById("input-chunk-duration")?.value ||
           document.getElementById("input-rtmp-chunk")?.value ||
           document.getElementById("input-file-chunk")?.value ||
-          String(g.CHUNK_DURATION),
+          String(y.CHUNK_DURATION),
       );
-    await L("PUT", "/api/config", { config: e });
+    await R("PUT", "/api/config", { config: e });
     try {
-      await Ze(t), E("INFO", `Chunk synced: ${t}s`);
+      await Ze(t), v("INFO", `Chunk synced: ${t}s`);
     } catch (i) {
-      E("WARNING", `Chunk sync failed: ${i.message}`);
+      v("WARNING", `Chunk sync failed: ${i.message}`);
     }
     const n = await Re();
-    (V.value = n),
-      W(n),
+    (z.value = n),
+      H(n),
       f(_.CONFIG_SAVED, "success"),
-      E("INFO", "Configuración guardada");
+      v("INFO", "Configuración guardada");
   } catch (e) {
     const t = e.message;
     f(`${_.CONFIG_SAVE_ERROR}: ${t}`, "error"),
-      E("ERROR", `Error al guardar: ${t}`);
+      v("ERROR", `Error al guardar: ${t}`);
   }
 }
-async function $() {
+async function V() {
   try {
-    await L("POST", "input/control/play"), f(_.INPUT_FILE_PLAY, "success");
+    await R("POST", "input/control/play"), f(_.INPUT_FILE_PLAY, "success");
   } catch (e) {
     f(`Error al reproducir: ${e.message}`, "error");
   }
 }
 async function De() {
   try {
-    await L("POST", "input/control/pause"), f(_.INPUT_FILE_PAUSE, "success");
+    await R("POST", "input/control/pause"), f(_.INPUT_FILE_PAUSE, "success");
   } catch (e) {
     f(`Error al pausar: ${e.message}`, "error");
   }
 }
-async function D(e) {
+async function W(e) {
   try {
-    await L("POST", "input/control/seek", { position: e });
+    await R("POST", "input/control/seek", { position: e });
   } catch (t) {
     f(`Error al buscar posición: ${t.message}`, "error");
   }
@@ -780,29 +796,29 @@ async function Ge() {
     return null;
   }
 }
-let M = null;
+let G = null;
 function bt() {
-  M && clearInterval(M);
+  G && clearInterval(G);
   const e = document.getElementById("input-file-position"),
     t = document.getElementById("file-time-current"),
     n = document.getElementById("file-time-total"),
     i = document.getElementById("btn-file-play"),
     o = document.getElementById("btn-file-pause");
-  M = setInterval(() => {
-    Ge().then((s) => {
-      s &&
+  G = setInterval(() => {
+    Ge().then((u) => {
+      u &&
         (e &&
-          s.duration > 0 &&
-          (e.value = ((s.position / s.duration) * 100).toString()),
-        t && (t.textContent = Ce(s.position)),
-        n && (n.textContent = Ce(s.duration)),
+          u.duration > 0 &&
+          (e.value = ((u.position / u.duration) * 100).toString()),
+        t && (t.textContent = Ce(u.position)),
+        n && (n.textContent = Ce(u.duration)),
         i &&
           o &&
-          (s.is_playing
+          (u.is_playing
             ? ((i.style.display = "none"), (o.style.display = "inline"))
             : ((i.style.display = "inline"), (o.style.display = "none"))));
     });
-  }, G.FILE_POLL);
+  }, j.FILE_POLL);
 }
 function Ve() {
   const e = document.getElementById("btn-file-play"),
@@ -813,7 +829,7 @@ function Ve() {
   (e.style.display = "inline"),
     (t.style.display = "none"),
     e.addEventListener("click", () => {
-      $().then(() => {
+      V().then(() => {
         (e.style.display = "none"), (t.style.display = "inline");
       });
     }),
@@ -823,9 +839,9 @@ function Ve() {
       });
     }),
     n.addEventListener("click", () => {
-      D(0).then(() => {
+      W(0).then(() => {
         (i.value = "0"),
-          $().then(() => {
+          V().then(() => {
             (e.style.display = "none"), (t.style.display = "inline");
           });
       });
@@ -833,12 +849,12 @@ function Ve() {
   let o = null;
   i.addEventListener("input", () => {
     o && clearTimeout(o);
-    const s = parseInt(i.value);
+    const u = parseInt(i.value);
     o = setTimeout(() => {
       Ge().then((l) => {
-        l?.duration && D((s / 100) * l.duration);
+        l?.duration && W((u / 100) * l.duration);
       });
-    }, G.SEEK_DEBOUNCE);
+    }, j.SEEK_DEBOUNCE);
   }),
     bt();
 }
@@ -849,52 +865,52 @@ function We() {
     n = document.getElementById("input-rtmp-app"),
     i = document.getElementById("input-rtmp-key"),
     o = t?.value || "1935",
-    s = n?.value || "live",
+    u = n?.value || "live",
     l = i?.value || "stream";
-  e.value = `rtmp://127.0.0.1:${o}/${s}/${l}`;
+  e.value = `rtmp://127.0.0.1:${o}/${u}/${l}`;
 }
-let P = null,
+let O = null,
   Bt = null;
 async function je() {
-  tt(), E("INFO", _.LOADING);
+  tt(), v("INFO", _.LOADING);
   try {
     const e = await Re();
-    (V.value = e), W(e);
+    (z.value = e), H(e);
     const t = document.getElementById("input-type");
     t?.value === "rtmp" && We(),
       t?.value === "file" &&
         document.getElementById("input-file-path")?.value &&
         Ve();
-    const n = await L("GET", "api/status");
-    U(n), _t();
+    const n = await R("GET", "api/status");
+    A(n), _t();
     const i = Je("/ws/logs");
-    (P = new Qe(i)),
-      P.onMessage((o) => {
+    (O = new Qe(i)),
+      O.onMessage((o) => {
         o.type === "log"
-          ? E(o.level ?? "INFO", o.message ?? "")
-          : o.type === "status" && o.status && U(o.status);
+          ? v(o.level ?? "INFO", o.message ?? "")
+          : o.type === "status" && o.status && A(o.status);
       }),
-      P.onError(() => {
-        E("ERROR", _.WS_ERROR);
+      O.onError(() => {
+        v("ERROR", _.WS_ERROR);
       }),
-      P.onClose(() => {
-        (Ue.value = !1), E("ERROR", _.WS_DISCONNECTED);
+      O.onClose(() => {
+        (Ue.value = !1), v("ERROR", _.WS_DISCONNECTED);
       }),
-      P.connect(),
+      O.connect(),
       (Bt = setInterval(async () => {
         try {
-          const o = await L("GET", "api/status");
-          U(o);
+          const o = await R("GET", "api/status");
+          A(o);
         } catch {}
-      }, G.STATUS_POLL)),
-      E("INFO", _.SUCCESS);
+      }, j.STATUS_POLL)),
+      v("INFO", _.SUCCESS);
   } catch (e) {
-    E("ERROR", `Error de inicialización: ${e.message}`);
+    v("ERROR", `Error de inicialización: ${e.message}`);
   }
 }
 function ze() {
-  document.getElementById("btn-start")?.addEventListener("click", Fe),
-    document.getElementById("btn-stop")?.addEventListener("click", Me),
+  document.getElementById("btn-start")?.addEventListener("click", Ae),
+    document.getElementById("btn-stop")?.addEventListener("click", Fe),
     document.getElementById("tts-engine")?.addEventListener("change", (e) => {
       const t = e.target.value === "edge-tts",
         n = document.getElementById("tts-voice-edge-group"),
@@ -908,18 +924,18 @@ async function He() {
     const n = (await (await fetch("/api/status")).json()).system || {},
       i = document.getElementById("metric-cpu-value"),
       o = document.getElementById("metric-cpu-bar"),
-      s = document.getElementById("metric-memory-value"),
+      u = document.getElementById("metric-memory-value"),
       l = document.getElementById("metric-memory-percent"),
-      d = document.getElementById("metric-memory-bar"),
-      m = document.getElementById("metric-gpu-value"),
-      r = document.getElementById("metric-gpu-bar");
+      m = document.getElementById("metric-memory-bar"),
+      E = document.getElementById("metric-gpu-value"),
+      c = document.getElementById("metric-gpu-bar");
     i && (i.textContent = (n.cpu_percent || n.cpu_usage || 0) + "%"),
       o && (o.style.width = (n.cpu_percent || n.cpu_usage || 0) + "%"),
-      s && (s.textContent = (n.memory_mb || 0).toFixed(0) + " MB"),
+      u && (u.textContent = (n.memory_mb || 0).toFixed(0) + " MB"),
       l && (l.textContent = (n.memory_percent || n.memory_usage || 0) + "%"),
-      d && (d.style.width = (n.memory_percent || n.memory_usage || 0) + "%"),
-      m && (m.textContent = (n.gpu_usage || 0) + "%"),
-      r && (r.style.width = (n.gpu_usage || 0) + "%");
+      m && (m.style.width = (n.memory_percent || n.memory_usage || 0) + "%"),
+      E && (E.textContent = (n.gpu_usage || 0) + "%"),
+      c && (c.style.width = (n.gpu_usage || 0) + "%");
   } catch (e) {
     console.error("Metrics refresh failed:", e);
   }
@@ -928,7 +944,7 @@ function xt() {
   document.getElementById("btn-copy-emision")?.addEventListener("click", () => {
     const e = document.getElementById("url-emision");
     e?.textContent &&
-      A(e.textContent)
+      $(e.textContent)
         .then(() => f("URL de emisión copiada", "success"))
         .catch(() => f("Error al copiar URL", "error"));
   }),
@@ -937,7 +953,7 @@ function xt() {
       ?.addEventListener("click", () => {
         const e = document.getElementById("url-stream");
         e?.textContent &&
-          A(e.textContent)
+          $(e.textContent)
             .then(() => f("URL del stream copiada", "success"))
             .catch(() => f("Error al copiar URL", "error"));
       }),
@@ -948,7 +964,7 @@ function xt() {
         if (e) {
           const t = e.getAttribute("href") || e.textContent;
           t &&
-            A(t)
+            $(t)
               .then(() => f("URL del player copiada", "success"))
               .catch(() => f("Error al copiar URL", "error"));
         }
@@ -966,15 +982,15 @@ const St = Object.freeze(
   Object.defineProperty(
     {
       __proto__: null,
-      applyConfigToUI: W,
+      applyConfigToUI: H,
       bootstrap: Ke,
-      collectConfigFromUI: Ae,
+      collectConfigFromUI: Me,
       fileInputPause: De,
-      fileInputPlay: $,
-      fileInputSeek: D,
+      fileInputPlay: V,
+      fileInputSeek: W,
       handleSaveConfig: $e,
-      handleStart: Fe,
-      handleStop: Me,
+      handleStart: Ae,
+      handleStop: Fe,
       initDashboard: je,
       refreshMetrics: He,
       setupEventListeners: ze,
@@ -1003,7 +1019,7 @@ document.addEventListener("load", () => {
 Oe(
   async () => {
     const { initKeyboardShortcuts: e } = await import(
-      "./keyboard-shortcuts.DWUtHfJE.js"
+      "./keyboard-shortcuts.DgyJLEf3.js"
     );
     return { initKeyboardShortcuts: e };
   },
@@ -1011,4 +1027,4 @@ Oe(
 ).then(({ initKeyboardShortcuts: e }) => {
   e();
 });
-export { Oe as _, Me as a, Fe as b, $e as h, _t as s };
+export { Oe as _, Fe as a, Ae as b, $e as h, _t as s };

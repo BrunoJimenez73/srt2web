@@ -5,8 +5,8 @@
   <div class="process-header">
     <span class="process-indicator" id="indicator-translate"></span>
     <span class="process-title">🌐 TRADUCIR</span>
-    <span class="gpu-badge" id="gpu-badge-translator">CPU</span>
-    <label class="toggle-switch">
+    <span class="gpu-badge" id="gpu-badge-translator" role="status" aria-label="Dispositivo de procesamiento">CPU</span>
+    <label class="toggle-switch" aria-label="Activar/desactivar traducción">
       <input type="checkbox" id="translator-enabled" onchange="window.toggleModule('translator', this.checked)" />
       <span class="toggle-slider"></span>
     </label>

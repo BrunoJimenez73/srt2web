@@ -40,7 +40,7 @@
       rel="stylesheet"
     />
     <title>SRT2Web Dashboard</title>
-    <link rel="stylesheet" href="/_astro/index@_@astro.FZNUlsV6.css" />
+    <link rel="stylesheet" href="/_astro/index@_@astro.4FWOYU4E.css" />
   </head>
   <body class="font-sans antialiased min-h-screen bg-deep text-surface-light">
     <!-- Skip link for keyboard navigation -->
@@ -206,10 +206,20 @@
           type="module"
           src="/_astro/Header.astro_astro_type_script_index_0_lang.DvuP8rRL.js"
         ></script>
-        <div class="status-card" id="status-card">
+        <div
+          class="status-card"
+          id="status-card"
+          role="region"
+          aria-label="Estado del pipeline"
+        >
           <div class="status-top">
             <div class="status-left">
-              <span class="status-dot" id="status-dot"></span>
+              <span
+                class="status-dot"
+                id="status-dot"
+                role="status"
+                aria-live="polite"
+              ></span>
               <span class="status-text" id="status-text">APAGADO</span>
             </div>
             <div class="mode-selector">
@@ -250,61 +260,47 @@
               </button>
             </div>
           </div>
-        </div>
-        <script type="module">
-          document.addEventListener("DOMContentLoaded", function () {
-            const t = document.getElementById("btn-stop");
-            t &&
-              t.addEventListener("click", function () {
-                window.stopPipeline && window.stopPipeline();
-              });
-            const n = document.getElementById("btn-start");
-            n &&
-              n.addEventListener("click", function () {
-                window.startPipeline && window.startPipeline();
-              });
-          });
-        </script>
-        <div class="urls-row">
-          <div class="url-item">
-            <span class="url-label" id="url-emision-label">SRT:</span>
-            <code class="url-value" id="url-emision">srt://...</code>
-            <button
-              class="btn-copy-small"
-              id="btn-copy-emision"
-              aria-label="Copiar URL de emisión"
-            >
-              📋
-            </button>
-          </div>
-          <div class="url-item">
-            <span class="url-label">Stream:</span>
-            <code class="url-value" id="url-stream">http://...</code>
-            <button
-              class="btn-copy-small"
-              id="btn-copy-stream"
-              aria-label="Copiar URL del stream"
-            >
-              📋
-            </button>
-          </div>
-          <div class="url-item">
-            <span class="url-label">Player:</span>
-            <a
-              class="url-link"
-              id="url-player"
-              href="/player"
-              target="_blank"
-              rel="noopener noreferrer"
-              >http://...</a
-            >
-            <button
-              class="btn-copy-small"
-              id="btn-copy-player"
-              aria-label="Copiar URL del player"
-            >
-              📋
-            </button>
+          <div class="urls-row">
+            <div class="url-item">
+              <span class="url-label" id="url-emision-label">SRT:</span>
+              <code class="url-value" id="url-emision">srt://...</code>
+              <button
+                class="btn-copy-small"
+                id="btn-copy-emision"
+                aria-label="Copiar URL de emisión"
+              >
+                📋
+              </button>
+            </div>
+            <div class="url-item">
+              <span class="url-label">Stream:</span>
+              <code class="url-value" id="url-stream">http://...</code>
+              <button
+                class="btn-copy-small"
+                id="btn-copy-stream"
+                aria-label="Copiar URL del stream"
+              >
+                📋
+              </button>
+            </div>
+            <div class="url-item">
+              <span class="url-label">Player:</span>
+              <a
+                class="url-link"
+                id="url-player"
+                href="/player"
+                target="_blank"
+                rel="noopener noreferrer"
+                >http://...</a
+              >
+              <button
+                class="btn-copy-small"
+                id="btn-copy-player"
+                aria-label="Copiar URL del player"
+              >
+                📋
+              </button>
+            </div>
           </div>
         </div>
         <div class="remote-config" id="remote-config" style="display: none">
@@ -320,6 +316,20 @@
             />
           </div>
         </div>
+        <script type="module">
+          document.addEventListener("DOMContentLoaded", function () {
+            const t = document.getElementById("btn-stop");
+            t &&
+              t.addEventListener("click", function () {
+                window.stopPipeline && window.stopPipeline();
+              });
+            const n = document.getElementById("btn-start");
+            n &&
+              n.addEventListener("click", function () {
+                window.startPipeline && window.startPipeline();
+              });
+          });
+        </script>
         <div
           class="metrics-card"
           id="metrics-card"
@@ -980,10 +990,16 @@
                 class="gpu-badge"
                 id="whisper-gpu-badge"
                 style="display: none"
+                role="status"
+                aria-label="Aceleración GPU"
                 data-astro-cid-pirfe3ci
                 >GPU</span
               >
-              <label class="toggle-switch" data-astro-cid-pirfe3ci>
+              <label
+                class="toggle-switch"
+                aria-label="Activar/desactivar transcripción"
+                data-astro-cid-pirfe3ci
+              >
                 <input
                   type="checkbox"
                   id="whisper-enabled"
@@ -1110,7 +1126,19 @@
               <span class="process-title" data-astro-cid-gcefc4ih
                 >🌐 TRADUCIR</span
               >
-              <label class="toggle-switch" data-astro-cid-gcefc4ih>
+              <span
+                class="gpu-badge"
+                id="gpu-badge-translator"
+                role="status"
+                aria-label="Dispositivo de procesamiento"
+                data-astro-cid-gcefc4ih
+                >CPU</span
+              >
+              <label
+                class="toggle-switch"
+                aria-label="Activar/desactivar traducción"
+                data-astro-cid-gcefc4ih
+              >
                 <input
                   type="checkbox"
                   id="translator-enabled"
@@ -1220,10 +1248,16 @@
                 class="gpu-badge"
                 id="tts-gpu-badge"
                 style="display: none"
+                role="status"
+                aria-label="Aceleración GPU"
                 data-astro-cid-4dga7jqy
                 >GPU</span
               >
-              <label class="toggle-switch" data-astro-cid-4dga7jqy>
+              <label
+                class="toggle-switch"
+                aria-label="Activar/desactivar doblaje de audio"
+                data-astro-cid-4dga7jqy
+              >
                 <input
                   type="checkbox"
                   id="tts-enabled"
@@ -1383,7 +1417,10 @@
                 </select>
               </div>
               <div class="form-group" data-astro-cid-4dga7jqy>
-                <label class="form-label" data-astro-cid-4dga7jqy
+                <label
+                  class="form-label"
+                  id="tts-speed-label"
+                  data-astro-cid-4dga7jqy
                   >Velocidad:
                   <span id="tts-speed-value" data-astro-cid-4dga7jqy>1.0</span
                   >x</label
@@ -1396,6 +1433,7 @@
                   max="2.0"
                   step="0.1"
                   value="1.0"
+                  aria-labelledby="tts-speed-label"
                   oninput="document.getElementById('tts-speed-value').textContent = this.value"
                   data-astro-cid-4dga7jqy
                 />
@@ -1463,7 +1501,11 @@
               <span class="process-title" data-astro-cid-6somcfcz
                 >📝 SUBTITULAR</span
               >
-              <label class="toggle-switch" data-astro-cid-6somcfcz>
+              <label
+                class="toggle-switch"
+                aria-label="Activar/desactivar subtítulos"
+                data-astro-cid-6somcfcz
+              >
                 <input
                   type="checkbox"
                   id="subtitle-enabled"
@@ -1551,7 +1593,11 @@
               <span class="process-title" data-astro-cid-qjt26rsn
                 >🔊 MEZCLA DE AUDIO</span
               >
-              <label class="toggle-switch" data-astro-cid-qjt26rsn>
+              <label
+                class="toggle-switch"
+                aria-label="Activar/desactivar mezcla de audio"
+                data-astro-cid-qjt26rsn
+              >
                 <input
                   type="checkbox"
                   id="audio-mixer-enabled"
@@ -1563,7 +1609,10 @@
             </div>
             <div class="process-content" data-astro-cid-qjt26rsn>
               <div class="form-group" data-astro-cid-qjt26rsn>
-                <label class="form-label" data-astro-cid-qjt26rsn
+                <label
+                  class="form-label"
+                  id="audio-mixer-original-label"
+                  data-astro-cid-qjt26rsn
                   >Volumen Original</label
                 >
                 <input
@@ -1574,14 +1623,22 @@
                   max="2"
                   step="0.1"
                   value="0.3"
+                  aria-labelledby="audio-mixer-original-label"
+                  aria-valuetext="0.3"
                   data-astro-cid-qjt26rsn
                 />
-                <span id="audio-mixer-original-value" data-astro-cid-qjt26rsn
+                <span
+                  id="audio-mixer-original-value"
+                  aria-hidden="true"
+                  data-astro-cid-qjt26rsn
                   >0.3</span
                 >
               </div>
               <div class="form-group" data-astro-cid-qjt26rsn>
-                <label class="form-label" data-astro-cid-qjt26rsn
+                <label
+                  class="form-label"
+                  id="audio-mixer-dubbed-label"
+                  data-astro-cid-qjt26rsn
                   >Volumen Doblado</label
                 >
                 <input
@@ -1592,9 +1649,14 @@
                   max="2"
                   step="0.1"
                   value="1.0"
+                  aria-labelledby="audio-mixer-dubbed-label"
+                  aria-valuetext="1.0"
                   data-astro-cid-qjt26rsn
                 />
-                <span id="audio-mixer-dubbed-value" data-astro-cid-qjt26rsn
+                <span
+                  id="audio-mixer-dubbed-value"
+                  aria-hidden="true"
+                  data-astro-cid-qjt26rsn
                   >1.0</span
                 >
               </div>
@@ -1690,10 +1752,16 @@
                 class="gpu-badge"
                 id="hls-gpu-badge"
                 style="display: none"
+                role="status"
+                aria-label="Aceleración GPU"
                 data-astro-cid-2k7hupjl
                 >GPU</span
               >
-              <label class="toggle-switch" data-astro-cid-2k7hupjl>
+              <label
+                class="toggle-switch"
+                aria-label="Activar/desactivar video muxer"
+                data-astro-cid-2k7hupjl
+              >
                 <input
                   type="checkbox"
                   id="muxer-enabled"
@@ -1751,7 +1819,10 @@
                   </select>
                 </div>
                 <div class="form-group" data-astro-cid-2k7hupjl>
-                  <label class="form-label" data-astro-cid-2k7hupjl
+                  <label
+                    class="form-label"
+                    id="hls-crf-label"
+                    data-astro-cid-2k7hupjl
                     >CRF:
                     <span id="hls-crf-value" data-astro-cid-2k7hupjl
                       >18</span
@@ -1764,6 +1835,7 @@
                     min="0"
                     max="51"
                     value="18"
+                    aria-labelledby="hls-crf-label"
                     oninput="document.getElementById('hls-crf-value').textContent = this.value; window.updateVideoMuxerConfig();"
                     data-astro-cid-2k7hupjl
                   />
@@ -2008,11 +2080,11 @@
                   </div>
                   <div class="metric-mini" data-astro-cid-2k7hupjl>
                     <span class="metric-label" data-astro-cid-2k7hupjl
-                      >Encoder</span
+                      >Memoria</span
                     >
                     <span
                       class="metric-value"
-                      id="module-encoder-video_muxer"
+                      id="module-memory-video_muxer"
                       data-astro-cid-2k7hupjl
                       >--</span
                     >
@@ -2028,7 +2100,25 @@
                       >--</span
                     >
                   </div>
+                  <div class="metric-mini" data-astro-cid-2k7hupjl>
+                    <span class="metric-label" data-astro-cid-2k7hupjl
+                      >Encoder</span
+                    >
+                    <span
+                      class="metric-value"
+                      id="module-encoder-video_muxer"
+                      data-astro-cid-2k7hupjl
+                      >--</span
+                    >
+                  </div>
                 </div>
+                <!-- GPU Badge -->
+                <span
+                  class="gpu-badge"
+                  id="gpu-badge-video_muxer"
+                  data-astro-cid-2k7hupjl
+                  >CPU</span
+                >
               </div>
             </div>
           </div>
@@ -2539,7 +2629,18 @@
                     >
                     <span
                       class="metric-value"
-                      id="module-time-output"
+                      id="module-time-video_muxer"
+                      data-astro-cid-q66qpvkf
+                      >--</span
+                    >
+                  </div>
+                  <div class="metric-mini" data-astro-cid-q66qpvkf>
+                    <span class="metric-label" data-astro-cid-q66qpvkf
+                      >Memoria</span
+                    >
+                    <span
+                      class="metric-value"
+                      id="module-memory-video_muxer"
                       data-astro-cid-q66qpvkf
                       >--</span
                     >
@@ -2550,7 +2651,7 @@
                     >
                     <span
                       class="metric-value"
-                      id="module-chunks-output"
+                      id="module-chunks-video_muxer"
                       data-astro-cid-q66qpvkf
                       >--</span
                     >
@@ -2561,13 +2662,20 @@
                     >
                     <span
                       class="metric-value"
-                      id="module-encoder-output"
+                      id="module-encoder-video_muxer"
                       data-astro-cid-q66qpvkf
                       >--</span
                     >
                   </div>
                 </div>
               </div>
+              <!-- GPU Badge -->
+              <span
+                class="gpu-badge"
+                id="gpu-badge-video_muxer"
+                data-astro-cid-q66qpvkf
+                >CPU</span
+              >
             </div>
           </div>
           <script
@@ -2581,11 +2689,20 @@
           aria-label="Panel de registros del sistema"
           data-astro-cid-eanzcxti
         >
-          <div class="log-header" id="log-header" data-astro-cid-eanzcxti>
+          <div
+            class="log-header"
+            id="log-header"
+            role="button"
+            tabindex="0"
+            aria-expanded="false"
+            aria-controls="log-content"
+            data-astro-cid-eanzcxti
+          >
             <div class="log-header-left" data-astro-cid-eanzcxti>
               <span
                 class="log-collapse-icon"
                 id="log-collapse-icon"
+                aria-hidden="true"
                 data-astro-cid-eanzcxti
                 >▶</span
               >
@@ -2617,9 +2734,15 @@
             role="log"
             aria-live="polite"
             aria-atomic="false"
+            aria-relevant="additions text"
             data-astro-cid-eanzcxti
           >
-            <div class="log-empty" id="log-empty" data-astro-cid-eanzcxti>
+            <div
+              class="log-empty"
+              id="log-empty"
+              role="status"
+              data-astro-cid-eanzcxti
+            >
               <span class="log-empty-icon" data-astro-cid-eanzcxti>📝</span>
               <span class="log-empty-text" data-astro-cid-eanzcxti
                 >Sin registros aún</span
@@ -2629,7 +2752,7 @@
         </div>
         <script
           type="module"
-          src="/_astro/LogPanel.astro_astro_type_script_index_0_lang.CtKRlrbF.js"
+          src="/_astro/LogPanel.astro_astro_type_script_index_0_lang.CEdcYR2v.js"
         ></script>
       </div>
       <div
@@ -2644,7 +2767,7 @@
       ></script>
       <script
         type="module"
-        src="/_astro/index.astro_astro_type_script_index_0_lang.DYHA6agD.js"
+        src="/_astro/index.astro_astro_type_script_index_0_lang.C6cNpJpP.js"
       ></script>
     </main>
     <!-- Footer with accessibility info -->

@@ -5,8 +5,8 @@
   <div class="process-header">
     <span class="process-indicator" id="indicator-video-muxer"></span>
     <span class="process-title">📦 VIDEO MUXER</span>
-    <span class="gpu-badge" id="hls-gpu-badge" style="display: none;">GPU</span>
-    <label class="toggle-switch">
+    <span class="gpu-badge" id="hls-gpu-badge" style="display: none;" role="status" aria-label="Aceleración GPU">GPU</span>
+    <label class="toggle-switch" aria-label="Activar/desactivar video muxer">
       <input type="checkbox" id="muxer-enabled" onchange="window.toggleModule('video_muxer', this.checked)" />
       <span class="toggle-slider"></span>
     </label>
@@ -34,8 +34,9 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">CRF: <span id="hls-crf-value">18</span></label>
+        <label class="form-label" id="hls-crf-label">CRF: <span id="hls-crf-value">18</span></label>
         <input type="range" class="form-range" id="hls-crf" min="0" max="51" value="18"
+                aria-labelledby="hls-crf-label"
                 oninput="document.getElementById('hls-crf-value').textContent = this.value; window.updateVideoMuxerConfig();" />
       </div>
       <div class="form-group">

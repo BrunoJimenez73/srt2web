@@ -5,8 +5,8 @@
   <div class="process-header">
     <span class="process-indicator" id="indicator-tts"></span>
     <span class="process-title">🎤 DOBLAR</span>
-    <span class="gpu-badge" id="tts-gpu-badge" style="display: none;">GPU</span>
-    <label class="toggle-switch">
+    <span class="gpu-badge" id="tts-gpu-badge" style="display: none;" role="status" aria-label="Aceleración GPU">GPU</span>
+    <label class="toggle-switch" aria-label="Activar/desactivar doblaje de audio">
       <input type="checkbox" id="tts-enabled" onchange="window.toggleModule('tts_engine', this.checked)" />
       <span class="toggle-slider"></span>
     </label>
@@ -71,8 +71,9 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Velocidad: <span id="tts-speed-value">1.0</span>x</label>
-        <input type="range" class="form-range" id="tts-speed" min="0.5" max="2.0" step="0.1" value="1.0" 
+        <label class="form-label" id="tts-speed-label">Velocidad: <span id="tts-speed-value">1.0</span>x</label>
+        <input type="range" class="form-range" id="tts-speed" min="0.5" max="2.0" step="0.1" value="1.0"
+                aria-labelledby="tts-speed-label"
                 oninput="document.getElementById('tts-speed-value').textContent = this.value" />
       </div>
       <div class="form-group" id="tts-metrics">

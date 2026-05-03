@@ -21,7 +21,7 @@ import {
   a as D,
   b as w,
   s as b,
-} from "./index.astro_astro_type_script_index_0_lang.DYHA6agD.js";
+} from "./index.astro_astro_type_script_index_0_lang.C6cNpJpP.js";
 import { s as r } from "./index.BpSbb1Lw.js";
 const C = Object.freeze(
   Object.defineProperty(
