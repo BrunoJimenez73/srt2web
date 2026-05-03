@@ -202,11 +202,9 @@ describe('apiCall', () => {
   });
 
   it('throws ApiError on non-ok response', async () => {
-    fetchMock.mockResolvedValueOnce(
+    fetchMock.mockResolvedValue(
       new Response('Not Found', { status: 404, statusText: 'Not Found' })
     );
-
-    await expect(apiCall('GET', '/api/nonexistent')).rejects.toThrow(ApiError);
 
     try {
       await apiCall('GET', '/api/nonexistent');
