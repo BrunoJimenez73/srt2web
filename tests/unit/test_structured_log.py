@@ -7,6 +7,7 @@ import os
 import json
 import time
 from datetime import datetime
+import pytest
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
