@@ -8,6 +8,8 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.testclient import TestClient
 
 
+@pytest.mark.unit
+@pytest.mark.security
 class TestRateLimiter:
     """Test the RateLimiter class."""
 
