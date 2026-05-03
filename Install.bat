@@ -32,41 +32,28 @@ if %errorlevel% neq 0 (
     echo  [OK] NVIDIA drivers detectados.
 )
 
-set "PYTHON=venv\Scripts\python.exe"
-set "NEED_VENV=0"
+set "PYTHON=python"
 
 REM =============================================
-REM 1. Verificar/Crear entorno virtual
+REM 1. Verificar Python global
 REM =============================================
-echo [1/6] Entorno virtual...
+echo [1/5] Verificando Python...
 
-if exist "%PYTHON%" (
-    echo  [OK] Ya existe.
-) else (
-    echo  [INFO] No encontrado. Creando con Python 3.12...
-    py -3.12 -m venv venv 2>nul
-    if %errorlevel% neq 0 (
-        if exist "C:\Python312\python.exe" (
-            C:\Python312\python.exe -m venv venv
-        ) else if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" (
-            "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" -m venv venv
-        )
-    )
-    if exist "%PYTHON%" (
-        echo  [OK] Entorno virtual creado.
-        set "NEED_VENV=1"
-    ) else (
-        echo  [ERROR] No se pudo crear. Instala Python 3.12.
-        pause
-        exit /b 1
-    )
+python --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo  [ERROR] Python no encontrado.
+    echo  Instala Python 3.12+ desde https://www.python.org/downloads/
+    pause
+    exit /b 1
 )
 
+for /f "tokens=2" %%V in ('python --version 2^>^&1') do set "PYTHON_VERSION=%%V"
+echo  [OK] Python %PYTHON_VERSION% detectado.
+
 REM =============================================
-REM 2. Instalar dependencias base
+REM 2. Instalar dependencias
 REM =============================================
-echo.
-echo [2/6] Dependencias base...
+echo [2/5] Dependencias...
 
 %PYTHON% -m pip install --upgrade pip wheel setuptools --quiet 2>nul
 
@@ -82,7 +69,7 @@ REM =============================================
 REM 3. Instalar PyTorch con CUDA
 REM =============================================
 echo.
-echo [3/6] PyTorch CUDA...
+echo [3/5] PyTorch CUDA...
 
 %PYTHON% -c "import torch; print('CUDA' if torch.cuda.is_available() else 'CPU')" > temp_torch.txt 2>nul
 set /p TORCH_STATUS=<temp_torch.txt
@@ -104,7 +91,7 @@ REM =============================================
 REM 4. Instalar ONNX Runtime GPU (version especifica)
 REM =============================================
 echo.
-echo [4/6] ONNX Runtime GPU...
+echo [4/5] ONNX Runtime GPU...
 
 %PYTHON% -c "import onnxruntime as ort; print('CUDA' if 'CUDAExecutionProvider' in ort.get_available_providers() else 'CPU')" > temp_onnx.txt 2>nul
 set /p ONNX_STATUS=<temp_onnx.txt
@@ -126,7 +113,7 @@ REM =============================================
 REM 5. Instalar aiortc para WebRTC
 REM =============================================
 echo.
-echo [5/8] aiortc para WebRTC...
+echo [5/5] aiortc para WebRTC...
 
 %PYTHON% -c "import aiortc" >nul 2>&1
 if %errorlevel% equ 0 (
@@ -142,10 +129,10 @@ if %errorlevel% equ 0 (
 )
 
 REM =============================================
-REM 6. Descargar modelos de Whisper
+REM Opcional: Modelos Whisper
 REM =============================================
 echo.
-echo [6/8] Modelos Whisper...
+echo [INFO] Verificando modelos Whisper...
 
 if not exist ".cache\srt2web\whisper\models--Systran--faster-whisper-tiny" (
     echo  [INFO] Descargando modelo Whisper tiny...
@@ -160,10 +147,10 @@ if not exist ".cache\srt2web\whisper\models--Systran--faster-whisper-tiny" (
 )
 
 REM =============================================
-REM 7. Verificar/Descargar FFmpeg con NVENC
+REM Opcional: FFmpeg con NVENC
 REM =============================================
 echo.
-echo [7/8] FFmpeg con NVENC...
+echo [INFO] Verificando FFmpeg...
 
 if exist "bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" (
     echo  [OK] FFmpeg ya existe.
@@ -202,10 +189,10 @@ if exist "bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" (
 )
 
 REM =============================================
-REM 8. Verificar/Descargar voces Piper
+REM Opcional: Voces Piper
 REM =============================================
 echo.
-echo [8/8] Voces Piper...
+echo [INFO] Verificando voces Piper...
 
 if not exist "models\piper" mkdir models\piper
 

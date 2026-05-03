@@ -5,7 +5,7 @@
   <div class="process-header">
     <span class="process-indicator" id="indicator-video-muxer"></span>
     <span class="process-title">📦 VIDEO MUXER</span>
-    <span class="gpu-badge" id="hls-gpu-badge" style="display: none;" role="status" aria-label="Aceleración GPU">GPU</span>
+    <span class="gpu-badge" id="gpu-badge-video_muxer" style="display: none;" role="status" aria-label="Aceleración GPU">GPU</span>
     <label class="toggle-switch" aria-label="Activar/desactivar video muxer">
       <input type="checkbox" id="muxer-enabled" onchange="window.toggleModule('video_muxer', this.checked)" />
       <span class="toggle-slider"></span>
@@ -156,8 +156,6 @@
           <span class="metric-value" id="module-encoder-video_muxer">--</span>
         </div>
       </div>
-      <!-- GPU Badge -->
-      <span class="gpu-badge" id="gpu-badge-video_muxer">CPU</span>
     </div>
   </div>
 </div>

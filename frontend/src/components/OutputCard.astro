@@ -5,7 +5,8 @@
   <div class="process-header">
     <span class="process-indicator" id="indicator-output"></span>
     <span class="process-title">📤 OUTPUT</span>
-    <span class="gpu-badge" id="output-gpu-badge" style="display: none;">GPU</span>
+    <span class="gpu-badge" id="output-gpu-badge" style="display: none;" role="status" aria-label="Estado GPU">GPU</span>
+    <span class="gpu-badge" id="gpu-badge-video_muxer" role="status" aria-label="Encoder de video">CPU</span>
   </div>
 
   <div class="process-content">
@@ -195,8 +196,6 @@
         </div>
       </div>
     </div>
-    <!-- GPU Badge -->
-    <span class="gpu-badge" id="gpu-badge-video_muxer">CPU</span>
   </div>
 </div>
 

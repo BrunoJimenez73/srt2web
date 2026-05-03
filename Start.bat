@@ -20,7 +20,8 @@ if not exist "venv\Scripts\python.exe" (
     exit /b 1
 )
 
-set "PYTHON=venv\Scripts\python.exe"
+REM Use global Python (no venv needed)
+set "PYTHON=python"
 set "FFMPEG=bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe"
 
 REM =============================================

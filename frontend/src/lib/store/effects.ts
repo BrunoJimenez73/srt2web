@@ -102,6 +102,13 @@ function startStatusEffects(): void {
       if (!indicator) continue;
       indicator.classList.toggle('active', running && module.enabled);
     }
+
+    // Also update indicator-output for the output module
+    const outputIndicator = el<HTMLSpanElement>('indicator-output');
+    const outputModule = modules.find(m => m.name === 'output');
+    if (outputIndicator && outputModule) {
+      outputIndicator.classList.toggle('active', running && outputModule.enabled);
+    }
   });
 
   // Pipeline indicator (top-left dot in header)
@@ -340,6 +347,45 @@ function startModuleMetricsEffects(): void {
       const label = inputModule.extra?.encoder_label
         || (inputModule.extra?.using_gpu ? 'GPU' : 'CPU');
       inputEncoderEl.textContent = label;
+    }
+
+    // Output module metrics (from composite output / "output")
+    const outputModule = moduleMap['output'];
+    const outputTimeEl = el<HTMLSpanElement>('module-time-video_muxer');
+    const outputMemoryEl = el<HTMLSpanElement>('module-memory-video_muxer');
+    const outputChunksEl = el<HTMLSpanElement>('module-chunks-video_muxer');
+    const outputEncoderEl = el<HTMLSpanElement>('module-encoder-video_muxer');
+    const outputGpuBadge = el<HTMLSpanElement>('gpu-badge-video_muxer');
+
+    if (outputTimeEl) {
+      if (outputModule?.last_process_time_ms !== undefined && outputModule.last_process_time_ms > 0) {
+        const ms = outputModule.last_process_time_ms;
+        outputTimeEl.textContent = ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
+      } else if (running && tpAvg > 0) {
+        outputTimeEl.textContent = `${(1000 / tpAvg).toFixed(0)}ms`;
+      } else {
+        outputTimeEl.textContent = '--';
+      }
+    }
+    if (outputMemoryEl && outputModule) {
+      outputMemoryEl.textContent = outputModule.memory_mb !== undefined ? `${Math.round(outputModule.memory_mb)} MB` : '--';
+    }
+    if (outputChunksEl && outputModule) {
+      outputChunksEl.textContent = String(outputModule.processed_chunks ?? 0);
+    }
+    if (outputEncoderEl && outputModule?.extra) {
+      const label = outputModule.extra.encoder_label || (outputModule.extra.using_gpu ? 'GPU' : 'CPU');
+      outputEncoderEl.textContent = label;
+    }
+    // GPU badge for output
+    if (outputGpuBadge && outputModule?.extra) {
+      const isActive = running && outputModule.enabled && (outputModule.processed_chunks ?? 0) > 0;
+      if (outputModule.extra.using_gpu) {
+        outputGpuBadge.style.display = 'inline';
+        outputGpuBadge.classList.toggle('active', isActive);
+      } else {
+        outputGpuBadge.style.display = 'none';
+      }
     }
   });
 }

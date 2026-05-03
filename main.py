@@ -14,7 +14,9 @@ from core import SERVER_HOST, SERVER_PORT_DEFAULT, get_config_path, get_project_
 from core.app_context import create_app_context
 from core.config_manager import ConfigManager
 from core.cuda_paths import setup_cuda_environment
+from core.logging_setup import setup_logging
 from server.app import create_app
+from server.ws_routes import log_broadcaster
 from server.lifespan import graceful_shutdown, open_browser_on_startup, run_server
 
 # Setup CUDA paths - must be called before any GPU-related imports
@@ -26,6 +28,9 @@ PROJECT_ROOT = get_project_root()
 def main() -> None:
     """Main entry point — bootstrap only."""
     logger = logging.getLogger("srt2web.main")
+
+    # Setup logging with WebSocket broadcast
+    setup_logging(log_broadcaster=log_broadcaster)
 
     # Load configuration
     config_manager = ConfigManager(get_config_path())
