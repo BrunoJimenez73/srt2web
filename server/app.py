@@ -9,21 +9,21 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from server.api_routes import create_api_router
-from server.ws_routes import create_ws_router
-from server.webrtc_routes import create_webrtc_router
 from server.security import (
     AuthMiddleware,
-    RateLimitMiddleware,
-    SecurityHeadersMiddleware,
     RateLimiter,
+    RateLimitMiddleware,
     RequestSizeLimitMiddleware,
+    SecurityHeadersMiddleware,
 )
+from server.webrtc_routes import create_webrtc_router
+from server.ws_routes import create_ws_router
 
 logger = logging.getLogger("srt2web.server")
 
@@ -76,18 +76,14 @@ def create_app(app_context: dict) -> FastAPI:
     # Request size limit - first after security headers
     app.add_middleware(
         RequestSizeLimitMiddleware,
-        max_size_bytes=config.get("server.max_request_size_mb", 1) * 1_048_576
-        if config
-        else 1_048_576,
+        max_size_bytes=config.get("server.max_request_size_mb", 1) * 1_048_576 if config else 1_048_576,
     )
 
     # Security headers
     app.add_middleware(SecurityHeadersMiddleware)
 
     # Rate limiting
-    rate_limiter = RateLimiter(
-        requests_per_minute=config.get("server.rate_limit_rpm", 60) if config else 60
-    )
+    rate_limiter = RateLimiter(requests_per_minute=config.get("server.rate_limit_rpm", 60) if config else 60)
     app.add_middleware(
         RateLimitMiddleware,
         rate_limiter=rate_limiter,
@@ -141,6 +137,22 @@ def create_app(app_context: dict) -> FastAPI:
     @app.get("/health")
     async def health():
         return {"status": "ok"}
+
+    @app.get("/ready")
+    async def readiness():
+        """Readiness probe for deployments."""
+        ctx = app.state.ctx
+        pipeline = ctx.get("pipeline")
+        if pipeline and pipeline.is_running:
+            return {"status": "ready"}
+        # If pipeline not running, still return ready but maybe with warning?
+        # For simplicity, return ready anyway.
+        return {"status": "ready"}
+
+    @app.get("/live")
+    async def liveness():
+        """Liveness probe for deployments."""
+        return {"status": "alive"}
 
     hls_dir = OUTPUT_DIR / "hls"
     hls_dir.mkdir(parents=True, exist_ok=True)

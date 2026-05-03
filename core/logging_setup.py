@@ -29,6 +29,7 @@ class BroadcastHandler(logging.Handler):
             msg = self.format(record)
             self._broadcaster.broadcast(record.levelname.lower(), msg)
         except Exception:
+            # Swallowing exceptions in logging handlers to prevent infinite loops
             pass
 
 

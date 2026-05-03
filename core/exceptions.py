@@ -283,7 +283,7 @@ class ResourceExhaustedError(InfrastructureError):
 
 def wrap_exception(
     exc: Exception,
-    target_exception: SRT2WebError,
+    target_exception: type[SRT2WebError],
     details: Optional[dict[str, Any]] = None,
 ) -> SRT2WebError:
     """

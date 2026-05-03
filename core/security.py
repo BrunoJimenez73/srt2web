@@ -60,7 +60,7 @@ def sanitize_path(user_path: str, base_dir: str, allow_absolute: bool = False) -
     try:
         base_path = Path(base_dir).resolve()
         # Clean path components (remove .. and . components) using Path
-        clean_parts = []
+        clean_parts: list[str] = []
         for part in path.parts:
             if part == "..":
                 if clean_parts:

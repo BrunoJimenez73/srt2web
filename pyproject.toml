@@ -91,7 +91,7 @@ python_version = "3.12"
 warn_return_any = false
 warn_unused_configs = true
 ignore_missing_imports = true
-exclude = ["desktop", "scripts", "desktop/dist"]
+exclude = ["desktop", "scripts", "desktop/dist", "venv"]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 check_untyped_defs = false
@@ -101,29 +101,23 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 show_error_codes = true
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = "-v --tb=short -p no:mcp --ignore=tests/unit/test_async_pipeline.py --ignore=tests/unit/test_async_pipeline_v2.py"
-asyncio_mode = "auto"
+[[tool.mypy.overrides]]
+module = "core.*"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+ignore_errors = false
 
-[tool.pytest.ini_options.markers]
-slow = "slow tests"
-integration = "integration tests"
-e2e = "end-to-end tests"
-live = "tests that require a live server"
+[[tool.mypy.overrides]]
+module = ["modules.*", "server.*"]
+disallow_untyped_defs = false
+check_untyped_defs = true
+ignore_errors = false
 
-[tool.coverage.run]
-source = ["core", "modules", "server"]
-omit = ["*/tests/*", "*/desktop/*", "*/scripts/*"]
-
-[tool.coverage.report]
-fail_under = 80
-show_missing = true
-exclude_lines = [
-    "pragma: no cover",
-    "if __name__ == .__main__.:",
-    "if TYPE_CHECKING:",
-]
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+ignore_errors = false

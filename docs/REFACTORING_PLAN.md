@@ -1,95 +1,157 @@
-# SRT2Web - Plan de Refactorización Python
+# SRT2Web - Plan de Refactorizacion Python
 
-## Estado Actual (Abril 2026)
+## Estado Actual (Mayo 2026)
 
-### Fases Completadas ✅
+### Version: 0.6.8
+
+### Fases Completadas
 
 #### Fase 1: Fundamentos
-- ✅ `core/exceptions.py` - Jerarquía de excepciones personalizadas
-- ✅ `core/types.py` - Tipos compartidos (enums, dataclasses)
-- ✅ 45 tests unitarios pasando
 
-#### Fase 2: Arquitectura de Módulos
-- ✅ `core/module_interface.py` - ProcessingModule Protocol + BaseModule ABC
-- ✅ 23 tests unitarios pasando
-- ✅ Actualizado `core/__init__.py` para exportar nuevos módulos
+- `core/exceptions.py` - Jerarquia de excepciones personalizadas
+- `core/types.py` - Tipos compartidos (enums, dataclasses)
+- `core/pipeline_data.py` - Dataclass PipelineData
 
-### Fases Pendientes
+#### Fase 2: Arquitectura de Modulos
 
-#### Fase 3: Pipeline Asíncrono
-**Objetivo**: Mejorar el pipeline para procesamiento asíncrono completo.
+- `core/module_interface.py` - ProcessingModule Protocol + BaseModule ABC
+- `core/config_schema.py` - Schema Pydantic centralizado
+- `core/config_manager.py` - DEFAULT_CONFIG como unica fuente de verdad
 
-**Archivos existentes**:
-- `core/pipeline.py` - Pipeline secuencial (threading)
-- `core/async_pipeline.py` - Pipeline asíncrono (threading)
+#### Fase 3: Pipeline y Estado
 
-**Mejoras propuestas**:
-1. Migrar a asyncio completo (eliminar threading)
-2. Usar la nueva interfaz `ProcessingModule`
-3. Mejorar manejo de errores con excepciones personalizadas
-4. Agregar métricas de rendimiento por módulo
+- `core/pipeline_manager.py` - Orquestador del pipeline
+- `core/pipeline_state_manager.py` - Gestion de estado (32 tests)
+- `core/pipeline_error_handler.py` - Manejo de errores centralizado (33 tests)
+- `core/app_context.py` - Fabrica para pipeline, modulos y I/O
+- `core/pipeline/` - Modulos de pipeline (`base.py`, `sequential.py`, `parallel.py`, `async_pipeline.py`, `strategies.py`, `factory.py`)
 
-#### Fase 4: Testing Avanzado
-**Objetivo**: Mejorar cobertura y calidad de tests.
+#### Fase 4: Lifecycle y Server
 
-**Propuestas**:
-1. Tests de integración completos
-2. Tests de carga/estrés
-3. Mock factory para testing
-4. CI/CD con GitHub Actions
+- `server/lifespan.py` - Gestion de ciclo de vida del servidor
+- `main.py` - Reducido a ~65 lineas (bootstrap minimo)
 
-#### Fase 5: Documentación
-**Objetivo**: Documentar arquitectura y API.
+#### Fase 5: Testing
 
-**Propuestas**:
-1. Docstrings consistentes (Google style)
-2. Diagramas de arquitectura
-3. Ejemplos de uso
-4. Migration guide
+- 590+ tests passing
+- 6 XFAIL documentados (config values pre-existentes)
+- Tests de snapshot para configuracion (24 tests)
+- Tests de migracion de config (22 tests)
 
-## Nueva Arquitectura Propuesta
+#### Fase 6: Tooling y CI
+
+- `mypy.ini` eliminado, config unificada en `pyproject.toml`
+- MyPy en pre-commit hooks
+- CI con matrix OS (ubuntu, windows, macos)
+- Ruff configurado para lint + format
+
+#### Fase 7: Documentacion
+
+- `docs/architecture.md` - Diagramas Mermaid de arquitectura
+- `docs/deployment.md` - Guia de despliegue con troubleshooting
+- `docs/contributing.md` - Guia de contribucion
+- `docs/new_module_guide.md` - Guia para agregar nuevos modulos
+- `docs/outputs.md` - Documentacion del sistema de salidas
+- `docs/cli.md` - Documentacion CLI
+
+## Arquitectura Actual
 
 ```
 core/
 ├── __init__.py           # Exporta tipos, excepciones, interfaces
-├── exceptions.py         # Excepciones personalizadas
+├── exceptions.py         # Jerarquia de excepciones
 ├── types.py              # Tipos compartidos
-├── module_interface.py   # ProcessingModule Protocol + BaseModule ABC
-├── config_manager.py     # Gestión de configuración
-├── pipeline.py           # Pipeline secuencial (legacy)
-├── async_pipeline.py     # Pipeline asíncrono (mejorado)
-├── model_cache.py        # Cache de modelos
+├── pipeline_data.py      # Dataclass PipelineData
+├── config_schema.py      # Schema Pydantic centralizado
+├── config_manager.py     # Gestion de configuracion
+├── pipeline_manager.py   # Orquestador del pipeline
+├── pipeline_state_manager.py  # Gestion de estado
+├── pipeline_error_handler.py  # Manejo de errores
+├── app_context.py        # Fabrica de componentes
+├── module_interface.py   # ProcessingModule Protocol
 ├── ffmpeg_pool.py        # Pool de procesos FFmpeg
-└── ...
+├── ffmpeg_utils.py       # Utilidades FFmpeg
+├── model_cache.py        # Cache de modelos
+├── logging_setup.py      # Logging con file rotation
+├── watchdog.py           # Watchdog de recursos
+├── security.py           # Middlewares de seguridad
+└── pipeline/             # Modulos de pipeline
+    ├── base.py
+    ├── sequential.py
+    ├── parallel.py
+    ├── async_pipeline.py
+    ├── strategies.py
+    └── factory.py
+
+modules/
+├── audio_extractor.py    # Extraccion de audio
+├── transcriber.py        # Transcripcion (Whisper)
+├── translator.py         # Traduccion (Argos)
+├── subtitle_generator.py # Generacion de subtitulos
+├── tts_engine.py         # Sintesis de voz (Piper)
+├── audio_mixer.py        # Mezcla de audio (numpy)
+├── video_muxer.py        # Muxer de video HLS
+├── piper_loader.py       # Loader de Piper (subprocess)
+└── inputs/               # Modulos de entrada
+    ├── srt_input.py
+    ├── rtmp_input.py
+    └── file_input.py
+
+server/
+├── app.py                # FastAPI app factory
+├── lifespan.py           # Startup/shutdown lifecycle
+├── api_routes.py         # REST API endpoints
+├── ws_routes.py          # WebSocket endpoints
+└── security.py           # Middlewares de seguridad
 ```
 
-## Beneficios de la Refactorización
+## Modulos Pendientes
 
-1. **Mantenibilidad**: Código más fácil de entender y modificar
-2. **Escalabilidad**: Fácil agregar nuevos módulos/inputs/outputs
-3. **Testabilidad**: Tests más simples y cobertura completa
+### Mejoras Incrementales
+
+1. **Tipado Python**: Corregir errores de mypy en `core/` (actualmente ~20 errores)
+2. **Modulos grandes**: Reducir `core/unified_pipeline.py` (940 lineas)
+3. **Tests de integracion**: Pipeline completo con TTS deshabilitado
+4. **Correlation ID**: Tracking de chunks a traves del pipeline
+5. **Logs estructurados**: Campos consistentes (module, chunk_index, stage, duration_ms)
+6. **Backpressure**: Medicion de latencia y congestión
+
+### Prioridad Baja
+
+- Docstrings Google-style en funciones publicas criticas
+- Sustituir `Any` innecesarios por tipos concretos o `Protocol`
+- Evitar bloques `except Exception` sin contexto
+
+## Beneficios de la Refactorizacion
+
+1. **Mantenibilidad**: Código mas facil de entender y modificar
+2. **Escalabilidad**: Fácil agregar nuevos modulos/inputs/outputs
+3. **Testabilidad**: Tests mas simples y cobertura completa
 4. **Robustez**: Mejor manejo de errores y recuperación
-5. **Performance**: Pipeline optimizado y asíncrono
+5. **Performance**: Pipeline optimizado y asincrono
 
-## Migración Gradual
+## Commits Principales
 
-La refactorización se diseña para ser compatible hacia atrás:
-- Los módulos existentes pueden migrar gradualmente a la nueva interfaz
-- El pipeline legacy sigue funcionando
-- Nuevos módulos usan la nueva arquitectura
+| Descripcion            | Archivos Clave                   |
+| ---------------------- | -------------------------------- |
+| Pipeline data flow fix | `modules/inputs/srt_input.py`    |
+| Piper TTS subprocess   | `modules/piper_loader.py`        |
+| Audio mixer numpy      | `modules/audio_mixer.py`         |
+| Config schema Pydantic | `core/config_schema.py`          |
+| Pipeline state manager | `core/pipeline_state_manager.py` |
+| Pipeline error handler | `core/pipeline_error_handler.py` |
+| App context factory    | `core/app_context.py`            |
+| Server lifecycle       | `server/lifespan.py`             |
+| MyPy config unificado  | `pyproject.toml`                 |
+| CI matrix OS           | `.github/workflows/ci.yml`       |
 
-## Commits Realizados
+## Tests
 
-| Hash | Descripción |
-|------|-------------|
-| `fc1e4fa` | feat(refactor): Add core foundation modules (exceptions and types) |
-| `9e4f195` | refactor(core): Update __init__.py to export new types and exceptions |
-| `3a1f487` | feat(refactor): Add module interface architecture (Fase 2) |
-
-## Tests Creados
-
-| Archivo | Tests | Descripción |
-|---------|-------|-------------|
-| `tests/unit/test_core_foundation.py` | 45 | Tests para excepciones y tipos |
-| `tests/unit/test_module_interface.py` | 23 | Tests para interfaz de módulos |
-| **Total** | **68** | **Todos pasando** |
+| Categoria            | Count |
+| -------------------- | ----- |
+| Unit tests           | 590+  |
+| XFAIL (documentados) | 6     |
+| Config snapshot      | 24    |
+| Config migration     | 22    |
+| Pipeline state       | 32    |
+| Pipeline error       | 33    |

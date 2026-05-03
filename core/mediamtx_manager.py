@@ -114,16 +114,17 @@ class MediaMTXManager:
 
         try:
             logger.info("Stopping MediaMTX...")
-            self._process.terminate()
+            if self._process is not None:
+                self._process.terminate()
 
-            # Wait for process to exit
-            try:
-                self._process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self._process.kill()
-                self._process.wait()
+                # Wait for process to exit
+                try:
+                    self._process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    self._process.kill()
+                    self._process.wait()
 
-            self._process = None
+                self._process = None
             logger.info("MediaMTX stopped")
             return True
 

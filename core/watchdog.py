@@ -4,12 +4,13 @@ FFmpeg Watchdog - Monitors FFmpeg processes for crashes and hangs.
 Provides automatic restart capability when FFmpeg fails.
 """
 
-import sys
-import time
 import logging
-import threading
 import subprocess
-from typing import Optional, Callable
+import sys
+import threading
+import time
+from collections.abc import Callable
+from typing import Optional
 
 logger = logging.getLogger("srt2web.watchdog")
 
@@ -147,10 +148,7 @@ class FFmpegWatchdog:
         time_since_output = time.time() - self._last_output_time
         if time_since_output > self.hang_timeout and not self._is_hung:
             self._is_hung = True
-            logger.warning(
-                f"{self._process_name} appears hung "
-                f"(no output for {time_since_output:.0f}s)"
-            )
+            logger.warning(f"{self._process_name} appears hung " f"(no output for {time_since_output:.0f}s)")
             self._handle_hang()
 
     def _handle_crash(self) -> None:
@@ -178,10 +176,7 @@ class FFmpegWatchdog:
     def _attempt_restart(self, reason: str) -> None:
         """Attempt to restart the process."""
         if self._restart_count >= self.max_restarts:
-            logger.error(
-                f"{self._process_name} max restarts ({self.max_restarts}) reached. "
-                "Giving up."
-            )
+            logger.error(f"{self._process_name} max restarts ({self.max_restarts}) reached. " "Giving up.")
             return
 
         self._restart_count += 1
@@ -201,9 +196,7 @@ class FFmpegWatchdog:
             except Exception as e:
                 logger.error(f"Failed to restart {self._process_name}: {e}")
         else:
-            logger.warning(
-                f"{self._process_name} cannot restart: no restart callback set"
-            )
+            logger.warning(f"{self._process_name} cannot restart: no restart callback set")
 
 
 class ProcessManager:
@@ -216,6 +209,7 @@ class ProcessManager:
 
     _instance: Optional["ProcessManager"] = None
     _lock: threading.Lock = threading.Lock()
+    _initialized: bool
 
     def __new__(cls) -> "ProcessManager":
         if cls._instance is None:

@@ -71,6 +71,7 @@ nav:
   - Arquitectura: architecture.md
   - Sistema de Salidas: outputs.md
   - CLI: cli.md
+  - Nuevo Modulo: new_module_guide.md
   - Contribuir: contributing.md
 
 # Options

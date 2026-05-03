@@ -4,8 +4,8 @@ Configuration manager for SRT2Web.
 Loads config.yaml, validates it, provides defaults, and supports
 runtime updates from the GUI.
 
-VALIDACIÓN ESTRICTA: Ahora usa esquema Pydantic definido en config_schema.py
-Todos los campos se validan automáticamente al cargar y guardar.
+FUENTE ÚNICA DE VERDAD: schema Pydantic en config_schema.py
+Todos los defaults vienen de SRT2WebConfig().to_dict()
 """
 
 import copy
@@ -21,6 +21,7 @@ from core.hardware import update_config_with_optimal_device
 
 logger = logging.getLogger("srt2web.config")
 
+# Única fuente de defaults — generada desde el schema Pydantic
 DEFAULT_CONFIG = SRT2WebConfig().to_dict()
 
 
@@ -69,39 +70,31 @@ class ConfigManager:
 
     def _load(self) -> None:
         """Load configuration from YAML file, merging with defaults."""
-        # Cargar defaults desde esquema Pydantic
-        default_config = SRT2WebConfig().to_dict()
-
         if Path(self._config_path).exists():
             try:
                 with open(self._config_path, encoding="utf-8") as f:
                     file_config = yaml.safe_load(f) or {}
 
-                # Merge con defaults
-                merged_config = _deep_merge(default_config, file_config)
+                # Merge con defaults (fuente única: DEFAULT_CONFIG)
+                merged_config = _deep_merge(DEFAULT_CONFIG, file_config)
 
-                # Validar con esquema Pydantic
+                # Validar con esquema Pydantic y auto-detect hardware
                 try:
                     validated_config = SRT2WebConfig.from_dict(merged_config)
                     self._config = validated_config.to_dict()
-
-                    # AUTO-DETECT HARDWARE (Sugerencia 2)
                     self._config = update_config_with_optimal_device(self._config)
-
                     logger.info(f"Configuration loaded and validated from {self._config_path}")
                 except ValidationError as ve:
                     logger.error(f"Configuration validation error in {self._config_path}:\n{ve}")
                     logger.warning("Using defaults due to validation failure.")
-                    self._config = default_config
+                    self._config = copy.deepcopy(DEFAULT_CONFIG)
             except Exception as e:
                 logger.error(f"Error loading configuration file: {e}")
                 logger.warning("Using defaults due to load failure.")
-                self._config = default_config
+                self._config = copy.deepcopy(DEFAULT_CONFIG)
         else:
             logger.info(f"Config file not found at {self._config_path}. Using defaults.")
-            # AUTO-DETECT HARDWARE even for defaults (Sugerencia 2)
-            self._config = update_config_with_optimal_device(default_config)
-            self._config = default_config
+            self._config = update_config_with_optimal_device(copy.deepcopy(DEFAULT_CONFIG))
 
     def save(self) -> None:
         """Persist current configuration to YAML file."""

@@ -13,11 +13,11 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
 
+from typing import Any  # Keep for Callable return type
 import numpy as np
 
-from core.schemas import ModuleState, ModuleStatus, PipelineData
+from core.schemas import ModuleState, ModuleStatus
 
 
 class CircuitState(str, Enum):
@@ -239,6 +239,20 @@ class MemoryManager:
         """Check if it's time to run memory check."""
         return self._chunk_counter % self.check_interval == 0
 
+    """Status information for a pipeline module.
+
+    Attributes:
+        name: Name of the module.
+        state: Current state of the module (from ModuleState).
+        enabled: Whether the module is enabled.
+        error_message: Error message if module is in error state.
+        processed_chunks: Number of chunks processed by this module.
+        last_process_time_ms: Processing time of last chunk in milliseconds.
+        extra: Additional module-specific status information.
+        circuit_state: Current circuit breaker state if applicable.
+        memory_mb: Memory usage in MB if available.
+    """
+
     name: str
     state: ModuleState
     enabled: bool
@@ -250,6 +264,11 @@ class MemoryManager:
     memory_mb: float | None = None
 
     def to_dict(self) -> dict:
+        """Convert status to dictionary for JSON serialization.
+
+        Returns:
+            Dictionary with status information.
+        """
         result = {
             "name": self.name,
             "state": self.state.value,

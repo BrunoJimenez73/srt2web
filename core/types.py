@@ -99,7 +99,9 @@ class PipelineStatus:
     @property
     def all_modules_healthy(self) -> bool:
         """Verifica si todos los módulos están saludables."""
-        return all(module.is_healthy for module in self.modules.values())
+        return all(
+            getattr(module, "is_healthy", module.state == ModuleState.RUNNING) for module in self.modules.values()
+        )
 
 
 @dataclass

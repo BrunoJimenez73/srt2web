@@ -1,52 +1,41 @@
 # SRT2Web
 
-[![CI](https://github.com/BrunoJimenez73/srt2web/actions/workflows/ci.yml/badge.svg)](https://github.com/BrunoJimenez73/srt2web/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-590%2B-brightgreen)](https://github.com/BrunoJimenez73/srt2web)
-[![Python](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org/)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-
-Real-time SRT streaming processor with Web dashboard for live transcription, translation, TTS, and HLS streaming.
-
-## Quick Start
+## Instalación rápida
 
 ```bash
-# Install dependencies
-pip install .
+# Clonar el repositorio
+git clone https://github.com/BrunoJimenez73/srt2web.git
+cd srt2web
 
-# Run server
-python main.py
+# Crear entorno virtual (Python 3.12)
+python -m venv venv
+.\venv\Scripts\activate   # Windows
+# source venv/bin/activate   # macOS/Linux
+
+# Instalar dependencias
+pip install -r requirements.txt
+
+# Instalar dependencias del frontend
+cd frontend
+npm install
+cd ..
+
+# Compilar frontend (producción)
+npm run build:local   # o: cd frontend && npm run build:local
+
+# Ejecutar servidor
+.\Start.bat   # Windows
+# o en Linux/macOS:
+python -m venv venv && source venv/bin/activate && python main.py
 ```
 
-## Requirements
+## Uso
 
-- Python 3.12
-- FFmpeg
-- (Optional) NVIDIA GPU with CUDA for accelerated processing
+- Accede a la UI en `http://localhost:9999/`.
+- La API está disponible bajo `/api`.
+- HLS stream disponible en `/hls`.
 
-## Features
+## Desarrollo
 
-- **Input**: SRT, RTMP, or File input
-- **Transcription**: Faster-Whisper (GPU accelerated)
-- **Translation**: Argos Translate
-- **TTS**: Piper or Edge TTS
-- **Outputs**: HLS, WebRTC, Recording
-
-## Documentation
-
-See `docs/` for detailed documentation.
-
-## Development
-
-```bash
-# Install dev dependencies
-pip install ".[dev]"
-
-# Run tests
-pytest tests/ -v
-
-# Type checking
-mypy core/ modules/ server/
-
-# Linting
-ruff check .
-```
+- Ejecuta los tests: `python -m pytest tests/unit -v`.
+- Linter y formateo: `ruff .` y `prettier
