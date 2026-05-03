@@ -147,7 +147,7 @@ El punto mas importante ahora no parece ser "crear mas features", sino consolida
 
 - [x] Estandarizar logs estructurados con campos: module, chunk_index, stage, duration_ms, status. (Hecho: core/structured_log.py creado con ModuleLogger y time_stage context manager)
 - [x] Mantener filtros de ruido, pero conservar logs completos en archivo para diagnostico. ✅ Hecho: `core/logging_setup.py` con RotatingFileHandler
-- [ ] Agregar correlation id por chunk.
+- [EN PROCESO] Agregar correlation id por chunk.
 - [x] Exponer endpoint de health detallado: servidor, pipeline, GPU, FFmpeg, modelos, disco. ✅ Parcialmente: `/health` endpoint basico
 - [x] Agregar endpoint simple de readiness/liveness para despliegues. ✅ Hecho: endpoints /ready y /live en server/app.py
 - [x] Registrar eventos de arranque y parada de cada modulo. ✅ Hecho: logs en start()/stop() de cada modulo
