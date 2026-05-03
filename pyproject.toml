@@ -121,3 +121,15 @@ disallow_untyped_defs = false
 disallow_incomplete_defs = false
 check_untyped_defs = false
 ignore_errors = false
+
+[tool.pytest.ini_options]
+markers = [
+    "unit: Unit tests - fast, isolated, no external dependencies",
+    "integration: Integration tests - test component interactions",
+    "e2e: End-to-end tests - test full pipeline",
+    "performance: Performance benchmarks and latency tests",
+    "security: Security-related tests",
+    "slow: Tests that take more than 5 seconds",
+    "gpu: Tests that require GPU",
+    "cpu: Tests that run on CPU only",
+]

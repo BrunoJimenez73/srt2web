@@ -1,123 +1,131 @@
-#!/usr/bin/env just
-
-# justfile - Unified Quality Commands for SRT2Web
-# Usage: just <command> or just (defaults to help)
+# Justfile - Cross-platform quality commands for SRT2Web
+# Requires: just (cargo install just)
 
 # Default task
-default: help
+default:
+    @just --list
 
-# ── Setup ──────────────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════
+# Testing
+# ═══════════════════════════════════════════════════════
 
-setup:
-    @echo "Setting up SRT2Web..."
-    python -m venv venv
-    venv/Scripts/python.exe -m pip install -r requirements.txt
-    cd frontend && npm install
-    @echo "✓ Setup complete!"
+# Run all backend tests
+test:
+    python -m pytest tests/unit/ -v
 
-# ── Testing ────────────────────────────────────────────────────────────────────
+# Run tests with markers
+test-unit:
+    python -m pytest tests/unit/ -v -m "unit"
 
-test: test-backend test-frontend
+test-integration:
+    python -m pytest tests/integration/ -v -m "integration"
 
-test-backend:
-    @echo "Running backend tests..."
-    python -m pytest tests/unit/ -v --tb=short
-    @echo "✓ Backend tests complete!"
+test-security:
+    python -m pytest tests/unit/ -v -m "security"
 
+test-performance:
+    python -m pytest tests/ -v -m "performance"
+
+# Run specific test file
+test-file file:
+    python -m pytest {{file}} -v
+
+# Run frontend tests
 test-frontend:
-    @echo "Running frontend tests..."
-    cd frontend && npm test -- --run
-    @echo "✓ Frontend tests complete!"
+    cd frontend && npm test
 
-test-coverage:
-    @echo "Running backend tests with coverage..."
-    python -m pytest tests/unit/ -v --cov=core --cov=modules --cov=server --cov-report=term-missing
-    @echo "✓ Coverage report generated!"
+# ═══════════════════════════════════════════════════════
+# Linting & Type Checking
+# ═══════════════════════════════════════════════════════
 
-# ── Linting & Type Checking ─────────────────────────────────────────────────
+# Run ruff linter
+lint:
+    ruff check core/ modules/ server/ tests/
 
-lint: lint-python lint-frontend
+# Run mypy type checker
+type-check:
+    mypy core/ server/ --config-file=pyproject.toml
 
-lint-python:
-    @echo "Running Python linters..."
-    python -m ruff check core/ modules/ server/ tests/
-    @echo "✓ Python linting complete!"
-
-lint-frontend:
-    @echo "Running frontend linter..."
-    cd frontend && npm run lint
-    @echo "✓ Frontend linting complete!"
-
-type-check: type-check-python type-check-frontend
-
-type-check-python:
-    @echo "Running Python type checker..."
-    python -m mypy core/ server/ --config-file=pyproject.toml
-    @echo "✓ Python type checking complete!"
-
+# Run frontend type check
 type-check-frontend:
-    @echo "Running frontend type checker..."
     cd frontend && npx tsc --noEmit
-    @echo "✓ Frontend type checking complete!"
 
-# ── Building ─────────────────────────────────────────────────────────────────────
+# Run all linters
+lint-all: lint type-check type-check-frontend
+    @echo "All linting complete!"
 
-build: build-frontend
+# ═══════════════════════════════════════════════════════
+# Building
+# ═══════════════════════════════════════════════════════
 
+# Build frontend
 build-frontend:
-    @echo "Building frontend..."
     cd frontend && npm run build:local
-    @echo "✓ Frontend build complete!"
 
-# ── Quality Check (CI Pipeline) ──────────────────────────────────────────────
-
-ci: lint type-check test build
-    @echo ""
-    @echo "╔══════════════════════════════════════════════════════════════╗"
-    @echo "║         ✓ All quality checks passed!                      ║"
-    @echo "╚══════════════════════════════════════════════════════════════╝"
-
-# ── Cleaning ──────────────────────────────────────────────────────────────────────
-
-clean:
-    @echo "Cleaning..."
-    python -m pytest --cache-clear
-    rm -rf **/__pycache__
-    rm -rf **/*.egg-info
-    rm -rf **/.pytest_cache
-    rm -rf **/node_modules
-    rm -rf **/*.pyc
-    rm -rf **/*.pyo
-    rm -rf **/*.egg
-    cd frontend && npm run clean 2>/dev/null || true
-    @echo "✓ Clean complete!"
-
-# ── Documentation ──────────────────────────────────────────────────────────────
-
-docs:
-    @echo "Building documentation..."
+# Build documentation
+build-docs:
     cd docs && mkdocs build
-    @echo "✓ Documentation built!"
 
-docs-serve:
-    cd docs && mkdocs serve
+# ═══════════════════════════════════════════════════════
+# Security
+# ═══════════════════════════════════════════════════════
 
-# ── Security ──────────────────────────────────────────────────────────────────────
-
+# Run Python security audit
 security-audit:
-    @echo "Running Python security audit..."
-    python -m pip-audit
-    @echo "✓ Python audit complete!"
+    python -m pip_audit
 
+# Run frontend security audit
 security-audit-frontend:
-    @echo "Running frontend security audit..."
     cd frontend && npm audit
-    @echo "✓ Frontend audit complete!"
 
-# ── Git Hooks ──────────────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════
+# Quality (All-in-one)
+# ═══════════════════════════════════════════════════════
 
-hooks:
-    @echo "Installing pre-commit hooks..."
-    python -m pip install pre-commit
-    pre-commit install
-    @echo "✓ Pre-commit hooks installed!"
+# Run all quality checks
+quality: lint type-check test type-check-frontend test-frontend
+    @echo "All quality checks passed!"
+
+# ═══════════════════════════════════════════════════════
+# Server
+# ═══════════════════════════════════════════════════════
+
+# Start server
+start:
+    python main.py
+
+# Start server with live reload (development)
+dev:
+    python main.py --reload
+
+# ═══════════════════════════════════════════════════════
+# Cleanup
+# ═══════════════════════════════════════════════════════
+
+# Clean Python cache
+clean:
+    python -c "import pathlib; [p.unlink() for p in pathlib.Path('.').rglob('*.pyc')]"
+    python -c "import pathlib; [p.rmdir() for p in pathlib.Path('.').rglob('__pycache__') if p.is_dir()]"
+
+# Clean all build artifacts
+clean-all: clean
+    rm -rf frontend/dist/
+    rm -rf docs/site/
+    rm -rf temp/
+    rm -rf venv/
+
+# ═══════════════════════════════════════════════════════
+# Information
+# ═══════════════════════════════════════════════════════
+
+# Show project info
+info:
+    @echo "SRT2Web - Real-time Subtitle Translation Pipeline"
+    @echo "Version: $$(python -c "import yaml; print(yaml.safe_load(open('config.yaml'))['version'])")"
+    @echo "Python: $$(python --version)"
+    @echo "Node: $$(node --version)"
+    @echo "FFmpeg: $$(ffmpeg -version | head -n1)"
+
+# Show test coverage
+coverage:
+    python -m pytest tests/unit/ --cov=core --cov=modules --cov=server --cov-report=term-missing
