@@ -70,40 +70,46 @@ class AudioExtractor(FFmpegModule):
         self._state = ModuleState.IDLE
 
     def _do_process(self, data: PipelineData) -> PipelineData:
-        """
-        Extract audio from data.video_chunk_path.
-        Sets data.audio_chunk_path to the resulting WAV file.
-        """
         input_path = data.video_chunk_path
         if not input_path or not Path(input_path).exists():
             return data
 
-        # Output WAV filename
         wav_name = f"audio_{data.chunk_index:06d}.wav"
         output_path = str(self._audio_dir / wav_name)
 
-        # FFmpeg command: extract audio, 8kHz, mono, 16-bit PCM
-        # Optimized for speed: 8kHz is sufficient for Whisper and faster to process
-        # Uses GPU decoding (NVDEC) when available for ~30-40% speedup
         cmd = ["-y"]
 
-        # GPU acceleration for decoding (if available)
-        if self._gpu_info.get("nvdec"):
+        # Only use GPU for larger files; GPU context init overhead outweighs benefit for <10MB
+        input_size = Path(input_path).stat().st_size if Path(input_path).exists() else 0
+        if self._gpu_info.get("nvdec") and input_size > 10 * 1024 * 1024:
             cmd.extend(["-hwaccel", "cuda", "-hwaccel_output_format", "cuda"])
 
+        # Aggressive low-latency flags for short chunks
         cmd.extend(
             [
+                "-fflags",
+                "+nobuffer+fast_seek",
+                "-flags",
+                "low_delay",
+                "-probesize",
+                "32000",
+                "-analyzeduration",
+                "0",
+                "-max_delay",
+                "0",
                 "-i",
                 input_path,
-                "-vn",  # No video
+                "-vn",
+                "-map",
+                "0:a:0?",
                 "-ar",
-                "8000",  # 8kHz sample rate (faster than 16kHz)
+                "8000",
                 "-ac",
-                "1",  # Mono
+                "1",
                 "-c:a",
-                "pcm_s16le",  # 16-bit PCM
+                "pcm_s16le",
                 "-threads",
-                "2",  # Fewer threads for lower overhead
+                "1",
                 "-f",
                 "wav",
                 output_path,
@@ -111,7 +117,6 @@ class AudioExtractor(FFmpegModule):
         )
 
         try:
-            # Use wrapper to run command with project-wide defaults (priority, window flags)
             result = self.ffmpeg.run_command(cmd, timeout=5)
             if result.returncode != 0:
                 logger.error(f"FFmpeg audio extraction error: {result.stderr[-500:]}")

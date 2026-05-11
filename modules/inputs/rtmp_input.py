@@ -304,6 +304,7 @@ class RTMPInput(InputSource):
             return None
 
         chunks = sorted(Path(self._chunks_dir).glob("chunk_*.ts"))
+        _t0 = time.perf_counter()
 
         if not chunks or len(chunks) < 2:
             return None
@@ -344,7 +345,7 @@ class RTMPInput(InputSource):
         return PipelineData(
             chunk_index=idx,
             timestamp=time.time(),
-            duration=actual_duration,
+            duration=self._chunk_duration,
             cumulative_duration=chunk_cumulative,
             video_chunk_path=str(chunk_path),
         )

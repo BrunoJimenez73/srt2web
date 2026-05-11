@@ -86,7 +86,7 @@ output:
       audio_offset_ms: 0
       encoder_mode: auto
 pipeline:
-  chunk_duration_sec: 5
+  chunk_duration_sec: 15
   mode: sequential
   max_concurrent_chunks: 2
   buffer_size: 10
@@ -99,7 +99,7 @@ modules:
     enabled: true
     model: tiny
     language: en
-    device: cuda
+    device: auto
     beam_size: 2
   translator:
     enabled: true
@@ -109,7 +109,7 @@ modules:
     enabled: true
     format: srt
     use_translated: true
-    chunk_duration: 5
+    chunk_duration: 15
   tts_engine:
     enabled: true
     engine: piper
@@ -119,8 +119,8 @@ modules:
   audio_mixer:
     enabled: true
     original_volume: 0.6
-    tts_volume: 1.1
-    dubbed_volume: 1.1
+    tts_volume: 1.0
+    dubbed_volume: 1.0
   video_muxer:
     enabled: true
     engine: hls
