@@ -13,6 +13,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 
 from server.routes import config, modules, outputs, pipeline
+from server.validators import SeekPosition
 
 logger = logging.getLogger("srt2web.api")
 
@@ -39,7 +40,7 @@ def create_api_router() -> APIRouter:
         input_source = ctx.get("input_source")
 
         if not input_source:
-            return {"error": "No input source configured"}
+            raise HTTPException(404, "No input source configured")
 
         return input_source.get_connection_info()
 
@@ -84,7 +85,7 @@ def create_api_router() -> APIRouter:
             raise HTTPException(400, "Input source does not support pause control")
 
     @router.post("/input/control/seek")
-    async def input_seek(request: Request, body: dict):
+    async def input_seek(request: Request, body: SeekPosition):
         """Seek to a specific position in the file (for file input type)."""
         ctx = _ctx(request)
         input_source = ctx.get("input_source")
@@ -94,11 +95,11 @@ def create_api_router() -> APIRouter:
 
         # Check if input source has seek method (FileInput)
         if hasattr(input_source, "seek"):
-            input_source.seek(body.get("position", 0))
+            input_source.seek(body.position)
             return {
                 "status": "seeked",
-                "position": body.get("position", 0),
-                "message": f"Seeked to {body.get('position', 0)}s",
+                "position": body.position,
+                "message": f"Seeked to {body.position}s",
             }
         else:
             raise HTTPException(400, "Input source does not support seek control")
@@ -113,10 +114,12 @@ def create_api_router() -> APIRouter:
         composite = _get_composite(pipeline)
         if hasattr(composite, "get_all_output_statuses"):
             statuses = composite.get_all_output_statuses()
-            return statuses[0] if statuses else {"error": "No outputs configured"}
+            if not statuses:
+                raise HTTPException(404, "No outputs configured")
+            return statuses[0]
         sink = pipeline.get_output_sink()
         if not sink:
-            return {"error": "No output sink configured"}
+            raise HTTPException(404, "No output sink configured")
         return sink.get_stream_info()
 
     # ── Network Information ──────────────────────────
@@ -227,7 +230,7 @@ def create_api_router() -> APIRouter:
             "uptime_seconds": round(uptime, 1),
             "memory_mb": memory_info["memory_mb"],
             "memory_percent": memory_info["memory_percent"],
-            "chunks_processed": pipeline._chunk_index,
+            "chunks_processed": pipeline.chunks_processed,
             "pipeline_state": pipeline.state.value,
             "modules": modules_status,
             "input": input_health,

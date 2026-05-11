@@ -3,8 +3,8 @@
  * Maneja la visualización, filtrado y gestión de logs
  */
 
-import type { LogMessage } from '../types';
-import { formatTimestamp } from '../utils';
+import type { LogMessage } from "../types";
+import { formatTimestamp } from "../utils";
 
 // DOM Elements
 let logContent: HTMLDivElement | null = null;
@@ -15,7 +15,7 @@ let collapseIcon: HTMLSpanElement | null = null;
 
 // State
 const maxLogs = 500;
-let currentFilter = '';
+let currentFilter = "";
 let isCollapsed = true;
 
 /**
@@ -23,12 +23,12 @@ let isCollapsed = true;
  */
 export function toggleLogPanel(): void {
   if (!logPanel) return;
-  
+
   isCollapsed = !isCollapsed;
-  logPanel.classList.toggle('collapsed', isCollapsed);
-  
+  logPanel.classList.toggle("collapsed", isCollapsed);
+
   if (collapseIcon) {
-    collapseIcon.textContent = isCollapsed ? '▶' : '▼';
+    collapseIcon.textContent = isCollapsed ? "▶" : "▼";
   }
 }
 
@@ -36,7 +36,7 @@ export function toggleLogPanel(): void {
  * Escapa caracteres HTML para prevenir XSS
  */
 function escapeHtml(text: string): string {
-  const div = document.createElement('div');
+  const div = document.createElement("div");
   div.textContent = text;
   return div.innerHTML;
 }
@@ -47,47 +47,53 @@ function escapeHtml(text: string): string {
  * @param message - Mensaje del log
  * @param timestamp - Timestamp opcional (ISO string)
  */
-export function addLog(level: LogMessage['level'], message: string, timestamp?: string): void {
-  console.log('[addLog] Called:', level, message?.substring(0, 50));
-  if (!logContent) {
-    console.error('Log content element not found');
-    return;
-  }
-  
+export function addLog(
+  level: LogMessage["level"],
+  message: string,
+  timestamp?: string,
+): void {
+  if (!logContent) return;
+
   // Hide empty state when adding first log
   if (logEmpty && logEmpty.parentElement === logContent) {
     logEmpty.remove();
     logEmpty = null;
   }
-  
-  const entry = document.createElement('div');
-  entry.className = 'log-entry';
-  entry.setAttribute('role', 'listitem');
+
+  const entry = document.createElement("div");
+  entry.className = "log-entry";
+  entry.setAttribute("role", "listitem");
   entry.dataset.level = level;
   entry.dataset.message = message.toLowerCase();
-  
-  const time = timestamp ? formatTimestamp(timestamp) : new Date().toLocaleTimeString('es-ES');
-  
+
+  const time = timestamp
+    ? formatTimestamp(timestamp)
+    : new Date().toLocaleTimeString("es-ES");
+  const levelLower = level.toLowerCase();
+
   entry.innerHTML = `
     <span class="log-timestamp">${time}</span>
-    <span class="log-level ${level}">[${level.toUpperCase()}]</span>
+    <span class="log-level ${levelLower}">[${level}]</span>
     <span class="log-message">${escapeHtml(message)}</span>
   `;
-  
+
   // Apply current filter
-  if (currentFilter && !entry.dataset.message.includes(currentFilter.toLowerCase())) {
-    entry.style.display = 'none';
+  if (
+    currentFilter &&
+    !entry.dataset.message.includes(currentFilter.toLowerCase())
+  ) {
+    entry.style.display = "none";
   }
-  
+
   logContent.appendChild(entry);
-  
+
   // Limit number of logs
   while (logContent.children.length > maxLogs) {
     if (logContent.firstChild) {
       logContent.removeChild(logContent.firstChild);
     }
   }
-  
+
   // Scroll to bottom
   logContent.scrollTop = logContent.scrollHeight;
 }
@@ -98,15 +104,15 @@ export function addLog(level: LogMessage['level'], message: string, timestamp?: 
  */
 export function filterLogs(filter: string): void {
   currentFilter = filter.toLowerCase();
-  
-  const entries = logContent?.querySelectorAll('.log-entry');
+
+  const entries = logContent?.querySelectorAll(".log-entry");
   entries?.forEach((entry) => {
     const el = entry as HTMLElement;
     if (currentFilter) {
       const matches = el.dataset.message?.includes(currentFilter);
-      el.style.display = matches ? '' : 'none';
+      el.style.display = matches ? "" : "none";
     } else {
-      el.style.display = '';
+      el.style.display = "";
     }
   });
 }
@@ -116,22 +122,22 @@ export function filterLogs(filter: string): void {
  */
 export function clearLogs(): void {
   if (!logContent) return;
-  
-  logContent.innerHTML = '';
-  
+
+  logContent.innerHTML = "";
+
   // Restore empty state
-  logEmpty = document.createElement('div');
-  logEmpty.className = 'log-empty';
-  logEmpty.id = 'log-empty';
+  logEmpty = document.createElement("div");
+  logEmpty.className = "log-empty";
+  logEmpty.id = "log-empty";
   logEmpty.innerHTML = `
     <span class="log-empty-icon">📝</span>
     <span class="log-empty-text">Sin registros aún</span>
   `;
   logContent.appendChild(logEmpty);
-  
-  currentFilter = '';
+
+  currentFilter = "";
   if (logSearch) {
-    logSearch.value = '';
+    logSearch.value = "";
   }
 }
 
@@ -140,46 +146,48 @@ export function clearLogs(): void {
  */
 export function initLogPanel(): void {
   // Get DOM elements
-  logContent = document.getElementById('log-content') as HTMLDivElement;
-  logPanel = document.querySelector('.log-panel');
-  logEmpty = document.getElementById('log-empty') as HTMLDivElement;
-  logSearch = document.getElementById('log-search') as HTMLInputElement;
-  collapseIcon = document.getElementById('log-collapse-icon') as HTMLSpanElement;
-  
+  logContent = document.getElementById("log-content") as HTMLDivElement;
+  logPanel = document.querySelector(".log-panel");
+  logEmpty = document.getElementById("log-empty") as HTMLDivElement;
+  logSearch = document.getElementById("log-search") as HTMLInputElement;
+  collapseIcon = document.getElementById(
+    "log-collapse-icon",
+  ) as HTMLSpanElement;
+
   // Setup search filter
-  logSearch?.addEventListener('input', (e) => {
+  logSearch?.addEventListener("input", (e) => {
     const value = (e.target as HTMLInputElement).value;
     filterLogs(value);
   });
-  
+
   // Expose global functions for onclick attributes
-  (window as unknown as { 
-    addLog: typeof addLog; 
-    toggleLogPanel: typeof toggleLogPanel; 
-    clearLogs: typeof clearLogs; 
-  }).addLog = addLog;
-  
-  (window as unknown as { 
-    addLog: typeof addLog; 
-    toggleLogPanel: typeof toggleLogPanel; 
-    clearLogs: typeof clearLogs; 
-  }).toggleLogPanel = toggleLogPanel;
-  
-  (window as unknown as { 
-    addLog: typeof addLog; 
-    toggleLogPanel: typeof toggleLogPanel; 
-    clearLogs: typeof clearLogs; 
-  }).clearLogs = clearLogs;
+  (
+    window as unknown as {
+      toggleLogPanel: typeof toggleLogPanel;
+      clearLogs: typeof clearLogs;
+    }
+  ).toggleLogPanel = toggleLogPanel;
+
+  (
+    window as unknown as {
+      toggleLogPanel: typeof toggleLogPanel;
+      clearLogs: typeof clearLogs;
+    }
+  ).clearLogs = clearLogs;
 }
 
 /**
  * Obtiene el estado actual del panel
  */
-export function getLogPanelState(): { isCollapsed: boolean; filter: string; logCount: number } {
-  const logCount = logContent?.querySelectorAll('.log-entry').length || 0;
+export function getLogPanelState(): {
+  isCollapsed: boolean;
+  filter: string;
+  logCount: number;
+} {
+  const logCount = logContent?.querySelectorAll(".log-entry").length || 0;
   return {
     isCollapsed,
     filter: currentFilter,
-    logCount
+    logCount,
   };
 }

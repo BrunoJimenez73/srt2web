@@ -186,14 +186,15 @@ class TestCompleteRefactor:
         modules_dir = src_lib / "modules"
         assert modules_dir.exists(), "modules/ directory missing"
 
-        # Verificar archivos específicos en modules/
-        config_module = modules_dir / "config.ts"
-        ui_module = modules_dir / "ui.ts"
-        events_module = modules_dir / "events.ts"
+        # Los stubs muertos (config.ts, ui.ts, events.ts) fueron eliminados
+        assert not (modules_dir / "config.ts").exists(), "dead stub config.ts should have been removed"
+        assert not (modules_dir / "ui.ts").exists(), "dead stub ui.ts should have been removed"
+        assert not (modules_dir / "events.ts").exists(), "dead stub events.ts should have been removed"
 
-        assert config_module.exists(), "modules/config.ts missing"
-        assert ui_module.exists(), "modules/ui.ts missing"
-        assert events_module.exists(), "modules/events.ts missing"
+        # Módulos activos deben existir
+        active_modules = ["pipeline-control.ts", "player.ts", "logpanel.ts", "keyboard-shortcuts.ts"]
+        for mod in active_modules:
+            assert (modules_dir / mod).exists(), f"modules/{mod} missing"
 
 
 if __name__ == "__main__":

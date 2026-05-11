@@ -27,8 +27,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Instalar dependencias de Python
-COPY requirements.txt .
-RUN pip3.12 install --no-cache-dir -r requirements.txt
+COPY config/requirements.txt config/
+RUN pip3.12 install --no-cache-dir -r config/requirements.txt
 
 # Instalar dependencias del frontend y build
 COPY frontend/package*.json frontend/

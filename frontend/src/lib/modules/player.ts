@@ -37,16 +37,16 @@ interface HlsConfig {
 
 // HLS Events enum
 const HlsEvents = {
-  MANIFEST_PARSED: 'hlsManifestParsed',
-  ERROR: 'hlsError',
-  FRAG_BUFFERED: 'hlsFragBuffered',
-  LEVEL_SWITCH: 'hlsLevelSwitch',
+  MANIFEST_PARSED: "hlsManifestParsed",
+  ERROR: "hlsError",
+  FRAG_BUFFERED: "hlsFragBuffered",
+  LEVEL_SWITCH: "hlsLevelSwitch",
 };
 
 // HLS Error Types enum
 const HlsErrorTypes = {
-  NETWORK_ERROR: 'networkError',
-  MEDIA_ERROR: 'mediaError',
+  NETWORK_ERROR: "networkError",
+  MEDIA_ERROR: "mediaError",
 };
 
 interface SubtitleCue {
@@ -67,14 +67,14 @@ let consecutiveErrors = 0;
 const MAX_CONSECUTIVE_ERRORS = 5;
 
 export function initHlsPlayer(): void {
-  const video = document.getElementById('video-player') as HTMLVideoElement;
-  const waitingEl = document.getElementById('waiting');
-  const errorOverlay = document.getElementById('error-overlay');
-  const errorMessage = document.getElementById('error-message');
-  const btnRetry = document.getElementById('btn-retry');
+  const video = document.getElementById("video-player") as HTMLVideoElement;
+  const waitingEl = document.getElementById("waiting");
+  const errorOverlay = document.getElementById("error-overlay");
+  const errorMessage = document.getElementById("error-message");
+  const btnRetry = document.getElementById("btn-retry");
 
   if (!video) {
-    console.error('Video element not found');
+    console.error("Video element not found");
     return;
   }
 
@@ -82,49 +82,60 @@ export function initHlsPlayer(): void {
   const subtitlesUrl = `${window.location.origin}/subtitles/subs.vtt`;
   let hls: HlsInstance | null = null;
   let subtitleInterval: ReturnType<typeof setInterval> | null = null;
-  let lastSubtitleContent = '';
+  let lastSubtitleContent = "";
   let isConnected = false;
   let lastManifestTime = 0;
 
   function showError(message: string) {
-    if (errorOverlay) errorOverlay.style.display = 'flex';
+    if (errorOverlay) errorOverlay.style.display = "flex";
     if (errorMessage) errorMessage.textContent = message;
-    if (waitingEl) waitingEl.style.display = 'none';
+    if (waitingEl) waitingEl.style.display = "none";
     isConnected = false;
   }
 
   function hideError() {
-    if (errorOverlay) errorOverlay.style.display = 'none';
+    if (errorOverlay) errorOverlay.style.display = "none";
   }
 
   // Health check - monitor stream availability
   function startHealthCheck() {
     stopHealthCheck();
     consecutiveErrors = 0;
-    
+
     healthCheckInterval = setInterval(async () => {
       try {
-        const response = await fetch(streamUrl, { method: 'HEAD', cache: 'no-cache' });
-        
+        const response = await fetch(streamUrl, {
+          method: "HEAD",
+          cache: "no-cache",
+        });
+
         if (response.ok) {
           consecutiveErrors = 0;
           if (!isConnected && hls) {
-            // Stream is back, try to recover
-            console.log('[Health] Stream recovered, attempting reconnect...');
             hls.startLoad();
           }
         } else {
           consecutiveErrors++;
-          console.warn('[Health] Stream not available:', response.status, 'Errors:', consecutiveErrors);
+          console.warn(
+            "[Health] Stream not available:",
+            response.status,
+            "Errors:",
+            consecutiveErrors,
+          );
         }
       } catch {
         consecutiveErrors++;
-        console.warn('[Health] Stream check failed, Errors:', consecutiveErrors);
+        console.warn(
+          "[Health] Stream check failed, Errors:",
+          consecutiveErrors,
+        );
       }
-      
+
       // If too many consecutive errors, show reconnect option
       if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS && hls) {
-        showError('Stream no disponible. Haz clic en Reintentar para conectar.');
+        showError(
+          "Stream no disponible. Haz clic en Reintentar para conectar.",
+        );
         consecutiveErrors = 0;
       }
     }, 10000); // Check every 10 seconds
@@ -140,83 +151,88 @@ export function initHlsPlayer(): void {
   // Parse VTT content to extract cues
   function parseVTT(vttContent: string): SubtitleCue[] {
     const cues: SubtitleCue[] = [];
-    const lines = vttContent.split('\n');
+    const lines = vttContent.split("\n");
     // Support both VTT (dot) and SRT (comma) timestamps
-    const timeRegex = /(\d{2}):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[,.](\d{3})/;
-    
+    const timeRegex =
+      /(\d{2}):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[,.](\d{3})/;
+
     for (let i = 0; i < lines.length; i++) {
       const match = lines[i].match(timeRegex);
       if (match) {
-        const start = parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + 
-                     parseInt(match[3]) + parseInt(match[4]) / 1000;
-        const end = parseInt(match[5]) * 3600 + parseInt(match[6]) * 60 + 
-                   parseInt(match[7]) + parseInt(match[8]) / 1000;
-        
-        let text = '';
+        const start =
+          parseInt(match[1]) * 3600 +
+          parseInt(match[2]) * 60 +
+          parseInt(match[3]) +
+          parseInt(match[4]) / 1000;
+        const end =
+          parseInt(match[5]) * 3600 +
+          parseInt(match[6]) * 60 +
+          parseInt(match[7]) +
+          parseInt(match[8]) / 1000;
+
+        let text = "";
         let j = i + 1;
-        while (j < lines.length && lines[j].trim() !== '') {
-          text += (text ? '\n' : '') + lines[j].trim();
+        while (j < lines.length && lines[j].trim() !== "") {
+          text += (text ? "\n" : "") + lines[j].trim();
           j++;
         }
-        
+
         if (text) {
           cues.push({ start, end, text });
         }
       }
     }
-    
+
     return cues;
   }
 
   // Load and display subtitles
   async function loadSubtitles() {
     try {
-      const response = await fetch(subtitlesUrl, { 
-        cache: 'no-cache',
-        headers: { 'Cache-Control': 'no-cache' }
+      const response = await fetch(subtitlesUrl, {
+        cache: "no-cache",
+        headers: { "Cache-Control": "no-cache" },
       });
-      
+
       if (!response.ok) {
         if (response.status !== 404) {
-          console.warn('Error loading subtitles:', response.status);
+          console.warn("Error loading subtitles:", response.status);
         }
         return;
       }
-      
+
       const content = await response.text();
-      
+
       if (content === lastSubtitleContent) return;
       lastSubtitleContent = content;
-      
+
       const cues = parseVTT(content);
-      
+
       if (!cues || cues.length === 0) return;
-      
+
       let track: TextTrack | null = null;
       if (video.textTracks.length > 0) {
         track = video.textTracks[0];
       } else {
-        track = video.addTextTrack('subtitles', 'Español', 'es');
-        track.mode = 'showing';
+        track = video.addTextTrack("subtitles", "Español", "es");
+        track.mode = "showing";
       }
-      
+
       if (track && track.cues) {
         const cuesToRemove = Array.from(track.cues);
         for (const cue of cuesToRemove) {
           track.removeCue(cue);
         }
       }
-      
+
       if (track) {
         for (const cue of cues) {
           const vttCue = new VTTCue(cue.start, cue.end, cue.text);
           track.addCue(vttCue);
         }
       }
-      
-      console.log(`Loaded ${cues.length} subtitle cues`);
     } catch (error) {
-      console.warn('Error loading subtitles:', error);
+      console.warn("Error loading subtitles:", error);
     }
   }
 
@@ -234,15 +250,15 @@ export function initHlsPlayer(): void {
 
   function connect() {
     hideError();
-    if (waitingEl) waitingEl.style.display = 'block';
+    if (waitingEl) waitingEl.style.display = "block";
     isConnected = false;
     consecutiveErrors = 0;
 
-    if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+    if (typeof Hls !== "undefined" && Hls.isSupported()) {
       if (hls) {
         hls.destroy();
       }
-      
+
       hls = new Hls({
         debug: false,
         enableWorker: true,
@@ -259,7 +275,7 @@ export function initHlsPlayer(): void {
       hls.attachMedia(video);
 
       hls.on(HlsEvents.MANIFEST_PARSED, () => {
-        if (waitingEl) waitingEl.style.display = 'none';
+        if (waitingEl) waitingEl.style.display = "none";
         isConnected = true;
         lastManifestTime = Date.now();
         video.play().catch(console.error);
@@ -269,19 +285,19 @@ export function initHlsPlayer(): void {
 
       hls.on(HlsEvents.ERROR, (_event, data: unknown) => {
         const err = data as HlsErrorData;
-        console.warn('[HLS Error]', err.type, err.fatal, err.details);
-        
+        console.warn("[HLS Error]", err.type, err.fatal, err.details);
+
         if (err.fatal) {
           switch (err.type) {
             case HlsErrorTypes.NETWORK_ERROR:
-              showError('Error de red - intentando reconectar...');
+              showError("Error de red - intentando reconectar...");
               hls?.startLoad();
               break;
             case HlsErrorTypes.MEDIA_ERROR:
               hls?.recoverMediaError();
               break;
             default:
-              showError('Error fatal - recargando...');
+              showError("Error fatal - recargando...");
               setTimeout(connect, 3000);
               break;
           }
@@ -289,30 +305,29 @@ export function initHlsPlayer(): void {
       });
 
       hls.once(HlsEvents.FRAG_BUFFERED, () => {
-        console.log('[HLS] First fragment buffered');
         startHealthCheck();
       });
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = streamUrl;
-      video.addEventListener('loadedmetadata', () => {
-        if (waitingEl) waitingEl.style.display = 'none';
+      video.addEventListener("loadedmetadata", () => {
+        if (waitingEl) waitingEl.style.display = "none";
         isConnected = true;
         video.play().catch(console.error);
         startSubtitlePolling();
         startHealthCheck();
       });
-      video.addEventListener('error', () => {
+      video.addEventListener("error", () => {
         if (isConnected) {
-          showError('Stream perdido - reintentando...');
+          showError("Stream perdido - reintentando...");
           setTimeout(connect, 3000);
         } else {
-          showError('Error cargando el stream');
+          showError("Error cargando el stream");
           stopSubtitlePolling();
           stopHealthCheck();
         }
       });
     } else {
-      showError('HLS no es soportado en este navegador');
+      showError("HLS no es soportado en este navegador");
     }
   }
 
@@ -328,20 +343,19 @@ export function initHlsPlayer(): void {
   }
 
   if (btnRetry) {
-    btnRetry.addEventListener('click', () => {
+    btnRetry.addEventListener("click", () => {
       disconnect();
-      lastSubtitleContent = '';
+      lastSubtitleContent = "";
       connect();
     });
   }
 
-  window.addEventListener('beforeunload', () => {
+  window.addEventListener("beforeunload", () => {
     disconnect();
   });
 
   function waitForHlsAndConnect(): void {
-    if (typeof Hls === 'undefined') {
-      console.log('Waiting for HLS library to load...');
+    if (typeof Hls === "undefined") {
       setTimeout(waitForHlsAndConnect, 100);
       return;
     }
@@ -350,4 +364,3 @@ export function initHlsPlayer(): void {
 
   waitForHlsAndConnect();
 }
-

@@ -151,9 +151,6 @@ class RecordingOutput(OutputSink):
                 "saved_audios": len(self._saved_audio_paths),
             },
         ).to_dict()
-        input_audio = getattr(self._pending_data, "mixed_audio_path", None) if self._pending_data else None
-        input_subs = getattr(self._pending_data, "subtitles_path", None) if self._pending_data else None
-        return self._build_ffmpeg_cmd(output_file, input_video, input_audio, input_subs)
 
     def _get_next_output_path(self) -> str:
         """Obtener siguiente ruta de salida (para split)."""

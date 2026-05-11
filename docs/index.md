@@ -64,7 +64,7 @@ cd srt2web
 # 2. Instalar dependencias
 python -m venv venv
 venv\Scripts\activate    # Windows
-pip install -r requirements.txt
+pip install -r config/requirements.txt
 
 # 3. Instalar FFmpeg (si no está)
 winget install ffmpeg    # Windows

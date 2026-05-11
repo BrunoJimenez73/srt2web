@@ -2,12 +2,12 @@
 Configuration routes for SRT2Web API.
 """
 
-import logging
 import json
+import logging
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
-from server.validators import ConfigUpdate, validate_module_dependencies
+from server.validators import ChunkDurationRequest, ConfigUpdate, validate_module_dependencies
 
 logger = logging.getLogger("srt2web.api.config")
 
@@ -36,8 +36,7 @@ async def update_config(request: Request, body: ConfigUpdate):
     if dependency_errors:
         raise HTTPException(
             400,
-            "Configuration violates module dependencies:\n• "
-            + "\n• ".join(dependency_errors),
+            "Configuration violates module dependencies:\n• " + "\n• ".join(dependency_errors),
         )
 
     logger.debug(f"[CONFIG] PUT receives: {json.dumps(body.config, indent=2)[:1000]}")
@@ -67,7 +66,7 @@ async def update_config(request: Request, body: ConfigUpdate):
 
 
 @router.post("/config/chunk")
-async def update_chunk_duration(request: Request, body: dict):
+async def update_chunk_duration(request: Request, body: ChunkDurationRequest):
     """
     Update chunk duration and synchronize all related parameters.
 
@@ -83,11 +82,7 @@ async def update_chunk_duration(request: Request, body: dict):
     config = ctx["config"]
     pipeline = ctx["pipeline"]
 
-    chunk_duration = body.get("chunk_duration_sec")
-    if not chunk_duration:
-        raise HTTPException(400, "chunk_duration_sec is required")
-    if not isinstance(chunk_duration, int) or chunk_duration < 1 or chunk_duration > 60:
-        raise HTTPException(400, "chunk_duration_sec must be between 1 and 60")
+    chunk_duration = body.chunk_duration_sec
 
     # Sync to all config sections using config.set() method
     config.set("pipeline.chunk_duration_sec", chunk_duration)

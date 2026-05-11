@@ -6,6 +6,8 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Request
 
+from server.validators import AddOutputRequest, UpdateOutputRequest
+
 logger = logging.getLogger("srt2web.api.outputs")
 
 router = APIRouter(tags=["outputs"])
@@ -93,17 +95,14 @@ async def get_available_outputs(request: Request):
 
 
 @router.post("/outputs")
-async def add_output(request: Request, body: dict):
+async def add_output(request: Request, body: AddOutputRequest):
     """Añade un nuevo output al pipeline en caliente y lo guarda en config.yaml."""
     ctx = _ctx(request)
     pipeline = ctx["pipeline"]
 
-    output_type = body.get("type")
-    output_config = body.get("config", {}) or {}
-    output_name = body.get("name") or f"{output_type}_{int(__import__('time').time())}"
-
-    if not output_type:
-        raise HTTPException(400, "Output type is required")
+    output_type = body.type
+    output_config = body.config or {}
+    output_name = body.name or f"{output_type}_{int(__import__('time').time())}"
 
     from core.io_factory import OutputFactory
 
@@ -133,7 +132,7 @@ async def add_output(request: Request, body: dict):
 
 
 @router.put("/outputs/{output_name}")
-async def update_output(request: Request, output_name: str, body: dict):
+async def update_output(request: Request, output_name: str, body: UpdateOutputRequest):
     """Actualiza la configuración de un output existente."""
     ctx = _ctx(request)
     pipeline = ctx["pipeline"]
@@ -146,11 +145,11 @@ async def update_output(request: Request, output_name: str, body: dict):
     if not output:
         raise HTTPException(404, f"Output '{output_name}' not found")
 
-    if "config" in body and hasattr(output, "configure"):
-        output.configure(body["config"])
+    if body.config is not None and hasattr(output, "configure"):
+        output.configure(body.config)
 
-    if "enabled" in body and hasattr(composite, "enable_output"):
-        composite.enable_output(output_name, bool(body["enabled"]))
+    if body.enabled is not None and hasattr(composite, "enable_output"):
+        composite.enable_output(output_name, body.enabled)
 
     return {"status": "updated", "name": output_name}
 

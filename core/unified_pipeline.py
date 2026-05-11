@@ -906,6 +906,11 @@ class UnifiedPipeline:
             except Exception as e:
                 self._log("warning", f"Could not reconfigure input source: {e}")
 
+    def reset_error_state(self) -> None:
+        """Reset pipeline state from error to idle (public API)."""
+        if self._state == PipelineState.ERROR:
+            self._set_state(PipelineState.IDLE)
+
     # Alias para compatibilidad API 100% con versiones anteriores
     @property
     def chunks_processed(self) -> int:

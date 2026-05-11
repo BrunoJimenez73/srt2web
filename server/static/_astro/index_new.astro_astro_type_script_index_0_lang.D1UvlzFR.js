@@ -1,4 +1,4 @@
-import "./index.astro_astro_type_script_index_0_lang.zf2FrLkp.js";
+import "./index.astro_astro_type_script_index_0_lang.9r9sjtdi.js";
 document.querySelectorAll(".collapsible-module-wrapper").forEach((n) => {
   const e = n.querySelector(".process-header"),
     s = n.querySelector(".process-content");

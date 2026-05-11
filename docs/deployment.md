@@ -42,7 +42,7 @@ venv\Scripts\activate
 ### 3. Instalar Dependencias
 
 ```bash
-pip install -r requirements.txt
+pip install -r config/requirements.txt
 ```
 
 ### 4. Instalar FFmpeg
@@ -261,7 +261,7 @@ modules:
     video_crf: 18
     audio_codec: aac
     audio_bitrate: "64k"
-    audio_samplerate: "48000"
+
     gpu_preset: p7 # p1-p7 (NVIDIA)
     video_preset: medium # ultrafast a veryslow
 ```
@@ -507,7 +507,7 @@ cd frontend && npm test
 
 - [ ] Python 3.12+ instalado
 - [ ] Entorno virtual creado y activado
-- [ ] Dependencias instaladas (`pip install -r requirements.txt`)
+- [ ] Dependencias instaladas (`pip install -r config/requirements.txt`)
 - [ ] FFmpeg instalado y en PATH
 - [ ] CUDA configurado (si GPU disponible)
 - [ ] Modelos Whisper descargados

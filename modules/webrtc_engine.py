@@ -1,8 +1,10 @@
 """
 WebRTC Engine - Streaming via WebRTC using aiortc.
 
-This module provides WebRTC streaming capabilities using the aiortc library.
-It handles RTCPeerConnection, tracks, and data channels for subtitles.
+Provides real-time WebRTC streaming with:
+- Video track from HLS segments (decoded via PyAV)
+- Audio track from mixed audio WAV files
+- Data channel for subtitles with proper timing
 """
 
 import asyncio
@@ -10,14 +12,12 @@ import json as JSON
 import logging
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-# aiortc imports
+import numpy as np
 from aiortc import AudioStreamTrack, VideoStreamTrack
-
-# av imports for frame handling
 
 logger = logging.getLogger("srt2web.webrtc_engine")
 
@@ -31,40 +31,44 @@ class SubtitleCue:
     text: str
 
 
+@dataclass
+class MediaBuffer:
+    """Shared buffer for video/audio data pushed by the pipeline."""
+
+    current_video_path: str = ""
+    current_audio_path: str = ""
+    accumulated_duration: float = 0.0
+    lock: threading.Lock = field(default_factory=threading.Lock)
+
+
 class WebRTCEngine:
     """
     WebRTC Engine for streaming video/audio and subtitles.
 
     Uses aiortc to handle WebRTC connections with the browser.
-    Supports:
-    - Video track streaming
-    - Audio track streaming
-    - Data channel for subtitles
+    Receives real video/audio data via push_video_path/push_audio_path.
     """
 
     def __init__(self, config: dict = None):
         self.config = config or {}
 
-        # State
         self._running = False
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._thread: Optional[threading.Thread] = None
         self._ready_event = threading.Event()
 
-        # Directory for chunks
         self._output_dir = Path(self.config.get("output_dir", "./output/webrtc"))
         self._output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Subtitle state
         self._subtitle_vtt_path = self._output_dir.parent.parent / "subtitles" / "subs.vtt"
         self._current_subtitles: list[SubtitleCue] = []
         self._last_subtitle_update = 0.0
 
-        # Active connections
         self._connections: dict[str, "WebRTCConnection"] = {}
         self._connection_lock = threading.Lock()
 
-        # Video/Audio settings
+        self._media_buffer = MediaBuffer()
+
         self._video_codec = self.config.get("video_codec", "VP8")
         self._audio_codec = self.config.get("audio_codec", "opus")
 
@@ -73,8 +77,22 @@ class WebRTCEngine:
     def set_output_dir(self, output_dir: str) -> None:
         """Set the output directory."""
         self._output_dir = Path(output_dir)
-        # For WebRTC, subtitles are in parent/../subtitles/subs.vtt
         self._subtitle_vtt_path = self._output_dir.parent.parent / "subtitles" / "subs.vtt"
+
+    def push_video_path(self, path: str) -> None:
+        """Push video file path for WebRTC tracks to consume."""
+        with self._media_buffer.lock:
+            self._media_buffer.current_video_path = path
+
+    def push_audio_path(self, path: str) -> None:
+        """Push audio file path for WebRTC tracks to consume."""
+        with self._media_buffer.lock:
+            self._media_buffer.current_audio_path = path
+
+    def update_accumulated_duration(self, duration: float) -> None:
+        """Update accumulated stream duration for subtitle timing."""
+        with self._media_buffer.lock:
+            self._media_buffer.accumulated_duration = duration
 
     @property
     def running(self) -> bool:
@@ -89,13 +107,11 @@ class WebRTCEngine:
 
         self._running = True
 
-        # Create asyncio event loop in a separate thread
         def run_loop():
             self._loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self._loop)
             logger.info("WebRTC event loop started")
             self._ready_event.set()
-
             try:
                 self._loop.run_forever()
             finally:
@@ -105,7 +121,6 @@ class WebRTCEngine:
         self._thread = threading.Thread(target=run_loop, daemon=True, name="webrtc-loop")
         self._thread.start()
 
-        # Wait for the loop to be ready
         if not self._ready_event.wait(timeout=5.0):
             raise RuntimeError("WebRTC event loop failed to start")
 
@@ -118,13 +133,11 @@ class WebRTCEngine:
 
         self._running = False
 
-        # Close all connections
         with self._connection_lock:
             for conn in list(self._connections.values()):
                 conn.close()
             self._connections.clear()
 
-        # Stop the event loop
         if self._loop and self._loop.is_running():
             self._loop.call_soon_threadsafe(self._loop.stop)
 
@@ -139,7 +152,6 @@ class WebRTCEngine:
             return []
 
         try:
-            # Check if file changed
             mtime = Path(self._subtitle_vtt_path).stat().st_mtime
             if mtime == self._last_subtitle_update:
                 return self._current_subtitles
@@ -150,12 +162,10 @@ class WebRTCEngine:
             with open(self._subtitle_vtt_path, encoding="utf-8") as f:
                 content = f.read()
 
-            # Simple VTT parsing
             lines = content.split("\n")
-            time_regex_pattern = r"(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})"
             import re
 
-            time_regex = re.compile(time_regex_pattern)
+            time_regex = re.compile(r"(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})")
 
             i = 0
             while i < len(lines):
@@ -174,7 +184,6 @@ class WebRTCEngine:
                         + int(match.group(8)) / 1000
                     )
 
-                    # Get text
                     text_lines = []
                     j = i + 1
                     while j < len(lines) and lines[j].strip():
@@ -197,39 +206,23 @@ class WebRTCEngine:
     async def handle_offer(self, client_id: str, sdp: str, sdp_type: str = "offer") -> str:
         """
         Handle WebRTC offer and return answer SDP.
-
-        Args:
-            client_id: Unique client identifier
-            sdp: SDP offer from client
-            sdp_type: SDP type (usually "offer")
-
-        Returns:
-            SDP answer to send back to client
         """
         from aiortc import RTCPeerConnection, RTCSessionDescription
 
-        # Create peer connection
         pc = RTCPeerConnection()
-
-        # Create connection handler
         conn = WebRTCConnection(client_id=client_id, pc=pc, engine=self)
 
         with self._connection_lock:
             self._connections[client_id] = conn
 
-        # Set remote description
         await pc.setRemoteDescription(RTCSessionDescription(sdp=sdp, type=sdp_type))
 
-        # Create media tracks (from FFmpeg output)
-        # For now, we'll use placeholder tracks - in production these would come from the video muxer
         video_track = WebRTCVideoTrack(engine=self, client_id=client_id)
         audio_track = WebRTCAudioTrack(engine=self, client_id=client_id)
 
-        # Add tracks to connection
         pc.addTrack(video_track)
         pc.addTrack(audio_track)
 
-        # Handle incoming data channels from client
         @pc.on("datachannel")
         def on_datachannel(channel):
             logger.info(f"Data channel received: {channel.label}")
@@ -244,11 +237,8 @@ class WebRTCEngine:
                     except:
                         pass
 
-        # Create answer
         answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
-
-        # Wait for ICE gathering to complete
         await pc.iceGatheringStateComplete
 
         logger.info(f"WebRTC connection established for client {client_id}")
@@ -274,7 +264,6 @@ class WebRTCConnection:
         self.subtitle_channel = None
         self._last_subtitle_check = 0.0
 
-        # Set up subtitle polling
         self._start_subtitle_polling()
 
     def _start_subtitle_polling(self) -> None:
@@ -294,25 +283,37 @@ class WebRTCConnection:
             return
 
         now = time.time()
-        if now - self._last_subtitle_check < 0.5:  # Check every 500ms
+        if now - self._last_subtitle_check < 0.5:
             return
 
         self._last_subtitle_check = now
 
-        # Get current subtitle based on playback time
-        # For simplicity, we'll send the latest available subtitle
         subtitles = self.engine._load_subtitles()
-        if subtitles:
-            # Find current subtitle based on time
-            current_time = time.time() % 3600  # Simplified - use actual timestamp in production
-            for cue in subtitles:
-                if cue.start <= current_time <= cue.end:
-                    import json
+        if not subtitles:
+            return
 
-                    self.subtitle_channel.send(
-                        json.dumps({"type": "subtitle", "text": cue.text, "start": cue.start, "end": cue.end})
+        # Use accumulated duration from pipeline for subtitle timing
+        with self.engine._media_buffer.lock:
+            current_time = self.engine._media_buffer.accumulated_duration
+
+        if current_time <= 0:
+            return
+
+        for cue in subtitles:
+            if cue.start <= current_time <= cue.end:
+                import json
+
+                self.subtitle_channel.send(
+                    json.dumps(
+                        {
+                            "type": "subtitle",
+                            "text": cue.text,
+                            "start": cue.start,
+                            "end": cue.end,
+                        }
                     )
-                    break
+                )
+                break
 
     def close(self) -> None:
         """Close the connection."""
@@ -324,56 +325,157 @@ class WebRTCConnection:
 
 
 class WebRTCVideoTrack(VideoStreamTrack):
-    """Video track for WebRTC streaming."""
+    """Video track for WebRTC streaming using real HLS segment frames."""
 
     def __init__(self, engine: WebRTCEngine, client_id: str):
         super().__init__()
         self.engine = engine
         self.client_id = client_id
-        self._last_frame = None
+        self._frame_queue: asyncio.Queue = asyncio.Queue(maxsize=300)
+        self._current_path = ""
+        self._load_lock = asyncio.Lock()
 
     async def recv(self):
-        """Receive next video frame."""
+        """Receive next video frame from decoded HLS segments."""
         pts, time_base = await self.next_timestamp()
 
-        # Get frame from video muxer output
-        # For now, return black frames - in production this would read from the pipeline
-        import numpy as np
+        frame = await self._get_cached_frame()
+        if frame is None:
+            from av import VideoFrame
 
-        frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+            frame = VideoFrame.from_ndarray(np.zeros((720, 1280, 3), dtype=np.uint8), format="bgr24")
 
-        # Create VideoFrame
-        from av import VideoFrame
+        frame.pts = pts
+        frame.time_base = time_base
+        return frame
 
-        video_frame = VideoFrame.from_ndarray(frame, format="bgr24")
-        video_frame.pts = pts
-        video_frame.time_base = time_base
+    async def _get_cached_frame(self) -> Optional[any]:
+        """Get next frame from cache, loading more if needed."""
+        if not self._frame_queue.empty():
+            return await self._frame_queue.get()
 
-        return video_frame
+        await self._load_frames()
+
+        if not self._frame_queue.empty():
+            return await self._frame_queue.get()
+        return None
+
+    async def _load_frames(self) -> None:
+        """Load frames from current video path into queue."""
+        async with self._load_lock:
+            if not self._frame_queue.empty():
+                return
+
+            engine_path = ""
+            with self.engine._media_buffer.lock:
+                engine_path = self.engine._media_buffer.current_video_path
+
+            if not engine_path or engine_path == self._current_path:
+                return
+
+            self._current_path = engine_path
+
+            loop = asyncio.get_event_loop()
+            frames = await loop.run_in_executor(None, self._decode_frames, engine_path)
+
+            for frame in frames:
+                try:
+                    self._frame_queue.put_nowait(frame)
+                except asyncio.QueueFull:
+                    break
+
+    @staticmethod
+    def _decode_frames(path: str) -> list:
+        """Decode all video frames from a file (runs in executor thread)."""
+        import av
+
+        frames = []
+        try:
+            container = av.open(path)
+            stream = container.streams.video[0]
+            for packet in container.demux(stream):
+                for frame in packet.decode():
+                    frames.append(frame)
+                    if len(frames) >= 300:
+                        break
+                if len(frames) >= 300:
+                    break
+            container.close()
+        except Exception as e:
+            logger.warning(f"WebRTC video decode error: {e}")
+        return frames
 
 
 class WebRTCAudioTrack(AudioStreamTrack):
-    """Audio track for WebRTC streaming."""
+    """Audio track for WebRTC streaming using real mixed audio samples."""
 
     def __init__(self, engine: WebRTCEngine, client_id: str):
         super().__init__()
         self.engine = engine
         self.client_id = client_id
+        self._sample_buffer = np.array([], dtype=np.float32)
+        self._sample_rate = 48000
+        self._current_path = ""
 
     async def recv(self):
-        """Receive next audio frame."""
+        """Receive next audio frame from mixed audio files."""
         pts, time_base = await self.next_timestamp()
 
-        # Get audio from video muxer output
-        # For now, return silent audio
-        import numpy as np
-
-        samples = np.zeros(1024, dtype=np.float32)
+        samples = await self._get_samples(960)
 
         from av import AudioFrame
 
-        audio_frame = AudioFrame(samples, layout="mono", rate=48000)
-        audio_frame.pts = pts
-        audio_frame.time_base = time_base
+        frame = AudioFrame(samples, layout="mono", rate=self._sample_rate)
+        frame.pts = pts
+        frame.time_base = time_base
+        return frame
 
-        return audio_frame
+    async def _get_samples(self, n: int) -> np.ndarray:
+        """Get n audio samples, refilling from file if needed."""
+        if len(self._sample_buffer) < n:
+            await self._refill_buffer()
+
+        if len(self._sample_buffer) >= n:
+            result = self._sample_buffer[:n].copy()
+            self._sample_buffer = self._sample_buffer[n:]
+            return result
+        else:
+            result = self._sample_buffer.copy()
+            self._sample_buffer = np.array([], dtype=np.float32)
+            return np.pad(result, (0, n - len(result)))
+
+    async def _refill_buffer(self) -> None:
+        """Refill audio buffer from the latest mixed audio file."""
+        engine_path = ""
+        with self.engine._media_buffer.lock:
+            engine_path = self.engine._media_buffer.current_audio_path
+
+        if not engine_path or engine_path == self._current_path:
+            return
+
+        self._current_path = engine_path
+
+        loop = asyncio.get_event_loop()
+        samples, rate = await loop.run_in_executor(None, self._read_audio, engine_path)
+
+        if rate != self._sample_rate:
+            new_len = int(len(samples) * self._sample_rate / rate)
+            indices = np.linspace(0, len(samples) - 1, new_len)
+            samples = np.interp(indices, np.arange(len(samples)), samples)
+
+        self._sample_buffer = np.concatenate([self._sample_buffer, samples])
+
+    @staticmethod
+    def _read_audio(path: str) -> tuple:
+        """Read WAV audio file and return (samples as float32, sample_rate)."""
+        import wave
+
+        try:
+            with wave.open(str(path), "rb") as wf:
+                rate = wf.getframerate()
+                data = wf.readframes(wf.getnframes())
+                samples = np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
+            return samples, rate
+        except Exception as e:
+            logger.warning(f"WebRTC audio read error: {e}")
+            return np.array([], dtype=np.float32), 48000

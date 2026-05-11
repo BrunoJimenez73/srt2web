@@ -74,7 +74,7 @@
         "LogPanel usa una sola fuente de addLog (eliminar duplicación inline vs module)",
         "cleanup() se ejecuta en beforeunload"
       ],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": 6,
@@ -88,7 +88,7 @@
         "CORS middleware es el más externo (ejecuta antes que rate limit y auth)",
         "module._state no se modifica directamente (usa API pública)"
       ],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": 7,
@@ -101,7 +101,7 @@
         "Código muerto eliminado de audio_mixer.py, recording_output.py, composite_output.py",
         "Módulos frontend muertos (ui.ts, events.ts, config.ts) eliminados o implementados"
       ],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": 8,
@@ -115,7 +115,7 @@
         "player.astro HLS.js CDN tiene atributo integrity (SRI)",
         "audio_samplerate/audio_sample_rate consistente en config.yaml"
       ],
-      "status": "pending"
+      "status": "done"
     }
   ]
 }

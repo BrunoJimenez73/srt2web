@@ -12,8 +12,6 @@ Key features:
 """
 
 import logging
-import subprocess
-import sys
 from pathlib import Path
 from typing import Optional
 
@@ -171,63 +169,6 @@ class AudioMixer(BaseModule):
             data.mixed_audio_path = orig_audio
 
         return data
-
-    def _get_audio_duration(self, audio_path: str) -> float:
-        """Get audio duration using ffprobe with caching."""
-        audio_path_obj = Path(audio_path)
-        if not audio_path or not audio_path_obj.exists():
-            return 0.0
-
-        # Check cache first
-        mtime = audio_path_obj.stat().st_mtime
-        cache_key = f"{audio_path}:{mtime}"
-        if cache_key in self._duration_cache:
-            return self._duration_cache[cache_key]
-
-        try:
-            ffmpeg_bin = self._ffmpeg_path or ensure_ffmpeg()
-            # Use rsplit to replace only the filename, not the full path
-            ffmpeg_path_obj = Path(ffmpeg_bin)
-            if sys.platform == "win32":
-                ffprobe = ffmpeg_path_obj.parent / "ffprobe.exe"
-            else:
-                ffprobe = ffmpeg_path_obj.parent / "ffprobe"
-            if not ffprobe.exists():
-                ffprobe = "ffprobe"
-            cmd = [
-                ffprobe,
-                "-v",
-                "error",
-                "-show_entries",
-                "format=duration",
-                "-of",
-                "default=noprint_wrappers=1:nokey=1",
-                audio_path,
-            ]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
-            duration = float(result.stdout.strip())
-
-            # Cache the result (limit cache size)
-            if len(self._duration_cache) > 100:
-                self._duration_cache.clear()
-            self._duration_cache[cache_key] = duration
-
-            return duration
-        except Exception as e:
-            logger.debug(f"Duration query failed for {audio_path}: {e}")
-            return 0.0
-
-    def _cleanup_temp_file(self, file_path: str) -> None:
-        """Safely remove temporary file."""
-        if not file_path:
-            return
-        file_path_obj = Path(file_path)
-        if not file_path_obj.exists():
-            return
-        try:
-            file_path_obj.unlink()
-        except OSError:
-            pass
 
     @property
     def last_measured_duration(self) -> float:

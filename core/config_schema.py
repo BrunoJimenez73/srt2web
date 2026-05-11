@@ -442,7 +442,6 @@ class VideoMuxerConfig(BaseModel):
     video_crf: int = Field(default=23, ge=0, le=51, description="CRF para compresión video")
     audio_codec: AudioCodecEnum = Field(default=AudioCodecEnum.AAC, description="Códec de audio")
     audio_bitrate: str = Field(default="128k", description="Bitrate de audio")
-    audio_samplerate: str = Field(default="48000", description="Sample rate de audio")
     video_bitrate: Optional[str] = Field(default=None, description="Bitrate de video fijo")
     video_fps: Optional[int] = Field(default=None, ge=1, le=120, description="FPS de video")
     video_width: Optional[int] = Field(default=None, ge=160, le=7680, description="Ancho de video")

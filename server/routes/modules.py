@@ -5,7 +5,7 @@ Module management routes for SRT2Web API.
 import logging
 import traceback
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from server.validators import ModuleToggle, sanitize_module_name
 
@@ -42,8 +42,7 @@ async def debug_module(request: Request, module_name: str):
     return {
         "name": module.name,
         "enabled": module.enabled,
-        "_state": str(module._state),
-        "state_property": str(module.state),
+        "state": str(module.state),
     }
 
 
@@ -54,7 +53,6 @@ async def toggle_module(
     body: ModuleToggle,
 ):
     """Enable or disable a module with hot reload."""
-    from core.module_base import ModuleState
 
     try:
         safe_module_name = sanitize_module_name(module_name)
@@ -82,14 +80,10 @@ async def toggle_module(
                 mod_config = config.get_module_config(safe_module_name)
                 module.configure(mod_config)
                 module.start()
-                module._state = ModuleState.RUNNING
                 logger.info(f"Hot-started module: {safe_module_name}")
-                # Force re-read of enabled state in next iteration
-                pipeline._chunk_index += 0
             elif not body.enabled and was_enabled:
                 # Module was enabled, now disabled - stop it
                 module.stop()
-                module._state = ModuleState.DISABLED
                 logger.info(f"Hot-stopped module: {safe_module_name}")
             else:
                 # Just reconfigure
@@ -101,7 +95,7 @@ async def toggle_module(
                 "module": safe_module_name,
                 "enabled": body.enabled,
                 "status": module.get_status().to_dict(),
-                "warning": f"Hot reload failed: {str(e)}",
+                "warning": f"Hot reload failed: {e!s}",
                 "error": err_msg,
             }
     else:

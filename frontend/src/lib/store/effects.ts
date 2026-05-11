@@ -170,14 +170,6 @@ function startMetricsEffects(): void {
     }
     if (cpuValue) cpuValue.textContent = `${metrics.cpu.toFixed(0)}%`;
 
-    // Debug: log the values
-    console.log(
-      "[Metrics] CPU:",
-      metrics.cpu,
-      "Bar class:",
-      getMetricBarClass(metrics.cpu),
-    );
-
     // Memory
     const memBar = el<HTMLDivElement>("metric-memory-bar");
     const memValue = el<HTMLSpanElement>("metric-memory-value");
@@ -637,11 +629,7 @@ function startLogsEffect(): void {
     // Only process new logs since last render
     const newLogs = logs.slice(_lastLogCount);
     for (const log of newLogs) {
-      addLogToPanel(
-        log.level as "info" | "warning" | "error",
-        log.message,
-        log.timestamp,
-      );
+      addLogToPanel(log.level, log.message, log.timestamp);
     }
     _lastLogCount = logs.length;
   });

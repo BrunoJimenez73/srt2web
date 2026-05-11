@@ -5,6 +5,7 @@ Provides WebRTC streaming capabilities with subtitle support via data channels.
 """
 
 import logging
+from pathlib import Path
 from typing import Optional
 
 from core.module_base import ModuleState, ModuleStatus, PipelineData
@@ -60,11 +61,21 @@ class WebRTCOutput(OutputSink):
         logger.info("WebRTC output stopped")
 
     def write(self, data: PipelineData) -> None:
-        """Write data to WebRTC stream."""
-        # In WebRTC mode, the engine handles streaming automatically
-        # The video/audio tracks pull from the pipeline output
-        if self._engine.running:
-            pass  # Engine handles streaming internally
+        """Write data to WebRTC stream - push paths for tracks to consume."""
+        if not self._engine.running:
+            return
+
+        video_path = getattr(data, "video_path", None) or getattr(data, "video_chunk_path", None)
+        if video_path and Path(video_path).exists():
+            self._engine.push_video_path(video_path)
+
+        audio_path = getattr(data, "mixed_audio_path", None)
+        if audio_path and Path(audio_path).exists():
+            self._engine.push_audio_path(audio_path)
+
+        duration = getattr(data, "cumulative_duration", 0) or getattr(data, "duration", 0)
+        if duration:
+            self._engine.update_accumulated_duration(duration)
 
     def get_stream_info(self) -> dict:
         """Get WebRTC stream information."""

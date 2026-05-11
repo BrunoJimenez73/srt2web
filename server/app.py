@@ -4,8 +4,8 @@ FastAPI application for SRT2Web.
 Serves the web GUI, HLS segments, and API endpoints.
 """
 
-import logging
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -51,6 +51,7 @@ def create_app(app_context: dict) -> FastAPI:
         """Gestiona el ciclo de vida del pipeline junto con FastAPI."""
         # Setup log_broadcaster loop for WebSocket broadcasting
         from server.ws_routes import log_broadcaster
+
         try:
             loop = asyncio.get_running_loop()
             log_broadcaster.set_loop(loop)
@@ -80,10 +81,36 @@ def create_app(app_context: dict) -> FastAPI:
     )
     config = app_context.get("config")
 
+    # CORS must be the outermost middleware (executes before auth/rate-limit)
+    cors_origins = []
+    if config:
+        cors_origins = config.get("server.cors_origins", [])
+    if not cors_origins:
+        from core.config_schema import ServerConfig
+
+        cors_origins = ServerConfig().cors_origins
+
+    allowed_origins = []
+    for origin in cors_origins:
+        if "*" in origin:
+            base = origin.replace(":*", "")
+            for port in [3000, 5173, 8080, 8089, 8000, 9999]:
+                allowed_origins.append(f"{base}:{port}")
+        else:
+            allowed_origins.append(origin)
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+        allow_credentials=True,
+    )
+
     # GZip compression for responses (min_size=1000 to compress responses > 1KB)
     app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-    # Request size limit - first after security headers
+    # Request size limit
     app.add_middleware(
         RequestSizeLimitMiddleware,
         max_size_bytes=config.get("server.max_request_size_mb", 1) * 1_048_576 if config else 1_048_576,
@@ -104,33 +131,6 @@ def create_app(app_context: dict) -> FastAPI:
     app.add_middleware(
         AuthMiddleware,
         get_auth_token=lambda: config.get("server.auth_token", "") if config else "",
-    )
-
-    # CORS - use ConfigManager, fallback to schema defaults
-    cors_origins = []
-    if config:
-        cors_origins = config.get("server.cors_origins", [])
-    if not cors_origins:
-        # Fallback to default from schema if not configured
-        from core.config_schema import ServerConfig
-
-        cors_origins = ServerConfig().cors_origins
-
-    allowed_origins = []
-    for origin in cors_origins:
-        if "*" in origin:
-            base = origin.replace(":*", "")
-            for port in [3000, 5173, 8080, 8089, 8000, 9999]:
-                allowed_origins.append(f"{base}:{port}")
-        else:
-            allowed_origins.append(origin)
-
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=allowed_origins,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
-        allow_credentials=True,
     )
 
     app.state.ctx = app_context

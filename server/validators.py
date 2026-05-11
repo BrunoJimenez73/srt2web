@@ -5,22 +5,22 @@ Contains validators, sanitizers, and dependency checkers
 extracted from the monolithic api_routes.py.
 """
 
-import re
 import logging
-from typing import Any, Dict, Optional
+import re
+from typing import Any, Optional
 
 from pydantic import BaseModel, field_validator
 
 from core.config_schema import (
-    VALID_MODULE_NAMES,
-    ALLOWED_WHISPER_MODELS,
-    ALLOWED_LANGUAGES,
     ALLOWED_DEVICES,
+    ALLOWED_GPU_PRESETS,
+    ALLOWED_LANGUAGES,
+    ALLOWED_SRT_MODES,
     ALLOWED_TTS_ENGINES,
     ALLOWED_TTS_VOICES,
-    ALLOWED_SRT_MODES,
     ALLOWED_VIDEO_PRESETS,
-    ALLOWED_GPU_PRESETS,
+    ALLOWED_WHISPER_MODELS,
+    VALID_MODULE_NAMES,
 )
 
 logger = logging.getLogger("srt2web.api.validators")
@@ -32,14 +32,10 @@ def sanitize_module_name(name: str) -> str:
         raise ValueError("Module name is required and must be a string")
 
     if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", name):
-        raise ValueError(
-            f"Invalid module name format: '{name}'. Only letters, numbers and underscores are allowed."
-        )
+        raise ValueError(f"Invalid module name format: '{name}'. Only letters, numbers and underscores are allowed.")
 
     if name not in VALID_MODULE_NAMES:
-        raise ValueError(
-            f"Unknown module: '{name}'. Valid modules are: {', '.join(sorted(VALID_MODULE_NAMES))}"
-        )
+        raise ValueError(f"Unknown module: '{name}'. Valid modules are: {', '.join(sorted(VALID_MODULE_NAMES))}")
 
     return name
 
@@ -50,17 +46,13 @@ def validate_config_value(key: str, value: Any) -> Any:
 
     if "port" in key_lower:
         if not isinstance(value, int):
-            raise ValueError(
-                f"Port must be an integer, got {type(value).__name__}: {value}"
-            )
+            raise ValueError(f"Port must be an integer, got {type(value).__name__}: {value}")
         if not (1 <= value <= 65535):
             raise ValueError(f"Port must be between 1 and 65535, got: {value}")
 
     if "latency" in key_lower:
         if not isinstance(value, (int, float)):
-            raise ValueError(
-                f"Latency must be a number, got {type(value).__name__}: {value}"
-            )
+            raise ValueError(f"Latency must be a number, got {type(value).__name__}: {value}")
         if value < 0:
             raise ValueError(f"Latency cannot be negative, got: {value}")
 
@@ -82,9 +74,7 @@ def validate_config_value(key: str, value: Any) -> Any:
 
     if key == "transcriber.device":
         if value not in ALLOWED_DEVICES:
-            raise ValueError(
-                f"Invalid device: '{value}'. Valid devices are: {', '.join(sorted(ALLOWED_DEVICES))}"
-            )
+            raise ValueError(f"Invalid device: '{value}'. Valid devices are: {', '.join(sorted(ALLOWED_DEVICES))}")
 
     if key == "tts_engine.engine":
         if value not in ALLOWED_TTS_ENGINES:
@@ -94,37 +84,27 @@ def validate_config_value(key: str, value: Any) -> Any:
 
     if key == "tts_engine.device":
         if value not in ALLOWED_DEVICES:
-            raise ValueError(
-                f"Invalid device: '{value}'. Valid devices are: {', '.join(sorted(ALLOWED_DEVICES))}"
-            )
+            raise ValueError(f"Invalid device: '{value}'. Valid devices are: {', '.join(sorted(ALLOWED_DEVICES))}")
 
     if key == "tts_engine.voice":
         if not value or not isinstance(value, str):
             raise ValueError("Voice must be a non-empty string")
         if value not in ALLOWED_TTS_VOICES:
-            raise ValueError(
-                f"Invalid voice: '{value}'. Valid voices are: {', '.join(sorted(ALLOWED_TTS_VOICES))}"
-            )
+            raise ValueError(f"Invalid voice: '{value}'. Valid voices are: {', '.join(sorted(ALLOWED_TTS_VOICES))}")
 
     if key == "srt.mode":
         if value not in ALLOWED_SRT_MODES:
-            raise ValueError(
-                f"Invalid SRT mode: '{value}'. Valid modes are: {', '.join(sorted(ALLOWED_SRT_MODES))}"
-            )
+            raise ValueError(f"Invalid SRT mode: '{value}'. Valid modes are: {', '.join(sorted(ALLOWED_SRT_MODES))}")
 
     if "volume" in key_lower:
         if not isinstance(value, (int, float)):
-            raise ValueError(
-                f"Volume must be a number, got {type(value).__name__}: {value}"
-            )
+            raise ValueError(f"Volume must be a number, got {type(value).__name__}: {value}")
         if not (0 <= value <= 2.0):
             raise ValueError(f"Volume must be between 0.0 and 2.0, got: {value}")
 
     if "speed" in key_lower:
         if not isinstance(value, (int, float)):
-            raise ValueError(
-                f"Speed must be a number, got {type(value).__name__}: {value}"
-            )
+            raise ValueError(f"Speed must be a number, got {type(value).__name__}: {value}")
         if not (0.5 <= value <= 2.0):
             raise ValueError(f"Speed must be between 0.5 and 2.0, got: {value}")
 
@@ -184,12 +164,10 @@ class ErrorResponse(BaseModel):
     error: str
     message: str
     timestamp: str
-    details: Optional[Dict[str, Any]] = None
+    details: Optional[dict[str, Any]] = None
 
 
-def create_error_response(
-    message: str, details: Optional[Dict[str, Any]] = None
-) -> Dict[str, Any]:
+def create_error_response(message: str, details: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """Create a standardized error response."""
     from datetime import datetime
 
@@ -235,3 +213,31 @@ class SeekPosition(BaseModel):
     """Request body for seek position."""
 
     position: float  # Position in seconds
+
+
+class ChunkDurationRequest(BaseModel):
+    """Request body for updating chunk duration."""
+
+    chunk_duration_sec: int
+
+    @field_validator("chunk_duration_sec")
+    @classmethod
+    def validate_range(cls, v: int) -> int:
+        if v < 1 or v > 60:
+            raise ValueError("chunk_duration_sec must be between 1 and 60")
+        return v
+
+
+class AddOutputRequest(BaseModel):
+    """Request body for adding a new output."""
+
+    type: str
+    name: Optional[str] = None
+    config: Optional[dict[str, Any]] = {}
+
+
+class UpdateOutputRequest(BaseModel):
+    """Request body for updating an existing output."""
+
+    config: Optional[dict[str, Any]] = None
+    enabled: Optional[bool] = None

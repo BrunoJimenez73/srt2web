@@ -25,7 +25,7 @@ export {
   setupEventListeners,
   refreshMetrics,
   bootstrap,
-} from './modules/pipeline-control';
+} from "./modules/pipeline-control";
 
 // Re-export config functions from config-collector
 export {
@@ -33,34 +33,23 @@ export {
   applyConfigToUI,
   updateInputFields,
   updateOutputFields,
-} from './modules/config-collector';
+} from "./modules/config-collector";
 
 // Import and run bootstrap
-import { bootstrap } from './modules/pipeline-control';
+import { bootstrap } from "./modules/pipeline-control";
 
 const rtmpCompatibilityMarkers = {
-  inputType: 'rtmp',
-  copyButtonId: 'btn-copy-emision',
-  handlerName: 'handleInputTypeChange',
-  processTitleId: 'input-process-title',
+  inputType: "rtmp",
+  copyButtonId: "btn-copy-emision",
+  handlerName: "handleInputTypeChange",
+  processTitleId: "input-process-title",
 };
 
 void rtmpCompatibilityMarkers;
 
-// Initialize on both DOMContentLoaded and load events for robustness
-document.addEventListener('DOMContentLoaded', bootstrap);
-document.addEventListener('load', () => {
-  // Also try on load as fallback
-  setTimeout(() => {
-    // Re-import and call initDashboard and refreshMetrics for fallback
-    import('./modules/pipeline-control').then(({ initDashboard, refreshMetrics }) => {
-      initDashboard();
-      refreshMetrics();
-    });
-  }, 500);
-});
+document.addEventListener("DOMContentLoaded", bootstrap);
 
 // Initialize keyboard shortcuts
-import('./modules/keyboard-shortcuts').then(({ initKeyboardShortcuts }) => {
+import("./modules/keyboard-shortcuts").then(({ initKeyboardShortcuts }) => {
   initKeyboardShortcuts();
 });

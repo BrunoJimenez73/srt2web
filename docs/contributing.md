@@ -41,7 +41,7 @@ source venv/bin/activate  # Linux/Mac
 venv\Scripts\activate     # Windows
 
 # Instalar dependencias
-pip install -r requirements.txt
+pip install -r config/requirements.txt
 
 # Instalar pre-commit hooks
 pre-commit install

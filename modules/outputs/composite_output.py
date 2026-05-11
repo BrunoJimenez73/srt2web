@@ -215,8 +215,6 @@ class CompositeOutput(BaseOutput):
                     )
             except Exception as e:
                 return OutputStatus(name=name, state="error", enabled=True, error=str(e))
-            except Exception as e:
-                return OutputStatus(name=name, state="error", enabled=True, error=str(e))
 
     def get_all_output_statuses(self) -> list[dict]:
         """Obtener estado de todas las salidas como diccionarios."""
@@ -249,20 +247,6 @@ class CompositeOutput(BaseOutput):
                             "last_process_time_ms": last_process_time_ms,
                             "extra": extra,
                             "stream_info": output.get_stream_info() if hasattr(output, "get_stream_info") else {},
-                        }
-                    )
-                except Exception as e:
-                    statuses.append(
-                        {
-                            "name": name,
-                            "type": type(output).__name__.lower().replace("output", ""),
-                            "state": "error",
-                            "enabled": getattr(output, "enabled", True),
-                            "error": f"Error al obtener estado: {e!s}",
-                            "processed_chunks": 0,
-                            "last_process_time_ms": 0.0,
-                            "extra": {},
-                            "stream_info": {},
                         }
                     )
                 except Exception as e:

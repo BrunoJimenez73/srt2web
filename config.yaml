@@ -132,7 +132,6 @@ modules:
     video_crf: 39
     audio_codec: opus
     audio_bitrate: 64k
-    audio_samplerate: '48000'
     video_bitrate: 1000k
     video_fps: 30
     video_width: 1920

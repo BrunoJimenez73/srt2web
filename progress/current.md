@@ -1,43 +1,42 @@
 # Sesión activa — 2026-05-12
 
-**Feature:** 4 — add_missing_core_tests
+**Feature:** 8 — fix_ci_and_config_inconsistencies
 **Inicio:** now
 **Estado:** done
 
 ## Cambios realizados
 
-### test_hls_output.py (nuevo) — 11 tests
+### CI node version
 
-- Init con/sin configuración, configure, stop (shutdown_pool), get_status (idle/extra), get_stream_info, write (none path, nonexistent path)
+- `.github/workflows/ci.yml`: ya usaba `node-version: "22"` (compatible con `>=22.12.0`)
+- `files/ci.yml`: ejemplo actualizado de `NODE_VERSION: '18'` → `'22'`
 
-### test_srt_input.py (nuevo) — 12 tests
+### pip install en CI / docs
 
-- Init default/custom, GPU info, watchdog; configure; get_connection_info (listener/caller); get_next_chunk (sin chunks, vacío, chunk único fresco, retorna data, tracking de índices, salta procesados); is_receiving, is_healthy, get_status
+- `docs/index.md`, `docs/contributing.md`, `docs/deployment.md`: `pip install -r requirements.txt` → `config/requirements.txt`
+- `Dockerfile`: `COPY requirements.txt` + `RUN pip install -r requirements.txt` → `config/requirements.txt`
 
-### test_unified_pipeline.py (nuevo) — 11 tests
+### CI frontend tests
 
-- register_module (con/sin config, múltiples, not found, get_modules); get_status (idle, keys, módulos registrados, mode default); reconfigure (chunk_duration, module configure); PipelineData defaults/fields
+- `.github/workflows/ci.yml`: `npm test || true` → `npm test` (ya no oculta fallos)
 
-### test_output_modules.py (nuevo) — 16 tests
+### player.astro SRI
 
-- FileOutput: init, configure, start (crea dirs), stop, write (copia video, salta missing), get_stream_info
-- RTMPOutput: init, configure, is_streaming, get_stream_info, write (sin streaming)
-- SRTOutput: init, configure, is_streaming, get_stream_info
-- WebRTCOutput: init, start/stop, get_stream_info, write
+- Versión HLS.js unificada: `1.5.1` → `1.5.7` (match con `core/constants.py`)
+- Atributo `integrity="sha384-..."` agregado con hash SHA-384 + `crossorigin="anonymous"`
 
-### test_async_pipeline_v2.py — reactivado (23 tests, 1 fix)
+### audio_samplerate/audio_sample_rate
 
-- Se quitó `--ignore` de pytest.ini
-- Fix: import cambiado de `AsyncPipeline as AsyncPipelineV2` a `AsyncPipelineV2` directo
-- Fix: `pipeline._state` → `pipeline.state` en test_start_running_pipeline
+- `core/config_schema.py`: eliminado campo `audio_samplerate` (string, no usado en código)
+- `config.yaml`, `config/config.yaml`, `frontend/config.yaml`, `config.yaml.backup`: eliminada línea `audio_samplerate: '48000'`
+- `docs/deployment.md`: eliminada línea `audio_samplerate: "48000"`
 
-### core/pipeline/base.py — Fix compatibilidad
+### Tests
 
-- `PipelineStrategy` convertido de ABC a clase concreta para backward-compat con `SequentialPipeline`, `ParallelPipeline`, `AsyncPipeline`, `AsyncPipelineV2`
-- La nueva ABC `strategies.PipelineStrategy` sigue igual para el pipeline unificado
+- `test_complete_refactor.py::test_10_modules_integrated`: actualizado para verificar que stubs muertos fueron eliminados y módulos activos existen
 
 ## Resultados
 
-- `pytest tests/unit/ -m "not slow" -n auto` → 967 passed, 9 failed (pre-existentes)
-- Tests nuevos: 85 passed
-- init.ps1 -Quick → OK
+- 0 new failures. Pre-existentes: 10 failures (idénticos)
+- Config tests: 101 passed, 1 xpassed
+- Full suite: sin cambios en failures

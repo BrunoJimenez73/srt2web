@@ -2,13 +2,12 @@
 Pipeline control routes for SRT2Web API.
 """
 
-import logging
-import glob
-import os
 import asyncio
+import glob
+import logging
+import os
 
-from fastapi import APIRouter, Request, HTTPException
-
+from fastapi import APIRouter, HTTPException, Request
 
 logger = logging.getLogger("srt2web.api.pipeline")
 
@@ -42,9 +41,7 @@ async def get_status(request: Request):
     srt_mode = config.get("input.srt.mode", "listener")
     caller_address = config.get("input.srt.caller_address", "")
 
-    network = get_network_info(
-        srt_port=srt_port, server_port=server_port, latency_ms=latency_ms
-    )
+    network = get_network_info(srt_port=srt_port, server_port=server_port, latency_ms=latency_ms)
     network["srt_mode"] = srt_mode
     network["caller_address"] = caller_address
     status["network"] = network
@@ -71,9 +68,7 @@ async def start_pipeline(request: Request):
     # If pipeline is in error state, reset to idle before starting again
     if pipeline_state in ("error", "ERROR"):
         try:
-            from core.unified_pipeline import PipelineState
-
-            pipeline._set_state(PipelineState.IDLE)
+            pipeline.reset_error_state()
             logger.info("Pipeline state reset from error to idle")
         except Exception as e:
             logger.warning(f"Could not reset pipeline state: {e}")
@@ -102,9 +97,7 @@ async def start_pipeline(request: Request):
         logger.info(f"File config: {file_config}")
         if hasattr(input_source, "configure"):
             input_source.configure(file_config)
-            logger.info(
-                f"File input configured with path: {file_config.get('path', '')}"
-            )
+            logger.info(f"File input configured with path: {file_config.get('path', '')}")
 
     def on_log(level, message):
         if log_broadcast:

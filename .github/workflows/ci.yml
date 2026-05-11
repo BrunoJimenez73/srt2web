@@ -76,7 +76,7 @@ jobs:
         run: npm run build:local
 
       - name: Run frontend tests
-        run: npm test || true
+        run: npm test
 
   docker:
     runs-on: ubuntu-latest

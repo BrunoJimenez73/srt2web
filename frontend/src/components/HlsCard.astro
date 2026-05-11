@@ -383,8 +383,6 @@
 <script>
   // Expose engine change handler to window
   window.handleEngineChange = function(engine: string) {
-    console.log('Engine changed to:', engine);
-
     const hlsSettings = document.querySelector('.hls-settings') as HTMLElement;
     const webrtcSettings = document.querySelector('.webrtc-settings') as HTMLElement;
 

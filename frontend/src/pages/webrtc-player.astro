@@ -51,7 +51,7 @@ const pageTitle = "SRT2Web — WebRTC Player";
         align-items: center;
         font-family: 'Inter', system-ui, sans-serif;
     }
-    
+
     #video-container {
         width: 100%;
         height: 100%;
@@ -174,19 +174,19 @@ class WebRTCPlayer {
         this.latencyStat = document.getElementById('latency-stat');
         this.resolutionStat = document.getElementById('resolution-stat');
         this.bitrateStat = document.getElementById('bitrate-stat');
-        
+
         // Subtitle elements
         this.subtitleOverlay = document.getElementById('subtitle-overlay');
-        
+
         this.pc = null;
         this.clientId = null;
         this.connectTime = null;
         this.statsInterval = null;
-        
+
         // Subtitle state
         this.currentSubtitle = null;
         this.subtitleTimeout = null;
-        
+
         this.init();
     }
 
@@ -211,10 +211,9 @@ class WebRTCPlayer {
 
             // Add video element
             this.video.srcObject = new MediaStream();
-            
+
             // Handle incoming tracks
             this.pc.ontrack = (event) => {
-                console.log('Received track:', event.track.kind);
                 const stream = event.streams[0];
                 this.video.srcObject = stream;
                 this.waiting.style.display = 'none';
@@ -223,7 +222,6 @@ class WebRTCPlayer {
 
             // Handle connection state changes
             this.pc.onconnectionstatechange = () => {
-                console.log('Connection state:', this.pc.connectionState);
                 switch(this.pc.connectionState) {
                     case 'connected':
                         this.connectTime = Date.now();
@@ -242,14 +240,12 @@ class WebRTCPlayer {
 
             // Handle ICE connection state
             this.pc.oniceconnectionstatechange = () => {
-                console.log('ICE state:', this.pc.iceConnectionState);
             };
-            
+
             // Handle data channels for subtitles
             this.pc.ondatachannel = (event) => {
-                console.log('Received data channel:', event.channel.label);
                 const channel = event.channel;
-                
+
                 if (channel.label === 'subtitles') {
                     channel.onmessage = (e) => {
                         try {
@@ -262,10 +258,8 @@ class WebRTCPlayer {
                         }
                     };
                     channel.onopen = () => {
-                        console.log('Subtitle channel opened');
                     };
                     channel.onclose = () => {
-                        console.log('Subtitle channel closed');
                         this.hideSubtitle();
                     };
                 }
@@ -303,8 +297,6 @@ class WebRTCPlayer {
                 type: answer.type
             }));
 
-            console.log('WebRTC connection established');
-
         } catch (error) {
             console.error('WebRTC connection error:', error);
             this.showError(true, `Error: ${error.message}`);
@@ -323,7 +315,7 @@ class WebRTCPlayer {
                     }
                 };
                 this.pc.addEventListener('icegatheringstatechange', checkState);
-                
+
                 // Timeout after 5 seconds
                 setTimeout(resolve, 5000);
             }
@@ -340,19 +332,19 @@ class WebRTCPlayer {
             this.statsInterval = null;
         }
     }
-    
+
     showSubtitle(text: string, start: number, end: number) {
         if (!text || !this.subtitleOverlay) return;
-        
+
         // Clear any existing timeout
         if (this.subtitleTimeout) {
             clearTimeout(this.subtitleTimeout);
         }
-        
+
         // Show the subtitle
         this.subtitleOverlay.textContent = text;
         this.subtitleOverlay.style.display = 'block';
-        
+
         // Calculate duration until subtitle should be hidden
         const duration = (end - start) * 1000;
         if (duration > 0) {
@@ -360,10 +352,10 @@ class WebRTCPlayer {
                 this.hideSubtitle();
             }, duration);
         }
-        
+
         this.currentSubtitle = { text, start, end };
     }
-    
+
     hideSubtitle() {
         if (this.subtitleOverlay) {
             this.subtitleOverlay.style.display = 'none';
@@ -427,7 +419,7 @@ class WebRTCPlayer {
 
     disconnect() {
         this.stopStats();
-        
+
         if (this.clientId) {
             fetch('/webrtc/close', {
                 method: 'POST',

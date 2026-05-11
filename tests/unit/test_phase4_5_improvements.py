@@ -3,9 +3,8 @@ Tests for Phase 4-5 improvements (compression, rolling subtitles, UX).
 """
 
 import os
+
 import pytest
-import tempfile
-from unittest.mock import Mock, patch, MagicMock
 
 
 @pytest.mark.unit
@@ -40,7 +39,7 @@ class TestGZipMiddleware:
 
         client = TestClient(app)
         response = client.get("/large", headers={"Accept-Encoding": "gzip"})
-        
+
         # Response should be successful
         assert response.status_code == 200
 
@@ -53,9 +52,9 @@ class TestRollingSubtitles:
         from modules.subtitle_generator import SubtitleGenerator
 
         gen = SubtitleGenerator()
-        assert hasattr(gen, '_vtt_entries')
-        assert hasattr(gen, '_max_vtt_entries')
-        assert hasattr(gen, '_vtt_max_age_seconds')
+        assert hasattr(gen, "_vtt_entries")
+        assert hasattr(gen, "_max_vtt_entries")
+        assert hasattr(gen, "_vtt_max_age_seconds")
         assert isinstance(gen._vtt_entries, list)
 
     def test_rolling_window_defaults(self) -> None:
@@ -72,13 +71,10 @@ class TestRollingSubtitles:
 
         gen = SubtitleGenerator()
         gen._max_vtt_entries = 5
-        
+
         # Add more entries than max
-        gen._vtt_entries = [
-            {"start": float(i), "end": float(i + 1), "text": f"Entry {i}"}
-            for i in range(10)
-        ]
-        
+        gen._vtt_entries = [{"start": float(i), "end": float(i + 1), "text": f"Entry {i}"} for i in range(10)]
+
         gen._trim_vtt_entries()
         assert len(gen._vtt_entries) == 5
 
@@ -89,15 +85,15 @@ class TestRollingSubtitles:
         gen = SubtitleGenerator()
         gen._vtt_max_age_seconds = 10.0
         gen._max_vtt_entries = 100  # High count limit
-        
+
         # Add entries with old timestamps
         gen._vtt_entries = [
             {"start": 0.0, "end": 5.0, "text": "Old entry"},
             {"start": 100.0, "end": 105.0, "text": "Recent entry"},
         ]
-        
+
         gen._trim_vtt_entries()
-        
+
         # Only recent entry should remain
         assert len(gen._vtt_entries) == 1
         assert gen._vtt_entries[0]["text"] == "Recent entry"
@@ -109,18 +105,18 @@ class TestRollingSubtitles:
         gen = SubtitleGenerator(output_dir=temp_dir)
         gen._subtitles_dir = temp_dir
         gen._vtt_path = os.path.join(temp_dir, "test.vtt")
-        
+
         gen._vtt_entries = [
             {"start": 0.0, "end": 2.0, "text": "Hello"},
             {"start": 2.0, "end": 4.0, "text": "World"},
         ]
-        
+
         gen._rewrite_vtt_file()
-        
+
         assert os.path.exists(gen._vtt_path)
-        with open(gen._vtt_path, "r", encoding="utf-8") as f:
+        with open(gen._vtt_path, encoding="utf-8") as f:
             content = f.read()
-        
+
         assert content.startswith("WEBVTT")
         assert "00:00:00.000 --> 00:00:02.000" in content
         assert "Hello" in content
@@ -133,9 +129,9 @@ class TestRollingSubtitles:
 
         gen = SubtitleGenerator(output_dir=temp_dir)
         gen._vtt_entries = [{"start": 0, "end": 1, "text": "test"}]
-        
+
         gen.start()
-        
+
         assert gen._vtt_entries == []
 
 
@@ -144,7 +140,7 @@ class TestHLSPlayerErrorHandling:
 
     def test_player_has_error_overlay(self) -> None:
         """Test that player.astro has error overlay element."""
-        with open("frontend/src/pages/player.astro", "r", encoding="utf-8") as f:
+        with open("frontend/src/pages/player.astro", encoding="utf-8") as f:
             content = f.read()
 
         assert "error-overlay" in content
@@ -153,7 +149,7 @@ class TestHLSPlayerErrorHandling:
 
     def test_player_has_error_styles(self) -> None:
         """Test that player.astro has error overlay styles."""
-        with open("frontend/src/pages/player.astro", "r", encoding="utf-8") as f:
+        with open("frontend/src/pages/player.astro", encoding="utf-8") as f:
             content = f.read()
 
         assert ".error-overlay" in content
@@ -162,7 +158,7 @@ class TestHLSPlayerErrorHandling:
 
     def test_player_has_show_error_function(self) -> None:
         """Test that player has showError function."""
-        with open("frontend/src/lib/modules/player.ts", "r", encoding="utf-8") as f:
+        with open("frontend/src/lib/modules/player.ts", encoding="utf-8") as f:
             content = f.read()
 
         assert "showError" in content
@@ -170,7 +166,7 @@ class TestHLSPlayerErrorHandling:
 
     def test_player_has_error_count_tracking(self) -> None:
         """Test that player tracks error count."""
-        with open("frontend/src/lib/modules/player.ts", "r", encoding="utf-8") as f:
+        with open("frontend/src/lib/modules/player.ts", encoding="utf-8") as f:
             content = f.read()
 
         assert "consecutiveErrors" in content or "error" in content.lower()
@@ -181,11 +177,11 @@ class TestStopConfirmation:
 
     def test_stop_has_confirmation(self) -> None:
         """Test that stop handler has confirmation dialog."""
-        with open("frontend/src/lib/modules/events.ts", "r", encoding="utf-8") as f:
+        with open("frontend/src/lib/modules/pipeline-control.ts", encoding="utf-8") as f:
             content = f.read()
 
         assert "confirm(" in content
-        assert "¿Está seguro" in content or "detener" in content.lower()
+        assert "PIPELINE_CONFIRM_STOP" in content
 
 
 class TestLogSearchFilter:
@@ -193,7 +189,7 @@ class TestLogSearchFilter:
 
     def test_log_panel_has_search_input(self) -> None:
         """Test that LogPanel has search input."""
-        with open("frontend/src/components/LogPanel.astro", "r", encoding="utf-8") as f:
+        with open("frontend/src/components/LogPanel.astro", encoding="utf-8") as f:
             content = f.read()
 
         assert "log-search" in content
@@ -201,14 +197,14 @@ class TestLogSearchFilter:
 
     def test_log_panel_has_search_styles(self) -> None:
         """Test that LogPanel has search input styles."""
-        with open("frontend/src/components/LogPanel.astro", "r", encoding="utf-8") as f:
+        with open("frontend/src/components/LogPanel.astro", encoding="utf-8") as f:
             content = f.read()
 
         assert ".log-search" in content
 
     def test_log_panel_has_filter_logic(self) -> None:
         """Test that LogPanel has filter logic."""
-        with open("frontend/src/components/LogPanel.astro", "r", encoding="utf-8") as f:
+        with open("frontend/src/components/LogPanel.astro", encoding="utf-8") as f:
             content = f.read()
 
         assert "currentFilter" in content
@@ -216,7 +212,7 @@ class TestLogSearchFilter:
 
     def test_log_entry_has_data_attributes(self) -> None:
         """Test that log entries have data attributes for filtering."""
-        with open("frontend/src/components/LogPanel.astro", "r", encoding="utf-8") as f:
+        with open("frontend/src/components/LogPanel.astro", encoding="utf-8") as f:
             content = f.read()
 
         assert "entry.dataset.level" in content
@@ -230,23 +226,21 @@ class TestSecurityCardExists:
         """Test that security toggle exists in Header component."""
         header_path = "frontend/src/components/Header.astro"
         assert os.path.exists(header_path), "Header.astro not found"
-        with open(header_path, "r", encoding="utf-8") as f:
+        with open(header_path, encoding="utf-8") as f:
             content = f.read()
         assert "Secure" in content, "Security toggle should be in Header"
 
     def test_header_has_auth_toggle(self) -> None:
         """Test that Header has auth token toggle button."""
-        with open("frontend/src/components/Header.astro", "r", encoding="utf-8") as f:
+        with open("frontend/src/components/Header.astro", encoding="utf-8") as f:
             content = f.read()
-        assert "btn-secure" in content or "secure" in content.lower(), \
-            "Header should have security toggle"
+        assert "btn-secure" in content or "secure" in content.lower(), "Header should have security toggle"
 
     def test_header_shows_security_status(self) -> None:
         """Test that Header shows security status."""
-        with open("frontend/src/components/Header.astro", "r", encoding="utf-8") as f:
+        with open("frontend/src/components/Header.astro", encoding="utf-8") as f:
             content = f.read()
-        assert "ON" in content and "OFF" in content, \
-            "Header should show security ON/OFF status"
+        assert "ON" in content and "OFF" in content, "Header should show security ON/OFF status"
 
 
 class TestAPIAuthIntegration:
@@ -254,7 +248,7 @@ class TestAPIAuthIntegration:
 
     def test_api_ts_has_auth_token_functions(self) -> None:
         """Test that api.ts has auth token management functions."""
-        with open("frontend/src/lib/api.ts", "r", encoding="utf-8") as f:
+        with open("frontend/src/lib/api.ts", encoding="utf-8") as f:
             content = f.read()
 
         assert "getAuthToken" in content
@@ -264,7 +258,7 @@ class TestAPIAuthIntegration:
 
     def test_api_ts_adds_auth_header(self) -> None:
         """Test that api.ts adds Authorization header to requests."""
-        with open("frontend/src/lib/api.ts", "r", encoding="utf-8") as f:
+        with open("frontend/src/lib/api.ts", encoding="utf-8") as f:
             content = f.read()
 
         assert "Authorization" in content
@@ -272,7 +266,7 @@ class TestAPIAuthIntegration:
 
     def test_api_ts_websocket_uses_token(self) -> None:
         """Test that WebSocket connection uses auth token."""
-        with open("frontend/src/lib/api.ts", "r", encoding="utf-8") as f:
+        with open("frontend/src/lib/api.ts", encoding="utf-8") as f:
             content = f.read()
 
         assert "?token=" in content
