@@ -48,6 +48,7 @@ function escapeHtml(text: string): string {
  * @param timestamp - Timestamp opcional (ISO string)
  */
 export function addLog(level: LogMessage['level'], message: string, timestamp?: string): void {
+  console.log('[addLog] Called:', level, message?.substring(0, 50));
   if (!logContent) {
     console.error('Log content element not found');
     return;

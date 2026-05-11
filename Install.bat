@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 chcp 65001 >nul
 title SRT2Web - Instalador
 color 0f
@@ -51,27 +52,66 @@ for /f "tokens=2" %%V in ('python --version 2^>^&1') do set "PYTHON_VERSION=%%V"
 echo  [OK] Python %PYTHON_VERSION% detectado.
 
 REM =============================================
-REM 2. Instalar dependencias
+REM 2. Crear entorno virtual si no existe
 REM =============================================
-echo [2/5] Dependencias...
+echo [2/6] Entorno virtual...
 
-%PYTHON% -m pip install --upgrade pip wheel setuptools --quiet 2>nul
+if not exist "venv\Scripts\python.exe" (
+    echo  [INFO] Creando entorno virtual...
+    python -m venv venv
+    if exist "venv\Scripts\python.exe" (
+        echo  [OK] Entorno virtual creado.
+    ) else (
+        echo  [ERROR] No se pudo crear el entorno virtual.
+        pause
+        exit /b 1
+    )
+) else (
+    echo  [OK] Entorno virtual ya existe.
+)
+
+REM Activar venv para instalaciones
+set "VENV_PYTHON=venv\Scripts\python.exe"
+
+REM =============================================
+REM 3. Asegurar pip en venv (por si se creo sin pip)
+REM =============================================
+echo [3/6] Verificando pip...
+
+%VENV_PYTHON% -m pip --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo  [INFO] pip no encontrado, instalando...
+    %VENV_PYTHON% -m ensurepip --upgrade 2>nul
+    %VENV_PYTHON% -m pip install --upgrade pip 2>nul
+)
+
+REM =============================================
+REM 4. Instalar dependencias en venv
+REM =============================================
+echo [4/6] Dependencias...
+
+%VENV_PYTHON% -m pip install --upgrade pip wheel setuptools --quiet 2>nul
 
 echo  [OK] Instalando dependencias del proyecto...
-%PYTHON% -m pip install -r config/requirements.txt --quiet 2>nul
+REM Instalar sin onnxruntime para evitar conflicto con GPU
+%VENV_PYTHON% -m pip install -r config/requirements.txt --quiet --ignore-installed 2>nul
 if %errorlevel% equ 0 (
     echo  [OK] Dependencias instaladas.
 ) else (
     echo  [WARNING] Error instalando dependencias.
 )
 
+REM IMPORTANTE: Reinstalar ONNX GPU después de requirements para evitar que CPU lo sobreescriba
+echo  [INFO] Asegurando ONNX Runtime GPU...
+%VENV_PYTHON% -m pip install onnxruntime-gpu==1.19.0 --force-reinstall --quiet 2>nul
+
 REM =============================================
-REM 3. Instalar PyTorch con CUDA
+REM 5. Instalar PyTorch con CUDA
 REM =============================================
 echo.
-echo [3/5] PyTorch CUDA...
+echo [4/6] PyTorch CUDA...
 
-%PYTHON% -c "import torch; print('CUDA' if torch.cuda.is_available() else 'CPU')" > temp_torch.txt 2>nul
+%VENV_PYTHON% -c "import torch; print('CUDA' if torch.cuda.is_available() else 'CPU')" > temp_torch.txt 2>nul
 set /p TORCH_STATUS=<temp_torch.txt
 del temp_torch.txt 2>nul
 
@@ -79,7 +119,7 @@ if "%TORCH_STATUS%"=="CUDA" (
     echo  [OK] PyTorch CUDA ya instalado.
 ) else (
     echo  [INFO] Instalando PyTorch con CUDA 12.1...
-    %PYTHON% -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 --quiet 2>nul
+    %VENV_PYTHON% -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 --quiet 2>nul
     if %errorlevel% equ 0 (
         echo  [OK] PyTorch CUDA instalado.
     ) else (
@@ -91,9 +131,9 @@ REM =============================================
 REM 4. Instalar ONNX Runtime GPU (version especifica)
 REM =============================================
 echo.
-echo [4/5] ONNX Runtime GPU...
+echo [5/6] ONNX Runtime GPU...
 
-%PYTHON% -c "import onnxruntime as ort; print('CUDA' if 'CUDAExecutionProvider' in ort.get_available_providers() else 'CPU')" > temp_onnx.txt 2>nul
+%VENV_PYTHON% -c "import onnxruntime as ort; print('CUDA' if 'CUDAExecutionProvider' in ort.get_available_providers() else 'CPU')" > temp_onnx.txt 2>nul
 set /p ONNX_STATUS=<temp_onnx.txt
 del temp_onnx.txt 2>nul
 
@@ -101,7 +141,7 @@ if "%ONNX_STATUS%"=="CUDA" (
     echo  [OK] ONNX Runtime GPU ya disponible.
 ) else (
     echo  [INFO] Instalando onnxruntime-gpu 1.19.0...
-    %PYTHON% -m pip install onnxruntime-gpu==1.19.0 --quiet 2>nul
+    %VENV_PYTHON% -m pip install onnxruntime-gpu==1.19.0 --quiet 2>nul
     if %errorlevel% equ 0 (
         echo  [OK] ONNX Runtime GPU 1.19.0 instalado.
     ) else (
@@ -110,17 +150,36 @@ if "%ONNX_STATUS%"=="CUDA" (
 )
 
 REM =============================================
-REM 5. Instalar aiortc para WebRTC
+REM 5b. Instalar pynvml para monitoreo de GPU
 REM =============================================
 echo.
-echo [5/5] aiortc para WebRTC...
+echo [INFO] Verificando pynvml para monitoreo GPU...
 
-%PYTHON% -c "import aiortc" >nul 2>&1
+%VENV_PYTHON% -c "import pynvml; print('OK')" >nul 2>&1
+if %errorlevel% equ 0 (
+    echo  [OK] pynvml ya instalado.
+) else (
+    echo  [INFO] Instalando pynvml...
+    %VENV_PYTHON% -m pip install nvidia-ml-py --quiet 2>nul
+    if %errorlevel% equ 0 (
+        echo  [OK] pynvml instalado.
+    ) else (
+        echo  [WARNING] No se pudo instalar pynvml.
+    )
+)
+
+REM =============================================
+REM 6. Instalar aiortc para WebRTC
+REM =============================================
+echo.
+echo [6/6] aiortc para WebRTC...
+
+%VENV_PYTHON% -c "import aiortc" >nul 2>&1
 if %errorlevel% equ 0 (
     echo  [OK] aiortc ya instalado.
 ) else (
     echo  [INFO] Instalando aiortc para WebRTC...
-    %PYTHON% -m pip install aiortc --quiet 2>nul
+    %VENV_PYTHON% -m pip install aiortc --quiet 2>nul
     if %errorlevel% equ 0 (
         echo  [OK] aiortc instalado.
     ) else (
@@ -129,21 +188,73 @@ if %errorlevel% equ 0 (
 )
 
 REM =============================================
-REM Opcional: Modelos Whisper
+REM Opcional: Modelos Whisper (tiny + medium + large-v3)
 REM =============================================
 echo.
 echo [INFO] Verificando modelos Whisper...
 
+REM tiny (base)
 if not exist ".cache\srt2web\whisper\models--Systran--faster-whisper-tiny" (
     echo  [INFO] Descargando modelo Whisper tiny...
-    %PYTHON% -c "from faster_whisper import WhisperModel; WhisperModel('tiny', device='cpu', download_root='.cache/srt2web/whisper')" 2>nul
+    %VENV_PYTHON% -c "from faster_whisper import WhisperModel; WhisperModel('tiny', device='cpu', download_root='.cache/srt2web/whisper')" 2>nul
     if exist ".cache\srt2web\whisper\models--Systran--faster-whisper-tiny" (
         echo  [OK] Modelo Whisper tiny descargado.
     ) else (
-        echo  [WARNING] No se pudo descargar el modelo.
+        echo  [WARNING] No se pudo descargar tiny.
     )
 ) else (
-    echo  [OK] Modelo Whisper tiny ya existe.
+    echo  [OK] Whisper tiny ya existe.
+)
+
+REM medium (better quality)
+if not exist ".cache\srt2web\whisper\models--Systran--faster-whisper-medium" (
+    echo  [INFO] Descargando modelo Whisper medium...
+    %VENV_PYTHON% -c "from faster_whisper import WhisperModel; WhisperModel('medium', device='cpu', download_root='.cache/srt2web/whisper')" 2>nul
+    if exist ".cache\srt2web\whisper\models--Systran--faster-whisper-medium" (
+        echo  [OK] Modelo Whisper medium descargado.
+    ) else (
+        echo  [WARNING] No se pudo descargar medium.
+    )
+) else (
+    echo  [OK] Whisper medium ya existe.
+)
+
+REM large-v2 (config default - used by config.yaml)
+if not exist ".cache\srt2web\whisper\models--Systran--faster-whisper-large-v2" (
+    REM Si existe en AppData, copiarlo
+    if exist "%LOCALAPPDATA%\.cache\srt2web\whisper\models--Systran--faster-whisper-large-v2" (
+        echo  [INFO] Copiando modelo large-v2 desde cache del sistema...
+        xcopy /E /I /Y "%LOCALAPPDATA%\.cache\srt2web\whisper\models--Systran--faster-whisper-large-v2" ".cache\srt2web\whisper\models--Systran--faster-whisper-large-v2" >nul 2>&1
+        if exist ".cache\srt2web\whisper\models--Systran--faster-whisper-large-v2" (
+            echo  [OK] Modelo Whisper large-v2 copiado.
+        ) else (
+            echo  [INFO] Descargando modelo Whisper large-v2...
+            %VENV_PYTHON% -c "from faster_whisper import WhisperModel; WhisperModel('large-v2', device='cpu', download_root='.cache/srt2web/whisper')" 2>nul
+        )
+    ) else (
+        echo  [INFO] Descargando modelo Whisper large-v2...
+        %VENV_PYTHON% -c "from faster_whisper import WhisperModel; WhisperModel('large-v2', device='cpu', download_root='.cache/srt2web/whisper')" 2>nul
+    )
+    if exist ".cache\srt2web\whisper\models--Systran--faster-whisper-large-v2" (
+        echo  [OK] Modelo Whisper large-v2 disponible.
+    ) else (
+        echo  [WARNING] No se pudo obtener large-v2.
+    )
+) else (
+    echo  [OK] Whisper large-v2 ya existe.
+)
+
+REM large-v3 (best quality - optional)
+if not exist ".cache\srt2web\whisper\models--Systran--faster-whisper-large-v3" (
+    echo  [INFO] Descargando modelo Whisper large-v3...
+    %VENV_PYTHON% -c "from faster_whisper import WhisperModel; WhisperModel('large-v3', device='cpu', download_root='.cache/srt2web/whisper')" 2>nul
+    if exist ".cache\srt2web\whisper\models--Systran--faster-whisper-large-v3" (
+        echo  [OK] Modelo Whisper large-v3 descargado.
+    ) else (
+        echo  [WARNING] No se pudo descargar large-v3.
+    )
+) else (
+    echo  [OK] Whisper large-v3 ya existe.
 )
 
 REM =============================================
@@ -189,19 +300,18 @@ if exist "bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" (
 )
 
 REM =============================================
-REM Opcional: Voces Piper
+REM Opcional: Voces Piper (todas las 28 voces)
 REM =============================================
 echo.
 echo [INFO] Verificando voces Piper...
 
 if not exist "models\piper" mkdir models\piper
 
-echo  [INFO] Verificando voces Piper...
-%PYTHON% scripts/download_piper_voices.py 2>nul
+%VENV_PYTHON% scripts/download_piper_voices.py
 if %errorlevel% equ 0 (
-    echo  [OK] Voces verificadas.
+    echo  [OK] Voces Piper verificadas/descargadas.
 ) else (
-    echo  [INFO] Se descargaran al usar Piper.
+    echo  [WARNING] Error al descargar voces Piper.
 )
 
 REM =============================================
@@ -212,14 +322,25 @@ echo ===============================================
 echo            RESUMEN DE INSTALACION
 echo ===============================================
 
-%PYTHON% -c "import torch; print('PyTorch: ' + ('CUDA ' + torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'))" 2>nul
+%VENV_PYTHON% -c "import torch; print('PyTorch: ' + ('CUDA ' + torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'))" 2>nul
 
-%PYTHON% -c "import onnxruntime as ort; print('ONNX: ' + ('GPU' if 'CUDAExecutionProvider' in ort.get_available_providers() else 'CPU'))" 2>nul
+%VENV_PYTHON% -c "import onnxruntime as ort; print('ONNX: ' + ('GPU' if 'CUDAExecutionProvider' in ort.get_available_providers() else 'CPU'))" 2>nul
 
 if exist "bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" (
     echo FFmpeg: OK ^(NVENC^)
 ) else (
     echo FFmpeg: No encontrado
+)
+
+REM Contar modelos Whisper descargados
+for /d %%D in (.cache\srt2web\whisper\models--Systran--faster-whisper-*) do echo Whisper: %%~nxD
+
+REM Contar voces Piper
+for /f %%A in ('dir /b models\piper*.onnx 2^>nul ^| findstr /c".onnx"') do (
+    if not defined VOICES_COUNT set VOICES_COUNT=%%A
+)
+if defined VOICES_COUNT (
+    echo Voces Piper: !VOICES_COUNT!
 )
 
 echo.

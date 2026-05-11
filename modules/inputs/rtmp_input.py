@@ -44,6 +44,7 @@ class RTMPInput(InputSource):
         self._output_dir: str = "./output"
         self._chunks_dir: str = ""
         self._last_chunk_index = -1
+        self._last_chunk_mtime: Optional[float] = None
         self._cumulative_duration: float = 0.0  # Track cumulative duration for sync
 
         self._config: dict = config or {}
@@ -324,24 +325,19 @@ class RTMPInput(InputSource):
         idx, chunk_path = processable[0]
         self._last_chunk_index = idx
 
-        from core.ffmpeg_utils import get_video_duration
         from core.module_base import PipelineData
 
-        actual_duration = get_video_duration(chunk_path) or self._chunk_duration
+        # Medir duración real vía mtime entre chunks consecutivos.
+        # Corregimos cumulative_duration retroactivamente para eliminar deriva.
+        current_mtime = chunk_path.stat().st_mtime
+        if self._last_chunk_mtime is not None:
+            prev_duration = current_mtime - self._last_chunk_mtime
+            prev_duration = max(0.5, min(prev_duration, self._chunk_duration * 2))
+            self._cumulative_duration += prev_duration - self._chunk_duration
+        self._last_chunk_mtime = current_mtime
 
-        # Validate duration (warn if FFmpeg segment duration differs too much)
-        duration_diff = abs(actual_duration - self._chunk_duration)
-        if duration_diff > 0.05:  # 50ms threshold
-            logger.warning(
-                f"Chunk {idx} duration {actual_duration:.3f}s differs from "
-                f"expected {self._chunk_duration:.3f}s by {duration_diff * 1000:.1f}ms"
-            )
-
-        # Set cumulative duration BEFORE processing
         chunk_cumulative = self._cumulative_duration
-
-        # Update cumulative for next chunk
-        self._cumulative_duration += actual_duration
+        self._cumulative_duration += self._chunk_duration
 
         logger.info(f"New RTMP chunk: {chunk_path} (cumulative: {chunk_cumulative:.3f}s)")
 

@@ -1,3 +1,0 @@
-mypy.ini: [mypy-tests.integration.*]: Per-module sections should only specify per-module flags (hide_error_codes, warn_redundant_casts)
-mypy.ini: note: unused section(s): [mypy-tests.*], [mypy-tests.unit.*], [mypy-tests.e2e.*], [mypy-tests.integration.*]
-Success: no issues found in 63 source files

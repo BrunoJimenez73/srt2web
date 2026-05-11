@@ -379,10 +379,10 @@ class UnifiedPipeline:
 
             init_thread = threading.Thread(target=run_init, daemon=True, name="pipeline-init")
             init_thread.start()
-            init_thread.join(timeout=30)
+            init_thread.join(timeout=120)
 
             if not self._initialized:
-                raise PipelineError("Pipeline initialization timed out after 30 seconds")
+                raise PipelineError("Pipeline initialization timed out after 60 seconds")
 
         self._stop_event.clear()
 
@@ -828,8 +828,10 @@ class UnifiedPipeline:
         try:
             has_video_muxer_module = any(status.get("name") == "video_muxer" for status in modules_status)
             if not has_video_muxer_module:
-                output_status = self._get_output_module_status()
+                output_status, muxer_status = self._get_output_module_status()
                 modules_status.append(output_status)
+                if muxer_status:
+                    modules_status.append(muxer_status)
         except Exception:
             pass
 
@@ -839,11 +841,13 @@ class UnifiedPipeline:
                 get_status_method = getattr(self._input_source, "get_status", None)
                 if get_status_method:
                     input_status = get_status_method()
-                    if isinstance(input_status, dict):
+                    # Handle both dict and ModuleStatus (Pydantic model)
+                    status_dict = getattr(input_status, "to_dict", lambda: input_status)()
+                    if isinstance(status_dict, dict):
                         # Ensure it has the right name for the frontend
-                        if "name" not in input_status:
-                            input_status["name"] = "input"
-                        modules_status.insert(0, input_status)
+                        if "name" not in status_dict:
+                            status_dict["name"] = "input"
+                        modules_status.insert(0, status_dict)
         except Exception:
             pass
 
@@ -907,15 +911,19 @@ class UnifiedPipeline:
     def _chunk_index(self) -> int:
         return self._pipeline_metrics.chunks_processed
 
-    def _get_output_module_status(self) -> dict:
-        """Compatibilidad con frontend (método existente)."""
+    def _get_output_module_status(self) -> tuple[dict, dict | None]:
+        """Return (output_status, video_muxer_status) tuple.
+        
+        output_status: aggregate output module status for the OUTPUT card.
+        video_muxer_status: encoder-specific status for the VIDEO MUXER card, or None.
+        """
         state = "running" if self.is_running else "idle"
 
-        # Obtener estado real del output sink (usualmente video_muxer)
         sink = self._output_sink if self._output_sink else self._module_map.get("video_muxer")
         extra = {}
         processed_chunks = self.metrics.chunks_processed
         last_process_time_ms = 0
+        muxer_status = None
 
         if sink:
             try:
@@ -925,10 +933,28 @@ class UnifiedPipeline:
                     processed_chunks = status_dict.get("processed_chunks", processed_chunks)
                     last_process_time_ms = status_dict.get("last_process_time_ms", last_process_time_ms)
                     extra = status_dict.get("extra", {})
+
+                    # Extract first output's data for video_muxer status
+                    outputs = extra.get("outputs", {})
+                    if outputs:
+                        first_name = list(outputs.keys())[0]
+                        first_output = outputs[first_name]
+                        muxer_extra = first_output.get("extra", {})
+                        muxer_status = {
+                            "name": "video_muxer",
+                            "state": first_output.get("state", state),
+                            "enabled": first_output.get("enabled", True),
+                            "error_message": None,
+                            "processed_chunks": first_output.get("processed_chunks", processed_chunks),
+                            "last_process_time_ms": first_output.get("last_process_time_ms", last_process_time_ms),
+                            "extra": muxer_extra,
+                            "circuit_state": "closed",
+                            "memory_mb": None,
+                        }
             except Exception:
                 pass
 
-        return {
+        output_status = {
             "name": "output",
             "state": state,
             "enabled": True,
@@ -939,3 +965,5 @@ class UnifiedPipeline:
             "circuit_state": "closed",
             "memory_mb": None,
         }
+
+        return output_status, muxer_status

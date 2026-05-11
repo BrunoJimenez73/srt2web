@@ -27,6 +27,7 @@ import {
 } from '../types/state';
 import { startClockUpdates } from '../utils/clock';
 import { ENCODER_LABELS } from '../utils';
+import { addLog as addLogToPanel } from '../modules/logpanel';
 
 // ── Element refs (lazy) ────────────────────────────────────────────────────────
 
@@ -130,9 +131,18 @@ function stopStatusEffects(): void {
 
 let _efMetrics: (() => void) | null = null;
 
-function getMetricClass(value: number): string {
-  if (value < 70) return 'low';
-  if (value < 90) return 'warning';
+// Get color class for metric bars (.low, .medium, .high)
+function getMetricBarClass(value: number): string {
+  // Use 80% as threshold for all metrics (normal CPU usage is 20-50%)
+  if (value < 40) return 'low';
+  if (value < 80) return 'medium';
+  return 'high';
+}
+
+// Get color class for metric items (.warning, .critical)
+// CPU is normally 20-50%, so use 80% as threshold
+function getMetricItemClass(value: number): string {
+  if (value < 80) return 'warning';
   return 'critical';
 }
 
@@ -147,12 +157,18 @@ function startMetricsEffects(): void {
     const cpuValue = el<HTMLSpanElement>('metric-cpu-value');
     if (cpuBar) {
       cpuBar.style.width = `${metrics.cpu}%`;
+      // Apply color class to BAR (not item)
+      cpuBar.classList.remove('low', 'medium', 'high');
+      cpuBar.classList.add(getMetricBarClass(metrics.cpu));
     }
     if (cpuItem) {
-      cpuItem.classList.remove('low', 'warning', 'critical');
-      cpuItem.classList.add(getMetricClass(metrics.cpu));
+      cpuItem.classList.remove('warning', 'critical');
+      cpuItem.classList.add(getMetricItemClass(metrics.cpu));
     }
     if (cpuValue) cpuValue.textContent = `${metrics.cpu.toFixed(0)}%`;
+    
+    // Debug: log the values
+    console.log('[Metrics] CPU:', metrics.cpu, 'Bar class:', getMetricBarClass(metrics.cpu));
 
     // Memory
     const memBar = el<HTMLDivElement>('metric-memory-bar');
@@ -161,7 +177,7 @@ function startMetricsEffects(): void {
     if (memBar) {
       memBar.style.width = `${metrics.memoryPercent}%`;
       memBar.classList.remove('low', 'medium', 'high');
-      memBar.classList.add(getMetricClass(metrics.memoryPercent));
+      memBar.classList.add(getMetricBarClass(metrics.memoryPercent));
     }
     if (memValue) memValue.textContent = `${metrics.memoryMb.toFixed(0)} MB`;
     if (memPercent) memPercent.textContent = `${metrics.memoryPercent.toFixed(0)}%`;
@@ -173,7 +189,7 @@ function startMetricsEffects(): void {
     if (gpuBar) {
       gpuBar.style.width = `${metrics.gpuUtil}%`;
       gpuBar.classList.remove('low', 'medium', 'high');
-      gpuBar.classList.add(getMetricClass(metrics.gpuUtil));
+      gpuBar.classList.add(getMetricBarClass(metrics.gpuUtil));
     }
     if (gpuValue) gpuValue.textContent = `${metrics.gpuUtil.toFixed(0)}%`;
     if (gpuMem) gpuMem.textContent = metrics.gpuMemMb > 0 ? `${metrics.gpuMemMb.toFixed(0)} MB` : 'N/A';
@@ -264,48 +280,8 @@ function startModuleMetricsEffects(): void {
       }
     }
 
-    // Video muxer special (it's an OutputSink, not in modules list)
-    const vmTimeEl = el<HTMLSpanElement>('module-time-video_muxer');
-    const vmMemoryEl = el<HTMLSpanElement>('module-memory-video_muxer');
-    const vmChunksEl = el<HTMLSpanElement>('module-chunks-video_muxer');
-    const vmEncoderEl = el<HTMLSpanElement>('module-encoder-video_muxer');
-    const vmBadge = el<HTMLSpanElement>('gpu-badge-video_muxer');
-    const vmStatus = moduleMap['video_muxer'] ?? moduleMap['output'];
-
-    if (vmTimeEl) {
-      if (vmStatus?.last_process_time_ms !== undefined && vmStatus.last_process_time_ms > 0) {
-        const ms = vmStatus.last_process_time_ms;
-        vmTimeEl.textContent = ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
-      } else if (running && tpAvg > 0) {
-        vmTimeEl.textContent = `${(1000 / tpAvg).toFixed(0)}ms`;
-      } else {
-        vmTimeEl.textContent = '--';
-      }
-    }
-    if (vmMemoryEl) {
-      vmMemoryEl.textContent = vmStatus?.memory_mb !== undefined ? `${Math.round(vmStatus.memory_mb)} MB` : '--';
-    }
-    if (vmChunksEl) {
-      vmChunksEl.textContent = String(vmStatus?.processed_chunks ?? status?.chunks_processed ?? 0);
-    }
-    if (vmEncoderEl) {
-      const label = vmStatus?.extra?.encoder_label
-        ?? (vmStatus?.extra?.using_gpu ? 'GPU' : 'CPU');
-      vmEncoderEl.textContent = label;
-    }
-    // GPU badge for video_muxer
-    if (vmBadge && vmStatus?.extra) {
-      const isActive = running && vmStatus.enabled && (vmStatus.processed_chunks ?? 0) > 0;
-      if (vmStatus.extra.using_gpu) {
-        vmBadge.style.display = 'inline';
-        vmBadge.classList.toggle('active', isActive);
-      } else {
-        vmBadge.style.display = 'none';
-      }
-    }
-
-    // Input module metrics (srt_input, rtmp_input, etc.)
-    const inputModule = moduleMap['srt_input'] ?? moduleMap['rtmp_input'] ?? moduleMap['file_input'] ?? moduleMap['audio_extractor'] ?? moduleMap['input'];
+    // Input module metrics (input is the SRT/RTMP source)
+    const inputModule = moduleMap['input'] ?? moduleMap['srt_input'] ?? moduleMap['rtmp_input'] ?? moduleMap['file_input'];
     const inputTimeEl = el<HTMLSpanElement>('module-time-input');
     const inputChunksEl = el<HTMLSpanElement>('module-chunks-input');
     const inputGpuBadge = el<HTMLSpanElement>('gpu-badge-input');
@@ -349,13 +325,55 @@ function startModuleMetricsEffects(): void {
       inputEncoderEl.textContent = label;
     }
 
-    // Output module metrics (from composite output / "output")
+    // Video muxer module metrics (for HlsCard / VIDEO MUXER)
+    const muxerModule = moduleMap['video_muxer'];
+    const muxerTimeEl = el<HTMLSpanElement>('module-time-video_muxer');
+    const muxerMemoryEl = el<HTMLSpanElement>('module-memory-video_muxer');
+    const muxerChunksEl = el<HTMLSpanElement>('module-chunks-video_muxer');
+    const muxerEncoderEl = el<HTMLSpanElement>('module-encoder-video_muxer');
+    const muxerGpuBadge = el<HTMLSpanElement>('gpu-badge-video_muxer');
+
+    if (muxerTimeEl) {
+      if (muxerModule?.last_process_time_ms !== undefined && muxerModule.last_process_time_ms > 0) {
+        const ms = muxerModule.last_process_time_ms;
+        muxerTimeEl.textContent = ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
+      } else if (running && tpAvg > 0) {
+        muxerTimeEl.textContent = `${(1000 / tpAvg).toFixed(0)}ms`;
+      } else {
+        muxerTimeEl.textContent = '--';
+      }
+    }
+    if (muxerMemoryEl && muxerModule) {
+      muxerMemoryEl.textContent = muxerModule.memory_mb !== undefined ? `${Math.round(muxerModule.memory_mb)} MB` : '--';
+    }
+    if (muxerChunksEl && muxerModule) {
+      muxerChunksEl.textContent = String(muxerModule.processed_chunks ?? 0);
+    }
+    if (muxerEncoderEl && muxerModule?.extra) {
+      const label = muxerModule.extra.encoder_label || (muxerModule.extra.using_gpu ? 'GPU' : 'CPU');
+      muxerEncoderEl.textContent = label;
+    }
+    if (muxerGpuBadge) {
+      const isActive = running && muxerModule?.enabled && (muxerModule.processed_chunks ?? 0) > 0;
+      const usingGpu = muxerModule?.extra?.using_gpu ?? false;
+      if (usingGpu) {
+        muxerGpuBadge.textContent = 'GPU';
+        muxerGpuBadge.style.display = 'inline';
+        muxerGpuBadge.classList.toggle('active', isActive);
+      } else {
+        muxerGpuBadge.textContent = 'CPU';
+        muxerGpuBadge.style.display = 'inline';
+        muxerGpuBadge.classList.remove('active');
+      }
+    }
+
+    // Output module metrics (for OUTPUT card)
     const outputModule = moduleMap['output'];
-    const outputTimeEl = el<HTMLSpanElement>('module-time-video_muxer');
-    const outputMemoryEl = el<HTMLSpanElement>('module-memory-video_muxer');
-    const outputChunksEl = el<HTMLSpanElement>('module-chunks-video_muxer');
-    const outputEncoderEl = el<HTMLSpanElement>('module-encoder-video_muxer');
-    const outputGpuBadge = el<HTMLSpanElement>('gpu-badge-video_muxer');
+    const outputTimeEl = el<HTMLSpanElement>('module-time-output');
+    const outputMemoryEl = el<HTMLSpanElement>('module-memory-output');
+    const outputChunksEl = el<HTMLSpanElement>('module-chunks-output');
+    const outputEncoderEl = el<HTMLSpanElement>('module-encoder-output');
+    const outputGpuBadge = el<HTMLSpanElement>('gpu-badge-output');
 
     if (outputTimeEl) {
       if (outputModule?.last_process_time_ms !== undefined && outputModule.last_process_time_ms > 0) {
@@ -377,14 +395,17 @@ function startModuleMetricsEffects(): void {
       const label = outputModule.extra.encoder_label || (outputModule.extra.using_gpu ? 'GPU' : 'CPU');
       outputEncoderEl.textContent = label;
     }
-    // GPU badge for output
-    if (outputGpuBadge && outputModule?.extra) {
-      const isActive = running && outputModule.enabled && (outputModule.processed_chunks ?? 0) > 0;
-      if (outputModule.extra.using_gpu) {
+    if (outputGpuBadge) {
+      const isActive = running && outputModule?.enabled && (outputModule.processed_chunks ?? 0) > 0;
+      const usingGpu = outputModule?.extra?.using_gpu ?? false;
+      if (usingGpu) {
+        outputGpuBadge.textContent = 'GPU';
         outputGpuBadge.style.display = 'inline';
         outputGpuBadge.classList.toggle('active', isActive);
       } else {
-        outputGpuBadge.style.display = 'none';
+        outputGpuBadge.textContent = 'CPU';
+        outputGpuBadge.style.display = 'inline';
+        outputGpuBadge.classList.remove('active');
       }
     }
   });
@@ -502,6 +523,28 @@ function stopThroughputEffect(): void {
   _efThroughputHistory?.();
 }
 
+// ── Pipeline Logs Effect ───────────────────────────────────────────────────────
+
+let _efPipelineLogs: (() => void) | null = null;
+let _lastLogCount = 0;
+
+function startLogsEffect(): void {
+  _efPipelineLogs = effect(() => {
+    const logs = pipelineLogs.value;
+    // Only process new logs since last render
+    const newLogs = logs.slice(_lastLogCount);
+    for (const log of newLogs) {
+      addLogToPanel(log.level as 'info' | 'warning' | 'error', log.message, log.timestamp);
+    }
+    _lastLogCount = logs.length;
+  });
+}
+
+function stopLogsEffect(): void {
+  _efPipelineLogs?.();
+  _lastLogCount = 0;
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export function startEffects(): void {
@@ -513,6 +556,7 @@ export function startEffects(): void {
   startClockEffect();
   startRemoteModeEffect();
   startThroughputEffect();
+  startLogsEffect();
 }
 
 export function stopEffects(): void {
@@ -524,4 +568,5 @@ export function stopEffects(): void {
   stopClockEffect();
   stopRemoteModeEffect();
   stopThroughputEffect();
+  stopLogsEffect();
 }

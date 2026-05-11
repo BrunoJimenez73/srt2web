@@ -30,9 +30,25 @@ import { collectConfigFromUI, applyConfigToUI } from './config-collector';
 // Re-export config functions for backwards compatibility
 export { collectConfigFromUI, applyConfigToUI };
 
+// ── Loading State Helper ────────────────────────────────────────────────────
+let _isLoading = false;
+function setLoading(loading: boolean, action: string = ''): void {
+  _isLoading = loading;
+  document.body.classList.toggle('loading', loading);
+  if (loading && action) {
+    addLog('INFO', `${action}...`);
+  }
+}
+
+function isLoading(): boolean {
+  return _isLoading;
+}
+
 // ── Pipeline Control ──────────────────────────────────────────────────────────
 
 export async function handleStart(): Promise<void> {
+  if (isLoading()) return;
+  setLoading(true, 'Iniciando pipeline');
   try {
     addLog('INFO', MESSAGES.PIPELINE_STARTING);
     await startPipeline();
@@ -41,6 +57,8 @@ export async function handleStart(): Promise<void> {
     addLog('INFO', MESSAGES.PIPELINE_STARTED);
   } catch (e) {
     addLog('ERROR', `Error: ${(e as Error).message}`);
+  } finally {
+    setLoading(false);
   }
 }
 
@@ -48,7 +66,8 @@ export async function handleStop(): Promise<void> {
   if (!confirm(MESSAGES.PIPELINE_CONFIRM_STOP)) {
     return;
   }
-
+  if (isLoading()) return;
+  setLoading(true, 'Deteniendo pipeline');
   try {
     addLog('INFO', MESSAGES.PIPELINE_STOPPING);
     await stopPipeline();
@@ -58,10 +77,14 @@ export async function handleStop(): Promise<void> {
     addLog('INFO', MESSAGES.PIPELINE_STOPPED);
   } catch (e) {
     addLog('ERROR', `Error: ${(e as Error).message}`);
+  } finally {
+    setLoading(false);
   }
 }
 
 export async function handleSaveConfig(): Promise<void> {
+  if (isLoading()) return;
+  setLoading(true, 'Guardando config');
   try {
     const newConfig = collectConfigFromUI();
     
@@ -92,6 +115,8 @@ export async function handleSaveConfig(): Promise<void> {
     const msg = (e as Error).message;
     showToast(`${MESSAGES.CONFIG_SAVE_ERROR}: ${msg}`, 'error');
     addLog('ERROR', `Error al guardar: ${msg}`);
+  } finally {
+    setLoading(false);
   }
 }
 

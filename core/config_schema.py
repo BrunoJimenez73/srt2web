@@ -33,19 +33,25 @@ ALLOWED_TTS_ENGINES: frozenset[str] = frozenset({"edge-tts", "piper", "elevenlab
 
 ALLOWED_TTS_VOICES: frozenset[str] = frozenset(
     {
-        # Edge-TTS voices
+        # Edge-TTS voices - all available
         "es-ES-AlvaroNeural",
         "es-ES-ElviraNeural",
+        "es-ES-XimenaNeural",
         "en-US-AriaNeural",
         "en-US-GuyNeural",
+        "en-US-JennyNeural",
         "fr-FR-DeniseNeural",
+        "fr-FR-RemyMultilingualNeural",
         "de-DE-ConradNeural",
-        # Piper voices
-        "es_ES-carlfm-x_low",
-        "es_ES-davefx-medium",
+        "de-DE-SeraphinaMultilingualNeural",
+        "it-IT-ElsaMultilingualNeural",
+        "pt-BR-FranciscaMultilingualNeural",
+        # Piper voices - all from models/piper/
         "es_ES-sharvard-medium",
+        "es_ES-davefx-medium",
         "es_ES-mls_10246-low",
         "es_MX-claude-high",
+        "es_MX-ald-medium",
         "es_AR-daniela-high",
         "en_US-lessac-medium",
         "en_US-lessac-low",

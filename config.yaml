@@ -14,7 +14,7 @@ input:
     mode: listener
     latency_ms: 200
     caller_address: ''
-    chunk_duration_sec: 4
+    chunk_duration_sec: 5
   rtmp:
     listen_port: 1935
     app: live
@@ -23,10 +23,10 @@ input:
     mode: listener
     chunk_duration_sec: 15
   file:
-    path: ''
+    path: C:\fakepath\curso_Sniper - 19 febrero 2026 - 09-38-40  - 00000.mp4
     loop: false
     speed: 1.0
-    chunk_duration_sec: 15
+    chunk_duration_sec: 5
 output:
   type: web
   web:
@@ -85,22 +85,12 @@ output:
       list_size: 6
       audio_offset_ms: 0
       encoder_mode: auto
-  - name: recording_1777589702607
-    type: recording
-    enabled: true
-    config:
-      type: recording
-      name: recording_1777589702607
-      output_path: ./output/grabacion.mp4
-      format: mp4
-      codec: copy
-      audio_codec: aac
 pipeline:
-  chunk_duration_sec: 15
-  mode: thread_parallel
-  max_concurrent_chunks: 4
-  buffer_size: 2
-  retry_attempts: 2
+  chunk_duration_sec: 5
+  mode: sequential
+  max_concurrent_chunks: 2
+  buffer_size: 10
+  retry_attempts: 3
   retry_delay: 1.0
 modules:
   audio_extractor:
@@ -119,34 +109,34 @@ modules:
     enabled: true
     format: srt
     use_translated: true
-    chunk_duration: 15
+    chunk_duration: 5
   tts_engine:
     enabled: true
     engine: piper
-    device: auto
-    voice: es_AR-daniela-high
+    device: cuda
+    voice: es_ES-davefx-medium
     speed: 1.2
   audio_mixer:
     enabled: true
-    original_volume: 0.8
-    tts_volume: 1.0
-    dubbed_volume: 1.0
+    original_volume: 0.6
+    tts_volume: 1.1
+    dubbed_volume: 1.1
   video_muxer:
     enabled: true
     engine: hls
-    hls_segment_duration: 4
-    hls_list_size: 6
+    hls_segment_duration: 5
+    hls_list_size: 2
     audio_offset_ms: 0
     encoder_mode: auto
     video_quality: medium
-    video_crf: 18
-    audio_codec: aac
+    video_crf: 39
+    audio_codec: opus
     audio_bitrate: 64k
     audio_samplerate: '48000'
-    video_bitrate: 500k
-    video_fps: 15
-    video_width: 320
-    video_height: 240
+    video_bitrate: 1000k
+    video_fps: 30
+    video_width: 1920
+    video_height: 1080
     webrtc_audio_codec: null
     webrtc_audio_bitrate: null
     audio_sample_rate: 24000

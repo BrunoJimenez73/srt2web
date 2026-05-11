@@ -429,16 +429,8 @@ class FileInput(InputSource):
         idx, chunk_path = processable[0]
         self._last_chunk_index = idx
 
-        # Medir duración real
-        actual_duration = get_video_duration(chunk_path) or self._chunk_duration
-
-        # Validate duration (warn if FFmpeg segment duration differs too much)
-        duration_diff = abs(actual_duration - self._chunk_duration)
-        if duration_diff > 0.05:  # 50ms threshold
-            self.logger.warning(
-                f"Chunk {idx} duration {actual_duration:.3f}s differs from "
-                f"expected {self._chunk_duration:.3f}s by {duration_diff * 1000:.1f}ms"
-            )
+        # Usar chunk_duration conocido en vez de ffprobe (~200-500ms ahorrado por chunk)
+        actual_duration = self._chunk_duration
 
         # Set cumulative duration BEFORE processing
         chunk_cumulative = self._cumulative_duration

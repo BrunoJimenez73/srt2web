@@ -134,7 +134,7 @@ export function collectConfigFromUI(): Partial<Config> {
       max_concurrent_chunks: 2,
       buffer_size: 10,
       retry_attempts: 3,
-      retry_delay: 1000,
+      retry_delay: 1.0,
     },
     modules: configModules,
   };

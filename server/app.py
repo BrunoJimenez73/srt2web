@@ -5,6 +5,7 @@ Serves the web GUI, HLS segments, and API endpoints.
 """
 
 import logging
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -48,6 +49,15 @@ def create_app(app_context: dict) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         """Gestiona el ciclo de vida del pipeline junto con FastAPI."""
+        # Setup log_broadcaster loop for WebSocket broadcasting
+        from server.ws_routes import log_broadcaster
+        try:
+            loop = asyncio.get_running_loop()
+            log_broadcaster.set_loop(loop)
+            logger.info("Log broadcaster event loop configured")
+        except RuntimeError:
+            logger.debug("No running loop during startup")
+
         # No arrancamos el pipeline aquí — lo arranca el usuario desde la UI.
         # Solo nos aseguramos de hacer shutdown limpio al cerrar.
         yield

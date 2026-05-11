@@ -55,3 +55,25 @@ test_*.txt
 *.log
 screenshot-*.png
 .playwright-mcp/
+
+# Virtual env
+venv/
+venv_new/
+venv_old/
+
+# Node modules (frontend build output)
+node_modules/
+
+# ML model cache
+.cache/
+
+# Desktop build output
+desktop/dist/
+desktop/release/
+
+# Temp startup logs
+startup_stdout.txt
+startup_stderr.txt
+
+# Logs
+logs/

@@ -20,7 +20,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from core.ffmpeg_utils import ensure_ffmpeg, get_video_duration
+from core.ffmpeg_utils import ensure_ffmpeg
 from core.input_source import InputSource
 from core.module_base import ModuleState, ModuleStatus, PipelineData
 from core.watchdog import FFmpegWatchdog
@@ -56,6 +56,8 @@ class SRTInput(InputSource):
         self._monitor_thread: Optional[threading.Thread] = None
         self._chunks_dir: str = ""
         self._last_chunk_index: int = -1
+        self._last_process_time: float = 0.0
+        self._last_chunk_mtime: Optional[float] = None
         self._cumulative_duration: float = 0.0  # Track cumulative duration for sync
 
         # Watchdog para detección de crashes/hangs
@@ -528,9 +530,9 @@ class SRTInput(InputSource):
             chunks = chunks[:-1]
         elif len(chunks) == 1:
             chunk_age = time.time() - chunks[0].stat().st_mtime
-            if chunk_age < self._chunk_duration * 0.8:
+            if chunk_age < self._chunk_duration * 0.5:
                 self.logger.debug(
-                    f"SRT input: only 1 chunk, age={chunk_age:.1f}s < {self._chunk_duration * 0.8:.1f}s, waiting..."
+                    f"SRT input: only 1 chunk, age={chunk_age:.1f}s < {self._chunk_duration * 0.5:.1f}s, waiting..."
                 )
                 return None
             self.logger.debug(f"SRT input: single chunk old enough ({chunk_age:.1f}s), processing")
@@ -558,22 +560,19 @@ class SRTInput(InputSource):
 
         self.logger.debug(f"SRT input: returning chunk {idx}: {chunk_path}")
 
-        # Medir duración real
-        actual_duration = get_video_duration(chunk_path) or self._chunk_duration
+        # Medir duración real vía mtime entre chunks consecutivos.
+        # Para live streaming: tiempo entre escrituras FFmpeg = duración real del chunk anterior.
+        # Corregimos cumulative_duration retroactivamente para eliminar deriva.
+        current_mtime = chunk_path.stat().st_mtime
+        if self._last_chunk_mtime is not None:
+            prev_duration = current_mtime - self._last_chunk_mtime
+            prev_duration = max(0.5, min(prev_duration, self._chunk_duration * 2))
+            self._cumulative_duration += prev_duration - self._chunk_duration
+        self._last_chunk_mtime = current_mtime
 
-        # Validate duration (warn if FFmpeg segment duration differs too much)
-        duration_diff = abs(actual_duration - self._chunk_duration)
-        if duration_diff > 0.05:  # 50ms threshold
-            self.logger.warning(
-                f"Chunk {idx} duration {actual_duration:.3f}s differs from "
-                f"expected {self._chunk_duration:.3f}s by {duration_diff * 1000:.1f}ms"
-            )
-
-        # Set cumulative duration BEFORE processing (will be corrected after if needed)
         chunk_cumulative = self._cumulative_duration
-
-        # Update cumulative for next chunk
-        self._cumulative_duration += actual_duration
+        self._cumulative_duration += self._chunk_duration
+        self._last_process_time = self._chunk_duration * 1000
 
         self.logger.info(f"New chunk: {chunk_path} (cumulative: {chunk_cumulative:.3f}s)")
 
@@ -631,7 +630,7 @@ class SRTInput(InputSource):
             state=ModuleState.RUNNING if self.is_receiving() else ModuleState.IDLE,
             enabled=True,
             processed_chunks=self._last_chunk_index + 1 if self._last_chunk_index >= 0 else 0,
-            last_process_time_ms=0.0,
+            last_process_time_ms=self._last_process_time,
             extra={
                 "using_gpu": self._hwaccel_enabled,
                 "gpu_info": self._gpu_info,

@@ -5,8 +5,7 @@
   <div class="process-header">
     <span class="process-indicator" id="indicator-output"></span>
     <span class="process-title">📤 OUTPUT</span>
-    <span class="gpu-badge" id="output-gpu-badge" style="display: none;" role="status" aria-label="Estado GPU">GPU</span>
-    <span class="gpu-badge" id="gpu-badge-video_muxer" role="status" aria-label="Encoder de video">CPU</span>
+    <span class="gpu-badge" id="gpu-badge-output" role="status" aria-label="Encoder">--</span>
   </div>
 
   <div class="process-content">
@@ -174,25 +173,25 @@
       </div>
     </div>
 
-    <!-- Métricas del OUTPUT -->
+    <!-- Métricas del OUTPUT (mostradas aquí para OUTPUT card) -->
     <div class="form-group" id="output-metrics">
       <label class="form-label">Métricas</label>
       <div class="metrics-row">
         <div class="metric-mini">
           <span class="metric-label">Tiempo</span>
-          <span class="metric-value" id="module-time-video_muxer">--</span>
+          <span class="metric-value" id="module-time-output">--</span>
         </div>
         <div class="metric-mini">
           <span class="metric-label">Memoria</span>
-          <span class="metric-value" id="module-memory-video_muxer">--</span>
+          <span class="metric-value" id="module-memory-output">--</span>
         </div>
         <div class="metric-mini">
           <span class="metric-label">Chunks</span>
-          <span class="metric-value" id="module-chunks-video_muxer">--</span>
+          <span class="metric-value" id="module-chunks-output">--</span>
         </div>
         <div class="metric-mini">
           <span class="metric-label">Encoder</span>
-          <span class="metric-value" id="module-encoder-video_muxer">--</span>
+          <span class="metric-value" id="module-encoder-output">--</span>
         </div>
       </div>
     </div>
@@ -572,6 +571,7 @@
 
 <script>
   import { fetchOutputs, addOutput, toggleOutput, removeOutput, getOutputIcon, getOutputTypeName } from '../lib/modules/outputs';
+  import { showDeleteConfirm } from '../lib/modules/confirm-modal';
   import type { OutputStatus } from '../lib/modules/outputs';
 
   let outputs: OutputStatus[] = [];

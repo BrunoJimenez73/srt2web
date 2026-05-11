@@ -257,8 +257,10 @@ export class WSClient {
     };
 
     this.ws.onmessage = (e: MessageEvent) => {
+      console.log('[WS] Received:', e.data);
       try {
         const data = JSON.parse(e.data) as WebSocketMessage;
+        console.log('[WS] Parsed:', data);
         this.onMessageHandler?.(data);
       } catch {
         console.error('Failed to parse WebSocket message:', e.data);
@@ -266,10 +268,12 @@ export class WSClient {
     };
 
     this.ws.onerror = (e: Event) => {
+      console.error('[WS] Error:', e);
       this.onErrorHandler?.(e);
     };
 
     this.ws.onclose = () => {
+      console.log('[WS] Connection closed, reconnecting...');
       this.onCloseHandler?.();
       this.attemptReconnect();
     };

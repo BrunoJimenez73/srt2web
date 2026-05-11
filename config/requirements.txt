@@ -18,10 +18,11 @@ faster-whisper>=1.0.0
 argostranslate>=1.9.0
 piper-tts>=1.2.0
 
-# GPU Support (for Piper TTS and Whisper GPU acceleration)
+# GPU Support (para Piper TTS y Whisper GPU acceleration)
 # IMPORTANTE: Para GPU con ONNX, usar nvidia-cudnn-cu11 (NO cu12 - tiene cuDNN 9.x incompatible)
 # Ejemplo instalación: pip install nvidia-cudnn-cu11==8.9.4.25
-onnxruntime-gpu>=1.19.0
+# NOTA: No agregar como dependencia de pip, se instala manualmente en Install.bat para evitar conflicto
+# onnxruntime-gpu>=1.19.0
 
 # WebRTC Support
 aiortc>=1.14.0

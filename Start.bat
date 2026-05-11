@@ -20,8 +20,7 @@ if not exist "venv\Scripts\python.exe" (
     exit /b 1
 )
 
-REM Use global Python (no venv needed)
-set "PYTHON=python"
+set "PYTHON=venv\Scripts\python.exe"
 set "FFMPEG=bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe"
 
 REM =============================================
@@ -57,11 +56,20 @@ if exist "%FFMPEG%" (
 )
 
 REM =============================================
-REM Verificar GPU
+REM Verificar GPU (usando venv)
 REM =============================================
 echo.
-"%PYTHON%" -c "import torch; print('GPU: ' + torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'GPU: No disponible')" 2>nul
-"%PYTHON%" -c "import onnxruntime as ort; print('ONNX: ' + ('GPU' if 'CUDAExecutionProvider' in ort.get_available_providers() else 'CPU'))" 2>nul
+set "VENV_PYTHON=venv\Scripts\python.exe"
+
+REM Verificar GPU con PyTorch y fallback pynvml
+%VENV_PYTHON% -c "import torch; print('GPU: ' + torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'GPU: No disponible')" 2>nul
+if errorlevel 1 (
+    REM Fallback: verificar con pynvml si PyTorch falla
+    %VENV_PYTHON% -c "import pynvml; pynvml.nvmlInit(); print('GPU: ' + pynvml.nvmlDeviceGetName(pynvml.nvmlDeviceGetHandleByIndex(0)).decode())" 2>nul || echo GPU: No disponible
+)
+
+REM Verificar ONNX GPU
+%VENV_PYTHON% -c "import onnxruntime as ort; print('ONNX: ' + ('GPU' if 'CUDAExecutionProvider' in ort.get_available_providers() else 'CPU'))" 2>nul
 
 REM =============================================
 REM Iniciar servidor

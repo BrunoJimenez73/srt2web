@@ -37,10 +37,22 @@ class Transcriber(BaseModule):
         self._model_size = config.get("model", self._model_size)
         
         lang = config.get("language", self._language)
-        self._language = None if lang.lower() == "auto" else lang
+        new_language = None if lang.lower() == "auto" else lang
         
+        # Check if language changed - needs model reload for proper detection
+        model_needs_reload = False
+        if new_language != self._language:
+            model_needs_reload = True
+        
+        self._language = new_language
         self._device_config = config.get("device", self._device_config)
         self._beam_size = config.get("beam_size", self._beam_size)
+        
+        # Reload model if language changed (hot-reload)
+        if model_needs_reload and self._state == ModuleState.RUNNING:
+            logger.info(f"Language changed from {self._language} to {new_language}, reloading Whisper model...")
+            self.stop()
+            self.start()
 
     def start(self) -> None:
         """Initialize and load the Whisper model using ModelCache."""

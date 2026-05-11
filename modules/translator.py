@@ -7,6 +7,7 @@ Uses argostranslate for completely offline, free machine translation.
 import hashlib
 import logging
 import os
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -77,8 +78,14 @@ class Translator(BaseModule):
         self._state = ModuleState.STARTING
 
         try:
+            t0 = time.perf_counter()
             import argostranslate.package
+            t1 = time.perf_counter()
+            logger.info(f"[TIMING] import argostranslate.package: {t1-t0:.3f}s")
+
             import argostranslate.translate
+            t2 = time.perf_counter()
+            logger.info(f"[TIMING] import argostranslate.translate: {t2-t1:.3f}s")
 
             self._argos_installed = True
 
@@ -87,7 +94,10 @@ class Translator(BaseModule):
 
             # Only load model if not waiting for language (i.e., source_lang is not auto)
             if not self._waiting_for_language:
+                t3 = time.perf_counter()
                 self._load_model(self._source_lang, self._target_lang)
+                t4 = time.perf_counter()
+                logger.info(f"[TIMING] _load_model(): {t4-t3:.3f}s")
 
             self._state = ModuleState.RUNNING
             logger.info(f"Translator ready: {self._source_lang} -> {self._target_lang}")
@@ -105,18 +115,29 @@ class Translator(BaseModule):
 
     def _load_model(self, source_lang: str, target_lang: str):
         """Install package if missing and create translation pipeline using ModelCache."""
+        t0 = time.perf_counter()
         import argostranslate.package
+        t1 = time.perf_counter()
+        logger.info(f"[TIMING] _load_model: re-import package: {t1-t0:.3f}s")
         import argostranslate.translate
+        t2 = time.perf_counter()
+        logger.info(f"[TIMING] _load_model: re-import translate: {t2-t1:.3f}s")
 
         # Try to get from cache first
+        t3 = time.perf_counter()
         cached_pair = self._model_cache.get_argos_pair(source_lang, target_lang)
+        t4 = time.perf_counter()
+        logger.info(f"[TIMING] _load_model: get_argos_pair(): {t4-t3:.3f}s")
         if cached_pair:
             self._translation_pipeline = cached_pair
             logger.info(f"Using cached Argos pair: {source_lang}->{target_lang}")
             return
 
         # Check if installed
+        t5 = time.perf_counter()
         installed = argostranslate.package.get_installed_packages()
+        t6 = time.perf_counter()
+        logger.info(f"[TIMING] _load_model: get_installed_packages(): {t6-t5:.3f}s")
         package_found = False
 
         for pkg in installed:
@@ -129,8 +150,14 @@ class Translator(BaseModule):
             logger.info(msg)
             self.logger.info(msg)  # Broadcast to web UI
 
+            t7 = time.perf_counter()
             argostranslate.package.update_package_index()
+            t8 = time.perf_counter()
+            logger.info(f"[TIMING] _load_model: update_package_index(): {t8-t7:.3f}s")
+
             available_packages = argostranslate.package.get_available_packages()
+            t9 = time.perf_counter()
+            logger.info(f"[TIMING] _load_model: get_available_packages(): {t9-t8:.3f}s")
 
             target_pkg = next(
                 (pkg for pkg in available_packages if pkg.from_code == source_lang and pkg.to_code == target_lang),
@@ -138,7 +165,10 @@ class Translator(BaseModule):
             )
 
             if target_pkg:
+                t10 = time.perf_counter()
                 target_pkg.install()
+                t11 = time.perf_counter()
+                logger.info(f"[TIMING] _load_model: pkg.install(): {t11-t10:.3f}s")
                 success_msg = f"Translation model {source_lang}->{target_lang} installed successfully!"
                 logger.info(success_msg)
                 self.logger.info(success_msg)  # Broadcast to web UI
@@ -146,7 +176,10 @@ class Translator(BaseModule):
                 raise ValueError(f"No translation package found from '{source_lang}' to '{target_lang}'")
 
         # Get the actual translation function
+        t12 = time.perf_counter()
         self._translation_pipeline = argostranslate.translate.get_translation_from_codes(source_lang, target_lang)
+        t13 = time.perf_counter()
+        logger.info(f"[TIMING] _load_model: get_translation_from_codes(): {t13-t12:.3f}s")
 
     def stop(self) -> None:
         """Cleanup."""

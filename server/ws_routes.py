@@ -101,6 +101,7 @@ class LogBroadcaster:
         Can be called from any thread.
         """
         import time
+        import sys
 
         data = json.dumps(
             {
@@ -115,6 +116,9 @@ class LogBroadcaster:
         self._buffer.append(data)
         if len(self._buffer) > self._max_buffer:
             self._buffer = self._buffer[-self._max_buffer :]
+
+        # Debug: print to stderr
+        print(f"[WS-BROADCAST] {level}: {message[:80]}...", file=sys.stderr)
 
         # Send to all subscribers
         if self._loop and self._subscribers:
@@ -151,6 +155,15 @@ class LogBroadcaster:
 
 # Global broadcaster instance
 log_broadcaster = LogBroadcaster()
+
+# Try to set the event loop immediately for the main thread
+try:
+    _main_loop = asyncio.get_event_loop()
+    if _main_loop and not _main_loop.is_closed():
+        log_broadcaster.set_loop(_main_loop)
+except RuntimeError:
+    # No event loop in current thread - will be set when first WebSocket connects
+    pass
 
 
 def create_ws_router() -> APIRouter:

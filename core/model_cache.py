@@ -12,6 +12,7 @@ to reduce first-chunk latency.
 import logging
 import os
 import threading
+import time
 from pathlib import Path
 from typing import Any, Optional
 
@@ -64,16 +65,18 @@ class ModelCache:
             return cache_dir
 
         bases = []
+        project_root = get_project_root()
+        bases.append(project_root)
         if os.name == "nt":
             bases.append(Path(os.environ.get("LOCALAPPDATA", Path.home())))
         else:
             bases.append(Path.home())
-        bases.append(get_project_root())
 
         for base in bases:
             cache_dir = base / ".cache" / "srt2web"
             try:
                 cache_dir.mkdir(parents=True, exist_ok=True)
+                logger.debug(f"Using cache directory: {cache_dir}")
                 return cache_dir
             except OSError as exc:
                 logger.warning("Could not use model cache directory %s: %s", cache_dir, exc)
@@ -205,12 +208,18 @@ class ModelCache:
         logger.info(f"Loading Argos translation pair: {cache_key}")
 
         try:
+            t0 = time.perf_counter()
             import argostranslate.translate
+            t1 = time.perf_counter()
+            logger.info(f"[TIMING] get_argos_pair: import translate: {t1-t0:.3f}s")
 
             # Use the correct API for newer argostranslate versions
             try:
                 # Try new API first
+                t2 = time.perf_counter()
                 installed_languages = argostranslate.translate.get_installed_languages()
+                t3 = time.perf_counter()
+                logger.info(f"[TIMING] get_argos_pair: get_installed_languages(): {t3-t2:.3f}s")
                 source = None
                 target = None
 
