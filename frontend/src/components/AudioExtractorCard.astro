@@ -1,0 +1,30 @@
+<div class="process-card" id="card-audio-extractor">
+  <div class="process-header">
+    <span class="process-indicator" id="indicator-audio-extractor"></span>
+    <span class="process-title">🔊 AUDIO EXTRACTOR</span>
+    <span class="gpu-badge" id="gpu-badge-audio_extractor" style="display: none;" role="status" aria-label="Aceleración GPU">GPU</span>
+    <label class="toggle-switch" aria-label="Activar/desactivar extractor de audio">
+      <input type="checkbox" id="audio-extractor-enabled" onchange="window.toggleModule('audio_extractor', this.checked)" />
+      <span class="toggle-slider"></span>
+    </label>
+  </div>
+  <div class="process-content">
+    <div class="form-group">
+      <label class="form-label">Métricas</label>
+      <div class="metrics-row">
+        <div class="metric-mini">
+          <span class="metric-label">Tiempo</span>
+          <span class="metric-value" id="module-time-audio_extractor">--</span>
+        </div>
+        <div class="metric-mini">
+          <span class="metric-label">Chunks</span>
+          <span class="metric-value" id="module-chunks-audio_extractor">--</span>
+        </div>
+        <div class="metric-mini">
+          <span class="metric-label">Device</span>
+          <span class="metric-value" id="module-device-audio_extractor">--</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

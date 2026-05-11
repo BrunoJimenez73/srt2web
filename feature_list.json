@@ -1,0 +1,121 @@
+{
+  "project": "srt2web",
+  "description": "Pipeline de subtitulado y streaming en tiempo real con SRT, Whisper, traducción y HLS",
+  "rules": {
+    "one_feature_at_a_time": true,
+    "require_tests_to_close": true,
+    "valid_status": ["pending", "in_progress", "done", "blocked"]
+  },
+  "features": [
+    {
+      "id": 1,
+      "name": "fix_dependency_management",
+      "title": "Arreglar gestión de dependencias",
+      "description": "requirements.txt no existe en raíz pero CI, docs y Docker lo referencian. pyproject.toml no incluye pydantic (crítico). Dos config.yaml compitiendo. npm versions ficticias en frontend/package.json que rompen npm install.",
+      "acceptance": [
+        "Crear requirements.txt en raíz o unificar referencias a config/requirements.txt",
+        "pyproject.toml incluye pydantic>=2.0.0",
+        "frontend/package.json tiene versiones npm reales (npm install funciona)",
+        "Eliminar o resolver conflicto entre config.yaml raíz y config/config.yaml",
+        "CI pasa sin errores de dependencias"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "id": 2,
+      "name": "fix_critical_pipeline_bugs",
+      "title": "Corregir bugs críticos del pipeline",
+      "description": "Import uuid faltante en unified_pipeline.py (crash en sequential mode). _chunk_duration no inicializado. Typo ALLOWED_ENCODER_MODELS vs MODES (ImportError). Duplicate dict key nvdec en audio_extractor. Dos PipelineStrategy ABCs incompatibles.",
+      "acceptance": [
+        "import uuid agregado a unified_pipeline.py",
+        "_chunk_duration inicializado en __init__ de UnifiedPipeline",
+        "ALLOWED_ENCODER_MODELS renombrado a ALLOWED_ENCODER_MODES o viceversa (consistente)",
+        "audio_extractor.py duplicate nvdec key corregido",
+        "Duplicate PipelineStrategy ABCs eliminado o unificado"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 3,
+      "name": "fix_stop_bat_safety",
+      "title": "Arreglar Stop.bat y scripts del sistema",
+      "description": "Stop.bat mata todos los python.exe del sistema (no solo srt2web). Borra .cache (modelos ML). Tiene hardcoded user path. cleanup_output.py referenciado pero no existe.",
+      "acceptance": [
+        "Stop.bat solo mata procesos srt2web, no todos los python",
+        "Stop.bat no borra .cache/ ni .pyd files",
+        "Hardcoded user paths reemplazados por variables relativas",
+        "cleanup_output.py creado o referencia removida"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 4,
+      "name": "add_missing_core_tests",
+      "title": "Agregar tests para módulos críticos sin cobertura",
+      "description": "Módulos sin tests: hls_output.py, srt_input.py, unified_pipeline.py, pipeline/strategies.py, app.py, routes/*, webrtc_engine.py, piper_loader.py. 30+ módulos sin cobertura. test_async_pipeline_v2.py (23 tests) está ignorado en pytest.ini.",
+      "acceptance": [
+        "test_hls_output.py existe con tests básicos de write/start/stop",
+        "test_srt_input.py existe con tests de chunk generation",
+        "test_unified_pipeline.py existe con tests de register/get_status/reconfigure",
+        "test_async_pipeline_v2.py reactivado o refactorizado en pytest.ini",
+        "Al menos un test por cada módulo de output (file, rtmp, srt, webrtc)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 5,
+      "name": "fix_frontend_console_race",
+      "title": "Limpiar console.logs y arreglar race conditions frontend",
+      "description": "33 console.log() en producción. api.ts sin timeout (hanging requests). dashboard.ts double init race condition (DOMContentLoaded + load). LogPanel con addLogs duplicados compitiendo. cleanup() nunca llamado.",
+      "acceptance": [
+        "Todos los console.log/error/warn de debug eliminados o movidos a logger configurable",
+        "api.ts tiene timeout configurable en fetchWithAuth y apiCall",
+        "dashboard.ts no se inicializa dos veces (guard en bootstrap)",
+        "LogPanel usa una sola fuente de addLog (eliminar duplicación inline vs module)",
+        "cleanup() se ejecuta en beforeunload"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 6,
+      "name": "standardize_api_error_handling",
+      "title": "Estandarizar manejo de errores API y seguridad",
+      "description": "Mezcla de estilos de error (HTTPException vs dict con 200). body: dict sin validación Pydantic en 5 endpoints. CORS middleware mal posicionado. Acceso a atributos privados (module._state). Public paths inconsistentes entre middlewares.",
+      "acceptance": [
+        "GET /input-info y GET /output-info devuelven 4xx real en errores (no 200 con error dict)",
+        "SeekPosition validator usado en POST /input/control/seek (no body: dict)",
+        "Pydantic models para POST /config/chunk, POST /outputs, PUT /outputs/{name}",
+        "CORS middleware es el más externo (ejecuta antes que rate limit y auth)",
+        "module._state no se modifica directamente (usa API pública)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 7,
+      "name": "fix_webrtc_and_dead_code",
+      "title": "Arreglar WebRTC y limpiar código muerto",
+      "description": "WebRTC video track devuelve frames negros, audio track silencio, subtitles con time.time()%3600. Código muerto: 53 líneas en audio_mixer.py (_get_audio_duration, _cleanup_temp_file), recording_output.py código tras return, composite_output.py bloque duplicado. Módulos frontend muertos: ui.ts, events.ts, config.ts.",
+      "acceptance": [
+        "WebRTC video track recibe frames reales (no negros)",
+        "WebRTC audio track recibe audio real (no silencio)",
+        "Código muerto eliminado de audio_mixer.py, recording_output.py, composite_output.py",
+        "Módulos frontend muertos (ui.ts, events.ts, config.ts) eliminados o implementados"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 8,
+      "name": "fix_ci_and_config_inconsistencies",
+      "title": "Arreglar CI, config inconsistencies y player.astro",
+      "description": "CI usa node 20 pero package.json requiere >=22. pip install -r requirements.txt falla. tests frontend con continue-on-error. docs/index.md ref quickstart roto. player.astro carga HLS.js de CDN sin SRI. Config con audio_samplerate/audio_sample_rate en conflicto.",
+      "acceptance": [
+        "CI usa node version compatible con frontend/package.json",
+        "pip install en CI usa archivo existente (requirements.txt o config/requirements.txt)",
+        "CI no oculta fallos de frontend tests (continue-on-error: false)",
+        "player.astro HLS.js CDN tiene atributo integrity (SRI)",
+        "audio_samplerate/audio_sample_rate consistente en config.yaml"
+      ],
+      "status": "pending"
+    }
+  ]
+}

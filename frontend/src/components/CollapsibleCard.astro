@@ -1,0 +1,36 @@
+---
+interface Props {
+  id: string;
+}
+const { id } = Astro.props;
+---
+
+<div class="collapsible-module-wrapper" id={`cm-${id}`}>
+  <slot />
+</div>
+
+<style is:global>
+  .collapsible-module-wrapper {
+    position: relative;
+  }
+
+  .cm-collapse-icon {
+    font-size: 9px;
+    color: var(--text-sec);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  .collapsible-module-wrapper.collapsed .process-content {
+    display: none !important;
+  }
+
+  .collapsible-module-wrapper.collapsed .cm-collapse-icon {
+    transform: rotate(0deg);
+  }
+
+  .collapsible-module-wrapper:not(.collapsed) .cm-collapse-icon {
+    transform: rotate(90deg);
+  }
+</style>

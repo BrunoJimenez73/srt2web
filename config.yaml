@@ -21,7 +21,7 @@ input:
     stream_key: stream
     url: ''
     mode: listener
-  chunk_duration_sec: 5
+    chunk_duration_sec: 15
   file:
     path: C:\fakepath\curso_Sniper - 19 febrero 2026 - 09-38-40  - 00000.mp4
     loop: false
@@ -109,7 +109,7 @@ modules:
     enabled: true
     format: srt
     use_translated: true
-    chunk_duration: 5
+    chunk_duration: 15
   tts_engine:
     enabled: true
     engine: piper
