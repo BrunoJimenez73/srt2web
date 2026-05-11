@@ -84,19 +84,16 @@ class AudioExtractor(FFmpegModule):
         if self._gpu_info.get("nvdec") and input_size > 10 * 1024 * 1024:
             cmd.extend(["-hwaccel", "cuda", "-hwaccel_output_format", "cuda"])
 
-        # Aggressive low-latency flags for short chunks
         cmd.extend(
             [
                 "-fflags",
-                "+nobuffer+fast_seek",
+                "+nobuffer",
                 "-flags",
                 "low_delay",
                 "-probesize",
-                "32000",
+                "500000",
                 "-analyzeduration",
-                "0",
-                "-max_delay",
-                "0",
+                "200000",
                 "-i",
                 input_path,
                 "-vn",
