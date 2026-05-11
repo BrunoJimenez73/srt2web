@@ -21,6 +21,7 @@ import logging
 import queue
 import threading
 import time
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
@@ -181,6 +182,9 @@ class UnifiedPipeline:
         self._lock = threading.Lock()
         self._hardware_monitor = HardwareMonitor()
         self._initialized = False  # Initialize to False BEFORE thread starts
+
+        # Chunk duration default (used in reconfigure)
+        self._chunk_duration = 10.0
 
         # Initialize processing strategy (if available)
         self._strategy: Optional[PipelineStrategy] = None
@@ -913,7 +917,7 @@ class UnifiedPipeline:
 
     def _get_output_module_status(self) -> tuple[dict, dict | None]:
         """Return (output_status, video_muxer_status) tuple.
-        
+
         output_status: aggregate output module status for the OUTPUT card.
         video_muxer_status: encoder-specific status for the VIDEO MUXER card, or None.
         """

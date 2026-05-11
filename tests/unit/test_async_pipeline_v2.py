@@ -15,7 +15,7 @@ from core.exceptions import PipelineStateError
 # but the current architecture places the async pipeline in `core.pipeline.async_pipeline`
 # and the data models in `core.schemas`. We alias the imported class to keep the test
 # name `AsyncPipelineV2` unchanged while using the new implementation.
-from core.pipeline.async_pipeline import AsyncPipeline as AsyncPipelineV2
+from core.pipeline.async_pipeline import AsyncPipelineV2
 from core.schemas import ModuleState, PipelineData, PipelineState
 
 
@@ -376,7 +376,7 @@ class TestAsyncPipelineV2StartStop:
         """Test starting a running pipeline raises error."""
         pipeline = AsyncPipelineV2()
         # Manually set state to RUNNING
-        pipeline._state = PipelineState.RUNNING
+        pipeline.state = PipelineState.RUNNING
 
         with pytest.raises(PipelineStateError):
             await pipeline.start()

@@ -28,7 +28,7 @@ class AudioExtractor(FFmpegModule):
     def __init__(self, config: Optional[dict] = None, output_dir: str = "./output"):
         self._output_dir = Path(output_dir)
         self._audio_dir = Path()
-        self._gpu_info = {"nvdec": False, "nvdec": False}
+        self._gpu_info = {"nvenc": False, "nvdec": False}
         super().__init__("audio_extractor", config)
 
     def configure(self, config: dict) -> None:

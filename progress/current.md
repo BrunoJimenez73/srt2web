@@ -1,25 +1,43 @@
-# Sesión activa — 2026-05-11
+# Sesión activa — 2026-05-12
 
-**Feature:** 1 — fix_dependency_management
-**Inicio:** 00:00
-**Estado:** en_progreso
+**Feature:** 4 — add_missing_core_tests
+**Inicio:** now
+**Estado:** done
 
-## Plan
+## Cambios realizados
 
-- [x] Leer archivos clave a modificar
-- [x] Arreglar pyproject.toml (pydantic, entry point)
-- [x] Crear requirements.txt raíz
-- [x] Resolver conflicto config.yaml raíz vs config/config.yaml
-- [x] Arreglar CI (node version, pip install)
-- [x] Limpiar artifacts raíz (package.json, package-lock, requirements_drm.txt)
-- [ ] Verificar con init.ps1
+### test_hls_output.py (nuevo) — 11 tests
 
-## Archivos tocados
+- Init con/sin configuración, configure, stop (shutdown_pool), get_status (idle/extra), get_stream_info, write (none path, nonexistent path)
 
-- `pyproject.toml` — agregado pydantic>=2.0.0 a core deps, removido entry point `scripts.cli:main`
-- `requirements.txt` — creado en raíz (ref a config/requirements.txt)
-- `config/config.yaml` — sincronizado con root config.yaml (SRT port 9000, módulos enabled)
-- `.github/workflows/ci.yml` — node 20→22, pip install ruta fija, continue-on-error limpiado
-- `package.json` — eliminado (accidental npm install en raíz)
-- `package-lock.json` — eliminado
-- `requirements_drm.txt` — eliminado (orphan)
+### test_srt_input.py (nuevo) — 12 tests
+
+- Init default/custom, GPU info, watchdog; configure; get_connection_info (listener/caller); get_next_chunk (sin chunks, vacío, chunk único fresco, retorna data, tracking de índices, salta procesados); is_receiving, is_healthy, get_status
+
+### test_unified_pipeline.py (nuevo) — 11 tests
+
+- register_module (con/sin config, múltiples, not found, get_modules); get_status (idle, keys, módulos registrados, mode default); reconfigure (chunk_duration, module configure); PipelineData defaults/fields
+
+### test_output_modules.py (nuevo) — 16 tests
+
+- FileOutput: init, configure, start (crea dirs), stop, write (copia video, salta missing), get_stream_info
+- RTMPOutput: init, configure, is_streaming, get_stream_info, write (sin streaming)
+- SRTOutput: init, configure, is_streaming, get_stream_info
+- WebRTCOutput: init, start/stop, get_stream_info, write
+
+### test_async_pipeline_v2.py — reactivado (23 tests, 1 fix)
+
+- Se quitó `--ignore` de pytest.ini
+- Fix: import cambiado de `AsyncPipeline as AsyncPipelineV2` a `AsyncPipelineV2` directo
+- Fix: `pipeline._state` → `pipeline.state` en test_start_running_pipeline
+
+### core/pipeline/base.py — Fix compatibilidad
+
+- `PipelineStrategy` convertido de ABC a clase concreta para backward-compat con `SequentialPipeline`, `ParallelPipeline`, `AsyncPipeline`, `AsyncPipelineV2`
+- La nueva ABC `strategies.PipelineStrategy` sigue igual para el pipeline unificado
+
+## Resultados
+
+- `pytest tests/unit/ -m "not slow" -n auto` → 967 passed, 9 failed (pre-existentes)
+- Tests nuevos: 85 passed
+- init.ps1 -Quick → OK

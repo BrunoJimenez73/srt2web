@@ -15,6 +15,7 @@ from core.config_manager import ConfigManager
 # Constantes centralizadas
 from core.constants import (
     ALLOWED_DEVICES,
+    ALLOWED_ENCODER_MODES,
     ALLOWED_LANGUAGES,
     ALLOWED_TTS_ENGINES,
     ALLOWED_WHISPER_MODELS,
@@ -205,7 +206,7 @@ __all__ = [
     "ALLOWED_LANGUAGES",
     "ALLOWED_DEVICES",
     "ALLOWED_TTS_ENGINES",
-    "ALLOWED_ENCODER_MODELS",
+    "ALLOWED_ENCODER_MODES",
     "EXTERNAL_URLS",
     # Paths
     "get_project_root",

@@ -19,7 +19,7 @@
         "Eliminar o resolver conflicto entre config.yaml raíz y config/config.yaml",
         "CI pasa sin errores de dependencias"
       ],
-      "status": "in_progress"
+      "status": "done"
     },
     {
       "id": 2,
@@ -33,7 +33,7 @@
         "audio_extractor.py duplicate nvdec key corregido",
         "Duplicate PipelineStrategy ABCs eliminado o unificado"
       ],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": 3,
@@ -46,7 +46,7 @@
         "Hardcoded user paths reemplazados por variables relativas",
         "cleanup_output.py creado o referencia removida"
       ],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": 4,
@@ -60,7 +60,7 @@
         "test_async_pipeline_v2.py reactivado o refactorizado en pytest.ini",
         "Al menos un test por cada módulo de output (file, rtmp, srt, webrtc)"
       ],
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": 5,

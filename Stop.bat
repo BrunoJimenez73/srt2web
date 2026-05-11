@@ -5,11 +5,14 @@ echo ========================================
 echo  STOP COMPLETO DE SRT2WEB
 echo ========================================
 
-cd /d C:\Users\bruno\Documents\programacion\Antigravity\srt2web
+cd /d "%~dp0"
 
-:: 1. Parar TODOS los procesos relacionados
-echo Deteniendo procesos...
-taskkill /F /IM python.exe /T 2>nul
+:: 1. Parar SOLO python.exe que ejecuta srt2web (main.py)
+echo Deteniendo procesos srt2web...
+powershell -NoProfile -Command ^
+  "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" ^
+  | Where-Object { $_.CommandLine -like '*main.py*' } ^
+  | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }" 2>nul
 taskkill /F /IM ffmpeg.exe /T 2>nul
 taskkill /F /IM ffprobe.exe /T 2>nul
 timeout /t 2 >nul
@@ -23,7 +26,7 @@ for %%p in (9999 9000 8000 1935) do (
 )
 timeout /t 1 >nul
 
-:: 3. Limpiar caches de Python en todo el proyecto
+:: 3. Limpiar __pycache__ (archivos compilados temporales)
 echo Limpiando caches Python...
 for /d /r . %%d in (__pycache__) do (
   rd /S /Q "%%d" 2>nul
@@ -34,13 +37,11 @@ for /f "tokens=*" %%f in ('dir /s /b *.pyc 2^|findstr /v venv node_modules') do 
 for /f "tokens=*" %%f in ('dir /s /b *.pyo 2^|findstr /v venv node_modules') do (
   del /Q "%%f" 2>nul
 )
-for /f "tokens=*" %%f in ('dir /s /b *.pyd 2^|findstr /v venv node_modules') do (
-  del /Q "%%f" 2>nul
-)
+REM NOT deleting .pyd (compiled extension modules, not cache)
 
-:: 4. Limpiar caches de herramientas
+:: 4. Limpiar caches de herramientas (NO .cache que contiene modelos ML)
 echo Limpiando caches de herramientas...
-if exist ".cache" rd /S /Q ".cache" 2>nul
+REM NOT deleting .cache (may contain ML models / piper voices)
 if exist ".ruff_cache" rd /S /Q ".ruff_cache" 2>nul
 if exist ".mypy_cache" rd /S /Q ".mypy_cache" 2>nul
 if exist ".pytest_cache" rd /S /Q ".pytest_cache" 2>nul
@@ -57,12 +58,7 @@ taskkill /F /IM ffmpeg.exe /T 2>nul
 taskkill /F /IM ffprobe.exe /T 2>nul
 timeout /t 1 >nul
 
-:: 7. Ejecutar limpieza de output via Python (genera .mp4 si save_video=True y luego borra chunks)
-echo.
-echo Limpiando output y generando video final...
-venv\Scripts\python.exe cleanup_output.py
-
-:: 8. Verificar estado final
+:: 7. Verificar estado final
 echo.
 echo === ESTADO FINAL DE LIMPIEZA ===
 echo Procesos activos:
