@@ -56,7 +56,7 @@ export interface LogMessage {
   module?: ModuleName;
 }
 
-export type ModuleState = 'idle' | 'running' | 'error' | 'stopped';
+export type ModuleState = 'idle' | 'running' | 'error' | 'stopped' | 'degraded' | 'disabled';
 
 export interface ModuleExtra {
   using_gpu?: boolean;

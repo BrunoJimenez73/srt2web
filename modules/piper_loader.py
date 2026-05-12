@@ -192,6 +192,10 @@ def main():
             print(json.dumps({"status": "success"}), flush=True)
             break
 
+        # ── PING (for heartbeat) ──────────────────────────────
+        elif action == "ping":
+            print(json.dumps({"status": "pong"}), flush=True)
+
         # ── UNKNOWN ───────────────────────────────────────────
         else:
             resp = {"status": "error", "error": f"Unknown action: {action}"}
@@ -227,8 +231,6 @@ class PiperSubprocessManager:
         self._using_cuda = False
         self._sample_rate = 22050
         self._model_loaded = False
-        self._heartbeat_thread: threading.Thread | None = None
-        self._heartbeat_stop = threading.Event()
         self._last_heartbeat_ok = True
         self._heartbeat_interval = 30.0
         self._heartbeat_timeout = 5.0
@@ -256,6 +258,11 @@ class PiperSubprocessManager:
         """
         with self._lock:
             self._ensure_stopped()
+
+            # Store paths for restart
+            self._last_model_path = model_path
+            self._last_config_path = config_path
+            self._last_device = device
 
             # Write worker script to temp file
             with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as f:
@@ -385,7 +392,7 @@ class PiperSubprocessManager:
         self._heartbeat_stop.set()
         if self._heartbeat_thread and self._heartbeat_thread.is_alive():
             self._heartbeat_thread.join(timeout=5.0)
-            self._heartbeat_thread = None
+        self._heartbeat_thread = None
 
     def _heartbeat_loop(self) -> None:
         """Periodically ping subprocess and restart if unresponsive."""
@@ -581,6 +588,7 @@ class PiperSubprocessManager:
         # Reset internal state flags.
         self._model_loaded = False
         self._using_cuda = False
+        self._last_heartbeat_ok = True
 
 
 # ──────────────────────────────────────────────────────────────────────

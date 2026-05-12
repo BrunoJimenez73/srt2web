@@ -8,45 +8,38 @@ import asyncio
 
 import pytest
 
-from core.module_base import PipelineData
-from core.module_interface import BaseModule
+from core.module_base import BaseModule, PipelineData
 from core.schemas import ModuleState
 from core.unified_pipeline import UnifiedPipeline
 
 
 class IntegrationTestModule(BaseModule):
-    """Test module for integration testing."""
+    """Test module for integration testing using the production BaseModule."""
 
-    def __init__(self, name: str, delay: float = 0.01, fail_rate: float = 0.0):  # type: ignore
+    def __init__(self, name: str, delay: float = 0.01, fail_rate: float = 0.0):
         super().__init__(name)
         self.delay = delay
         self.fail_rate = fail_rate
         self.processed_chunks: list[int] = []
 
-    async def initialize(self) -> None:
-        self._set_state(ModuleState.INITIALIZING)
-        await asyncio.sleep(0.001)
-        self._set_state(ModuleState.READY)
+    def start(self) -> None:
+        self._state = ModuleState.RUNNING
 
-    async def process(self, data: PipelineData) -> PipelineData:
-        if self.fail_rate > 0 and len(self.processed_chunks) % int(1 / self.fail_rate) == 0:
-            raise ValueError(f"Simulated failure in {self.name}")
+    def stop(self) -> None:
+        self._state = ModuleState.IDLE
+        self.processed_chunks.clear()
 
-        self._start_processing()
-        await asyncio.sleep(self.delay)
+    def _do_process(self, data: PipelineData) -> PipelineData:
+        if self.fail_rate > 0 and len(self.processed_chunks) % max(1, int(1 / self.fail_rate)) == 0:
+            msg = f"Simulated failure in {self.name}"
+            raise ValueError(msg)
 
-        # Add processing marker
         if "modules" not in data.metadata:
             data.metadata["modules"] = []
         data.metadata["modules"].append(self.name)
 
         self.processed_chunks.append(data.chunk_index)
-        self._end_processing(self.delay)
         return data
-
-    async def shutdown(self) -> None:
-        self._set_state(ModuleState.IDLE)
-        self.processed_chunks.clear()
 
 
 class TestPipelineIntegration:
@@ -57,27 +50,21 @@ class TestPipelineIntegration:
         """Test pipeline processes data through multiple modules in order."""
         pipeline = UnifiedPipeline()
 
-        # Create modules
         module1 = IntegrationTestModule("module1", delay=0.01)
         module2 = IntegrationTestModule("module2", delay=0.01)
         module3 = IntegrationTestModule("module3", delay=0.01)
 
-        # Register in order
         pipeline.register_module(module1)
         pipeline.register_module(module2)
         pipeline.register_module(module3)
 
-        # Initialize
         await pipeline.initialize()
 
-        # Process data
         data = PipelineData(chunk_index=0)
         result = await pipeline._process_chunk(data)
 
-        # Verify order
         assert result.metadata["modules"] == ["module1", "module2", "module3"]
 
-        # Cleanup
         await pipeline.shutdown()
 
     @pytest.mark.asyncio
@@ -85,22 +72,17 @@ class TestPipelineIntegration:
         """Test pipeline can process multiple chunks concurrently."""
         pipeline = UnifiedPipeline(max_concurrent_chunks=3)
 
-        # Create slow module
         slow_module = IntegrationTestModule("slow", delay=0.05)
         pipeline.register_module(slow_module)
 
         await pipeline.initialize()
 
-        # Process multiple chunks concurrently
         chunks = [PipelineData(chunk_index=i) for i in range(5)]
         tasks = [pipeline._process_chunk(data) for data in chunks]
 
         results = await asyncio.gather(*tasks)
 
-        # All should complete
         assert len(results) == 5
-
-        # Module should have processed all
         assert len(slow_module.processed_chunks) == 5
 
         await pipeline.shutdown()
@@ -110,13 +92,11 @@ class TestPipelineIntegration:
         """Test pipeline handles module errors gracefully."""
         pipeline = UnifiedPipeline(retry_attempts=2, retry_delay=0.01)
 
-        # Create module that never fails (to test pipeline continues)
         reliable_module = IntegrationTestModule("reliable", delay=0.01)
         pipeline.register_module(reliable_module)
 
         await pipeline.initialize()
 
-        # Process multiple chunks - all should succeed
         success_count = 0
         for i in range(10):
             data = PipelineData(chunk_index=i)
@@ -126,7 +106,6 @@ class TestPipelineIntegration:
             except Exception:
                 pass
 
-        # All should succeed with reliable module
         assert success_count == 10
 
         await pipeline.shutdown()
@@ -141,12 +120,10 @@ class TestPipelineIntegration:
 
         await pipeline.initialize()
 
-        # Process known number of chunks
         for i in range(5):
             data = PipelineData(chunk_index=i)
             await pipeline._process_chunk(data)
 
-        # Check metrics
         metrics = pipeline.get_metrics()
         assert metrics["chunks_processed"] == 5
         assert metrics["chunks_failed"] == 0
@@ -162,18 +139,17 @@ class TestPipelineIntegration:
         module = IntegrationTestModule("test")
         pipeline.register_module(module)
 
-        # Initial state
         assert pipeline.state.value == "idle"
 
-        # After initialize
         await pipeline.initialize()
-        assert pipeline.state.value == "idle"  # Back to idle after init
+        assert pipeline.state.value == "idle"
 
-        # After start
-        await pipeline.start()
+        pipeline.start(
+            on_log=lambda level, msg: None,
+            on_state_change=lambda state: None,
+        )
         assert pipeline.is_running
 
-        # After stop
         await pipeline.stop()
         assert not pipeline.is_running
         assert pipeline.state.value == "idle"
@@ -181,48 +157,6 @@ class TestPipelineIntegration:
 
 class TestModuleInterfaceIntegration:
     """Integration tests for module interface."""
-
-    @pytest.mark.asyncio
-    async def test_module_lifecycle(self):
-        """Test module goes through complete lifecycle."""
-        module = IntegrationTestModule("lifecycle_test")
-
-        # Initial state
-        assert module.state == ModuleState.IDLE
-
-        # Initialize
-        await module.initialize()
-        assert module.state == ModuleState.READY
-
-        # Process
-        data = PipelineData(chunk_index=0)
-        result = await module.process(data)
-        assert module.state == ModuleState.READY
-        assert 0 in module.processed_chunks
-
-        # Shutdown
-        await module.shutdown()
-        assert module.state == ModuleState.IDLE
-
-    @pytest.mark.asyncio
-    async def test_module_error_handling(self):
-        """Test module handles errors correctly."""
-        module = IntegrationTestModule("error_test", delay=0.01)
-
-        await module.initialize()
-
-        # Normal processing
-        data = PipelineData(chunk_index=0)
-        result = await module.process(data)
-        assert module.state == ModuleState.READY
-
-        # Manually set error
-        module._set_error("Test error")
-        assert module.state == ModuleState.ERROR
-
-        # Reset should clear error
-        module.reset()
-        assert module.state == ModuleState.IDLE
 
     def test_module_status_tracking(self) -> None:
         """Test module tracks status correctly."""
@@ -232,6 +166,27 @@ class TestModuleInterfaceIntegration:
         assert status.name == "status_test"
         assert status.enabled is True
         assert status.processed_chunks == 0
+
+    def test_module_error_handling(self) -> None:
+        """Test module handles errors correctly."""
+        module = IntegrationTestModule("error_test", delay=0.01, fail_rate=1.0)
+
+        data = PipelineData(chunk_index=0)
+        with pytest.raises(ValueError, match="Simulated failure"):
+            module._do_process(data)
+
+    def test_reset_error_clears_state(self) -> None:
+        """Test reset_error clears error state."""
+        module = IntegrationTestModule("reset_test")
+
+        data = PipelineData(chunk_index=0)
+        result = module.process(data)
+        assert result is not None
+        module._state = ModuleState.ERROR
+        module._error_message = "test error"
+
+        module.reset_error()
+        assert module.state != ModuleState.ERROR
 
 
 class TestExceptionHierarchyIntegration:
@@ -244,15 +199,14 @@ class TestExceptionHierarchyIntegration:
         try:
             raise ValueError("Test")
         except Exception:
-            pass  # This should work
+            pass
 
-        # Test our exceptions
         try:
             from core.exceptions import ConfigError
 
             raise ConfigError("test")
         except SRT2WebError:
-            pass  # Should catch
+            pass
 
     def test_exception_context_preservation(self) -> None:
         """Test that exception context is preserved."""

@@ -24,6 +24,7 @@ import {
   PipelineState,
   normalizePipelineState,
   getModuleState,
+  ModuleState,
 } from "../types/state";
 import { startClockUpdates } from "../utils/clock";
 import { ENCODER_LABELS } from "../utils";

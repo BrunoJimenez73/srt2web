@@ -1,23 +1,26 @@
 # Sesión activa — 2026-05-12
 
-**Estado:** F17 DONE
+**Estado:** F22 DONE
 **Iniciada:** 2026-05-12
 
-## Siguiente feature: F22 (cleanup_dead_code) o F24 (mypy_strict_mode)
+## Siguiente feature: F24 (mypy_strict_mode)
 
 ### Resumen de la sesión
 
 - **Feature 17 (piper_heartbeat_and_graceful_degrade)**: COMPLETADA.
   - Piper heartbeat thread cada 30s con restart en 5s timeout
   - `is_critical` property en BaseModule (default True)
-  - `_degraded_count` y `_max_degraded_allowed` (3) tracking
-  - Módulos no críticos fallan → DEGRADED + pipeline continúa
-  - ModuleState.DEGRADED en backend y frontend
-  - Frontend: ModuleCard status-dot amber + pulse-degraded animation
-  - Test file `tests/unit/test_piper_heartbeat.py`: 14/14 passing
-- **Fixes**:
-  - `unified_pipeline.py:529`: indentación extra del `try:` — corregida
-  - `module_base.py`: agregado `is_critical` property, init `_degraded_count`/`_max_degraded_allowed`
-- **Suite completa (no slow)**: 971 passed, 3 skipped, 2 xfailed, 1 xpassed
-- **init.ps1 -Quick**: OK (verde)
+  - DEGRADED state en backend + frontend
+  - 14 tests passing
+- **Feature 22 (cleanup_dead_code_final)**: COMPLETADA.
+  - `core/module_interface.py` eliminado (deprecated, solo tests lo usaban)
+  - `tests/unit/test_module_interface.py` eliminado (testeaba interfaz deprecated)
+  - `tests/integration/test_pipeline_integration.py` reescrito para usar `module_base.BaseModule`
+  - `server/api_routes.py`: endpoints `/input-info`, `/input/control/*` movidos a `server/routes/pipeline.py`
+  - `frontend/src/pages/index_new.astro` eliminado (página huérfana)
+  - `drm_gemma_client.py` eliminado (script experimental)
+  - `mcp-python-refactoring/` eliminado (directorio vacío)
+- **Fixes**: 
+  - `piper_loader.py`: eliminados duplicados de `stop_heartbeat`/`start_heartbeat`/`_heartbeat_loop`/`_restart_subprocess` que causaban que Python usara la versión incorrecta
+- **Suite completa (no slow)**: 1146 passed, 62 skipped, 2 xfailed, 1 xpassed
 - **Errores remanentes**: 2 integration tests (pre-existing, `PipelineOrchestrator` import fail — unrelated)

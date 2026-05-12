@@ -9,6 +9,8 @@ import os
 
 from fastapi import APIRouter, HTTPException, Request
 
+from server.validators import SeekPosition
+
 logger = logging.getLogger("srt2web.api.pipeline")
 
 router = APIRouter(tags=["pipeline"])
@@ -219,3 +221,77 @@ async def restart_pipeline(request: Request):
         raise HTTPException(500, f"Failed to restart pipeline: {e}")
 
     return {"status": "restarted"}
+
+
+# ── Input/Output Info ───────────────────────────
+
+@router.get("/input-info")
+async def input_info(request: Request):
+    """Get input source connection information."""
+    ctx = _ctx(request)
+    input_source = ctx.get("input_source")
+
+    if not input_source:
+        raise HTTPException(404, "No input source configured")
+
+    return input_source.get_connection_info()
+
+
+# ── File Input Playback Controls ────────────────
+
+@router.post("/input/control/play")
+async def input_play(request: Request):
+    """Resume file playback (for file input type)."""
+    ctx = _ctx(request)
+    input_source = ctx.get("input_source")
+
+    if not input_source:
+        raise HTTPException(400, "No input source configured")
+
+    logger.info(f"[API] input/control/play called - input_source type: {type(input_source).__name__}")
+
+    if hasattr(input_source, "play"):
+        input_source.play()
+        logger.info("[API] input_source.play() executed successfully")
+        return {"status": "playing", "message": "Playback resumed"}
+    else:
+        raise HTTPException(400, "Input source does not support play control")
+
+
+@router.post("/input/control/pause")
+async def input_pause(request: Request):
+    """Pause file playback (for file input type)."""
+    ctx = _ctx(request)
+    input_source = ctx.get("input_source")
+
+    if not input_source:
+        raise HTTPException(400, "No input source configured")
+
+    logger.info(f"[API] input/control/pause called - input_source type: {type(input_source).__name__}")
+
+    if hasattr(input_source, "pause"):
+        input_source.pause()
+        logger.info("[API] input_source.pause() executed successfully")
+        return {"status": "paused", "message": "Playback paused"}
+    else:
+        raise HTTPException(400, "Input source does not support pause control")
+
+
+@router.post("/input/control/seek")
+async def input_seek(request: Request, body: SeekPosition):
+    """Seek to a specific position in the file (for file input type)."""
+    ctx = _ctx(request)
+    input_source = ctx.get("input_source")
+
+    if not input_source:
+        raise HTTPException(400, "No input source configured")
+
+    if hasattr(input_source, "seek"):
+        input_source.seek(body.position)
+        return {
+            "status": "seeked",
+            "position": body.position,
+            "message": f"Seeked to {body.position}s",
+        }
+    else:
+        raise HTTPException(400, "Input source does not support seek control")

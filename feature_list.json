@@ -318,7 +318,7 @@
       "id": 22,
       "name": "cleanup_dead_code_final",
       "title": "Limpieza final de código muerto y archivos obsoletos",
-      "status": "pending",
+      "status": "done",
       "area": "mantenibilidad",
       "description": "Quedan archivos marcados para limpieza posterior que nunca se eliminaron: core/module_interface.py (deprecated), index_new.astro (huérfano), endpoints inline en api_routes.py, y directorios experimentales en raíz.",
       "problems_identified": [
