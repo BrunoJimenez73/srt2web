@@ -238,7 +238,7 @@ export function initHlsPlayer(): void {
 
   function startSubtitlePolling() {
     loadSubtitles();
-    subtitleInterval = setInterval(loadSubtitles, 2000);
+    subtitleInterval = setInterval(loadSubtitles, 500);
   }
 
   function stopSubtitlePolling() {

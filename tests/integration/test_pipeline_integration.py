@@ -8,8 +8,9 @@ import asyncio
 
 import pytest
 
+from core.module_base import PipelineData
 from core.module_interface import BaseModule
-from core.schemas import ModuleState, PipelineData
+from core.schemas import ModuleState
 from core.unified_pipeline import UnifiedPipeline
 
 

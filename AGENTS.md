@@ -18,8 +18,9 @@
 | `modules/`            | Procesamiento (audio, TTS, transcripción) + I/O plugins | Para implementar       |
 | `server/`             | FastAPI, WebSocket, seguridad                           | Para implementar       |
 | `frontend/`           | Dashboard Astro + TypeScript + Tailwind                 | Para implementar       |
-| `tests/`              | 590 tests (pytest + vitest)                             | Para verificar         |
+| `tests/`              | Tests pytest + vitest                                   | Para verificar         |
 | `config.yaml`         | Configuración runtime del pipeline                      | Para entender defaults |
+| `docs/`               | MkDocs, ADRs, guías de arquitectura                     | Para contexto técnico  |
 
 ## 2. Antes de empezar
 
@@ -36,36 +37,48 @@
 - **Deja el repo limpio:** sin prints, TODOs sin contexto, ni archivos temporales.
 - **CHECKPOINTS.md completo** antes de cerrar sesión.
 - Si te bloqueas, documenta en `progress/current.md` con estado `blocked` y para.
+- **No toques `PARA BORRAR/`** — carpeta candidata a limpieza, ver F29.
 
 ## 4. Comandos útiles
 
 ```bash
 # Verificar entorno
-.\init.ps1              # Completo
-.\init.ps1 -Quick       # Solo checks obligatorios (salta frontend)
+.\init.ps1              # Completo (incluye tests lentos + frontend + tsc)
+.\init.ps1 -Quick       # Tests unitarios en paralelo, salta slow + frontend (~30s)
 
 # Tests
 python -m pytest tests/unit/ -v              # Unit tests
 python -m pytest tests/unit/test_X.py -v     # Test específico
 cd frontend && npm test                       # Frontend tests
+cd frontend && npm run test:coverage          # Cobertura frontend
+
+# Tipado
+python -m mypy core/ server/ --strict        # mypy estricto (F24)
+cd frontend && npx tsc --noEmit              # TypeScript check
 
 # Frontend
-cd frontend && npx tsc --noEmit              # TypeScript check
 cd frontend && npm run build:local           # Build + copiar a server/static/
 
 # Servidor
-.\start.bat                                   # Iniciar servidor (minimizado)
+.\Start.bat                                   # Iniciar servidor (minimizado)
+.\Stop.bat                                    # Parar solo procesos srt2web
+
+# Linting
+ruff check core/ modules/ server/ tests/     # Lint Python
+cd frontend && npm run lint                  # Lint TypeScript
 ```
 
 ## 5. Arquitectura rápida
 
 ```
-SRT/RTMP → AudioExtractor → Transcriber (Whisper) → Translator (Argos)
-                                                          ↓
+SRT/RTMP/File → AudioExtractor → Transcriber (Whisper) → Translator (Argos)
+                                                               ↓
 HLS ← CompositeOutput ← AudioMixer ← TTS (Piper) ← SubtitleGenerator
 ```
 
-**Pipeline** (`core/unified_pipeline.py`): 3 modos (sequential/thread_parallel/asyncio). Por defecto `thread_parallel` con 2 workers concurrentes.
+**Pipeline** (`core/unified_pipeline.py`): 3 modos (sequential/thread_parallel/asyncio).
+Por defecto `thread_parallel` con 2 workers concurrentes. Las estrategias viven en
+`core/pipeline/strategies.py` y se instancian vía `core/pipeline/factory.py`.
 
 **Módulos registrados** en `core/app_context.py`:
 
@@ -77,9 +90,11 @@ HLS ← CompositeOutput ← AudioMixer ← TTS (Piper) ← SubtitleGenerator
 - Inputs: SRT, RTMP, File
 - Outputs: HLS, RTMP, SRT, File, Recording, WebRTC (composite delegado)
 
-**Config**: Pydantic (`core/config_schema.py` → `SRT2WebConfig`). `ConfigManager` carga `config.yaml`, valida, permite get/set por dotted keys.
+**Config**: Pydantic (`core/config_schema.py` → `SRT2WebConfig`). `ConfigManager` carga `config.yaml`, valida, permite get/set por dotted keys. Los cambios se propagan via WebSocket (F21).
 
-**Seguridad**: AuthMiddleware (token query param), RateLimiter, SecurityHeaders. WebSocket con autenticación propia.
+**Estado reactivo frontend**: `@preact/signals-core` — señales en `lib/store/signals.ts`, efectos DOM en `lib/store/effects.ts`. No usar variables globales mutables fuera de signals.
+
+**Seguridad**: AuthMiddleware (token query param), RateLimiter, SecurityHeaders. WebSocket con autenticación propia. CORS es el middleware más externo.
 
 ## 6. Notas técnicas
 
@@ -93,9 +108,10 @@ HLS ← CompositeOutput ← AudioMixer ← TTS (Piper) ← SubtitleGenerator
 ### Piper TTS
 
 - `modules/piper_loader.py` usa subprocess persistente (evita bloqueo event loop)
-- Modelos en `models/piper/` (17 voces). Default: `en_US-ryan-low`
+- Modelos en `models/piper/` (17 voces). Default: `es_ES-sharvard-medium`
 - Voces ES: Sharvard, Davefx (ES), Claude (MX), Daniela (AR)
 - Timeout 90s para carga de modelo. `device: auto` → intenta CUDA, fallback CPU
+- **Heartbeat**: ver F17 — el subprocess necesita mecanismo de detección de bloqueo
 
 ### FFmpeg
 
@@ -105,31 +121,67 @@ HLS ← CompositeOutput ← AudioMixer ← TTS (Piper) ← SubtitleGenerator
 
 ### Frontend
 
-- Astro + TypeScript strict + Tailwind CSS. Build: `npm run build:local` → copiar a `server/static/`
-- WebSocket en `api.ts` con reconexión lineal. Auth token vía query param `?token=xxx`
+- Astro + TypeScript strict + Tailwind CSS v4. Build: `npm run build:local` → copiar a `server/static/`
+- WebSocket en `lib/store/signals.ts` + `lib/modules/pipeline-control.ts`
+- Reconexión con **exponential backoff + jitter** (F15) — no lineal
 - HLS player en `http://localhost:9999/player`
 - `ProcessGrid` = 8 cards: Input, Whisper, Translate, TTS, Subtitle, AudioMixer, HLS, Output
+- Tema único (dark) — soporte light/dark en F17
+- Logs: panel virtual con export JSON/TXT en F16
 
 ### Testing
 
 - `pytest` con `asyncio_mode = auto`. Fixtures function-scoped en `tests/conftest.py`
 - Markers: `unit`, `integration`, `e2e`, `slow`, `security`, `gpu`, `cpu`
-- Frontend: Vitest. 151 test blocks. `npm test` en `frontend/`
+- Tests marcados `@pytest.mark.slow`: solo `test_whisper_integration.py` y `test_tts_integration.py` (cargan modelos reales, ~30s+). Se excluyen automáticamente con `.\init.ps1 -Quick` y con `-m "not slow"`
+- Frontend: Vitest. `npm test` en `frontend/`. Cobertura: `npm run test:coverage`
+- Objetivo cobertura frontend: 80%+ (ver F25)
 
-## 7. Features pendientes
+### Convenciones de código nuevo
 
-Ver `feature_list.json` para lista completa. Actual: 8 features:
+- Python: type hints completos en funciones públicas, `typing.Protocol` para interfaces
+- TypeScript: sin `any`, preferir `unknown` + type guard
+- CSS: usar variables CSS del tema (`--bg-card`, `--text-prime`, etc.), no colores hardcoded
+- No `console.log` en producción — usar el logger configurable del módulo
 
-1. Arreglar gestión de dependencias
-2. Corregir bugs críticos del pipeline
-3. Arreglar Stop.bat y scripts
-4. Agregar tests para módulos sin cobertura
-5. Limpiar console.logs y race conditions frontend
-6. Estandarizar manejo de errores API
-7. Arreglar WebRTC y limpiar dead code
-8. Arreglar CI y config inconsistencies
+## 7. Estado de features
+
+Ver `feature_list.json` para lista completa y estados.
+
+**Features 1–14**: todas DONE (ciclo Abril–Mayo 2026).
+
+**Features 15–29**: plan de mejoras de rendimiento, estabilidad, arquitectura y UX
+generado en sesión Mayo 2026. Ver sección siguiente para resumen.
+
+### Resumen del plan de mejoras (F15–F29)
+
+| ID  | Área               | Nombre corto                            | Prioridad |
+| --- | ------------------ | --------------------------------------- | --------- |
+| F15 | Rendimiento        | WS resilience & adaptive polling        | Alta      |
+| F16 | UX / Rendimiento   | LogPanel virtual scroll & export        | Alta      |
+| F17 | Estabilidad        | Piper heartbeat & graceful degrade      | Alta      |
+| F18 | UX / Visualización | Metrics sparklines & latency meter      | Media     |
+| F19 | UX                 | Pipeline presets / profiles             | Media     |
+| F20 | Estabilidad        | Output health monitoring                | Alta      |
+| F21 | Arquitectura       | Config push via WebSocket               | Media     |
+| F22 | Mantenibilidad     | Cleanup dead code final                 | Media     |
+| F23 | Arquitectura       | API versioning & Pydantic responses     | Media     |
+| F24 | Mantenibilidad     | mypy strict mode core/ + server/        | Alta      |
+| F25 | Testing            | Frontend coverage 80%+                  | Media     |
+| F26 | UX / Diseño        | Mobile-responsive layout                | Baja      |
+| F27 | UX / Visualización | Dependencias del pipeline (diagrama)    | Baja      |
+| F28 | DevOps             | Docker optimization & health checks     | Media     |
+| F29 | Mantenibilidad     | Repo hygiene (PARA BORRAR, stale files) | Alta      |
+
+**Orden sugerido de implementación**: F29 → F22 → F24 → F15 → F17 → F20 → F16 → F21 → F23 → F25 → F18 → F19 → F26 → F28 → F27
 
 ## 8. Historial compacto (post-Abril 2026)
+
+### 12/05 — Plan de mejoras F15-F29
+
+- Análisis completo del repo: rendimiento, estabilidad, mantenibilidad, arquitectura, UX
+- Actualización de AGENTS.md y feature_list.json con 15 nuevas features
+- Orden de implementación priorizado por impacto/riesgo
 
 ### 27/04 — Documentación MkDocs
 
@@ -166,7 +218,7 @@ Ver `feature_list.json` para lista completa. Actual: 8 features:
 - Logging persistente con RotatingFileHandler (10MB, 3 backups)
 - cuDNN 9.x incompatible con ONNX Runtime GPU (issue #23519)
 
-### Commits recientes
+### Commits recientes relevantes
 
 ```
 d8888f4 perf: Replace FFmpeg atempo with Piper native length_scale
@@ -174,7 +226,4 @@ d154642 fix: Set HLS list_size to 2 (20s buffer)
 0604cab perf: Replace FFmpeg with numpy for audio mixing (~100x faster)
 1b2d72e fix: Re-add duration verification in audio_mixer for A/V sync
 18f57a8 fix: Fix pipeline data flow and add logging persistence
-89c9538 Fix GPU detection and pipeline processing issues
-85f96d9 feat: Change default TTS voice to es_ES-sharvard-medium
-99b9654 feat: Use nvidia-ml-py and add FFmpeg process pool
 ```

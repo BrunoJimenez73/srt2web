@@ -14,7 +14,7 @@ input:
     mode: listener
     latency_ms: 200
     caller_address: ''
-    chunk_duration_sec: 5
+    chunk_duration_sec: 15
   rtmp:
     listen_port: 1935
     app: live
@@ -88,7 +88,7 @@ output:
 pipeline:
   chunk_duration_sec: 15
   mode: sequential
-  max_concurrent_chunks: 2
+  max_concurrent_chunks: 4
   buffer_size: 10
   retry_attempts: 3
   retry_delay: 1.0
@@ -114,17 +114,17 @@ modules:
     enabled: true
     engine: piper
     device: cuda
-    voice: es_ES-davefx-medium
+    voice: es_ES-sharvard-medium
     speed: 1.2
   audio_mixer:
     enabled: true
-    original_volume: 0.6
+    original_volume: 0.8
     tts_volume: 1.0
     dubbed_volume: 1.0
   video_muxer:
     enabled: true
     engine: hls
-    hls_segment_duration: 5
+    hls_segment_duration: 10
     hls_list_size: 2
     audio_offset_ms: 0
     encoder_mode: auto

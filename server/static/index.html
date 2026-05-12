@@ -40,7 +40,7 @@
       rel="stylesheet"
     />
     <title>SRT2Web Dashboard</title>
-    <link rel="stylesheet" href="/_astro/OutputCard.Bt6aowCb.css" />
+    <link rel="stylesheet" href="/_astro/OutputCard.DUo70U7n.css" />
     <style>
       .process-grid[data-astro-cid-ctm66uln] {
         display: grid;
@@ -223,7 +223,7 @@
         </header>
         <script
           type="module"
-          src="/_astro/Header.astro_astro_type_script_index_0_lang.BjC8ovU1.js"
+          src="/_astro/Header.astro_astro_type_script_index_0_lang.C-24Q2uD.js"
         ></script>
         <div
           class="status-card"
@@ -993,7 +993,7 @@
           </form>
           <script
             type="module"
-            src="/_astro/InputCard.astro_astro_type_script_index_0_lang.BuCjyhqV.js"
+            src="/_astro/InputCard.astro_astro_type_script_index_0_lang.B6eTRCud.js"
           ></script>
           <div class="whisper-card" id="card-whisper" data-astro-cid-pirfe3ci>
             <div class="process-header" data-astro-cid-pirfe3ci>
@@ -2685,7 +2685,7 @@
           </div>
           <script
             type="module"
-            src="/_astro/OutputCard.astro_astro_type_script_index_0_lang.4wxHAgr_.js"
+            src="/_astro/OutputCard.astro_astro_type_script_index_0_lang.DLpGVqZv.js"
           ></script>
         </div>
         <div
@@ -2712,17 +2712,52 @@
                 >▶</span
               >
               <span class="log-title" data-astro-cid-eanzcxti>📋 Logs</span>
+              <span
+                class="log-count"
+                id="log-count"
+                data-astro-cid-eanzcxti
+              ></span>
             </div>
             <div class="log-actions" data-astro-cid-eanzcxti>
+              <select
+                class="log-level-select"
+                id="log-level-filter"
+                aria-label="Filtrar por nivel"
+                onclick="event.stopPropagation()"
+                data-astro-cid-eanzcxti
+              >
+                <option value="ALL" data-astro-cid-eanzcxti>Todos</option>
+                <option value="INFO" data-astro-cid-eanzcxti>INFO</option>
+                <option value="WARNING" data-astro-cid-eanzcxti>WARNING</option>
+                <option value="ERROR" data-astro-cid-eanzcxti>ERROR</option>
+              </select>
               <input
                 type="text"
                 class="log-search"
                 id="log-search"
-                placeholder="Filtrar..."
-                aria-label="Filtrar registros"
+                placeholder="Buscar..."
+                aria-label="Buscar en registros"
                 onclick="event.stopPropagation()"
                 data-astro-cid-eanzcxti
               />
+              <button
+                class="btn-export"
+                id="btn-export-json"
+                aria-label="Exportar JSON"
+                title="Exportar JSON"
+                data-astro-cid-eanzcxti
+              >
+                📥
+              </button>
+              <button
+                class="btn-export"
+                id="btn-export-txt"
+                aria-label="Exportar TXT"
+                title="Exportar TXT"
+                data-astro-cid-eanzcxti
+              >
+                📄
+              </button>
               <button
                 class="btn-clear"
                 id="btn-clear-logs"
@@ -2757,7 +2792,7 @@
         </div>
         <script
           type="module"
-          src="/_astro/LogPanel.astro_astro_type_script_index_0_lang.Cj2ogRLm.js"
+          src="/_astro/LogPanel.astro_astro_type_script_index_0_lang.BA7qC6pm.js"
         ></script>
       </div>
       <div
@@ -2772,7 +2807,7 @@
       ></script>
       <script
         type="module"
-        src="/_astro/index.astro_astro_type_script_index_0_lang.9r9sjtdi.js"
+        src="/_astro/index.astro_astro_type_script_index_0_lang.BJ9acpSA.js"
       ></script>
     </main>
     <!-- Footer with accessibility info -->

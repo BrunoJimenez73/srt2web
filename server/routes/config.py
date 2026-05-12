@@ -89,6 +89,7 @@ async def update_chunk_duration(request: Request, body: ChunkDurationRequest):
     config.set("input.srt.chunk_duration_sec", chunk_duration)
     config.set("modules.video_muxer.hls_segment_duration", chunk_duration)
     config.set("modules.hls_output.segment_duration", chunk_duration)
+    config.set("modules.subtitle_generator.chunk_duration", chunk_duration)
 
     logger.info(f"[CHUNK] Syncing chunk_duration={chunk_duration}s to all modules")
 
@@ -112,5 +113,6 @@ async def update_chunk_duration(request: Request, body: ChunkDurationRequest):
             "input.srt.chunk_duration_sec",
             "modules.video_muxer.hls_segment_duration",
             "modules.hls_output.segment_duration",
+            "modules.subtitle_generator.chunk_duration",
         ],
     }

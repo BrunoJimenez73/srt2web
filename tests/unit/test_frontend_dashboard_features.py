@@ -181,9 +181,9 @@ class TestGPUBadgeDisplay:
         """Test that GPU badge elements exist in component cards."""
         # Check in components that should have GPU badges
         components_to_check = [
-            ("WhisperCard.astro", "whisper-gpu-badge"),
-            ("TtsCard.astro", "tts-gpu-badge"),
-            ("HlsCard.astro", "hls-gpu-badge"),
+            ("WhisperCard.astro", "gpu-badge-transcriber"),
+            ("TtsCard.astro", "gpu-badge-tts"),
+            ("HlsCard.astro", "gpu-badge-video_muxer"),
         ]
 
         for component, badge_id in components_to_check:
@@ -410,12 +410,13 @@ class TestRefreshModuleStatus:
 
     def test_status_update_interval(self) -> None:
         """Test that status polling is set up."""
-        # Check effects.ts or dashboard.ts for interval
+        # Check pipeline-control.ts for polling interval (the actual source of status polling)
+        pipeline_control_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "pipeline-control.ts"
         effects_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "store" / "effects.ts"
         dashboard_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "dashboard.ts"
 
         found_interval = False
-        for path in [effects_path, dashboard_path]:
+        for path in [pipeline_control_path, effects_path, dashboard_path]:
             if path.exists():
                 content = path.read_text(encoding="utf-8")
                 if "setInterval" in content or "setTimeout" in content:

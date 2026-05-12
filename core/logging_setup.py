@@ -54,7 +54,6 @@ def get_filter_patterns() -> list[str]:
         "CUDA not available",
         "falling back to CPU",
         "using CPU for",
-        "Duration drift",
         "Heartbeat timeout",
         "[WS] Reconnecting",
         "No input video chunk",
@@ -63,7 +62,6 @@ def get_filter_patterns() -> list[str]:
         "Failed to process TTS audio",
         "connection lost",
         "attempting reconnect",
-        "Duration drift in subtitle timing",
         "srt_input",
         "rtmp_input",
         "SECURITY:",
@@ -164,8 +162,9 @@ def setup_logging(log_file: Optional[str] = None, log_broadcaster=None, log_leve
     filtered_file = FilteredFileHandler(file_handler)
     filtered_file.setLevel(log_level)
 
-    # Root logger
+    # Root logger — clear previous handlers to avoid duplicates on reinit
     root = logging.getLogger()
+    root.handlers.clear()
     root.setLevel(log_level)
     root.addHandler(console)
     root.addHandler(broadcast)

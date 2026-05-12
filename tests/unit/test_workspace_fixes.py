@@ -74,13 +74,14 @@ class TestAuthenticationTokenManagement:
         assert "localStorage.removeItem" in content
 
     def test_websocket_url_includes_token(self) -> None:
-        """Test that WebSocket URL includes token as query parameter."""
+        """Test that WebSocket auth is handled via message (not URL param)."""
         api_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "api.ts"
         content = api_path.read_text(encoding="utf-8")
 
-        # Check that getWebSocketUrl adds token
-        assert "?token=" in content or "token=" in content
-        assert "encodeURIComponent" in content
+        # Auth is sent as WebSocket message, not URL query param
+        assert "sendAuth" in content
+        assert 'type: "auth"' in content
+        assert "token" in content
 
     def test_auth_token_key_constant(self) -> None:
         """Test that auth token key is defined."""

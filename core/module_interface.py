@@ -1,14 +1,18 @@
 """
-Interfaz base para módulos del pipeline.
+Interfaz base para módulos del pipeline — REFERENCIA / DEPRECATED.
 
-Este módulo define la interfaz que todos los módulos del pipeline deben implementar,
-facilitando la consistencia, testabilidad y mantenibilidad.
+Este módulo define el Protocolo ``ProcessingModule`` y un ``BaseModule`` simplificado
+que SOLO es usado por tests (``test_module_interface.py``, ``test_pipeline_integration.py``).
+
+La implementación real de producción está en ``core.module_base``.
+Mantenido por compatibilidad con tests existentes; no agregar nuevos usos.
 """
 
 from abc import ABC, abstractmethod
 from typing import Optional, Protocol, runtime_checkable
 
-from core.schemas import ModuleState, ModuleStatus, PipelineData
+from core.module_base import PipelineData
+from core.schemas import ModuleState, ModuleStatus
 
 
 @runtime_checkable

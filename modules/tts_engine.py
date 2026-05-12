@@ -142,15 +142,15 @@ class TTSEngine(BaseModule):
         )
 
         elapsed = time.time() - start_time
-        logger.info(f"[PIPER_DEBUG] Persistent subprocess started after {elapsed:.1f}s")
+        logger.debug(f"[PIPER_DEBUG] Persistent subprocess started after {elapsed:.1f}s")
 
         if result["status"] != "success":
             error_msg = result.get("error", "Unknown error")
-            logger.error(f"[PIPER_DEBUG] Failed to start Piper subprocess: {error_msg}")
+            logger.error(f"Failed to start Piper subprocess: {error_msg}")
             raise RuntimeError(f"Failed to load Piper voice: {error_msg}")
 
         self._using_cuda = self._piper_manager.using_cuda
-        logger.info(
+        logger.debug(
             f"[PIPER_DEBUG] Piper ready: CUDA={self._using_cuda}, " f"sample_rate={self._piper_manager.sample_rate}"
         )
 
@@ -298,7 +298,7 @@ class TTSEngine(BaseModule):
 
         try:
             # Debug: print speed type and value
-            logger.error(f"[TTS DEBUG] speed type={type(self._speed)}, value={self._speed}")
+            logger.debug(f"[TTS] speed type={type(self._speed)}, value={self._speed}")
             logger.debug(
                 f"Synthesizing with Piper (CUDA={self._piper_manager.using_cuda}): "
                 f"'{text[:50]}...' ({len(text)} chars), speed={self._speed}"

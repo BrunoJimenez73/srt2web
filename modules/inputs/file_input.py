@@ -64,7 +64,13 @@ class FileInput(InputSource):
         self._file_path = config.get("path", self._file_path)
         self._loop = config.get("loop", self._loop)
         self._speed = config.get("speed", self._speed)
-        self._chunk_duration = config.get("chunk_duration_sec", self._chunk_duration)
+        new_chunk_duration = config.get("chunk_duration_sec", self._chunk_duration)
+        if new_chunk_duration != self._chunk_duration:
+            self.logger.info(
+                f"File chunk_duration changed: {self._chunk_duration}s → {new_chunk_duration}s, resetting cumulative"
+            )
+            self._cumulative_duration = 0.0
+        self._chunk_duration = new_chunk_duration
 
     def get_connection_info(self) -> dict:
         """Obtener información del archivo incluyendo duración y posición actual."""

@@ -1,223 +1,89 @@
 """
-Tests for WebSocket reconnection features:
-- Auto-reconnect with backoff
-- Max reconnect attempts
-- Ping interval
-- Manual close handling
+Tests for WebSocket reconnection features.
 """
 
+from pathlib import Path
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-import time
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 @pytest.mark.unit
 class TestWebSocketReconnect:
-    """Test WebSocket reconnection behavior."""
-    
-    def test_max_reconnects_increased(self) -> None:
-        """Test max reconnects is now 10 (increased from 5)."""
-        maxReconnects = 10
-        assert maxReconnects == 10
-        assert maxReconnects > 5
-    
-    def test_reconnect_delay_increased(self) -> None:
-        """Test reconnect delay is 3 seconds (increased from 2)."""
-        reconnectDelay = 3000
-        assert reconnectDelay == 3000
-    
-    def test_ping_interval(self) -> None:
-        """Test ping interval is 15 seconds."""
-        pingInterval = 15000
-        assert pingInterval == 15000
-    
-    def test_reconnect_backoff_calculation(self) -> None:
-        """Test exponential backoff calculation."""
-        maxReconnects = 10
-        reconnectDelay = 1000
-        maxDelay = 30000
-        
-        delays = []
-        for attempt in range(1, maxReconnects + 1):
-            delay = min(reconnectDelay * (2 ** (attempt - 1)), maxDelay)
-            delays.append(delay)
-        
-        assert delays[0] == 1000
-        assert delays[4] == 16000
-        assert delays[9] == 30000
-        assert max(delays) == 30000
-    
-    def test_manual_close_prevents_reconnect(self) -> None:
-        """Test manual close flag prevents unwanted reconnects."""
-        isManualClose = False
-        
-        isManualClose = True
-        assert isManualClose == True
-        assert isManualClose is False or True
-    
-    def test_reconnect_attempt_counting(self) -> None:
-        """Test reconnect attempts are counted."""
-        reconnectAttempts = 0
-        maxReconnects = 10
-        
-        while reconnectAttempts < maxReconnects:
-            reconnectAttempts += 1
-        
-        assert reconnectAttempts == maxReconnects
+    """Test WSClient reconnection config via content scraping."""
+
+    API_PATH = PROJECT_ROOT / "frontend" / "src" / "lib" / "api.ts"
+
+    def test_ws_client_has_max_reconnect_attempts(self):
+        """Test WSClient defines maxReconnectAttempts."""
+        content = self.API_PATH.read_text(encoding="utf-8")
+        assert "maxReconnectAttempts" in content
+        assert "5" in content
+
+    def test_ws_client_has_reconnect_delay(self):
+        """Test WSClient defines backoffBase (reconnect delay base)."""
+        content = self.API_PATH.read_text(encoding="utf-8")
+        assert "backoffBase" in content
+        assert "1000" in content
+
+    def test_ws_client_reconnect_attempts_increments(self):
+        """Test WSClient tracks reconnectAttempts."""
+        content = self.API_PATH.read_text(encoding="utf-8")
+        assert "reconnectAttempts" in content
+
+    def test_ws_client_can_prevent_reconnect_on_manual_close(self):
+        """Test WSClient has manual close mechanism."""
+        content = self.API_PATH.read_text(encoding="utf-8")
+        assert "_isManualClose" in content
 
 
 class TestWebSocketReconnectBehavior:
-    """Test WebSocket reconnection actual behavior."""
-    
-    def test_should_not_reconnect_if_manual_close(self) -> None:
-        """Test that reconnects are skipped if manual close."""
-        isManualClose = True
-        shouldReconnect = not isManualClose
-        
-        assert shouldReconnect == False
-    
-    def test_should_reconnect_if_not_manual_close(self) -> None:
-        """Test that reconnects happen if not manual close."""
-        isManualClose = False
-        shouldReconnect = not isManualClose
-        
-        assert shouldReconnect == True
-    
-    def test_reconnect_within_limit(self) -> None:
-        """Test reconnect happens when within limit."""
-        reconnectAttempts = 3
-        maxReconnects = 10
-        
-        shouldReconnect = reconnectAttempts < maxReconnects
-        
-        assert shouldReconnect == True
-    
-    def test_reconnect_exceeds_limit(self) -> None:
-        """Test reconnect is stopped when limit exceeded."""
-        reconnectAttempts = 10
-        maxReconnects = 10
-        
-        shouldReconnect = reconnectAttempts < maxReconnects
-        
-        assert shouldReconnect == False
+    """Test WSClient reconnect logic via content scraping."""
+
+    API_PATH = PROJECT_ROOT / "frontend" / "src" / "lib" / "api.ts"
+
+    def test_reconnect_logic_when_not_manual_close(self):
+        """Test WSClient attempts reconnect when not manual close."""
+        content = self.API_PATH.read_text(encoding="utf-8")
+        assert "this._isManualClose" in content
+        assert "attemptReconnect" in content
+
+    def test_reconnect_logic_when_manual_close(self):
+        """Test WSClient skips reconnect on manual close."""
+        content = self.API_PATH.read_text(encoding="utf-8")
+        assert "if (!this._isManualClose)" in content
 
 
 class TestWebSocketPing:
-    """Test WebSocket ping/pong mechanism."""
-    
-    def test_ping_interval_exists(self) -> None:
-        """Test ping interval is defined."""
-        pingInterval = 15000
-        assert pingInterval > 0
-    
-    def test_ping_sent_while_connected(self) -> None:
-        """Test ping is only sent while connected."""
-        isConnected = True
-        shouldSendPing = isConnected
-        
-        assert shouldSendPing == True
-    
-    def test_no_ping_when_disconnected(self) -> None:
-        """Test ping is not sent when disconnected."""
-        isConnected = False
-        shouldSendPing = isConnected
-        
-        assert shouldSendPing == False
+    """Test WSClient state checks via content scraping."""
 
+    API_PATH = PROJECT_ROOT / "frontend" / "src" / "lib" / "api.ts"
 
-class TestWebSocketLogging:
-    """Test WebSocket logging for reconnects."""
-    
-    def test_reconnect_log_message(self) -> None:
-        """Test reconnect attempt is logged."""
-        attempt = 3
-        maxAttempts = 10
-        delay = 3
-        
-        logMessage = f"Reconnect intento {attempt}/{maxAttempts} en {delay}s..."
-        
-        assert "3" in logMessage
-        assert "10" in logMessage
-        assert "3s" in logMessage
-    
-    def test_max_reconnect_log_message(self) -> None:
-        """Test max reconnect reached is logged."""
-        logMessage = "Max reconnect intentos alcanzados. Recarga la página manualmente."
-        
-        assert "Max" in logMessage
-        assert "manualmente" in logMessage
+    def test_ws_client_has_connected_state_check(self):
+        """Test WSClient defines isConnected method."""
+        content = self.API_PATH.read_text(encoding="utf-8")
+        assert "isConnected" in content
 
 
 class TestWebSocketMessageHandling:
-    """Test WebSocket message types."""
-    
-    def test_json_parsing(self) -> None:
-        """Test JSON messages are parsed correctly."""
-        import json
-        messages = [
-            '{"type": "log", "level": "info", "message": "test"}',
-            '{"type": "status", "status": {"state": "running"}}',
-        ]
-        
-        for msg in messages:
-            data = json.loads(msg)
-            assert 'type' in data
-    
-    def test_ping_message(self) -> None:
-        """Test ping message is sent."""
-        import json
-        pingMsg = json.dumps({"type": "ping"})
-        
-        data = json.loads(pingMsg)
-        assert data['type'] == 'ping'
-    
-    def test_log_message(self) -> None:
-        """Test log message is handled."""
-        import json
-        logMsg = json.dumps({
-            'type': 'log',
-            'level': 'info',
-            'message': 'WebSocket conectado'
-        })
-        
-        data = json.loads(logMsg)
-        assert data['type'] == 'log'
-        assert data['level'] == 'info'
-    
-    def test_status_message(self) -> None:
-        """Test status message is handled."""
-        import json
-        statusMsg = json.dumps({
-            'type': 'status',
-            'status': {'state': 'running', 'chunks_processed': 10}
-        })
-        
-        data = json.loads(statusMsg)
-        assert data['type'] == 'status'
-        assert 'status' in data
+    """Test WebSocket message parsing."""
 
+    def test_log_message_parsing(self):
+        """Test log message is parsed correctly."""
+        import json
 
-class TestWebSocketErrorHandling:
-    """Test WebSocket error handling."""
-    
-    def test_onerror_logs_error(self) -> None:
-        """Test onerror callback logs the error."""
-        onerror = Mock()
-        
-        onerror("Connection error")
-        
-        onerror.assert_called_once_with("Connection error")
-    
-    def test_onclose_triggers_reconnect(self) -> None:
-        """Test onclose triggers reconnect attempt."""
-        isManualClose = False
-        shouldReconnect = not isManualClose
-        
-        assert shouldReconnect == True
-    
-    def test_onclose_doesnt_trigger_if_manual(self) -> None:
-        """Test onclose doesn't trigger reconnect if manual close."""
-        isManualClose = True
-        shouldReconnect = not isManualClose
-        
-        assert shouldReconnect == False
+        log_msg = json.dumps({"type": "log", "level": "info", "message": "Test message"})
+        data = json.loads(log_msg)
+        assert data["type"] == "log"
+        assert data["level"] == "info"
+
+    def test_status_message_parsing(self):
+        """Test status message is parsed correctly."""
+        import json
+
+        status_msg = json.dumps({"type": "status", "status": {"state": "running", "chunks_processed": 10}})
+        data = json.loads(status_msg)
+        assert data["type"] == "status"
+        assert "status" in data
+        assert data["status"]["state"] == "running"

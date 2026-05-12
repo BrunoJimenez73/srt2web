@@ -1,0 +1,86 @@
+import { j as v, i as f } from "./store.BQ17F1K4.js";
+let m = null,
+  o = null,
+  r = null,
+  s = null,
+  i = null,
+  p = null,
+  c = null,
+  d = null,
+  l = null,
+  u = null,
+  a = null;
+function B() {
+  (m = document.getElementById("input-type")),
+    (o = document.getElementById("input-srt-settings")),
+    (r = document.getElementById("input-rtmp-settings")),
+    (s = document.getElementById("input-file-settings")),
+    (i = document.getElementById("input-rtmp-url")),
+    (p = document.getElementById("input-rtmp-port")),
+    (c = document.getElementById("input-rtmp-app")),
+    (d = document.getElementById("input-rtmp-key")),
+    (l = document.getElementById("btn-copy-rtmp")),
+    (u = document.getElementById("input-file-select")),
+    (a = document.getElementById("btn-file-select")),
+    document.getElementById("input-file-chunk"),
+    document.getElementById("input-rtmp-chunk"),
+    h(),
+    I(f.value);
+}
+function h() {
+  m &&
+    m.addEventListener("change", (e) => {
+      const n = e.target.value;
+      f.value = n;
+    });
+  function t() {
+    y();
+  }
+  [p, c, d].forEach((e) => {
+    e?.addEventListener("input", t), e?.addEventListener("change", t);
+  }),
+    l &&
+      l.addEventListener("click", () => {
+        i?.value &&
+          navigator.clipboard &&
+          navigator.clipboard.writeText(i.value).then(() => {
+            (l.textContent = "✓"),
+              setTimeout(() => (l.textContent = "📋"), 1e3);
+          });
+      }),
+    a &&
+      u &&
+      (a.addEventListener("click", () => u?.click()),
+      u.addEventListener("change", (e) => {
+        const n = e.target;
+        if (n.files && n.files.length > 0) {
+          const E = n.value || n.files[0].name,
+            g = document.getElementById("input-file-path");
+          g && (g.value = E);
+        }
+      }));
+}
+v(() => {
+  const t = f.value;
+  I(t);
+});
+function I(t) {
+  o && (o.style.display = t === "srt" ? "flex" : "none"),
+    r && (r.style.display = t === "rtmp" ? "flex" : "none"),
+    s && (s.style.display = t === "file" ? "flex" : "none");
+  const e = document.getElementById("input-process-title"),
+    n = {
+      srt: "📥 INPUT (SRT)",
+      rtmp: "📥 INPUT (RTMP)",
+      file: "📥 INPUT (Archivo)",
+    };
+  e && (e.textContent = n[t] || "📥 INPUT"), t === "rtmp" && y();
+}
+function y() {
+  if (!i || !p || !c || !d) return;
+  const t = p.value || "1935",
+    e = c.value || "live",
+    n = d.value || "stream";
+  i.value = `rtmp://127.0.0.1:${t}/${e}/${n}`;
+}
+document.addEventListener("DOMContentLoaded", B);

@@ -79,7 +79,13 @@ class SRTInput(InputSource):
         self._srt_mode = config.get("mode", self._srt_mode)
         self._srt_latency_ms = config.get("latency_ms", self._srt_latency_ms)
         self._srt_caller_address = config.get("caller_address", self._srt_caller_address)
-        self._chunk_duration = config.get("chunk_duration_sec", self._chunk_duration)
+        new_chunk_duration = config.get("chunk_duration_sec", self._chunk_duration)
+        if new_chunk_duration != self._chunk_duration:
+            self.logger.info(
+                f"SRT chunk_duration changed: {self._chunk_duration}s → {new_chunk_duration}s, resetting cumulative"
+            )
+            self._cumulative_duration = 0.0
+        self._chunk_duration = new_chunk_duration
 
         # Watchdog config
         self._watchdog_enabled = config.get("watchdog_enabled", self._watchdog_enabled)

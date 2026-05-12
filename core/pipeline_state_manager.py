@@ -13,32 +13,12 @@ import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Any, Optional
 
 logger = logging.getLogger("srt2web.pipeline.state_manager")
 
 
-class PipelineState(str, Enum):
-    """Estados posibles del pipeline."""
-
-    IDLE = "idle"
-    STARTING = "starting"
-    RUNNING = "running"
-    STOPPING = "stopping"
-    ERROR = "error"
-
-
-class ModuleState(str, Enum):
-    """Estados posibles de un modulo."""
-
-    IDLE = "idle"
-    STARTING = "starting"
-    RUNNING = "running"
-    STOPPING = "stopping"
-    ERROR = "error"
-    DISABLED = "disabled"
-    DEGRADED = "degraded"
+from core.schemas import ModuleState, PipelineState
 
 
 @dataclass

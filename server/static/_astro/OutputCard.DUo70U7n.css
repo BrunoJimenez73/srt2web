@@ -3413,7 +3413,7 @@ input:checked + .toggle-slider:before {
   color: #fff;
   padding: 4px 8px;
   font-size: 12px;
-  width: 120px;
+  width: 100px;
   outline: none;
   transition: border-color 0.2s;
 }
@@ -3425,6 +3425,41 @@ input:checked + .toggle-slider:before {
 }
 .log-search[data-astro-cid-eanzcxti]::placeholder {
   color: #ffffff80;
+}
+.log-level-select[data-astro-cid-eanzcxti] {
+  background: #ffffff1a;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #fff;
+  padding: 4px 6px;
+  font-size: 11px;
+  outline: none;
+  cursor: pointer;
+}
+.log-level-select[data-astro-cid-eanzcxti]:focus {
+  border-color: #3b82f6;
+}
+.log-level-select[data-astro-cid-eanzcxti] option[data-astro-cid-eanzcxti] {
+  background: #1e293b;
+  color: #fff;
+}
+.btn-export[data-astro-cid-eanzcxti] {
+  background: #ffffff1a;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #fff;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-export[data-astro-cid-eanzcxti]:hover {
+  background: #fff3;
+}
+.log-count[data-astro-cid-eanzcxti] {
+  font-size: 11px;
+  color: #fff9;
+  margin-left: 8px;
 }
 .log-entry[data-astro-cid-eanzcxti] {
   padding: 2px 8px;

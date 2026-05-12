@@ -9,6 +9,7 @@ import asyncio
 import pytest
 
 from core.exceptions import PipelineStateError
+from core.module_base import PipelineData
 
 # Import the updated AsyncPipeline implementation and the correct schema definitions.
 # The original test expected a module `core.async_pipeline_v2` and types from `core.types`,
@@ -16,7 +17,7 @@ from core.exceptions import PipelineStateError
 # and the data models in `core.schemas`. We alias the imported class to keep the test
 # name `AsyncPipelineV2` unchanged while using the new implementation.
 from core.pipeline.async_pipeline import AsyncPipelineV2
-from core.schemas import ModuleState, PipelineData, PipelineState
+from core.schemas import ModuleState, PipelineState
 
 
 class MockAsyncModule:

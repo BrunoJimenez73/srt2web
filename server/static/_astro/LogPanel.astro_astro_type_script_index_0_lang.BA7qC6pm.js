@@ -1,4 +1,4 @@
-import { i as d } from "./logpanel.DNPZhc8P.js";
+import { i as d } from "./logpanel.DVarbH4P.js";
 let a = "";
 function c(t) {
   (a = t.toLowerCase()),

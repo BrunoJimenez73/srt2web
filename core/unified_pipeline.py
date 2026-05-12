@@ -24,7 +24,6 @@ import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Any, Optional, Union
 
 import psutil
@@ -62,22 +61,8 @@ class _CompletedAwaitable:
         return None
 
 
-class PipelineMode(str, Enum):
-    """Modos de operación del pipeline."""
-
-    SEQUENTIAL = "sequential"  # Secuencial, un chunk a la vez
-    THREAD_PARALLEL = "thread_parallel"  # Paralelo con threads
-    ASYNCIO = "asyncio"  # Paralelo con asyncio nativo
-
-
-class PipelineState(str, Enum):
-    """Estados posibles del pipeline."""
-
-    IDLE = "idle"
-    STARTING = "starting"
-    RUNNING = "running"
-    STOPPING = "stopping"
-    ERROR = "error"
+from core.schemas import PipelineMode as PipelineMode
+from core.schemas import PipelineState as PipelineState
 
 
 @dataclass
@@ -288,7 +273,7 @@ class UnifiedPipeline:
             try:
                 self._on_log(level, message)
             except Exception:
-                pass
+                logger.exception("Log callback failed")
 
     def process_with_strategy(self, data: PipelineData) -> PipelineData:
         """
@@ -460,8 +445,15 @@ class UnifiedPipeline:
                         continue
                     try:
                         data = module.process(data)
+                        if module.state.value == "degraded" and not getattr(module, "is_critical", True):
+                            self._log("warning", f"Non-critical module {module.name} degraded, continuing pipeline")
                     except Exception as e:
                         self._log("error", f"Module {module.name} error: {e}")
+                        if not getattr(module, "is_critical", True):
+                            self._log(
+                                "warning", f"Non-critical module {module.name} failed, continuing in degraded mode"
+                            )
+                            continue
                         break
 
                 # Escribir salida
@@ -544,9 +536,16 @@ class UnifiedPipeline:
                             module_start = time.perf_counter()
                             data = module.process(data)
                             processor.stages_completed[module.name] = (time.perf_counter() - module_start) * 1000
+                            if module.state.value == "degraded" and not getattr(module, "is_critical", True):
+                                self._log("warning", f"Non-critical module {module.name} degraded, continuing pipeline")
                         except Exception as e:
                             self._log("error", f"Module {module.name} error: {e}")
                             processor.error = str(e)
+                            if not getattr(module, "is_critical", True):
+                                self._log(
+                                    "warning", f"Non-critical module {module.name} failed, continuing in degraded mode"
+                                )
+                                continue
                             break
 
                     processor.data = data
@@ -686,10 +685,18 @@ class UnifiedPipeline:
                     continue
 
                 # Soporte para módulos sync y async
-                if asyncio.iscoroutinefunction(module.process):
-                    data = await module.process(data)
-                else:
-                    data = module.process(data)
+                try:
+                    if asyncio.iscoroutinefunction(module.process):
+                        data = await module.process(data)
+                    else:
+                        data = module.process(data)
+                    if module.state.value == "degraded" and not getattr(module, "is_critical", True):
+                        self._log("warning", f"Non-critical module {module.name} degraded, continuing pipeline")
+                except Exception as e:
+                    if not getattr(module, "is_critical", True):
+                        self._log("warning", f"Non-critical module {module.name} failed, continuing in degraded mode")
+                        continue
+                    raise
 
             # Enviar a output
             if self._output_sink and data:
@@ -805,7 +812,7 @@ class UnifiedPipeline:
         try:
             process_memory_mb = round(psutil.Process().memory_info().rss / 1024 / 1024, 1)
         except Exception:
-            pass
+            logger.warning("Failed to read process memory")
 
         modules_status = []
         for module in self._modules:
@@ -816,7 +823,8 @@ class UnifiedPipeline:
                 if isinstance(status_dict, dict) and process_memory_mb is not None:
                     status_dict["memory_mb"] = process_memory_mb
                 modules_status.append(status_dict)
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Failed to get status for module {module.name}: {e}")
                 modules_status.append(
                     {
                         "name": module.name,
@@ -837,7 +845,7 @@ class UnifiedPipeline:
                 if muxer_status:
                     modules_status.append(muxer_status)
         except Exception:
-            pass
+            logger.warning("Failed to get output module status")
 
         # Agregar status del input source al inicio de la lista
         try:
@@ -853,7 +861,7 @@ class UnifiedPipeline:
                             status_dict["name"] = "input"
                         modules_status.insert(0, status_dict)
         except Exception:
-            pass
+            logger.warning("Failed to get input source status")
 
         # Métricas del pipeline
         avg_time = self._pipeline_metrics.avg_processing_time
@@ -961,7 +969,7 @@ class UnifiedPipeline:
                             "memory_mb": None,
                         }
             except Exception:
-                pass
+                logger.warning("Failed to get video muxer status")
 
         output_status = {
             "name": "output",

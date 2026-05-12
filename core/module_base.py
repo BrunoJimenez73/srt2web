@@ -13,8 +13,8 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-
 from typing import Any  # Keep for Callable return type
+
 import numpy as np
 
 from core.schemas import ModuleState, ModuleStatus
@@ -379,13 +379,18 @@ class BaseModule(ABC):
         config: dict | None = None,
         circuit_breaker: CircuitBreaker | None = None,
         retry_strategy: RetryStrategy | None = None,
+        is_critical: bool = True,
     ) -> None:
         self.name = name
         self.enabled = True
+        self._is_critical = is_critical
+        self._degraded_count = 0
+        self._max_degraded_allowed = 3
         self._state = ModuleState.IDLE
         self._error_message: str | None = None
         self._processed_chunks = 0
         self._last_process_time_ms = 0.0
+        self._consecutive_failures = 0
         self.logger = logging.getLogger(f"srt2web.module.{name}")
 
         self._circuit_breaker = circuit_breaker or CircuitBreaker(
@@ -403,6 +408,10 @@ class BaseModule(ABC):
     @property
     def state(self) -> ModuleState:
         return self._state
+
+    @property
+    def is_critical(self) -> bool:
+        return self._is_critical
 
     @property
     def circuit_state(self) -> CircuitState:
@@ -454,6 +463,11 @@ class BaseModule(ABC):
         """
         pass
 
+    def mark_degraded(self) -> None:
+        """Mark this module as degraded (non-critical failure threshold reached)."""
+        self._state = ModuleState.DEGRADED
+        self.logger.warning(f"Module {self.name} marked as degraded")
+
     def _degraded_process(self, data: PipelineData) -> PipelineData:
         """
         Graceful degradation when module fails.
@@ -461,8 +475,14 @@ class BaseModule(ABC):
         Override in subclasses to provide degraded but functional behavior.
         Default: return data unchanged (skip this module's processing).
         """
-        self.logger.warning(f"Module {self.name} in degraded mode, skipping processing for chunk {data.chunk_index}")
+        self._degraded_count += 1
         self._state = ModuleState.DEGRADED
+        remaining = self._max_degraded_allowed - self._degraded_count
+        self.logger.warning(
+            f"Module {self.name} in degraded mode, skipping chunk {data.chunk_index} "
+            f"(degraded_count={self._degraded_count}, max_allowed={self._max_degraded_allowed}, "
+            f"remaining={remaining}, is_critical={self.is_critical})"
+        )
         return data
 
     def process(self, data: PipelineData) -> PipelineData:
@@ -505,6 +525,10 @@ class BaseModule(ABC):
                 if self._state == ModuleState.DEGRADED:
                     self._state = ModuleState.RUNNING
 
+                # Reset consecutive failures on success
+                if self._consecutive_failures > 0:
+                    self._consecutive_failures = 0
+
                 self.logger.debug(f"Processed chunk {data.chunk_index} in {elapsed:.1f}ms")
 
                 self._check_memory()
@@ -515,11 +539,12 @@ class BaseModule(ABC):
                 last_error = e
                 self._circuit_breaker.record_failure()
 
-                # Print full traceback for debugging
-                import traceback
+                is_last = attempt >= self._retry_strategy.max_retries
+                if is_last:
+                    import traceback
 
-                tb_lines = traceback.format_exception(type(e), e, e.__traceback__)
-                self.logger.error(f"Full traceback for {self.name}: {''.join(tb_lines)}")
+                    tb_lines = traceback.format_exception(type(e), e, e.__traceback__)
+                    self.logger.error(f"Full traceback for {self.name}: {''.join(tb_lines)}")
 
                 if attempt < self._retry_strategy.max_retries:
                     delay = self._retry_strategy.get_delay(attempt)
@@ -535,6 +560,14 @@ class BaseModule(ABC):
         self._last_process_time_ms = elapsed
         self._state = ModuleState.ERROR
         self._error_message = str(last_error)
+
+        # Track consecutive failures for non-critical modules
+        self._consecutive_failures += 1
+
+        # If non-critical module fails 3 times consecutively, mark as degraded
+        if not self._is_critical and self._consecutive_failures >= 3:
+            self.mark_degraded()
+            self.logger.warning(f"Module {self.name} degraded after {self._consecutive_failures} failures")
 
         return self._degraded_process(data)
 

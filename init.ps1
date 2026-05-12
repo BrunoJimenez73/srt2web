@@ -34,12 +34,13 @@ try {
 } catch { Fail "feature_list.json inválido: $_" }
 
 Write-Host "`n── 4. Tests Python (obligatorio) ──────────────────" -ForegroundColor Cyan
+$pytestArgs = @("-q", "--tb=short")
 if ($Quick) {
-    Warn "Modo quick: saltando tests"
-} else {
-    $testResult = & $VENV_PYTHON -m pytest tests/unit/ -q --tb=short 2>&1
-    if ($LASTEXITCODE -eq 0) { Ok "Tests Python: todos pasan" } else { Fail "Tests Python fallan"; Write-Host $testResult -ForegroundColor $RED }
+    $pytestArgs += @("-m", "not slow", "-n", "auto")
+    Warn "Modo quick: saltando tests marcados como slow (Whisper/TTS reales)"
 }
+$testResult = & $VENV_PYTHON -m pytest tests/unit/ @pytestArgs 2>&1
+if ($LASTEXITCODE -eq 0) { Ok "Tests Python: todos pasan" } else { Fail "Tests Python fallan"; Write-Host $testResult -ForegroundColor $RED }
 
 if (-not $Quick) {
     Write-Host "`n── 5. TypeScript (informativo) ─────────────────────" -ForegroundColor Cyan

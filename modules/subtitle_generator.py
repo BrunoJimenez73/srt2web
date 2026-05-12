@@ -47,13 +47,25 @@ class SubtitleGenerator(BaseModule):
 
         self._history = []
         self._max_history = 10
+        self._previous_chunk_duration = 4
         super().__init__("subtitle_generator", config)
 
     def configure(self, config: dict) -> None:
         super().configure(config)
         self._use_translated = config.get("use_translated", self._use_translated)
         self._format = config.get("format", self._format)
-        self._chunk_duration = config.get("chunk_duration", 4)
+        new_chunk_duration = config.get("chunk_duration", self._chunk_duration)
+        if new_chunk_duration != self._previous_chunk_duration and hasattr(self, "_vtt_entries"):
+            logger.info(
+                f"[SubtitleGen] chunk_duration changed: {self._previous_chunk_duration}s → {new_chunk_duration}s"
+            )
+            self._last_chunk_index = -1
+            self._last_cumulative = 0.0
+            with self._lock:
+                self._vtt_entries.clear()
+            self._rewrite_vtt_file()
+        self._chunk_duration = new_chunk_duration
+        self._previous_chunk_duration = new_chunk_duration
         # Rolling window settings
         self._max_vtt_entries = config.get("max_vtt_entries", 200)
         self._vtt_max_age_seconds = config.get("vtt_max_age_seconds", 300.0)
@@ -149,10 +161,20 @@ class SubtitleGenerator(BaseModule):
             data.subtitles_path = self._vtt_path
             return data
 
-        # Get actual duration from data (measured by AudioMixer)
-        duration = getattr(data, "duration", None) or self._chunk_duration
-        if not duration or duration <= 0:
-            duration = 4.0
+        # Use canonical chunk_duration as primary. data.duration may differ if
+        # a module (e.g. AudioMixer) overrides it; warn when drift exceeds 10%.
+        data_duration = getattr(data, "duration", None)
+        duration = self._chunk_duration
+        if data_duration and data_duration > 0:
+            ratio = abs(data_duration - self._chunk_duration) / self._chunk_duration
+            if ratio < 0.10:
+                duration = data_duration
+            else:
+                logger.warning(
+                    f"[SubtitleGen] Duration drift: data.duration={data_duration:.3f}s "
+                    f"vs chunk_duration={self._chunk_duration:.3f}s (ratio={ratio:.2f}), "
+                    f"using chunk_duration"
+                )
 
         # CRITICAL FIX: Use cumulative_duration from PipelineData for sync
         # This comes from InputSource and is validated there

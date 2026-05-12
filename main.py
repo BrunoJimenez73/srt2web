@@ -16,8 +16,8 @@ from core.config_manager import ConfigManager
 from core.cuda_paths import setup_cuda_environment
 from core.logging_setup import setup_logging
 from server.app import create_app
-from server.ws_routes import log_broadcaster
 from server.lifespan import graceful_shutdown, open_browser_on_startup, run_server
+from server.ws_routes import log_broadcaster
 
 # Setup CUDA paths - must be called before any GPU-related imports
 setup_cuda_environment()
@@ -34,11 +34,9 @@ def main() -> None:
 
     # Load configuration
     config_manager = ConfigManager(get_config_path())
-    config = config_manager._config
-
-    host = config.get("server", {}).get("host", SERVER_HOST)
-    port = config.get("server", {}).get("port", SERVER_PORT_DEFAULT)
-    ssl_config = config.get("server", {}).get("ssl", {})
+    host = config_manager.get("server.host", SERVER_HOST)
+    port = config_manager.get("server.port", SERVER_PORT_DEFAULT)
+    ssl_config = config_manager.get("server.ssl", {})
 
     # Build application context (pipeline + modules + I/O)
     output_dir = str(PROJECT_ROOT / "output")

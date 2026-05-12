@@ -26,10 +26,12 @@ help: ## Show this help message
 
 # ── Setup ─────────────────────────────────────────────────────────────────────────
 
+VENV_PY := $(if $(filter Windows_NT,$(OS)),venv\Scripts\python,venv/bin/python)
+
 setup: ## Install all dependencies (Python + frontend)
 	@echo "$(CYAN)Setting up SRT2Web...$(RESET)"
 	python -m venv venv
-	venv\Scripts\python.exe -m pip install -r requirements.txt
+	$(VENV_PY) -m pip install -r requirements.txt
 	cd frontend && npm install
 	@echo "$(GREEN)✓ Setup complete!$(RESET)"
 
@@ -100,14 +102,14 @@ ci: lint type-check test build ## Run full CI pipeline locally
 clean: ## Clean temporary files and builds
 	@echo "$(CYAN)Cleaning...$(RESET)"
 	python -m pytest --cache-clear
-	find . -type d -name __pycache__ -exec rm -rf {} +
-	find . -type d -name "*.egg-info" -exec rm -rf {} +
-	find . -type d -name .pytest_cache -exec rm -rf {} +
-	find . -type d -name dist -exec rm -rf {} +
-	find . -type d -name node_modules -exec rm -rf {} +
-	find . -type f -name "*.pyc" -delete
-	find . -type f -name "*.pyo" -delete
-	find . -type f -name "*.egg" -delete
+	python -c "import shutil, pathlib; [shutil.rmtree(p, ignore_errors=True) for p in pathlib.Path('.').rglob('__pycache__')]"
+	python -c "import shutil, pathlib; [shutil.rmtree(p, ignore_errors=True) for p in pathlib.Path('.').rglob('*.egg-info')]"
+	python -c "import shutil, pathlib; [shutil.rmtree(p, ignore_errors=True) for p in pathlib.Path('.').rglob('.pytest_cache')]"
+	python -c "import shutil, pathlib; [shutil.rmtree(p, ignore_errors=True) for p in pathlib.Path('.').rglob('dist')]"
+	python -c "import shutil, pathlib; [shutil.rmtree(p, ignore_errors=True) for p in pathlib.Path('.').rglob('node_modules')]"
+	python -c "import pathlib; [p.unlink(missing_ok=True) for p in pathlib.Path('.').rglob('*.pyc')]"
+	python -c "import pathlib; [p.unlink(missing_ok=True) for p in pathlib.Path('.').rglob('*.pyo')]"
+	python -c "import pathlib; [p.unlink(missing_ok=True) for p in pathlib.Path('.').rglob('*.egg')]"
 	cd frontend && npm run clean 2>/dev/null || true
 	@echo "$(GREEN)✓ Clean complete!$(RESET)"
 

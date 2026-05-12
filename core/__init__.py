@@ -74,7 +74,9 @@ from core.logging_setup import (
     get_logger,
     setup_logging,
 )
-from core.module_base import BaseModule
+
+# Nuevas estrategias de pipeline (refactoring)
+from core.module_base import BaseModule, PipelineData
 
 # Interfaz de módulos (nueva arquitectura)
 # Paths utilities
@@ -95,12 +97,9 @@ from core.paths import (
     is_within_project,
     resolve_path,
 )
-
-# Nuevas estrategias de pipeline (refactoring)
 from core.schemas import (
     ModuleState,
     ModuleStatus,
-    PipelineData,
     PipelineState,
     SystemMetrics,
 )

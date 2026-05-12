@@ -18,9 +18,9 @@ class TestCSPHeaders:
 
     @pytest.fixture
     def client(self) -> None:
-        from server.app import create_app
         from core.config_manager import ConfigManager
         from core.pipeline import Pipeline
+        from server.app import create_app
 
         config = ConfigManager()
         pipeline = Pipeline()
@@ -38,7 +38,7 @@ class TestCSPHeaders:
         """Test that CSP allows media from HTTP sources."""
         response = client.get("/health")
         csp = response.headers.get("content-security-policy", "")
-        
+
         # Should allow media from http/https
         assert "media-src" in csp
         assert "http://" in csp or "https://" in csp
@@ -47,7 +47,7 @@ class TestCSPHeaders:
         """Test that CSP allows scripts from CDN (for HLS.js)."""
         response = client.get("/health")
         csp = response.headers.get("content-security-policy", "")
-        
+
         # Should allow jsdelivr.net for HLS.js
         assert "cdn.jsdelivr.net" in csp
 
@@ -55,14 +55,14 @@ class TestCSPHeaders:
         """Test that CSP allows WebSocket connections."""
         response = client.get("/health")
         csp = response.headers.get("content-security-policy", "")
-        
+
         # Should allow ws:// and wss:// connections
         assert "ws://" in csp or "connect-src" in csp
 
     def test_security_headers_present(self, client) -> None:
         """Test that all security headers are present."""
         response = client.get("/health")
-        
+
         assert "x-content-type-options" in response.headers
         assert "x-frame-options" in response.headers
         assert "content-security-policy" in response.headers
@@ -73,9 +73,9 @@ class TestWebSocketConnection:
 
     @pytest.fixture
     def client(self) -> None:
-        from server.app import create_app
         from core.config_manager import ConfigManager
         from core.pipeline import Pipeline
+        from server.app import create_app
 
         config = ConfigManager()
         pipeline = Pipeline()
@@ -115,9 +115,9 @@ class TestHTTPEndpoints:
 
     @pytest.fixture
     def client(self) -> None:
-        from server.app import create_app
         from core.config_manager import ConfigManager
         from core.pipeline import Pipeline
+        from server.app import create_app
 
         config = ConfigManager()
         pipeline = Pipeline()
@@ -158,51 +158,51 @@ class TestPlayerCode:
 
     def test_player_has_hls_js_import(self) -> None:
         """Test that player imports HLS.js from CDN."""
-        with open("frontend/src/pages/player.astro", "r", encoding="utf-8") as f:
+        with open("frontend/src/pages/player.astro", encoding="utf-8") as f:
             content = f.read()
-        
+
         assert "hls.js" in content
         assert "cdn.jsdelivr.net" in content or "jsdelivr" in content
 
     def test_player_has_error_overlay(self) -> None:
         """Test that player has error overlay elements."""
-        with open("frontend/src/pages/player.astro", "r", encoding="utf-8") as f:
+        with open("frontend/src/pages/player.astro", encoding="utf-8") as f:
             content = f.read()
-        
+
         assert "error-overlay" in content
         assert "error-message" in content
         assert "btn-retry" in content
 
     def test_player_has_show_error_function(self) -> None:
         """Test that player has showError function."""
-        with open("frontend/src/lib/modules/player.ts", "r", encoding="utf-8") as f:
+        with open("frontend/src/lib/modules/player.ts", encoding="utf-8") as f:
             content = f.read()
-         
+
         assert "showError" in content
         assert "hideError" in content
 
     def test_player_no_invalid_error_types(self) -> None:
         """Test that player doesn't use invalid Hls.ErrorTypes."""
-        with open("frontend/src/lib/modules/player.ts", "r", encoding="utf-8") as f:
+        with open("frontend/src/lib/modules/player.ts", encoding="utf-8") as f:
             content = f.read()
-         
+
         # These should not exist - checking for invalid error types
         assert "ERROR_OTHER" not in content
         assert "Hls.ErrorTypes.ERROR_OTHER" not in content
 
     def test_player_hides_waiting_on_manifest_parsed(self) -> None:
         """Test that player hides waiting message on MANIFEST_PARSED."""
-        with open("frontend/src/lib/modules/player.ts", "r", encoding="utf-8") as f:
+        with open("frontend/src/lib/modules/player.ts", encoding="utf-8") as f:
             content = f.read()
-         
+
         assert "MANIFEST_PARSED" in content
-        assert "waitingEl) waitingEl.style.display = 'none'" in content
+        assert 'waitingEl) waitingEl.style.display = "none"' in content
 
     def test_player_has_error_handling(self) -> None:
         """Test that player has proper HLS error handling."""
-        with open("frontend/src/lib/modules/player.ts", "r", encoding="utf-8") as f:
+        with open("frontend/src/lib/modules/player.ts", encoding="utf-8") as f:
             content = f.read()
-         
+
         assert "HlsEvents.ERROR" in content or "Hls.Events.ERROR" in content
         assert "NETWORK_ERROR" in content
         assert "MEDIA_ERROR" in content
@@ -214,23 +214,19 @@ class TestWebSocketRequestWrapper:
     def test_websocket_request_class_exists(self) -> None:
         """Test that WebSocketRequest class is defined."""
         from server.ws_routes import WebSocketRequest
-        
+
         assert WebSocketRequest is not None
 
     def test_websocket_request_has_required_fields(self) -> None:
         """Test that WebSocketRequest has required fields."""
         from server.ws_routes import WebSocketRequest
-        
+
         # Create a mock request
-        req = WebSocketRequest(
-            headers={},
-            query_params={},
-            client=None
-        )
-        
-        assert hasattr(req, 'headers')
-        assert hasattr(req, 'query_params')
-        assert hasattr(req, 'client')
+        req = WebSocketRequest(headers={}, query_params={}, client=None)
+
+        assert hasattr(req, "headers")
+        assert hasattr(req, "query_params")
+        assert hasattr(req, "client")
 
 
 class TestSecurityMiddlewareOrder:
@@ -238,9 +234,9 @@ class TestSecurityMiddlewareOrder:
 
     def test_app_has_gzip_middleware(self) -> None:
         """Test that GZip middleware is added."""
-        from server.app import create_app
         from core.config_manager import ConfigManager
         from core.pipeline import Pipeline
+        from server.app import create_app
 
         config = ConfigManager()
         pipeline = Pipeline()
@@ -252,7 +248,7 @@ class TestSecurityMiddlewareOrder:
             "log_broadcast": lambda level, msg: None,
         }
         app = create_app(app_context)
-        
+
         # Check that middleware is present
         middleware_names = [type(m).__name__ for m in app.user_middleware]
         # GZipMiddleware should be present
@@ -261,7 +257,7 @@ class TestSecurityMiddlewareOrder:
     def test_app_has_security_headers(self, client) -> None:
         """Test that security headers are applied to responses."""
         response = client.get("/health")
-        
+
         # All these headers should be present
         assert response.headers.get("x-content-type-options") == "nosniff"
         assert response.headers.get("x-frame-options") == "SAMEORIGIN"

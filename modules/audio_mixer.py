@@ -100,9 +100,9 @@ class AudioMixer(BaseModule):
         if not tts_audio or not Path(tts_audio).exists():
             logger.debug(f"[AudioMixer] No TTS audio for chunk {data.chunk_index}")
             data.mixed_audio_path = orig_audio
-            # Measure duration from original
-            with wave.open(str(orig_audio), "rb") as wf:
-                data.duration = wf.getnframes() / wf.getframerate()
+            if not getattr(data, "duration", None):
+                with wave.open(str(orig_audio), "rb") as wf:
+                    data.duration = wf.getnframes() / wf.getframerate()
             return data
 
         mix_wav = self._mixer_dir / f"mix_{data.chunk_index:06d}.wav"
@@ -160,7 +160,8 @@ class AudioMixer(BaseModule):
                 wf.writeframes(mixed.tobytes())
 
             actual_duration = len(mixed) / orig_sr
-            data.duration = actual_duration
+            if not getattr(data, "duration", None):
+                data.duration = actual_duration
             data.mixed_audio_path = mix_wav
             logger.debug(f"[AudioMixer] Numpy mix: {mix_wav} ({actual_duration:.3f}s)")
 

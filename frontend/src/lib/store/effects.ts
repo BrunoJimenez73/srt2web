@@ -39,6 +39,7 @@ function el<T extends HTMLElement>(id: string): T | null {
 
 let _efPipelineIndicator: (() => void) | null = null;
 let _efModuleIndicators: (() => void) | null = null;
+let _efModuleStatusDots: (() => void) | null = null;
 let _efStatusCard: (() => void) | null = null;
 
 function startStatusEffects(): void {
@@ -72,6 +73,36 @@ function startStatusEffects(): void {
     }
   });
 
+  // Module status dots (error / running / degraded / idle)
+  _efModuleStatusDots = effect(() => {
+    const status = pipelineStatus.value;
+    const modules = status?.modules ?? [];
+    const moduleStatusIdMap: Record<string, string> = {
+      srt_input: "status-input",
+      rtmp_input: "status-input",
+      file_input: "status-input",
+      audio_extractor: "status-audio_extractor",
+      transcriber: "status-transcriber",
+      translator: "status-translator",
+      tts_engine: "status-tts_engine",
+      subtitle_generator: "status-subtitle_generator",
+      audio_mixer: "status-audio_mixer",
+      video_muxer: "status-video_muxer",
+      output: "status-output",
+    };
+    for (const mod of modules) {
+      const dotId = moduleStatusIdMap[mod.name];
+      if (!dotId) continue;
+      const dot = el<HTMLSpanElement>(dotId);
+      if (!dot) continue;
+      const modState = getModuleState(mod);
+      dot.classList.toggle("running", modState === ModuleState.RUNNING);
+      dot.classList.toggle("error", modState === ModuleState.ERROR);
+      dot.classList.toggle("degraded", modState === ModuleState.DEGRADED);
+      dot.classList.toggle("disabled", modState === ModuleState.DISABLED);
+    }
+  });
+
   // Module indicators (active state)
   _efModuleIndicators = effect(() => {
     const status = pipelineStatus.value;
@@ -101,7 +132,12 @@ function startStatusEffects(): void {
       if (!indicatorId) continue;
       const indicator = el<HTMLSpanElement>(indicatorId);
       if (!indicator) continue;
-      indicator.classList.toggle("active", running && module.enabled);
+      const isActive = running && module.enabled;
+      indicator.classList.toggle(
+        "active",
+        isActive && module.state !== "degraded",
+      );
+      indicator.classList.toggle("degraded", module.state === "degraded");
     }
 
     // Also update indicator-output for the output module
@@ -127,6 +163,7 @@ function startStatusEffects(): void {
 function stopStatusEffects(): void {
   _efStatusCard?.();
   _efModuleIndicators?.();
+  _efModuleStatusDots?.();
   _efPipelineIndicator?.();
 }
 

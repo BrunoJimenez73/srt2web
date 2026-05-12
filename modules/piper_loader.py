@@ -36,6 +36,7 @@ import io
 import wave
 import warnings
 import base64
+import traceback
 
 def main():
     voice = None
@@ -181,6 +182,10 @@ def main():
 
             print(json.dumps(resp), flush=True)
 
+        # ── PING (heartbeat) ──────────────────────────────────
+        elif action == "ping":
+            print(json.dumps({"status": "success", "action": "pong"}), flush=True)
+
         # ── SHUTDOWN ──────────────────────────────────────────
         elif action == "shutdown":
             print("[PERSISTENT] Shutting down", file=sys.stderr, flush=True)
@@ -212,6 +217,9 @@ class PiperSubprocessManager:
     affect the main Python process.
     """
 
+    HEARTBEAT_INTERVAL = 30  # seconds
+    HEARTBEAT_TIMEOUT = 5  # seconds
+
     def __init__(self):
         self._proc: subprocess.Popen | None = None
         self._script_path: str | None = None
@@ -219,6 +227,13 @@ class PiperSubprocessManager:
         self._using_cuda = False
         self._sample_rate = 22050
         self._model_loaded = False
+        self._heartbeat_thread: threading.Thread | None = None
+        self._heartbeat_stop = threading.Event()
+        self._last_heartbeat_ok = True
+        self._heartbeat_interval = 30.0
+        self._heartbeat_timeout = 5.0
+        self._heartbeat_thread: threading.Thread | None = None
+        self._heartbeat_stop = threading.Event()
 
     @property
     def using_cuda(self) -> bool:
@@ -303,11 +318,15 @@ class PiperSubprocessManager:
                 self._using_cuda = resp.get("using_cuda", False)
                 self._sample_rate = resp.get("sample_rate", 22050)
                 self._model_loaded = True
+                self._last_model_path = model_path
+                self._last_config_path = config_path
+                self._last_device = device
                 provider = resp.get("provider", "unknown")
                 logger.info(
                     f"[PiperManager] Model loaded: CUDA={self._using_cuda}, "
                     f"sample_rate={self._sample_rate}, provider={provider}"
                 )
+                self.start_heartbeat()
             else:
                 self._model_loaded = False
                 logger.error(f"[PiperManager] Load failed: {resp.get('error', 'unknown')}")
@@ -344,8 +363,63 @@ class PiperSubprocessManager:
 
     def stop(self):
         """Stop the persistent subprocess."""
+        self.stop_heartbeat()
         with self._lock:
             self._ensure_stopped()
+
+    def start_heartbeat(self) -> None:
+        """Start heartbeat thread that pings the subprocess every 30s."""
+        if self._heartbeat_thread and self._heartbeat_thread.is_alive():
+            return
+        self._heartbeat_stop.clear()
+        self._heartbeat_thread = threading.Thread(
+            target=self._heartbeat_loop,
+            daemon=True,
+            name="piper-heartbeat",
+        )
+        self._heartbeat_thread.start()
+        logger.info("[PiperManager] Heartbeat thread started")
+
+    def stop_heartbeat(self) -> None:
+        """Stop the heartbeat thread."""
+        self._heartbeat_stop.set()
+        if self._heartbeat_thread and self._heartbeat_thread.is_alive():
+            self._heartbeat_thread.join(timeout=5.0)
+            self._heartbeat_thread = None
+
+    def _heartbeat_loop(self) -> None:
+        """Periodically ping subprocess and restart if unresponsive."""
+        while not self._heartbeat_stop.is_set():
+            self._heartbeat_stop.wait(timeout=self._heartbeat_interval)
+            if self._heartbeat_stop.is_set():
+                break
+            if not self.is_alive:
+                logger.warning("[PiperManager] Heartbeat: subprocess not alive, attempting restart")
+                self._restart_subprocess()
+                continue
+            try:
+                resp = self._send_command({"action": "ping"}, timeout=self._heartbeat_timeout)
+                if resp.get("status") != "success":
+                    logger.warning(f"[PiperManager] Heartbeat: unexpected response {resp}, restarting")
+                    self._restart_subprocess()
+            except Exception as e:
+                logger.error(f"[PiperManager] Heartbeat: ping failed ({e}), restarting subprocess")
+                self._restart_subprocess()
+
+    def _restart_subprocess(self) -> None:
+        """Restart the subprocess (reload model from scratch)."""
+        logger.warning("[PiperManager] Restarting subprocess...")
+        with self._lock:
+            model_path = getattr(self, "_last_model_path", None)
+            config_path = getattr(self, "_last_config_path", None)
+            device = getattr(self, "_last_device", "auto")
+            self._ensure_stopped()
+            if model_path and config_path:
+                try:
+                    self.start(model_path, config_path, device)
+                    logger.info("[PiperManager] Subprocess restarted successfully")
+                except Exception as e:
+                    logger.error(f"[PiperManager] Restart failed: {e}")
 
     def _send_command(self, cmd: dict, timeout: float = 30.0) -> dict:
         """Send a command and wait for response."""

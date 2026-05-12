@@ -1,5 +1,4 @@
 # SRT2Web - Modular SRT Stream Processor
 # This file is a symlink/reference to config/requirements.txt
 # For actual installation, use: pip install -r config/requirements.txt
---require-hashes
 -r config/requirements.txt

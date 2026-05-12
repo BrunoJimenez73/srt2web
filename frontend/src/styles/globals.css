@@ -113,7 +113,7 @@
     cursor: wait;
   }
   body.loading::after {
-    content: '';
+    content: "";
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.4);
@@ -123,7 +123,7 @@
     justify-content: center;
   }
   body.loading::before {
-    content: 'Cargando...';
+    content: "Cargando...";
     position: fixed;
     inset: 0;
     z-index: 10000;
@@ -492,6 +492,12 @@
     animation: pulse-indicator 1.5s ease-in-out infinite;
   }
 
+  .status-dot.degraded {
+    background-color: #f59e0b;
+    box-shadow: 0 0 6px #f59e0b;
+    animation: pulse-degraded 1.5s ease-in-out infinite;
+  }
+
   .status-dot.error {
     background-color: var(--color-indicator-error);
     box-shadow: 0 0 6px var(--color-indicator-error);
@@ -734,6 +740,22 @@
     }
   }
 
+  @keyframes pulse-degraded {
+    0%,
+    100% {
+      opacity: 0.8;
+      box-shadow:
+        0 0 8px #f59e0b,
+        0 0 15px #f59e0b;
+    }
+    50% {
+      opacity: 1;
+      box-shadow:
+        0 0 15px #f59e0b,
+        0 0 30px #f59e0b;
+    }
+  }
+
   @keyframes blink {
     0%,
     100% {
@@ -862,9 +884,33 @@
   animation: indicator-pulse 1.5s ease-in-out infinite;
 }
 
+.process-indicator.degraded {
+  background-color: #f59e0b !important;
+  box-shadow:
+    0 0 6px #f59e0b,
+    0 0 12px #f59e0b !important;
+  animation: indicator-pulse-degraded 1.5s ease-in-out infinite;
+}
+
 .process-indicator.error {
   background-color: var(--color-indicator-error) !important;
   box-shadow: 0 0 6px var(--color-indicator-error) !important;
+}
+
+@keyframes indicator-pulse-degraded {
+  0%,
+  100% {
+    opacity: 0.8;
+    box-shadow:
+      0 0 6px #f59e0b,
+      0 0 12px #f59e0b;
+  }
+  50% {
+    opacity: 1;
+    box-shadow:
+      0 0 12px #f59e0b,
+      0 0 20px #f59e0b;
+  }
 }
 
 @keyframes indicator-pulse {

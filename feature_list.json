@@ -156,7 +156,7 @@
       "id": 17,
       "name": "piper_heartbeat_and_graceful_degrade",
       "title": "Heartbeat para Piper y degradación elegante de módulos",
-      "status": "pending",
+      "status": "done",
       "area": "estabilidad",
       "description": "El subprocess persistente de Piper TTS puede bloquearse silenciosamente (hang) sin que el módulo lo detecte. No hay mecanismo de self-healing. Si un módulo no crítico falla (ej: traductor), el pipeline completo se detiene en vez de degradar elegantemente.",
       "problems_identified": [
@@ -556,7 +556,7 @@
       "id": 29,
       "name": "repo_hygiene_and_cleanup",
       "title": "Higiene del repo: eliminar PARA BORRAR y archivos obsoletos",
-      "status": "pending",
+      "status": "done",
       "area": "mantenibilidad",
       "description": "El repositorio tiene PARA BORRAR/ con venvs, scripts de debug y temporales que aumentan el tamaño y dificultan la navegación. Hay archivos de configuración obsoletos y logs de runtime commiteados.",
       "problems_identified": [

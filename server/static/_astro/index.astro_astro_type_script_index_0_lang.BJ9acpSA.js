@@ -3,55 +3,56 @@ const __vite__mapDeps = (
   m = __vite__mapDeps,
   d = m.f ||
     (m.f = [
-      "_astro/keyboard-shortcuts.Di-TQknN.js",
+      "_astro/keyboard-shortcuts.BUCgNMeb.js",
       "_astro/index.BpSbb1Lw.js",
     ]),
 ) => i.map((i) => d[i]);
 import {
   j as B,
-  p as N,
-  a as te,
-  s as Fe,
-  t as ne,
-  c as $e,
-  w as oe,
-  b as Ge,
-  d as De,
-  e as Z,
-  f as Ve,
+  p as M,
+  a as se,
+  s as De,
+  t as ue,
+  c as Ve,
+  w as le,
+  b as We,
+  d as je,
+  e as Q,
+  f as ze,
   g as f,
-  u as O,
-  r as We,
-  i as at,
-  m as ct,
-} from "./store.YvzDn7sh.js";
+  u as $,
+  r as He,
+  i as ft,
+  m as yt,
+} from "./store.BQ17F1K4.js";
 import {
   D as E,
-  a as F,
-  u as dt,
-  b as je,
+  a as D,
+  u as vt,
+  b as Ke,
   M as h,
-  c as mt,
-  W as pt,
-  I as ie,
-  d as gt,
-  e as ze,
-  f as ft,
-} from "./api.ORjL4z5P.js";
-import { s as I, c as Q } from "./index.BpSbb1Lw.js";
-import { a as yt, i as vt, f as Te } from "./logpanel.DNPZhc8P.js";
-const Et = (function () {
+  c as Et,
+  g as _t,
+  W as It,
+  d as ht,
+  e as qe,
+  f as bt,
+  I as Ye,
+} from "./api.BpNi2mzZ.js";
+import { s as I, c as ee } from "./index.BpSbb1Lw.js";
+import { a as Bt, i as xt, f as Ue } from "./logpanel.DVarbH4P.js";
+const St = (function () {
     const t = typeof document < "u" && document.createElement("link").relList;
     return t && t.supports && t.supports("modulepreload")
       ? "modulepreload"
       : "preload";
   })(),
-  _t = function (e) {
+  Ct = function (e) {
     return "/" + e;
   },
-  Re = {},
-  It = function (t, n, o) {
-    let i = Promise.resolve();
+  Me = {},
+  kt = function (t, n, o) {
+    let u = Promise.resolve();
     if (n && n.length > 0) {
       let a = function (c) {
         return Promise.all(
@@ -66,16 +67,16 @@ const Et = (function () {
       document.getElementsByTagName("link");
       const r = document.querySelector("meta[property=csp-nonce]"),
         d = r?.nonce || r?.getAttribute("nonce");
-      i = a(
+      u = a(
         n.map((c) => {
-          if (((c = _t(c)), c in Re)) return;
-          Re[c] = !0;
+          if (((c = Ct(c)), c in Me)) return;
+          Me[c] = !0;
           const _ = c.endsWith(".css"),
             p = _ ? '[rel="stylesheet"]' : "";
           if (document.querySelector(`link[href="${c}"]${p}`)) return;
           const y = document.createElement("link");
           if (
-            ((y.rel = _ ? "stylesheet" : Et),
+            ((y.rel = _ ? "stylesheet" : St),
             _ || (y.as = "script"),
             (y.crossOrigin = ""),
             (y.href = c),
@@ -92,38 +93,38 @@ const Et = (function () {
         }),
       );
     }
-    function u(r) {
+    function i(r) {
       const d = new Event("vite:preloadError", { cancelable: !0 });
       if (((d.payload = r), window.dispatchEvent(d), !d.defaultPrevented))
         throw r;
     }
-    return i.then((r) => {
-      for (const d of r || []) d.status === "rejected" && u(d.reason);
-      return t().catch(u);
+    return u.then((r) => {
+      for (const d of r || []) d.status === "rejected" && i(d.reason);
+      return t().catch(i);
     });
   };
-let Ue = !1;
-function ht() {
-  Ue ||
-    ((Ue = !0),
-    Me(),
+let Oe = !1;
+function wt() {
+  Oe ||
+    ((Oe = !0),
+    Ae(),
     setInterval(() => {
-      Me();
+      Ae();
     }, 1e3));
 }
-function Me() {
+function Ae() {
   const e = document.getElementById("live-clock");
   e && (e.textContent = new Date().toLocaleTimeString("en-US", { hour12: !1 }));
 }
-var M = ((e) => (
+var A = ((e) => (
   (e.STOPPED = "stopped"),
   (e.RUNNING = "running"),
   (e.STARTING = "starting"),
   (e.STOPPING = "stopping"),
   (e.ERROR = "error"),
   e
-))(M || {});
-function bt(e) {
+))(A || {});
+function Lt(e) {
   switch (e) {
     case "running":
       return "running";
@@ -140,33 +141,33 @@ function bt(e) {
 function s(e) {
   return document.getElementById(e);
 }
-let He = null,
-  Ke = null,
-  qe = null;
-function Bt() {
-  (qe = B(() => {
-    const e = N.value,
+let Ze = null,
+  Je = null,
+  Qe = null;
+function Tt() {
+  (Qe = B(() => {
+    const e = M.value,
       t = s("status-dot"),
       n = s("status-text");
     if (!t || !n) return;
-    const o = bt(e?.state);
-    t.classList.toggle("running", o === M.RUNNING),
-      t.classList.toggle("error", o === M.ERROR),
-      (n.textContent = o === M.RUNNING ? "ACTIVO" : "APAGADO");
-    const i = s("btn-start"),
-      u = s("btn-stop");
-    if (i) {
-      const r = o === M.RUNNING;
-      (i.disabled = r), (i.style.opacity = r ? "0.5" : "1");
-    }
+    const o = Lt(e?.state);
+    t.classList.toggle("running", o === A.RUNNING),
+      t.classList.toggle("error", o === A.ERROR),
+      (n.textContent = o === A.RUNNING ? "ACTIVO" : "APAGADO");
+    const u = s("btn-start"),
+      i = s("btn-stop");
     if (u) {
-      const r = o === M.RUNNING;
-      (u.disabled = !r), (u.style.opacity = r ? "1" : "0.5");
+      const r = o === A.RUNNING;
+      (u.disabled = r), (u.style.opacity = r ? "0.5" : "1");
+    }
+    if (i) {
+      const r = o === A.RUNNING;
+      (i.disabled = !r), (i.style.opacity = r ? "1" : "0.5");
     }
   })),
-    (Ke = B(() => {
-      const t = N.value?.modules ?? [],
-        n = te.value,
+    (Je = B(() => {
+      const t = M.value?.modules ?? [],
+        n = se.value,
         o = {
           srt_input: "indicator-input",
           rtmp_input: "indicator-input",
@@ -190,47 +191,47 @@ function Bt() {
         const a = s(d);
         a && a.classList.toggle("active", n && r.enabled);
       }
-      const i = s("indicator-output"),
-        u = t.find((r) => r.name === "output");
-      i && u && i.classList.toggle("active", n && u.enabled);
+      const u = s("indicator-output"),
+        i = t.find((r) => r.name === "output");
+      u && i && u.classList.toggle("active", n && i.enabled);
     })),
-    (He = B(() => {
-      const e = N.value,
+    (Ze = B(() => {
+      const e = M.value,
         t = s("pipeline-indicator");
       t && t.classList.toggle("active", e?.state === "running");
     }));
 }
-function xt() {
-  qe?.(), Ke?.(), He?.();
+function Pt() {
+  Qe?.(), Je?.(), Ze?.();
 }
-let Ye = null;
-function X(e) {
+let Xe = null;
+function te(e) {
   return e < 40 ? "low" : e < 80 ? "medium" : "high";
 }
-function St(e) {
+function Rt(e) {
   return e < 80 ? "warning" : "critical";
 }
-function Ct() {
-  Ye = B(() => {
-    const e = Fe.value,
-      t = ne.value,
+function Nt() {
+  Xe = B(() => {
+    const e = De.value,
+      t = ue.value,
       n = s("metric-cpu"),
       o = s("metric-cpu-bar"),
-      i = s("metric-cpu-value");
+      u = s("metric-cpu-value");
     o &&
       ((o.style.width = `${e.cpu}%`),
       o.classList.remove("low", "medium", "high"),
-      o.classList.add(X(e.cpu))),
+      o.classList.add(te(e.cpu))),
       n &&
-        (n.classList.remove("warning", "critical"), n.classList.add(St(e.cpu))),
-      i && (i.textContent = `${e.cpu.toFixed(0)}%`);
-    const u = s("metric-memory-bar"),
+        (n.classList.remove("warning", "critical"), n.classList.add(Rt(e.cpu))),
+      u && (u.textContent = `${e.cpu.toFixed(0)}%`);
+    const i = s("metric-memory-bar"),
       r = s("metric-memory-value"),
       d = s("metric-memory-percent");
-    u &&
-      ((u.style.width = `${e.memoryPercent}%`),
-      u.classList.remove("low", "medium", "high"),
-      u.classList.add(X(e.memoryPercent))),
+    i &&
+      ((i.style.width = `${e.memoryPercent}%`),
+      i.classList.remove("low", "medium", "high"),
+      i.classList.add(te(e.memoryPercent))),
       r && (r.textContent = `${e.memoryMb.toFixed(0)} MB`),
       d && (d.textContent = `${e.memoryPercent.toFixed(0)}%`);
     const a = s("metric-gpu-bar"),
@@ -239,7 +240,7 @@ function Ct() {
     a &&
       ((a.style.width = `${e.gpuUtil}%`),
       a.classList.remove("low", "medium", "high"),
-      a.classList.add(X(e.gpuUtil))),
+      a.classList.add(te(e.gpuUtil))),
       c && (c.textContent = `${e.gpuUtil.toFixed(0)}%`),
       _ &&
         (_.textContent =
@@ -250,16 +251,16 @@ function Ct() {
       y && (y.textContent = `${t.toFixed(2)}/s`);
   });
 }
-function wt() {
-  Ye?.();
+function Ut() {
+  Xe?.();
 }
-let Ze = null;
-function kt() {
-  Ze = B(() => {
-    const t = N.value?.modules ?? [],
-      n = te.value,
-      o = ne.value,
-      i = Object.fromEntries(t.map((l) => [l.name, l]));
+let et = null;
+function Mt() {
+  et = B(() => {
+    const t = M.value?.modules ?? [],
+      n = se.value,
+      o = ue.value,
+      u = Object.fromEntries(t.map((l) => [l.name, l]));
     for (const l of [
       "audio_extractor",
       "transcriber",
@@ -268,53 +269,53 @@ function kt() {
       "subtitle_generator",
       "audio_mixer",
     ]) {
-      const m = i[l],
-        L = s(`module-time-${l}`),
-        H = s(`module-chunks-${l}`),
-        K = s(`module-memory-${l}`),
-        q = s(`module-encoder-${l}`);
-      if (L)
+      const m = u[l],
+        P = s(`module-time-${l}`),
+        q = s(`module-chunks-${l}`),
+        Y = s(`module-memory-${l}`),
+        Z = s(`module-encoder-${l}`);
+      if (P)
         if (m?.last_process_time_ms !== void 0 && m.last_process_time_ms > 0) {
           const b = m.last_process_time_ms;
-          L.textContent =
+          P.textContent =
             b < 1e3 ? `${Math.round(b)}ms` : `${(b / 1e3).toFixed(1)}s`;
         } else if (n && o > 0) {
           const b = (1e3 / o).toFixed(0);
-          L.textContent = `${b}ms`;
-        } else L.textContent = "--";
+          P.textContent = `${b}ms`;
+        } else P.textContent = "--";
       if (
-        (H && (H.textContent = String(m?.processed_chunks ?? 0)),
-        K &&
-          (K.textContent =
+        (q && (q.textContent = String(m?.processed_chunks ?? 0)),
+        Y &&
+          (Y.textContent =
             m?.memory_mb !== void 0 ? `${Math.round(m.memory_mb)} MB` : "--"),
-        q && m?.extra)
+        Z && m?.extra)
       ) {
         const b = m.extra.encoder_label || (m.extra.using_gpu ? "GPU" : "CPU");
-        q.textContent = b;
+        Z.textContent = b;
       }
-      const U = s(`gpu-badge-${l}`);
-      if (U && m?.extra) {
+      const O = s(`gpu-badge-${l}`);
+      if (O && m?.extra) {
         const b = n && m.enabled && (m.processed_chunks ?? 0) > 0;
         m.extra.using_gpu
-          ? ((U.style.display = "inline"), U.classList.toggle("active", b))
-          : (U.style.display = "none");
+          ? ((O.style.display = "inline"), O.classList.toggle("active", b))
+          : (O.style.display = "none");
       }
     }
-    const u = i.audio_extractor,
+    const i = u.audio_extractor,
       r = s("module-device-audio_extractor"),
       d = s("gpu-badge-audio_extractor");
     if (
       (r &&
-        u?.extra &&
-        (r.textContent = u.extra.device || (u.extra.using_gpu ? "GPU" : "CPU")),
-      d && u?.extra)
+        i?.extra &&
+        (r.textContent = i.extra.device || (i.extra.using_gpu ? "GPU" : "CPU")),
+      d && i?.extra)
     ) {
-      const l = n && u.enabled && (u.processed_chunks ?? 0) > 0;
-      u.extra.using_gpu
+      const l = n && i.enabled && (i.processed_chunks ?? 0) > 0;
+      i.extra.using_gpu
         ? ((d.style.display = "inline"), d.classList.toggle("active", l))
         : (d.style.display = "none");
     }
-    const a = i.input ?? i.srt_input ?? i.rtmp_input ?? i.file_input,
+    const a = u.input ?? u.srt_input ?? u.rtmp_input ?? u.file_input,
       c = s("module-time-input"),
       _ = s("module-chunks-input"),
       p = s("gpu-badge-input"),
@@ -345,11 +346,11 @@ function kt() {
       const l = a.extra?.encoder_label || (a.extra?.using_gpu ? "GPU" : "CPU");
       y.textContent = l;
     }
-    const g = i.video_muxer,
+    const g = u.video_muxer,
       C = s("module-time-video_muxer"),
-      G = s("module-memory-video_muxer"),
-      D = s("module-chunks-video_muxer"),
-      V = s("module-encoder-video_muxer"),
+      V = s("module-memory-video_muxer"),
+      W = s("module-chunks-video_muxer"),
+      j = s("module-encoder-video_muxer"),
       x = s("gpu-badge-video_muxer");
     if (C)
       if (g?.last_process_time_ms !== void 0 && g.last_process_time_ms > 0) {
@@ -361,15 +362,15 @@ function kt() {
           ? (C.textContent = `${(1e3 / o).toFixed(0)}ms`)
           : (C.textContent = "--");
     if (
-      (G &&
+      (V &&
         g &&
-        (G.textContent =
+        (V.textContent =
           g.memory_mb !== void 0 ? `${Math.round(g.memory_mb)} MB` : "--"),
-      D && g && (D.textContent = String(g.processed_chunks ?? 0)),
-      V && g?.extra)
+      W && g && (W.textContent = String(g.processed_chunks ?? 0)),
+      j && g?.extra)
     ) {
       const l = g.extra.encoder_label || (g.extra.using_gpu ? "GPU" : "CPU");
-      V.textContent = l;
+      j.textContent = l;
     }
     if (x) {
       const l = n && g?.enabled && (g.processed_chunks ?? 0) > 0;
@@ -381,31 +382,31 @@ function kt() {
           (x.style.display = "inline"),
           x.classList.remove("active"));
     }
-    const v = i.output,
-      k = s("module-time-output"),
-      W = s("module-memory-output"),
-      j = s("module-chunks-output"),
-      z = s("module-encoder-output"),
+    const v = u.output,
+      T = s("module-time-output"),
+      z = s("module-memory-output"),
+      H = s("module-chunks-output"),
+      K = s("module-encoder-output"),
       S = s("gpu-badge-output");
-    if (k)
+    if (T)
       if (v?.last_process_time_ms !== void 0 && v.last_process_time_ms > 0) {
         const l = v.last_process_time_ms;
-        k.textContent =
+        T.textContent =
           l < 1e3 ? `${Math.round(l)}ms` : `${(l / 1e3).toFixed(1)}s`;
       } else
         n && o > 0
-          ? (k.textContent = `${(1e3 / o).toFixed(0)}ms`)
-          : (k.textContent = "--");
+          ? (T.textContent = `${(1e3 / o).toFixed(0)}ms`)
+          : (T.textContent = "--");
     if (
-      (W &&
+      (z &&
         v &&
-        (W.textContent =
+        (z.textContent =
           v.memory_mb !== void 0 ? `${Math.round(v.memory_mb)} MB` : "--"),
-      j && v && (j.textContent = String(v.processed_chunks ?? 0)),
-      z && v?.extra)
+      H && v && (H.textContent = String(v.processed_chunks ?? 0)),
+      K && v?.extra)
     ) {
       const l = v.extra.encoder_label || (v.extra.using_gpu ? "GPU" : "CPU");
-      z.textContent = l;
+      K.textContent = l;
     }
     if (S) {
       const l = n && v?.enabled && (v.processed_chunks ?? 0) > 0;
@@ -419,56 +420,56 @@ function kt() {
     }
   });
 }
-function Lt() {
-  Ze?.();
+function Ot() {
+  et?.();
 }
-let Je = null;
-function Pt() {
-  Je = B(() => {
-    const e = $e.value,
+let tt = null;
+function At() {
+  tt = B(() => {
+    const e = Ve.value,
       t = s("url-emision-label"),
       n = s("url-emision"),
       o = s("url-stream"),
-      i = s("url-player");
+      u = s("url-player");
     t && (t.textContent = e.primaryLabel),
       n && (n.textContent = e.primaryUrl),
       o && (o.textContent = e.streamUrl),
-      i && ((i.textContent = e.playerUrl), (i.href = e.playerUrl));
+      u && ((u.textContent = e.playerUrl), (u.href = e.playerUrl));
   });
 }
-function Tt() {
-  Je?.();
+function Ft() {
+  tt?.();
 }
-let Qe = null;
-function Rt() {
-  Qe = B(() => {
-    const e = oe.value,
+let nt = null;
+function $t() {
+  nt = B(() => {
+    const e = le.value,
       t = s("ws-status-badge");
     t &&
       ((t.textContent = e ? "WS ON" : "WS OFF"),
       t.classList.toggle("active", e));
   });
 }
-function Ut() {
-  Qe?.();
+function Gt() {
+  nt?.();
 }
-let Xe = null;
-function Mt() {
-  (Xe = B(() => {
-    N.value;
+let ot = null;
+function Dt() {
+  (ot = B(() => {
+    M.value;
     const e = s("live-clock");
     e &&
       (e.textContent = new Date().toLocaleTimeString("en-US", { hour12: !1 }));
   })),
-    ht();
+    wt();
 }
-function Nt() {
-  Xe?.();
+function Vt() {
+  ot?.();
 }
-let et = null;
-function Ot() {
-  et = B(() => {
-    const e = Ge.value,
+let it = null;
+function Wt() {
+  it = B(() => {
+    const e = We.value,
       t = s("remote-config"),
       n = s("btn-mode-local"),
       o = s("btn-mode-remote");
@@ -477,64 +478,64 @@ function Ot() {
       o && o.classList.toggle("active", e === "remote");
   });
 }
-function At() {
-  et?.();
+function jt() {
+  it?.();
 }
-let tt = null;
-function Ft() {
-  tt = B(() => {
-    De.value, Z.value;
+let st = null;
+function zt() {
+  st = B(() => {
+    je.value, Q.value;
   });
 }
-function $t() {
-  tt?.();
+function Ht() {
+  st?.();
 }
-let nt = null,
-  ee = 0;
-function Gt() {
-  nt = B(() => {
-    const e = Ve.value,
-      t = e.slice(ee);
-    for (const n of t) yt(n.level, n.message, n.timestamp);
-    ee = e.length;
+let ut = null,
+  oe = 0;
+function Kt() {
+  ut = B(() => {
+    const e = ze.value,
+      t = e.slice(oe);
+    for (const n of t) Bt(n.level, n.message, n.timestamp);
+    oe = e.length;
   });
 }
-function Dt() {
-  nt?.(), (ee = 0);
+function qt() {
+  ut?.(), (oe = 0);
 }
-function ot() {
-  Bt(), Ct(), kt(), Pt(), Rt(), Mt(), Ot(), Ft(), Gt();
+function lt() {
+  Tt(), Nt(), Mt(), At(), $t(), Dt(), Wt(), zt(), Kt();
 }
-function it() {
-  xt(), wt(), Lt(), Tt(), Ut(), Nt(), At(), $t(), Dt();
+function rt() {
+  Pt(), Ut(), Ot(), Ft(), Gt(), Vt(), jt(), Ht(), qt();
 }
-const dn = Object.freeze(
+const In = Object.freeze(
   Object.defineProperty(
     {
       __proto__: null,
       addLog: f,
-      connectionMode: Ge,
-      connectionUrls: $e,
-      inputType: at,
-      isPipelineRunning: te,
-      moduleStates: ct,
-      pipelineConfig: Z,
-      pipelineLogs: Ve,
-      pipelineStatus: N,
-      resetThroughput: We,
-      startEffects: ot,
-      stopEffects: it,
-      systemMetrics: Fe,
-      throughputAvg: ne,
-      throughputHistory: De,
-      updateStatus: O,
-      wsConnected: oe,
+      connectionMode: We,
+      connectionUrls: Ve,
+      inputType: ft,
+      isPipelineRunning: se,
+      moduleStates: yt,
+      pipelineConfig: Q,
+      pipelineLogs: ze,
+      pipelineStatus: M,
+      resetThroughput: He,
+      startEffects: lt,
+      stopEffects: rt,
+      systemMetrics: De,
+      throughputAvg: ue,
+      throughputHistory: je,
+      updateStatus: $,
+      wsConnected: le,
     },
     Symbol.toStringTag,
     { value: "Module" },
   ),
 );
-function Vt() {
+function Yt() {
   const e = document.getElementById("input-type")?.value || "srt";
   document.getElementById("output-type")?.value;
   const t = parseInt(
@@ -668,10 +669,10 @@ function Vt() {
         ? parseInt(document.getElementById("webrtc-audio-sample-rate").value)
         : void 0,
       ...(() => {
-        const i = document.getElementById("webrtc-video-resolution");
-        if (i?.value) {
-          const [u, r] = i.value.split("x").map(Number);
-          return { video_width: u, video_height: r };
+        const u = document.getElementById("webrtc-video-resolution");
+        if (u?.value) {
+          const [i, r] = u.value.split("x").map(Number);
+          return { video_width: i, video_height: r };
         }
         return {};
       })(),
@@ -690,12 +691,12 @@ function Vt() {
     modules: o,
   };
 }
-function st(e) {
+function at(e) {
   const t = document.getElementById("input-type"),
     n = document.getElementById("output-type"),
     o = document.getElementById("whisper-enabled"),
-    i = document.getElementById("whisper-model"),
-    u = document.getElementById("whisper-lang"),
+    u = document.getElementById("whisper-model"),
+    i = document.getElementById("whisper-lang"),
     r = document.getElementById("whisper-device"),
     d = document.getElementById("translator-enabled"),
     a = document.getElementById("translator-source"),
@@ -705,59 +706,59 @@ function st(e) {
     y = document.getElementById("tts-device"),
     g = document.getElementById("tts-device-group"),
     C = document.getElementById("tts-voice-edge"),
-    G = document.getElementById("tts-voice-piper"),
-    D = document.getElementById("tts-voice-edge-group"),
-    V = document.getElementById("tts-voice-piper-group"),
+    V = document.getElementById("tts-voice-piper"),
+    W = document.getElementById("tts-voice-edge-group"),
+    j = document.getElementById("tts-voice-piper-group"),
     x = document.getElementById("tts-speed"),
     v = document.getElementById("subtitle-enabled"),
-    k = document.getElementById("subtitle-format"),
-    W = document.getElementById("subtitle-use-translated"),
-    j = document.getElementById("muxer-enabled"),
-    z = document.getElementById("video-muxer-engine"),
+    T = document.getElementById("subtitle-format"),
+    z = document.getElementById("subtitle-use-translated"),
+    H = document.getElementById("muxer-enabled"),
+    K = document.getElementById("video-muxer-engine"),
     S = document.getElementById("hls-segment"),
     l = document.getElementById("hls-list"),
     m = document.getElementById("hls-encoder"),
-    L = document.getElementById("hls-crf"),
-    H = document.getElementById("hls-audio-offset"),
-    K = document.getElementById("hls-audio-codec"),
-    q = document.getElementById("hls-audio-bitrate"),
-    U = e.input?.type || "srt";
-  t && ((t.value = U), Wt());
+    P = document.getElementById("hls-crf"),
+    q = document.getElementById("hls-audio-offset"),
+    Y = document.getElementById("hls-audio-codec"),
+    Z = document.getElementById("hls-audio-bitrate"),
+    O = e.input?.type || "srt";
+  t && ((t.value = O), Zt());
   const b = document.getElementById("input-srt-port"),
-    ue = document.getElementById("input-srt-mode"),
-    le = document.getElementById("input-srt-latency"),
-    P = e.input?.srt;
-  b && P?.listen_port && (b.value = String(P.listen_port)),
-    ue && P?.mode && (ue.value = P.mode),
-    le && P?.latency_ms && (le.value = String(P.latency_ms));
-  const re = document.getElementById("input-chunk-duration"),
-    ae = document.getElementById("input-rtmp-chunk"),
-    ce = document.getElementById("input-file-chunk"),
-    J = e.pipeline?.chunk_duration_sec || E.CHUNK_DURATION;
-  re && (re.value = String(P?.chunk_duration_sec || J));
-  const T = e.input?.rtmp,
-    R = e.input?.file;
-  ae && (ae.value = String(T?.chunk_duration_sec || J));
-  const de = document.getElementById("input-rtmp-url"),
-    me = document.getElementById("input-rtmp-mode"),
-    pe = document.getElementById("input-rtmp-app");
-  de && T?.url && (de.value = T.url),
-    me && T?.mode && (me.value = T.mode),
-    pe && T?.app && (pe.value = T.app);
-  const ge = document.getElementById("input-file-path"),
-    fe = document.getElementById("input-file-loop"),
-    ye = document.getElementById("input-file-speed");
-  ge && R?.path && (ge.value = R.path),
-    fe && R?.loop !== void 0 && (fe.value = R.loop ? "true" : "false"),
-    ye && R?.speed && (ye.value = String(R.speed)),
-    ce && (ce.value = String(R?.chunk_duration_sec || J));
-  const rt =
+    ae = document.getElementById("input-srt-mode"),
+    ce = document.getElementById("input-srt-latency"),
+    R = e.input?.srt;
+  b && R?.listen_port && (b.value = String(R.listen_port)),
+    ae && R?.mode && (ae.value = R.mode),
+    ce && R?.latency_ms && (ce.value = String(R.latency_ms));
+  const de = document.getElementById("input-chunk-duration"),
+    me = document.getElementById("input-rtmp-chunk"),
+    pe = document.getElementById("input-file-chunk"),
+    X = e.pipeline?.chunk_duration_sec || E.CHUNK_DURATION;
+  de && (de.value = String(R?.chunk_duration_sec || X));
+  const N = e.input?.rtmp,
+    U = e.input?.file;
+  me && (me.value = String(N?.chunk_duration_sec || X));
+  const ge = document.getElementById("input-rtmp-url"),
+    fe = document.getElementById("input-rtmp-mode"),
+    ye = document.getElementById("input-rtmp-app");
+  ge && N?.url && (ge.value = N.url),
+    fe && N?.mode && (fe.value = N.mode),
+    ye && N?.app && (ye.value = N.app);
+  const ve = document.getElementById("input-file-path"),
+    Ee = document.getElementById("input-file-loop"),
+    _e = document.getElementById("input-file-speed");
+  ve && U?.path && (ve.value = U.path),
+    Ee && U?.loop !== void 0 && (Ee.value = U.loop ? "true" : "false"),
+    _e && U?.speed && (_e.value = String(U.speed)),
+    pe && (pe.value = String(U?.chunk_duration_sec || X));
+  const gt =
     e.output?.type === "web" ? "webplayer" : e.output?.type || "webplayer";
   if (
-    (n && ((n.value = rt), jt()),
+    (n && ((n.value = gt), Jt()),
     o && (o.checked = e.modules.transcriber.enabled),
-    i && (i.value = e.modules.transcriber.model),
-    u && (u.value = e.modules.transcriber.language),
+    u && (u.value = e.modules.transcriber.model),
+    i && (i.value = e.modules.transcriber.language),
     r && (r.value = e.modules.transcriber.device),
     d && (d.checked = e.modules.translator.enabled),
     a && (a.value = e.modules.translator.source_lang),
@@ -766,38 +767,38 @@ function st(e) {
     p &&
       ((p.value = e.modules.tts_engine.engine || "edge-tts"),
       g && (g.style.display = p.value === "piper" ? "block" : "none"),
-      D && V))
+      W && j))
   ) {
-    const Pe = p.value === "edge-tts";
-    (D.style.display = Pe ? "block" : "none"),
-      (V.style.display = Pe ? "none" : "block");
+    const Ne = p.value === "edge-tts";
+    (W.style.display = Ne ? "block" : "none"),
+      (j.style.display = Ne ? "none" : "block");
   }
   y && (y.value = e.modules.tts_engine.device || "auto"),
     C && (C.value = e.modules.tts_engine.voice || "es-ES-AlvaroNeural"),
-    G && (G.value = e.modules.tts_engine.voice || "es_ES-sharvard-medium"),
+    V && (V.value = e.modules.tts_engine.voice || "es_ES-sharvard-medium"),
     x && (x.value = String(e.modules.tts_engine.speed)),
     v && (v.checked = e.modules.subtitle_generator.enabled),
-    k && (k.value = e.modules.subtitle_generator.format),
-    W && (W.value = String(e.modules.subtitle_generator.use_translated)),
-    j && (j.checked = e.modules.video_muxer.enabled),
-    z && (z.value = e.modules.video_muxer.engine || "hls");
-  const ve = document.getElementById("audio-mixer-enabled");
-  ve && (ve.checked = e.modules.audio_mixer?.enabled ?? !1);
-  const Ee = document.getElementById("audio-mixer-original-volume");
-  Ee && (Ee.value = String(e.modules.audio_mixer?.original_volume ?? 0.3));
-  const _e = document.getElementById("audio-mixer-original-value");
-  _e &&
-    (_e.textContent = String(e.modules.audio_mixer?.original_volume ?? 0.3));
-  const Ie = document.getElementById("audio-mixer-dubbed-volume");
-  Ie &&
-    (Ie.value = String(
+    T && (T.value = e.modules.subtitle_generator.format),
+    z && (z.value = String(e.modules.subtitle_generator.use_translated)),
+    H && (H.checked = e.modules.video_muxer.enabled),
+    K && (K.value = e.modules.video_muxer.engine || "hls");
+  const Ie = document.getElementById("audio-mixer-enabled");
+  Ie && (Ie.checked = e.modules.audio_mixer?.enabled ?? !1);
+  const he = document.getElementById("audio-mixer-original-volume");
+  he && (he.value = String(e.modules.audio_mixer?.original_volume ?? 0.3));
+  const be = document.getElementById("audio-mixer-original-value");
+  be &&
+    (be.textContent = String(e.modules.audio_mixer?.original_volume ?? 0.3));
+  const Be = document.getElementById("audio-mixer-dubbed-volume");
+  Be &&
+    (Be.value = String(
       e.modules.audio_mixer?.tts_volume ??
         e.modules.audio_mixer?.dubbed_volume ??
         1,
     ));
-  const he = document.getElementById("audio-mixer-dubbed-value");
-  he &&
-    (he.textContent = String(
+  const xe = document.getElementById("audio-mixer-dubbed-value");
+  xe &&
+    (xe.textContent = String(
       e.modules.audio_mixer?.tts_volume ??
         e.modules.audio_mixer?.dubbed_volume ??
         1,
@@ -805,103 +806,108 @@ function st(e) {
     S && (S.value = String(e.modules.video_muxer.hls_segment_duration)),
     l && (l.value = String(e.modules.video_muxer.hls_list_size)),
     m && (m.value = e.modules.video_muxer.encoder_mode),
-    L && (L.value = String(e.modules.video_muxer.video_crf)),
-    H && (H.value = String(e.modules.video_muxer.audio_offset_ms || 0)),
-    K && (K.value = e.modules.video_muxer.audio_codec || "aac"),
-    q && (q.value = e.modules.video_muxer.audio_bitrate || "192k");
-  const be = document.getElementById("webrtc-encoder"),
-    Be = document.getElementById("webrtc-video-codec"),
-    xe = document.getElementById("webrtc-video-bitrate"),
-    Se = document.getElementById("webrtc-video-resolution"),
-    Ce = document.getElementById("webrtc-video-fps"),
-    we = document.getElementById("webrtc-audio-codec"),
-    ke = document.getElementById("webrtc-audio-bitrate"),
-    Le = document.getElementById("webrtc-audio-sample-rate");
-  be && (be.value = e.modules.video_muxer.encoder_mode || "auto"),
-    Be && (Be.value = e.modules.video_muxer.video_codec || "h264"),
-    xe && (xe.value = e.modules.video_muxer.video_bitrate || "1000k"),
-    Se &&
+    P && (P.value = String(e.modules.video_muxer.video_crf)),
+    q && (q.value = String(e.modules.video_muxer.audio_offset_ms || 0)),
+    Y && (Y.value = e.modules.video_muxer.audio_codec || "aac"),
+    Z && (Z.value = e.modules.video_muxer.audio_bitrate || "192k");
+  const Se = document.getElementById("webrtc-encoder"),
+    Ce = document.getElementById("webrtc-video-codec"),
+    ke = document.getElementById("webrtc-video-bitrate"),
+    we = document.getElementById("webrtc-video-resolution"),
+    Le = document.getElementById("webrtc-video-fps"),
+    Te = document.getElementById("webrtc-audio-codec"),
+    Pe = document.getElementById("webrtc-audio-bitrate"),
+    Re = document.getElementById("webrtc-audio-sample-rate");
+  Se && (Se.value = e.modules.video_muxer.encoder_mode || "auto"),
+    Ce && (Ce.value = e.modules.video_muxer.video_codec || "h264"),
+    ke && (ke.value = e.modules.video_muxer.video_bitrate || "1000k"),
+    we &&
       e.modules.video_muxer.video_width &&
       e.modules.video_muxer.video_height &&
-      (Se.value = `${e.modules.video_muxer.video_width}x${e.modules.video_muxer.video_height}`),
-    Ce &&
+      (we.value = `${e.modules.video_muxer.video_width}x${e.modules.video_muxer.video_height}`),
+    Le &&
       e.modules.video_muxer.video_fps &&
-      (Ce.value = String(e.modules.video_muxer.video_fps)),
-    we && (we.value = e.modules.video_muxer.audio_codec || "opus"),
-    ke &&
-      (ke.value =
+      (Le.value = String(e.modules.video_muxer.video_fps)),
+    Te && (Te.value = e.modules.video_muxer.audio_codec || "opus"),
+    Pe &&
+      (Pe.value =
         e.modules.video_muxer.webrtc_audio_bitrate ||
         e.modules.video_muxer.audio_bitrate ||
         "64k"),
-    Le &&
+    Re &&
       e.modules.video_muxer.audio_sample_rate &&
-      (Le.value = String(e.modules.video_muxer.audio_sample_rate));
+      (Re.value = String(e.modules.video_muxer.audio_sample_rate));
 }
-function Wt() {
+function Zt() {
   const e = document.getElementById("input-type");
   e && (e.value = e.value);
 }
-function jt() {
+function Jt() {
   const e = document.getElementById("output-type");
   e && (e.value = e.value);
 }
-let ut = !1;
-function $(e, t = "") {
-  (ut = e),
+let ct = !1;
+function G(e, t = "") {
+  (ct = e),
     document.body.classList.toggle("loading", e),
     e && t && f("INFO", `${t}...`);
 }
-function se() {
-  return ut;
+function re() {
+  return ct;
 }
-async function zt() {
-  if (!se()) {
-    $(!0, "Iniciando pipeline");
+async function Qt() {
+  if (!re()) {
+    G(!0, "Iniciando pipeline");
     try {
-      f("INFO", h.PIPELINE_STARTING), await gt();
-      const e = await ze();
-      O(e), f("INFO", h.PIPELINE_STARTED);
+      f("INFO", h.PIPELINE_STARTING), await ht();
+      const e = await qe();
+      $(e), pt(), f("INFO", h.PIPELINE_STARTED);
     } catch (e) {
       f("ERROR", `Error: ${e.message}`);
     } finally {
-      $(!1);
+      G(!1);
     }
   }
 }
-async function Ht() {
-  if (confirm(h.PIPELINE_CONFIRM_STOP) && !se()) {
-    $(!0, "Deteniendo pipeline");
+async function Xt() {
+  if (confirm(h.PIPELINE_CONFIRM_STOP) && !re()) {
+    G(!0, "Deteniendo pipeline");
     try {
-      f("INFO", h.PIPELINE_STOPPING), await ft();
-      const e = await ze();
-      O(e), We(), f("INFO", h.PIPELINE_STOPPED);
+      f("INFO", h.PIPELINE_STOPPING), await bt();
+      const e = await qe();
+      $(e),
+        He(),
+        (J = !1),
+        L && clearTimeout(L),
+        ie(),
+        f("INFO", h.PIPELINE_STOPPED);
     } catch (e) {
       f("ERROR", `Error: ${e.message}`);
     } finally {
-      $(!1);
+      G(!1);
     }
   }
 }
-async function Kt() {
-  if (!se()) {
-    $(!0, "Guardando config");
+async function en() {
+  if (!re()) {
+    G(!0, "Guardando config");
     try {
-      const e = Vt(),
+      const e = Yt(),
         t = parseInt(
           document.getElementById("input-chunk-duration")?.value ||
             document.getElementById("input-rtmp-chunk")?.value ||
             document.getElementById("input-file-chunk")?.value ||
             String(E.CHUNK_DURATION),
         );
-      await F("PUT", "/api/config", { config: e });
+      await D("PUT", "/api/config", { config: e });
       try {
-        await dt(t), f("INFO", `Chunk synced: ${t}s`);
+        await vt(t), f("INFO", `Chunk synced: ${t}s`);
       } catch (o) {
         f("WARNING", `Chunk sync failed: ${o.message}`);
       }
-      const n = await je();
-      (Z.value = n),
-        st(n),
+      const n = await Ke();
+      (Q.value = n),
+        at(n),
         I(h.CONFIG_SAVED, "success"),
         f("INFO", "Configuración guardada");
     } catch (e) {
@@ -909,32 +915,32 @@ async function Kt() {
       I(`${h.CONFIG_SAVE_ERROR}: ${t}`, "error"),
         f("ERROR", `Error al guardar: ${t}`);
     } finally {
-      $(!1);
+      G(!1);
     }
   }
 }
-async function Ne() {
+async function Fe() {
   try {
-    await F("POST", "input/control/play"), I(h.INPUT_FILE_PLAY, "success");
+    await D("POST", "input/control/play"), I(h.INPUT_FILE_PLAY, "success");
   } catch (e) {
     I(`Error al reproducir: ${e.message}`, "error");
   }
 }
-async function qt() {
+async function tn() {
   try {
-    await F("POST", "input/control/pause"), I(h.INPUT_FILE_PAUSE, "success");
+    await D("POST", "input/control/pause"), I(h.INPUT_FILE_PAUSE, "success");
   } catch (e) {
     I(`Error al pausar: ${e.message}`, "error");
   }
 }
-async function Oe(e) {
+async function $e(e) {
   try {
-    await F("POST", "input/control/seek", { position: e });
+    await D("POST", "input/control/seek", { position: e });
   } catch (t) {
     I(`Error al buscar posición: ${t.message}`, "error");
   }
 }
-async function lt() {
+async function dt() {
   try {
     const e = await fetch(`${window.location.origin}/api/input-info`, {
       headers: { Accept: "application/json" },
@@ -952,34 +958,34 @@ async function lt() {
     return null;
   }
 }
-let A = null;
-function Yt() {
-  A && clearInterval(A);
+let F = null;
+function nn() {
+  F && clearInterval(F);
   const e = document.getElementById("input-file-position"),
     t = document.getElementById("file-time-current"),
     n = document.getElementById("file-time-total"),
     o = document.getElementById("btn-file-play"),
-    i = document.getElementById("btn-file-pause");
-  A = setInterval(() => {
-    lt().then((u) => {
-      u &&
+    u = document.getElementById("btn-file-pause");
+  F = setInterval(() => {
+    dt().then((i) => {
+      i &&
         (e &&
-          u.duration > 0 &&
-          (e.value = ((u.position / u.duration) * 100).toString()),
-        t && (t.textContent = Te(u.position)),
-        n && (n.textContent = Te(u.duration)),
+          i.duration > 0 &&
+          (e.value = ((i.position / i.duration) * 100).toString()),
+        t && (t.textContent = Ue(i.position)),
+        n && (n.textContent = Ue(i.duration)),
         o &&
-          i &&
-          (u.is_playing
-            ? ((o.style.display = "none"), (i.style.display = "inline"))
-            : ((o.style.display = "inline"), (i.style.display = "none"))));
+          u &&
+          (i.is_playing
+            ? ((o.style.display = "none"), (u.style.display = "inline"))
+            : ((o.style.display = "inline"), (u.style.display = "none"))));
     });
-  }, ie.FILE_POLL);
+  }, Ye.FILE_POLL);
 }
-function Zt() {
-  A && (clearInterval(A), (A = null));
+function on() {
+  F && (clearInterval(F), (F = null));
 }
-function Jt() {
+function sn() {
   const e = document.getElementById("btn-file-play"),
     t = document.getElementById("btn-file-pause"),
     n = document.getElementById("btn-file-restart"),
@@ -988,91 +994,129 @@ function Jt() {
   (e.style.display = "inline"),
     (t.style.display = "none"),
     e.addEventListener("click", () => {
-      Ne().then(() => {
+      Fe().then(() => {
         (e.style.display = "none"), (t.style.display = "inline");
       });
     }),
     t.addEventListener("click", () => {
-      qt().then(() => {
+      tn().then(() => {
         (t.style.display = "none"), (e.style.display = "inline");
       });
     }),
     n.addEventListener("click", () => {
-      Oe(0).then(() => {
+      $e(0).then(() => {
         (o.value = "0"),
-          Ne().then(() => {
+          Fe().then(() => {
             (e.style.display = "none"), (t.style.display = "inline");
           });
       });
     });
-  let i = null;
+  let u = null;
   o.addEventListener("input", () => {
-    i && clearTimeout(i);
-    const u = parseInt(o.value);
-    i = setTimeout(() => {
-      lt().then((r) => {
-        r?.duration && Oe((u / 100) * r.duration);
+    u && clearTimeout(u);
+    const i = parseInt(o.value);
+    u = setTimeout(() => {
+      dt().then((r) => {
+        r?.duration && $e((i / 100) * r.duration);
       });
-    }, ie.SEEK_DEBOUNCE);
+    }, Ye.SEEK_DEBOUNCE);
   }),
-    Yt();
+    nn();
 }
-function Qt() {
+function un() {
   const e = document.getElementById("input-rtmp-url");
   if (!e) return;
   const t = document.getElementById("input-rtmp-port"),
     n = document.getElementById("input-rtmp-app"),
     o = document.getElementById("input-rtmp-key"),
-    i = t?.value || "1935",
-    u = n?.value || "live",
+    u = t?.value || "1935",
+    i = n?.value || "live",
     r = o?.value || "stream";
-  e.value = `rtmp://127.0.0.1:${i}/${u}/${r}`;
+  e.value = `rtmp://127.0.0.1:${u}/${i}/${r}`;
 }
-let w = null,
-  Y = null;
-async function Xt() {
-  vt(), f("INFO", h.LOADING);
+const ne = { RUNNING: 3e3, STOPPED: 1e4, POST_START: 1e3 },
+  ln = 5e3;
+let k = null,
+  J = !1,
+  L = null;
+function rn() {
+  const e = M.value?.state;
+  return J ? ne.POST_START : e === "running" ? ne.RUNNING : ne.STOPPED;
+}
+function mt() {
+  k && clearInterval(k);
+  const e = async () => {
+    try {
+      const t = await D("GET", "api/status");
+      $(t);
+    } catch {}
+  };
+  e(), (k = setInterval(e, rn()));
+}
+function ie() {
+  k && (clearInterval(k), (k = null)), mt();
+}
+function pt() {
+  (J = !0),
+    ie(),
+    L && clearTimeout(L),
+    (L = setTimeout(() => {
+      (J = !1), ie();
+    }, ln));
+}
+let w = null;
+async function an() {
+  xt(), f("INFO", h.LOADING);
   try {
-    const e = await je();
-    (Z.value = e), st(e);
+    const e = await Ke();
+    (Q.value = e), at(e);
     const t = document.getElementById("input-type");
-    t?.value === "rtmp" && Qt(),
+    t?.value === "rtmp" && un(),
       t?.value === "file" &&
         document.getElementById("input-file-path")?.value &&
-        Jt();
-    const n = await F("GET", "api/status");
-    O(n), ot();
-    const o = mt("/ws/logs");
-    (w = new pt(o)),
+        sn();
+    const n = await D("GET", "api/status");
+    $(n), lt();
+    const o = Et("/ws/logs"),
+      u = _t();
+    (w = new It(o, {
+      maxReconnectAttempts: 5,
+      backoffBase: 1e3,
+      authToken: u,
+    })),
       w.onMessage((i) => {
         i.type === "log"
           ? f(i.level ?? "INFO", i.message ?? "")
-          : i.type === "status" && i.status && O(i.status);
+          : i.type === "status" &&
+            i.status &&
+            ($(i.status), i.status.state === "running" && !J && pt());
       }),
       w.onError(() => {
         f("ERROR", h.WS_ERROR);
       }),
-      w.onClose(() => {
-        (oe.value = !1), f("ERROR", h.WS_DISCONNECTED);
+      w.onClose((i) => {
+        (le.value = !1),
+          i
+            ? f("WARNING", "WebSocket connection failed")
+            : f("ERROR", h.WS_DISCONNECTED);
       }),
       w.connect(),
-      (Y = setInterval(async () => {
-        try {
-          const i = await F("GET", "api/status");
-          O(i);
-        } catch {}
-      }, ie.STATUS_POLL)),
+      mt(),
       f("INFO", h.SUCCESS);
   } catch (e) {
     f("ERROR", `Error de inicialización: ${e.message}`);
   }
 }
-function en() {
-  Y && (clearInterval(Y), (Y = null)), w && (w.close(), (w = null)), it(), Zt();
+function cn() {
+  k && (clearInterval(k), (k = null)),
+    L && (clearTimeout(L), (L = null)),
+    w && (w.close(), (w = null)),
+    rt(),
+    on();
 }
-function tn() {
-  document.getElementById("btn-start")?.addEventListener("click", zt),
-    document.getElementById("btn-stop")?.addEventListener("click", Ht),
+function dn() {
+  document.getElementById("btn-start")?.addEventListener("click", Qt),
+    document.getElementById("btn-stop")?.addEventListener("click", Xt),
     document.getElementById("tts-engine")?.addEventListener("change", (e) => {
       const t = e.target.value === "edge-tts",
         n = document.getElementById("tts-voice-edge-group"),
@@ -1081,19 +1125,19 @@ function tn() {
         o && (o.style.display = t ? "none" : "block");
     });
 }
-async function nn() {
+async function mn() {
   try {
     const n = (await (await fetch("/api/status")).json()).system || {},
       o = document.getElementById("metric-cpu-value"),
-      i = document.getElementById("metric-cpu-bar"),
-      u = document.getElementById("metric-memory-value"),
+      u = document.getElementById("metric-cpu-bar"),
+      i = document.getElementById("metric-memory-value"),
       r = document.getElementById("metric-memory-percent"),
       d = document.getElementById("metric-memory-bar"),
       a = document.getElementById("metric-gpu-value"),
       c = document.getElementById("metric-gpu-bar");
     o && (o.textContent = (n.cpu_percent || n.cpu_usage || 0) + "%"),
-      i && (i.style.width = (n.cpu_percent || n.cpu_usage || 0) + "%"),
-      u && (u.textContent = (n.memory_mb || 0).toFixed(0) + " MB"),
+      u && (u.style.width = (n.cpu_percent || n.cpu_usage || 0) + "%"),
+      i && (i.textContent = (n.memory_mb || 0).toFixed(0) + " MB"),
       r && (r.textContent = (n.memory_percent || n.memory_usage || 0) + "%"),
       d && (d.style.width = (n.memory_percent || n.memory_usage || 0) + "%"),
       a && (a.textContent = (n.gpu_usage || 0) + "%"),
@@ -1102,11 +1146,11 @@ async function nn() {
     console.error("Metrics refresh failed:", e);
   }
 }
-function on() {
+function pn() {
   document.getElementById("btn-copy-emision")?.addEventListener("click", () => {
     const e = document.getElementById("url-emision");
     e?.textContent &&
-      Q(e.textContent)
+      ee(e.textContent)
         .then(() => I("URL de emisión copiada", "success"))
         .catch(() => I("Error al copiar URL", "error"));
   }),
@@ -1115,7 +1159,7 @@ function on() {
       ?.addEventListener("click", () => {
         const e = document.getElementById("url-stream");
         e?.textContent &&
-          Q(e.textContent)
+          ee(e.textContent)
             .then(() => I("URL del stream copiada", "success"))
             .catch(() => I("Error al copiar URL", "error"));
       }),
@@ -1126,29 +1170,29 @@ function on() {
         if (e) {
           const t = e.getAttribute("href") || e.textContent;
           t &&
-            Q(t)
+            ee(t)
               .then(() => I("URL del player copiada", "success"))
               .catch(() => I("Error al copiar URL", "error"));
         }
       });
 }
-let Ae = !1;
-function sn() {
-  Ae ||
-    ((Ae = !0),
-    tn(),
-    on(),
+let Ge = !1;
+function gn() {
+  Ge ||
+    ((Ge = !0),
+    dn(),
+    pn(),
     setTimeout(() => {
-      Xt(), nn();
+      an(), mn();
     }, 100));
 }
-window.addEventListener("beforeunload", en);
-window.saveConfig = Kt;
-document.addEventListener("DOMContentLoaded", sn);
-It(
+window.addEventListener("beforeunload", cn);
+window.saveConfig = en;
+document.addEventListener("DOMContentLoaded", gn);
+kt(
   async () => {
     const { initKeyboardShortcuts: e } = await import(
-      "./keyboard-shortcuts.Di-TQknN.js"
+      "./keyboard-shortcuts.BUCgNMeb.js"
     );
     return { initKeyboardShortcuts: e };
   },
@@ -1156,4 +1200,4 @@ It(
 ).then(({ initKeyboardShortcuts: e }) => {
   e();
 });
-export { It as _, Ht as a, zt as b, Kt as h, dn as i };
+export { kt as _, Xt as a, Qt as b, en as h, In as i };

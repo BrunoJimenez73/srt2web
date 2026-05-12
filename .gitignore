@@ -32,6 +32,7 @@ output/
 
 # Config with secrets
 config.yaml
+/config/config.yaml
 !config.yaml.example
 
 # External projects
@@ -77,3 +78,11 @@ startup_stderr.txt
 
 # Logs
 logs/
+
+# Legacy backup
+config.yaml.backup
+
+# Temp / scratch
+temp/
+py_write_dir/
+pytest_tmp_manual/

@@ -72,7 +72,13 @@ class RTMPInput(InputSource):
 
         self._url = config.get("url", "rtmp://localhost/live/stream")
         self._mode = config.get("mode", "pull")
-        self._chunk_duration = config.get("chunk_duration_sec", 10)
+        new_chunk_duration = config.get("chunk_duration_sec", self._chunk_duration)
+        if new_chunk_duration != self._chunk_duration:
+            logger.info(
+                f"RTMP chunk_duration changed: {self._chunk_duration}s → {new_chunk_duration}s, resetting cumulative"
+            )
+            self._cumulative_duration = 0.0
+        self._chunk_duration = new_chunk_duration
         self._output_dir = config.get("output_dir", self._output_dir)
 
     def set_output_dir(self, output_dir: str) -> None:

@@ -16,7 +16,7 @@ from core.module_base import BaseModule, ModuleState, PipelineData
 
 logger = logging.getLogger("srt2web.module.translator")
 
-_TRANSLATION_CACHE_SIZE = 256  # entradas LRU máximas por pipeline
+_TRANSLATION_CACHE_SIZE = 256  # entradas FIFO máximas por pipeline
 
 
 class Translator(BaseModule):
@@ -80,10 +80,12 @@ class Translator(BaseModule):
         try:
             t0 = time.perf_counter()
             import argostranslate.package
+
             t1 = time.perf_counter()
             logger.info(f"[TIMING] import argostranslate.package: {t1-t0:.3f}s")
 
             import argostranslate.translate
+
             t2 = time.perf_counter()
             logger.info(f"[TIMING] import argostranslate.translate: {t2-t1:.3f}s")
 
@@ -117,9 +119,11 @@ class Translator(BaseModule):
         """Install package if missing and create translation pipeline using ModelCache."""
         t0 = time.perf_counter()
         import argostranslate.package
+
         t1 = time.perf_counter()
         logger.info(f"[TIMING] _load_model: re-import package: {t1-t0:.3f}s")
         import argostranslate.translate
+
         t2 = time.perf_counter()
         logger.info(f"[TIMING] _load_model: re-import translate: {t2-t1:.3f}s")
 
@@ -189,7 +193,7 @@ class Translator(BaseModule):
         self._state = ModuleState.IDLE
 
     def _translate_cached(self, text: str) -> str:
-        """Traduce texto usando cache LRU para evitar trabajo redundante."""
+        """Traduce texto usando cache FIFO para evitar trabajo redundante."""
         key = hashlib.md5(text.encode("utf-8", errors="replace")).hexdigest()
         if key in self._cache:
             self._cache_hits += 1

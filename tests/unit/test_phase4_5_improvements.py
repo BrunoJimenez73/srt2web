@@ -269,4 +269,6 @@ class TestAPIAuthIntegration:
         with open("frontend/src/lib/api.ts", encoding="utf-8") as f:
             content = f.read()
 
-        assert "?token=" in content
+        # Auth is sent via WebSocket message, not URL query param
+        assert "sendAuth" in content
+        assert "auth" in content.lower() and "token" in content.lower()

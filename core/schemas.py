@@ -1,9 +1,13 @@
 from enum import Enum
-from pathlib import Path
 from typing import Any, Optional
 
-import numpy as np
 from pydantic import BaseModel, Field
+
+
+class PipelineMode(str, Enum):
+    SEQUENTIAL = "sequential"
+    THREAD_PARALLEL = "thread_parallel"
+    ASYNCIO = "asyncio"
 
 
 class PipelineState(str, Enum):
@@ -25,45 +29,6 @@ class ModuleState(str, Enum):
     ERROR = "error"
     DISABLED = "disabled"
     DEGRADED = "degraded"
-
-
-class PipelineData(BaseModel):
-    """
-    Strict data model for chunks moving through the pipeline.
-    Replaces generic dicts to ensure all modules have required data.
-    """
-
-    # Core identification and timing
-    chunk_index: int = 0
-    timestamp: float = Field(default_factory=lambda: __import__("time").time)
-    duration: float = 0.0
-    cumulative_duration: float = 0.0
-
-    # File paths (standardized to Path)
-    video_chunk_path: Optional[Path] = None
-    audio_chunk_path: Optional[Path] = None
-    audio_samples: Optional[np.ndarray] = None
-    audio_sample_rate: int = 16000
-    tts_audio_path: Optional[Path] = None
-    mixed_audio_path: Optional[Path] = None
-    subtitles_path: Optional[Path] = None
-    output_hls_path: Optional[Path] = None
-
-    # Text processing results
-    transcript: Optional[str] = None
-    transcript_segments: list[dict[str, Any]] = Field(default_factory=list)
-    detected_language: Optional[str] = None
-    translation: Optional[str] = None
-    translated_segments: list[dict[str, Any]] = Field(default_factory=list)
-    subtitles: Optional[list[dict[str, Any]]] = None
-
-    # Metadata and error tracking
-    metadata: dict[str, Any] = Field(default_factory=dict)
-    errors: list[str] = Field(default_factory=list)
-    warnings: list[str] = Field(default_factory=list)
-
-    class Config:
-        arbitrary_types_allowed = True  # For numpy arrays
 
 
 class ModuleStatus(BaseModel):

@@ -51,13 +51,13 @@ WORKDIR /app
 
 # Instalar dependencias mínimas del sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.10 \
+    python3.12 \
     python3-pip \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar dependencias de Python
-COPY --from=builder /usr/local/lib/python3.10/dist-packages /usr/local/lib/python3.10/dist-packages
+COPY --from=builder /usr/local/lib/python3.12/dist-packages /usr/local/lib/python3.12/dist-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copiar build del frontend
