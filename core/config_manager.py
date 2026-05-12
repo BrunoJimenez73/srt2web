@@ -20,13 +20,13 @@ try:
     from pydantic import ValidationError  # Pydantic v2
 except ImportError:
     try:
-        from pydantic.v1 import ValidationError  # Pydantic v1
+        from pydantic.v1 import ValidationError  # type: ignore[no-redef]  # Pydantic v1
     except ImportError:
         try:
             from pydantic_core import ValidationError  # Pydantic v2 (core)
         except ImportError:
             # Fallback - define a basic ValidationError
-            class ValidationError(Exception):
+            class ValidationError(Exception):  # type: ignore[no-redef]
                 pass
 
 from core.config_schema import SRT2WebConfig

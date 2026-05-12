@@ -36,7 +36,7 @@ from core.schemas import SystemMetrics
 try:
     from modules.outputs.composite_output import CompositeOutput
 except ImportError:
-    CompositeOutput = None
+    CompositeOutput = None  # type: ignore[assignment,misc]
 
 try:
     from core.pipeline.strategies import (
@@ -45,9 +45,9 @@ try:
         create_strategy,
     )
 except ImportError:
-    create_strategy = None
-    StrategyConfig = None
-    PipelineStrategy = None
+    create_strategy = None  # type: ignore[assignment]
+    StrategyConfig = None  # type: ignore[assignment,misc]
+    PipelineStrategy = None  # type: ignore[assignment,misc]
 
 logger = logging.getLogger("srt2web.unified_pipeline")
 
@@ -142,14 +142,14 @@ class UnifiedPipeline:
         self._modules: list[BaseModule] = []
         self._module_map: dict[str, BaseModule] = {}
         self._input_source = None
-        self._output_sink = None
+        self._output_sink: Any = None
 
         # Execution control - INITIALIZED EARLY TO AVOID RACE
         self._stop_event = threading.Event()
         self._semaphore = threading.Semaphore(max_concurrent_chunks)
         self._tasks: list[Any] = []
-        self._chunk_queue = queue.Queue(maxsize=buffer_size)
-        self._output_queue = queue.Queue(maxsize=buffer_size)
+        self._chunk_queue: queue.Queue[ChunkProcessor] = queue.Queue(maxsize=buffer_size)
+        self._output_queue: queue.Queue[ChunkProcessor] = queue.Queue(maxsize=buffer_size)
         self._results: dict[int, ChunkProcessor] = {}
         self._input_thread: Optional[threading.Thread] = None
         self._output_thread: Optional[threading.Thread] = None
@@ -173,7 +173,7 @@ class UnifiedPipeline:
 
         # Initialize processing strategy (if available)
         self._strategy: Optional[PipelineStrategy] = None
-        if create_strategy and StrategyConfig:
+        if create_strategy and StrategyConfig:  # type: ignore[truthy-function]
             try:
                 strategy_config = StrategyConfig(max_concurrent_chunks=max_concurrent_chunks)
                 self._strategy = create_strategy(mode.value, strategy_config)
@@ -228,7 +228,7 @@ class UnifiedPipeline:
 
     def get_output_sinks(self) -> Optional[CompositeOutput]:
         """Obtener el CompositeOutput si el sink actual es uno."""
-        if CompositeOutput and isinstance(self._output_sink, CompositeOutput):
+        if CompositeOutput and isinstance(self._output_sink, CompositeOutput):  # type: ignore[truthy-function]
             return self._output_sink
         return None
 
@@ -305,8 +305,8 @@ class UnifiedPipeline:
         try:
             # Inicializar estructuras según modo
             if self.mode == PipelineMode.ASYNCIO:
-                self._semaphore = asyncio.Semaphore(self.max_concurrent_chunks)
-                self._stop_event = asyncio.Event()
+                self._semaphore = asyncio.Semaphore(self.max_concurrent_chunks)  # type: ignore[assignment]
+                self._stop_event = asyncio.Event()  # type: ignore[assignment]
             else:
                 self._chunk_queue = queue.Queue(maxsize=self.buffer_size)
                 self._output_queue = queue.Queue(maxsize=self.buffer_size)
@@ -347,7 +347,7 @@ class UnifiedPipeline:
         self,
         on_log: Optional[Callable[[str, str], None]] = None,
         on_state_change: Optional[Callable[[str], None]] = None,
-    ) -> None:
+    ) -> "_CompletedAwaitable":
         """Iniciar procesamiento del pipeline."""
         if self._state != PipelineState.IDLE:
             raise PipelineStateError(f"Cannot start pipeline in state: {self._state.value}")
@@ -658,7 +658,7 @@ class UnifiedPipeline:
     async def _process_chunk_async(self, data: PipelineData) -> PipelineData:
         """Procesar un chunk en modo asyncio."""
         if hasattr(self._semaphore, "__aenter__"):
-            async with self._semaphore:
+            async with self._semaphore:  # type: ignore[attr-defined]
                 return await self._process_chunk_async_unlocked(data)
 
         await asyncio.to_thread(self._semaphore.acquire)
@@ -838,7 +838,7 @@ class UnifiedPipeline:
         # Agregar status del output sink al final de la lista when it is not
         # already registered as a normal processing module.
         try:
-            has_video_muxer_module = any(status.get("name") == "video_muxer" for status in modules_status)
+            has_video_muxer_module = any(status.get("name") == "video_muxer" for status in modules_status)  # type: ignore[union-attr]
             if not has_video_muxer_module:
                 output_status, muxer_status = self._get_output_module_status()
                 modules_status.append(output_status)

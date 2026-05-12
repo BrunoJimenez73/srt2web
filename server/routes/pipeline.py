@@ -161,15 +161,15 @@ async def stop_pipeline(request: Request):
     hls_dir = os.path.join(output_dir, "hls")
     if os.path.exists(hls_dir):
         # Remove segment files
-        for f in glob.glob(os.path.join(hls_dir, "seg_*.ts")):
+        for seg_file in glob.glob(os.path.join(hls_dir, "seg_*.ts")):
             try:
-                os.remove(f)
+                os.remove(seg_file)
             except OSError:
                 pass
         # Remove chunk SRT files
-        for f in glob.glob(os.path.join(hls_dir, "chunk_*.srt")):
+        for srt_file in glob.glob(os.path.join(hls_dir, "chunk_*.srt")):
             try:
-                os.remove(f)
+                os.remove(srt_file)
             except OSError:
                 pass
         # Remove playlist files but recreate them empty

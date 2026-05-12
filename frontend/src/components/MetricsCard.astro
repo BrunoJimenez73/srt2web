@@ -9,6 +9,10 @@ const { title = 'System Metrics' } = Astro.props;
 <div class="metrics-card" id="metrics-card" role="region" aria-label="Métricas del sistema">
   <div class="metrics-header">
     <span class="metrics-title">{title}</span>
+    <span class="latency-indicator" id="latency-indicator" title="Latencia estimada">
+      <span class="latency-icon">⏱</span>
+      <span class="latency-value" id="latency-value">0s</span>
+    </span>
   </div>
   <div class="metrics-grid">
     <div class="metric-item" id="metric-cpu" role="meter" aria-label="Uso de CPU" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
@@ -88,6 +92,27 @@ const { title = 'System Metrics' } = Astro.props;
     color: var(--text-prime);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+  }
+
+  .latency-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--text-sec);
+    background: var(--bg-surface);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+  }
+
+  .latency-icon {
+    font-size: 10px;
+  }
+
+  .latency-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    color: var(--text-prime);
   }
 
   .metrics-grid {

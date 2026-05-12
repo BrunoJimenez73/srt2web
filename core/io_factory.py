@@ -45,7 +45,7 @@ class InputFactory:
             raise ValueError(
                 f"Unknown input type: '{input_type}'. Available: {available}"
             )
-        return cls._inputs[input_type](config)
+        return cls._inputs[input_type](config)  # type: ignore[call-arg]
 
     @classmethod
     def available(cls) -> List[str]:
@@ -114,7 +114,7 @@ class OutputFactory:
             raise ValueError(
                 f"Unknown output type: '{output_type}'. Available: {available}"
             )
-        return cls._outputs[output_type](config)
+        return cls._outputs[output_type](config)  # type: ignore[call-arg]
 
     @classmethod
     def create_multiple(cls, output_configs: List[dict]) -> List[OutputSink]:

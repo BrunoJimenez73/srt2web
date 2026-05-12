@@ -96,7 +96,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         token = auth_header[7:]  # Remove "Bearer " prefix
         if token != auth_token:
-            logger.warning(f"SECURITY: Invalid auth token attempt from {request.client.host}")
+            logger.warning(f"SECURITY: Invalid auth token attempt from {request.client.host}")  # type: ignore[union-attr]
             return JSONResponse(
                 status_code=401,
                 content={"detail": "Invalid authentication token"}
@@ -211,7 +211,7 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
         content_length = request.headers.get("content-length")
         if content_length and int(content_length) > self.max_size_bytes:
             logger.warning(
-                f"Request too large: {content_length} bytes from {request.client.host}"
+                f"Request too large: {content_length} bytes from {request.client.host}"  # type: ignore[union-attr]
             )
             return JSONResponse(
                 status_code=413,
@@ -287,7 +287,7 @@ def validate_ws_auth(request: Request, get_auth_token: Callable[[], str]) -> boo
         return False
 
     if token != auth_token:
-        logger.warning(f"SECURITY: WebSocket invalid token from {request.client.host}")
+        logger.warning(f"SECURITY: WebSocket invalid token from {request.client.host}")  # type: ignore[union-attr]
         return False
 
     return True

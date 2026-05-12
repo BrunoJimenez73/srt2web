@@ -42,7 +42,7 @@ class ModelCache:
                     cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         if self._initialized:
             return
 
@@ -122,7 +122,7 @@ class ModelCache:
 
         logger.info(f"Loading Whisper model: {cache_key}")
 
-        from faster_whisper import WhisperModel
+        from faster_whisper import WhisperModel  # type: ignore[import-untyped]
 
         model = WhisperModel(
             model_size,
@@ -209,7 +209,7 @@ class ModelCache:
 
         try:
             t0 = time.perf_counter()
-            import argostranslate.translate
+            import argostranslate.translate  # type: ignore[import-untyped]
             t1 = time.perf_counter()
             logger.info(f"[TIMING] get_argos_pair: import translate: {t1-t0:.3f}s")
 
@@ -258,7 +258,7 @@ class ModelCache:
             logger.error(f"Failed to load Argos pair {cache_key}: {e}")
             return None
 
-    def preload_argos(self, pairs: list = None) -> None:
+    def preload_argos(self, pairs: list | None = None) -> None:
         """
         Preload Argos translation pairs.
 
@@ -292,7 +292,7 @@ class ModelCache:
         whisper_model: str = "tiny",
         device: str = "cpu",
         compute_type: str = "int8",
-        argos_pairs: list = None,
+        argos_pairs: list | None = None,
     ) -> None:
         """
         Preload all models in background threads.
@@ -320,7 +320,7 @@ class ModelCache:
 
     def get_cache_stats(self) -> dict:
         """Get cache statistics."""
-        total_memory = 0
+        total_memory: float = 0.0
         try:
             import psutil
 

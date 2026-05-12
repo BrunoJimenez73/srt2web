@@ -344,6 +344,7 @@ export type AudioCodec = 'aac' | 'mp3' | 'opus';
 export interface Status {
   state: PipelineState;
   chunks_processed: number;
+  chunks_failed?: number;
   modules: ModuleStatus[];
   metrics?: MetricsData;
   input_receiving?: boolean;

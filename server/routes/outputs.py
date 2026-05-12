@@ -178,7 +178,7 @@ async def remove_output(request: Request, output_name: str):
 
 
 @router.post("/outputs/{output_name}/toggle")
-async def toggle_output(request: Request, output_name: str, body: dict = None):
+async def toggle_output(request: Request, output_name: str, body: dict | None = None):
     """Habilita o deshabilita un output."""
     ctx = _ctx(request)
     pipeline = ctx["pipeline"]

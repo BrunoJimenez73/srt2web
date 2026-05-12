@@ -12,7 +12,7 @@ class HardwareMonitor:
     def __init__(self):
         self._nvml_initialized = False
         try:
-            import pynvml
+            import pynvml  # type: ignore[import-untyped]
             self._pynvml = pynvml
         except ImportError:
             self._pynvml = None
@@ -34,15 +34,15 @@ class HardwareMonitor:
         Retorna un diccionario con CPU, RAM y GPU (si está disponible).
         """
         metrics = {
-            "cpu_usage": 0,
-            "cpu_percent": 0,
-            "memory_usage": 0,
-            "memory_percent": 0,
-            "memory_mb": 0,
-            "gpu_usage": 0,
-            "gpu_percent": 0,
-            "gpu_memory_usage": 0,
-            "gpu_memory_mb": 0,
+            "cpu_usage": 0.0,
+            "cpu_percent": 0.0,
+            "memory_usage": 0.0,
+            "memory_percent": 0.0,
+            "memory_mb": 0.0,
+            "gpu_usage": 0.0,
+            "gpu_percent": 0.0,
+            "gpu_memory_usage": 0.0,
+            "gpu_memory_mb": 0.0,
             "gpu_available": False
         }
 

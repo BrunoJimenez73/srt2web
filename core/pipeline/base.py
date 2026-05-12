@@ -99,7 +99,7 @@ class PipelineStrategy:
 class MetricsTracker:
     """Tracker de métricas simple para todas las estrategias."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.chunks_processed: int = 0
         self.chunks_failed: int = 0
         self.total_processing_time: float = 0.0

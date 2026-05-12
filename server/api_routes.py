@@ -95,7 +95,7 @@ def create_api_router() -> APIRouter:
         start_time = ctx.get("_start_time", get_time())
         uptime = get_time() - start_time
 
-        memory_info = {"memory_mb": 0, "memory_percent": 0}
+        memory_info: dict[str, float] = {"memory_mb": 0.0, "memory_percent": 0.0}
         try:
             process = psutil.Process()
             memory_info = {
@@ -140,7 +140,7 @@ def create_api_router() -> APIRouter:
         if input_src:
             input_health = {
                 "receiving": input_src.is_receiving() if hasattr(input_src, "is_receiving") else False,
-                "type": getattr(input_src, "name", "unknown"),
+                "type": getattr(input_src, "name", "unknown"),  # type: ignore[arg-type]
             }
 
         output_health = {"streaming": False}
@@ -148,7 +148,7 @@ def create_api_router() -> APIRouter:
         if output_snk:
             output_health = {
                 "streaming": output_snk.is_streaming() if hasattr(output_snk, "is_streaming") else False,
-                "type": getattr(output_snk, "name", "unknown"),
+                "type": getattr(output_snk, "name", "unknown"),  # type: ignore[arg-type]
             }
 
         return {

@@ -32,7 +32,7 @@ def detect_cuda() -> dict[str, Any]:
     Returns:
         Dict con: available (bool), device_count, devices (list), error (str)
     """
-    result = {
+    result: dict[str, Any] = {
         "available": False,
         "device_count": 0,
         "devices": [],
@@ -86,7 +86,7 @@ def detect_cuda() -> dict[str, Any]:
     # Fallback: verificar vía nvidia-smi o pynvml
     if not result["available"]:
         try:
-            import pynvml
+            import pynvml  # type: ignore[import-untyped]
 
             pynvml.nvmlInit()
             device_count = pynvml.nvmlDeviceGetCount()
@@ -124,7 +124,7 @@ def detect_mps() -> dict[str, Any]:
     Returns:
         Dict con: available (bool), error (str)
     """
-    result = {
+    result: dict[str, Any] = {
         "available": False,
         "error": None,
     }

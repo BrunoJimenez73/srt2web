@@ -95,7 +95,7 @@ class AsyncPipeline(PipelineStrategy):
 
         if self._stop_event:
             loop = asyncio.get_event_loop()
-            loop.run_until_complete(self._stop_event.set())
+            loop.run_until_complete(self._stop_event.set())  # type: ignore[arg-type]
 
         if self._task and not self._task.done():
             self._task.cancel()
@@ -105,12 +105,14 @@ class AsyncPipeline(PipelineStrategy):
 
     def is_running(self) -> bool:
         """Verificar si está en ejecución."""
-        return self._running and self._task and not self._task.done()
+        return self._running and self._task is not None and not self._task.done()
 
     async def _run_async_loop(self) -> None:
         """Bucle principal async."""
         logger.info("AsyncIO processing loop started")
         chunk_index = 0
+
+        assert self._stop_event is not None
 
         try:
             while not self._stop_event.is_set():
@@ -128,6 +130,7 @@ class AsyncPipeline(PipelineStrategy):
                 data.timestamp = time.time()
 
                 # Process with semaphore control
+                assert self._semaphore is not None
                 async with self._semaphore:
                     start_time = time.perf_counter()
 
@@ -248,7 +251,7 @@ class AsyncPipelineV2(PipelineStrategy):
             self._on_state_change(new_state.value)
 
     @property
-    def is_running(self) -> bool:
+    def is_running(self) -> bool:  # type: ignore[override]
         return self.state == PipelineState.RUNNING
 
     # ---------------------------------------------------------------------
@@ -294,7 +297,7 @@ class AsyncPipelineV2(PipelineStrategy):
         # Ensure the pipeline starts in IDLE state
         self._set_state(PipelineState.IDLE)
 
-    async def start(self) -> None:
+    async def start(self) -> None:  # type: ignore[override]
         """Start the pipeline.
 
         The real implementation would launch a background processing loop, but
@@ -306,7 +309,7 @@ class AsyncPipelineV2(PipelineStrategy):
             raise PipelineStateError("Pipeline already running")
         self._set_state(PipelineState.RUNNING)
 
-    async def stop(self) -> None:
+    async def stop(self) -> None:  # type: ignore[override]
         """Stop the pipeline and return to the IDLE state."""
         self._set_state(PipelineState.IDLE)
 

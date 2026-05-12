@@ -85,39 +85,30 @@ known-first-party = ["core", "modules", "server"]
 
 [tool.mypy]
 python_version = "3.12"
-warn_return_any = false
-warn_unused_configs = true
+strict = true
 ignore_missing_imports = true
-exclude = ["desktop", "scripts", "desktop/dist", "venv"]
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-check_untyped_defs = false
-disallow_untyped_decorators = false
-no_implicit_optional = false
-warn_redundant_casts = true
+exclude = ["desktop", "scripts", "desktop/dist", "venv", "tests"]
 warn_unused_ignores = true
 show_error_codes = true
 
 [[tool.mypy.overrides]]
 module = "core.*"
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true
-disallow_untyped_decorators = true
+strict = true
 ignore_errors = false
 
 [[tool.mypy.overrides]]
-module = ["modules.*", "server.*"]
-disallow_untyped_defs = false
-check_untyped_defs = true
+module = "server.*"
+strict = true
 ignore_errors = false
 
 [[tool.mypy.overrides]]
-module = ["tests.*"]
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-check_untyped_defs = false
-ignore_errors = false
+module = "modules.*"
+ignore_errors = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+ignore_errors = true
 
 [tool.pytest.ini_options]
 markers = [

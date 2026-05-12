@@ -10,6 +10,7 @@ import threading
 import uuid
 from typing import Dict, List, Optional
 
+from core.schemas import PipelineMode
 from core.unified_pipeline import UnifiedPipeline, PipelineState
 
 logger = logging.getLogger("srt2web.pipeline_manager")
@@ -34,7 +35,7 @@ class PipelineManager:
         self,
         config: dict,
         output_dir: str,
-        mode: str = "thread_parallel",
+        mode: PipelineMode = PipelineMode.THREAD_PARALLEL,
         max_concurrent_chunks: int = 2,
     ) -> str:
         """
@@ -100,7 +101,7 @@ class PipelineManager:
 
         if pipeline:
             try:
-                pipeline.stop()
+                pipeline.stop()  # type: ignore[unused-coroutine]
                 logger.info(f"Pipeline stopped (id={pipeline_id})")
             except Exception as e:
                 logger.error(
@@ -179,7 +180,7 @@ class PipelineManager:
         merged = default.copy()
         for key, value in custom_config.items():
             if key in merged and isinstance(merged[key], dict):
-                merged[key].update(value)
+                merged[key].update(value)  # type: ignore[attr-defined]
             else:
                 merged[key] = value
 

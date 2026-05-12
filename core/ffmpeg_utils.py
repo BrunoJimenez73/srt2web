@@ -432,7 +432,7 @@ def kill_process_gracefully(process, timeout: int = 5):
         if platform.system() == "Windows":
             process.kill()
         else:
-            process.send_signal(signal.SIGKILL)
+            process.send_signal(signal.SIGKILL)  # type: ignore[attr-defined]
 
         try:
             process.wait(timeout=2)

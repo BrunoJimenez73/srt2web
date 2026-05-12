@@ -153,7 +153,7 @@ class FFmpegWrapper:
                 text=True,
                 encoding="utf-8",
                 timeout=timeout,
-                creationflags=self._creation_flags,
+                creationflags=self._creation_flags or 0,
                 check=True,
             )
         except subprocess.CalledProcessError as e:
@@ -176,7 +176,7 @@ class FFmpegWrapper:
                 capture_output=capture_output,
                 text=True,
                 encoding="utf-8",
-                creationflags=self._creation_flags,
+                creationflags=self._creation_flags or 0,
                 check=True,
             )
         except subprocess.CalledProcessError as e:

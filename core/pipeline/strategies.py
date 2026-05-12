@@ -94,7 +94,7 @@ class SequentialStrategy(PipelineStrategy):
         start_time = time.time()
 
         for module in self._modules:
-            if not module.is_enabled:
+            if not module.enabled:
                 continue
 
             data = module.process(data)
@@ -148,7 +148,7 @@ class ThreadParallelStrategy(PipelineStrategy):
             try:
                 start_time = time.time()
                 for module in self._modules:
-                    if not module.is_enabled:
+                    if not module.enabled:
                         continue
                     data = module.process(data)
 
@@ -213,7 +213,7 @@ class AsyncIOStrategy(PipelineStrategy):
             try:
                 start_time = time.time()
                 for module in self._modules:
-                    if not module.is_enabled:
+                    if not module.enabled:
                         continue
                     # Wrap sync process in run_in_executor for true async
                     loop = asyncio.get_event_loop()
@@ -288,4 +288,4 @@ def create_strategy(mode: str, config: Optional[StrategyConfig] = None) -> Pipel
     if not strategy_class:
         raise ValueError(f"Unknown strategy mode: {mode}. Available: {list(strategies.keys())}")
 
-    return strategy_class(config)
+    return strategy_class(config)  # type: ignore[abstract]

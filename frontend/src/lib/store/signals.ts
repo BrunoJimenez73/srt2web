@@ -148,6 +148,22 @@ export const throughputAvg = computed(() => {
   return hist.reduce((a, b) => a + b, 0) / hist.length;
 });
 
+// ── Computed: Latency ────────────────────────────────────────────────────────
+
+export const pipelineLatency = computed(() => {
+  const avgTimeMs = (pipelineStatus.value as any)?.avg_processing_time_ms ?? 0;
+  // Estimate: avg_processing_time_ms * pipeline stages (input->transcribe->translate->TTS->mix->output)
+  const stages = 6;
+  return avgTimeMs > 0 ? (avgTimeMs * stages) / 1000 : 0;
+});
+
+// ── Computed: Metrics History for Sparklines ────────────────────────────────
+
+export const cpuHistory = signal<number[]>([]);
+export const gpuHistory = signal<number[]>([]);
+
+export const cpuAlertActive = signal<boolean>(false);
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Update pipeline status and record throughput snapshot */
@@ -164,8 +180,20 @@ export function updateStatus(status: Status): void {
     avgTimeMs > 0 ? 1000 / avgTimeMs : uptime > 0 ? chunks / uptime : 0;
   if (tp > 0) {
     const hist = [...throughputHistory.value, tp];
-    // Keep last 10 samples
-    throughputHistory.value = hist.slice(-10);
+    // Keep last 60 samples (increased for F18 sparklines)
+    throughputHistory.value = hist.slice(-60);
+  }
+
+  // Update CPU/GPU history for sparklines (F18)
+  const sys = (status as any)?.system_metrics ?? (status as any)?.system ?? {};
+  const cpu = sys.cpu_percent ?? sys.cpu_usage ?? 0;
+  const gpu = sys.gpu_percent ?? sys.gpu_usage ?? 0;
+
+  if (cpu > 0) {
+    cpuHistory.value = [...cpuHistory.value, cpu].slice(-60);
+  }
+  if (gpu > 0) {
+    gpuHistory.value = [...gpuHistory.value, gpu].slice(-60);
   }
 }
 

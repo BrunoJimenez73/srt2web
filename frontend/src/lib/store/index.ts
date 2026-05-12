@@ -24,13 +24,17 @@ export {
   systemMetrics,
   connectionUrls,
   throughputAvg,
+  pipelineLatency,
+  cpuHistory,
+  gpuHistory,
+  cpuAlertActive,
   updateStatus,
   addLog,
   resetThroughput,
-} from './signals';
+} from "./signals";
 
 // Effects (DOM update subscriptions)
-export { startEffects, stopEffects } from './effects';
+export { startEffects, stopEffects } from "./effects";
 
 // Legacy store (for backwards compat — prefer signals for new code)
-export { dashboardStore } from '../store.ts';
+export { dashboardStore } from "../store.ts";

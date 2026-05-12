@@ -128,10 +128,10 @@ class RetryStrategy:
 
     def execute(
         self,
-        func: Callable,
-        *args,
-        is_recoverable=None,
-        **kwargs,
+        func: Callable[..., Any],
+        *args: Any,
+        is_recoverable: Callable[[Exception], bool] | None = None,
+        **kwargs: Any,
     ) -> Any:
         """
         Execute function with retry logic.
@@ -182,11 +182,11 @@ class MemoryManager:
         self.gc_threshold_mb = gc_threshold_mb
         self.check_interval = check_interval
         self._chunk_counter = 0
-        self._last_gc_time = 0
+        self._last_gc_time = 0.0
         self._min_gc_interval = 30
         self.logger = logging.getLogger("srt2web.memory")
 
-    def check(self) -> dict:
+    def check(self) -> dict[str, Any]:
         """
         Check memory usage and trigger GC if needed.
 
@@ -259,11 +259,11 @@ class MemoryManager:
     error_message: str | None = None
     processed_chunks: int = 0
     last_process_time_ms: float = 0.0
-    extra: dict = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
     circuit_state: str | None = None
     memory_mb: float | None = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert status to dictionary for JSON serialization.
 
         Returns:
@@ -302,17 +302,17 @@ class PipelineData:
     audio_samples: np.ndarray | None = None
     audio_sample_rate: int = 16000
     transcript: str | None = None
-    transcript_segments: list = field(default_factory=list)
+    transcript_segments: list[dict[str, Any]] = field(default_factory=list)
     detected_language: str | None = None
     translated_text: str | None = None
-    translated_segments: list = field(default_factory=list)
+    translated_segments: list[dict[str, Any]] = field(default_factory=list)
     subtitles_path: str | None = None
     dubbed_audio_path: str | None = None
     mixed_audio_path: str | None = None
     output_hls_path: str | None = None
-    metadata: dict = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to dict (excluding numpy arrays)."""
         d = {}
         for k, v in self.__dict__.items():
@@ -376,7 +376,7 @@ class BaseModule(ABC):
     def __init__(
         self,
         name: str,
-        config: dict | None = None,
+        config: dict[str, Any] | None = None,
         circuit_breaker: CircuitBreaker | None = None,
         retry_strategy: RetryStrategy | None = None,
         is_critical: bool = True,
@@ -418,7 +418,7 @@ class BaseModule(ABC):
         """Get current circuit breaker state."""
         return self._circuit_breaker.state
 
-    def configure(self, config: dict) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         """
         Apply configuration dictionary to this module.
         Override in subclasses to handle module-specific config.
@@ -510,7 +510,7 @@ class BaseModule(ABC):
         start_time = time.perf_counter()
         last_error = None
 
-        def do_work():
+        def do_work() -> PipelineData:
             return self._do_process(data)
 
         for attempt in range(self._retry_strategy.max_retries + 1):

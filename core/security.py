@@ -153,7 +153,7 @@ def escape_ffmpeg_path(path: str) -> str:
     return escaped
 
 
-def cleanup_temporary_files(output_dir: str, patterns: list = None) -> None:
+def cleanup_temporary_files(output_dir: str, patterns: list[str] | None = None) -> None:
     """
     Clean up temporary files from output directory.
 

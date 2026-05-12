@@ -402,8 +402,8 @@ describe("signals - Throughput", () => {
     expect(throughputHistory.value).toEqual([]);
   });
 
-  it("updateStatus keeps only last 10 samples", () => {
-    for (let i = 0; i < 15; i++) {
+  it("updateStatus keeps only last 60 samples", () => {
+    for (let i = 0; i < 70; i++) {
       const status = makeStatus({
         chunks_processed: i + 1,
         state: "running" as any,
@@ -411,7 +411,7 @@ describe("signals - Throughput", () => {
       (status as any).avg_processing_time_ms = 200;
       updateStatus(status);
     }
-    expect(throughputHistory.value.length).toBe(10);
+    expect(throughputHistory.value.length).toBe(60);
   });
 });
 

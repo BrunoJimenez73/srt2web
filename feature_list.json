@@ -188,7 +188,7 @@
       "id": 18,
       "name": "metrics_sparklines_and_latency_meter",
       "title": "Sparklines de métricas y medidor de latencia en tiempo real",
-      "status": "pending",
+      "status": "done",
       "area": "ux_visualizacion",
       "description": "MetricsCard muestra barras estáticas de CPU/GPU/Memory/Throughput pero no hay tendencia histórica. No hay indicador de latencia end-to-end. Los valores numéricos sin contexto temporal dificultan detectar picos.",
       "problems_identified": [

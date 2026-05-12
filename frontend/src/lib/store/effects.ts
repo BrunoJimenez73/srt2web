@@ -14,11 +14,15 @@ import {
   wsConnected,
   throughputHistory,
   throughputAvg,
+  pipelineLatency,
   connectionUrls,
   systemMetrics,
   isPipelineRunning,
   connectionMode,
   pipelineLogs,
+  cpuHistory,
+  gpuHistory,
+  cpuAlertActive,
 } from "./signals";
 import {
   PipelineState,
@@ -181,16 +185,19 @@ function getMetricBarClass(value: number): string {
 }
 
 // Get color class for metric items (.warning, .critical)
-// CPU is normally 20-50%, so use 80% as threshold
 function getMetricItemClass(value: number): string {
   if (value < 80) return "warning";
   return "critical";
 }
 
+// Track consecutive CPU high for alert
+let _cpuHighStartTime: number | null = null;
+
 function startMetricsEffects(): void {
   _efMetrics = effect(() => {
     const metrics = systemMetrics.value;
     const tpAvg = throughputAvg.value;
+    const latency = pipelineLatency.value;
 
     // CPU
     const cpuItem = el<HTMLDivElement>("metric-cpu");
@@ -198,7 +205,6 @@ function startMetricsEffects(): void {
     const cpuValue = el<HTMLSpanElement>("metric-cpu-value");
     if (cpuBar) {
       cpuBar.style.width = `${metrics.cpu}%`;
-      // Apply color class to BAR (not item)
       cpuBar.classList.remove("low", "medium", "high");
       cpuBar.classList.add(getMetricBarClass(metrics.cpu));
     }
@@ -240,11 +246,107 @@ function startMetricsEffects(): void {
     const tpValue = el<HTMLSpanElement>("metric-throughput-value");
     if (tpBar) tpBar.style.width = `${Math.min(tpAvg * 10, 100)}%`;
     if (tpValue) tpValue.textContent = `${tpAvg.toFixed(2)}/s`;
+
+    // Latency indicator (F18)
+    const latencyEl = el<HTMLSpanElement>("latency-value");
+    if (latencyEl) {
+      latencyEl.textContent = latency > 0 ? `${latency.toFixed(1)}s` : "0s";
+    }
+
+    // CPU Alert (F18): detect >90% for 5+ consecutive seconds
+    const now = Date.now();
+    if (metrics.cpu > 90) {
+      if (_cpuHighStartTime === null) {
+        _cpuHighStartTime = now;
+      } else if (now - _cpuHighStartTime >= 5000) {
+        cpuAlertActive.value = true;
+      }
+      if (cpuItem) cpuItem.classList.add("critical");
+    } else {
+      _cpuHighStartTime = null;
+      cpuAlertActive.value = false;
+    }
+
+    // Chunks failed (F18)
+    const chunksFailed = (pipelineStatus.value as any)?.chunks_failed ?? 0;
+    const chunksFailedEl = el<HTMLDivElement>("chunks-failed");
+    const chunksFailedText = el<HTMLSpanElement>("chunks-failed-text");
+    if (chunksFailedEl && chunksFailedText) {
+      if (chunksFailed > 0) {
+        chunksFailedEl.style.display = "inline-flex";
+        chunksFailedText.textContent = `${chunksFailed} failed`;
+      } else {
+        chunksFailedEl.style.display = "none";
+      }
+    }
   });
 }
 
 function stopMetricsEffects(): void {
   _efMetrics?.();
+}
+
+// ── Sparklines Effect (F18) ───────────────────────────────────────────────
+
+let _efSparklines: (() => void) | null = null;
+
+function startSparklinesEffects(): void {
+  _efSparklines = effect(() => {
+    const cpu = cpuHistory.value;
+    const gpu = gpuHistory.value;
+    const tp = throughputHistory.value;
+
+    // Generate sparkline points (60 samples -> SVG coordinates)
+    // ViewBox is 60x20, so x = index, y = 20 - (value * 0.2)
+    const cpuLine = document.getElementById(
+      "cpu-sparkline-line",
+    ) as unknown as {
+      setAttribute: (k: string, v: string) => void;
+      style: { stroke: string };
+    };
+    const gpuLine = document.getElementById(
+      "gpu-sparkline-line",
+    ) as unknown as {
+      setAttribute: (k: string, v: string) => void;
+      style: { stroke: string };
+    };
+    const tpLine = document.getElementById("tp-sparkline-line") as unknown as {
+      setAttribute: (k: string, v: string) => void;
+      style: { stroke: string };
+    };
+
+    if (cpuLine && cpu.length > 1) {
+      const points = cpu
+        .map((v, i) => `${i},${20 - Math.min(v * 0.2, 20)}`)
+        .join(" ");
+      cpuLine.setAttribute("points", points);
+      cpuLine.style.stroke = getSparklineColor(cpu[cpu.length - 1] || 0);
+    }
+    if (gpuLine && gpu.length > 1) {
+      const points = gpu
+        .map((v, i) => `${i},${20 - Math.min(v * 0.2, 20)}`)
+        .join(" ");
+      gpuLine.setAttribute("points", points);
+      gpuLine.style.stroke = getSparklineColor(gpu[gpu.length - 1] || 0);
+    }
+    if (tpLine && tp.length > 1) {
+      const maxTp = Math.max(...tp, 0.1);
+      const points = tp
+        .map((v, i) => `${i},${20 - Math.min((v / maxTp) * 20, 20)}`)
+        .join(" ");
+      tpLine.setAttribute("points", points);
+    }
+  });
+}
+
+function stopSparklinesEffects(): void {
+  _efSparklines?.();
+}
+
+function getSparklineColor(value: number): string {
+  if (value < 70) return "#22c55e";
+  if (value < 85) return "#f59e0b";
+  return "#ef4444";
 }
 
 // ── effectModuleMetrics ──────────────────────────────────────────────────────
@@ -683,6 +785,7 @@ function stopLogsEffect(): void {
 export function startEffects(): void {
   startStatusEffects();
   startMetricsEffects();
+  startSparklinesEffects();
   startModuleMetricsEffects();
   startConnectionUrlEffects();
   startWsStatusEffect();
@@ -695,6 +798,7 @@ export function startEffects(): void {
 export function stopEffects(): void {
   stopStatusEffects();
   stopMetricsEffects();
+  stopSparklinesEffects();
   stopModuleMetricsEffects();
   stopConnectionUrlEffects();
   stopWsStatusEffect();

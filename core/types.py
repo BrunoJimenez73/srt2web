@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from core.schemas import ModuleStatus, PipelineState
+from core.schemas import ModuleState, ModuleStatus, PipelineState
 
 # ============================================================================
 # Enums (mantener los que no están en schemas)

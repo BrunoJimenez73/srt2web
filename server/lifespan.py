@@ -76,6 +76,7 @@ def run_server(host: str, port: int, app: Any, ssl_config: dict | None = None) -
     ssl_enabled = ssl_config.get("enabled", False) if ssl_config else False
 
     if ssl_enabled:
+        assert ssl_config is not None
         cert_file = ssl_config.get("cert_file", "certs/cert.pem")
         key_file = ssl_config.get("key_file", "certs/key.pem")
 
