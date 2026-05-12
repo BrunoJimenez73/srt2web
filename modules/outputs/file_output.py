@@ -5,9 +5,9 @@ Saves video, audio, and subtitle files to the output directory.
 Useful for archiving or further processing.
 """
 
+import logging
 import os
 import shutil
-import logging
 from typing import Optional
 
 from core.module_base import PipelineData
@@ -46,15 +46,15 @@ class FileOutput(BaseOutput):
     def start(self) -> None:
         """Initialize output directories."""
         base_dir = self._ensure_output_dir()
-        
+
         self._video_dir = os.path.join(base_dir, "video")
         self._audio_dir = os.path.join(base_dir, "audio")
         self._subtitle_dir = os.path.join(base_dir, "subtitles")
-        
+
         os.makedirs(self._video_dir, exist_ok=True)
         os.makedirs(self._audio_dir, exist_ok=True)
         os.makedirs(self._subtitle_dir, exist_ok=True)
-        
+
         self._counter = 0
         logger.info(f"File output started: {base_dir}")
 
@@ -65,15 +65,15 @@ class FileOutput(BaseOutput):
     def write(self, data: PipelineData) -> None:
         """
         Save chunk data to files.
-        
+
         Args:
             data: PipelineData with paths to processed files
         """
         chunk_idx = data.chunk_index
-        
+
         total_bytes = 0
         errors = []
-        
+
         # Save video if available
         if self._save_video and data.video_chunk_path and os.path.exists(data.video_chunk_path):
             dest = os.path.join(self._video_dir, f"chunk_{chunk_idx:06d}.mp4")
@@ -84,7 +84,7 @@ class FileOutput(BaseOutput):
             except Exception as e:
                 logger.error(f"Failed to save video: {e}")
                 errors.append(str(e))
-        
+
         # Save mixed audio if available
         if self._save_audio and data.mixed_audio_path and os.path.exists(data.mixed_audio_path):
             dest = os.path.join(self._audio_dir, f"chunk_{chunk_idx:06d}.wav")
@@ -95,7 +95,7 @@ class FileOutput(BaseOutput):
             except Exception as e:
                 logger.error(f"Failed to save audio: {e}")
                 errors.append(str(e))
-        
+
         # Save subtitles if available
         if self._save_subtitles and data.subtitles_path and os.path.exists(data.subtitles_path):
             dest = os.path.join(self._subtitle_dir, f"chunk_{chunk_idx:06d}.vtt")
@@ -106,9 +106,9 @@ class FileOutput(BaseOutput):
             except Exception as e:
                 logger.error(f"Failed to save subtitles: {e}")
                 errors.append(str(e))
-        
+
         self._counter += 1
-        
+
         # Update health tracking
         if errors:
             self._set_error("; ".join(errors))
@@ -133,8 +133,10 @@ def _register():
     """Auto-register this output module."""
     try:
         from core.io_factory import OutputFactory
+
         OutputFactory.register("file", FileOutput)
     except ImportError:
         pass
+
 
 _register()

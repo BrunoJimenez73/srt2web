@@ -11,12 +11,10 @@ These tests verify that:
 """
 
 import time
-from unittest.mock import MagicMock, patch
 from typing import Any
+from unittest.mock import MagicMock, patch
 
-import pytest
-
-from core.output_sink import OutputSink, HealthState, set_output_health_broadcaster
+from core.output_sink import HealthState, OutputSink, set_output_health_broadcaster
 
 
 class DummyOutput(OutputSink):
@@ -153,8 +151,9 @@ class TestHLSOutputHealth:
         self, mock_ffmpeg: MagicMock, mock_run: MagicMock, mock_manifest: MagicMock
     ) -> None:
         """FFmpeg error in HLS write sets error state."""
-        import tempfile
         import os
+        import tempfile
+
         from modules.outputs.hls_output import HLSOutput
 
         mock_ffmpeg.return_value = "ffmpeg"
@@ -197,8 +196,9 @@ class TestHLSOutputHealth:
         self, mock_ffmpeg: MagicMock, mock_run: MagicMock, mock_manifest: MagicMock
     ) -> None:
         """Successful FFmpeg write clears any previous error."""
-        import tempfile
         import os
+        import tempfile
+
         from modules.outputs.hls_output import HLSOutput
 
         mock_ffmpeg.return_value = "ffmpeg"
@@ -244,7 +244,7 @@ class TestSRTOutputHealth:
         from modules.outputs.srt_output import SRTOutput
 
         assert SRTOutput.MAX_RETRIES == 3
-        assert SRTOutput.RETRY_DELAYS == [5.0, 15.0, 30.0]
+        assert [5.0, 15.0, 30.0] == SRTOutput.RETRY_DELAYS
 
     def test_retry_count_reset_on_success(self) -> None:
         """Retry count resets on successful write."""

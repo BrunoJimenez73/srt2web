@@ -5,17 +5,16 @@ Supports pushing the processed stream to external RTMP servers
 (e.g., YouTube, Twitch, or custom RTMP endpoints).
 """
 
-import os
-import sys
-import time
 import logging
+import os
 import subprocess
+import sys
 import threading
 from typing import Optional
 
-from core.output_sink import OutputSink
-from core.module_base import PipelineData
 from core.ffmpeg_utils import ensure_ffmpeg
+from core.module_base import PipelineData
+from core.output_sink import OutputSink
 
 logger = logging.getLogger("srt2web.output.rtmp")
 
@@ -95,9 +94,7 @@ class RTMPOutput(OutputSink):
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            creationflags=(
-                subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            ),
+            creationflags=(subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0),
         )
 
         self._monitor_thread = threading.Thread(
@@ -219,11 +216,7 @@ class RTMPOutput(OutputSink):
 
     def is_streaming(self) -> bool:
         """Check if RTMP streaming is active."""
-        return (
-            self._streaming
-            and self._ffmpeg_proc is not None
-            and self._ffmpeg_proc.poll() is None
-        )
+        return self._streaming and self._ffmpeg_proc is not None and self._ffmpeg_proc.poll() is None
 
     def get_stream_info(self) -> dict:
         """Get RTMP stream information."""

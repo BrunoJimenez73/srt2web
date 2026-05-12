@@ -6,6 +6,7 @@
 ## Audit de features
 
 ### Features completamente OK:
+
 - F15 (WS Resilience): exponential backoff con jitter, polling adaptivo ✅
 - F20 (Output Health): implementado en todos los outputs, 16 tests ✅
 - F22 (Cleanup dead code): todos los archivos eliminados ✅
@@ -24,6 +25,7 @@
 | LogPanel.astro | max-height 40vh móvil | Pendiente verificar | Baja |
 
 **F29 (Repo hygiene)**
+
 - pytest_tmp_manual/ existe en disco → Baja
 - startup_stdout.txt y startup_stderr.txt existen en raíz → Alta (no deberían)
 
