@@ -11,111 +11,581 @@
       "id": 1,
       "name": "fix_dependency_management",
       "title": "Arreglar gestión de dependencias",
-      "description": "requirements.txt no existe en raíz pero CI, docs y Docker lo referencian. pyproject.toml no incluye pydantic (crítico). Dos config.yaml compitiendo. npm versions ficticias en frontend/package.json que rompen npm install.",
-      "acceptance": [
-        "Crear requirements.txt en raíz o unificar referencias a config/requirements.txt",
-        "pyproject.toml incluye pydantic>=2.0.0",
-        "frontend/package.json tiene versiones npm reales (npm install funciona)",
-        "Eliminar o resolver conflicto entre config.yaml raíz y config/config.yaml",
-        "CI pasa sin errores de dependencias"
-      ],
       "status": "done"
     },
     {
       "id": 2,
       "name": "fix_critical_pipeline_bugs",
       "title": "Corregir bugs críticos del pipeline",
-      "description": "Import uuid faltante en unified_pipeline.py (crash en sequential mode). _chunk_duration no inicializado. Typo ALLOWED_ENCODER_MODELS vs MODES (ImportError). Duplicate dict key nvdec en audio_extractor. Dos PipelineStrategy ABCs incompatibles.",
-      "acceptance": [
-        "import uuid agregado a unified_pipeline.py",
-        "_chunk_duration inicializado en __init__ de UnifiedPipeline",
-        "ALLOWED_ENCODER_MODELS renombrado a ALLOWED_ENCODER_MODES o viceversa (consistente)",
-        "audio_extractor.py duplicate nvdec key corregido",
-        "Duplicate PipelineStrategy ABCs eliminado o unificado"
-      ],
       "status": "done"
     },
     {
       "id": 3,
       "name": "fix_stop_bat_safety",
       "title": "Arreglar Stop.bat y scripts del sistema",
-      "description": "Stop.bat mata todos los python.exe del sistema (no solo srt2web). Borra .cache (modelos ML). Tiene hardcoded user path. cleanup_output.py referenciado pero no existe.",
-      "acceptance": [
-        "Stop.bat solo mata procesos srt2web, no todos los python",
-        "Stop.bat no borra .cache/ ni .pyd files",
-        "Hardcoded user paths reemplazados por variables relativas",
-        "cleanup_output.py creado o referencia removida"
-      ],
       "status": "done"
     },
     {
       "id": 4,
       "name": "add_missing_core_tests",
       "title": "Agregar tests para módulos críticos sin cobertura",
-      "description": "Módulos sin tests: hls_output.py, srt_input.py, unified_pipeline.py, pipeline/strategies.py, app.py, routes/*, webrtc_engine.py, piper_loader.py. 30+ módulos sin cobertura. test_async_pipeline_v2.py (23 tests) está ignorado en pytest.ini.",
-      "acceptance": [
-        "test_hls_output.py existe con tests básicos de write/start/stop",
-        "test_srt_input.py existe con tests de chunk generation",
-        "test_unified_pipeline.py existe con tests de register/get_status/reconfigure",
-        "test_async_pipeline_v2.py reactivado o refactorizado en pytest.ini",
-        "Al menos un test por cada módulo de output (file, rtmp, srt, webrtc)"
-      ],
       "status": "done"
     },
     {
       "id": 5,
       "name": "fix_frontend_console_race",
       "title": "Limpiar console.logs y arreglar race conditions frontend",
-      "description": "33 console.log() en producción. api.ts sin timeout (hanging requests). dashboard.ts double init race condition (DOMContentLoaded + load). LogPanel con addLogs duplicados compitiendo. cleanup() nunca llamado.",
-      "acceptance": [
-        "Todos los console.log/error/warn de debug eliminados o movidos a logger configurable",
-        "api.ts tiene timeout configurable en fetchWithAuth y apiCall",
-        "dashboard.ts no se inicializa dos veces (guard en bootstrap)",
-        "LogPanel usa una sola fuente de addLog (eliminar duplicación inline vs module)",
-        "cleanup() se ejecuta en beforeunload"
-      ],
       "status": "done"
     },
     {
       "id": 6,
       "name": "standardize_api_error_handling",
       "title": "Estandarizar manejo de errores API y seguridad",
-      "description": "Mezcla de estilos de error (HTTPException vs dict con 200). body: dict sin validación Pydantic en 5 endpoints. CORS middleware mal posicionado. Acceso a atributos privados (module._state). Public paths inconsistentes entre middlewares.",
-      "acceptance": [
-        "GET /input-info y GET /output-info devuelven 4xx real en errores (no 200 con error dict)",
-        "SeekPosition validator usado en POST /input/control/seek (no body: dict)",
-        "Pydantic models para POST /config/chunk, POST /outputs, PUT /outputs/{name}",
-        "CORS middleware es el más externo (ejecuta antes que rate limit y auth)",
-        "module._state no se modifica directamente (usa API pública)"
-      ],
       "status": "done"
     },
     {
       "id": 7,
       "name": "fix_webrtc_and_dead_code",
       "title": "Arreglar WebRTC y limpiar código muerto",
-      "description": "WebRTC video track devuelve frames negros, audio track silencio, subtitles con time.time()%3600. Código muerto: 53 líneas en audio_mixer.py (_get_audio_duration, _cleanup_temp_file), recording_output.py código tras return, composite_output.py bloque duplicado. Módulos frontend muertos: ui.ts, events.ts, config.ts.",
-      "acceptance": [
-        "WebRTC video track recibe frames reales (no negros)",
-        "WebRTC audio track recibe audio real (no silencio)",
-        "Código muerto eliminado de audio_mixer.py, recording_output.py, composite_output.py",
-        "Módulos frontend muertos (ui.ts, events.ts, config.ts) eliminados o implementados"
-      ],
       "status": "done"
     },
     {
       "id": 8,
       "name": "fix_ci_and_config_inconsistencies",
       "title": "Arreglar CI, config inconsistencies y player.astro",
-      "description": "CI usa node 20 pero package.json requiere >=22. pip install -r requirements.txt falla. tests frontend con continue-on-error. docs/index.md ref quickstart roto. player.astro carga HLS.js de CDN sin SRI. Config con audio_samplerate/audio_sample_rate en conflicto.",
-      "acceptance": [
-        "CI usa node version compatible con frontend/package.json",
-        "pip install en CI usa archivo existente (requirements.txt o config/requirements.txt)",
-        "CI no oculta fallos de frontend tests (continue-on-error: false)",
-        "player.astro HLS.js CDN tiene atributo integrity (SRI)",
-        "audio_samplerate/audio_sample_rate consistente en config.yaml"
-      ],
       "status": "done"
+    },
+    {
+      "id": 9,
+      "name": "fix_subtitle_desync",
+      "title": "Corregir desincronización de subtítulos al cambiar chunk_duration",
+      "status": "done"
+    },
+    {
+      "id": 10,
+      "name": "fix_runtime_crashes",
+      "title": "Corregir crashes runtime críticos",
+      "status": "done"
+    },
+    {
+      "id": 11,
+      "name": "fix_test_quality",
+      "title": "Arreglar tests placeholder, content-scraping y frágiles",
+      "status": "done"
+    },
+    {
+      "id": 12,
+      "name": "consolidate_config_and_infra",
+      "title": "Consolidar configuración duplicada e infraestructura",
+      "status": "done"
+    },
+    {
+      "id": 13,
+      "name": "fix_logging_and_error_handling",
+      "title": "Arreglar logging ruidoso y error handling silencioso",
+      "status": "done"
+    },
+    {
+      "id": 14,
+      "name": "remove_dead_code_and_duplication",
+      "title": "Eliminar código muerto y duplicaciones estructurales",
+      "status": "done"
+    },
+    {
+      "id": 15,
+      "name": "ws_resilience_and_adaptive_polling",
+      "title": "Resilencia WebSocket y polling adaptivo",
+      "status": "done",
+      "area": "rendimiento",
+      "description": "El cliente WebSocket actual usa reconexión lineal (delay * attempts) sin jitter, lo que causa thundering herd si el servidor se reinicia con muchos clientes. El polling HTTP de status es intervalo fijo independientemente del estado del pipeline. El token de auth expuesto en query string del WS URL es visible en logs de servidor.",
+      "problems_identified": [
+        "WSClient.attemptReconnect() usa delay lineal: reconnectDelay * reconnectAttempts (puede congestionar servidor)",
+        "Intervalo de polling en pipeline-control.ts es fijo (3s), no varía con estado running/stopped",
+        "Token auth en WS URL: ?token=xxx visible en access logs del servidor",
+        "maxReconnectAttempts = 5 hardcoded, sin configuración",
+        "Sin exponential backoff ni jitter en ninguna parte del cliente"
+      ],
+      "acceptance": [
+        "WSClient usa exponential backoff con jitter: delay = min(base * 2^attempt + random(0, 500ms), 30s)",
+        "Polling HTTP reduce a 10s cuando pipeline está stopped, 3s cuando running, 1s en primeros 5s post-start",
+        "Token de auth enviado vía header Sec-WebSocket-Protocol o subprotocolo (no query param)",
+        "maxReconnectAttempts y backoffBase son parámetros configurables en WSClient constructor",
+        "Test en signals.test.ts o api.test.ts verifica que reconnect emite eventos correctos",
+        "wsConnected signal en signals.ts refleja estado real (se pone false en primer intento fallido)"
+      ],
+      "files_to_touch": [
+        "frontend/src/lib/api.ts (WSClient.attemptReconnect)",
+        "frontend/src/lib/modules/pipeline-control.ts (polling interval)",
+        "frontend/src/lib/store/signals.ts (wsConnected signal)",
+        "server/ws_routes.py (aceptar auth por subprotocolo además de query param)",
+        "frontend/src/lib/api.test.ts (tests de reconnect)"
+      ]
+    },
+    {
+      "id": 16,
+      "name": "logpanel_virtual_scroll_and_export",
+      "title": "LogPanel: virtual scroll y exportación de logs",
+      "status": "pending",
+      "area": "ux_rendimiento",
+      "description": "El LogPanel acumula hasta 500 entradas en el DOM sin virtualización, causando degradación del rendimiento en sesiones largas. No hay forma de exportar los logs para depuración offline. La búsqueda/filtro por nivel (INFO/WARNING/ERROR) no existe en la UI.",
+      "problems_identified": [
+        "LogPanel renderiza hasta 500 <div> en el DOM simultáneamente sin virtual scroll",
+        "pipelineLogs.value = [...pipelineLogs.value.slice(-499), entry] — toda la lista se re-renderiza",
+        "Sin botón de exportar (JSON o TXT plano)",
+        "Sin filtro por nivel de log en la UI",
+        "Sin búsqueda por texto en logs",
+        "El botón 'Clear' borra sin confirmación en sesiones largas"
+      ],
+      "acceptance": [
+        "LogPanel implementa virtual scroll: solo renderiza ~30 filas visibles, scroll handler actualiza offset",
+        "Botón 'Export JSON' descarga archivo srt2web-logs-YYYY-MM-DD.json con todos los logs actuales",
+        "Botón 'Export TXT' descarga versión legible: '[TIMESTAMP] [LEVEL] message'",
+        "Selector de filtro por nivel (ALL / INFO / WARNING / ERROR) con badge de conteo",
+        "Input de búsqueda de texto filtra logs en tiempo real (debounce 200ms)",
+        "pipelineLogs en signals.ts mantiene máximo 1000 entradas (aumentado de 500)",
+        "Performance: renderizar 1000 logs no supera 16ms de layout (verificar con DevTools)"
+      ],
+      "files_to_touch": [
+        "frontend/src/components/LogPanel.astro",
+        "frontend/src/lib/modules/logpanel.ts",
+        "frontend/src/lib/store/signals.ts (aumentar límite)",
+        "frontend/src/lib/store/effects.ts (efectos de filtro)"
+      ]
+    },
+    {
+      "id": 17,
+      "name": "piper_heartbeat_and_graceful_degrade",
+      "title": "Heartbeat para Piper y degradación elegante de módulos",
+      "status": "pending",
+      "area": "estabilidad",
+      "description": "El subprocess persistente de Piper TTS puede bloquearse silenciosamente (hang) sin que el módulo lo detecte. No hay mecanismo de self-healing. Si un módulo no crítico falla (ej: traductor), el pipeline completo se detiene en vez de degradar elegantemente.",
+      "problems_identified": [
+        "piper_loader.py: subprocess puede quedar en estado bloqueado sin detección (poll() no verifica stdin/stdout activos)",
+        "No hay ping/pong periódico al proceso Piper para verificar que responde",
+        "module_base.py CircuitBreaker abre el circuito pero no intenta restart del subprocess",
+        "Si translator falla, audio_extractor→transcriber siguen corriendo pero datos se acumulan en cola",
+        "unified_pipeline.py no tiene concepto de módulo 'opcional' vs 'crítico'",
+        "Frontend no distingue entre módulo degradado (running sin output) y módulo fallido"
+      ],
+      "acceptance": [
+        "piper_loader.py envía mensaje de heartbeat cada 30s y verifica respuesta en 5s; si falla, reinicia subprocess",
+        "BaseModule tiene campo is_critical: bool (default True). Módulos opcionales: translator, tts_engine",
+        "Si módulo no crítico falla 3 veces consecutivas, pipeline continúa en modo degradado y emite warning por WS",
+        "ModuleCard en frontend muestra badge 'DEGRADED' (amarillo) distinto de 'ERROR' (rojo)",
+        "Test unitario para heartbeat de Piper (mock subprocess que no responde → verifica restart)",
+        "Test de integración: pipeline en modo degradado sin translator procesa audio correctamente"
+      ],
+      "files_to_touch": [
+        "modules/piper_loader.py (heartbeat thread)",
+        "core/module_base.py (is_critical flag, degraded state)",
+        "core/unified_pipeline.py (modo degradado)",
+        "core/schemas.py (ModuleState: agregar DEGRADED)",
+        "frontend/src/components/ModuleCard.astro (badge DEGRADED)",
+        "tests/unit/test_piper_loader.py (heartbeat test)"
+      ]
+    },
+    {
+      "id": 18,
+      "name": "metrics_sparklines_and_latency_meter",
+      "title": "Sparklines de métricas y medidor de latencia en tiempo real",
+      "status": "pending",
+      "area": "ux_visualizacion",
+      "description": "MetricsCard muestra barras estáticas de CPU/GPU/Memory/Throughput pero no hay tendencia histórica. No hay indicador de latencia end-to-end. Los valores numéricos sin contexto temporal dificultan detectar picos.",
+      "problems_identified": [
+        "MetricsCard: barras de progreso sin historial de últimos 60s",
+        "throughputHistory en signals.ts acumula datos pero no se visualizan como gráfico",
+        "No hay medición de latencia E2E (desde SRT input hasta HLS output)",
+        "avg_processing_time_ms del backend no se muestra en frontend",
+        "chunks_failed del backend no se muestra en ningún lugar de la UI",
+        "Sin alerta visual cuando CPU > 90% o GPU memory > 85%"
+      ],
+      "acceptance": [
+        "MetricsCard muestra sparkline SVG inline de últimos 30 samples para CPU, GPU y Throughput",
+        "Sparklines tienen colores adaptativos: verde < 70%, amarillo 70-85%, rojo > 85%",
+        "Nuevo indicador 'Latency' con valor en segundos (avg_processing_time_ms * pipeline_stages)",
+        "chunks_failed mostrado en StatusCard con color rojo si > 0",
+        "Alerta visual (pulso rojo) en MetricsCard cuando CPU > 90% por más de 5s consecutivos",
+        "Sparklines implementados como SVG puro (sin librería externa) para mantener bundle pequeño",
+        "throughputHistory mantiene 60 samples en vez de 10"
+      ],
+      "files_to_touch": [
+        "frontend/src/components/MetricsCard.astro (sparklines SVG)",
+        "frontend/src/lib/store/signals.ts (historial 60 samples, latency signal)",
+        "frontend/src/lib/store/effects.ts (efecto de alerta CPU)",
+        "frontend/src/components/StatusCard.astro (chunks_failed badge)"
+      ]
+    },
+    {
+      "id": 19,
+      "name": "pipeline_presets_profiles",
+      "title": "Presets / perfiles de configuración del pipeline",
+      "status": "pending",
+      "area": "ux",
+      "description": "Cada vez que se reconfigura el pipeline (voz TTS, idioma, chunk duration, codec) se hace manualmente campo por campo. No hay forma de guardar una configuración como preset nombrado ni de cambiar entre configuraciones rápidamente.",
+      "problems_identified": [
+        "Sin sistema de presets: cada sesión requiere reconfigurar manualmente",
+        "config.yaml solo tiene una configuración activa (no perfiles)",
+        "No hay export de config actual a YAML desde la UI",
+        "No hay import de YAML de config desde la UI",
+        "Sin preset 'baja latencia' (chunk=10s, sin TTS) ni 'máxima calidad' predefinidos"
+      ],
+      "acceptance": [
+        "Endpoint GET /api/presets devuelve lista de presets guardados (nombre, descripción, fecha)",
+        "Endpoint POST /api/presets crea preset desde config actual con nombre dado",
+        "Endpoint POST /api/presets/{name}/apply aplica preset (equivale a PUT /api/config)",
+        "Endpoint DELETE /api/presets/{name} elimina preset",
+        "Presets guardados en archivo presets.json en directorio config/",
+        "UI: botón 'Save Preset' en Header + dropdown de presets guardados",
+        "3 presets built-in: 'Low Latency' (chunk=10s, sin TTS), 'High Quality' (large Whisper, TTS habilitado), 'Spanish Stream' (sharvard voice, es→en)",
+        "Botón 'Export YAML' descarga config actual como archivo YAML",
+        "Tests: test_presets_api.py con CRUD completo"
+      ],
+      "files_to_touch": [
+        "server/routes/config.py (endpoints de presets)",
+        "core/config_manager.py (métodos save_preset, load_preset, list_presets)",
+        "frontend/src/components/Header.astro (botón Save Preset, dropdown)",
+        "frontend/src/lib/modules/pipeline-control.ts (applyPreset, exportConfig)",
+        "tests/unit/test_presets_api.py"
+      ]
+    },
+    {
+      "id": 20,
+      "name": "output_health_monitoring",
+      "title": "Monitoreo de salud de outputs y auto-reconexión",
+      "status": "pending",
+      "area": "estabilidad",
+      "description": "Los outputs (HLS, RTMP, SRT, Recording) pueden fallar silenciosamente sin que el usuario lo sepa. No hay lógica de reconexión automática para outputs de red (RTMP, SRT). OutputStatusCard no tiene historial de errores ni tiempo de uptime por output.",
+      "problems_identified": [
+        "HLS output: si FFmpeg cuelga, el output parece running pero no escribe segmentos",
+        "RTMP output: si el destino rechaza la conexión, no reintenta automáticamente",
+        "SRT output: timeout de conexión no configurable por output",
+        "No hay heartbeat por output (verificar que el proceso FFmpeg sigue vivo)",
+        "OutputStatusCard solo muestra enabled/disabled, no uptime ni bytes escritos",
+        "No hay evento WebSocket cuando un output falla (solo se detecta en el próximo poll)"
+      ],
+      "acceptance": [
+        "Cada output tiene método health_check() que verifica proceso FFmpeg activo + última escritura < 30s",
+        "RTMP y SRT outputs tienen auto-retry con backoff (3 intentos, espera 5/15/30s)",
+        "HLS output verifica que el último segmento .ts fue escrito en los últimos chunk_duration * 2 segundos",
+        "OutputSink base class emite evento WebSocket 'output_health' cuando cambia estado de salud",
+        "OutputStatusCard muestra: uptime, bytes_written (si disponible), último error con timestamp",
+        "Panel de outputs tiene indicador de salud: verde (ok), amarillo (degradado), rojo (fallido)",
+        "Test: test_output_health.py verifica detección de FFmpeg muerto y retry de RTMP"
+      ],
+      "files_to_touch": [
+        "core/output_sink.py (método health_check base + evento WS)",
+        "modules/outputs/hls_output.py (health check segmentos)",
+        "modules/outputs/rtmp_output.py (auto-retry con backoff)",
+        "modules/outputs/srt_output.py (timeout configurable + retry)",
+        "server/ws_routes.py (evento output_health)",
+        "frontend/src/components/OutputStatusCard.astro (uptime, bytes, último error)",
+        "tests/unit/test_output_health.py"
+      ]
+    },
+    {
+      "id": 21,
+      "name": "config_push_via_websocket",
+      "title": "Propagación reactiva de config vía WebSocket",
+      "status": "pending",
+      "area": "arquitectura",
+      "description": "Cuando el config cambia (vía PUT /api/config o POST /api/config/chunk), el frontend no lo sabe hasta el próximo poll de status. Si el servidor cambia config externamente, el dashboard muestra valores desactualizados.",
+      "problems_identified": [
+        "ConfigManager no tiene mecanismo de notificación de cambios",
+        "Frontend polling de config es parte del polling de status (no hay polling dedicado)",
+        "Múltiples clientes pueden tener vistas inconsistentes del config",
+        "Cambiar chunk_duration desde UI → UI no refleja el cambio hasta próximo poll (hasta 3s de lag)",
+        "ws_routes.py solo emite logs, no config_update events"
+      ],
+      "acceptance": [
+        "ConfigManager implementa patrón observer: add_listener(callback) / remove_listener(callback)",
+        "Cuando config cambia vía set(), notifica a todos los listeners registrados",
+        "server/app.py (lifespan) registra listener que hace broadcast de config_update vía WebSocket",
+        "Mensaje WS config_update tiene estructura: {type: 'config_update', data: {key, value, full_config}}",
+        "Frontend WSClient maneja mensaje config_update y actualiza pipelineConfig signal sin re-poll",
+        "Test: cambio de config en backend → signal pipelineConfig actualizado en frontend en < 100ms",
+        "Backward compatible: clientes que no manejan config_update no se rompen"
+      ],
+      "files_to_touch": [
+        "core/config_manager.py (observer pattern)",
+        "server/app.py (registrar listener en lifespan)",
+        "server/ws_routes.py (broadcast config_update)",
+        "frontend/src/lib/api.ts (WSClient maneja config_update)",
+        "frontend/src/lib/store/signals.ts (actualizar pipelineConfig desde WS)",
+        "tests/unit/test_config_manager.py (test observer)"
+      ]
+    },
+    {
+      "id": 22,
+      "name": "cleanup_dead_code_final",
+      "title": "Limpieza final de código muerto y archivos obsoletos",
+      "status": "pending",
+      "area": "mantenibilidad",
+      "description": "Quedan archivos marcados para limpieza posterior que nunca se eliminaron: core/module_interface.py (deprecated), index_new.astro (huérfano), endpoints inline en api_routes.py, y directorios experimentales en raíz.",
+      "problems_identified": [
+        "core/module_interface.py: marcado deprecated en F14 pero sigue en el repo con importaciones activas",
+        "frontend/src/pages/index_new.astro: página alternativa nunca publicada",
+        "server/api_routes.py: endpoints /input-info y /input/control/* están inline en vez de en server/routes/",
+        "drm_gemma_client.py en raíz: script experimental sin tests ni integración",
+        "mcp-python-refactoring/: directorio con artefactos de refactorización previa",
+        "PARA BORRAR/: carpeta con archivos temporales, scripts de debug y venvs obsoletos"
+      ],
+      "acceptance": [
+        "core/module_interface.py eliminado; cualquier import actualizado a core/module_base.py",
+        "frontend/src/pages/index_new.astro eliminado",
+        "server/api_routes.py: endpoints /input-info y /input/control/* movidos a server/routes/pipeline.py",
+        "drm_gemma_client.py movido a docs/ como ejemplo o eliminado con nota en CHANGELOG",
+        "mcp-python-refactoring/ eliminado (o movido a docs/adr/ si tiene valor histórico)",
+        "PARA BORRAR/ completamente eliminada del repo",
+        "pytest tests/unit/ pasa con 0 failures tras los cambios",
+        "TypeScript build (npx tsc --noEmit) sin errores"
+      ],
+      "files_to_touch": [
+        "core/module_interface.py (eliminar)",
+        "frontend/src/pages/index_new.astro (eliminar)",
+        "server/api_routes.py (mover endpoints inline a routes/)",
+        "server/routes/pipeline.py (recibir endpoints de input control)",
+        "drm_gemma_client.py (eliminar o mover)",
+        "mcp-python-refactoring/ (eliminar directorio)",
+        "PARA BORRAR/ (eliminar directorio completo)"
+      ]
+    },
+    {
+      "id": 23,
+      "name": "api_versioning_and_pydantic_responses",
+      "title": "Versionado de API y modelos Pydantic para todos los responses",
+      "status": "pending",
+      "area": "arquitectura",
+      "description": "La API REST no tiene versionado (/api/v1/). Varios endpoints devuelven dicts literales en vez de modelos Pydantic, lo que impide la generación correcta de OpenAPI. El cliente TypeScript duplica los tipos manualmente.",
+      "problems_identified": [
+        "Todos los endpoints bajo /api/ sin versión: cambios breaking sin advertencia",
+        "server/routes/pipeline.py: start/stop devuelven dict literal, no Pydantic model",
+        "server/routes/outputs.py: GET /outputs devuelve dict con 'outputs' como lista de dicts",
+        "server/routes/config.py: GET /config devuelve config.to_dict() sin schema OpenAPI",
+        "frontend/src/lib/types/api.ts: tipos duplicados manualmente respecto a los schemas del servidor",
+        "No hay deprecation headers cuando se cambia un endpoint",
+        "OpenAPI en /api/docs tiene respuestas 'any' en muchos endpoints"
+      ],
+      "acceptance": [
+        "Todos los endpoints existentes mantienen path /api/* (backward compat), se agregan alias /api/v1/*",
+        "Nuevo archivo core/api_models.py con Pydantic models para: StartResponse, StopResponse, StatusResponse, OutputListResponse, PresetListResponse",
+        "server/routes/pipeline.py usa StartResponse/StopResponse como response_model",
+        "server/routes/outputs.py usa OutputListResponse como response_model",
+        "GET /api/docs muestra schemas completos sin 'any' para los endpoints migrados",
+        "Script generate_types.py (en scripts/) genera frontend/src/lib/types/api.generated.ts desde OpenAPI",
+        "Makefile target 'make types' ejecuta el generador",
+        "Tests: test_api_models.py valida serialización de todos los nuevos modelos"
+      ],
+      "files_to_touch": [
+        "core/api_models.py (nuevo)",
+        "server/routes/pipeline.py (response_model)",
+        "server/routes/outputs.py (response_model)",
+        "server/routes/config.py (response_model)",
+        "server/app.py (agregar prefijo /api/v1 como alias)",
+        "scripts/generate_types.py (nuevo)",
+        "Makefile (target 'types')",
+        "tests/unit/test_api_models.py (nuevo)"
+      ]
+    },
+    {
+      "id": 24,
+      "name": "mypy_strict_mode",
+      "title": "mypy strict en core/ y server/ con 0 errores",
+      "status": "pending",
+      "area": "mantenibilidad",
+      "description": "mypy.ini actual tiene configuración laxa (ignore_missing_imports, sin strict). Los módulos core/ y server/ tienen funciones públicas sin type hints, generando bugs sutiles y dificultando refactoring seguro.",
+      "problems_identified": [
+        "mypy.ini: no tiene strict = true, allow_untyped_defs implícito",
+        "core/app_context.py: funciones que retornan Any sin anotar",
+        "core/config_manager.py: get() retorna Any, debería ser genérico",
+        "server/api_routes.py: parámetros de closures sin tipo",
+        "modules/audio_extractor.py: process() sin return type annotation",
+        "core/ffmpeg_pool.py: callbacks sin tipos",
+        "Muchas funciones con Optional sin | None syntax moderna (Python 3.10+)"
+      ],
+      "acceptance": [
+        "mypy.ini (o pyproject.toml [tool.mypy]) tiene strict = true para core/ y server/",
+        "python -m mypy core/ server/ --strict devuelve 0 errores",
+        "core/config_manager.py: get() es genérico: get(key: str, default: T = ...) -> T",
+        "Todas las funciones públicas de core/ y server/ tienen anotaciones completas",
+        "Optional[X] reemplazado por X | None donde Python >= 3.10",
+        "init.ps1 incluye mypy check como paso de verificación",
+        "CI (.github/workflows/) agrega step de mypy --strict en core/ y server/"
+      ],
+      "files_to_touch": [
+        "mypy.ini o pyproject.toml [tool.mypy]",
+        "core/config_manager.py (generic get)",
+        "core/app_context.py (anotaciones)",
+        "core/ffmpeg_pool.py (callbacks tipados)",
+        "server/api_routes.py (closures tipadas)",
+        "modules/audio_extractor.py (return types)",
+        ".github/workflows/ci.yml (mypy step)",
+        "init.ps1 (mypy check)"
+      ]
+    },
+    {
+      "id": 25,
+      "name": "frontend_test_coverage_80",
+      "title": "Cobertura de tests frontend al 80%+",
+      "status": "pending",
+      "area": "testing",
+      "description": "El frontend tiene tests en Vitest pero no se mide la cobertura sistemáticamente. signals.ts y effects.ts tienen tests parciales. Los módulos en lib/modules/ casi no tienen tests unitarios.",
+      "problems_identified": [
+        "vitest.config.ts no tiene configuración de coverage (no hay threshold)",
+        "lib/store/effects.ts: funciones de actualización DOM no testeadas",
+        "lib/modules/pipeline-control.ts: handleStart/handleStop sin tests",
+        "lib/modules/outputs.ts: addOutput/removeOutput sin tests",
+        "lib/modules/logpanel.ts: sin tests",
+        "lib/api.ts: fetchWithAuth timeout no testeado",
+        "Mocking de fetch no está estandarizado entre test files"
+      ],
+      "acceptance": [
+        "vitest.config.ts configura coverage con threshold: statements 80, branches 70, functions 80",
+        "npm run test:coverage genera reporte y falla si no alcanza threshold",
+        "lib/store/effects.ts: coverage > 75% (mockear DOM con jsdom ya configurado)",
+        "lib/modules/pipeline-control.ts: tests para handleStart (mock fetch), handleStop, bootstrap guard",
+        "lib/modules/outputs.ts: tests para addOutput, removeOutput, toggleOutput (mock apiCall)",
+        "lib/api.ts: test de timeout (fetch que no responde en 15s → AbortError)",
+        "Archivo frontend/tests/setup.ts con helpers: mockFetch(url, response), mockWSMessage(data)",
+        "CI: cd frontend && npm run test:coverage falla el build si coverage < threshold"
+      ],
+      "files_to_touch": [
+        "frontend/vitest.config.ts (coverage threshold)",
+        "frontend/src/lib/store/effects.test.ts (ampliar)",
+        "frontend/src/lib/modules/pipeline-control.test.ts (nuevo)",
+        "frontend/src/lib/modules/outputs.test.ts (nuevo)",
+        "frontend/src/lib/modules/logpanel.test.ts (nuevo)",
+        "frontend/src/lib/api.test.ts (timeout test)",
+        "frontend/tests/setup.ts (helpers de mock)"
+      ]
+    },
+    {
+      "id": 26,
+      "name": "mobile_responsive_layout",
+      "title": "Layout responsive para móvil y pantallas pequeñas",
+      "status": "pending",
+      "area": "ux_diseño",
+      "description": "El dashboard tiene max-width: 1200px pero el layout interno no es responsive en pantallas < 768px. ProcessGrid colapsa mal en móvil. El Header con todos los controles no cabe en viewport estrecho.",
+      "problems_identified": [
+        "ProcessGrid usa grid-template-columns fijo que desborda en móvil",
+        "Header con botones Start/Stop/Config/Save no cabe en < 480px",
+        "MetricsCard tiene grid 2 columnas que no colapsa bien en < 400px",
+        "LogPanel tiene altura fija que ocupa demasiado espacio en móvil",
+        "StatusCard con URLs largas (SRT/RTMP) causa overflow horizontal",
+        "No hay viewport meta ni media queries para < 480px en algunos componentes",
+        "InputCard con formularios extensos no tiene layout adaptado para touch"
+      ],
+      "acceptance": [
+        "Dashboard usable en viewport de 375px (iPhone SE) sin scroll horizontal",
+        "ProcessGrid: 1 columna en < 640px, 2 columnas en 640-1024px, 4 columnas en > 1024px",
+        "Header: botones Start/Stop en row principal, controles secundarios en fila colapsable en < 640px",
+        "MetricsCard: 1 columna en < 480px",
+        "StatusCard: URLs con overflow-wrap o truncado con tooltip al hacer click para copiar",
+        "LogPanel: altura máxima 40vh en móvil (reducida desde 50vh en desktop)",
+        "Touch targets mínimo 44x44px en todos los botones interactivos",
+        "Verificado con Chrome DevTools mobile simulation (iPhone SE, Pixel 5)"
+      ],
+      "files_to_touch": [
+        "frontend/src/components/ProcessGrid.astro (breakpoints grid)",
+        "frontend/src/components/layout/Header.astro (responsive header)",
+        "frontend/src/components/MetricsCard.astro (1 columna móvil)",
+        "frontend/src/components/StatusCard.astro (URL overflow)",
+        "frontend/src/components/LogPanel.astro (altura móvil)",
+        "frontend/src/styles/globals.css (media queries base)"
+      ]
+    },
+    {
+      "id": 27,
+      "name": "pipeline_dependency_graph",
+      "title": "Visualización del grafo de dependencias del pipeline",
+      "status": "pending",
+      "area": "ux_visualizacion",
+      "description": "La arquitectura del pipeline (qué módulo alimenta a cuál) no es visible en la UI. Los usuarios no pueden entender visualmente por qué un módulo no procesa (dependencia upstream fallida).",
+      "problems_identified": [
+        "No hay visualización de la topología del pipeline en la UI",
+        "Si AudioExtractor falla, Transcriber está idle pero el usuario no sabe por qué",
+        "ProcessGrid muestra cards independientes sin flechas de flujo de datos",
+        "La arquitectura SRT→Audio→Whisper→Translate→TTS→Mixer→HLS solo está en AGENTS.md"
+      ],
+      "acceptance": [
+        "Nueva sección toggle en dashboard muestra SVG animado del pipeline",
+        "Nodos del grafo: Input → AudioExtractor → Transcriber → Translator → TTS + SubtitleGen → AudioMixer → HLS/RTMP/SRT",
+        "Color de nodo refleja ModuleState (running=verde, error=rojo, disabled=gris, degraded=amarillo)",
+        "Flechas entre nodos animadas con partículas cuando chunks fluyen activamente",
+        "Al hacer click en un nodo, muestra panel lateral con métricas del módulo",
+        "SVG generado con datos del endpoint GET /api/status (no requiere nuevo endpoint)",
+        "Implementado en nuevo componente frontend/src/components/PipelineGraph.astro"
+      ],
+      "files_to_touch": [
+        "frontend/src/components/PipelineGraph.astro (nuevo)",
+        "frontend/src/pages/index.astro (toggle para mostrar/ocultar grafo)",
+        "frontend/src/lib/store/signals.ts (signal para mostrar/ocultar grafo)"
+      ]
+    },
+    {
+      "id": 28,
+      "name": "docker_optimization_and_health",
+      "title": "Optimización Docker y health checks en docker-compose",
+      "status": "pending",
+      "area": "devops",
+      "description": "El Dockerfile tiene layer caching subóptimo (COPY . . antes de pip install). docker-compose.yml no tiene healthcheck. El build context incluye archivos innecesarios. No hay multi-stage build.",
+      "problems_identified": [
+        "Dockerfile: COPY . . copia todo antes de pip install → cache miss en cada cambio de código",
+        "docker-compose.yml: sin healthcheck (restart: always pero sin saber si el servicio está listo)",
+        ".dockerignore existe pero no excluye models/piper/ (modelos grandes que no van en imagen)",
+        "No hay separación dev/prod en docker-compose",
+        "Dockerfile no usa --no-cache-dir en pip install",
+        "Node.js build del frontend no está en el Dockerfile"
+      ],
+      "acceptance": [
+        "Dockerfile reordenado: COPY requirements.txt → pip install → COPY src (aprovecha cache de layers)",
+        "docker-compose.yml tiene healthcheck: test: [CMD, curl, -f, http://localhost:9999/health]",
+        ".dockerignore excluye: models/piper/, venv/, node_modules/, .cache/, PARA BORRAR/, tests/, .playwright-mcp/",
+        "docker-compose.override.yml para desarrollo con volumes para hot-reload",
+        "Dockerfile incluye stage frontend-builder que compila Astro y copia a server/static/",
+        "docker build . completa en < 5 minutos en máquina sin cache",
+        "README actualizado con instrucciones de docker-compose up"
+      ],
+      "files_to_touch": [
+        "Dockerfile (reordenar layers, agregar frontend-builder stage)",
+        "docker-compose.yml (healthcheck)",
+        "docker-compose.override.yml (nuevo, para desarrollo)",
+        ".dockerignore (ampliar exclusiones)"
+      ]
+    },
+    {
+      "id": 29,
+      "name": "repo_hygiene_and_cleanup",
+      "title": "Higiene del repo: eliminar PARA BORRAR y archivos obsoletos",
+      "status": "pending",
+      "area": "mantenibilidad",
+      "description": "El repositorio tiene PARA BORRAR/ con venvs, scripts de debug y temporales que aumentan el tamaño y dificultan la navegación. Hay archivos de configuración obsoletos y logs de runtime commiteados.",
+      "problems_identified": [
+        "PARA BORRAR/: contiene venv_new/, venv_old/ (cientos de MB), scripts de debug, logs",
+        "PARA BORRAR/ está commiteada en git (no en .gitignore)",
+        "startup_stderr.txt y startup_stdout.txt en raíz del repo (output de proceso, no código)",
+        "config.yaml.backup en raíz (copia de seguridad manual)",
+        "logs/srt2web.log y logs/srt2web.log.1 en git (logs de runtime)",
+        ".playwright-mcp/ con screenshots y logs commiteados (80+ archivos de sesiones de prueba)",
+        "py_write_dir/ y pytest_tmp_manual/ (artefactos de testing temporal)"
+      ],
+      "acceptance": [
+        "PARA BORRAR/ eliminada del repo y del tracking de git (git rm -r --cached)",
+        ".gitignore actualizado: PARA BORRAR/, startup_*.txt, config.yaml.backup, logs/*.log, .playwright-mcp/, temp/, output/, py_write_dir/, pytest_tmp_manual/",
+        "startup_stderr.txt, startup_stdout.txt, config.yaml.backup eliminados del repo",
+        "logs/ en .gitignore (solo mantener logs/.gitkeep)",
+        ".playwright-mcp/ en .gitignore",
+        "Tamaño del repo reducido en al menos 50MB",
+        "npm install, pip install y pytest tests/unit/ funcionan correctamente tras la limpieza"
+      ],
+      "files_to_touch": [
+        ".gitignore (ampliar)",
+        "PARA BORRAR/ (eliminar, git rm --cached)",
+        "startup_stderr.txt, startup_stdout.txt (eliminar)",
+        "config.yaml.backup (eliminar)",
+        "logs/srt2web.log, logs/srt2web.log.1 (eliminar, agregar .gitkeep)",
+        ".playwright-mcp/ (eliminar del tracking, agregar a .gitignore)",
+        "py_write_dir/, pytest_tmp_manual/ (eliminar)"
+      ]
     }
   ]
 }

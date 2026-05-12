@@ -4,59 +4,58 @@ WebSocket routes for SRT2Web.
 Provides real-time log streaming and status updates to the frontend.
 """
 
-import json
 import asyncio
+import json
 import logging
-from typing import Set
-
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Request
+import os
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Any
 
-from server.security import validate_ws_auth
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 
 @dataclass
 class WebSocketRequest:
     """Wrapper to make WebSocket compatible with validate_ws_auth."""
-    headers: Dict[str, str]
-    query_params: Dict[str, str]
-    client: Optional[Any] = None
-    
+
+    headers: dict[str, str]
+    query_params: dict[str, str]
+    client: Any | None = None
+
     @classmethod
-    def from_websocket(cls, websocket: WebSocket) -> 'WebSocketRequest':
+    def from_websocket(cls, websocket: WebSocket) -> "WebSocketRequest":
         """Create a WebSocketRequest from a WebSocket."""
         # Extract headers
-        headers = dict(websocket.scope.get('headers', []))
+        headers = dict(websocket.scope.get("headers", []))
         # Decode header values from bytes
-        headers = {k.decode() if isinstance(k, bytes) else k: 
-                   v.decode() if isinstance(v, bytes) else v 
-                   for k, v in headers.items()}
-        
+        headers = {
+            k.decode() if isinstance(k, bytes) else k: v.decode() if isinstance(v, bytes) else v
+            for k, v in headers.items()
+        }
+
         # Extract query params from query_string
-        query_string = websocket.scope.get('query_string', b'').decode()
+        query_string = websocket.scope.get("query_string", b"").decode()
         query_params = {}
         if query_string:
-            for param in query_string.split('&'):
-                if '=' in param:
-                    key, value = param.split('=', 1)
+            for param in query_string.split("&"):
+                if "=" in param:
+                    key, value = param.split("=", 1)
                     query_params[key] = value
-        
+
         # Extract client info
-        client = websocket.scope.get('client')
+        client = websocket.scope.get("client")
         client_obj = None
         if client:
+
             class ClientInfo:
                 def __init__(self, host, port):
                     self.host = host
                     self.port = port
+
             client_obj = ClientInfo(client[0], client[1])
-        
-        return cls(
-            headers=headers,
-            query_params=query_params,
-            client=client_obj
-        )
+
+        return cls(headers=headers, query_params=query_params, client=client_obj)
+
 
 logger = logging.getLogger("srt2web.ws")
 
@@ -68,8 +67,8 @@ class LogBroadcaster:
     """
 
     def __init__(self) -> None:
-        self._subscribers: Set[WebSocket] = set()
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._subscribers: set[WebSocket] = set()
+        self._loop: asyncio.AbstractEventLoop | None = None
         self._buffer: list = []  # Buffer for messages before loop is set
         self._max_buffer = 200
 
@@ -101,7 +100,6 @@ class LogBroadcaster:
         Can be called from any thread.
         """
         import time
-        import sys
 
         data = json.dumps(
             {
@@ -117,8 +115,9 @@ class LogBroadcaster:
         if len(self._buffer) > self._max_buffer:
             self._buffer = self._buffer[-self._max_buffer :]
 
-        # Debug: print to stderr
-        print(f"[WS-BROADCAST] {level}: {message[:80]}...", file=sys.stderr)
+        # Debug: log to stderr in development only
+        if os.environ.get("SRT2WEB_DEBUG") == "1":
+            logger.debug(f"[WS-BROADCAST] {level}: {message[:80]}...")
 
         # Send to all subscribers
         if self._loop and self._subscribers:
@@ -172,19 +171,15 @@ def create_ws_router() -> APIRouter:
     @router.websocket("/ws/logs")
     async def ws_logs(websocket: WebSocket):
         """WebSocket endpoint for real-time log streaming."""
-        # Create wrapper for auth validation
-        request = WebSocketRequest.from_websocket(websocket)
-        
-        # Validate authentication via query parameter ?token=xxx
         ctx = websocket.app.state.ctx
         config = ctx.get("config")
-        get_token = lambda: config.get("server.auth_token", "") if config else ""
+        configured_token = config.get("server.auth_token", "") if config else ""
 
-        if not validate_ws_auth(request, get_token):
-            host = request.client.host if request.client else "unknown"
-            logger.warning(f"SECURITY: WebSocket auth failed from {host}")
-            await websocket.close(code=4001, reason="Authentication required. Use ?token=<auth_token>")
-            return
+        # If auth token is configured, require token in first message
+        auth_verified = False
+        if not configured_token:
+            # No auth configured - allow connection
+            auth_verified = True
 
         # Set the event loop if not set
         try:
@@ -205,6 +200,25 @@ def create_ws_router() -> APIRouter:
                 data = await websocket.receive_text()
                 try:
                     msg = json.loads(data)
+
+                    # Handle auth in first message if token is configured
+                    if not auth_verified and configured_token:
+                        if msg.get("type") == "auth":
+                            client_token = msg.get("token", "")
+                            if client_token == configured_token:
+                                auth_verified = True
+                                await websocket.send_text(json.dumps({"type": "auth_ok"}))
+                            else:
+                                await websocket.close(code=4001, reason="Invalid token")
+                                return
+                        else:
+                            # Auth required but not provided
+                            await websocket.close(
+                                code=4001, reason="Authentication required. Send {type: 'auth', token: '...'}"
+                            )
+                            return
+                        continue
+
                     # Handle client commands (e.g., request status)
                     if msg.get("type") == "ping":
                         await websocket.send_text(json.dumps({"type": "pong"}))
@@ -214,9 +228,7 @@ def create_ws_router() -> APIRouter:
                         status = pipeline.get_status()
                         srt_ingest = ctx.get("srt_ingest")
                         status["input_receiving"] = srt_ingest.is_receiving() if srt_ingest else False
-                        await websocket.send_text(
-                            json.dumps({"type": "status", **status})
-                        )
+                        await websocket.send_text(json.dumps({"type": "status", **status}))
                 except json.JSONDecodeError:
                     pass
         except WebSocketDisconnect:

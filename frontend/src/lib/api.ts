@@ -115,9 +115,8 @@ export function getApiBase(): string {
 
 export function getWebSocketUrl(path: string = "/ws/logs"): string {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const token = getAuthToken();
   const base = `${protocol}//${window.location.host}${path}`;
-  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+  return base;
 }
 
 // ── Cliente HTTP ───────────────────────────────────────────────────────────────
@@ -316,25 +315,57 @@ export async function inputSeek(
 
 // ── WebSocket Client ───────────────────────────────────────────────────────────
 
+export interface WSClientConfig {
+  maxReconnectAttempts?: number;
+  backoffBase?: number;
+  maxBackoff?: number;
+  jitter?: number;
+  authToken?: string | null;
+}
+
+const DEFAULT_WS_CONFIG: Required<WSClientConfig> = {
+  maxReconnectAttempts: 5,
+  backoffBase: 1000,
+  maxBackoff: 30000,
+  jitter: 500,
+  authToken: null,
+};
+
 export class WSClient {
   private ws: WebSocket | null = null;
   private url: string;
   private onMessageHandler?: (data: WebSocketMessage) => void;
   private onErrorHandler?: (error: Event) => void;
-  private onCloseHandler?: () => void;
+  private onCloseHandler?: (wasFirstAttempt: boolean) => void;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 1000;
+  private maxReconnectAttempts: number;
+  private backoffBase: number;
+  private maxBackoff: number;
+  private jitter: number;
+  private authToken: string | null;
+  private _isManualClose = false;
+  private _authSent = false;
 
-  constructor(url: string) {
+  constructor(url: string, config: WSClientConfig = {}) {
     this.url = url;
+    const cfg = { ...DEFAULT_WS_CONFIG, ...config };
+    this.maxReconnectAttempts = cfg.maxReconnectAttempts;
+    this.backoffBase = cfg.backoffBase;
+    this.maxBackoff = cfg.maxBackoff;
+    this.jitter = cfg.jitter;
+    this.authToken = cfg.authToken ?? null;
   }
 
   connect(): void {
+    this._isManualClose = false;
+    this._authSent = false;
     this.ws = new WebSocket(this.url);
 
     this.ws.onopen = () => {
       this.reconnectAttempts = 0;
+      if (this.authToken) {
+        this.sendAuth(this.authToken);
+      }
     };
 
     this.ws.onmessage = (e: MessageEvent) => {
@@ -352,17 +383,34 @@ export class WSClient {
     };
 
     this.ws.onclose = () => {
-      this.onCloseHandler?.();
-      this.attemptReconnect();
+      if (!this._isManualClose) {
+        const wasFirstAttempt = this.reconnectAttempts === 0;
+        this.onCloseHandler?.(wasFirstAttempt);
+        this.attemptReconnect();
+      }
     };
+  }
+
+  private calculateBackoff(): number {
+    const exponential = this.backoffBase * Math.pow(2, this.reconnectAttempts);
+    const jitterMs = Math.random() * this.jitter;
+    return Math.min(exponential + jitterMs, this.maxBackoff);
   }
 
   private attemptReconnect(): void {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
+      const delay = this.calculateBackoff();
+      console.log(
+        `[WS] Reconnecting in ${delay.toFixed(0)}ms (attempt ${
+          this.reconnectAttempts
+        }/${this.maxReconnectAttempts})`,
+      );
       setTimeout(() => {
         this.connect();
-      }, this.reconnectDelay * this.reconnectAttempts);
+      }, delay);
+    } else {
+      console.warn("[WS] Max reconnection attempts reached");
     }
   }
 
@@ -376,7 +424,7 @@ export class WSClient {
     return this;
   }
 
-  onClose(fn: () => void): this {
+  onClose(fn: (wasFirstAttempt: boolean) => void): this {
     this.onCloseHandler = fn;
     return this;
   }
@@ -386,12 +434,23 @@ export class WSClient {
   }
 
   close(): void {
-    this.reconnectAttempts = this.maxReconnectAttempts; // Prevent auto-reconnect
+    this._isManualClose = true;
+    this.reconnectAttempts = this.maxReconnectAttempts;
     this.ws?.close();
     this.ws = null;
   }
 
   isConnected(): boolean {
     return this.ws?.readyState === WebSocket.OPEN;
+  }
+
+  getReconnectAttempts(): number {
+    return this.reconnectAttempts;
+  }
+
+  sendAuth(token: string): void {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: "auth", token }));
+    }
   }
 }

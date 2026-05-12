@@ -17,6 +17,7 @@ import {
   WSClient,
   getWebSocketUrl,
   updateChunkDuration,
+  getAuthToken,
 } from "../api";
 import { showToast, copyToClipboard } from "../utils";
 import { formatTime } from "../utils/format";
@@ -63,6 +64,7 @@ export async function handleStart(): Promise<void> {
     await startPipeline();
     const status = await getStatus();
     updateStatus(status);
+    enterPostStartMode();
     addLog("INFO", MESSAGES.PIPELINE_STARTED);
   } catch (e) {
     addLog("ERROR", `Error: ${(e as Error).message}`);
@@ -83,6 +85,9 @@ export async function handleStop(): Promise<void> {
     const status = await getStatus();
     updateStatus(status);
     resetThroughput();
+    postStartMode = false;
+    if (postStartTimeout) clearTimeout(postStartTimeout);
+    restartPolling();
     addLog("INFO", MESSAGES.PIPELINE_STOPPED);
   } catch (e) {
     addLog("ERROR", `Error: ${(e as Error).message}`);
@@ -324,10 +329,64 @@ export function updateRtmpUrl(): void {
   rtmpUrlInput.value = `rtmp://127.0.0.1:${port}/${app}/${key}`;
 }
 
+// ── Polling Configuration ───────────────────────────────────────────────────
+
+const POLL_INTERVALS = {
+  RUNNING: 3000,
+  STOPPED: 10000,
+  POST_START: 1000,
+} as const;
+
+const POST_START_DURATION_MS = 5000;
+
+let statusPollInterval: ReturnType<typeof setInterval> | null = null;
+let postStartMode = false;
+let postStartTimeout: ReturnType<typeof setTimeout> | null = null;
+
+function getPollInterval(): number {
+  const state = pipelineStatus.value?.state;
+  if (postStartMode) return POLL_INTERVALS.POST_START;
+  if (state === "running") return POLL_INTERVALS.RUNNING;
+  return POLL_INTERVALS.STOPPED;
+}
+
+function startPolling(): void {
+  if (statusPollInterval) clearInterval(statusPollInterval);
+
+  const poll = async () => {
+    try {
+      const s = await apiCall<Status>("GET", "api/status");
+      updateStatus(s);
+    } catch {
+      // Silently fail on poll errors
+    }
+  };
+
+  poll();
+  statusPollInterval = setInterval(poll, getPollInterval());
+}
+
+function restartPolling(): void {
+  if (statusPollInterval) {
+    clearInterval(statusPollInterval);
+    statusPollInterval = null;
+  }
+  startPolling();
+}
+
+function enterPostStartMode(): void {
+  postStartMode = true;
+  restartPolling();
+  if (postStartTimeout) clearTimeout(postStartTimeout);
+  postStartTimeout = setTimeout(() => {
+    postStartMode = false;
+    restartPolling();
+  }, POST_START_DURATION_MS);
+}
+
 // ── Initialization ────────────────────────────────────────────────────────────
 
 let wsClient: WSClient | null = null;
-let statusPollInterval: ReturnType<typeof setInterval> | null = null;
 
 export async function initDashboard(): Promise<void> {
   // Initialize log panel first so logs can be displayed
@@ -362,32 +421,38 @@ export async function initDashboard(): Promise<void> {
 
     // WebSocket connection for logs + status
     const wsUrl = getWebSocketUrl("/ws/logs");
-    wsClient = new WSClient(wsUrl);
+    const token = getAuthToken();
+    wsClient = new WSClient(wsUrl, {
+      maxReconnectAttempts: 5,
+      backoffBase: 1000,
+      authToken: token,
+    });
     wsClient.onMessage((data: WebSocketMessage) => {
       if (data.type === "log") {
         addLog(data.level ?? "INFO", data.message ?? "");
       } else if (data.type === "status" && data.status) {
         updateStatus(data.status);
+        // Check if pipeline started to adjust polling
+        if (data.status.state === "running" && !postStartMode) {
+          enterPostStartMode();
+        }
       }
     });
     wsClient.onError(() => {
       addLog("ERROR", MESSAGES.WS_ERROR);
     });
-    wsClient.onClose(() => {
+    wsClient.onClose((wasFirstAttempt: boolean) => {
       wsConnected.value = false;
-      addLog("ERROR", MESSAGES.WS_DISCONNECTED);
+      if (wasFirstAttempt) {
+        addLog("WARNING", "WebSocket connection failed");
+      } else {
+        addLog("ERROR", MESSAGES.WS_DISCONNECTED);
+      }
     });
     wsClient.connect();
 
-    // Fallback HTTP polling
-    statusPollInterval = setInterval(async () => {
-      try {
-        const s = await apiCall<Status>("GET", "api/status");
-        updateStatus(s);
-      } catch {
-        // Silently fail on poll errors
-      }
-    }, INTERVALS.STATUS_POLL);
+    // Start adaptive HTTP polling
+    startPolling();
 
     addLog("INFO", MESSAGES.SUCCESS);
   } catch (e) {
@@ -399,6 +464,10 @@ export function cleanup(): void {
   if (statusPollInterval) {
     clearInterval(statusPollInterval);
     statusPollInterval = null;
+  }
+  if (postStartTimeout) {
+    clearTimeout(postStartTimeout);
+    postStartTimeout = null;
   }
   if (wsClient) {
     wsClient.close();
