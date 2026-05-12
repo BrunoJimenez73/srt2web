@@ -39,7 +39,7 @@ class TTSEngine(BaseModule):
         self._piper_voice = None
         self._piper_manager = None  # Persistent subprocess for GPU synthesis
 
-        super().__init__("tts_engine", config)
+        super().__init__("tts_engine", config, is_critical=False)
 
     def configure(self, config: dict) -> None:
         super().configure(config)

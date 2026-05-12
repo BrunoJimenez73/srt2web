@@ -6,12 +6,12 @@ Provides authentication, rate limiting, and security headers.
 
 import logging
 import time
-from typing import Optional, Callable
 from collections import defaultdict
+from collections.abc import Awaitable, Callable
 from threading import Lock
 
-from fastapi import Request, HTTPException, WebSocket, Depends
-from fastapi.responses import Response, JSONResponse
+from fastapi import HTTPException, Request
+from fastapi.responses import JSONResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
@@ -70,7 +70,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.get_auth_token = get_auth_token
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         path = request.url.path
 
         # Skip auth for public endpoints
@@ -81,9 +81,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         # If no token configured, allow all (backwards compatibility warning)
         if not auth_token:
-            logger.warning(
-                "SECURITY: auth_token not configured - API is unprotected!"
-            )
+            logger.warning("SECURITY: auth_token not configured - API is unprotected!")
             return await call_next(request)
 
         # Extract token from Authorization header
@@ -91,16 +89,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not auth_header.startswith("Bearer "):
             return JSONResponse(
                 status_code=401,
-                content={"detail": "Missing or invalid Authorization header. Use: Authorization: Bearer <token>"}
+                content={"detail": "Missing or invalid Authorization header. Use: Authorization: Bearer <token>"},
             )
 
         token = auth_header[7:]  # Remove "Bearer " prefix
         if token != auth_token:
             logger.warning(f"SECURITY: Invalid auth token attempt from {request.client.host}")  # type: ignore[union-attr]
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Invalid authentication token"}
-            )
+            return JSONResponse(status_code=401, content={"detail": "Invalid authentication token"})
 
         return await call_next(request)
 
@@ -143,7 +138,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.rate_limiter = rate_limiter
         self.get_auth_token = get_auth_token
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         path = request.url.path
 
         # Skip rate limiting for public endpoints
@@ -207,7 +202,7 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.max_size_bytes = max_size_bytes
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         content_length = request.headers.get("content-length")
         if content_length and int(content_length) > self.max_size_bytes:
             logger.warning(
@@ -215,7 +210,7 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
             )
             return JSONResponse(
                 status_code=413,
-                content={"detail": f"Request body too large. Maximum size: {self.max_size_bytes / 1024 / 1024:.1f}MB"}
+                content={"detail": f"Request body too large. Maximum size: {self.max_size_bytes / 1024 / 1024:.1f}MB"},
             )
         return await call_next(request)
 
@@ -225,7 +220,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     Adds security headers to all responses.
     """
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         response = await call_next(request)
 
         # Prevent MIME type sniffing
@@ -257,14 +252,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Content-Security-Policy"] = csp
 
         # Strict Transport Security (only for HTTPS, but safe to include)
-        response.headers["Strict-Transport-Security"] = (
-            "max-age=31536000; includeSubDomains"
-        )
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
         # Permissions Policy (disable unnecessary browser features)
-        response.headers["Permissions-Policy"] = (
-            "camera=(), microphone=(), geolocation=(), payment=()"
-        )
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
 
         return response
 

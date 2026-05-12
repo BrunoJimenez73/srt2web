@@ -48,7 +48,7 @@ class ModuleStateInfo:
     enabled: bool = True
     processed_chunks: int = 0
     last_error: Optional[str] = None
-    extra: dict = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -177,7 +177,7 @@ class PipelineStateManager:
         state: ModuleState,
         processed_chunks: Optional[int] = None,
         error: Optional[str] = None,
-        extra: Optional[dict] = None,
+        extra: Optional[dict[str, Any]] = None,
     ) -> None:
         """Actualizar estado de un modulo."""
         if name not in self._modules:
@@ -205,7 +205,7 @@ class PipelineStateManager:
         """Obtener lista de modulos habilitados."""
         return [name for name, info in self._modules.items() if info.enabled and info.state != ModuleState.DISABLED]
 
-    def get_state_history(self, count: int = 20) -> list[dict]:
+    def get_state_history(self, count: int = 20) -> list[dict[str, Any]]:
         """Obtener historial de transiciones."""
         return [t.to_dict() for t in self._history[-count:]]
 

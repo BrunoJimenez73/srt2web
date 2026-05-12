@@ -11,18 +11,14 @@ Todos los defaults vienen de SRT2WebConfig().to_dict()
 import copy
 import json
 import logging
-import os
-from pathlib import Path
-from typing import Any, Optional
-from typing import cast
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Optional, cast
 
 import yaml
 
 # Note: we catch Exception instead of ValidationError to avoid
 # import compatibility issues between Pydantic v1/v2
-
-
 from core.config_schema import SRT2WebConfig
 from core.hardware import update_config_with_optimal_device
 
@@ -226,12 +222,14 @@ class ConfigManager:
         presets = self._load_presets()
         result: list[dict[str, Any]] = []
         for name, data in presets.items():
-            result.append({
-                "name": name,
-                "description": data.get("description", ""),
-                "created_at": data.get("created_at", ""),
-                "config_keys": list(data.get("config", {}).keys()),
-            })
+            result.append(
+                {
+                    "name": name,
+                    "description": data.get("description", ""),
+                    "created_at": data.get("created_at", ""),
+                    "config_keys": list(data.get("config", {}).keys()),
+                }
+            )
         return result
 
     def save_preset(self, name: str, description: str = "") -> None:

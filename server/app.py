@@ -6,8 +6,10 @@ Serves the web GUI, HLS segments, and API endpoints.
 
 import asyncio
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,7 +36,7 @@ FRONTEND_DIR = PROJECT_ROOT / "server" / "static"
 WEB_DIR = PROJECT_ROOT / "web"
 
 
-def create_app(app_context: dict) -> FastAPI:
+def create_app(app_context: dict[str, Any]) -> FastAPI:
     """
     Create and configure the FastAPI application.
 
@@ -47,7 +49,7 @@ def create_app(app_context: dict) -> FastAPI:
     """
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI):
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         """Gestiona el ciclo de vida del pipeline junto con FastAPI."""
         # Setup log_broadcaster loop for WebSocket broadcasting
         from server.ws_routes import log_broadcaster
@@ -58,6 +60,11 @@ def create_app(app_context: dict) -> FastAPI:
             logger.info("Log broadcaster event loop configured")
         except RuntimeError:
             logger.debug("No running loop during startup")
+
+        # Setup output health broadcaster
+        from core.output_sink import set_output_health_broadcaster
+
+        set_output_health_broadcaster(log_broadcaster)
 
         # No arrancamos el pipeline aquí — lo arranca el usuario desde la UI.
         # Solo nos aseguramos de hacer shutdown limpio al cerrar.
@@ -145,11 +152,11 @@ def create_app(app_context: dict) -> FastAPI:
     app.include_router(webrtc_router)
 
     @app.get("/health")
-    async def health():
+    async def health() -> dict[str, Any]:
         return {"status": "ok"}
 
     @app.get("/ready")
-    async def readiness():
+    async def readiness() -> dict[str, Any]:
         """Readiness probe for deployments."""
         ctx = app.state.ctx
         pipeline = ctx.get("pipeline")
@@ -160,7 +167,7 @@ def create_app(app_context: dict) -> FastAPI:
         return {"status": "ready"}
 
     @app.get("/live")
-    async def liveness():
+    async def liveness() -> dict[str, Any]:
         """Liveness probe for deployments."""
         return {"status": "alive"}
 
@@ -181,7 +188,7 @@ def create_app(app_context: dict) -> FastAPI:
     if FRONTEND_DIR.exists():
         static_files = StaticFiles(directory=str(FRONTEND_DIR), html=True)
 
-        async def frontend_scope_aware(scope, receive, send):
+        async def frontend_scope_aware(scope: Any, receive: Any, send: Any) -> None:
             if scope["type"] == "websocket":
                 # WebSocket connections should be handled by websocket routes
                 # Close the connection without accepting (let websocket routes handle it)
@@ -195,7 +202,7 @@ def create_app(app_context: dict) -> FastAPI:
         app.mount("/", frontend_scope_aware, name="frontend")
 
     @app.get("/")
-    async def serve_index():
+    async def serve_index() -> Any:
         index_path = FRONTEND_DIR / "index.html"
         if index_path.exists():
             return FileResponse(str(index_path), media_type="text/html")
@@ -207,7 +214,7 @@ def create_app(app_context: dict) -> FastAPI:
         return {"error": "index.html not found"}
 
     @app.get("/player")
-    async def serve_player():
+    async def serve_player() -> Any:
         player_path = FRONTEND_DIR / "player" / "index.html"
         if player_path.exists():
             return FileResponse(str(player_path), media_type="text/html")
@@ -219,7 +226,7 @@ def create_app(app_context: dict) -> FastAPI:
         return {"error": "player.html not found"}
 
     @app.get("/webrtc-player")
-    async def serve_webrtc_player():
+    async def serve_webrtc_player() -> Any:
         player_path = FRONTEND_DIR / "webrtc-player" / "index.html"
         if player_path.exists():
             return FileResponse(str(player_path), media_type="text/html")

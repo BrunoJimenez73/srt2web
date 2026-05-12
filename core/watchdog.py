@@ -10,7 +10,7 @@ import sys
 import threading
 import time
 from collections.abc import Callable
-from typing import Optional
+from typing import Any, Optional
 
 logger = logging.getLogger("srt2web.watchdog")
 
@@ -45,7 +45,7 @@ class FFmpegWatchdog:
         self.max_restarts = max_restarts
         self.restart_delay = restart_delay
 
-        self._process: Optional[subprocess.Popen] = None
+        self._process: Optional[subprocess.Popen[bytes]] = None
         self._stop_event = threading.Event()
         self._watch_thread: Optional[threading.Thread] = None
         self._last_output_time = time.time()
@@ -70,7 +70,7 @@ class FFmpegWatchdog:
 
     def attach_process(
         self,
-        process: subprocess.Popen,
+        process: subprocess.Popen[bytes],
         process_name: str = "FFmpeg",
         restart_callback: Optional[Callable[[], None]] = None,
     ) -> None:
@@ -230,9 +230,9 @@ class ProcessManager:
     def register_process(
         self,
         name: str,
-        process: subprocess.Popen,
+        process: subprocess.Popen[bytes],
         restart_callback: Optional[Callable[[], None]] = None,
-        **watchdog_kwargs,
+        **watchdog_kwargs: Any,
     ) -> FFmpegWatchdog:
         """
         Register a process with the manager.
@@ -267,7 +267,7 @@ class ProcessManager:
         """Get the watchdog for a registered process."""
         return self._processes.get(name)
 
-    def get_all_health(self) -> dict:
+    def get_all_health(self) -> dict[str, Any]:
         """Get health status of all monitored processes."""
         return {
             name: {

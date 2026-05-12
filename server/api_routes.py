@@ -9,6 +9,7 @@ into separate modules under server/routes/ and server/validators.py
 """
 
 import logging
+from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -27,11 +28,11 @@ def create_api_router() -> APIRouter:
     router.include_router(modules.router)
     router.include_router(outputs.router)
 
-    def _ctx(request: Request) -> dict:
-        return request.app.state.ctx
+    def _ctx(request: Request) -> dict[str, Any]:
+        return cast(dict[str, Any], request.app.state.ctx)
 
     @router.get("/output-info")
-    async def output_info(request: Request):
+    async def output_info(request: Request) -> dict[str, Any]:
         """Get output sink information (legacy — use /outputs for multi-output)."""
         ctx = _ctx(request)
         pipeline = ctx["pipeline"]
@@ -42,16 +43,16 @@ def create_api_router() -> APIRouter:
             statuses = composite.get_all_output_statuses()
             if not statuses:
                 raise HTTPException(404, "No outputs configured")
-            return statuses[0]
+            return cast(dict[str, Any], statuses[0])
         sink = pipeline.get_output_sink()
         if not sink:
             raise HTTPException(404, "No output sink configured")
-        return sink.get_stream_info()
+        return cast(dict[str, Any], sink.get_stream_info())
 
     # ── Network Information ──────────────────────────
 
     @router.get("/network/info")
-    async def network_info(request: Request):
+    async def network_info(request: Request) -> dict[str, Any]:
         """Get network information for external connections."""
         from core.network_utils import get_network_info
 
@@ -74,7 +75,7 @@ def create_api_router() -> APIRouter:
     # ── Health Check ───────────────────────────────────
 
     @router.get("/health")
-    async def health_check(request: Request):
+    async def health_check(request: Request) -> dict[str, Any]:
         """
         Health check endpoint for monitoring and load balancers.
 
@@ -166,7 +167,7 @@ def create_api_router() -> APIRouter:
     # ── Available Types ────────────────────────────────
 
     @router.get("/available")
-    async def get_available(request: Request):
+    async def get_available(request: Request) -> dict[str, Any]:
         """Get available input and output types."""
         from core.io_factory import InputFactory, OutputFactory
 
@@ -177,12 +178,12 @@ def create_api_router() -> APIRouter:
 
     # Legacy endpoint - redirects to input-info
     @router.get("/srt-info")
-    async def srt_info(request: Request):
+    async def srt_info(request: Request) -> dict[str, Any]:
         """Get SRT connection information (legacy - use /input-info)."""
         ctx = _ctx(request)
         input_source = ctx.get("input_source")
         if input_source:
-            return input_source.get_connection_info()
+            return cast(dict[str, Any], input_source.get_connection_info())
 
         config = ctx["config"]
         host = config.get("server.host", "127.0.0.1")

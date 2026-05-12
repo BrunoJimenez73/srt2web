@@ -14,8 +14,9 @@ import sys
 import tarfile
 import urllib.request
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 logger = logging.getLogger("srt2web.ffmpeg")
 
@@ -126,7 +127,7 @@ def get_ffmpeg_version(ffmpeg_path: str) -> Optional[str]:
         return None
 
 
-def check_gpu_support(ffmpeg_path: str) -> dict:
+def check_gpu_support(ffmpeg_path: str) -> dict[str, Any]:
     """Check for hardware acceleration support in FFmpeg (encoders)."""
     results = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
     try:
@@ -199,7 +200,7 @@ def check_srt_support(ffmpeg_path: str) -> bool:
         return False
 
 
-def download_ffmpeg(progress_callback=None) -> Optional[str]:
+def download_ffmpeg(progress_callback: Optional[Callable[[int, int], None]] = None) -> Optional[str]:
     """
     Download pre-built FFmpeg binaries for the current platform.
 
@@ -224,7 +225,7 @@ def download_ffmpeg(progress_callback=None) -> Optional[str]:
         # Download with progress
         archive_path = bin_dir / ("ffmpeg_download.zip" if system == "Windows" else "ffmpeg_download.zip")
 
-        def _reporthook(block_num, block_size, total_size):
+        def _reporthook(block_num: int, block_size: int, total_size: int) -> None:
             if progress_callback and total_size > 0:
                 downloaded = block_num * block_size
                 progress_callback(downloaded, total_size)
@@ -264,7 +265,7 @@ def download_ffmpeg(progress_callback=None) -> Optional[str]:
         return None
 
 
-def ensure_ffmpeg(progress_callback=None) -> str:
+def ensure_ffmpeg(progress_callback: Optional[Callable[[int, int], None]] = None) -> str:
     """
     Ensure FFmpeg is available. Downloads if necessary.
 
@@ -311,7 +312,7 @@ def run_ffmpeg(
     ffmpeg_path: Optional[str] = None,
     timeout: Optional[int] = None,
     capture_output: bool = True,
-) -> subprocess.CompletedProcess:
+) -> subprocess.CompletedProcess[str]:
     """
     Run an FFmpeg command with the given arguments.
 
@@ -342,7 +343,7 @@ def run_ffmpeg(
 def start_ffmpeg_process(
     args: list[str],
     ffmpeg_path: Optional[str] = None,
-) -> subprocess.Popen:
+) -> subprocess.Popen[str]:
     """
     Start a long-running FFmpeg process (e.g., SRT listener).
 
@@ -403,7 +404,7 @@ def cleanup_ffmpeg_processes() -> None:
         logger.warning(f"Error during FFmpeg cleanup: {e}")
 
 
-def kill_process_gracefully(process, timeout: int = 5):
+def kill_process_gracefully(process: Optional[subprocess.Popen[str]], timeout: int = 5) -> None:
     """Kill a process gracefully with timeout."""
     import platform
     import signal
@@ -444,7 +445,7 @@ def kill_process_gracefully(process, timeout: int = 5):
         logger.error(f"Error killing process {process.pid}: {e}")
 
 
-def run_ffmpeg_with_timeout(cmd: list, timeout: int = 30, **kwargs):
+def run_ffmpeg_with_timeout(cmd: list[str], timeout: int = 30, **kwargs: Any) -> tuple[str, str]:
     """Run FFmpeg command with timeout and proper error handling."""
     import platform
     import subprocess

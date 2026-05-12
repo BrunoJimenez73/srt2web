@@ -8,10 +8,10 @@ configurables de recursos y control de ciclo de vida.
 import logging
 import threading
 import uuid
-from typing import Dict, List, Optional
+from typing import Any, Optional
 
 from core.schemas import PipelineMode
-from core.unified_pipeline import UnifiedPipeline, PipelineState
+from core.unified_pipeline import UnifiedPipeline
 
 logger = logging.getLogger("srt2web.pipeline_manager")
 
@@ -26,14 +26,14 @@ class PipelineManager:
         Args:
             max_pipelines: Número máximo de pipelines concurrentes permitidos.
         """
-        self._pipelines: Dict[str, UnifiedPipeline] = {}
+        self._pipelines: dict[str, UnifiedPipeline] = {}
         self._lock = threading.Lock()
         self._max_pipelines = max_pipelines
         logger.info(f"PipelineManager initialized (max_pipelines={max_pipelines})")
 
     def create_pipeline(
         self,
-        config: dict,
+        config: dict[str, Any],
         output_dir: str,
         mode: PipelineMode = PipelineMode.THREAD_PARALLEL,
         max_concurrent_chunks: int = 2,
@@ -55,30 +55,21 @@ class PipelineManager:
         """
         with self._lock:
             if len(self._pipelines) >= self._max_pipelines:
-                raise RuntimeError(
-                    f"Pipeline limit reached (max={self._max_pipelines})"
-                )
+                raise RuntimeError(f"Pipeline limit reached (max={self._max_pipelines})")
 
             pipeline_id = str(uuid.uuid4())
             merged_config = self._merge_config(config)
             pipeline = UnifiedPipeline(
                 mode=mode,
                 max_concurrent_chunks=max_concurrent_chunks,
-                buffer_size=merged_config.get("pipeline", {}).get(
-                    "buffer_size", 5
-                ),
-                retry_attempts=merged_config.get("pipeline", {}).get(
-                    "retry_attempts", 2
-                ),
-                retry_delay=merged_config.get("pipeline", {}).get(
-                    "retry_delay", 1.0
-                ),
+                buffer_size=merged_config.get("pipeline", {}).get("buffer_size", 5),
+                retry_attempts=merged_config.get("pipeline", {}).get("retry_attempts", 2),
+                retry_delay=merged_config.get("pipeline", {}).get("retry_delay", 1.0),
             )
 
             self._pipelines[pipeline_id] = pipeline
             logger.info(
-                f"Pipeline created (id={pipeline_id}, mode={mode.value}, "
-                f"max_chunks={max_concurrent_chunks})"
+                f"Pipeline created (id={pipeline_id}, mode={mode.value}, " f"max_chunks={max_concurrent_chunks})"
             )
             return pipeline_id
 
@@ -104,15 +95,13 @@ class PipelineManager:
                 pipeline.stop()  # type: ignore[unused-coroutine]
                 logger.info(f"Pipeline stopped (id={pipeline_id})")
             except Exception as e:
-                logger.error(
-                    f"Error stopping pipeline (id={pipeline_id}): {e}"
-                )
+                logger.error(f"Error stopping pipeline (id={pipeline_id}): {e}")
             return True
 
         logger.warning(f"Pipeline not found for stop (id={pipeline_id})")
         return False
 
-    def list_pipelines(self) -> List[str]:
+    def list_pipelines(self) -> list[str]:
         """Listar IDs de todos los pipelines activos."""
         with self._lock:
             return list(self._pipelines.keys())
@@ -122,9 +111,7 @@ class PipelineManager:
         with self._lock:
             return len(self._pipelines)
 
-    def start_pipeline(
-        self, pipeline_id: str, on_log, on_state_change
-    ) -> bool:
+    def start_pipeline(self, pipeline_id: str, on_log: Any, on_state_change: Any) -> bool:
         """
         Iniciar un pipeline existente.
 
@@ -149,12 +136,10 @@ class PipelineManager:
             logger.info(f"Pipeline started (id={pipeline_id})")
             return True
         except Exception as e:
-            logger.error(
-                f"Error starting pipeline (id={pipeline_id}): {e}"
-            )
+            logger.error(f"Error starting pipeline (id={pipeline_id}): {e}")
             return False
 
-    def _merge_config(self, custom_config: dict) -> dict:
+    def _merge_config(self, custom_config: dict[str, Any]) -> dict[str, Any]:
         """Fusionar configuración personalizada con defaults."""
         default = {
             "pipeline": {

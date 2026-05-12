@@ -42,3 +42,42 @@
 - **3 presets built-in:** low_latency (10s sin TTS/traductor), high_quality (large Whisper, pipeline completo), spanish_stream (es->en, Sharvard)
 - **Tests:** 12/12 nuevos pasan, 72 tests existentes sin regresion
 - **init.ps1:** OK (ruff + tsc sin errores nuevos)
+
+## 2026-05-12 — F24 mypy_strict_mode
+
+### Feature 24 (mypy_strict_mode): COMPLETADA
+
+- **Configuración:**
+  - Eliminado `mypy.ini` falso (decoy que decía "configuración movida a pyproject.toml")
+  - Eliminado `ignore_missing_imports = true` del `[tool.mypy]` global
+  - Mantenidos overrides: `core.*, server.*` con `strict=true`, `modules.*` con `ignore_errors=true`, `tests.*` con ignore
+  - pyproject.toml ya tenía `strict = true` globalmente
+- **Fixes de tipo en core/ (22 archivos):** dicts/list anotados, Callable, Task, Queue, Popen, Pattern tipados, cast() para json.load, -> None añadidos
+- **Fixes de tipo en server/ (10 archivos):** funciones de ruta con -> dict[str, Any], closures tipadas
+- **init.ps1:** OK (mypy 0 errores)
+
+## 2026-05-12 — F20 output_health_monitoring
+
+### Feature 20 (output_health_monitoring): COMPLETADA
+
+**Fixes pre-F20:**
+- **init.ps1**: Corregido error de sintaxis por encoding UTF-8
+- **core/hardware_monitor.py**: Corregida indentación incorrecta (syntax error en mypy)
+- **core/hardware.py**, **core/model_cache.py**: type: ignore[import-untyped] en imports sin stubs
+- **Instalados stubs**: types-psutil, types-requests, types-PyYAML, mypy
+
+**Cambios de la feature:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `modules/outputs/hls_output.py` | `_set_error()` en FFmpeg errors, `_update_write_stats()` con tamaño de segmento, `_clear_error()` en writes exitosos |
+| `modules/outputs/rtmp_output.py` | `super().__init__()` para heredar health tracking, `_update_write_stats()`, `_set_error()` en errores |
+| `modules/outputs/srt_output.py` | `_update_write_stats()`, `_set_error()`, retry con backoff configurable (3 intentos: 5/15/30s), reset retry_count |
+| `modules/outputs/file_output.py` | `_update_write_stats()` con bytes totales, `_set_error()` con errores acumulados |
+| `modules/outputs/recording_output.py` | `_update_write_stats()`, `_set_error()` en errores de copia |
+| `tests/unit/test_output_health.py` | **NUEVO** - 16 tests: health logic base (9), broadcaster (2), HLS error detection (2), SRT retry (2), RTMP inheritance (1) |
+
+**Verificaciones:**
+- `pytest tests/unit/` → 0 failures (959+1 xpassed)
+- `mypy core/ server/ --strict` → 0 errores
+- `feature_list.json` actualizado (F20: in_progress → done)

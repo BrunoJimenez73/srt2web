@@ -5,7 +5,7 @@ Proporciona configuración centralizada de parámetros de codificación
 de video que puede ser usada por múltiples módulos.
 """
 
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 
 
 class EncoderConfig:
@@ -37,15 +37,13 @@ class EncoderConfig:
         "p8": {"cq": 15, "description": "Ultra calidad"},
     }
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[dict[str, Any]] = None):
         """Inicializar configuración de encoder."""
         if config is None:
             config = {}
 
         # Modo de codificación
-        self.encoder_mode = config.get(
-            "encoder_mode", "auto"
-        )  # auto, passthrough, cpu, gpu_nvenc, gpu_amf, gpu_qsv
+        self.encoder_mode = config.get("encoder_mode", "auto")  # auto, passthrough, cpu, gpu_nvenc, gpu_amf, gpu_qsv
 
         # Configuración de video (CPU)
         self.video_preset = config.get("video_preset", "medium")
@@ -61,7 +59,7 @@ class EncoderConfig:
         self.audio_bitrate = config.get("audio_bitrate", "192k")
         self.audio_sample_rate = config.get("audio_sample_rate", 48000)
 
-    def get_cpu_args(self) -> list:
+    def get_cpu_args(self) -> list[str]:
         """Obtener argumentos FFmpeg para codificación CPU."""
         args = []
 
@@ -82,16 +80,12 @@ class EncoderConfig:
 
         return args
 
-    def get_gpu_nvenc_args(self) -> list:
+    def get_gpu_nvenc_args(self) -> list[str]:
         """Obtener argumentos FFmpeg para GPU NVENC."""
         args = []
 
         # Preset y CQ
-        preset_num = (
-            int(self.gpu_preset[1])
-            if len(self.gpu_preset) > 1 and self.gpu_preset[1].isdigit()
-            else 3
-        )
+        preset_num = int(self.gpu_preset[1]) if len(self.gpu_preset) > 1 and self.gpu_preset[1].isdigit() else 3
         if preset_num <= 2:
             cq = "23"
         elif preset_num <= 4:
@@ -115,7 +109,7 @@ class EncoderConfig:
 
         return args
 
-    def get_gpu_amf_args(self) -> list:
+    def get_gpu_amf_args(self) -> list[str]:
         """Obtener argumentos FFmpeg para GPU AMF."""
         args = []
 
@@ -137,7 +131,7 @@ class EncoderConfig:
 
         return args
 
-    def get_gpu_qsv_args(self) -> list:
+    def get_gpu_qsv_args(self) -> list[str]:
         """Obtener argumentos FFmpeg para GPU QSV."""
         args = []
 
@@ -145,7 +139,7 @@ class EncoderConfig:
 
         return args
 
-    def get_audio_args(self) -> list:
+    def get_audio_args(self) -> list[str]:
         """Obtener argumentos FFmpeg para audio."""
         # Validar codec
         codec = self.audio_codec if self.audio_codec in ["aac", "opus"] else "aac"
@@ -159,11 +153,11 @@ class EncoderConfig:
             str(self.audio_sample_rate),
         ]
 
-    def get_passthrough_args(self) -> list:
+    def get_passthrough_args(self) -> list[str]:
         """Obtener argumentos FFmpeg para modo passthrough (sin recodificar)."""
         return ["-c:v", "copy", "-c:a", "copy"]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convertir configuración a diccionario."""
         return {
             "encoder_mode": self.encoder_mode,
@@ -178,6 +172,6 @@ class EncoderConfig:
         }
 
     @classmethod
-    def from_dict(cls, config_dict: Dict[str, Any]) -> "EncoderConfig":
+    def from_dict(cls, config_dict: dict[str, Any]) -> "EncoderConfig":
         """Crear configuración desde diccionario."""
         return cls(config_dict)

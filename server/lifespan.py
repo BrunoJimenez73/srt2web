@@ -31,7 +31,7 @@ def _cleanup_orphan_processes() -> None:
         logger.warning(f"Cleanup warning: {e}")
 
 
-def graceful_shutdown(app_context: dict) -> None:
+def graceful_shutdown(app_context: dict[str, Any]) -> None:
     """Graceful shutdown handler."""
     try:
         pipeline = app_context.get("pipeline")
@@ -51,7 +51,7 @@ def graceful_shutdown(app_context: dict) -> None:
 def open_browser_on_startup(host: str, port: int, ssl_enabled: bool = False) -> None:
     """Open browser in a daemon thread after short delay."""
 
-    def _open():
+    def _open() -> None:
         import time
 
         time.sleep(1.5)
@@ -63,7 +63,7 @@ def open_browser_on_startup(host: str, port: int, ssl_enabled: bool = False) -> 
     thread.start()
 
 
-def run_server(host: str, port: int, app: Any, ssl_config: dict | None = None) -> None:
+def run_server(host: str, port: int, app: Any, ssl_config: dict[str, Any] | None = None) -> None:
     """
     Configure and run the uvicorn server.
 

@@ -37,7 +37,7 @@ class Translator(BaseModule):
         self._cache: dict[str, str] = {}
         self._cache_hits = 0
         self._cache_misses = 0
-        super().__init__("translator", config)
+        super().__init__("translator", config, is_critical=False)
 
     def configure(self, config: dict) -> None:
         """

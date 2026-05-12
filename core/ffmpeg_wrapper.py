@@ -11,7 +11,7 @@ import subprocess
 import threading
 import time
 from collections.abc import Callable
-from typing import Optional
+from typing import Any, Optional
 
 from core.ffmpeg_utils import find_ffmpeg, find_ffprobe
 from core.module_base import BaseModule
@@ -35,12 +35,12 @@ class FFmpegProcess:
         self.args = [str(arg) for arg in args]
         self.name = name
         self.on_stderr = on_stderr
-        self.creation_flags = creation_flags
-        self._process: Optional[subprocess.Popen] = None
+        self.creation_flags = creation_flags or 0
+        self._process: Optional[subprocess.Popen[str]] = None
         self._stop_event = threading.Event()
         self._stderr_thread: Optional[threading.Thread] = None
 
-    def start(self):
+    def start(self) -> None:
         """Starts the FFmpeg process."""
         logger.info(f"Starting FFmpeg process [{self.name}]: {' '.join(self.args)}")
 
@@ -65,7 +65,7 @@ class FFmpegProcess:
             logger.error(f"Failed to start FFmpeg process [{self.name}]: {e}")
             raise
 
-    def _read_stderr(self):
+    def _read_stderr(self) -> None:
         """Reads FFmpeg stderr line by line."""
         if not self._process or not self._process.stderr:
             return
@@ -79,7 +79,7 @@ class FFmpegProcess:
         except Exception as e:
             logger.debug(f"Stderr reading stopped for [{self.name}]: {e}")
 
-    def stop(self, timeout: float = 5.0):
+    def stop(self, timeout: float = 5.0) -> None:
         """Stops the FFmpeg process gracefully then forcefully."""
         self._stop_event.set()
 
@@ -139,7 +139,7 @@ class FFmpegWrapper:
 
     def run_command(
         self, args: list[str], capture_output: bool = True, timeout: Optional[float] = None
-    ) -> subprocess.CompletedProcess:
+    ) -> subprocess.CompletedProcess[str]:
         """
         Runs a short-lived FFmpeg command.
         """
@@ -163,7 +163,7 @@ class FFmpegWrapper:
             logger.error(f"Unexpected error running FFmpeg: {e}")
             raise
 
-    def run_probe(self, args: list[str], capture_output: bool = True) -> subprocess.CompletedProcess:
+    def run_probe(self, args: list[str], capture_output: bool = True) -> subprocess.CompletedProcess[str]:
         """
         Runs an FFprobe command.
         """
@@ -201,7 +201,7 @@ class FFmpegModule(BaseModule):
     Provides common FFmpeg functionality and wrapper instance.
     """
 
-    def __init__(self, module_name: str, config: Optional[dict] = None):
+    def __init__(self, module_name: str, config: Optional[dict[str, Any]] = None):
         super().__init__(module_name, config)
         self.ffmpeg = FFmpegWrapper(name=module_name)
         self.logger = logging.getLogger(f"srt2web.module.{module_name}")

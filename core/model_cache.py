@@ -33,8 +33,9 @@ class ModelCache:
 
     _instance = None
     _lock = threading.Lock()
+    _initialized: bool = False
 
-    def __new__(cls):
+    def __new__(cls) -> "ModelCache":
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -155,7 +156,7 @@ class ModelCache:
         if self._models_loaded:
             return
 
-        def _preload():
+        def _preload() -> None:
             try:
                 logger.info(f"Preloading Whisper model: {model_size}")
                 self.get_whisper_model(model_size, device, compute_type)
@@ -210,6 +211,7 @@ class ModelCache:
         try:
             t0 = time.perf_counter()
             import argostranslate.translate  # type: ignore[import-untyped]
+
             t1 = time.perf_counter()
             logger.info(f"[TIMING] get_argos_pair: import translate: {t1-t0:.3f}s")
 
@@ -258,7 +260,7 @@ class ModelCache:
             logger.error(f"Failed to load Argos pair {cache_key}: {e}")
             return None
 
-    def preload_argos(self, pairs: list | None = None) -> None:
+    def preload_argos(self, pairs: Optional[list[tuple[str, str]]] = None) -> None:
         """
         Preload Argos translation pairs.
 
@@ -273,7 +275,7 @@ class ModelCache:
                 ("fr", "en"),
             ]
 
-        def _preload():
+        def _preload() -> None:
             for source, target in pairs:
                 try:
                     self.get_argos_pair(source, target)
@@ -292,7 +294,7 @@ class ModelCache:
         whisper_model: str = "tiny",
         device: str = "cpu",
         compute_type: str = "int8",
-        argos_pairs: list | None = None,
+        argos_pairs: Optional[list[tuple[str, str]]] = None,
     ) -> None:
         """
         Preload all models in background threads.
@@ -318,7 +320,7 @@ class ModelCache:
 
         logger.info("Model cache cleared")
 
-    def get_cache_stats(self) -> dict:
+    def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         total_memory: float = 0.0
         try:
@@ -338,7 +340,7 @@ class ModelCache:
             "cache_dir": str(self._cache_dir),
         }
 
-    def warm_up(self, config: dict) -> None:
+    def warm_up(self, config: dict[str, Any]) -> None:
         """
         Warm up models based on configuration.
 

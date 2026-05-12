@@ -1,31 +1,30 @@
 # Sesión activa — 2026-05-12
 
-**Estado:** F19 DONE
+**Estado:** Audit completado — detalles encontrados
 **Iniciada:** 2026-05-12
 
-## Resumen de la sesión
+## Audit de features
 
-### Feature 19 (pipeline_presets_profiles): COMPLETADA
+### Features completamente OK:
+- F15 (WS Resilience): exponential backoff con jitter, polling adaptivo ✅
+- F20 (Output Health): implementado en todos los outputs, 16 tests ✅
+- F22 (Cleanup dead code): todos los archivos eliminados ✅
+- F24 (mypy strict): 0 errores en core/ y server/ ✅
+- F18, F19, F21, F23, F25, F27, F28: sin incidencias ✅
 
-- **Backend:**
-  - `core/config_manager.py`: Métodos `save_preset`, `load_preset`, `delete_preset`, `list_presets`, `built_in_presets`
-  - `server/routes/config.py`: 4 endpoints nuevos — GET /presets, POST /presets, POST /presets/{name}/apply, DELETE /presets/{name}
-  - 3 presets built-in: low_latency, high_quality, spanish_stream
+### Features con detalles a arreglar:
 
-- **Frontend:**
-  - `signals.ts`: Signals `presets` y `selectedPreset`
-  - `pipeline-control.ts`: `loadPresets`, `applyPreset`, `savePreset`, `exportConfig`
-  - `Header.astro`: Botón Save Preset con dropdown + botón Export YAML
+**F26 (Mobile Responsive)**
+| Componente | Esperado | Real | Severidad |
+|---|---|---|---|
+| ProcessGrid.astro | 1 col <640px, 2 cols 640-1024px, 4 cols >1024px | 1 col <768px, 3 cols max | Media |
+| Header.astro | Botones colapsables <640px | Sin media queries | Alta |
+| MetricsCard.astro | 1 col <480px | 1 col <600px | Baja |
+| StatusCard.astro | URLs truncadas | Pendiente verificar | Media |
+| LogPanel.astro | max-height 40vh móvil | Pendiente verificar | Baja |
 
-- **Tests:**
-  - `tests/unit/test_presets_api.py`: 12 tests unitarios (12/12 passing)
-  - 72 tests existentes sin regresión
+**F29 (Repo hygiene)**
+- pytest_tmp_manual/ existe en disco → Baja
+- startup_stdout.txt y startup_stderr.txt existen en raíz → Alta (no deberían)
 
-## Features completadas en esta sesión
-
-- F19: pipeline_presets_profiles
-
-## Próxima
-
-- F20: output_health_monitoring
-- F21: config_push_via_websocket
+### Pendiente: decisión del usuario sobre si arreglar estos detalles o pasar a otra cosa

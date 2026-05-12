@@ -86,7 +86,7 @@ known-first-party = ["core", "modules", "server"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-ignore_missing_imports = true
+ignore_missing_imports = false
 exclude = ["desktop", "scripts", "desktop/dist", "venv", "tests"]
 warn_unused_ignores = true
 show_error_codes = true

@@ -3,6 +3,7 @@ Output management routes for SRT2Web API.
 """
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -13,11 +14,11 @@ logger = logging.getLogger("srt2web.api.outputs")
 router = APIRouter(tags=["outputs"])
 
 
-def _ctx(request: Request) -> dict:
-    return request.app.state.ctx
+def _ctx(request: Request) -> dict[str, Any]:
+    return request.app.state.ctx  # type: ignore[no-any-return]
 
 
-def _sync_outputs_to_config(request: Request, composite) -> None:
+def _sync_outputs_to_config(request: Request, composite: Any) -> None:
     """Actualiza la lista `outputs` en config.yaml desde el estado actual del composite."""
     ctx = _ctx(request)
     config = ctx["config"]
@@ -45,7 +46,7 @@ def _sync_outputs_to_config(request: Request, composite) -> None:
         logger.warning(f"Could not sync outputs to config: {e}")
 
 
-def _get_composite(pipeline):
+def _get_composite(pipeline: Any) -> Any:
     """Helper: obtiene el CompositeOutput del pipeline. Lanza 500 si no existe."""
     composite = pipeline.get_output_sinks()
     if composite is None:
@@ -58,7 +59,7 @@ def _get_composite(pipeline):
 
 
 @router.get("/outputs")
-async def list_outputs(request: Request):
+async def list_outputs(request: Request) -> dict[str, Any]:
     """Lista todos los outputs configurados con su estado."""
     ctx = _ctx(request)
     pipeline = ctx["pipeline"]
@@ -87,7 +88,7 @@ async def list_outputs(request: Request):
 
 
 @router.get("/outputs/available")
-async def get_available_outputs(request: Request):
+async def get_available_outputs(request: Request) -> dict[str, Any]:
     """Tipos de output disponibles para crear."""
     from core.io_factory import OutputFactory
 
@@ -95,7 +96,7 @@ async def get_available_outputs(request: Request):
 
 
 @router.post("/outputs")
-async def add_output(request: Request, body: AddOutputRequest):
+async def add_output(request: Request, body: AddOutputRequest) -> dict[str, Any]:
     """Añade un nuevo output al pipeline en caliente y lo guarda en config.yaml."""
     ctx = _ctx(request)
     pipeline = ctx["pipeline"]
@@ -132,7 +133,7 @@ async def add_output(request: Request, body: AddOutputRequest):
 
 
 @router.put("/outputs/{output_name}")
-async def update_output(request: Request, output_name: str, body: UpdateOutputRequest):
+async def update_output(request: Request, output_name: str, body: UpdateOutputRequest) -> dict[str, Any]:
     """Actualiza la configuración de un output existente."""
     ctx = _ctx(request)
     pipeline = ctx["pipeline"]
@@ -155,7 +156,7 @@ async def update_output(request: Request, output_name: str, body: UpdateOutputRe
 
 
 @router.delete("/outputs/{output_name}")
-async def remove_output(request: Request, output_name: str):
+async def remove_output(request: Request, output_name: str) -> dict[str, Any]:
     """Elimina un output del pipeline y lo elimina de config.yaml."""
     ctx = _ctx(request)
     pipeline = ctx["pipeline"]
@@ -178,7 +179,7 @@ async def remove_output(request: Request, output_name: str):
 
 
 @router.post("/outputs/{output_name}/toggle")
-async def toggle_output(request: Request, output_name: str, body: dict | None = None):
+async def toggle_output(request: Request, output_name: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
     """Habilita o deshabilita un output."""
     ctx = _ctx(request)
     pipeline = ctx["pipeline"]

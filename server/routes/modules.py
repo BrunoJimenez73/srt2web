@@ -4,6 +4,7 @@ Module management routes for SRT2Web API.
 
 import logging
 import traceback
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -14,12 +15,12 @@ logger = logging.getLogger("srt2web.api.modules")
 router = APIRouter(tags=["modules"])
 
 
-def _ctx(request: Request) -> dict:
-    return request.app.state.ctx
+def _ctx(request: Request) -> dict[str, Any]:
+    return request.app.state.ctx  # type: ignore[no-any-return]
 
 
 @router.get("/modules")
-async def list_modules(request: Request):
+async def list_modules(request: Request) -> dict[str, Any]:
     """List all registered modules and their status."""
     ctx = _ctx(request)
     pipeline = ctx["pipeline"]
@@ -27,7 +28,7 @@ async def list_modules(request: Request):
 
 
 @router.get("/modules/{module_name}/debug")
-async def debug_module(request: Request, module_name: str):
+async def debug_module(request: Request, module_name: str) -> dict[str, Any]:
     """Debug endpoint to see raw module state."""
     try:
         safe_module_name = sanitize_module_name(module_name)
@@ -51,7 +52,7 @@ async def toggle_module(
     request: Request,
     module_name: str,
     body: ModuleToggle,
-):
+) -> dict[str, Any]:
     """Enable or disable a module with hot reload."""
 
     try:

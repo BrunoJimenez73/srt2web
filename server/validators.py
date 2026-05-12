@@ -124,7 +124,7 @@ def validate_config_value(key: str, value: Any) -> Any:
     return value
 
 
-def validate_module_dependencies(config: dict) -> list:
+def validate_module_dependencies(config: dict[str, Any]) -> list[str]:
     """
     Validate module dependencies according to pipeline rules.
 
@@ -182,11 +182,11 @@ def create_error_response(message: str, details: Optional[dict[str, Any]] = None
 class ConfigUpdate(BaseModel):
     """Request body for configuration updates with validation."""
 
-    config: dict
+    config: dict[str, Any]
 
     @field_validator("config")
     @classmethod
-    def validate_config_keys(cls, v: dict) -> dict:
+    def validate_config_keys(cls, v: dict[str, Any]) -> dict[str, Any]:
         """Validate configuration keys and values."""
         for key, value in v.items():
             if isinstance(value, dict):

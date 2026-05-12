@@ -126,7 +126,7 @@ def _register_modules(
         if module_name == "subtitle_generator":
             mod_config["chunk_duration"] = chunk_duration
 
-        kwargs: dict = {"config": mod_config}
+        kwargs: dict[str, Any] = {"config": mod_config}
         if needs_output_dir:
             kwargs["output_dir"] = output_dir
 

@@ -548,10 +548,13 @@ export async function loadPresets(): Promise<void> {
 export async function applyPreset(name: string): Promise<void> {
   try {
     setLoading(true, `Applying preset: ${name}`);
-    const response = await fetch(`/api/presets/${encodeURIComponent(name)}/apply`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
+    const response = await fetch(
+      `/api/presets/${encodeURIComponent(name)}/apply`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      },
+    );
     if (!response.ok) {
       const err = await response.text();
       throw new Error(err || `Failed to apply preset: ${name}`);

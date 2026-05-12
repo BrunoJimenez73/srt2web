@@ -12,11 +12,11 @@ Mejora respecto a la versión anterior:
 - Útil para limitar paralelismo en audio_extractor, audio_mixer, video_muxer.
 """
 
-import time
-import threading
 import logging
-from typing import Optional, Dict
+import threading
+import time
 from dataclasses import dataclass, field
+from typing import Any, Optional
 
 logger = logging.getLogger("srt2web.ffmpeg_pool")
 
@@ -43,7 +43,7 @@ class FFmpegPool:
         self.max_size = max_size
         self.idle_timeout = idle_timeout  # conservado por compatibilidad de API
         self._semaphore = threading.Semaphore(max_size)
-        self._active: Dict[str, JobSlot] = {}
+        self._active: dict[str, JobSlot] = {}
         self._lock = threading.Lock()
         self._running = True
         logger.info(f"FFmpegPool initialized (max_concurrent={max_size})")
@@ -68,9 +68,7 @@ class FFmpegPool:
         with self._lock:
             self._active[job_id] = JobSlot(job_id=job_id)
 
-        logger.debug(
-            f"FFmpegPool: slot acquired for job={job_id} (active={len(self._active)}/{self.max_size})"
-        )
+        logger.debug(f"FFmpegPool: slot acquired for job={job_id} (active={len(self._active)}/{self.max_size})")
         return True
 
     def release(self, job_id: str) -> None:
@@ -87,7 +85,7 @@ class FFmpegPool:
             f"FFmpegPool: slot released for job={job_id} (held {elapsed:.1f}s, active={len(self._active)}/{self.max_size})"
         )
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict[str, Any]:
         """Estadísticas actuales del pool."""
         with self._lock:
             active_count = len(self._active)
@@ -115,7 +113,7 @@ _pool: Optional[FFmpegPool] = None
 _pool_lock = threading.Lock()
 
 
-def get_pool(config_manager=None) -> FFmpegPool:
+def get_pool(config_manager: Any = None) -> FFmpegPool:
     """
     Obtener (o crear) el pool global de FFmpeg.
 
@@ -131,9 +129,7 @@ def get_pool(config_manager=None) -> FFmpegPool:
             idle_timeout = 30.0
             if config_manager:
                 max_size = config_manager.get("modules.audio_extractor.pool_size", 4)
-                idle_timeout = config_manager.get(
-                    "modules.audio_extractor.pool_idle_timeout", 30.0
-                )
+                idle_timeout = config_manager.get("modules.audio_extractor.pool_idle_timeout", 30.0)
             _pool = FFmpegPool(max_size=max_size, idle_timeout=idle_timeout)
     return _pool
 

@@ -31,6 +31,8 @@ export {
   updateStatus,
   addLog,
   resetThroughput,
+  presets,
+  selectedPreset,
 } from "./signals";
 
 // Effects (DOM update subscriptions)

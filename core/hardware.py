@@ -203,7 +203,7 @@ def get_optimal_device(preferred: Optional[str] = None) -> str:
     """
     if preferred is None or preferred == "auto":
         hardware = detect_hardware()
-        return hardware["recommended"]
+        return str(hardware["recommended"])
 
     if preferred == "cuda":
         cuda_info = detect_cuda()

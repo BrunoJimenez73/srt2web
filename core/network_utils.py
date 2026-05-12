@@ -4,9 +4,10 @@ Network utilities for SRT2Web.
 Provides functions for detecting local and public IP addresses.
 """
 
+import logging
 import socket
 import urllib.request
-import logging
+from typing import Any
 
 logger = logging.getLogger("srt2web.network")
 
@@ -25,7 +26,7 @@ def get_local_ip() -> str:
         s.connect(("8.8.8.8", 80))
         ip = s.getsockname()[0]
         s.close()
-        return ip
+        return str(ip)
     except Exception as e:
         logger.warning(f"Could not detect local IP: {e}")
         return "127.0.0.1"
@@ -43,9 +44,7 @@ def get_public_ip() -> tuple[str | None, bool]:
     """
     global _public_ip_logged
     try:
-        with urllib.request.urlopen(
-            "https://api.ipify.org?format=text", timeout=5
-        ) as response:
+        with urllib.request.urlopen("https://api.ipify.org?format=text", timeout=5) as response:
             ip = response.read().decode("utf-8").strip()
             if ip:
                 if not _public_ip_logged:
@@ -58,9 +57,7 @@ def get_public_ip() -> tuple[str | None, bool]:
     return None, False
 
 
-def get_network_info(
-    srt_port: int = 9000, server_port: int = 9999, latency_ms: int = 1000
-) -> dict:
+def get_network_info(srt_port: int = 9000, server_port: int = 9999, latency_ms: int = 1000) -> dict[str, Any]:
     """
     Get comprehensive network information for external connections.
 
@@ -94,21 +91,13 @@ def get_network_info(
         base_url = f"http://{public_ip}:{server_port}"
         info["stream_url"] = f"{base_url}/hls/stream.m3u8"
         info["player_url"] = f"{base_url}/player"
-        info["srt_url_listener"] = (
-            f"srt://{public_ip}:{srt_port}?mode=listener&latency={latency_us}"
-        )
-        info["srt_url_caller_template"] = (
-            f"srt://EMITTER_IP:{srt_port}?mode=caller&latency={latency_us}"
-        )
+        info["srt_url_listener"] = f"srt://{public_ip}:{srt_port}?mode=listener&latency={latency_us}"
+        info["srt_url_caller_template"] = f"srt://EMITTER_IP:{srt_port}?mode=caller&latency={latency_us}"
     else:
         base_url = f"http://{local_ip}:{server_port}"
         info["stream_url"] = f"{base_url}/hls/stream.m3u8"
         info["player_url"] = f"{base_url}/player"
-        info["srt_url_listener"] = (
-            f"srt://{local_ip}:{srt_port}?mode=listener&latency={latency_us}"
-        )
-        info["srt_url_caller_template"] = (
-            f"srt://EMITTER_IP:{srt_port}?mode=caller&latency={latency_us}"
-        )
+        info["srt_url_listener"] = f"srt://{local_ip}:{srt_port}?mode=listener&latency={latency_us}"
+        info["srt_url_caller_template"] = f"srt://EMITTER_IP:{srt_port}?mode=caller&latency={latency_us}"
 
     return info

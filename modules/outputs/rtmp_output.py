@@ -31,7 +31,8 @@ class RTMPOutput(OutputSink):
     name = "rtmp_output"
 
     def __init__(self, config: Optional[dict] = None):
-        self._config: dict = config or {}
+        cfg = config or {}
+        super().__init__("rtmp", cfg)
         self._ffmpeg_path: Optional[str] = None
         self._ffmpeg_proc: Optional[subprocess.Popen] = None
         self._monitor_thread: Optional[threading.Thread] = None
@@ -47,10 +48,6 @@ class RTMPOutput(OutputSink):
 
         if config:
             self.configure(config)
-
-    @property
-    def config(self) -> dict:
-        return self._config
 
     def configure(self, config: dict) -> None:
         """Apply configuration."""
@@ -208,12 +205,17 @@ class RTMPOutput(OutputSink):
         try:
             if self._ffmpeg_proc.stdin:
                 with open(video_path, "rb") as f:
-                    self._ffmpeg_proc.stdin.write(f.read())
+                    chunk_data = f.read()
+                    self._ffmpeg_proc.stdin.write(chunk_data)
+                    self._update_write_stats(len(chunk_data))
+                    self._clear_error()
         except BrokenPipeError:
             logger.warning("RTMP connection lost, attempting reconnect...")
+            self._set_error("RTMP connection lost")
             self._restart()
         except Exception as e:
             logger.error(f"Error writing to RTMP: {e}")
+            self._set_error(str(e))
 
     def is_streaming(self) -> bool:
         """Check if RTMP streaming is active."""

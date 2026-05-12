@@ -11,10 +11,10 @@ Provee funciones para generar logs con campos consistentes:
 
 Uso:
     from core.structured_log import log_structured, ModuleLogger
-    
+
     # Log simple
     log_structured("transcriber", "transcribe", chunk_index=1, duration_ms=150.5, status="success")
-    
+
     # Usando ModuleLogger (recomendado)
     logger = ModuleLogger("transcriber")
     logger.info("transcribe", chunk_index=1, duration_ms=150.5)
@@ -24,10 +24,10 @@ Uso:
 import json
 import logging
 import time
+import typing
 import uuid
 from contextlib import contextmanager
-from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
 
 # Logger principal
 _logger = logging.getLogger("srt2web.structured")
@@ -42,7 +42,7 @@ def log_structured(
     duration_ms: Optional[float] = None,
     status: str = "info",
     message: str = "",
-    extra: Optional[dict] = None,
+    extra: Optional[dict[str, Any]] = None,
 ) -> None:
     """
     Log estructurado con campos estandarizados.
@@ -133,7 +133,7 @@ class ModuleLogger:
         duration_ms: Optional[float] = None,
         status: str = "info",
         message: str = "",
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Metodo interno para generar log estructurado."""
         # Usar correlation_id del contexto si no se proporciona uno
@@ -161,7 +161,7 @@ class ModuleLogger:
         chunk_index: Optional[int] = None,
         duration_ms: Optional[float] = None,
         message: str = "",
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Log nivel debug."""
         self._log("debug", stage, chunk_index, None, duration_ms, "debug", message, **kwargs)
@@ -172,7 +172,7 @@ class ModuleLogger:
         chunk_index: Optional[int] = None,
         duration_ms: Optional[float] = None,
         message: str = "",
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Log nivel info."""
         self._log("info", stage, chunk_index, None, duration_ms, "success", message, **kwargs)
@@ -183,7 +183,7 @@ class ModuleLogger:
         chunk_index: Optional[int] = None,
         duration_ms: Optional[float] = None,
         message: str = "",
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Log nivel warning."""
         self._log("warning", stage, chunk_index, None, duration_ms, "warning", message, **kwargs)
@@ -195,7 +195,7 @@ class ModuleLogger:
         duration_ms: Optional[float] = None,
         message: str = "",
         error: Optional[str] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Log nivel error."""
         extra = {"error": error} if error else {}
@@ -209,8 +209,8 @@ class ModuleLogger:
         chunk_index: Optional[int] = None,
         level: str = "info",
         correlation_id: Optional[str] = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> typing.Generator[dict[str, Any], None, None]:
         """
         Context manager para medir tiempo de ejecucion de una etapa.
 
@@ -244,7 +244,9 @@ class ModuleLogger:
 
 
 @contextmanager
-def time_operation(module: str, stage: str, chunk_index: Optional[int] = None, **kwargs):
+def time_operation(
+    module: str, stage: str, chunk_index: Optional[int] = None, **kwargs: Any
+) -> typing.Generator[dict[str, Any], None, None]:
     """
     Context manager global para medir operaciones.
 
@@ -257,7 +259,7 @@ def time_operation(module: str, stage: str, chunk_index: Optional[int] = None, *
         yield ctx
 
 
-def parse_structured_log(log_line: str) -> Optional[dict]:
+def parse_structured_log(log_line: str) -> Optional[dict[str, Any]]:
     """
     Parsear un log estructurado desde una linea de texto.
 
@@ -274,6 +276,6 @@ def parse_structured_log(log_line: str) -> Optional[dict]:
             return None
         end = log_line.rfind("}") + 1
         json_str = log_line[start:end]
-        return json.loads(json_str)
+        return typing.cast(Optional[dict[str, Any]], json.loads(json_str))
     except (json.JSONDecodeError, ValueError):
         return None

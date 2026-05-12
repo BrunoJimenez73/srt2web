@@ -1,6 +1,6 @@
 /**
  * API Types - Todos los tipos relacionados con la API del backend.
- * 
+ *
  * Este archivo centraliza todas las definiciones de tipos para la API.
  */
 
@@ -12,18 +12,18 @@ export interface ApiResponse<T = unknown> {
 }
 
 export interface ConfigUpdateResponse {
-  status: 'updated';
+  status: "updated";
   config: Config;
   warning?: string;
 }
 
 export interface PipelineStartResponse {
-  status: 'started';
+  status: "started";
   input: Record<string, unknown>;
 }
 
 export interface PipelineStopResponse {
-  status: 'stopped';
+  status: "stopped";
 }
 
 export interface ModuleToggleResponse {
@@ -45,9 +45,17 @@ export interface ModuleStatus {
   extra?: ModuleExtra;
 }
 
-export type ModuleName = 'input' | 'whisper' | 'translator' | 'tts' | 'subtitles' | 'mixer' | 'muxer' | 'outputs';
+export type ModuleName =
+  | "input"
+  | "whisper"
+  | "translator"
+  | "tts"
+  | "subtitles"
+  | "mixer"
+  | "muxer"
+  | "outputs";
 
-export type LogLevel = 'INFO' | 'WARNING' | 'ERROR';
+export type LogLevel = "INFO" | "WARNING" | "ERROR";
 
 export interface LogMessage {
   level: LogLevel;
@@ -56,7 +64,13 @@ export interface LogMessage {
   module?: ModuleName;
 }
 
-export type ModuleState = 'idle' | 'running' | 'error' | 'stopped' | 'degraded' | 'disabled';
+export type ModuleState =
+  | "idle"
+  | "running"
+  | "error"
+  | "stopped"
+  | "degraded"
+  | "disabled";
 
 export interface ModuleExtra {
   using_gpu?: boolean;
@@ -70,6 +84,12 @@ export interface ModuleExtra {
   encoder_label?: string;
   encoder?: string;
   video_encoder?: string;
+  // Output health fields
+  health?: "healthy" | "degraded" | "failed";
+  uptime?: number;
+  bytes_written?: number;
+  last_error?: string;
+  last_error_time?: number;
 }
 
 export interface GpuInfo {
@@ -89,7 +109,7 @@ export interface NetworkInfo {
 }
 
 export interface HealthStatus {
-  status: 'healthy' | 'degraded' | 'unhealthy';
+  status: "healthy" | "degraded" | "unhealthy";
   uptime_seconds: number;
   memory_mb: number;
   memory_percent: number;
@@ -142,14 +162,14 @@ export interface InputConfig {
   file?: FileInputConfig;
 }
 
-export type InputType = 'srt' | 'rtmp' | 'file';
+export type InputType = "srt" | "rtmp" | "file";
 
-export type ConnectionMode = 'local' | 'remote' | 'hybrid';
+export type ConnectionMode = "local" | "remote" | "hybrid";
 
 export interface SrtInputConfig {
   listen_port: number;
   port?: number;
-  mode: 'listener' | 'caller';
+  mode: "listener" | "caller";
   latency_ms: number;
   caller_address: string;
   chunk_duration_sec: number;
@@ -161,7 +181,7 @@ export interface RtmpInputConfig {
   app: string;
   stream_key: string;
   url: string;
-  mode: 'listener' | 'pull';
+  mode: "listener" | "pull";
   chunk_duration_sec: number;
 }
 
@@ -183,7 +203,7 @@ export interface OutputConfig {
   outputs: NamedOutput[];
 }
 
-export type OutputType = 'web' | 'hls' | 'srt' | 'rtmp' | 'file' | 'recording';
+export type OutputType = "web" | "hls" | "srt" | "rtmp" | "file" | "recording";
 
 export interface WebOutputConfig {
   segment_duration: number;
@@ -204,7 +224,7 @@ export interface RtmpOutputConfig {
 
 export interface SrtOutputConfig {
   url: string;
-  mode: 'listener' | 'caller';
+  mode: "listener" | "caller";
   latency_ms: number;
   stream_id: string;
   passphrase: string;
@@ -224,16 +244,16 @@ export interface FileOutputConfig {
 
 export interface RecordingOutputConfig {
   output_path: string;
-  format: 'mp4' | 'mkv' | 'webm';
+  format: "mp4" | "mkv" | "webm";
   codec: string;
   video_bitrate: string;
   video_crf: number;
-  quality_mode: 'cbr' | 'crf';
+  quality_mode: "cbr" | "crf";
   audio_codec: string;
   audio_bitrate: string;
-  split_mode: 'none' | 'time' | 'size';
+  split_mode: "none" | "time" | "size";
   split_value: number;
-  subtitles: 'none' | 'burnt' | 'vtt';
+  subtitles: "none" | "burnt" | "vtt";
   video_preset: string;
 }
 
@@ -253,7 +273,7 @@ export interface PipelineConfig {
   retry_delay: number;
 }
 
-export type PipelineMode = 'sequential' | 'thread_parallel' | 'asyncio';
+export type PipelineMode = "sequential" | "thread_parallel" | "asyncio";
 
 export interface ModulesConfig {
   audio_extractor: ModuleConfig;
@@ -301,7 +321,7 @@ export interface AudioMixerConfig extends ModuleConfig {
 }
 
 export interface VideoMuxerConfig extends ModuleConfig {
-  engine: 'hls' | 'webrtc';
+  engine: "hls" | "webrtc";
   hls_segment_duration: number;
   hls_list_size: number;
   audio_offset_ms: number;
@@ -329,15 +349,33 @@ export interface OutputDirectoryConfig {
 
 // ── Tipos de enumeraciones ─────────────────────────────────────────────────────
 
-export type WhisperModel = 'tiny' | 'base' | 'small' | 'medium' | 'large' | 'large-v2' | 'large-v3';
-export type Language = 'auto' | 'en' | 'es' | 'fr' | 'de' | 'it' | 'pt' | 'ja' | 'zh' | 'ko' | 'ru';
-export type Device = 'auto' | 'cpu' | 'cuda' | 'mps';
-export type TtsEngine = 'edge-tts' | 'piper' | 'elevenlabs';
-export type SubtitleFormat = 'webvtt' | 'srt' | 'ass';
-export type EncoderMode = 'auto' | 'cpu' | 'gpu_nvenc' | 'gpu_vaapi';
-export type VideoQuality = 'low' | 'medium' | 'high' | 'ultra';
-export type VideoCodec = 'h264' | 'h265' | 'vp8' | 'vp9';
-export type AudioCodec = 'aac' | 'mp3' | 'opus';
+export type WhisperModel =
+  | "tiny"
+  | "base"
+  | "small"
+  | "medium"
+  | "large"
+  | "large-v2"
+  | "large-v3";
+export type Language =
+  | "auto"
+  | "en"
+  | "es"
+  | "fr"
+  | "de"
+  | "it"
+  | "pt"
+  | "ja"
+  | "zh"
+  | "ko"
+  | "ru";
+export type Device = "auto" | "cpu" | "cuda" | "mps";
+export type TtsEngine = "edge-tts" | "piper" | "elevenlabs";
+export type SubtitleFormat = "webvtt" | "srt" | "ass";
+export type EncoderMode = "auto" | "cpu" | "gpu_nvenc" | "gpu_vaapi";
+export type VideoQuality = "low" | "medium" | "high" | "ultra";
+export type VideoCodec = "h264" | "h265" | "vp8" | "vp9";
+export type AudioCodec = "aac" | "mp3" | "opus";
 
 // ── Tipos de Status ────────────────────────────────────────────────────────────
 
@@ -352,7 +390,12 @@ export interface Status {
   network?: NetworkInfo;
 }
 
-export type PipelineState = 'stopped' | 'running' | 'starting' | 'stopping' | 'error';
+export type PipelineState =
+  | "stopped"
+  | "running"
+  | "starting"
+  | "stopping"
+  | "error";
 
 export interface MetricsData {
   cpu_percent: number;
@@ -381,8 +424,8 @@ export interface InputInfo {
 // ── Tipos de WebSocket ────────────────────────────────────────────────────────
 
 export interface WebSocketMessage {
-  type: 'log' | 'status';
-  level?: 'INFO' | 'WARNING' | 'ERROR';
+  type: "log" | "status";
+  level?: "INFO" | "WARNING" | "ERROR";
   message?: string;
   status?: Status;
   timestamp?: number;
@@ -400,11 +443,16 @@ export interface AddOutputRequest {
 export interface OutputStatus {
   name: string;
   type: string;
-  state: 'running' | 'stopped' | 'starting' | 'stopping';
+  state: "running" | "stopped" | "starting" | "stopping";
   enabled: boolean;
   processed_chunks: number;
   last_process_time_ms: number;
   extra?: ModuleExtra;
   stream_info?: Record<string, unknown>;
   error?: string;
+  // Output health fields (may be present from health monitoring)
+  health?: "healthy" | "degraded" | "failed";
+  uptime?: number;
+  bytes_written?: number;
+  last_error?: string;
 }

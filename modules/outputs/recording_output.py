@@ -396,14 +396,19 @@ class RecordingOutput(OutputSink):
 
         self.logger.info(f"[Recording] chunk {chunk_idx}: video={bool(video_path)}, audio={bool(audio_path)}")
 
+        total_bytes = 0
+        errors = []
+
         if video_path and os.path.exists(video_path):
             saved_video = os.path.join(self._recording_dir, f"rec_v_{chunk_idx:06d}.ts")
             try:
                 shutil.copy2(video_path, saved_video)
                 self._saved_video_paths.append(saved_video)
+                total_bytes += os.path.getsize(saved_video)
                 self.logger.info(f"[Recording] saved video chunk {chunk_idx}")
             except Exception as e:
                 self.logger.warning(f"Could not copy video chunk: {e}")
+                errors.append(str(e))
         elif video_path:
             self.logger.warning(f"[Recording] video path exists but file not found: {video_path}")
         else:
@@ -414,11 +419,20 @@ class RecordingOutput(OutputSink):
             try:
                 shutil.copy2(audio_path, saved_audio)
                 self._saved_audio_paths.append(saved_audio)
+                total_bytes += os.path.getsize(saved_audio)
                 self.logger.info(f"[Recording] saved audio chunk {chunk_idx}")
             except Exception as e:
                 self.logger.warning(f"Could not copy audio chunk: {e}")
+                errors.append(str(e))
 
         self._processed_chunks += 1
+
+        # Update health tracking
+        if errors:
+            self._set_error("; ".join(errors))
+        else:
+            self._update_write_stats(total_bytes)
+            self._clear_error()
 
     def _concat_subtitle_chunks(self) -> Optional[str]:
         """Convert latest VTT subtitle file to SRT for recording."""

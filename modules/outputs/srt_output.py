@@ -9,6 +9,7 @@ import os
 import subprocess
 import threading
 import logging
+import time as time_module
 from typing import Optional
 
 from core.module_base import PipelineData
@@ -26,6 +27,10 @@ class SRTOutput(BaseOutput):
     - Caller: connect to an SRT server
     - Listener: accept incoming SRT connections
     """
+
+    # Retry configuration
+    MAX_RETRIES: int = 3
+    RETRY_DELAYS: list[float] = [5.0, 15.0, 30.0]
 
     def __init__(self, config: Optional[dict] = None):
         super().__init__("srt", config or {})
@@ -48,6 +53,7 @@ class SRTOutput(BaseOutput):
         self._audio_codec: str = "aac"
         
         self._streaming: bool = False
+        self._retry_count: int = 0
         
         if config:
             self.configure(config)
@@ -111,12 +117,18 @@ class SRTOutput(BaseOutput):
         if self._ffmpeg_proc and self._ffmpeg_proc.stdin:
             try:
                 with open(video_path, "rb") as f:
-                    self._ffmpeg_proc.stdin.write(f.read())
+                    chunk_data = f.read()
+                    self._ffmpeg_proc.stdin.write(chunk_data)
+                    self._update_write_stats(len(chunk_data))
+                    self._clear_error()
+                    self._retry_count = 0  # Reset retry count on success
             except BrokenPipeError:
                 logger.warning("SRT connection lost, attempting reconnect...")
+                self._set_error("SRT connection lost")
                 self._restart_streaming()
             except Exception as e:
                 logger.error(f"Error writing to SRT: {e}")
+                self._set_error(str(e))
 
     def _start_streaming(self) -> None:
         """Start FFmpeg SRT streaming process."""
@@ -180,7 +192,7 @@ class SRTOutput(BaseOutput):
         logger.info("SRT streaming started")
 
     def _restart_streaming(self) -> None:
-        """Restart SRT streaming after connection loss."""
+        """Restart SRT streaming after connection loss with backoff."""
         self._streaming = False
         if self._ffmpeg_proc:
             try:
@@ -189,9 +201,15 @@ class SRTOutput(BaseOutput):
                 pass
             self._ffmpeg_proc = None
         
-        import time
-        time.sleep(1)  # Brief pause before reconnect
-        self._start_streaming()
+        if self._retry_count < self.MAX_RETRIES:
+            delay = self.RETRY_DELAYS[self._retry_count] if self._retry_count < len(self.RETRY_DELAYS) else self.RETRY_DELAYS[-1]
+            self._retry_count += 1
+            logger.info(f"SRT reconnect attempt {self._retry_count}/{self.MAX_RETRIES} in {delay}s")
+            time_module.sleep(delay)
+            self._start_streaming()
+        else:
+            logger.error(f"SRT max retries ({self.MAX_RETRIES}) reached, giving up")
+            self._set_error(f"SRT max retries ({self.MAX_RETRIES}) reached")
 
     def is_streaming(self) -> bool:
         """Check if SRT streaming is active."""

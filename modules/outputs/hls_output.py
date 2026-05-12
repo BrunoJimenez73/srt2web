@@ -211,13 +211,16 @@ class HLSOutput(OutputSink):
             )
             if result.returncode != 0:
                 self.logger.error(f"FFmpeg mux error: {result.stderr[-500:]}")
+                self._set_error(f"FFmpeg exit code {result.returncode}")
                 return
 
         except subprocess.TimeoutExpired:
             self.logger.error("FFmpeg mux timed out")
+            self._set_error("FFmpeg mux timed out")
             return
         except Exception as e:
             self.logger.error(f"FFmpeg mux exception: {e}")
+            self._set_error(str(e))
             return
 
         # Actualizar duración acumulada
@@ -234,6 +237,13 @@ class HLSOutput(OutputSink):
         # Track processing time for frontend metrics
         elapsed = (time.perf_counter() - start_time) * 1000
         self._last_process_time_ms = elapsed
+
+        # Update health tracking stats
+        segment_path = os.path.join(self._hls_dir, f"seg_{self._segment_index:06d}.ts")
+        if os.path.exists(segment_path):
+            seg_size = os.path.getsize(segment_path)
+            self._update_write_stats(seg_size)
+        self._clear_error()
 
         self.logger.info(
             f"HLS segment written: seg_{self._segment_index:06d}.ts (duration={chunk_duration:.3f}s, process_time={elapsed:.1f}ms)"

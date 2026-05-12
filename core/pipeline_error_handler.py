@@ -170,7 +170,7 @@ class PipelineErrorHandler:
         error: Exception,
         module_name: Optional[str] = None,
         chunk_index: Optional[int] = None,
-        context: Optional[dict] = None,
+        context: Optional[dict[str, Any]] = None,
     ) -> ErrorRecord:
         """
         Registrar un error y decidir accion de recuperacion.
@@ -257,7 +257,7 @@ class PipelineErrorHandler:
 
     def get_retry_delay(self, attempt: int) -> float:
         """Calcular delay para reintento con backoff exponencial."""
-        return self._policy.retry_delay * (2**attempt)
+        return self._policy.retry_delay * (2**attempt)  # type: ignore[no-any-return]
 
     def should_degrade(self) -> bool:
         """Determinar si el pipeline debe entrar en modo degradado."""
@@ -267,7 +267,7 @@ class PipelineErrorHandler:
         """Determinar si el pipeline debe detenerse por errores criticos."""
         return self._errors_this_minute >= self._policy.max_errors_per_minute * 2
 
-    def get_recent_errors(self, count: int = 10) -> list[dict]:
+    def get_recent_errors(self, count: int = 10) -> list[dict[str, Any]]:
         """Obtener los ultimos errores registrados."""
         return [err.to_dict() for err in self._error_history[-count:]]
 

@@ -57,7 +57,7 @@ class AsyncPipeline(PipelineStrategy):
 
         self._running = False
         self._stop_event: Optional[asyncio.Event] = None
-        self._task: Optional[asyncio.Task] = None
+        self._task: Optional[asyncio.Task[None]] = None
         self._semaphore: Optional[asyncio.Semaphore] = None
 
         self.metrics = MetricsTracker()
@@ -89,13 +89,14 @@ class AsyncPipeline(PipelineStrategy):
         self._log("info", "AsyncPipeline started")
         self._notify_state_change("running")
 
+        return None
+
     def stop(self) -> None:
         """Detener pipeline asyncio."""
         self._running = False
 
         if self._stop_event:
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(self._stop_event.set())  # type: ignore[arg-type]
+            self._stop_event.set()
 
         if self._task and not self._task.done():
             self._task.cancel()
@@ -375,7 +376,7 @@ class AsyncPipelineV2(PipelineStrategy):
     # ---------------------------------------------------------------------
     # Metrics exposure
     # ---------------------------------------------------------------------
-    def get_metrics(self) -> dict:
+    def get_metrics(self) -> dict[str, Any]:
         """Return a dictionary with basic pipeline metrics.
 
         The test suite checks for the keys ``state``, ``chunks_processed``,

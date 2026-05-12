@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -48,7 +49,7 @@ class WebSocketRequest:
         if client:
 
             class ClientInfo:
-                def __init__(self, host, port):
+                def __init__(self, host: str, port: int) -> None:
                     self.host = host
                     self.port = port
 
@@ -69,14 +70,14 @@ class LogBroadcaster:
     def __init__(self) -> None:
         self._subscribers: set[WebSocket] = set()
         self._loop: asyncio.AbstractEventLoop | None = None
-        self._buffer: list = []  # Buffer for messages before loop is set
+        self._buffer: list[str] = []  # Buffer for messages before loop is set
         self._max_buffer = 200
 
-    def set_loop(self, loop: asyncio.AbstractEventLoop):
+    def set_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         """Set the asyncio event loop (call from main thread)."""
         self._loop = loop
 
-    async def subscribe(self, ws: WebSocket):
+    async def subscribe(self, ws: WebSocket) -> None:
         """Add a WebSocket subscriber."""
         await ws.accept()
         self._subscribers.add(ws)
@@ -89,12 +90,12 @@ class LogBroadcaster:
             except Exception:
                 break
 
-    def unsubscribe(self, ws: WebSocket):
+    def unsubscribe(self, ws: WebSocket) -> None:
         """Remove a WebSocket subscriber."""
         self._subscribers.discard(ws)
         logger.info(f"WebSocket client disconnected. Total: {len(self._subscribers)}")
 
-    def broadcast(self, level: str, message: str):
+    def broadcast(self, level: str, message: str) -> None:
         """
         Broadcast a log message to all subscribers.
         Can be called from any thread.
@@ -126,7 +127,7 @@ class LogBroadcaster:
                 self._loop,
             )
 
-    async def _async_broadcast(self, data: str):
+    async def _async_broadcast(self, data: str) -> None:
         """Send data to all subscribers, removing dead connections."""
         dead = set()
         for ws in self._subscribers:
@@ -136,12 +137,30 @@ class LogBroadcaster:
                 dead.add(ws)
         self._subscribers -= dead
 
-    def broadcast_status(self, status: dict):
+    def broadcast_status(self, status: dict[str, Any]) -> None:
         """Broadcast a status update to all subscribers."""
         data = json.dumps(
             {
                 "type": "status",
                 **status,
+            }
+        )
+
+        if self._loop and self._subscribers:
+            asyncio.run_coroutine_threadsafe(
+                self._async_broadcast(data),
+                self._loop,
+            )
+
+    def broadcast_output_health(self, output_name: str, health: str, extra: dict[str, Any] | None = None) -> None:
+        """Broadcast an output health event to all subscribers."""
+        data = json.dumps(
+            {
+                "type": "output_health",
+                "output": output_name,
+                "health": health,
+                "extra": extra or {},
+                "timestamp": time.time(),
             }
         )
 
@@ -169,7 +188,7 @@ def create_ws_router() -> APIRouter:
     router = APIRouter(tags=["websocket"])
 
     @router.websocket("/ws/logs")
-    async def ws_logs(websocket: WebSocket):
+    async def ws_logs(websocket: WebSocket) -> None:
         """WebSocket endpoint for real-time log streaming."""
         ctx = websocket.app.state.ctx
         config = ctx.get("config")

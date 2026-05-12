@@ -1,5 +1,4 @@
 ---
-
 ---
 
 <div class="log-panel collapsed" role="region" aria-label="Panel de registros del sistema">
@@ -111,6 +110,7 @@
     white-space: pre-wrap;
     word-break: break-all;
     border-left: 3px solid transparent;
+    line-height: 18px;
   }
 
   .log-entry[data-level="info"] {
@@ -141,51 +141,189 @@
 <script>
   import { initLogPanel } from '../lib/modules/logpanel';
 
-  // Current filter state for log search
-  let currentFilter = '';
+  // Virtual scroll state
+  const ROW_HEIGHT = 22; // px per log entry (line-height 18 + padding 4)
+  const OVERSCAN = 10;   // extra rows above/below viewport
+  const MAX_VISIBLE_ROWS = 30; // max rendered rows at once
 
-  // Filter log entries based on search input
-  function filterLogs(searchTerm: string): void {
-    currentFilter = searchTerm.toLowerCase();
-    const entries = document.querySelectorAll('.log-entry');
-    entries.forEach(entry => {
-      const level = (entry as HTMLElement).dataset.level || '';
-      const message = (entry as HTMLElement).dataset.message || '';
-      if (currentFilter === '' || message.toLowerCase().includes(currentFilter) || level.includes(currentFilter)) {
-        entry.classList.remove('hidden');
-      } else {
-        entry.classList.add('hidden');
+  let allEntries: Array<{level: string, message: string, timestamp: string}> = [];
+  let filteredIndices: number[] = [];
+  let currentFilter = '';
+  let currentLevel = 'ALL';
+  let scrollTop = 0;
+  let containerHeight = 400;
+  let rafId = 0;
+
+  function getLogContent(): HTMLElement | null {
+    return document.getElementById('log-content');
+  }
+
+  function getEmptyMsg(): HTMLElement | null {
+    return document.getElementById('log-empty');
+  }
+
+  function updateEmptyState(): void {
+    const empty = getEmptyMsg();
+    if (!empty) return;
+    empty.style.display = filteredIndices.length === 0 ? '' : 'none';
+  }
+
+  function applyFilters(): void {
+    filteredIndices = [];
+    allEntries.forEach((entry, idx) => {
+      // Level filter
+      if (currentLevel !== 'ALL' && entry.level.toUpperCase() !== currentLevel) return;
+      // Text filter
+      if (currentFilter) {
+        const q = currentFilter.toLowerCase();
+        if (!entry.message.toLowerCase().includes(q) && !entry.level.toLowerCase().includes(q)) return;
       }
+      filteredIndices.push(idx);
+    });
+    updateEmptyState();
+    renderVisible();
+  }
+
+  function renderVisible(): void {
+    const container = getLogContent();
+    if (!container) return;
+
+    const totalHeight = filteredIndices.length * ROW_HEIGHT;
+    const scrollPos = scrollTop;
+    const viewportHeight = container.clientHeight || containerHeight;
+
+    // Calculate visible range
+    let startIdx = Math.floor(scrollPos / ROW_HEIGHT) - OVERSCAN;
+    let endIdx = Math.ceil((scrollPos + viewportHeight) / ROW_HEIGHT) + OVERSCAN;
+    startIdx = Math.max(0, startIdx);
+    endIdx = Math.min(filteredIndices.length, endIdx);
+
+    // Get existing entry elements
+    const existing = container.querySelectorAll('.log-entry');
+    const existingCount = existing.length;
+
+    // Find which indices are currently rendered
+    const renderedSet = new Set<number>();
+    existing.forEach(el => {
+      const idx = parseInt((el as HTMLElement).dataset.vindex || '-1', 10);
+      if (idx >= 0) renderedSet.add(idx);
+    });
+
+    // Remove entries that are no longer visible
+    existing.forEach(el => {
+      const idx = parseInt((el as HTMLElement).dataset.vindex || '-1', 10);
+      if (idx < startIdx || idx >= endIdx) {
+        el.remove();
+      }
+    });
+
+    // Add entries that became visible
+    const fragment = document.createDocumentFragment();
+    for (let i = startIdx; i < endIdx; i++) {
+      if (renderedSet.has(i)) continue;
+      const entry = allEntries[filteredIndices[i]];
+      if (!entry) continue;
+
+      const div = document.createElement('div');
+      div.className = 'log-entry';
+      div.dataset.level = entry.level;
+      div.dataset.message = entry.message;
+      div.dataset.vindex = String(i);
+      div.textContent = `[${entry.timestamp}] ${entry.message}`;
+      div.style.position = 'absolute';
+      div.style.top = `${i * ROW_HEIGHT}px`;
+      div.style.left = '0';
+      div.style.right = '0';
+      div.style.height = `${ROW_HEIGHT}px`;
+      div.style.overflow = 'hidden';
+      fragment.appendChild(div);
+    }
+    container.appendChild(fragment);
+
+    // Update container padding to simulate full scroll height
+    if (startIdx === 0) {
+      container.style.paddingTop = '0';
+    } else {
+      container.style.paddingTop = `${startIdx * ROW_HEIGHT}px`;
+    }
+
+    // Set total height spacer
+    const existingSpacer = container.querySelector('.log-spacer');
+    if (totalHeight > 0) {
+      if (existingSpacer) {
+        (existingSpacer as HTMLElement).style.height = `${totalHeight}px`;
+      } else {
+        const spacer = document.createElement('div');
+        spacer.className = 'log-spacer';
+        spacer.style.height = `${totalHeight}px`;
+        container.insertBefore(spacer, container.firstChild);
+      }
+    }
+  }
+
+  function onScroll(): void {
+    const container = getLogContent();
+    if (!container) return;
+    scrollTop = container.scrollTop;
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(() => {
+      renderVisible();
+      rafId = 0;
     });
   }
 
-  // Add a log entry with data attributes for filtering
+  // Exposed: add a log entry
   function addLogEntry(level: string, message: string, timestamp: string): void {
-    const logContent = document.getElementById('log-content');
-    if (!logContent) return;
+    allEntries.push({ level, message, timestamp });
 
-    const entry = document.createElement('div');
-    entry.className = 'log-entry';
-    entry.dataset.level = level;
-    entry.dataset.message = message;
-    entry.textContent = `[${timestamp}] ${message}`;
-
-    // Apply filter if active
-    if (currentFilter) {
-      const msgLower = message.toLowerCase();
-      if (!msgLower.includes(currentFilter) && !level.includes(currentFilter)) {
-        entry.classList.add('hidden');
-      }
+    // Keep max 1000 entries
+    if (allEntries.length > 1000) {
+      allEntries = allEntries.slice(-1000);
     }
 
-    logContent.appendChild(entry);
-    logContent.scrollTop = logContent.scrollHeight;
+    applyFilters();
+
+    // Auto-scroll to bottom if already at bottom
+    const container = getLogContent();
+    if (container) {
+      const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 50;
+      if (atBottom) {
+        setTimeout(() => {
+          container.scrollTop = container.scrollHeight;
+        }, 0);
+      }
+    }
   }
 
-  // Initialize log panel on component mount
+  // Clear all logs
+  function clearLogs(): void {
+    allEntries = [];
+    filteredIndices = [];
+    const container = getLogContent();
+    if (container) {
+      container.querySelectorAll('.log-entry').forEach(el => el.remove());
+      const spacer = container.querySelector('.log-spacer');
+      if (spacer) spacer.remove();
+      container.style.paddingTop = '0';
+      container.scrollTop = 0;
+    }
+    updateEmptyState();
+  }
+
+  // Filter functions exposed to global
+  function setLevelFilter(level: string): void {
+    currentLevel = level;
+    applyFilters();
+  }
+
+  function setSearchFilter(text: string): void {
+    currentFilter = text;
+    applyFilters();
+  }
+
+  // Initialize on mount
   initLogPanel();
 
-  // Add event listeners for LogPanel
   document.addEventListener('DOMContentLoaded', function() {
     // Toggle log panel
     const logHeader = document.getElementById('log-header');
@@ -194,6 +332,10 @@
         window.toggleLogPanel();
         const panel = document.querySelector('.log-panel');
         logHeader.setAttribute('aria-expanded', panel?.classList.contains('collapsed') ? 'false' : 'true');
+        // Re-render on expand
+        if (!panel?.classList.contains('collapsed')) {
+          setTimeout(() => renderVisible(), 50);
+        }
       });
       logHeader.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -205,11 +347,30 @@
       });
     }
 
-    // Stop propagation on search input
-    const logSearch = document.getElementById('log-search');
-    if (logSearch) {
-      logSearch.addEventListener('click', function(e) {
-        e.stopPropagation();
+    // Setup scroll handler on log-content
+    const logContent = getLogContent();
+    if (logContent) {
+      logContent.addEventListener('scroll', onScroll);
+      containerHeight = logContent.clientHeight || 400;
+    }
+
+    // Setup level filter
+    const levelSelect = document.getElementById('log-level-filter') as HTMLSelectElement;
+    if (levelSelect) {
+      levelSelect.addEventListener('change', (e) => {
+        setLevelFilter((e.target as HTMLSelectElement).value);
+      });
+    }
+
+    // Setup search with debounce
+    const searchInput = document.getElementById('log-search') as HTMLInputElement;
+    if (searchInput) {
+      let debounceTimer: number;
+      searchInput.addEventListener('input', (e) => {
+        clearTimeout(debounceTimer);
+        debounceTimer = window.setTimeout(() => {
+          setSearchFilter((e.target as HTMLInputElement).value);
+        }, 200);
       });
     }
 
@@ -221,16 +382,22 @@
         clearLogs();
       });
     }
+
+    // Stop propagation on search input
+    const logSearch = document.getElementById('log-search');
+    if (logSearch) {
+      logSearch.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    }
   });
 
-  // Setup search filter
-  const searchInput = document.getElementById('log-search');
-  if (searchInput) {
-    searchInput.addEventListener('input', (e) => {
-      filterLogs((e.target as HTMLInputElement).value);
-    });
-  }
-
-  // Expose functions globally
-  (window as unknown as { addLogEntry: typeof addLogEntry }).addLogEntry = addLogEntry;
+  // Expose functions globally for logpanel.ts
+  (window as unknown as { 
+    addLogEntry: typeof addLogEntry;
+    clearLogs: typeof clearLogs;
+    setLevelFilter: typeof setLevelFilter;
+    setSearchFilter: typeof setSearchFilter;
+  }).addLogEntry = addLogEntry;
+  (window as unknown as { clearLogs: typeof clearLogs }).clearLogs = clearLogs;
 </script>

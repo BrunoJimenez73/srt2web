@@ -10,7 +10,7 @@ import re
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from re import Pattern
-from typing import Optional
+from typing import Any, Optional
 
 
 class BroadcastHandler(logging.Handler):
@@ -19,10 +19,10 @@ class BroadcastHandler(logging.Handler):
     _broadcaster = None
 
     @classmethod
-    def set_broadcaster(cls, broadcaster):
+    def set_broadcaster(cls, broadcaster: Any) -> None:
         cls._broadcaster = broadcaster
 
-    def emit(self, record):
+    def emit(self, record: logging.LogRecord) -> None:
         if self._broadcaster is None:
             return
         try:
@@ -38,7 +38,7 @@ class ConsoleFilter(logging.Filter):
 
     SECURITY_PATTERNS = ("SECURITY:", "auth_token not configured")
 
-    def filter(self, record):
+    def filter(self, record: logging.LogRecord) -> bool:
         msg = record.getMessage()
         for pattern in self.SECURITY_PATTERNS:
             if pattern in msg:
@@ -69,13 +69,13 @@ def get_filter_patterns() -> list[str]:
     ]
 
 
-def _compile_filter_pattern(patterns: list[str]) -> Pattern:
+def _compile_filter_pattern(patterns: list[str]) -> Pattern[str]:
     """Compile all filter patterns into a single regex for O(1) matching."""
     escaped = [re.escape(p) for p in patterns]
     return re.compile("|".join(escaped))
 
 
-def setup_logging(log_file: Optional[str] = None, log_broadcaster=None, log_level: int = logging.DEBUG) -> None:
+def setup_logging(log_file: Optional[str] = None, log_broadcaster: Any = None, log_level: int = logging.DEBUG) -> None:
     """
     Configure logging with console, file, and WebSocket broadcast.
 
@@ -94,7 +94,7 @@ def setup_logging(log_file: Optional[str] = None, log_broadcaster=None, log_leve
     class FilteredBroadcastHandler(logging.Handler):
         """Broadcast handler that filters noisy messages."""
 
-        def emit(self, record):
+        def emit(self, record: logging.LogRecord) -> None:
             try:
                 msg = self.format(record)
                 # Single regex pass instead of O(n) pattern iterations
@@ -108,11 +108,11 @@ def setup_logging(log_file: Optional[str] = None, log_broadcaster=None, log_leve
     class FilteredFileHandler(logging.Handler):
         """File handler that filters noisy messages."""
 
-        def __init__(self, file_handler):
+        def __init__(self, file_handler: logging.Handler) -> None:
             super().__init__()
             self._file_handler = file_handler
 
-        def emit(self, record):
+        def emit(self, record: logging.LogRecord) -> None:
             try:
                 msg = self.format(record)
                 if filter_regex.search(msg) or filter_regex.search(record.name):

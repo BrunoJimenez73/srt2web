@@ -8,9 +8,9 @@ Proporciona una interfaz común para diferentes tipos de fuentes de input:
 - Audio: Solo fuente de audio
 """
 
-from abc import ABC, abstractmethod
-from typing import Optional, Any
 import logging
+from abc import ABC, abstractmethod
+from typing import Any, Optional
 
 from core.module_base import PipelineData
 
@@ -24,7 +24,7 @@ class InputSource(ABC):
         config: Configuración específica del input
     """
 
-    def __init__(self, name: str, config: dict):
+    def __init__(self, name: str, config: dict[str, Any]):
         self.name = name
         self.config = config
         self.logger = logging.getLogger(f"srt2web.input.{name}")
@@ -66,7 +66,7 @@ class InputSource(ABC):
         """
         pass
 
-    def get_connection_info(self) -> dict:
+    def get_connection_info(self) -> dict[str, Any]:
         """
         Obtener información de conexión para mostrar al usuario.
 
@@ -79,7 +79,7 @@ class InputSource(ABC):
         """Establecer el directorio de salida para archivos temporales."""
         self._output_dir = output_dir
 
-    def configure(self, config: dict) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         """
         Aplicar configuración específica del input.
         Override en subclases para manejar config específica.

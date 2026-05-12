@@ -335,7 +335,7 @@ class NamedOutputEntry(BaseModel):
     name: str = Field(description="Nombre único de la salida")
     type: OutputTypeEnum = Field(description="Tipo de salida")
     enabled: bool = Field(default=True, description="Habilitada")
-    config: dict = Field(default_factory=dict, description="Configuración específica del tipo de salida")
+    config: dict[str, Any] = Field(default_factory=dict, description="Configuración específica del tipo de salida")
 
 
 class OutputConfig(BaseModel):

@@ -71,34 +71,50 @@ class FileOutput(BaseOutput):
         """
         chunk_idx = data.chunk_index
         
+        total_bytes = 0
+        errors = []
+        
         # Save video if available
         if self._save_video and data.video_chunk_path and os.path.exists(data.video_chunk_path):
             dest = os.path.join(self._video_dir, f"chunk_{chunk_idx:06d}.mp4")
             try:
                 shutil.copy2(data.video_chunk_path, dest)
+                total_bytes += os.path.getsize(dest)
                 logger.debug(f"Saved video: {dest}")
             except Exception as e:
                 logger.error(f"Failed to save video: {e}")
+                errors.append(str(e))
         
         # Save mixed audio if available
         if self._save_audio and data.mixed_audio_path and os.path.exists(data.mixed_audio_path):
             dest = os.path.join(self._audio_dir, f"chunk_{chunk_idx:06d}.wav")
             try:
                 shutil.copy2(data.mixed_audio_path, dest)
+                total_bytes += os.path.getsize(dest)
                 logger.debug(f"Saved audio: {dest}")
             except Exception as e:
                 logger.error(f"Failed to save audio: {e}")
+                errors.append(str(e))
         
         # Save subtitles if available
         if self._save_subtitles and data.subtitles_path and os.path.exists(data.subtitles_path):
             dest = os.path.join(self._subtitle_dir, f"chunk_{chunk_idx:06d}.vtt")
             try:
                 shutil.copy2(data.subtitles_path, dest)
+                total_bytes += os.path.getsize(dest)
                 logger.debug(f"Saved subtitles: {dest}")
             except Exception as e:
                 logger.error(f"Failed to save subtitles: {e}")
+                errors.append(str(e))
         
         self._counter += 1
+        
+        # Update health tracking
+        if errors:
+            self._set_error("; ".join(errors))
+        else:
+            self._update_write_stats(total_bytes)
+            self._clear_error()
 
     def get_stream_info(self) -> dict:
         """Get file output information."""

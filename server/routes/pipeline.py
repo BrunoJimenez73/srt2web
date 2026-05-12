@@ -6,6 +6,7 @@ import asyncio
 import glob
 import logging
 import os
+from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -16,19 +17,19 @@ logger = logging.getLogger("srt2web.api.pipeline")
 router = APIRouter(tags=["pipeline"])
 
 
-def _ctx(request: Request) -> dict:
-    return request.app.state.ctx
+def _ctx(request: Request) -> dict[str, Any]:
+    return cast(dict[str, Any], request.app.state.ctx)
 
 
 @router.get("/status")
-async def get_status(request: Request):
+async def get_status(request: Request) -> dict[str, Any]:
     """Get full pipeline status including all modules and input/output."""
     ctx = _ctx(request)
     pipeline = ctx["pipeline"]
     input_source = ctx.get("input_source")
     config = ctx["config"]
 
-    status = pipeline.get_status()
+    status = cast(dict[str, Any], pipeline.get_status())
 
     if input_source:
         status["input_receiving"] = input_source.is_receiving()
@@ -52,7 +53,7 @@ async def get_status(request: Request):
 
 
 @router.post("/start")
-async def start_pipeline(request: Request):
+async def start_pipeline(request: Request) -> dict[str, Any]:
     """Start the processing pipeline."""
     ctx = _ctx(request)
     pipeline = ctx["pipeline"]
@@ -101,11 +102,11 @@ async def start_pipeline(request: Request):
             input_source.configure(file_config)
             logger.info(f"File input configured with path: {file_config.get('path', '')}")
 
-    def on_log(level, message):
+    def on_log(level: str, message: str) -> None:
         if log_broadcast:
             log_broadcast(level, message)
 
-    def on_state(state):
+    def on_state(state: str) -> None:
         if log_broadcast:
             log_broadcast("info", f"Pipeline state changed: {state}")
 
@@ -126,7 +127,7 @@ async def start_pipeline(request: Request):
 
 
 @router.post("/stop")
-async def stop_pipeline(request: Request):
+async def stop_pipeline(request: Request) -> dict[str, Any]:
     """Stop the processing pipeline and clean up temporary files."""
     ctx = _ctx(request)
     pipeline = ctx["pipeline"]
@@ -193,7 +194,7 @@ async def stop_pipeline(request: Request):
 
 
 @router.post("/restart")
-async def restart_pipeline(request: Request):
+async def restart_pipeline(request: Request) -> dict[str, Any]:
     """Restart the pipeline to apply module configuration changes."""
     ctx = _ctx(request)
     pipeline = ctx["pipeline"]
@@ -225,8 +226,9 @@ async def restart_pipeline(request: Request):
 
 # ── Input/Output Info ───────────────────────────
 
+
 @router.get("/input-info")
-async def input_info(request: Request):
+async def input_info(request: Request) -> dict[str, Any]:
     """Get input source connection information."""
     ctx = _ctx(request)
     input_source = ctx.get("input_source")
@@ -234,13 +236,14 @@ async def input_info(request: Request):
     if not input_source:
         raise HTTPException(404, "No input source configured")
 
-    return input_source.get_connection_info()
+    return cast(dict[str, Any], input_source.get_connection_info())
 
 
 # ── File Input Playback Controls ────────────────
 
+
 @router.post("/input/control/play")
-async def input_play(request: Request):
+async def input_play(request: Request) -> dict[str, Any]:
     """Resume file playback (for file input type)."""
     ctx = _ctx(request)
     input_source = ctx.get("input_source")
@@ -259,7 +262,7 @@ async def input_play(request: Request):
 
 
 @router.post("/input/control/pause")
-async def input_pause(request: Request):
+async def input_pause(request: Request) -> dict[str, Any]:
     """Pause file playback (for file input type)."""
     ctx = _ctx(request)
     input_source = ctx.get("input_source")
@@ -278,7 +281,7 @@ async def input_pause(request: Request):
 
 
 @router.post("/input/control/seek")
-async def input_seek(request: Request, body: SeekPosition):
+async def input_seek(request: Request, body: SeekPosition) -> dict[str, Any]:
     """Seek to a specific position in the file (for file input type)."""
     ctx = _ctx(request)
     input_source = ctx.get("input_source")

@@ -21,6 +21,7 @@ import logging
 import queue
 import threading
 import time
+import typing
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -36,7 +37,7 @@ from core.schemas import SystemMetrics
 try:
     from modules.outputs.composite_output import CompositeOutput
 except ImportError:
-    CompositeOutput = None  # type: ignore[assignment,misc]
+    CompositeOutput = None
 
 try:
     from core.pipeline.strategies import (
@@ -55,7 +56,7 @@ logger = logging.getLogger("srt2web.unified_pipeline")
 class _CompletedAwaitable:
     """Awaitable no-op used for backward-compatible sync APIs."""
 
-    def __await__(self):
+    def __await__(self) -> typing.Generator[None, None, None]:
         if False:
             yield None
         return None
@@ -74,7 +75,7 @@ class ChunkProcessor:
     data: Optional[PipelineData] = None
     stages_completed: dict[str, float] = field(default_factory=dict)
     error: Optional[str] = None
-    task: Optional[Union[threading.Thread, asyncio.Task]] = None
+    task: Optional[Union[threading.Thread, asyncio.Task[None]]] = None
 
 
 @dataclass
@@ -206,7 +207,7 @@ class UnifiedPipeline:
         """Obtener fuente de entrada."""
         return self._input_source
 
-    def set_output_sinks(self, output_configs: list[dict]) -> None:
+    def set_output_sinks(self, output_configs: list[dict[str, Any]]) -> None:
         """Establecer múltiples destinos de salida."""
         from core.io_factory import OutputFactory
 
@@ -228,11 +229,11 @@ class UnifiedPipeline:
 
     def get_output_sinks(self) -> Optional[CompositeOutput]:
         """Obtener el CompositeOutput si el sink actual es uno."""
-        if CompositeOutput and isinstance(self._output_sink, CompositeOutput):  # type: ignore[truthy-function]
+        if CompositeOutput and isinstance(self._output_sink, CompositeOutput):
             return self._output_sink
         return None
 
-    def register_module(self, module: BaseModule, config: Optional[dict] = None) -> None:
+    def register_module(self, module: BaseModule, config: Optional[dict[str, Any]] = None) -> None:
         """Registrar un módulo en orden de ejecución."""
         self._modules.append(module)
         self._module_map[module.name] = module
@@ -360,7 +361,7 @@ class UnifiedPipeline:
         # Inicializar automáticamente si no se ha hecho antes
         if not getattr(self, "_initialized", False):
             # No podemos usar el event loop principal de FastAPI, ejecutamos en thread separado
-            def run_init():
+            def run_init() -> None:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 loop.run_until_complete(self.initialize())
@@ -805,7 +806,7 @@ class UnifiedPipeline:
                     await result
         self._initialized = False
 
-    def get_status(self) -> dict:
+    def get_status(self) -> dict[str, Any]:
         """Obtener estado completo del pipeline."""
         # Leer memoria del proceso UNA SOLA VEZ para todos los módulos
         process_memory_mb: Optional[float] = None
@@ -883,7 +884,7 @@ class UnifiedPipeline:
             "system_metrics": system_metrics,
         }
 
-    def reconfigure(self, config_manager) -> None:
+    def reconfigure(self, config_manager: Any) -> None:
         """Actualizar configuración en ejecución (compatibilidad API)."""
         # First, update pipeline's chunk_duration from config
         try:
@@ -928,7 +929,7 @@ class UnifiedPipeline:
     def _chunk_index(self) -> int:
         return self._pipeline_metrics.chunks_processed
 
-    def _get_output_module_status(self) -> tuple[dict, dict | None]:
+    def _get_output_module_status(self) -> tuple[dict[str, Any], dict[str, Any] | None]:
         """Return (output_status, video_muxer_status) tuple.
 
         output_status: aggregate output module status for the OUTPUT card.

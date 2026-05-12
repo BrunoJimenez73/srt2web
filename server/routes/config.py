@@ -21,6 +21,7 @@ def _ctx(request: Request) -> dict[str, Any]:
 
 # ── Preset Endpoints (F19) ──────────────────────────────────────────
 
+
 @router.get("/presets")
 async def list_presets(request: Request) -> dict[str, Any]:
     """List all saved presets (including built-in ones)."""
@@ -124,6 +125,7 @@ async def delete_preset(request: Request, name: str) -> dict[str, Any]:
 
 
 # ── Existing Config Endpoints ────────────────────────────────────────
+
 
 @router.get("/config")
 async def get_config(request: Request) -> dict[str, Any]:
