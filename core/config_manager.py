@@ -9,25 +9,19 @@ Todos los defaults vienen de SRT2WebConfig().to_dict()
 """
 
 import copy
+import json
 import logging
+import os
 from pathlib import Path
 from typing import Any, Optional
+from typing import cast
+from datetime import datetime
 
 import yaml
 
-# Handle Pydantic v1 vs v2 import
-try:
-    from pydantic import ValidationError  # Pydantic v2
-except ImportError:
-    try:
-        from pydantic.v1 import ValidationError  # type: ignore[no-redef]  # Pydantic v1
-    except ImportError:
-        try:
-            from pydantic_core import ValidationError  # Pydantic v2 (core)
-        except ImportError:
-            # Fallback - define a basic ValidationError
-            class ValidationError(Exception):  # type: ignore[no-redef]
-                pass
+# Note: we catch Exception instead of ValidationError to avoid
+# import compatibility issues between Pydantic v1/v2
+
 
 from core.config_schema import SRT2WebConfig
 from core.hardware import update_config_with_optimal_device
@@ -38,7 +32,7 @@ logger = logging.getLogger("srt2web.config")
 DEFAULT_CONFIG = SRT2WebConfig().to_dict()
 
 
-def _deep_merge(base: dict, override: dict) -> dict:
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     """
     Recursively merge override into base.
     Values in override take precedence.
@@ -65,7 +59,7 @@ class ConfigManager:
 
     def __init__(self, config_path: Optional[str] = None):
         self._config_path = config_path or self._find_config()
-        self._config: dict = {}
+        self._config: dict[str, Any] = {}
         self._load()
 
     def _find_config(self) -> str:
@@ -97,7 +91,7 @@ class ConfigManager:
                     self._config = validated_config.to_dict()
                     self._config = update_config_with_optimal_device(self._config)
                     logger.info(f"Configuration loaded and validated from {self._config_path}")
-                except ValidationError as ve:
+                except Exception as ve:
                     logger.error(f"Configuration validation error in {self._config_path}:\n{ve}")
                     logger.warning("Using defaults due to validation failure.")
                     self._config = copy.deepcopy(DEFAULT_CONFIG)
@@ -158,11 +152,11 @@ class ConfigManager:
             target = target[key]
         target[keys[-1]] = value
 
-    def get_section(self, section: str) -> dict:
+    def get_section(self, section: str) -> dict[str, Any]:
         """Get an entire configuration section as a dict."""
         return copy.deepcopy(self.get(section, {}))
 
-    def get_module_config(self, module_name: str) -> dict:
+    def get_module_config(self, module_name: str) -> dict[str, Any]:
         """Get configuration for a specific module."""
         return self.get_section(f"modules.{module_name}")
 
@@ -170,11 +164,11 @@ class ConfigManager:
         """Enable or disable a module."""
         self.set(f"modules.{module_name}.enabled", enabled)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Return full configuration as a dict."""
         return copy.deepcopy(self._config)
 
-    def update_from_dict(self, data: dict) -> None:
+    def update_from_dict(self, data: dict[str, Any]) -> None:
         """Update configuration from a dictionary (partial update) with validation."""
         logger.debug(f"[update_from_dict] BEFORE merge - input.srt: {data.get('input', {}).get('srt', {})}")
 
@@ -190,10 +184,137 @@ class ConfigManager:
             logger.debug(
                 f"[update_from_dict] AFTER validate - input.srt: {self._config.get('input', {}).get('srt', {})}"
             )
-        except ValidationError as ve:
+        except Exception as ve:
             logger.error(f"Invalid configuration update attempt:\n{ve}")
             raise ValueError(f"Configuration update failed: {ve}")
 
     def reload(self) -> None:
         """Reload configuration from file."""
         self._load()
+
+    # ── Preset Management (F19) ──────────────────────────────────
+
+    @property
+    def _preset_path(self) -> Path:
+        """Path to presets.json in the config directory."""
+        return Path(self._config_path).parent / "presets.json"
+
+    def _load_presets(self) -> dict[str, Any]:
+        """Load presets from disk."""
+        path = self._preset_path
+        if path.exists():
+            try:
+                with open(path, encoding="utf-8") as f:
+                    return cast(dict[str, Any], json.load(f))
+            except Exception:
+                logger.warning(f"Could not load presets from {path}")
+        return {}
+
+    def _save_presets(self, presets: dict[str, Any]) -> None:
+        """Save presets to disk."""
+        path = self._preset_path
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(presets, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Failed to save presets: {e}")
+            raise
+
+    def list_presets(self) -> list[dict[str, Any]]:
+        """Return list of saved presets with metadata."""
+        presets = self._load_presets()
+        result: list[dict[str, Any]] = []
+        for name, data in presets.items():
+            result.append({
+                "name": name,
+                "description": data.get("description", ""),
+                "created_at": data.get("created_at", ""),
+                "config_keys": list(data.get("config", {}).keys()),
+            })
+        return result
+
+    def save_preset(self, name: str, description: str = "") -> None:
+        """Save current configuration as a named preset."""
+        presets = self._load_presets()
+        presets[name] = {
+            "config": self.to_dict(),
+            "description": description,
+            "created_at": datetime.now().isoformat(timespec="seconds"),
+        }
+        self._save_presets(presets)
+        logger.info(f"Preset '{name}' saved")
+
+    def load_preset(self, name: str) -> dict[str, Any]:
+        """Load a preset by name. Returns the config dict."""
+        presets = self._load_presets()
+        if name not in presets:
+            raise KeyError(f"Preset '{name}' not found")
+        return cast(dict[str, Any], presets[name]["config"])
+
+    def delete_preset(self, name: str) -> None:
+        """Delete a preset by name."""
+        presets = self._load_presets()
+        if name not in presets:
+            raise KeyError(f"Preset '{name}' not found")
+        del presets[name]
+        self._save_presets(presets)
+        logger.info(f"Preset '{name}' deleted")
+
+    # ── Built-in Presets (F19) ──────────────────────────────────
+
+    @staticmethod
+    def built_in_presets() -> dict[str, dict[str, Any]]:
+        """Return the built-in preset configurations."""
+        return {
+            "low_latency": {
+                "config": {
+                    "pipeline": {"chunk_duration_sec": 10},
+                    "input": {
+                        "srt": {"chunk_duration_sec": 10},
+                        "rtmp": {"chunk_duration_sec": 10},
+                    },
+                    "modules": {
+                        "translator": {"enabled": False},
+                        "tts_engine": {"enabled": False},
+                        "audio_mixer": {"enabled": False},
+                    },
+                },
+                "description": "Low latency mode (10s chunks, no translation/TTS)",
+            },
+            "high_quality": {
+                "config": {
+                    "pipeline": {"chunk_duration_sec": 10},
+                    "modules": {
+                        "transcriber": {"model": "large", "beam_size": 5},
+                        "translator": {"enabled": True},
+                        "tts_engine": {
+                            "enabled": True,
+                            "engine": "piper",
+                            "device": "auto",
+                        },
+                    },
+                },
+                "description": "High quality (large Whisper, full pipeline enabled)",
+            },
+            "spanish_stream": {
+                "config": {
+                    "pipeline": {"chunk_duration_sec": 10},
+                    "modules": {
+                        "transcriber": {"language": "es", "model": "medium"},
+                        "translator": {
+                            "enabled": True,
+                            "source_lang": "es",
+                            "target_lang": "en",
+                        },
+                        "tts_engine": {
+                            "enabled": True,
+                            "engine": "piper",
+                            "voice": "es_ES-sharvard-medium",
+                            "device": "auto",
+                        },
+                    },
+                },
+                "description": "Spanish stream (es→en translation with Sharvard voice)",
+            },
+        }

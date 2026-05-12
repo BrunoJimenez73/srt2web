@@ -25,6 +25,47 @@ const { version = '0.6.1' }: HeaderProps = Astro.props;
     </div>
 
     <div class="flex items-center gap-2.5">
+      <!-- Preset Controls (F19) -->
+      <div class="relative">
+        <button id="btn-save-preset" class="flex items-center gap-1.5 bg-card border border-white/8 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all hover:border-accent text-surface-dim hover:text-surface-light hover:bg-card cursor-pointer" aria-haspopup="true" aria-expanded="false" aria-label="Guardar preset">
+          <span aria-hidden="true">💾</span>
+          <span>Guardar</span>
+          <span class="text-xs transition-transform" aria-hidden="true">▾</span>
+        </button>
+        <div id="preset-panel" class="absolute top-[calc(100%+8px)] right-0 w-64 bg-card border border-white/8 rounded-lg p-2 shadow-xl z-50 hidden" role="menu" aria-label="Panel de presets">
+          <div class="flex gap-1 mb-2">
+            <input type="text" id="preset-name-input" placeholder="Nombre del preset..." class="flex-1 bg-deep border border-white/8 rounded-md px-2 py-1 text-xs text-surface-light font-mono outline-none focus:border-accent" aria-label="Nombre del preset" />
+            <button id="btn-confirm-save" class="bg-accent text-white border-none rounded-md px-2 py-1 text-xs font-semibold cursor-pointer transition-all hover:bg-accent-hover" aria-label="Guardar preset">
+              Guardar
+            </button>
+          </div>
+          <div id="preset-list" class="max-h-48 overflow-y-auto text-xs">
+            <!-- Built-in presets -->
+            <div class="text-surface-dim font-semibold px-2 py-1 border-b border-white/10">Built-in</div>
+            <button class="preset-item w-full text-left px-2 py-1.5 hover:bg-white/10 rounded text-surface-light text-xs" data-preset="low_latency" data-builtin="true">
+              <span class="font-medium">Low Latency</span>
+              <div class="text-surface-dim text-[10px]">10s chunks, sin traducción/TTS</div>
+            </button>
+            <button class="preset-item w-full text-left px-2 py-1.5 hover:bg-white/10 rounded text-surface-light text-xs" data-preset="high_quality" data-builtin="true">
+              <span class="font-medium">High Quality</span>
+              <div class="text-surface-dim text-[10px]">Large Whisper, pipeline completo</div>
+            </button>
+            <button class="preset-item w-full text-left px-2 py-1.5 hover:bg-white/10 rounded text-surface-light text-xs" data-preset="spanish_stream" data-builtin="true">
+              <span class="font-medium">Spanish Stream</span>
+              <div class="text-surface-dim text-[10px]">es→en, voz Sharvard</div>
+            </button>
+            <!-- Saved presets -->
+            <div id="saved-presets-header" class="text-surface-dim font-semibold px-2 py-1 border-b border-white/10 hidden">Guardados</div>
+            <div id="saved-presets-list" class="hidden"></div>
+            <div id="no-presets-msg" class="px-2 py-2 text-surface-dim text-xs hidden">No hay presets guardados</div>
+          </div>
+        </div>
+      </div>
+
+      <button id="btn-export-config" class="text-surface-dim no-underline px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all border border-white/8 hover:bg-card hover:text-surface-light hover:border-accent" aria-label="Exportar configuración YAML" title="Exportar config como YAML">
+        📤 Export YAML
+      </button>
+
       <button id="btn-shortcuts-help" class="text-surface-dim no-underline px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all border border-white/8 hover:bg-card hover:text-surface-light hover:border-accent" aria-label="Keyboard shortcuts" title="Ctrl+S: Save | Space: Start/Stop | Ctrl+D: Dark mode">
         ⌨️ Shortcuts
       </button>
@@ -69,7 +110,53 @@ const { version = '0.6.1' }: HeaderProps = Astro.props;
 
 <script>
   import { initSecurityPanel } from '../../lib/modules/header';
+  import { loadPresets, applyPreset, savePreset, exportConfig } from '../../lib/modules/pipeline-control';
+  import { presets, selectedPreset } from '../../lib/store/signals';
 
   // Initialize security panel on component mount
   initSecurityPanel();
+
+  // Load presets on mount
+  loadPresets();
+
+  // Handle preset selection
+  document.getElementById('preset-list').addEventListener('click', async (e) => {
+    const item = e.target.closest('.preset-item');
+    if (!item) return;
+    const name = item.dataset.preset;
+    if (name) {
+      selectedPreset.value = name;
+      await applyPreset(name);
+    }
+  });
+
+  // Handle save preset
+  document.getElementById('btn-confirm-save').addEventListener('click', async () => {
+    const name = document.getElementById('preset-name-input').value.trim();
+    if (name) {
+      await savePreset(name);
+      document.getElementById('preset-name-input').value = '';
+    }
+  });
+
+  // Handle export YAML
+  document.getElementById('btn-export-config').addEventListener('click', () => {
+    exportConfig();
+  });
+
+  // Toggle preset panel
+  document.getElementById('btn-save-preset').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const panel = document.getElementById('preset-panel');
+    panel.classList.toggle('hidden');
+  });
+
+  // Close panel on outside click
+  document.addEventListener('click', (e) => {
+    const panel = document.getElementById('preset-panel');
+    const btn = document.getElementById('btn-save-preset');
+    if (!panel.contains(e.target) && !btn.contains(e.target)) {
+      panel.classList.add('hidden');
+    }
+  });
 </script>

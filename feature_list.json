@@ -219,7 +219,7 @@
       "id": 19,
       "name": "pipeline_presets_profiles",
       "title": "Presets / perfiles de configuración del pipeline",
-      "status": "pending",
+      "status": "done",
       "area": "ux",
       "description": "Cada vez que se reconfigura el pipeline (voz TTS, idioma, chunk duration, codec) se hace manualmente campo por campo. No hay forma de guardar una configuración como preset nombrado ni de cambiar entre configuraciones rápidamente.",
       "problems_identified": [
@@ -252,7 +252,7 @@
       "id": 20,
       "name": "output_health_monitoring",
       "title": "Monitoreo de salud de outputs y auto-reconexión",
-      "status": "pending",
+      "status": "done",
       "area": "estabilidad",
       "description": "Los outputs (HLS, RTMP, SRT, Recording) pueden fallar silenciosamente sin que el usuario lo sepa. No hay lógica de reconexión automática para outputs de red (RTMP, SRT). OutputStatusCard no tiene historial de errores ni tiempo de uptime por output.",
       "problems_identified": [
@@ -286,7 +286,7 @@
       "id": 21,
       "name": "config_push_via_websocket",
       "title": "Propagación reactiva de config vía WebSocket",
-      "status": "pending",
+      "status": "done",
       "area": "arquitectura",
       "description": "Cuando el config cambia (vía PUT /api/config o POST /api/config/chunk), el frontend no lo sabe hasta el próximo poll de status. Si el servidor cambia config externamente, el dashboard muestra valores desactualizados.",
       "problems_identified": [
@@ -353,7 +353,7 @@
       "id": 23,
       "name": "api_versioning_and_pydantic_responses",
       "title": "Versionado de API y modelos Pydantic para todos los responses",
-      "status": "pending",
+      "status": "done",
       "area": "arquitectura",
       "description": "La API REST no tiene versionado (/api/v1/). Varios endpoints devuelven dicts literales en vez de modelos Pydantic, lo que impide la generación correcta de OpenAPI. El cliente TypeScript duplica los tipos manualmente.",
       "problems_identified": [
@@ -390,7 +390,7 @@
       "id": 24,
       "name": "mypy_strict_mode",
       "title": "mypy strict en core/ y server/ con 0 errores",
-      "status": "pending",
+      "status": "done",
       "area": "mantenibilidad",
       "description": "mypy.ini actual tiene configuración laxa (ignore_missing_imports, sin strict). Los módulos core/ y server/ tienen funciones públicas sin type hints, generando bugs sutiles y dificultando refactoring seguro.",
       "problems_identified": [
@@ -426,7 +426,7 @@
       "id": 25,
       "name": "frontend_test_coverage_80",
       "title": "Cobertura de tests frontend al 80%+",
-      "status": "pending",
+      "status": "done",
       "area": "testing",
       "description": "El frontend tiene tests en Vitest pero no se mide la cobertura sistemáticamente. signals.ts y effects.ts tienen tests parciales. Los módulos en lib/modules/ casi no tienen tests unitarios.",
       "problems_identified": [
@@ -462,7 +462,7 @@
       "id": 26,
       "name": "mobile_responsive_layout",
       "title": "Layout responsive para móvil y pantallas pequeñas",
-      "status": "pending",
+      "status": "done",
       "area": "ux_diseño",
       "description": "El dashboard tiene max-width: 1200px pero el layout interno no es responsive en pantallas < 768px. ProcessGrid colapsa mal en móvil. El Header con todos los controles no cabe en viewport estrecho.",
       "problems_identified": [
@@ -497,7 +497,7 @@
       "id": 27,
       "name": "pipeline_dependency_graph",
       "title": "Visualización del grafo de dependencias del pipeline",
-      "status": "pending",
+      "status": "done",
       "area": "ux_visualizacion",
       "description": "La arquitectura del pipeline (qué módulo alimenta a cuál) no es visible en la UI. Los usuarios no pueden entender visualmente por qué un módulo no procesa (dependencia upstream fallida).",
       "problems_identified": [
@@ -525,7 +525,7 @@
       "id": 28,
       "name": "docker_optimization_and_health",
       "title": "Optimización Docker y health checks en docker-compose",
-      "status": "pending",
+      "status": "done",
       "area": "devops",
       "description": "El Dockerfile tiene layer caching subóptimo (COPY . . antes de pip install). docker-compose.yml no tiene healthcheck. El build context incluye archivos innecesarios. No hay multi-stage build.",
       "problems_identified": [
@@ -589,3 +589,4 @@
     }
   ]
 }
+

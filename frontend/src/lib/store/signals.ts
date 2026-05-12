@@ -164,6 +164,19 @@ export const gpuHistory = signal<number[]>([]);
 
 export const cpuAlertActive = signal<boolean>(false);
 
+// ── Presets (F19) ─────────────────────────────────────────────────
+
+/** List of available presets (built-in + saved) */
+export const presets = signal<Array<{
+  name: string;
+  description: string;
+  built_in?: boolean;
+  config_keys?: string[];
+}>>([]);
+
+/** Currently selected preset name */
+export const selectedPreset = signal<string>("");
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Update pipeline status and record throughput snapshot */

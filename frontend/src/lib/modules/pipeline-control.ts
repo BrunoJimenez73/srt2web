@@ -4,6 +4,7 @@
  * Este módulo centraliza:
  * - Inicio/detención del pipeline
  * - Guardado de configuración
+ * - Presets (F19)
  * - Inicialización del dashboard
  * - Manejo de WebSocket y polling
  */
@@ -31,6 +32,8 @@ import {
   resetThroughput,
   startEffects,
   stopEffects,
+  presets,
+  selectedPreset,
 } from "../store/index";
 import { initLogPanel } from "./logpanel";
 import type { Config, Status } from "../types";
@@ -525,6 +528,112 @@ export async function refreshMetrics(): Promise<void> {
   } catch (e) {
     console.error("Metrics refresh failed:", e);
   }
+}
+
+// ── Preset Functions (F19) ───────────────────────────────────────────────────
+
+/** Fetch and populate the presets list */
+export async function loadPresets(): Promise<void> {
+  try {
+    const response = await fetch("/api/presets");
+    if (!response.ok) return;
+    const data = await response.json();
+    presets.value = data.presets || [];
+  } catch (e) {
+    addLog("ERROR", `Error loading presets: ${(e as Error).message}`);
+  }
+}
+
+/** Apply a preset by name (built-in or saved) */
+export async function applyPreset(name: string): Promise<void> {
+  try {
+    setLoading(true, `Applying preset: ${name}`);
+    const response = await fetch(`/api/presets/${encodeURIComponent(name)}/apply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(err || `Failed to apply preset: ${name}`);
+    }
+    const data = await response.json();
+    pipelineConfig.value = data.config;
+    applyConfigToUI(data.config);
+    selectedPreset.value = name;
+    showToast(`Preset applied: ${name}`, "success");
+    addLog("INFO", `Preset applied: ${name}`);
+  } catch (e) {
+    showToast(`Error applying preset: ${(e as Error).message}`, "error");
+    addLog("ERROR", `Error applying preset: ${(e as Error).message}`);
+  } finally {
+    setLoading(false);
+  }
+}
+
+/** Save current config as a named preset */
+export async function savePreset(name: string): Promise<void> {
+  try {
+    setLoading(true, `Saving preset: ${name}`);
+    const response = await fetch("/api/presets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, description: "" }),
+    });
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(err || `Failed to save preset: ${name}`);
+    }
+    await loadPresets(); // Refresh list
+    showToast(`Preset saved: ${name}`, "success");
+    addLog("INFO", `Preset saved: ${name}`);
+  } catch (e) {
+    showToast(`Error saving preset: ${(e as Error).message}`, "error");
+    addLog("ERROR", `Error saving preset: ${(e as Error).message}`);
+  } finally {
+    setLoading(false);
+  }
+}
+
+/** Export current config as YAML file */
+export function exportConfig(): void {
+  try {
+    const cfg = pipelineConfig.value;
+    if (!cfg) {
+      showToast("No config to export", "error");
+      return;
+    }
+    const yamlStr = dumpConfig(cfg);
+    const blob = new Blob([yamlStr], { type: "text/yaml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `srt2web-config-${new Date().toISOString().slice(0, 10)}.yaml`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("Config exported", "success");
+  } catch (e) {
+    showToast(`Export failed: ${(e as Error).message}`, "error");
+  }
+}
+
+/** Minimal YAML serializer for config export (no external deps) */
+function dumpConfig(obj: unknown, indent = 0): string {
+  const pad = "  ".repeat(indent);
+  if (obj === null || obj === undefined) return "null";
+  if (typeof obj === "string") return `"${obj}"`;
+  if (typeof obj === "number" || typeof obj === "boolean") return String(obj);
+  if (Array.isArray(obj)) {
+    if (obj.length === 0) return "[]";
+    return obj.map((v) => `${pad}- ${dumpConfig(v, indent + 1)}`).join("\n");
+  }
+  if (typeof obj === "object") {
+    const entries = Object.entries(obj);
+    if (entries.length === 0) return "{}";
+    return entries
+      .map(([k, v]) => `${pad}${k}:\n${dumpConfig(v, indent + 1)}`)
+      .join("\n");
+  }
+  return String(obj);
 }
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────

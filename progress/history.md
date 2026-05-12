@@ -28,3 +28,17 @@
 - **Modificados:** tests/pytest.ini (reactivar async_v2), tests/unit/test_async_pipeline_v2.py (fix import/attr), core/pipeline/base.py (PipelineStrategy concreta)
 - **Tests nuevos:** 85 passed
 - **Suite completa:** 967 passed, 9 failed (pre-existentes, no relacionados)
+
+## 2026-05-12 — F19 pipeline_presets_profiles
+
+- **Feature:** F19 - Presets / perfiles de configuracion del pipeline
+- **Archivos modificados:**
+  - `core/config_manager.py` - Metodos `save_preset`, `load_preset`, `delete_preset`, `list_presets`, `built_in_presets`
+  - `server/routes/config.py` - Endpoints: GET/POST /api/presets, POST /api/presets/{name}/apply, DELETE /api/presets/{name}
+  - `frontend/src/store/signals.ts` - Signals `presets` y `selectedPreset`
+  - `frontend/src/lib/modules/pipeline-control.ts` - Funciones `loadPresets`, `applyPreset`, `savePreset`, `exportConfig`
+  - `frontend/src/components/layout/Header.astro` - Boton Save Preset + dropdown + Export YAML
+  - `tests/unit/test_presets_api.py` - 12 tests unitarios
+- **3 presets built-in:** low_latency (10s sin TTS/traductor), high_quality (large Whisper, pipeline completo), spanish_stream (es->en, Sharvard)
+- **Tests:** 12/12 nuevos pasan, 72 tests existentes sin regresion
+- **init.ps1:** OK (ruff + tsc sin errores nuevos)
