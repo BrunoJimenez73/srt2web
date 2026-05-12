@@ -125,7 +125,7 @@
       "id": 16,
       "name": "logpanel_virtual_scroll_and_export",
       "title": "LogPanel: virtual scroll y exportación de logs",
-      "status": "pending",
+      "status": "done",
       "area": "ux_rendimiento",
       "description": "El LogPanel acumula hasta 500 entradas en el DOM sin virtualización, causando degradación del rendimiento en sesiones largas. No hay forma de exportar los logs para depuración offline. La búsqueda/filtro por nivel (INFO/WARNING/ERROR) no existe en la UI.",
       "problems_identified": [

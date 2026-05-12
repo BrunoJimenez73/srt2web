@@ -12,11 +12,16 @@ let logPanel: Element | null = null;
 let logEmpty: HTMLDivElement | null = null;
 let logSearch: HTMLInputElement | null = null;
 let collapseIcon: HTMLSpanElement | null = null;
+let logLevelFilter: HTMLSelectElement | null = null;
+let logExportJson: HTMLButtonElement | null = null;
+let logExportTxt: HTMLButtonElement | null = null;
 
 // State
-const maxLogs = 500;
+const maxLogs = 1000;
 let currentFilter = "";
+let currentLevel = "ALL";
 let isCollapsed = true;
+let filterDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * Alterna el estado colapsado/expandido del panel de logs
@@ -77,11 +82,8 @@ export function addLog(
     <span class="log-message">${escapeHtml(message)}</span>
   `;
 
-  // Apply current filter
-  if (
-    currentFilter &&
-    !entry.dataset.message.includes(currentFilter.toLowerCase())
-  ) {
+  // Apply current filters (text and level)
+  if (!shouldShowEntry(level, message)) {
     entry.style.display = "none";
   }
 
@@ -96,31 +98,188 @@ export function addLog(
 
   // Scroll to bottom
   logContent.scrollTop = logContent.scrollHeight;
+
+  // Update level badges
+  updateLevelCounts();
 }
 
 /**
- * Filtra los logs según el texto de búsqueda
- * @param filter - Texto a filtrar
+ * Check if entry should be visible based on filters
  */
-export function filterLogs(filter: string): void {
-  currentFilter = filter.toLowerCase();
+function shouldShowEntry(level: string, message: string): boolean {
+  const levelUpper = level.toUpperCase();
 
-  const entries = logContent?.querySelectorAll(".log-entry");
-  entries?.forEach((entry) => {
-    const el = entry as HTMLElement;
-    if (currentFilter) {
-      const matches = el.dataset.message?.includes(currentFilter);
-      el.style.display = matches ? "" : "none";
-    } else {
-      el.style.display = "";
+  // Level filter
+  if (currentLevel !== "ALL" && levelUpper !== currentLevel) {
+    return false;
+  }
+
+  // Text filter
+  if (
+    currentFilter &&
+    !message.toLowerCase().includes(currentFilter.toLowerCase())
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Update level filter counts in UI
+ */
+function updateLevelCounts(): void {
+  if (!logContent) return;
+
+  const entries = logContent.querySelectorAll(".log-entry");
+  const counts = { ALL: 0, INFO: 0, WARNING: 0, ERROR: 0 };
+
+  entries.forEach((entry) => {
+    const level = (entry as HTMLElement).dataset.level?.toUpperCase() || "INFO";
+    if (counts[level as keyof typeof counts] !== undefined) {
+      counts[level as keyof typeof counts]++;
+    }
+    counts.ALL++;
+  });
+
+  // Update badge text if elements exist
+  const badges = logContent.parentElement?.querySelectorAll(".level-badge");
+  badges?.forEach((badge) => {
+    const level = (badge as HTMLElement).dataset.level;
+    if (level && level in counts) {
+      badge.textContent = String(counts[level as keyof typeof counts]);
     }
   });
 }
 
 /**
- * Limpia todos los logs
+ * Filtra los logs según el texto de búsqueda (con debounce 200ms)
+ * @param filter - Texto a filtrar
+ */
+export function filterLogs(filter: string): void {
+  if (filterDebounceTimeout) {
+    clearTimeout(filterDebounceTimeout);
+  }
+
+  filterDebounceTimeout = setTimeout(() => {
+    currentFilter = filter.toLowerCase();
+    applyFilters();
+  }, 200);
+}
+
+/**
+ * Filtra por nivel
+ * @param level - Nivel a filtrar (ALL, INFO, WARNING, ERROR)
+ */
+export function filterByLevel(level: string): void {
+  currentLevel = level;
+  applyFilters();
+}
+
+/**
+ * Aplica ambos filtros (texto y nivel)
+ */
+function applyFilters(): void {
+  const entries = logContent?.querySelectorAll(".log-entry");
+  entries?.forEach((entry) => {
+    const el = entry as HTMLElement;
+    const level = (el.dataset.level || "INFO").toUpperCase();
+    const message = el.dataset.message || "";
+
+    const showLevel = currentLevel === "ALL" || level === currentLevel;
+    const showText = !currentFilter || message.includes(currentFilter);
+
+    el.style.display = showLevel && showText ? "" : "none";
+  });
+
+  updateLevelCounts();
+}
+
+/**
+ * Exporta logs a archivo JSON
+ */
+export function exportLogsJson(): void {
+  const entries = logContent?.querySelectorAll(
+    ".log-entry:not([style*='display: none'])",
+  );
+  if (!entries || entries.length === 0) {
+    alert("No hay logs para exportar");
+    return;
+  }
+
+  const logs: { timestamp: string; level: string; message: string }[] = [];
+  entries.forEach((entry) => {
+    const el = entry as HTMLElement;
+    const timeSpan = el.querySelector(".log-timestamp")?.textContent || "";
+    const levelSpan = el.querySelector(".log-level")?.textContent || "";
+    const msgSpan = el.querySelector(".log-message")?.textContent || "";
+
+    logs.push({
+      timestamp: timeSpan,
+      level: levelSpan.replace("[", "").replace("]", ""),
+      message: msgSpan,
+    });
+  });
+
+  const blob = new Blob([JSON.stringify(logs, null, 2)], {
+    type: "application/json",
+  });
+  const date = new Date().toISOString().split("T")[0];
+  downloadBlob(blob, `srt2web-logs-${date}.json`);
+}
+
+/**
+ * Exporta logs a archivo TXT
+ */
+export function exportLogsTxt(): void {
+  const entries = logContent?.querySelectorAll(
+    ".log-entry:not([style*='display: none'])",
+  );
+  if (!entries || entries.length === 0) {
+    alert("No hay logs para exportar");
+    return;
+  }
+
+  const lines: string[] = [];
+  entries.forEach((entry) => {
+    const el = entry as HTMLElement;
+    const timeSpan = el.querySelector(".log-timestamp")?.textContent || "";
+    const levelSpan = el.querySelector(".log-level")?.textContent || "";
+    const msgSpan = el.querySelector(".log-message")?.textContent || "";
+
+    lines.push(`[${timeSpan}] ${levelSpan} ${msgSpan}`);
+  });
+
+  const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+  const date = new Date().toISOString().split("T")[0];
+  downloadBlob(blob, `srt2web-logs-${date}.txt`);
+}
+
+/**
+ * Helper para descargar blob
+ */
+function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Limpia todos los logs (con confirmación)
  */
 export function clearLogs(): void {
+  const entryCount = logContent?.querySelectorAll(".log-entry").length || 0;
+
+  // Confirm before clearing if there are many logs
+  if (entryCount > 50) {
+    if (!confirm(`¿Estás seguro de que quieres borrar ${entryCount} logs?`)) {
+      return;
+    }
+  }
+
   if (!logContent) return;
 
   logContent.innerHTML = "";
@@ -136,8 +295,12 @@ export function clearLogs(): void {
   logContent.appendChild(logEmpty);
 
   currentFilter = "";
+  currentLevel = "ALL";
   if (logSearch) {
     logSearch.value = "";
+  }
+  if (logLevelFilter) {
+    logLevelFilter.value = "ALL";
   }
 }
 
@@ -153,11 +316,35 @@ export function initLogPanel(): void {
   collapseIcon = document.getElementById(
     "log-collapse-icon",
   ) as HTMLSpanElement;
+  logLevelFilter = document.getElementById(
+    "log-level-filter",
+  ) as HTMLSelectElement;
+  logExportJson = document.getElementById(
+    "btn-export-json",
+  ) as HTMLButtonElement;
+  logExportTxt = document.getElementById("btn-export-txt") as HTMLButtonElement;
 
-  // Setup search filter
+  // Setup search filter with debounce
   logSearch?.addEventListener("input", (e) => {
     const value = (e.target as HTMLInputElement).value;
     filterLogs(value);
+  });
+
+  // Setup level filter
+  logLevelFilter?.addEventListener("change", (e) => {
+    const value = (e.target as HTMLSelectElement).value;
+    filterByLevel(value);
+  });
+
+  // Setup export buttons
+  logExportJson?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    exportLogsJson();
+  });
+
+  logExportTxt?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    exportLogsTxt();
   });
 
   // Expose global functions for onclick attributes
@@ -165,15 +352,25 @@ export function initLogPanel(): void {
     window as unknown as {
       toggleLogPanel: typeof toggleLogPanel;
       clearLogs: typeof clearLogs;
+      exportLogsJson: typeof exportLogsJson;
+      exportLogsTxt: typeof exportLogsTxt;
     }
   ).toggleLogPanel = toggleLogPanel;
-
   (
     window as unknown as {
-      toggleLogPanel: typeof toggleLogPanel;
       clearLogs: typeof clearLogs;
     }
   ).clearLogs = clearLogs;
+  (
+    window as unknown as {
+      exportLogsJson: typeof exportLogsJson;
+    }
+  ).exportLogsJson = exportLogsJson;
+  (
+    window as unknown as {
+      exportLogsTxt: typeof exportLogsTxt;
+    }
+  ).exportLogsTxt = exportLogsTxt;
 }
 
 /**

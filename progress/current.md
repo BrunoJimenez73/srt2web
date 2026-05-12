@@ -1,7 +1,7 @@
 # Sesión activa — 2026-05-12
 
-**Estado:** F15 COMPLETADA ✅
-**Completada:** 2026-05-12 10:45
+**Estado:** F16 COMPLETADA ✅
+**Completada:** 2026-05-12 11:15
 
 ## Progreso de features
 
@@ -69,3 +69,34 @@ Análisis completo del repositorio realizado. Áreas auditadas:
 - [x] Tests agregados (125 tests frontend pasan)
 - [x] Build frontend OK
 - [x] F15 marcada como done en feature_list.json
+
+## Implementación activa — F16: logpanel_virtual_scroll_and_export
+
+### Acceptance criteria
+
+1. Virtual scroll: solo ~30 filas visibles, scroll handler actualiza offset
+2. Export JSON: descarga srt2web-logs-YYYY-MM-DD.json
+3. Export TXT: descarga versión legible '[TIMESTAMP] [LEVEL] message'
+4. Selector de filtro por nivel (ALL/INFO/WARNING/ERROR) con badge de conteo
+5. Input de búsqueda con debounce 200ms
+6. pipelineLogs mantiene máximo 1000 entradas
+7. Performance: renderizar 1000 logs no supera 16ms
+
+### Archivos a tocar
+
+- frontend/src/components/LogPanel.astro
+- frontend/src/lib/modules/logpanel.ts
+- frontend/src/lib/store/signals.ts
+- frontend/src/lib/store/effects.ts
+
+### Estado actual
+
+- [x] Analizar LogPanel.astro y logpanel.ts actuales
+- [x] Agregar selector de nivel (ALL/INFO/WARNING/ERROR)
+- [x] Agregar botones de export JSON/TXT
+- [x] Agregar búsqueda con debounce 200ms
+- [x] Aumentar límite de pipelineLogs a 1000
+- [x] Confirmación al clear (>50 logs)
+- [x] Tests (125 passing)
+- [x] Build OK
+- [x] F16 marcada como done

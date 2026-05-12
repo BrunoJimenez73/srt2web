@@ -7,16 +7,30 @@
     <div class="log-header-left">
       <span class="log-collapse-icon" id="log-collapse-icon" aria-hidden="true">▶</span>
       <span class="log-title">📋 Logs</span>
+      <span class="log-count" id="log-count"></span>
     </div>
     <div class="log-actions">
+      <select
+        class="log-level-select"
+        id="log-level-filter"
+        aria-label="Filtrar por nivel"
+        onclick="event.stopPropagation()"
+      >
+        <option value="ALL">Todos</option>
+        <option value="INFO">INFO</option>
+        <option value="WARNING">WARNING</option>
+        <option value="ERROR">ERROR</option>
+      </select>
       <input
         type="text"
         class="log-search"
         id="log-search"
-        placeholder="Filtrar..."
-        aria-label="Filtrar registros"
+        placeholder="Buscar..."
+        aria-label="Buscar en registros"
         onclick="event.stopPropagation()"
       />
+      <button class="btn-export" id="btn-export-json" aria-label="Exportar JSON" title="Exportar JSON">📥</button>
+      <button class="btn-export" id="btn-export-txt" aria-label="Exportar TXT" title="Exportar TXT">📄</button>
       <button class="btn-clear" id="btn-clear-logs" aria-label="Limpiar todos los registros">Limpiar</button>
     </div>
   </div>
@@ -36,7 +50,7 @@
     color: #fff;
     padding: 4px 8px;
     font-size: 12px;
-    width: 120px;
+    width: 100px;
     outline: none;
     transition: border-color 0.2s;
   }
@@ -47,6 +61,47 @@
 
   .log-search::placeholder {
     color: rgba(255, 255, 255, 0.5);
+  }
+
+  .log-level-select {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: #fff;
+    padding: 4px 6px;
+    font-size: 11px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .log-level-select:focus {
+    border-color: #3b82f6;
+  }
+
+  .log-level-select option {
+    background: #1e293b;
+    color: #fff;
+  }
+
+  .btn-export {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: #fff;
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .btn-export:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .log-count {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-left: 8px;
   }
 
   .log-entry {
