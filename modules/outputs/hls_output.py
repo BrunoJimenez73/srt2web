@@ -160,24 +160,44 @@ class HLSOutput(OutputSink):
         # Guardar duración para el manifest
         self._segment_durations[self._segment_index] = chunk_duration
 
-        # Determinar encoder
+        encoder_mode = self._encoder_config.encoder_mode
+
+        # ── Fast path: passthrough sin TTS → copiar archivo, sin FFmpeg ──
+        if encoder_mode == "passthrough" and not audio_input:
+            import shutil
+            segment_name = f"seg_{self._segment_index:06d}.ts"
+            segment_path = os.path.join(self._hls_dir, segment_name)
+            try:
+                shutil.copy2(input_path, segment_path)
+            except Exception as e:
+                self.logger.error(f"Failed to copy HLS segment: {e}")
+                self._set_error(str(e))
+                return
+
+            self._total_duration_emitted += chunk_duration
+            self._update_manifest()
+            data.output_hls_path = os.path.join(self._hls_dir, "master.m3u8")
+            elapsed = (time.perf_counter() - start_time) * 1000
+            self._last_process_time_ms = elapsed
+            seg_size = os.path.getsize(segment_path)
+            self._update_write_stats(seg_size)
+            self._clear_error()
+            self.logger.info(
+                f"HLS segment written (copy): {segment_name} (duration={chunk_duration:.3f}s, process_time={elapsed:.1f}ms)"
+            )
+            self._segment_index += 1
+            return
+
+        # ── Slow path: requiere FFmpeg (con audio TTS o encoder normal) ──
         encoder, preset, extra_args = self._get_encoder_config()
 
-        # Construir comando FFmpeg
         cmd = [self._ffmpeg_path, "-y", "-i", input_path]
 
         if audio_input and os.path.exists(audio_input):
             audio_delay_sec = self._audio_offset_ms / 1000.0
             cmd.extend(["-itsoffset", str(audio_delay_sec), "-i", audio_input])
 
-        # Obtener argumentos de audio
-        # En modo passthrough sin audio externo: copiar audio también
-        # En modo passthrough con audio externo (TTS WAV): codificar audio
-        # En modo normal: usar configuración de audio
-        encoder_mode = self._encoder_config.encoder_mode
-        if encoder_mode == "passthrough" and not audio_input:
-            audio_args = ["-c:a", "copy"]
-        elif encoder_mode == "passthrough" and audio_input:
+        if encoder_mode == "passthrough" and audio_input:
             # Mixed WAV needs encoding to streamable format
             audio_args = self._encoder_config.get_audio_args()
         else:
@@ -194,7 +214,6 @@ class HLSOutput(OutputSink):
         cmd.extend(audio_args)
         cmd.extend(["-c:v", encoder])
 
-        # Añadir preset solo para CPU (para GPU se pasa en extra_args)
         if encoder == "libx264":
             cmd.extend(["-preset", preset])
         cmd.extend(extra_args)
@@ -208,9 +227,7 @@ class HLSOutput(OutputSink):
             ]
         )
 
-        # Run FFmpeg with optimized settings
         try:
-            # Use DEVNULL for stdout, only capture stderr for errors
             result = subprocess.run(
                 cmd,
                 stdout=subprocess.DEVNULL,
@@ -223,7 +240,6 @@ class HLSOutput(OutputSink):
                 self.logger.error(f"FFmpeg mux error: {result.stderr[-500:]}")
                 self._set_error(f"FFmpeg exit code {result.returncode}")
                 return
-
         except subprocess.TimeoutExpired:
             self.logger.error("FFmpeg mux timed out")
             self._set_error("FFmpeg mux timed out")
@@ -233,22 +249,13 @@ class HLSOutput(OutputSink):
             self._set_error(str(e))
             return
 
-        # Actualizar duración acumulada
         self._total_duration_emitted += chunk_duration
-
-        # Actualizar manifest
         self._update_manifest()
 
-        # No eliminar chunk aqui - RecordingOutput lo necesita
-        # Los chunks se limpian via API cleanup al detener
-
         data.output_hls_path = os.path.join(self._hls_dir, "master.m3u8")
-
-        # Track processing time for frontend metrics
         elapsed = (time.perf_counter() - start_time) * 1000
         self._last_process_time_ms = elapsed
 
-        # Update health tracking stats
         segment_path = os.path.join(self._hls_dir, f"seg_{self._segment_index:06d}.ts")
         if os.path.exists(segment_path):
             seg_size = os.path.getsize(segment_path)
