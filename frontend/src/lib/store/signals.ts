@@ -118,7 +118,9 @@ export const systemMetrics = computed(() => {
 
 export const connectionUrls = computed(() => {
   const cfg = pipelineConfig.value;
-  const remAddr = emitterAddress.value;
+  const status = pipelineStatus.value;
+  const publicIp = (status as any)?.network?.public_ip;
+  const remAddr = emitterAddress.value || publicIp || "";
   const host =
     connectionMode.value === "remote"
       ? remAddr || "localhost"

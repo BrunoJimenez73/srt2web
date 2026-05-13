@@ -106,6 +106,12 @@ export interface NetworkInfo {
   latency_ms: number;
   srt_mode: string;
   caller_address: string;
+  public_ip?: string;
+  local_ip?: string;
+  stream_url?: string;
+  player_url?: string;
+  srt_url_listener?: string;
+  srt_url_caller_template?: string;
 }
 
 export interface HealthStatus {

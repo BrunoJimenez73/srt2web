@@ -493,6 +493,18 @@ export function setupEventListeners(): void {
   });
   document.getElementById("btn-mode-remote")?.addEventListener("click", () => {
     connectionMode.value = "remote";
+    // Auto-detect public IP for remote URLs
+    (async () => {
+      try {
+        const res = await fetch("/api/network/info");
+        const info = await res.json();
+        if (info.public_ip) {
+          emitterAddress.value = info.public_ip;
+          const input = document.getElementById("emitter-address") as HTMLInputElement;
+          if (input) input.value = info.public_ip;
+        }
+      } catch {}
+    })();
   });
 
   // Track emitter-address input for reactive URL updates
