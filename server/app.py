@@ -27,6 +27,7 @@ from server.security import (
 )
 from server.webrtc_routes import create_webrtc_router
 from server.ws_routes import create_ws_router
+from server.routes.recordings import router as recordings_router
 
 logger = logging.getLogger("srt2web.server")
 
@@ -150,6 +151,8 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
 
     webrtc_router = create_webrtc_router()
     app.include_router(webrtc_router)
+
+    app.include_router(recordings_router, prefix="/api")
 
     @app.get("/health")
     async def health() -> dict[str, Any]:
