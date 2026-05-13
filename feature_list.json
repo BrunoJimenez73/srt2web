@@ -152,7 +152,7 @@
       "id": 40,
       "name": "theme_switcher_ui",
       "title": "Theme switcher visible en UI (Light/Dark) con botón en Header",
-      "status": "pending",
+      "status": "done",
       "area": "ux",
       "priority": "Media",
       "description": "El cambio de tema oscuro/claro solo existe como atajo de teclado Ctrl+D. No hay botón visible ni indicación al usuario de que puede cambiar el tema. La UI siempre arranca en modo oscuro sin respetar la preferencia del sistema.",
