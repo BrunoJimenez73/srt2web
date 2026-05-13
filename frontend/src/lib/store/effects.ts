@@ -738,13 +738,6 @@ function startRemoteModeEffect(): void {
     if (btnLocal) btnLocal.classList.toggle("active", mode === "local");
     if (btnRemote) btnRemote.classList.toggle("active", mode === "remote");
 
-    // Track emitter-address input changes for reactive URL updates
-    const addrInput = el<HTMLInputElement>("emitter-address");
-    if (addrInput) {
-      const handler = () => { emitterAddress.value = addrInput.value; };
-      addrInput.removeEventListener("input", handler);
-      addrInput.addEventListener("input", handler);
-    }
   });
 }
 

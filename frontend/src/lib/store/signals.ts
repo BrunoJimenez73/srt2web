@@ -118,11 +118,10 @@ export const systemMetrics = computed(() => {
 
 export const connectionUrls = computed(() => {
   const cfg = pipelineConfig.value;
-  // Read emitterAddress signal for reactivity (silence unused warning)
-  void emitterAddress.value;
+  const remAddr = emitterAddress.value;
   const host =
     connectionMode.value === "remote"
-      ? emitterAddress.value || "localhost"
+      ? remAddr || "localhost"
       : "127.0.0.1";
 
   const inputTypeValue = pipelineConfig.value?.input?.type ?? "srt";

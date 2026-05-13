@@ -23,7 +23,7 @@ import {
 import { showToast, copyToClipboard } from "../utils";
 import { formatTime } from "../utils/format";
 import { MESSAGES, DEFAULTS, INTERVALS } from "../constants";
-import { connectionMode } from "../store/signals";
+import { connectionMode, emitterAddress } from "../store/signals";
 import {
   pipelineStatus,
   pipelineConfig,
@@ -493,6 +493,11 @@ export function setupEventListeners(): void {
   });
   document.getElementById("btn-mode-remote")?.addEventListener("click", () => {
     connectionMode.value = "remote";
+  });
+
+  // Track emitter-address input for reactive URL updates
+  document.getElementById("emitter-address")?.addEventListener("input", (e) => {
+    emitterAddress.value = (e.target as HTMLInputElement).value;
   });
 
   // TTS engine change → toggle voice dropdowns
