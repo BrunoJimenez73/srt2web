@@ -186,7 +186,7 @@
       "id": 41,
       "name": "keyboard_shortcuts_ui",
       "title": "Panel de ayuda de atajos de teclado y nuevos shortcuts",
-      "status": "pending",
+      "status": "done",
       "area": "ux",
       "priority": "Media",
       "description": "Actualmente hay 3 atajos de teclado (Ctrl+S guardar, Space start/stop, Ctrl+D theme) pero no son visibles para el usuario. No hay forma de descubrirlos sin leer el código. Faltan atajos útiles como Ctrl+Enter para iniciar pipeline.",

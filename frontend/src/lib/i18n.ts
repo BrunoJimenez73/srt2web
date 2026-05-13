@@ -275,7 +275,10 @@ export const translations = {
     live_clock: "Clock",
 
     // Language Selector
-    language_selector: "Language",
+    language_selector: 'Language',
+
+    // Keyboard Shortcuts
+    keyboard_shortcuts: 'Keyboard Shortcuts',
 
     // Pipeline Control Messages
     saving_config: "Saving config...",
@@ -590,7 +593,10 @@ export const translations = {
     live_clock: "Reloj",
 
     // Language Selector
-    language_selector: "Idioma",
+    language_selector: 'Idioma',
+
+    // Keyboard Shortcuts
+    keyboard_shortcuts: 'Atajos de Teclado',
 
     // Pipeline Control Messages
     saving_config: "Guardando configuración...",

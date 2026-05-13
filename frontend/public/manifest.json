@@ -1,0 +1,27 @@
+{
+  "name": "SRT2Web",
+  "short_name": "SRT2Web",
+  "description": "Sistema de traducci\u00f3n y doblaje en tiempo real v\u00eda SRT",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["multimedia", "video", "utilities"],
+  "lang": "es",
+  "dir": "ltr"
+}

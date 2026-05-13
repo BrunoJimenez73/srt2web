@@ -40,6 +40,11 @@ const { version = 'Astro' } = Astro.props;
     <a href="/docs/" class="btn-docs" target="_blank">
       📚 {t("docs")}
     </a>
+
+    <!-- Shortcuts Help -->
+    <button class="btn-shortcuts" id="btn-shortcuts-help" aria-label={t("keyboard_shortcuts")} title={t("keyboard_shortcuts")}>
+      ⌨️
+    </button>
     <div id="ws-status" class="ws-status disconnected">
       <span class="ws-status-dot"></span>
       <span class="ws-status-label" id="ws-status-label">{t("ws_off")}</span>
@@ -159,6 +164,23 @@ const { version = 'Astro' } = Astro.props;
 
   .btn-theme:hover {
     border-color: var(--accent);
+  }
+
+  .btn-shortcuts {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    color: var(--text-sec);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    cursor: pointer;
+    line-height: 1;
+    transition: all 0.2s;
+  }
+
+  .btn-shortcuts:hover {
+    border-color: var(--accent);
+    color: var(--text-prime);
   }
 
   .btn-docs {
@@ -501,6 +523,12 @@ const { version = 'Astro' } = Astro.props;
       location.reload();
     });
   }
+
+  // Shortcuts help button: dispatch ? key to trigger modal
+  const shortcutsBtn = document.getElementById('btn-shortcuts-help');
+  shortcutsBtn?.addEventListener('click', () => {
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '?' }));
+  });
 
   // Theme toggle: change → persist (no reload)
   const themeBtn = document.getElementById('btn-theme-toggle') as HTMLButtonElement;
