@@ -45,6 +45,15 @@ if (storedTheme === "light" || storedTheme === "dark") {
   document.documentElement.classList.add("dark");
 }
 
+// Register service worker for PWA support
+if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/service-worker.js").catch(() => {
+      // SW registration failed silently (e.g., no HTTPS)
+    });
+  });
+}
+
 // Re-export config functions from config-collector
 export {
   collectConfigFromUI,
@@ -70,4 +79,9 @@ document.addEventListener("DOMContentLoaded", bootstrap);
 // Initialize keyboard shortcuts
 import("./modules/keyboard-shortcuts").then(({ initKeyboardShortcuts }) => {
   initKeyboardShortcuts();
+});
+
+// Initialize PWA
+import("./modules/pwa").then(({ initPWA }) => {
+  initPWA();
 });

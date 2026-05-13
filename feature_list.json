@@ -219,7 +219,7 @@
       "id": 42,
       "name": "pwa_support",
       "title": "Soporte PWA: service worker y manifest para dashboard instalable",
-      "status": "pending",
+      "status": "done",
       "area": "ux",
       "priority": "Media",
       "description": "El dashboard es una SPA que podría ser instalable como PWA con service worker para cache offline parcial, manifest.json para instalación en dispositivos, y notificaciones push para alertas del pipeline.",
