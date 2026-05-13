@@ -2,6 +2,8 @@
 Unit tests for HLS Output module.
 """
 
+import os
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -134,3 +136,43 @@ class TestHLSOutputWrite:
         output = HLSOutput({})
         data = PipelineData(chunk_index=0, video_chunk_path="/nonexistent/file.ts")
         output.write(data)
+
+
+class TestHLSOutputPassthrough:
+    """Tests for HLSOutput passthrough mode (F36)."""
+
+    def test_passthrough_uses_copy_when_tts_disabled(self, tmp_path):
+        from modules.outputs.hls_output import HLSOutput
+
+        input_chunk = tmp_path / "input_chunk.ts"
+        input_chunk.write_text("fake ts content")
+
+        output = HLSOutput({"encoder_mode": "passthrough", "segment_duration": 6})
+        output._ffmpeg_path = "ffmpeg"
+        output._hls_dir = str(tmp_path / "hls")
+        os.makedirs(output._hls_dir, exist_ok=True)
+
+        data = PipelineData(
+            chunk_index=0,
+            video_chunk_path=str(input_chunk),
+            duration=6.0,
+            mixed_audio_path=None,
+            dubbed_audio_path=None,
+        )
+
+        segment_path = str(tmp_path / "hls" / "seg_000000.ts")
+        Path(segment_path).write_text("fake segment")
+
+        with patch("modules.outputs.hls_output.subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stderr = ""
+            output.write(data)
+
+        mock_run.assert_called_once()
+        cmd = mock_run.call_args[0][0]
+
+        ca_index = cmd.index("-c:a")
+        assert cmd[ca_index + 1] == "copy", f"Expected -c:a copy, got {cmd[ca_index:ca_index+2]}"
+
+        cv_index = cmd.index("-c:v")
+        assert cmd[cv_index + 1] == "copy", f"Expected -c:v copy, got {cmd[cv_index:cv_index+2]}"

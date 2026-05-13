@@ -181,7 +181,7 @@ class TestStopConfirmation:
             content = f.read()
 
         assert "confirm(" in content
-        assert "PIPELINE_CONFIRM_STOP" in content
+        assert "confirm_stop" in content
 
 
 class TestLogSearchFilter:
@@ -193,7 +193,7 @@ class TestLogSearchFilter:
             content = f.read()
 
         assert "log-search" in content
-        assert "Filtrar" in content
+        assert "log_filter" in content
 
     def test_log_panel_has_search_styles(self) -> None:
         """Test that LogPanel has search input styles."""

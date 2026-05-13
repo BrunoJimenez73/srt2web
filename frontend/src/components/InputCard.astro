@@ -1,56 +1,58 @@
 ---
+import { t, initLanguage } from "../lib/i18n";
+initLanguage();
 ---
 
 <form class="input-card" id="card-input">
     <div class="process-header">
       <span class="process-indicator" id="indicator-input"></span>
-      <span class="process-title" id="input-process-title">📥 INPUT</span>
+      <span class="process-title" id="input-process-title">📥 {t("input")}</span>
       <span class="gpu-badge" id="gpu-badge-input" style="display: none;" role="status" aria-label="Estado GPU">GPU</span>
     </div>
   <div class="process-content">
     <div class="form-group">
-      <label class="form-label" for="input-type">Tipo</label>
+      <label class="form-label" for="input-type">{t("type")}</label>
       <select class="form-select" id="input-type" aria-describedby="input-type-desc">
         <option value="srt">SRT</option>
         <option value="rtmp">RTMP</option>
-        <option value="file">File (Video local)</option>
+        <option value="file">{t("file_input")}</option>
       </select>
     </div>
 
     <!-- SRT Settings -->
     <div class="input-settings" id="input-srt-settings">
       <div class="form-group">
-        <label class="form-label" for="input-srt-port">Puerto SRT</label>
+        <label class="form-label" for="input-srt-port">{t("srt_port")}</label>
         <input type="number" class="form-input" id="input-srt-port" value="9000" min="1" max="65535" />
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label" for="input-srt-mode">Modo</label>
+          <label class="form-label" for="input-srt-mode">{t("mode")}</label>
           <select class="form-select" id="input-srt-mode">
-            <option value="listener">Listener</option>
-            <option value="caller">Caller</option>
-            <option value="rendezvous">Rendezvous</option>
+            <option value="listener">{t("listener")}</option>
+            <option value="caller">{t("caller")}</option>
+            <option value="rendezvous">{t("rendezvous")}</option>
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label" for="input-chunk-duration">Chunk (s)</label>
+          <label class="form-label" for="input-chunk-duration">{t("chunk")}</label>
           <input type="number" class="form-input" id="input-chunk-duration" value="10" min="2" max="60" step="1" />
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label" for="input-srt-latency">Latencia (ms)</label>
+        <label class="form-label" for="input-srt-latency">{t("latency_ms")}</label>
         <input type="number" class="form-input" id="input-srt-latency" value="200" min="0" max="5000" step="10" />
       </div>
       <div class="form-group" id="input-caller-group" style="display: none;">
-        <label class="form-label" for="input-srt-caller">Dirección Caller (si aplica)</label>
-        <input type="text" class="form-input" id="input-srt-caller" placeholder="ip:puerto" />
+        <label class="form-label" for="input-srt-caller">{t("caller_address")}</label>
+        <input type="text" class="form-input" id="input-srt-caller" placeholder="ip:{t("port")}" />
       </div>
     </div>
 
 <!-- RTMP Settings -->
     <div class="input-settings" id="input-rtmp-settings" style="display: none;">
       <div class="form-group">
-        <label class="form-label" for="input-rtmp-url">URL para OBS (RTMP Listen)</label>
+        <label class="form-label" for="input-rtmp-url">{t("obs_url")}</label>
         <div class="copy-input-wrapper">
           <input type="text" class="form-input" id="input-rtmp-url" readonly placeholder="rtmp://127.0.0.1:1935/live/stream" />
           <button type="button" class="copy-button" id="btn-copy-rtmp" aria-label="Copiar URL">📋</button>
@@ -58,21 +60,21 @@
       </div>
        <div class="form-row">
          <div class="form-group">
-           <label class="form-label" for="input-rtmp-port">Puerto</label>
+            <label class="form-label" for="input-rtmp-port">{t("port")}</label>
            <input type="number" class="form-input" id="input-rtmp-port" value="1935" min="1" max="65535" />
          </div>
          <div class="form-group">
-           <label class="form-label" for="input-rtmp-app">App</label>
-           <input type="text" class="form-input" id="input-rtmp-app" value="live" />
-         </div>
-       </div>
-       <div class="form-row">
-         <div class="form-group">
-           <label class="form-label" for="input-rtmp-key">Stream Key</label>
+            <label class="form-label" for="input-rtmp-app">{t("app")}</label>
+            <input type="text" class="form-input" id="input-rtmp-app" value="live" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="input-rtmp-key">{t("stream_key")}</label>
            <input type="text" class="form-input" id="input-rtmp-key" placeholder="stream" />
          </div>
          <div class="form-group">
-           <label class="form-label" for="input-rtmp-chunk">Chunk (s)</label>
+            <label class="form-label" for="input-rtmp-chunk">{t("chunk")}</label>
            <input type="number" class="form-input" id="input-rtmp-chunk" value="2" min="1" max="30" step="1" />
          </div>
        </div>
@@ -81,21 +83,21 @@
     <!-- File Settings -->
     <div class="input-settings" id="input-file-settings" style="display: none;">
       <div class="form-group">
-        <label class="form-label" for="input-file-path">Archivo de Video (ruta completa)</label>
+        <label class="form-label" for="input-file-path">{t("video_file_path")}</label>
         <div class="file-input-wrapper">
           <input type="text" class="form-input" id="input-file-path" placeholder="C:\Users\bruno\Desktop\video.mp4" />
-          <button type="button" class="file-button" id="btn-file-select" aria-label="Seleccionar archivo">📁</button>
+          <button type="button" class="file-button" id="btn-file-select" aria-label={t("select_file")}>📁</button>
           <input type="file" id="input-file-select" accept="video/*" style="display: none;" />
         </div>
-        <small class="form-hint">Selecciona un archivo o escribe la ruta completa manualmente</small>
+        <small class="form-hint">{t("file_hint")}</small>
       </div>
 
       <!-- File Player Controls -->
       <div class="file-player-controls" id="file-player-controls" style="display: none;">
         <div class="player-buttons">
-          <button type="button" class="player-btn" id="btn-file-play" aria-label="Reproducir">▶</button>
-          <button type="button" class="player-btn" id="btn-file-pause" aria-label="Pausar" style="display: none;">⏸</button>
-          <button type="button" class="player-btn" id="btn-file-restart" aria-label="Reiniciar">⏮</button>
+          <button type="button" class="player-btn" id="btn-file-play" aria-label={t("play")}>▶</button>
+          <button type="button" class="player-btn" id="btn-file-pause" aria-label={t("pause")} style="display: none;">⏸</button>
+          <button type="button" class="player-btn" id="btn-file-restart" aria-label={t("restart")}>⏮</button>
         </div>
         <div class="player-slider">
           <input type="range" class="player-range" id="input-file-position" min="0" max="100" value="0" />
@@ -107,37 +109,37 @@
 
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label" for="input-file-loop">Loop</label>
+          <label class="form-label" for="input-file-loop">{t("loop")}</label>
           <select class="form-select" id="input-file-loop">
-            <option value="false">No</option>
-            <option value="true">Sí</option>
+            <option value="false">{t("no")}</option>
+            <option value="true">{t("yes")}</option>
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label" for="input-file-speed">Velocidad</label>
+          <label class="form-label" for="input-file-speed">{t("speed")}</label>
           <input type="number" class="form-input" id="input-file-speed" value="1.0" min="0.5" max="2.0" step="0.1" />
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label" for="input-file-chunk">Chunk (s)</label>
+        <label class="form-label" for="input-file-chunk">{t("chunk")}</label>
         <input type="number" class="form-input" id="input-file-chunk" value="2" min="1" max="30" step="1" />
       </div>
     </div>
 
     <!-- Metrics -->
     <div class="form-group" id="input-metrics">
-      <label class="form-label">Métricas</label>
+      <label class="form-label">{t("metrics")}</label>
       <div class="metrics-row">
         <div class="metric-mini">
-          <span class="metric-label">Tiempo</span>
+          <span class="metric-label">{t("time")}</span>
           <span class="metric-value" id="module-time-input">--</span>
         </div>
         <div class="metric-mini">
-          <span class="metric-label">Chunks</span>
+          <span class="metric-label">{t("chunks")}</span>
           <span class="metric-value" id="module-chunks-input">--</span>
         </div>
         <div class="metric-mini">
-          <span class="metric-label">Encoder</span>
+          <span class="metric-label">{t("encoder")}</span>
           <span class="metric-value" id="module-encoder-input">--</span>
         </div>
       </div>

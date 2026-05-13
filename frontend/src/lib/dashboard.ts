@@ -27,6 +27,11 @@ export {
   bootstrap,
 } from "./modules/pipeline-control";
 
+// Initialize i18n language
+import { initLanguage } from "./i18n";
+import { currentLanguage } from "./store/signals";
+currentLanguage.value = initLanguage();
+
 // Re-export config functions from config-collector
 export {
   collectConfigFromUI,

@@ -5,6 +5,7 @@
 
 import type { LogMessage } from "../types";
 import { formatTimestamp } from "../utils";
+import { t } from "../i18n";
 
 // DOM Elements
 let logContent: HTMLDivElement | null = null;
@@ -203,7 +204,7 @@ export function exportLogsJson(): void {
     ".log-entry:not([style*='display: none'])",
   );
   if (!entries || entries.length === 0) {
-    alert("No hay logs para exportar");
+    alert(t("no_logs"));
     return;
   }
 
@@ -236,7 +237,7 @@ export function exportLogsTxt(): void {
     ".log-entry:not([style*='display: none'])",
   );
   if (!entries || entries.length === 0) {
-    alert("No hay logs para exportar");
+    alert(t("no_logs"));
     return;
   }
 
@@ -275,7 +276,7 @@ export function clearLogs(): void {
 
   // Confirm before clearing if there are many logs
   if (entryCount > 50) {
-    if (!confirm(`¿Estás seguro de que quieres borrar ${entryCount} logs?`)) {
+    if (!confirm(`${t("confirm_delete")} (${entryCount})`)) {
       return;
     }
   }
@@ -290,7 +291,7 @@ export function clearLogs(): void {
   logEmpty.id = "log-empty";
   logEmpty.innerHTML = `
     <span class="log-empty-icon">📝</span>
-    <span class="log-empty-text">Sin registros aún</span>
+    <span class="log-empty-text">${t("no_logs_yet")}</span>
   `;
   logContent.appendChild(logEmpty);
 

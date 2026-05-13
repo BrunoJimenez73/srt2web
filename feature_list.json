@@ -4,12 +4,7 @@
   "rules": {
     "one_feature_at_a_time": true,
     "require_tests_to_close": true,
-    "valid_status": [
-      "pending",
-      "in_progress",
-      "done",
-      "blocked"
-    ]
+    "valid_status": ["pending", "in_progress", "done", "blocked"]
   },
   "features": [
     {
@@ -79,702 +74,544 @@
       "status": "done"
     },
     {
-      "id": 12,
-      "name": "consolidate_config_and_infra",
-      "title": "Consolidar configuración duplicada e infraestructura",
-      "status": "done"
-    },
-    {
-      "id": 13,
-      "name": "fix_logging_and_error_handling",
-      "title": "Arreglar logging ruidoso y error handling silencioso",
-      "status": "done"
-    },
-    {
-      "id": 14,
-      "name": "remove_dead_code_and_duplication",
-      "title": "Eliminar código muerto y duplicaciones estructurales",
-      "status": "done"
-    },
-    {
-      "id": 15,
-      "name": "ws_resilience_and_adaptive_polling",
-      "title": "Resilencia WebSocket y polling adaptivo",
-      "status": "done",
-      "area": "rendimiento",
-      "description": "El cliente WebSocket actual usa reconexión lineal (delay * attempts) sin jitter, lo que causa thundering herd si el servidor se reinicia con muchos clientes. El polling HTTP de status es intervalo fijo independientemente del estado del pipeline. El token de auth expuesto en query string del WS URL es visible en logs de servidor.",
-      "problems_identified": [
-        "WSClient.attemptReconnect() usa delay lineal: reconnectDelay * reconnectAttempts (puede congestionar servidor)",
-        "Intervalo de polling en pipeline-control.ts es fijo (3s), no varía con estado running/stopped",
-        "Token auth en WS URL: ?token=xxx visible en access logs del servidor",
-        "maxReconnectAttempts = 5 hardcoded, sin configuración",
-        "Sin exponential backoff ni jitter en ninguna parte del cliente"
-      ],
-      "acceptance": [
-        "WSClient usa exponential backoff con jitter: delay = min(base * 2^attempt + random(0, 500ms), 30s)",
-        "Polling HTTP reduce a 10s cuando pipeline está stopped, 3s cuando running, 1s en primeros 5s post-start",
-        "Token de auth enviado vía header Sec-WebSocket-Protocol o subprotocolo (no query param)",
-        "maxReconnectAttempts y backoffBase son parámetros configurables en WSClient constructor",
-        "Test en signals.test.ts o api.test.ts verifica que reconnect emite eventos correctos",
-        "wsConnected signal en signals.ts refleja estado real (se pone false en primer intento fallido)"
-      ],
-      "files_to_touch": [
-        "frontend/src/lib/api.ts (WSClient.attemptReconnect)",
-        "frontend/src/lib/modules/pipeline-control.ts (polling interval)",
-        "frontend/src/lib/store/signals.ts (wsConnected signal)",
-        "server/ws_routes.py (aceptar auth por subprotocolo además de query param)",
-        "frontend/src/lib/api.test.ts (tests de reconnect)"
-      ]
-    },
-    {
-      "id": 16,
-      "name": "logpanel_virtual_scroll_and_export",
-      "title": "LogPanel: virtual scroll y exportación de logs",
-      "status": "done",
-      "area": "ux_rendimiento",
-      "description": "El LogPanel acumula hasta 500 entradas en el DOM sin virtualización, causando degradación del rendimiento en sesiones largas. No hay forma de exportar los logs para depuración offline. La búsqueda/filtro por nivel (INFO/WARNING/ERROR) no existe en la UI.",
-      "problems_identified": [
-        "LogPanel renderiza hasta 500 <div> en el DOM simultáneamente sin virtual scroll",
-        "pipelineLogs.value = [...pipelineLogs.value.slice(-499), entry] — toda la lista se re-renderiza",
-        "Sin botón de exportar (JSON o TXT plano)",
-        "Sin filtro por nivel de log en la UI",
-        "Sin búsqueda por texto en logs",
-        "El botón 'Clear' borra sin confirmación en sesiones largas"
-      ],
-      "acceptance": [
-        "LogPanel implementa virtual scroll: solo renderiza ~30 filas visibles, scroll handler actualiza offset",
-        "Botón 'Export JSON' descarga archivo srt2web-logs-YYYY-MM-DD.json con todos los logs actuales",
-        "Botón 'Export TXT' descarga versión legible: '[TIMESTAMP] [LEVEL] message'",
-        "Selector de filtro por nivel (ALL / INFO / WARNING / ERROR) con badge de conteo",
-        "Input de búsqueda de texto filtra logs en tiempo real (debounce 200ms)",
-        "pipelineLogs en signals.ts mantiene máximo 1000 entradas (aumentado de 500)",
-        "Performance: renderizar 1000 logs no supera 16ms de layout (verificar con DevTools)"
-      ],
-      "files_to_touch": [
-        "frontend/src/components/LogPanel.astro",
-        "frontend/src/lib/modules/logpanel.ts",
-        "frontend/src/lib/store/signals.ts (aumentar límite)",
-        "frontend/src/lib/store/effects.ts (efectos de filtro)"
-      ]
-    },
-    {
-      "id": 17,
-      "name": "piper_heartbeat_and_graceful_degrade",
-      "title": "Heartbeat para Piper y degradación elegante de módulos",
-      "status": "done",
-      "area": "estabilidad",
-      "description": "El subprocess persistente de Piper TTS puede bloquearse silenciosamente (hang) sin que el módulo lo detecte. No hay mecanismo de self-healing. Si un módulo no crítico falla (ej: traductor), el pipeline completo se detiene en vez de degradar elegantemente.",
-      "problems_identified": [
-        "piper_loader.py: subprocess puede quedar en estado bloqueado sin detección (poll() no verifica stdin/stdout activos)",
-        "No hay ping/pong periódico al proceso Piper para verificar que responde",
-        "module_base.py CircuitBreaker abre el circuito pero no intenta restart del subprocess",
-        "Si translator falla, audio_extractor→transcriber siguen corriendo pero datos se acumulan en cola",
-        "unified_pipeline.py no tiene concepto de módulo 'opcional' vs 'crítico'",
-        "Frontend no distingue entre módulo degradado (running sin output) y módulo fallido"
-      ],
-      "acceptance": [
-        "piper_loader.py envía mensaje de heartbeat cada 30s y verifica respuesta en 5s; si falla, reinicia subprocess",
-        "BaseModule tiene campo is_critical: bool (default True). Módulos opcionales: translator, tts_engine",
-        "Si módulo no crítico falla 3 veces consecutivas, pipeline continúa en modo degradado y emite warning por WS",
-        "ModuleCard en frontend muestra badge 'DEGRADED' (amarillo) distinto de 'ERROR' (rojo)",
-        "Test unitario para heartbeat de Piper (mock subprocess que no responde → verifica restart)",
-        "Test de integración: pipeline en modo degradado sin translator procesa audio correctamente"
-      ],
-      "files_to_touch": [
-        "modules/piper_loader.py (heartbeat thread)",
-        "core/module_base.py (is_critical flag, degraded state)",
-        "core/unified_pipeline.py (modo degradado)",
-        "core/schemas.py (ModuleState: agregar DEGRADED)",
-        "frontend/src/components/ModuleCard.astro (badge DEGRADED)",
-        "tests/unit/test_piper_loader.py (heartbeat test)"
-      ]
-    },
-    {
-      "id": 18,
-      "name": "metrics_sparklines_and_latency_meter",
-      "title": "Sparklines de métricas y medidor de latencia en tiempo real",
-      "status": "done",
-      "area": "ux_visualizacion",
-      "description": "MetricsCard muestra barras estáticas de CPU/GPU/Memory/Throughput pero no hay tendencia histórica. No hay indicador de latencia end-to-end. Los valores numéricos sin contexto temporal dificultan detectar picos.",
-      "problems_identified": [
-        "MetricsCard: barras de progreso sin historial de últimos 60s",
-        "throughputHistory en signals.ts acumula datos pero no se visualizan como gráfico",
-        "No hay medición de latencia E2E (desde SRT input hasta HLS output)",
-        "avg_processing_time_ms del backend no se muestra en frontend",
-        "chunks_failed del backend no se muestra en ningún lugar de la UI",
-        "Sin alerta visual cuando CPU > 90% o GPU memory > 85%"
-      ],
-      "acceptance": [
-        "MetricsCard muestra sparkline SVG inline de últimos 30 samples para CPU, GPU y Throughput",
-        "Sparklines tienen colores adaptativos: verde < 70%, amarillo 70-85%, rojo > 85%",
-        "Nuevo indicador 'Latency' con valor en segundos (avg_processing_time_ms * pipeline_stages)",
-        "chunks_failed mostrado en StatusCard con color rojo si > 0",
-        "Alerta visual (pulso rojo) en MetricsCard cuando CPU > 90% por más de 5s consecutivos",
-        "Sparklines implementados como SVG puro (sin librería externa) para mantener bundle pequeño",
-        "throughputHistory mantiene 60 samples en vez de 10"
-      ],
-      "files_to_touch": [
-        "frontend/src/components/MetricsCard.astro (sparklines SVG)",
-        "frontend/src/lib/store/signals.ts (historial 60 samples, latency signal)",
-        "frontend/src/lib/store/effects.ts (efecto de alerta CPU)",
-        "frontend/src/components/StatusCard.astro (chunks_failed badge)"
-      ]
-    },
-    {
-      "id": 19,
-      "name": "pipeline_presets_profiles",
-      "title": "Presets / perfiles de configuración del pipeline",
+      "id": 38,
+      "name": "webhook_notifications",
+      "title": "Sistema de webhooks para notificaciones de eventos del pipeline",
       "status": "done",
       "area": "ux",
-      "description": "Cada vez que se reconfigura el pipeline (voz TTS, idioma, chunk duration, codec) se hace manualmente campo por campo. No hay forma de guardar una configuración como preset nombrado ni de cambiar entre configuraciones rápidamente.",
+      "priority": "Media",
+      "description": "Las grabaciones se guardan en output/ pero no hay interfaz para gestionarlas. El usuario debe acceder al sistema de archivos manualmente para ver, descargar o eliminar grabaciones. Un gestor en el dashboard mejoraría significativamente la UX.",
       "problems_identified": [
-        "Sin sistema de presets: cada sesión requiere reconfigurar manualmente",
-        "config.yaml solo tiene una configuración activa (no perfiles)",
-        "No hay export de config actual a YAML desde la UI",
-        "No hay import de YAML de config desde la UI",
-        "Sin preset 'baja latencia' (chunk=10s, sin TTS) ni 'máxima calidad' predefinidos"
+        "No hay listado de grabaciones disponibles en la UI",
+        "No hay descarga directa de grabaciones desde el navegador",
+        "No hay forma de eliminar grabaciones viejas desde el dashboard",
+        "El espacio usado por grabaciones no se muestra",
+        "No hay metadatos visibles: duración, tamaño, fecha, formato"
       ],
       "acceptance": [
-        "Endpoint GET /api/presets devuelve lista de presets guardados (nombre, descripción, fecha)",
-        "Endpoint POST /api/presets crea preset desde config actual con nombre dado",
-        "Endpoint POST /api/presets/{name}/apply aplica preset (equivale a PUT /api/config)",
-        "Endpoint DELETE /api/presets/{name} elimina preset",
-        "Presets guardados en archivo presets.json en directorio config/",
-        "UI: botón 'Save Preset' en Header + dropdown de presets guardados",
-        "3 presets built-in: 'Low Latency' (chunk=10s, sin TTS), 'High Quality' (large Whisper, TTS habilitado), 'Spanish Stream' (sharvard voice, es→en)",
-        "Botón 'Export YAML' descarga config actual como archivo YAML",
-        "Tests: test_presets_api.py con CRUD completo"
+        "Endpoint GET /api/recordings lista grabaciones con metadatos (nombre, tamaño, duración, fecha, formato)",
+        "Endpoint DELETE /api/recordings/{name} elimina una grabación",
+        "Endpoint GET /api/recordings/{name}/download descarga archivo",
+        "Frontend: RecordingManagerCard con tabla/listado de grabaciones",
+        "Columna: nombre, tamaño formateado, duración, fecha, acciones (descargar/eliminar)",
+        "Confirmación antes de eliminar grabaciones",
+        "Métrica de espacio total usado por grabaciones en output/",
+        "Test: test_recording_manager.py con archivos mock"
       ],
       "files_to_touch": [
-        "server/routes/config.py (endpoints de presets)",
-        "core/config_manager.py (métodos save_preset, load_preset, list_presets)",
-        "frontend/src/components/Header.astro (botón Save Preset, dropdown)",
-        "frontend/src/lib/modules/pipeline-control.ts (applyPreset, exportConfig)",
-        "tests/unit/test_presets_api.py"
+        "server/routes/recordings.py (nuevo, endpoints CRUD)",
+        "server/app.py (registrar router recordings)",
+        "frontend/src/components/RecordingManagerCard.astro (nuevo)",
+        "frontend/src/pages/index.astro (incluir RecordingManagerCard)",
+        "frontend/src/lib/modules/recordings.ts (nuevo, API calls)",
+        "frontend/src/lib/types/api.ts (tipos RecordingInfo)",
+        "tests/unit/test_recording_manager.py (nuevo)"
       ]
     },
     {
-      "id": 20,
-      "name": "output_health_monitoring",
-      "title": "Monitoreo de salud de outputs y auto-reconexión",
-      "status": "done",
-      "area": "estabilidad",
-      "description": "Los outputs (HLS, RTMP, SRT, Recording) pueden fallar silenciosamente sin que el usuario lo sepa. No hay lógica de reconexión automática para outputs de red (RTMP, SRT). OutputStatusCard no tiene historial de errores ni tiempo de uptime por output.",
+      "id": 40,
+      "name": "theme_switcher_ui",
+      "title": "Theme switcher visible en UI (Light/Dark) con botón en Header",
+      "status": "pending",
+      "area": "ux",
+      "priority": "Media",
+      "description": "El cambio de tema oscuro/claro solo existe como atajo de teclado Ctrl+D. No hay botón visible ni indicación al usuario de que puede cambiar el tema. La UI siempre arranca en modo oscuro sin respetar la preferencia del sistema.",
       "problems_identified": [
-        "HLS output: si FFmpeg cuelga, el output parece running pero no escribe segmentos",
-        "RTMP output: si el destino rechaza la conexión, no reintenta automáticamente",
-        "SRT output: timeout de conexión no configurable por output",
-        "No hay heartbeat por output (verificar que el proceso FFmpeg sigue vivo)",
-        "OutputStatusCard solo muestra enabled/disabled, no uptime ni bytes escritos",
-        "No hay evento WebSocket cuando un output falla (solo se detecta en el próximo poll)"
+        "No hay botón visible de cambio de tema en Header ni en Settings",
+        "Ctrl+D no es discoverable para usuarios nuevos",
+        "No se respeta prefers-color-scheme del sistema operativo",
+        "El tema se guarda en localStorage pero no hay UI para cambiarlo",
+        "No hay indicador visual del tema actual (icono sol/luna)",
+        "La keyboard shortcut no tiene feedback visual de que funcionó"
       ],
       "acceptance": [
-        "Cada output tiene método health_check() que verifica proceso FFmpeg activo + última escritura < 30s",
-        "RTMP y SRT outputs tienen auto-retry con backoff (3 intentos, espera 5/15/30s)",
-        "HLS output verifica que el último segmento .ts fue escrito en los últimos chunk_duration * 2 segundos",
-        "OutputSink base class emite evento WebSocket 'output_health' cuando cambia estado de salud",
-        "OutputStatusCard muestra: uptime, bytes_written (si disponible), último error con timestamp",
-        "Panel de outputs tiene indicador de salud: verde (ok), amarillo (degradado), rojo (fallido)",
-        "Test: test_output_health.py verifica detección de FFmpeg muerto y retry de RTMP"
+        "Botón de theme toggle en Header con icono sol/luna según tema actual",
+        "Al hacer click cambia a light/dark y persiste en localStorage",
+        "Al cargar, respeta prefers-color-scheme del SO (si no hay preferencia guardada)",
+        "Signal reactiva currentTheme en signals.ts",
+        "Transición suave CSS entre temas (transition en variables de color)",
+        "Tema light completo implementado (no solo invertir colores)",
+        "Test visual: verificar que las cards y texto son legibles en ambos modos"
       ],
       "files_to_touch": [
-        "core/output_sink.py (método health_check base + evento WS)",
-        "modules/outputs/hls_output.py (health check segmentos)",
-        "modules/outputs/rtmp_output.py (auto-retry con backoff)",
-        "modules/outputs/srt_output.py (timeout configurable + retry)",
-        "server/ws_routes.py (evento output_health)",
-        "frontend/src/components/OutputStatusCard.astro (uptime, bytes, último error)",
-        "tests/unit/test_output_health.py"
+        "frontend/src/components/layout/Header.astro (theme toggle button)",
+        "frontend/src/lib/store/signals.ts (currentTheme signal)",
+        "frontend/src/lib/store/effects.ts (efecto para aplicar tema)",
+        "frontend/src/styles/globals.css (variables CSS light theme)",
+        "frontend/src/styles/components.css (light theme overrides)",
+        "frontend/src/lib/modules/keyboard-shortcuts.ts (mejorar feedback visual)"
       ]
     },
     {
-      "id": 21,
-      "name": "config_push_via_websocket",
-      "title": "Propagación reactiva de config vía WebSocket",
-      "status": "done",
-      "area": "arquitectura",
-      "description": "Cuando el config cambia (vía PUT /api/config o POST /api/config/chunk), el frontend no lo sabe hasta el próximo poll de status. Si el servidor cambia config externamente, el dashboard muestra valores desactualizados.",
+      "id": 41,
+      "name": "keyboard_shortcuts_ui",
+      "title": "Panel de ayuda de atajos de teclado y nuevos shortcuts",
+      "status": "pending",
+      "area": "ux",
+      "priority": "Media",
+      "description": "Actualmente hay 3 atajos de teclado (Ctrl+S guardar, Space start/stop, Ctrl+D theme) pero no son visibles para el usuario. No hay forma de descubrirlos sin leer el código. Faltan atajos útiles como Ctrl+Enter para iniciar pipeline.",
       "problems_identified": [
-        "ConfigManager no tiene mecanismo de notificación de cambios",
-        "Frontend polling de config es parte del polling de status (no hay polling dedicado)",
-        "Múltiples clientes pueden tener vistas inconsistentes del config",
-        "Cambiar chunk_duration desde UI → UI no refleja el cambio hasta próximo poll (hasta 3s de lag)",
-        "ws_routes.py solo emite logs, no config_update events"
+        "No hay atajo para iniciar/detener pipeline (Ctrl+Enter)",
+        "No hay atajo para abrir/cerrar LogPanel (Ctrl+L)",
+        "No hay botón ? para mostrar panel de ayuda con shortcuts",
+        "No hay atajo para toggle de outputs panel",
+        "Ctrl+D para tema no tiene feedback visual de tema actual",
+        "Los shortcuts no se pueden deshabilitar/personalizar"
       ],
       "acceptance": [
-        "ConfigManager implementa patrón observer: add_listener(callback) / remove_listener(callback)",
-        "Cuando config cambia vía set(), notifica a todos los listeners registrados",
-        "server/app.py (lifespan) registra listener que hace broadcast de config_update vía WebSocket",
-        "Mensaje WS config_update tiene estructura: {type: 'config_update', data: {key, value, full_config}}",
-        "Frontend WSClient maneja mensaje config_update y actualiza pipelineConfig signal sin re-poll",
-        "Test: cambio de config en backend → signal pipelineConfig actualizado en frontend en < 100ms",
-        "Backward compatible: clientes que no manejan config_update no se rompen"
+        "Nuevos atajos: Ctrl+Enter (start/stop), Ctrl+L (toggle LogPanel), Escape (cerrar modales)",
+        "Botón ? en Header que abre modal ShortcutsHelp.astro",
+        "ShortcutsHelp.astro lista todos los atajos con su descripción",
+        "Función disableKeyboardShortcuts() temporal (para inputs de texto)",
+        "Feedback visual al activar shortcut (toast sutil: 'Ctrl+S: Guardado')",
+        "Los shortcuts se deshabilitan cuando un input/textarea tiene foco",
+        "Test: test_keyboard_shortcuts.ts con simulación de eventos keydown"
       ],
       "files_to_touch": [
-        "core/config_manager.py (observer pattern)",
-        "server/app.py (registrar listener en lifespan)",
-        "server/ws_routes.py (broadcast config_update)",
-        "frontend/src/lib/api.ts (WSClient maneja config_update)",
-        "frontend/src/lib/store/signals.ts (actualizar pipelineConfig desde WS)",
-        "tests/unit/test_config_manager.py (test observer)"
+        "frontend/src/components/ShortcutsHelp.astro (nuevo)",
+        "frontend/src/components/layout/Header.astro (botón ?)",
+        "frontend/src/lib/modules/keyboard-shortcuts.ts (nuevos atajos, disable logic)",
+        "frontend/src/lib/types/api.ts (tipos ShortcutInfo)",
+        "frontend/tests/keyboard-shortcuts.test.ts (nuevo)"
       ]
     },
     {
-      "id": 22,
-      "name": "cleanup_dead_code_final",
-      "title": "Limpieza final de código muerto y archivos obsoletos",
-      "status": "done",
-      "area": "mantenibilidad",
-      "description": "Quedan archivos marcados para limpieza posterior que nunca se eliminaron: core/module_interface.py (deprecated), index_new.astro (huérfano), endpoints inline en api_routes.py, y directorios experimentales en raíz.",
+      "id": 42,
+      "name": "pwa_support",
+      "title": "Soporte PWA: service worker y manifest para dashboard instalable",
+      "status": "pending",
+      "area": "ux",
+      "priority": "Media",
+      "description": "El dashboard es una SPA que podría ser instalable como PWA con service worker para cache offline parcial, manifest.json para instalación en dispositivos, y notificaciones push para alertas del pipeline.",
       "problems_identified": [
-        "core/module_interface.py: marcado deprecated en F14 pero sigue en el repo con importaciones activas",
-        "frontend/src/pages/index_new.astro: página alternativa nunca publicada",
-        "server/api_routes.py: endpoints /input-info y /input/control/* están inline en vez de en server/routes/",
-        "drm_gemma_client.py en raíz: script experimental sin tests ni integración",
-        "mcp-python-refactoring/: directorio con artefactos de refactorización previa",
-        "PARA BORRAR/: carpeta con archivos temporales, scripts de debug y venvs obsoletos"
+        "No se puede instalar el dashboard como app en móvil/desktop",
+        "Sin service worker: cada visita requiere descargar todos los assets",
+        "Sin cache offline: si el servidor no responde, no hay UI",
+        "Sin manifest.json: no hay icono ni splash screen personalizados",
+        "No hay notificaciones push para eventos del pipeline"
       ],
       "acceptance": [
-        "core/module_interface.py eliminado; cualquier import actualizado a core/module_base.py",
-        "frontend/src/pages/index_new.astro eliminado",
-        "server/api_routes.py: endpoints /input-info y /input/control/* movidos a server/routes/pipeline.py",
-        "drm_gemma_client.py movido a docs/ como ejemplo o eliminado con nota en CHANGELOG",
-        "mcp-python-refactoring/ eliminado (o movido a docs/adr/ si tiene valor histórico)",
-        "PARA BORRAR/ completamente eliminada del repo",
-        "pytest tests/unit/ pasa con 0 failures tras los cambios",
-        "TypeScript build (npx tsc --noEmit) sin errores"
+        "manifest.json con nombre, iconos 192/512, theme_color, display standalone",
+        "Service worker registra cache de assets estáticos (versión actual)",
+        "Cache offline: última configuración y estado disponibles sin conexión",
+        "Iconos en frontend/public/icons/ (192x192, 512x512)",
+        "Notificaciones push para eventos pipeline.start y pipeline.error (opcional, feature flag)",
+        "BaseLayout.astro incluye <link rel=manifest> y <meta name=theme-color>",
+        "Sin regresión en build de Astro (npm run build:local exitoso)"
       ],
       "files_to_touch": [
-        "core/module_interface.py (eliminar)",
-        "frontend/src/pages/index_new.astro (eliminar)",
-        "server/api_routes.py (mover endpoints inline a routes/)",
-        "server/routes/pipeline.py (recibir endpoints de input control)",
-        "drm_gemma_client.py (eliminar o mover)",
-        "mcp-python-refactoring/ (eliminar directorio)",
-        "PARA BORRAR/ (eliminar directorio completo)"
+        "frontend/public/manifest.json (nuevo)",
+        "frontend/public/service-worker.js (nuevo)",
+        "frontend/public/icons/icon-192.png, icon-512.png (nuevo)",
+        "frontend/src/layouts/BaseLayout.astro (manifest link + theme-color)",
+        "frontend/astro.config.mjs (configurar service worker en build)",
+        "frontend/src/lib/modules/pwa.ts (nuevo, registro de SW)"
       ]
     },
     {
-      "id": 23,
-      "name": "api_versioning_and_pydantic_responses",
-      "title": "Versionado de API y modelos Pydantic para todos los responses",
-      "status": "done",
-      "area": "arquitectura",
-      "description": "La API REST no tiene versionado (/api/v1/). Varios endpoints devuelven dicts literales en vez de modelos Pydantic, lo que impide la generación correcta de OpenAPI. El cliente TypeScript duplica los tipos manualmente.",
-      "problems_identified": [
-        "Todos los endpoints bajo /api/ sin versión: cambios breaking sin advertencia",
-        "server/routes/pipeline.py: start/stop devuelven dict literal, no Pydantic model",
-        "server/routes/outputs.py: GET /outputs devuelve dict con 'outputs' como lista de dicts",
-        "server/routes/config.py: GET /config devuelve config.to_dict() sin schema OpenAPI",
-        "frontend/src/lib/types/api.ts: tipos duplicados manualmente respecto a los schemas del servidor",
-        "No hay deprecation headers cuando se cambia un endpoint",
-        "OpenAPI en /api/docs tiene respuestas 'any' en muchos endpoints"
-      ],
-      "acceptance": [
-        "Todos los endpoints existentes mantienen path /api/* (backward compat), se agregan alias /api/v1/*",
-        "Nuevo archivo core/api_models.py con Pydantic models para: StartResponse, StopResponse, StatusResponse, OutputListResponse, PresetListResponse",
-        "server/routes/pipeline.py usa StartResponse/StopResponse como response_model",
-        "server/routes/outputs.py usa OutputListResponse como response_model",
-        "GET /api/docs muestra schemas completos sin 'any' para los endpoints migrados",
-        "Script generate_types.py (en scripts/) genera frontend/src/lib/types/api.generated.ts desde OpenAPI",
-        "Makefile target 'make types' ejecuta el generador",
-        "Tests: test_api_models.py valida serialización de todos los nuevos modelos"
-      ],
-      "files_to_touch": [
-        "core/api_models.py (nuevo)",
-        "server/routes/pipeline.py (response_model)",
-        "server/routes/outputs.py (response_model)",
-        "server/routes/config.py (response_model)",
-        "server/app.py (agregar prefijo /api/v1 como alias)",
-        "scripts/generate_types.py (nuevo)",
-        "Makefile (target 'types')",
-        "tests/unit/test_api_models.py (nuevo)"
-      ]
-    },
-    {
-      "id": 24,
-      "name": "mypy_strict_mode",
-      "title": "mypy strict en core/ y server/ con 0 errores",
-      "status": "done",
-      "area": "mantenibilidad",
-      "description": "mypy.ini actual tiene configuración laxa (ignore_missing_imports, sin strict). Los módulos core/ y server/ tienen funciones públicas sin type hints, generando bugs sutiles y dificultando refactoring seguro.",
-      "problems_identified": [
-        "mypy.ini: no tiene strict = true, allow_untyped_defs implícito",
-        "core/app_context.py: funciones que retornan Any sin anotar",
-        "core/config_manager.py: get() retorna Any, debería ser genérico",
-        "server/api_routes.py: parámetros de closures sin tipo",
-        "modules/audio_extractor.py: process() sin return type annotation",
-        "core/ffmpeg_pool.py: callbacks sin tipos",
-        "Muchas funciones con Optional sin | None syntax moderna (Python 3.10+)"
-      ],
-      "acceptance": [
-        "mypy.ini (o pyproject.toml [tool.mypy]) tiene strict = true para core/ y server/",
-        "python -m mypy core/ server/ --strict devuelve 0 errores",
-        "core/config_manager.py: get() es genérico: get(key: str, default: T = ...) -> T",
-        "Todas las funciones públicas de core/ y server/ tienen anotaciones completas",
-        "Optional[X] reemplazado por X | None donde Python >= 3.10",
-        "init.ps1 incluye mypy check como paso de verificación",
-        "CI (.github/workflows/) agrega step de mypy --strict en core/ y server/"
-      ],
-      "files_to_touch": [
-        "mypy.ini o pyproject.toml [tool.mypy]",
-        "core/config_manager.py (generic get)",
-        "core/app_context.py (anotaciones)",
-        "core/ffmpeg_pool.py (callbacks tipados)",
-        "server/api_routes.py (closures tipadas)",
-        "modules/audio_extractor.py (return types)",
-        ".github/workflows/ci.yml (mypy step)",
-        "init.ps1 (mypy check)"
-      ]
-    },
-    {
-      "id": 25,
-      "name": "frontend_test_coverage_80",
-      "title": "Cobertura de tests frontend al 80%+",
-      "status": "done",
-      "area": "testing",
-      "description": "El frontend tiene tests en Vitest pero no se mide la cobertura sistemáticamente. signals.ts y effects.ts tienen tests parciales. Los módulos en lib/modules/ casi no tienen tests unitarios.",
-      "problems_identified": [
-        "vitest.config.ts no tiene configuración de coverage (no hay threshold)",
-        "lib/store/effects.ts: funciones de actualización DOM no testeadas",
-        "lib/modules/pipeline-control.ts: handleStart/handleStop sin tests",
-        "lib/modules/outputs.ts: addOutput/removeOutput sin tests",
-        "lib/modules/logpanel.ts: sin tests",
-        "lib/api.ts: fetchWithAuth timeout no testeado",
-        "Mocking de fetch no está estandarizado entre test files"
-      ],
-      "acceptance": [
-        "vitest.config.ts configura coverage con threshold: statements 80, branches 70, functions 80",
-        "npm run test:coverage genera reporte y falla si no alcanza threshold",
-        "lib/store/effects.ts: coverage > 75% (mockear DOM con jsdom ya configurado)",
-        "lib/modules/pipeline-control.ts: tests para handleStart (mock fetch), handleStop, bootstrap guard",
-        "lib/modules/outputs.ts: tests para addOutput, removeOutput, toggleOutput (mock apiCall)",
-        "lib/api.ts: test de timeout (fetch que no responde en 15s → AbortError)",
-        "Archivo frontend/tests/setup.ts con helpers: mockFetch(url, response), mockWSMessage(data)",
-        "CI: cd frontend && npm run test:coverage falla el build si coverage < threshold"
-      ],
-      "files_to_touch": [
-        "frontend/vitest.config.ts (coverage threshold)",
-        "frontend/src/lib/store/effects.test.ts (ampliar)",
-        "frontend/src/lib/modules/pipeline-control.test.ts (nuevo)",
-        "frontend/src/lib/modules/outputs.test.ts (nuevo)",
-        "frontend/src/lib/modules/logpanel.test.ts (nuevo)",
-        "frontend/src/lib/api.test.ts (timeout test)",
-        "frontend/tests/setup.ts (helpers de mock)"
-      ]
-    },
-    {
-      "id": 26,
-      "name": "mobile_responsive_layout",
-      "title": "Layout responsive para móvil y pantallas pequeñas",
-      "status": "done",
-      "area": "ux_diseño",
-      "description": "El dashboard tiene max-width: 1200px pero el layout interno no es responsive en pantallas < 768px. ProcessGrid colapsa mal en móvil. El Header con todos los controles no cabe en viewport estrecho.",
-      "problems_identified": [
-        "ProcessGrid usa grid-template-columns fijo que desborda en móvil",
-        "Header con botones Start/Stop/Config/Save no cabe en < 480px",
-        "MetricsCard tiene grid 2 columnas que no colapsa bien en < 400px",
-        "LogPanel tiene altura fija que ocupa demasiado espacio en móvil",
-        "StatusCard con URLs largas (SRT/RTMP) causa overflow horizontal",
-        "No hay viewport meta ni media queries para < 480px en algunos componentes",
-        "InputCard con formularios extensos no tiene layout adaptado para touch"
-      ],
-      "acceptance": [
-        "Dashboard usable en viewport de 375px (iPhone SE) sin scroll horizontal",
-        "ProcessGrid: 1 columna en < 640px, 2 columnas en 640-1024px, 4 columnas en > 1024px",
-        "Header: botones Start/Stop en row principal, controles secundarios en fila colapsable en < 640px",
-        "MetricsCard: 1 columna en < 480px",
-        "StatusCard: URLs con overflow-wrap o truncado con tooltip al hacer click para copiar",
-        "LogPanel: altura máxima 40vh en móvil (reducida desde 50vh en desktop)",
-        "Touch targets mínimo 44x44px en todos los botones interactivos",
-        "Verificado con Chrome DevTools mobile simulation (iPhone SE, Pixel 5)"
-      ],
-      "files_to_touch": [
-        "frontend/src/components/ProcessGrid.astro (breakpoints grid)",
-        "frontend/src/components/layout/Header.astro (responsive header)",
-        "frontend/src/components/MetricsCard.astro (1 columna móvil)",
-        "frontend/src/components/StatusCard.astro (URL overflow)",
-        "frontend/src/components/LogPanel.astro (altura móvil)",
-        "frontend/src/styles/globals.css (media queries base)"
-      ]
-    },
-    {
-      "id": 27,
-      "name": "pipeline_dependency_graph",
-      "title": "Visualización del grafo de dependencias del pipeline",
-      "status": "done",
-      "area": "ux_visualizacion",
-      "description": "La arquitectura del pipeline (qué módulo alimenta a cuál) no es visible en la UI. Los usuarios no pueden entender visualmente por qué un módulo no procesa (dependencia upstream fallida).",
-      "problems_identified": [
-        "No hay visualización de la topología del pipeline en la UI",
-        "Si AudioExtractor falla, Transcriber está idle pero el usuario no sabe por qué",
-        "ProcessGrid muestra cards independientes sin flechas de flujo de datos",
-        "La arquitectura SRT→Audio→Whisper→Translate→TTS→Mixer→HLS solo está en AGENTS.md"
-      ],
-      "acceptance": [
-        "Nueva sección toggle en dashboard muestra SVG animado del pipeline",
-        "Nodos del grafo: Input → AudioExtractor → Transcriber → Translator → TTS + SubtitleGen → AudioMixer → HLS/RTMP/SRT",
-        "Color de nodo refleja ModuleState (running=verde, error=rojo, disabled=gris, degraded=amarillo)",
-        "Flechas entre nodos animadas con partículas cuando chunks fluyen activamente",
-        "Al hacer click en un nodo, muestra panel lateral con métricas del módulo",
-        "SVG generado con datos del endpoint GET /api/status (no requiere nuevo endpoint)",
-        "Implementado en nuevo componente frontend/src/components/PipelineGraph.astro"
-      ],
-      "files_to_touch": [
-        "frontend/src/components/PipelineGraph.astro (nuevo)",
-        "frontend/src/pages/index.astro (toggle para mostrar/ocultar grafo)",
-        "frontend/src/lib/store/signals.ts (signal para mostrar/ocultar grafo)"
-      ]
-    },
-    {
-      "id": 28,
-      "name": "docker_optimization_and_health",
-      "title": "Optimización Docker y health checks en docker-compose",
-      "status": "done",
+      "id": 43,
+      "name": "prometheus_metrics",
+      "title": "Endpoint /metrics para scraping de Prometheus",
+      "status": "pending",
       "area": "devops",
-      "description": "El Dockerfile tiene layer caching subóptimo (COPY . . antes de pip install). docker-compose.yml no tiene healthcheck. El build context incluye archivos innecesarios. No hay multi-stage build.",
+      "priority": "Media",
+      "description": "No hay métricas exportables para sistemas de monitoreo externos. Un endpoint /metrics con formato Prometheus permitiría integrar SRT2Web con Grafana, alertas, y dashboards de infraestructura.",
       "problems_identified": [
-        "Dockerfile: COPY . . copia todo antes de pip install → cache miss en cada cambio de código",
-        "docker-compose.yml: sin healthcheck (restart: always pero sin saber si el servicio está listo)",
-        ".dockerignore existe pero no excluye models/piper/ (modelos grandes que no van en imagen)",
-        "No hay separación dev/prod en docker-compose",
-        "Dockerfile no usa --no-cache-dir en pip install",
-        "Node.js build del frontend no está en el Dockerfile"
+        "No hay endpoint de métricas en formato Prometheus",
+        "Métricas internas (chunks, latencia, GPU) no son visibles en sistemas de monitoreo",
+        "Operadores no pueden configurar alertas sobre fallos del pipeline",
+        "No hay históricos de métricas más allá de lo que guarda signals.ts",
+        "La health API es binaria (ok/error) sin granularidad"
       ],
       "acceptance": [
-        "Dockerfile reordenado: COPY requirements.txt → pip install → COPY src (aprovecha cache de layers)",
-        "docker-compose.yml tiene healthcheck: test: [CMD, curl, -f, http://localhost:9999/health]",
-        ".dockerignore excluye: models/piper/, venv/, node_modules/, .cache/, PARA BORRAR/, tests/, .playwright-mcp/",
-        "docker-compose.override.yml para desarrollo con volumes para hot-reload",
-        "Dockerfile incluye stage frontend-builder que compila Astro y copia a server/static/",
-        "docker build . completa en < 5 minutos en máquina sin cache",
-        "README actualizado con instrucciones de docker-compose up"
+        "Nuevo endpoint GET /metrics en formato text/plain Prometheus",
+        "Métricas: srt2web_chunks_processed_total, srt2web_chunks_failed_total",
+        "Métricas: srt2web_pipeline_state, srt2web_module_state{name='...'}",
+        "Métricas: srt2web_processing_time_ms (summary/histogram)",
+        "Métricas: srt2web_websocket_connections, srt2web_uptime_seconds",
+        "Métricas: srt2web_gpu_utilization_percent, srt2web_cpu_percent",
+        "Usar prometheus_client (añadir a pyproject.toml como optional)",
+        "No afecta rendimiento: métricas se actualizan en background cada 15s",
+        "Test: test_metrics_endpoint.py verifica formato y valores"
       ],
       "files_to_touch": [
-        "Dockerfile (reordenar layers, agregar frontend-builder stage)",
-        "docker-compose.yml (healthcheck)",
-        "docker-compose.override.yml (nuevo, para desarrollo)",
-        ".dockerignore (ampliar exclusiones)"
+        "server/routes/metrics.py (nuevo, endpoint /metrics)",
+        "server/app.py (registrar router metrics)",
+        "core/metrics_collector.py (nuevo, recolector de métricas Prometheus)",
+        "core/unified_pipeline.py (alimentar metrics_collector)",
+        "pyproject.toml (prometheus_client como dependencia opcional core)",
+        "tests/unit/test_metrics_endpoint.py (nuevo)"
       ]
     },
     {
-      "id": 29,
-      "name": "repo_hygiene_and_cleanup",
-      "title": "Higiene del repo: eliminar PARA BORRAR y archivos obsoletos",
-      "status": "done",
-      "area": "mantenibilidad",
-      "description": "El repositorio tiene PARA BORRAR/ con venvs, scripts de debug y temporales que aumentan el tamaño y dificultan la navegación. Hay archivos de configuración obsoletos y logs de runtime commiteados.",
+      "id": 44,
+      "name": "api_caching_layer",
+      "title": "Capa de caché para endpoints frecuentes (status, config)",
+      "status": "pending",
+      "area": "rendimiento",
+      "priority": "Media",
+      "description": "Los endpoints /api/status y /api/config se llaman cada 3-10s vía polling HTTP. En pipelines largos (horas), esto genera cientos de requests que procesan la misma información. Una caché en memoria con invalidación por WebSocket reduciría carga innecesaria.",
       "problems_identified": [
-        "PARA BORRAR/: contiene venv_new/, venv_old/ (cientos de MB), scripts de debug, logs",
-        "PARA BORRAR/ está commiteada en git (no en .gitignore)",
-        "startup_stderr.txt y startup_stdout.txt en raíz del repo (output de proceso, no código)",
-        "config.yaml.backup en raíz (copia de seguridad manual)",
-        "logs/srt2web.log y logs/srt2web.log.1 en git (logs de runtime)",
-        ".playwright-mcp/ con screenshots y logs commiteados (80+ archivos de sesiones de prueba)",
-        "py_write_dir/ y pytest_tmp_manual/ (artefactos de testing temporal)"
+        "/api/status se computa cada 3s (polling) pero rara vez cambia cada 3s",
+        "/api/config se solicita repetidamente aunque no haya cambios",
+        "Cada request de status recorre todo el pipeline para construir respuesta",
+        "core/cache.py existe (LRUCache con TTL) pero no se usa para API caching",
+        "WebSocket ya envía status updates, pero el polling HTTP duplica el trabajo"
       ],
       "acceptance": [
-        "PARA BORRAR/ eliminada del repo y del tracking de git (git rm -r --cached)",
-        ".gitignore actualizado: PARA BORRAR/, startup_*.txt, config.yaml.backup, logs/*.log, .playwright-mcp/, temp/, output/, py_write_dir/, pytest_tmp_manual/",
-        "startup_stderr.txt, startup_stdout.txt, config.yaml.backup eliminados del repo",
-        "logs/ en .gitignore (solo mantener logs/.gitkeep)",
-        ".playwright-mcp/ en .gitignore",
-        "Tamaño del repo reducido en al menos 50MB",
-        "npm install, pip install y pytest tests/unit/ funcionan correctamente tras la limpieza"
+        "Caché para GET /api/status con TTL 500ms (invalidado por WS status push)",
+        "Caché para GET /api/config con TTL 5s (invalidado por WS config_update)",
+        "Caché para GET /api/health con TTL 10s",
+        "Usar core/cache.py existente (LRUCache con TTL)",
+        "No cachear POST/PUT/DELETE (operaciones de escritura)",
+        "Header Cache-Control en respuestas cacheadas",
+        "Invalidación manual via event listener en ConfigManager changes",
+        "Test: test_api_cache.py verifica cache hits/misses"
       ],
       "files_to_touch": [
-        ".gitignore (ampliar)",
-        "PARA BORRAR/ (eliminar, git rm --cached)",
-        "startup_stderr.txt, startup_stdout.txt (eliminar)",
-        "config.yaml.backup (eliminar)",
-        "logs/srt2web.log, logs/srt2web.log.1 (eliminar, agregar .gitkeep)",
-        ".playwright-mcp/ (eliminar del tracking, agregar a .gitignore)",
-        "py_write_dir/, pytest_tmp_manual/ (eliminar)"
+        "core/cache.py (verificar API para caching, posiblemente extender)",
+        "server/routes/pipeline.py (aplicar cache a GET /status)",
+        "server/routes/config.py (aplicar cache a GET /config)",
+        "server/app.py (middleware de cache opcional o decorador en handlers)",
+        "tests/unit/test_api_cache.py (nuevo)"
       ]
     },
     {
-      "id": 30,
-      "name": "subtitle_sync_and_performance",
-      "title": "Sincronización fina de subtítulos y optimización de rendimiento",
-      "status": "done",
-      "area": "rendimiento",
-      "priority": "Alta",
-      "description": "La sincronización de subtítulos puede desviarse bajo condiciones de carga alta, cambios de chunk_duration o desincronización de audio. No hay mecanismo de detección y corrección de drift. El módulo SubtitleGenerator no optimiza cálculos de timestamp. El caching de subtítulos está ausente. Falta monitoreo en tiempo real del desfase A/V.",
-      "problems_identified": [
-        "SubtitleGenerator calcula timestamps secuencialmente sin caché, causando latencia en volúmenes altos (100+ subtítulos/minuto)",
-        "No hay mecanismo de detección de drift entre audio y subtítulos durante la ejecución",
-        "chunk_duration dinámico sin ajuste automático de timings de subtítulos",
-        "Sin persistencia de estado de sincronización entre reintentos",
-        "Falta métrica de latencia de subtítulo (tiempo desde generación hasta renderizado)",
-        "AudioMixer puede introducir delays variables sin compensación en SubtitleGenerator",
-        "Sin warmup de modelos de timing para clips cortos",
-        "HLS segment timing no garantiza precisión al 100ms en subtítulos embebidos"
-      ],
-      "acceptance": [
-        "SubtitleGenerator implementa cache LRU para timestamps cálculados (max 500 entradas, TTL 60s)",
-        "Nuevo módulo SubtitleSyncMonitor que calcula drift A/V cada 10 subtítulos emitidos",
-        "Métrica sync_drift_ms en status endpoint (desviación actual en ms respecto a audio)",
-        "Si drift > 500ms, SubtitleGenerator ajusta timestamps automáticamente (drift_correction factor)",
-        "Config permite ajuste de sync_correction_threshold (default 500ms, min 100ms, max 2000ms)",
-        "Frontend muestra badge en SubtitleCard: 'IN SYNC' (verde), 'DRIFT DETECTED' (amarillo), 'CORRECTING' (azul)",
-        "Test unitario SubtitleSyncMonitor.test.py verifica detección de drift con ±50ms precisión",
-        "Latencia de subtítulo medida: timestamp_generated - timestamp_emitted < 200ms (verificable en logs)",
-        "Benchmarks: GenerateSubtitle con 1000 entradas no supera 50ms (fue ~150ms antes)",
-        "Persistencia: SubtitleState serializado a Redis/pickle si offset_correction aplicada (para recuperación post-crash)"
-      ],
-      "implementation_notes": [
-        "SubtitleSyncMonitor debe ser decorador del pipeline (F21 config push lo permite)",
-        "Use signal de sync_drift_ms en frontend/src/lib/store/signals.ts (similar a wsConnected)",
-        "Drift detection usa simple exponential smoothing: drift_smoothed = 0.7 * drift_prev + 0.3 * drift_actual",
-        "Cache invalidación: si chunk_duration cambia, limpiar cache (detectar en ConfigManager callback)",
-        "Tests deben incluir escenarios: (1) drift gradual, (2) salto abrupto, (3) corrección exitosa, (4) config changes"
-      ],
-      "files_to_touch": [
-        "modules/subtitle_generator.py (agregar LRU cache, sync_correction_factor)",
-        "core/subtitle_sync_monitor.py (nuevo módulo, detección de drift)",
-        "core/app_context.py (registrar SubtitleSyncMonitor como middleware)",
-        "core/config_schema.py (agregar sync_correction_threshold, enable_drift_detection)",
-        "server/api_routes.py (exponer sync_drift_ms en GET /api/status)",
-        "frontend/src/components/SubtitleCard.astro (mostrar badge de sync state)",
-        "frontend/src/lib/store/signals.ts (signal syncDriftMs, syncState: 'in_sync'|'drifting'|'correcting')",
-        "frontend/src/lib/store/effects.ts (efecto para actualizar señal de sync desde WebSocket)",
-        "tests/unit/test_subtitle_generator.py (tests de cache y timestamp)",
-        "tests/unit/test_subtitle_sync_monitor.py (nuevo, tests de drift detection)",
-        "tests/integration/test_sync_e2e.py (nuevo, test E2E de sincronización bajo carga)"
-      ],
-      "risk_assessment": {
-        "risk_level": "Bajo",
-        "mitigation": [
-          "Cache tiene TTL y límite de size para evitar memory leaks",
-          "Drift correction es opcional (enable_drift_detection = false por default, habilitar vía config)",
-          "Fallback: si SubtitleSyncMonitor falla, pipeline continúa sin corrección (graceful degrade F17)",
-          "Cambios en signature de SubtitleGenerator mínimos (backward compatible)"
-        ]
-      },
-      "performance_expectations": {
-        "before_optimization": "~150ms para 1000 subts sin cache, sync check cada 30s (no existe)",
-        "after_optimization": "~50ms para 1000 subts con cache, sync check automático cada 10 subts, drift < 100ms en condiciones normales"
-      },
-      "order_hint": "Después de F24 (mypy strict) y F21 (config push WebSocket). Antes de F25 (frontend coverage)."
-    },
-    {
-      "id": 31,
-      "name": "hls_passthrough_mode",
-      "title": "Modo passthrough HLS para eliminar re-codificaci�n NVENC",
-      "status": "done",
-      "area": "rendimiento",
-      "priority": "Alta",
-      "description": "El HLS output re-codifica cada chunk con h264_nvenc (~1700ms por chunk) aunque el TS de entrada ya viene en H.264 desde OBS/SRT. El modo passthrough copia los streams sin re-codificar, eliminando el principal cuello de botella del pipeline.",
-      "problems_identified": [
-        "HLSOutput.write() re-codifica video con h264_nvenc en cada chunk (~1700ms, 49% del tiempo total)",
-        "El chunk TS de entrada ya est� codificado en H.264 (desde OBS/SRT), la re-codificaci�n es redundante",
-        "encoder_mode: auto detecta GPU NVENC y lo usa aunque no sea necesario",
-        "No hay fallback autom�tico a passthrough cuando el codec de entrada coincide con el de salida",
-        "La re-codificaci�n GPU NVENC a�ade ~1700ms de latencia por chunk sin mejora de calidad perceptible"
-      ],
-      "acceptance": [
-        "config.output.web.encoder_mode = \"passthrough\" usa -c:v copy -c:a copy (sin re-codificar)",
-        "HLS segment escrito en < 100ms por chunk (vs ~1700ms con NVENC)",
-        "FFmpeg command usa -c:v copy en vez de -c:v h264_nvenc",
-        "Calidad de video id�ntica (misma que entra del SRT)",
-        "Latencia extremo a extremo reducida de ~24s a ~10-12s",
-        "Test: verificar que stream.m3u8 contiene segmentos con duraci�n correcta",
-        "init.ps1 pasa verde tras el cambio"
-      ],
-      "files_to_touch": [
-        "config.yaml (cambiar encoder_mode: auto a passthrough en output.web y video_muxer)",
-        "modules/outputs/hls_output.py (verificar que modo passthrough funcione con -c:v copy)"
-      ],
-      "risk_assessment": {
-        "risk_level": "Bajo",
-        "mitigation": [
-          "Si el codec de entrada no es compatible con copy, FFmpeg falla con error claro",
-          "Se puede revertir a encoder_mode: auto instant�neamente",
-          "Passthrough ya est� implementado en hls_output.py l�nea 274, solo no estaba activado"
-        ]
-      },
-      "performance_expectations": {
-        "before_optimization": "~1700ms por chunk para HLS encoding con NVENC",
-        "after_optimization": "~50ms por chunk con passthrough (copy)"
-      },
-      "order_hint": "Primero de las optimizaciones de latencia (mayor impacto). Antes de F32 y F33."
-    },
-    {
-      "id": 32,
-      "name": "audio_extraction_multithread",
-      "title": "Optimizar extracci�n de audio FFmpeg con multi-threading",
-      "status": "done",
-      "area": "rendimiento",
+      "id": 45,
+      "name": "multi_language_subtitles",
+      "title": "Soporte para múltiples tracks de subtítulos simultáneos",
+      "status": "pending",
+      "area": "features",
       "priority": "Media",
-      "description": "La extracci�n de audio con FFmpeg usa -threads 1, limitando a un solo n�cleo. Eliminar esta restricci�n permite a FFmpeg usar m�ltiples n�cleos para decodificar AAC a PCM m�s r�pido.",
+      "description": "Actualmente solo se genera un track de subtítulos (original o traducido, según use_translated). Para audiencias multilingües, sería útil generar tracks simultáneos: original + traducido + segundos idiomas, servidos como subs_en.vtt, subs_es.vtt, etc.",
       "problems_identified": [
-        "audio_extractor.py fuerza -threads 1 en FFmpeg, limitando a un solo n�cleo CPU",
-        "Extracci�n de audio tarda ~1050ms por chunk (30% del tiempo total de procesamiento)",
-        "No hay raz�n para limitar a 1 thread en CPUs multi-n�cleo modernas",
-        "La decodificaci�n AAC se beneficia del paralelismo"
+        "Un solo track de subtítulos (use_translated: true/false)",
+        "No hay soporte para múltiples idiomas de traducción simultáneos",
+        "Los subtítulos en diferentes idiomas no tienen URLs separadas",
+        "El reproductor HLS no puede seleccionar track de subtítulos",
+        "No hay configuración para idiomas adicionales en config.yaml"
       ],
       "acceptance": [
-        "-threads 1 eliminado de audio_extractor.py (FFmpeg usa auto-detecci�n)",
-        "Tiempo de extracci�n de audio reducido de ~1050ms a ~600-800ms por chunk",
-        "Calidad de audio id�ntica (mismos par�metros -ar 8000 -ac 1 -c:a pcm_s16le)",
-        "init.ps1 pasa verde tras el cambio"
+        "SubtitleGenerator puede emitir múltiples tracks: original + traducido + extra",
+        "Nueva configuración: modules.subtitle_generator.additional_languages: [fr, de]",
+        "Archivos separados: subs.{lang}.vtt servidos estáticamente",
+        "HLS playlist master.m3u8 incluye entradas para cada track de subtítulos",
+        "Frontend: SubtitleCard muestra tracks disponibles con selector",
+        "Backward compatible: si no hay additional_languages, comportamiento actual",
+        "Test: test_multi_language_subtitles.py con 3 tracks simultáneos"
       ],
       "files_to_touch": [
-        "modules/audio_extractor.py (eliminar -threads y \"1\")"
-      ],
-      "risk_assessment": {
-        "risk_level": "Bajo",
-        "mitigation": [
-          "FFmpeg auto-detecta el n�mero �ptimo de threads",
-          "Si hay contenci�n de CPU, el scheduler del OS lo maneja",
-          "Revertible eliminando solo 2 l�neas"
-        ]
-      },
-      "performance_expectations": {
-        "before_optimization": "~1050ms por chunk con -threads 1",
-        "after_optimization": "~600-800ms por chunk con auto-threads"
-      },
-      "order_hint": "Despu�s de F31. Antes de F33."
+        "modules/subtitle_generator.py (múltiples tracks, nuevos formatos de salida)",
+        "core/config_schema.py (additional_languages en SubtitleGeneratorConfig)",
+        "modules/outputs/hls_output.py (incluir tracks en playlist HLS)",
+        "frontend/src/components/SubtitleCard.astro (selector de tracks)",
+        "tests/unit/test_subtitle_generator.py (tests multi-track)"
+      ]
     },
     {
-      "id": 33,
-      "name": "pipeline_parallelism_optimization",
-      "title": "Optimizar paralelismo del pipeline para solapamiento de chunks",
-      "status": "done",
-      "area": "rendimiento",
-      "priority": "Media",
-      "description": "El pipeline en modo thread_parallel con max_concurrent_chunks=4 deber�a solapar chunks para procesamiento concurrente. Sin embargo, los logs muestran chunks procesados secuencialmente sin solapamiento real. Es necesario revisar colas, sem�foros y flujo de datos.",
+      "id": 46,
+      "name": "user_management_auth",
+      "title": "Sistema multi-usuario con login y roles",
+      "status": "pending",
+      "area": "seguridad",
+      "priority": "Baja",
+      "description": "Actualmente la autenticación es token único global (server.auth_token). No hay distinción entre usuarios, ni roles (admin/operator/viewer), ni sesiones. Para entornos multi-operador, se necesita login, gestión de tokens por usuario, y roles con permisos.",
       "problems_identified": [
-        "max_concurrent_chunks=4 pero los chunks se procesan uno tras otro en los logs",
-        "No hay solapamiento visible: chunk N+1 empieza cuando chunk N termina completamente",
-        "Las colas internas del pipeline pueden estar bloqueando la concurrencia",
-        "El m�dulo de audio_mixer o tts_engine puede estar actuando como cuello de botella secuencial"
+        "Un solo token de auth compartido entre todos los operadores",
+        "No hay login UI (solo token en localStorage o query param)",
+        "No hay roles: cualquier usuario auth puede parar el pipeline",
+        "No hay sesiones: no se puede revocar acceso de un usuario sin cambiar token global",
+        "No hay auditoría de qué usuario hizo qué acción"
       ],
       "acceptance": [
-        "Los chunks se procesan concurrentemente: al menos 2 chunks solapados en los logs",
-        "Pipeline throughput: tiempo total para 10 chunks < 10 * tiempo_por_chunk",
-        "max_concurrent_chunks configurable y efectivo",
-        "Logs muestran procesamiento de chunk N+1 iniciando antes de que chunk N termine",
-        "init.ps1 pasa verde tras el cambio",
-        "Tests existentes siguen pasando"
+        "Login page con usuario/contraseña (hash bcrypt almacenado en SQLite)",
+        "Roles: admin (todo), operator (start/stop/config), viewer (solo ver dashboard)",
+        "Tokens JWT por sesión con expiración configurable",
+        "Logout y revocación de tokens",
+        "Auditoría básica: log de qué usuario inició/paró pipeline",
+        "Backward compatible: si no hay users configurados, modo single-token actual",
+        "Test: test_auth_multi_user.py con simulación de roles"
       ],
       "files_to_touch": [
-        "core/unified_pipeline.py (revisar l�gica de colas y sem�foros)",
-        "core/pipeline/strategies.py (verificar estrategia thread_parallel)"
+        "server/routes/auth.py (nuevo, login/logout/register)",
+        "server/security.py (JWT validation, role checking middleware)",
+        "core/database.py (nuevo, SQLite init + user CRUD)",
+        "core/config_schema.py (users config section)",
+        "frontend/src/components/LoginPanel.astro (nuevo)",
+        "frontend/src/pages/login.astro (nuevo)",
+        "tests/unit/test_auth_multi_user.py (nuevo)"
+      ]
+    },
+    {
+      "id": 47,
+      "name": "cloud_export_s3_gcs",
+      "title": "Exportación automática de grabaciones a S3/GCS",
+      "status": "pending",
+      "area": "features",
+      "priority": "Baja",
+      "description": "Las grabaciones locales pueden perderse o llenar el disco. La exportación automática a cloud storage (S3, GCS, Azure Blob) al completar una grabación permite almacenamiento duradero y accesible desde cualquier lugar.",
+      "problems_identified": [
+        "Grabaciones solo en disco local, sin backup externo",
+        "No hay integración con servicios cloud (AWS S3, Google Cloud Storage, Azure Blob)",
+        "Disco local puede llenarse con grabaciones largas",
+        "No hay mecanismo de limpieza automática post-subida a cloud",
+        "No hay indicación en UI de que una grabación fue subida a cloud"
       ],
-      "risk_assessment": {
-        "risk_level": "Medio",
-        "mitigation": [
-          "El pipeline ya tiene modo thread_parallel implementado, solo necesita ajustes",
-          "Los tests existentes validan que no se rompe funcionalidad",
-          "Se puede revertir a mode: sequential si hay inestabilidad"
-        ]
-      },
-      "performance_expectations": {
-        "before_optimization": "Chunks procesados secuencialmente",
-        "after_optimization": "Al menos 2 chunks concurrentes, throughput ~1.5-2x"
-      },
-      "order_hint": "Despu�s de F32. Depende de entender el flujo de datos del pipeline."
+      "acceptance": [
+        "Config: cloud.s3.bucket, cloud.s3.region, cloud.s3.access_key, cloud.s3.secret_key",
+        "Config: cloud.gcs.bucket, cloud.gcs.credentials_path",
+        "Al completar grabación, subir automáticamente a cloud configurado",
+        "Progreso de subida visible en UI (porcentaje, velocidad)",
+        "Opción delete_after_upload: true/false en config",
+        "Usar boto3 para S3 y google-cloud-storage para GCS (deps opcionales)",
+        "Test: test_cloud_export.py con moto (mock S3)"
+      ],
+      "files_to_touch": [
+        "modules/outputs/cloud_output.py (nuevo)",
+        "core/config_schema.py (CloudConfig section)",
+        "modules/outputs/recording_output.py (trigger cloud upload al completar)",
+        "frontend/src/components/RecordingManagerCard.astro (indicador cloud)",
+        "pyproject.toml (boto3, google-cloud-storage como optional deps)",
+        "tests/unit/test_cloud_export.py (nuevo)"
+      ]
+    },
+    {
+      "id": 48,
+      "name": "stream_scheduling",
+      "title": "Programación de streams con calendario y reglas cron",
+      "status": "pending",
+      "area": "features",
+      "priority": "Baja",
+      "description": "No hay forma de programar el inicio/parada del pipeline en horarios específicos. Operadores deben iniciar/detener manualmente. Un scheduler con reglas estilo cron permitiría automatizar streams recurrentes.",
+      "problems_identified": [
+        "Inicio/parada del pipeline siempre manual",
+        "No hay programación por hora/día/semana",
+        "No hay reglas recurrentes (ej: 'todos los días a las 20:00')",
+        "No hay calendario visual de eventos programados",
+        "No hay integración con webhooks para notificar programación"
+      ],
+      "acceptance": [
+        "Endpoint CRUD: GET/POST/PUT/DELETE /api/schedule",
+        "Formato: cron expression + action (start/stop) + enabled + timezone",
+        "Scheduler en core/scheduler.py ejecuta acciones en segundo plano",
+        "Frontend: SchedulePanel con tabla de reglas y toggle enable/disable",
+        "Log de ejecuciones programadas (próxima ejecución, última ejecución)",
+        "Persistencia en config/schedule.json",
+        "Test: test_scheduler.py con croniter para validar expresiones"
+      ],
+      "files_to_touch": [
+        "core/scheduler.py (nuevo)",
+        "server/routes/schedule.py (nuevo)",
+        "server/app.py (iniciar scheduler en lifespan)",
+        "frontend/src/components/SchedulePanel.astro (nuevo)",
+        "frontend/src/lib/modules/schedule.ts (nuevo)",
+        "tests/unit/test_scheduler.py (nuevo)"
+      ]
+    },
+    {
+      "id": 49,
+      "name": "load_testing_suite",
+      "title": "Suite de tests de carga con locust para medir throughput máximo",
+      "status": "pending",
+      "area": "testing",
+      "priority": "Baja",
+      "description": "No hay tests de carga que verifiquen el comportamiento del sistema bajo estrés. Se necesita una suite con locust que simule múltiples streams SRT concurrentes y mida throughput, latencia, uso de memoria y detección de cuellos de botella.",
+      "problems_identified": [
+        "No se conoce el throughput máximo del pipeline",
+        "No se ha medido latencia bajo carga concurrente",
+        "No hay detección de memory leaks en sesiones largas",
+        "No hay benchmark comparativo entre versiones",
+        "tests/benchmark/benchmark_pipeline.py existe pero es básico"
+      ],
+      "acceptance": [
+        "Archivo tests/load/locustfile.py con escenarios: SRT input, HLS output, TTS+Whisper",
+        "Métricas: chunks por segundo, latencia P50/P95/P99, uso de CPU/GPU/memoria",
+        "Escenario 1: 1 stream (baseline), Escenario 2: 5 streams concurrentes",
+        "Escenario 3: sesión continua de 1 hora (detección de memory leaks)",
+        "Reporte HTML generado por locust",
+        "README con instrucciones para ejecutar tests de carga",
+        "Integración opcional en CI (solo en main branch)"
+      ],
+      "files_to_touch": [
+        "tests/load/locustfile.py (nuevo)",
+        "tests/load/README.md (nuevo)",
+        "tests/load/docker-compose.load.yml (nuevo, opcional)",
+        "Makefile (target load-test)"
+      ]
+    },
+    {
+      "id": 50,
+      "name": "structured_json_logging",
+      "title": "Logs estructurados en JSON para integración con ELK/Loki",
+      "status": "pending",
+      "area": "devops",
+      "priority": "Baja",
+      "description": "Los logs actuales son texto plano, lo que dificulta el parseo automático por sistemas de agregación como ELK, Loki o Datadog. Logs en JSON con campos estructurados (timestamp, level, module, message, correlation_id, duration_ms) permitirían búsqueda y análisis avanzado.",
+      "problems_identified": [
+        "Logs en texto plano sin estructura estándar",
+        "No hay correlation_id para trazar requests a través del pipeline",
+        "No hay campo duration_ms en logs de operaciones",
+        "Integración con ELK/Loki requiere parseo custom de logs",
+        "Rotación de logs existe pero no hay compresión ni retención configurable"
+      ],
+      "acceptance": [
+        "core/logging_setup.py: nuevo formateador JSON en vez de texto plano",
+        "Formato: {timestamp, level, logger, module, message, correlation_id?, duration_ms?}",
+        "correlation_id propagado a través del pipeline para tracing",
+        "Duration_ms automático en logs de procesamiento de chunks y módulos",
+        "Config: logging.format (text/json), logging.retention_days",
+        "Backward compatible: default 'text' para no romper instalaciones existentes",
+        "Rotación con compresión gzip (RotatingFileHandler ya existe)"
+      ],
+      "files_to_touch": [
+        "core/logging_setup.py (JSON formatter, campos estructurados)",
+        "core/config_schema.py (logging config section)",
+        "core/unified_pipeline.py (propagar correlation_id)",
+        "core/module_base.py (duration_ms en logging de procesos)",
+        "tests/unit/test_structured_log.py (validar formato JSON)"
+      ]
+    },
+    {
+      "id": 51,
+      "name": "kubernetes_helm_chart",
+      "title": "Chart Helm para deploy en Kubernetes",
+      "status": "pending",
+      "area": "devops",
+      "priority": "Baja",
+      "description": "El deploy actual es docker-compose (single node). Para entornos de producción que requieran alta disponibilidad, escalado horizontal y rolling updates, se necesita un chart Helm para Kubernetes con ConfigMap, Secrets, HPA, Ingress y PVC.",
+      "problems_identified": [
+        "Sin soporte Kubernetes: solo docker-compose para deploy",
+        "Sin auto-escalado horizontal (HPA) para múltiples pipelines",
+        "Sin ConfigMap para configuración externa a la imagen",
+        "Sin Ingress para TLS termination y routing",
+        "Sin PVC para persistencia de outputs y logs fuera del pod",
+        "Sin readiness/liveness probes específicas (solo healthcheck genérico)"
+      ],
+      "acceptance": [
+        "Chart Helm en deploy/helm/srt2web/ con templates estándar",
+        "Values: deployment.replicas, service.type, ingress.enable, persistence.size",
+        "ConfigMap montado desde values.yaml para server config",
+        "Secrets para auth_token, s3_keys, etc. (soporte SealedSecrets opcional)",
+        "HPA: escalado por CPU > 70% (min 1, max 5 réplicas)",
+        "Ingress con annotations para TLS cert-manager",
+        "PVC para /app/output y /app/logs (ReadWriteMany opcional)",
+        "Readiness probe: GET /ready, Liveness probe: GET /live",
+        "README con instrucciones helm install"
+      ],
+      "files_to_touch": [
+        "deploy/helm/srt2web/Chart.yaml (nuevo)",
+        "deploy/helm/srt2web/values.yaml (nuevo)",
+        "deploy/helm/srt2web/templates/deployment.yaml (nuevo)",
+        "deploy/helm/srt2web/templates/service.yaml (nuevo)",
+        "deploy/helm/srt2web/templates/ingress.yaml (nuevo)",
+        "deploy/helm/srt2web/templates/configmap.yaml (nuevo)",
+        "deploy/helm/srt2web/templates/secrets.yaml (nuevo)",
+        "deploy/helm/srt2web/templates/pvc.yaml (nuevo)",
+        "deploy/helm/srt2web/templates/hpa.yaml (nuevo)"
+      ]
+    },
+    {
+      "id": 52,
+      "name": "e2e_playwright_tests",
+      "title": "Tests E2E con Playwright para flujos críticos del dashboard",
+      "status": "pending",
+      "area": "testing",
+      "priority": "Baja",
+      "description": "Los tests E2E existentes (tests/e2e/) son pytest que verifican APIs. No hay tests que naveguen el dashboard real en un navegador. Se necesita Playwright para simular interacciones de usuario: iniciar pipeline, verificar estado de módulos, cambiar config, exportar logs.",
+      "problems_identified": [
+        "No hay tests que abran el dashboard en un navegador real",
+        "No se verifica que el DOM se actualice correctamente tras cambios de estado",
+        "No hay snapshot testing de componentes visuales",
+        "Flujos críticos (start → modules running → stop) no se prueban E2E",
+        "Los tests e2e actuales son solo HTTP API tests"
+      ],
+      "acceptance": [
+        "Playwright config en frontend/playwright.config.ts",
+        "Test: abrir dashboard, verificar header y status card visibles",
+        "Test: cambiar input type, verificar que se actualiza formulario",
+        "Test: cambiar chunk_duration, verificar confirmación en UI",
+        "Test: toggle log panel, verificar visibilidad",
+        "Test: export logs, verificar que se descarga archivo",
+        "CI job playwright ejecuta tests E2E contra servidor de prueba",
+        "Test: keyboard shortcuts (Ctrl+S, Ctrl+D)"
+      ],
+      "files_to_touch": [
+        "frontend/playwright.config.ts (nuevo)",
+        "frontend/e2e/dashboard.spec.ts (nuevo)",
+        "frontend/e2e/pipeline-control.spec.ts (nuevo)",
+        "frontend/e2e/logs.spec.ts (nuevo)",
+        "frontend/e2e/keyboard-shortcuts.spec.ts (nuevo)",
+        ".github/workflows/playwright.yml (nuevo, opcional en CI)"
+      ]
+    },
+    {
+      "id": 53,
+      "name": "frontend_bundle_optimization",
+      "title": "Optimización del bundle frontend: code-splitting y lazy loading",
+      "status": "pending",
+      "area": "rendimiento",
+      "priority": "Baja",
+      "description": "El bundle de frontend incluye signals-core y todos los componentes en un solo chunk. No hay code-splitting por ruta ni lazy loading de componentes pesados (PipelineGraph, LogPanel, OutputManagerCard). El análisis con vite-bundle-analyzer revelaría optimizaciones.",
+      "problems_identified": [
+        "Todo el dashboard en un solo bundle JS sin code-splitting",
+        "PipelineGraph y PipelineDiagram son SVG generados que pesan en bundle inicial",
+        "LogPanel con virtual scroll incluye toda la lógica en bundle crítico",
+        "OutputManagerCard con formularios podría ser lazy-loaded",
+        "No se usa dynamic import() para componentes que no están en viewport inicial",
+        "No hay medición actual del bundle size ni presupuesto de rendimiento"
+      ],
+      "acceptance": [
+        "Análisis de bundle con vite-bundle-analyzer documentado",
+        "PipelineGraph lazy-loaded via dynamic import() (solo cuando usuario hace click en toggle)",
+        "LogPanel inicial renderizado con placeholder y carga completa diferida",
+        "OutputManagerCard lazy-loaded",
+        "Bundle size reducido en al menos 30% en initial load",
+        "Lighthouse performance score > 90 en desktop",
+        "npm run build:local exitoso con code-splitting"
+      ],
+      "files_to_touch": [
+        "frontend/astro.config.mjs (configurar code-splitting)",
+        "frontend/src/pages/index.astro (dynamic imports)",
+        "frontend/src/components/PipelineGraph.astro (lazy load)",
+        "frontend/src/components/LogPanel.astro (lazy load)",
+        "frontend/src/components/OutputManagerCard.astro (lazy load)",
+        "frontend/vite.config.ts o astro.config.mjs (bundle analyzer plugin)"
+      ]
+    },
+    {
+      "id": 54,
+      "name": "visual_regression_testing",
+      "title": "Visual regression testing con Storybook y Chromatic",
+      "status": "pending",
+      "area": "testing",
+      "priority": "Baja",
+      "description": "No hay pruebas visuales que detecten cambios no intencionales en la UI. Storybook permitiría desarrollar y testear componentes de forma aislada. Chromatic o Percy detectarían regresiones visuales en CI.",
+      "problems_identified": [
+        "No hay catálogo de componentes (Storybook)",
+        "Cambios CSS pueden romper layout sin que tests unitarios lo detecten",
+        "No hay snapshots visuales de referencia",
+        "Responsive breakpoints no se verifican automáticamente",
+        "Los cambios de tema (light/dark) no tienen cobertura visual"
+      ],
+      "acceptance": [
+        "Storybook configurado en frontend/.storybook/",
+        "Stories para componentes clave: Header, StatusCard, MetricsCard, ModuleCard, LogPanel",
+        "Stories en states: running, stopped, error, degraded, loading",
+        "Stories en themes: dark y light",
+        "Chromatic project configurado para CI (opcional, requiere API key)",
+        "npm run storybook funciona y muestra todos los componentes",
+        "No regresiones en build de Astro"
+      ],
+      "files_to_touch": [
+        "frontend/.storybook/main.ts (nuevo)",
+        "frontend/.storybook/preview.ts (nuevo, con themes)",
+        "frontend/src/components/Header.stories.ts (nuevo)",
+        "frontend/src/components/StatusCard.stories.ts (nuevo)",
+        "frontend/src/components/MetricsCard.stories.ts (nuevo)",
+        "frontend/src/components/ModuleCard.stories.ts (nuevo)",
+        "frontend/src/components/LogPanel.stories.ts (nuevo)",
+        "frontend/package.json (scripts storybook, chromatic)"
+      ]
     }
   ]
 }

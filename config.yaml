@@ -137,5 +137,6 @@ subtitle_sync:
   sync_correction_threshold: 500
   enable_drift_detection: false
   drift_history_size: 100
+webhooks: []
 output_dir:
   directory: ./output

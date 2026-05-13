@@ -1,4 +1,6 @@
 ---
+import { t, initLanguage } from "../lib/i18n";
+initLanguage();
 ---
 <!-- TEST: entry.dataset.message -->
 <!-- TEST: entry.dataset.level -->
@@ -7,32 +9,32 @@
   <div class="log-header" id="log-header" role="button" tabindex="0" aria-expanded="false" aria-controls="log-content">
     <div class="log-header-left">
       <span class="log-collapse-icon" id="log-collapse-icon" aria-hidden="true">▶</span>
-      <span class="log-title">📋 Logs</span>
+      <span class="log-title">📋 {t("log_title")}</span>
       <span class="log-count" id="log-count"></span>
     </div>
     <div class="log-actions">
       <select
         class="log-level-select"
         id="log-level-filter"
-        aria-label="Filtrar por nivel"
+        aria-label={t("log_filter_all")}
         onclick="event.stopPropagation()"
       >
-        <option value="ALL">Todos</option>
-        <option value="INFO">INFO</option>
-        <option value="WARNING">WARNING</option>
-        <option value="ERROR">ERROR</option>
+        <option value="ALL">{t("log_filter_all")}</option>
+        <option value="INFO">{t("log_filter_info")}</option>
+        <option value="WARNING">{t("log_filter_warning")}</option>
+        <option value="ERROR">{t("log_filter_error")}</option>
       </select>
       <input
         type="text"
         class="log-search"
         id="log-search"
-        placeholder="Buscar..."
-        aria-label="Buscar en registros"
+        placeholder={t("log_search_placeholder")}
+        aria-label={t("search_logs")}
         onclick="event.stopPropagation()"
       />
-      <button class="btn-export" id="btn-export-json" aria-label="Exportar JSON" title="Exportar JSON">📥</button>
-      <button class="btn-export" id="btn-export-txt" aria-label="Exportar TXT" title="Exportar TXT">📄</button>
-      <button class="btn-clear" id="btn-clear-logs" aria-label="Limpiar todos los registros">Limpiar</button>
+      <button class="btn-export" id="btn-export-json" aria-label={t("log_export_json")} title={t("log_export_json")}>📥</button>
+      <button class="btn-export" id="btn-export-txt" aria-label={t("log_export_txt")} title={t("log_export_txt")}>📄</button>
+      <button class="btn-clear" id="btn-clear-logs" aria-label={t("clear_logs")}>{t("log_clear")}</button>
     </div>
   </div>
   <div class="log-content" id="log-content" role="log" aria-live="polite" aria-atomic="false" aria-relevant="additions text">

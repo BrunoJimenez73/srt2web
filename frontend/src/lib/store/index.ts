@@ -33,6 +33,7 @@ export {
   resetThroughput,
   presets,
   selectedPreset,
+  currentLanguage,
 } from "./signals";
 
 // Effects (DOM update subscriptions)

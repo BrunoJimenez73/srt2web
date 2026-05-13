@@ -73,25 +73,36 @@ class TestCompleteRefactor:
 
         # Verificar que los efectos usan .value (suscripción a señales)
         value_refs = re.findall(r"\w+\.value", content)
-        assert len(value_refs) > 10, f"Too few signal .value references: {len(value_refs)}"
+        assert len(value_refs) >= 6, f"Too few signal .value references: {len(value_refs)}"
 
-        # Verificar efectos específicos
+        # Verificar efectos específicos (los que quedaron en effects.ts)
         assert "pipelineStatus.value" in content, "Effects should use pipelineStatus"
-        assert "systemMetrics.value" in content, "Effects should use systemMetrics"
-        assert "connectionUrls.value" in content, "Effects should use connectionUrls"
-        assert "wsConnected.value" in content, "Effects should use wsConnected"
+        assert "connectionMode.value" in content, "Effects should use connectionMode"
+        assert "pipelineLogs.value" in content, "Effects should use pipelineLogs"
 
     def test_4_effects_update_dom(self, src_lib) -> None:
-        """Verifica que los efectos actualizan el DOM."""
+        """Verifica que el DOM se actualiza desde effects.ts o componentes .astro."""
+        # Check effects.ts for remaining effects
         effects_file = src_lib / "store" / "effects.ts"
-        content = effects_file.read_text(encoding="utf-8")
+        effects_content = effects_file.read_text(encoding="utf-8")
+
+        # Check component files for DOM updates moved from effects
+        components_dir = src_lib.parent / "components"
+        component_contents = ""
+        if components_dir.exists():
+            for f in components_dir.rglob("*.astro"):
+                component_contents += f.read_text(encoding="utf-8")
+
+        all_content = effects_content + component_contents
 
         # Verificar que hay efectos para diferentes partes del DOM
-        assert "status-dot" in content or "status-text" in content, "Should update status indicators"
-        assert "metric-cpu" in content or "metric-memory" in content, "Should update metrics"
-        assert "url-emision" in content or "url-stream" in content or "url-player" in content, "Should update URLs"
-        assert "ws-status" in content, "Should update WS status"
-        assert "module-time-" in content or "module-chunks-" in content, "Should update module metrics"
+        assert "status-dot" in all_content or "status-text" in all_content, "Should update status indicators"
+        assert "metric-cpu" in all_content or "metric-memory" in all_content, "Should update metrics"
+        assert (
+            "url-emision" in all_content or "url-stream" in all_content or "url-player" in all_content
+        ), "Should update URLs"
+        assert "ws-status" in all_content, "Should update WS status"
+        assert "module-time-" in all_content or "module-chunks-" in all_content, "Should update module metrics"
 
     def test_5_store_index_exports_all(self, src_lib) -> None:
         """Verifica que store/index.ts exporta todo correctamente."""

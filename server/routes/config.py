@@ -194,7 +194,10 @@ async def update_chunk_duration(request: Request, body: ChunkDurationRequest) ->
     pipeline = ctx["pipeline"]
 
     chunk_duration = body.chunk_duration_sec
-    chunk_duration = max(2, chunk_duration)  # Hard minimum
+    # Validación de rango: 2-30 segundos
+    if chunk_duration < 2 or chunk_duration > 30:
+        raise HTTPException(400, f"chunk_duration_sec debe estar entre 2 y 30 segundos (recibido: {chunk_duration})")
+    chunk_duration = max(2, min(chunk_duration, 30))
 
     # Calculate list_size for stable HLS buffer (at least 60s, min 6 segments)
     buffer_target_sec = 60

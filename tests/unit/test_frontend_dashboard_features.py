@@ -238,6 +238,8 @@ class TestDeviceEncoderMetrics:
             PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "pipeline-control.ts",
             PROJECT_ROOT / "frontend" / "src" / "lib" / "store" / "effects.ts",
             PROJECT_ROOT / "frontend" / "src" / "lib" / "shared-types.ts",
+            PROJECT_ROOT / "frontend" / "src" / "components" / "ProcessGrid.astro",
+            PROJECT_ROOT / "frontend" / "src" / "components" / "MetricsCard.astro",
         ]
 
         content = ""
@@ -335,6 +337,7 @@ class TestMetricsDisplay:
             PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "pipeline-control.ts",
             PROJECT_ROOT / "frontend" / "src" / "lib" / "store" / "signals.ts",
             PROJECT_ROOT / "frontend" / "src" / "lib" / "store" / "effects.ts",
+            PROJECT_ROOT / "frontend" / "src" / "components" / "ProcessGrid.astro",
         ]
 
         content = ""

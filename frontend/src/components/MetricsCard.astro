@@ -254,3 +254,133 @@ const { title = 'System Metrics' } = Astro.props;
     50% { opacity: 0.6; box-shadow: 0 0 16px #ef4444; }
   }
 </style>
+
+<script>
+  import { effect } from "@preact/signals-core";
+  import {
+    systemMetrics,
+    cpuHistory,
+    gpuHistory,
+    throughputHistory,
+    throughputAvg,
+    pipelineLatency,
+    cpuAlertActive,
+    pipelineStatus,
+  } from "../lib/store/signals";
+
+  function el<T extends HTMLElement>(id: string): T | null {
+    return document.getElementById(id) as T | null;
+  }
+
+  function getBarClass(value: number): string {
+    if (value < 40) return "low";
+    if (value < 80) return "medium";
+    return "high";
+  }
+
+  function getItemClass(value: number): string {
+    return value < 80 ? "warning" : "critical";
+  }
+
+  function getSparklineColor(value: number): string {
+    if (value < 70) return "#22c55e";
+    if (value < 85) return "#f59e0b";
+    return "#ef4444";
+  }
+
+  let cpuHighTimer: number | null = null;
+
+  effect(() => {
+    const m = systemMetrics.value;
+    const tpAvg = throughputAvg.value;
+    const lat = pipelineLatency.value;
+
+    // CPU
+    const cpuBar = el<HTMLDivElement>("metric-cpu-bar");
+    const cpuValue = el<HTMLSpanElement>("metric-cpu-value");
+    const cpuItem = el<HTMLDivElement>("metric-cpu");
+    if (cpuBar) {
+      cpuBar.style.width = `${m.cpu}%`;
+      cpuBar.className = `metric-bar ${getBarClass(m.cpu)}`;
+    }
+    if (cpuItem) {
+      cpuItem.className = `metric-item ${getItemClass(m.cpu)}`;
+    }
+    if (cpuValue) cpuValue.textContent = `${m.cpu.toFixed(0)}%`;
+
+    // Memory
+    const memBar = el<HTMLDivElement>("metric-memory-bar");
+    const memValue = el<HTMLSpanElement>("metric-memory-value");
+    const memPercent = el<HTMLSpanElement>("metric-memory-percent");
+    if (memBar) {
+      memBar.style.width = `${m.memoryPercent}%`;
+      memBar.className = `metric-bar ${getBarClass(m.memoryPercent)}`;
+    }
+    if (memValue) memValue.textContent = `${m.memoryMb.toFixed(0)} MB`;
+    if (memPercent) memPercent.textContent = `${m.memoryPercent.toFixed(0)}%`;
+
+    // GPU
+    const gpuBar = el<HTMLDivElement>("metric-gpu-bar");
+    const gpuValue = el<HTMLSpanElement>("metric-gpu-value");
+    const gpuMem = el<HTMLSpanElement>("metric-gpu-memory");
+    if (gpuBar) {
+      gpuBar.style.width = `${m.gpuUtil}%`;
+      gpuBar.className = `metric-bar ${getBarClass(m.gpuUtil)}`;
+    }
+    if (gpuValue) gpuValue.textContent = `${m.gpuUtil.toFixed(0)}%`;
+    if (gpuMem) gpuMem.textContent = m.gpuMemMb > 0 ? `${m.gpuMemMb.toFixed(0)} MB` : "N/A";
+
+    // Throughput
+    const tpBar = el<HTMLDivElement>("metric-throughput-bar");
+    const tpValue = el<HTMLSpanElement>("metric-throughput-value");
+    if (tpBar) tpBar.style.width = `${Math.min(tpAvg * 10, 100)}%`;
+    if (tpValue) tpValue.textContent = `${tpAvg.toFixed(2)}/s`;
+
+    // Latency
+    const latEl = el<HTMLSpanElement>("latency-value");
+    if (latEl) latEl.textContent = lat > 0 ? `${lat.toFixed(1)}s` : "0s";
+
+    // CPU Alert
+    const now = Date.now();
+    if (m.cpu > 90) {
+      if (cpuHighTimer === null) cpuHighTimer = now;
+      else if (now - cpuHighTimer >= 5000) cpuAlertActive.value = true;
+    } else {
+      cpuHighTimer = null;
+      cpuAlertActive.value = false;
+    }
+
+    // Chunks failed
+    const cf = (pipelineStatus.value as any)?.chunks_failed ?? 0;
+    const cfEl = el<HTMLDivElement>("chunks-failed");
+    const cfText = el<HTMLSpanElement>("chunks-failed-text");
+    if (cfEl && cfText) {
+      cfEl.style.display = cf > 0 ? "inline-flex" : "none";
+      cfText.textContent = `${cf} failed`;
+    }
+  });
+
+  // Sparklines
+  effect(() => {
+    const cpu = cpuHistory.value;
+    const gpu = gpuHistory.value;
+    const tp = throughputHistory.value;
+
+    const cpuLine = document.getElementById("cpu-sparkline-line") as unknown as SVGElement & { setAttribute: (k: string, v: string) => void; style: { stroke: string } };
+    const gpuLine = document.getElementById("gpu-sparkline-line") as unknown as SVGElement & { setAttribute: (k: string, v: string) => void; style: { stroke: string } };
+    const tpLine = document.getElementById("tp-sparkline-line") as unknown as SVGElement & { setAttribute: (k: string, v: string) => void; style: { stroke: string } };
+
+    if (cpuLine && cpu.length > 1) {
+      cpuLine.setAttribute("points", cpu.map((v, i) => `${i},${20 - Math.min(v * 0.2, 20)}`).join(" "));
+      cpuLine.style.stroke = getSparklineColor(cpu[cpu.length - 1] || 0);
+    }
+    if (gpuLine && gpu.length > 1) {
+      gpuLine.setAttribute("points", gpu.map((v, i) => `${i},${20 - Math.min(v * 0.2, 20)}`).join(" "));
+      gpuLine.style.stroke = getSparklineColor(gpu[gpu.length - 1] || 0);
+    }
+    if (tpLine && tp.length > 1) {
+      const maxTp = Math.max(...tp, 0.1);
+      tpLine.setAttribute("points", tp.map((v, i) => `${i},${20 - Math.min((v / maxTp) * 20, 20)}`).join(" "));
+    }
+  });
+</script>

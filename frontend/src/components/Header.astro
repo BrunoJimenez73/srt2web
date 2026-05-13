@@ -1,4 +1,7 @@
 ---
+import { t, initLanguage } from "../lib/i18n";
+const _lang = initLanguage();
+
 interface Props {
   version?: string;
 }
@@ -23,40 +26,46 @@ const { version = 'Astro' } = Astro.props;
   </div>
 
   <div class="header-right">
+    <!-- Language Selector -->
+    <select class="lang-select" id="lang-select" aria-label={t("language_selector")}>
+      <option value="en">🇬🇧 EN</option>
+      <option value="es">🇪🇸 ES</option>
+    </select>
+
     <a href="/docs/" class="btn-docs" target="_blank">
-      📚 Docs
+      📚 {t("docs")}
     </a>
     <div id="ws-status" class="ws-status disconnected">
       <span class="ws-status-dot"></span>
-      <span class="ws-status-label">WS OFF</span>
+      <span class="ws-status-label" id="ws-status-label">{t("ws_off")}</span>
     </div>
 
     <!-- Security Toggle -->
     <div class="security-wrapper">
       <button class="btn-secure" id="btn-secure-toggle" aria-label="Configurar autenticación" aria-expanded="false" aria-controls="secure-panel">
         <span class="secure-icon" aria-hidden="true">🔐</span>
-        <span class="secure-label" id="secure-label">Secure OFF</span>
+        <span class="secure-label" id="secure-label">{t("security_off")}</span>
         <span class="secure-arrow" id="secure-arrow">▾</span>
       </button>
       <div class="secure-panel" id="secure-panel">
         <div class="secure-panel-header">
-          <span>Token de autenticación</span>
-          <button class="btn-close-panel" id="btn-close-secure" aria-label="Cerrar panel de autenticación">✕</button>
+          <span>{t("auth_token")}</span>
+          <button class="btn-close-panel" id="btn-close-secure" aria-label={t("close_panel")}>✕</button>
         </div>
         <div class="secure-input-row">
-          <input type="password" class="secure-input" id="secure-token-input" placeholder="Ingresa token..." aria-label="Token de autenticación" />
-          <button class="btn-eye" id="btn-eye-token" aria-label="Mostrar u ocultar token" title="Mostrar/Ocultar">👁</button>
+          <input type="password" class="secure-input" id="secure-token-input" placeholder={t("token_placeholder")} aria-label={t("auth_token")} />
+          <button class="btn-eye" id="btn-eye-token" aria-label={t("show_hide")} title={t("show_hide")}>👁</button>
         </div>
         <div class="secure-actions">
-          <button class="btn-gen" id="btn-gen-token" aria-label="Generar token aleatorio" title="Generar token">🎲</button>
-          <button class="btn-save-token" id="btn-save-secure">💾 Guardar</button>
+          <button class="btn-gen" id="btn-gen-token" aria-label={t("generate_token")} title={t("generate_token")}>🎲</button>
+          <button class="btn-save-token" id="btn-save-secure">💾 {t("save_token")}</button>
         </div>
       </div>
     </div>
 
     <span id="live-clock" class="live-clock">--:--:--</span>
-    <button class="btn-save" id="btn-save-config" onclick="saveConfig()" aria-label="Guardar configuración actual">
-      <span class="btn-text">💾 Guardar Config</span>
+    <button class="btn-save" id="btn-save-config" onclick="saveConfig()" aria-label={t("save_config")}>
+      <span class="btn-text">💾 {t("save_config")}</span>
       <span class="btn-loading" aria-hidden="true"></span>
     </button>
   </div>
@@ -105,6 +114,28 @@ const { version = 'Astro' } = Astro.props;
     display: flex;
     align-items: center;
     gap: 10px;
+  }
+
+  .lang-select {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    color: var(--text-prime);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .lang-select:hover, .lang-select:focus {
+    border-color: var(--accent);
+  }
+
+  .lang-select option {
+    background: var(--bg-surface);
+    color: var(--text-prime);
   }
 
   .btn-docs {
@@ -437,8 +468,34 @@ const { version = 'Astro' } = Astro.props;
     arrow.classList.remove('open');
   });
 
+  // Language selector: change → persist + reload
+  const langSelect = document.getElementById('lang-select') as HTMLSelectElement;
+  if (langSelect) {
+    const currentLang = localStorage.getItem('srt2web_language') || 'es';
+    langSelect.value = currentLang;
+    langSelect.addEventListener('change', () => {
+      localStorage.setItem('srt2web_language', langSelect.value);
+      location.reload();
+    });
+  }
+
   // Initial state
   updateSecureState();
+
+  // Reactive WS status
+  import { effect } from "@preact/signals-core";
+  import { wsConnected } from "../lib/store/signals";
+  import { t } from "../lib/i18n";
+
+  effect(() => {
+    const connected = wsConnected.value;
+    const badge = document.getElementById('ws-status');
+    const label = document.getElementById('ws-status-label');
+    if (badge) {
+      badge.className = `ws-status ${connected ? 'connected' : 'disconnected'}`;
+    }
+    if (label) label.textContent = connected ? t('ws_on') : t('ws_off');
+  });
 
   // Close panel on Escape key
   document.addEventListener('keydown', (e) => {

@@ -165,16 +165,24 @@ class HLSOutput(OutputSink):
         # ── Fast path: passthrough sin TTS → FFmpeg solo remux (copy + PTS offset) ──
         # Necesitamos -output_ts_offset para que los PTS del segmento alineen con
         # los timestamps absolutos del VTT de subtítulos.
-        if encoder_mode == "passthrough" and not audio_input:
+        # Usamos data.mixed_audio_path específicamente (no audio_input) porque
+        # dubbed_audio_path puede estar seteado por AudioExtractor incluso sin TTS.
+        if encoder_mode == "passthrough" and not data.mixed_audio_path:
             segment_name = f"seg_{self._segment_index:06d}.ts"
             segment_path = os.path.join(self._hls_dir, segment_name)
             cmd = [
-                self._ffmpeg_path, "-y",
-                "-i", input_path,
-                "-c:v", "copy",
-                "-c:a", "copy",
-                "-output_ts_offset", offset_sec,
-                "-f", "mpegts",
+                self._ffmpeg_path,
+                "-y",
+                "-i",
+                input_path,
+                "-c:v",
+                "copy",
+                "-c:a",
+                "copy",
+                "-output_ts_offset",
+                offset_sec,
+                "-f",
+                "mpegts",
                 segment_path,
             ]
             try:
@@ -222,11 +230,7 @@ class HLSOutput(OutputSink):
             audio_delay_sec = self._audio_offset_ms / 1000.0
             cmd.extend(["-itsoffset", str(audio_delay_sec), "-i", audio_input])
 
-        if encoder_mode == "passthrough" and audio_input:
-            # Mixed WAV needs encoding to streamable format
-            audio_args = self._encoder_config.get_audio_args()
-        else:
-            audio_args = self._encoder_config.get_audio_args()
+        audio_args = self._encoder_config.get_audio_args()
 
         cmd.extend(
             [

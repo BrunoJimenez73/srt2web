@@ -33,3 +33,97 @@ import OutputCard from './OutputCard.astro';
     }
   }
 </style>
+
+<script>
+  import { effect } from "@preact/signals-core";
+  import { pipelineStatus, isPipelineRunning, throughputAvg } from "../lib/store/signals";
+
+  function el<T extends HTMLElement>(id: string): T | null {
+    return document.getElementById(id) as T | null;
+  }
+
+  effect(() => {
+    const status = pipelineStatus.value;
+    const modules = status?.modules ?? [];
+    const running = isPipelineRunning.value;
+    const tpAvg = throughputAvg.value;
+    const moduleMap = Object.fromEntries(modules.map(m => [m.name, m])) as Record<string, typeof modules[number]>;
+
+     // Module names to map to DOM indicators and metrics
+    const moduleEntries = [
+      { name: "input", indicator: "indicator-input", status: "status-input", badge: "gpu-badge-input", timeId: "module-time-input", chunksId: "module-chunks-input", encoderId: "module-encoder-input" },
+      { name: "audio_extractor", indicator: "indicator-audio-extractor", status: "status-audio_extractor", badge: "gpu-badge-audio_extractor", timeId: "module-time-audio_extractor", chunksId: "module-chunks-audio_extractor", encoderId: "module-encoder-audio_extractor" },
+      { name: "transcriber", indicator: "indicator-whisper", status: "status-transcriber", badge: "gpu-badge-transcriber", timeId: "module-time-transcriber", chunksId: "module-chunks-transcriber", encoderId: "module-encoder-transcriber" },
+      { name: "translator", indicator: "indicator-translate", status: "status-translator", badge: "gpu-badge-translator", timeId: "module-time-translator", chunksId: "module-chunks-translator", encoderId: "module-encoder-translator" },
+      { name: "tts_engine", indicator: "indicator-tts", status: "status-tts_engine", badge: "gpu-badge-tts_engine", timeId: "module-time-tts_engine", chunksId: "module-chunks-tts_engine", encoderId: "module-encoder-tts_engine" },
+      { name: "subtitle_generator", indicator: "indicator-subtitle", status: "status-subtitle_generator", badge: "gpu-badge-subtitle_generator", timeId: "module-time-subtitle_generator", chunksId: "module-chunks-subtitle_generator", encoderId: "module-encoder-subtitle_generator" },
+      { name: "audio_mixer", indicator: "indicator-audio-mixer", status: "status-audio_mixer", badge: "gpu-badge-audio_mixer", timeId: "module-time-audio_mixer", chunksId: "module-chunks-audio_mixer", encoderId: "module-encoder-audio_mixer" },
+      { name: "video_muxer", indicator: "indicator-video-muxer", status: "status-video_muxer", badge: "gpu-badge-video_muxer", timeId: "module-time-video_muxer", chunksId: "module-chunks-video_muxer", encoderId: "module-encoder-video_muxer" },
+      { name: "output", indicator: "indicator-output", status: "status-output", badge: "gpu-badge-output", timeId: "module-time-output", chunksId: "module-chunks-output", encoderId: "module-encoder-output" },
+    ];
+
+    for (const entry of moduleEntries) {
+      // Find module by checking multiple possible names
+      const mod = moduleMap[entry.name] ?? moduleMap[entry.name.replace("_", "_")];
+
+      // Indicators (green dot)
+      const ind = el<HTMLSpanElement>(entry.indicator);
+      if (ind) {
+        const isActive = running && mod?.enabled;
+        ind.classList.toggle("active", isActive && mod?.state !== "degraded");
+        ind.classList.toggle("degraded", mod?.state === "degraded");
+      }
+
+      // Status dots (in module cards)
+      const dot = el<HTMLSpanElement>(entry.status);
+      if (dot && mod) {
+        dot.className = "status-dot";
+        dot.classList.toggle("running", mod.state === "running");
+        dot.classList.toggle("error", mod.state === "error");
+        dot.classList.toggle("degraded", mod.state === "degraded");
+        dot.classList.toggle("disabled", !mod.enabled);
+      }
+
+      // GPU badges
+      const badge = el<HTMLSpanElement>(entry.badge);
+      if (badge && mod?.extra) {
+        const processing = running && mod.enabled && (mod.processed_chunks ?? 0) > 0;
+        if (mod.extra.using_gpu) {
+          badge.textContent = "GPU";
+          badge.style.display = "inline";
+          badge.classList.toggle("active", processing);
+        } else {
+          badge.textContent = "CPU";
+          badge.style.display = "inline";
+          badge.classList.remove("active");
+        }
+      }
+
+      // Time
+      const timeEl = el<HTMLSpanElement>(entry.timeId);
+      if (timeEl && mod) {
+        if (mod.last_process_time_ms > 0) {
+          const ms = mod.last_process_time_ms;
+          timeEl.textContent = ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
+        } else if (running && tpAvg > 0) {
+          timeEl.textContent = `${(1000 / tpAvg).toFixed(0)}ms`;
+        } else if (mod.state === "error") {
+          timeEl.textContent = "ERROR";
+          (timeEl as HTMLElement).style.color = "var(--error)";
+        } else {
+          timeEl.textContent = mod.enabled ? "--" : "OFF";
+        }
+      }
+
+      // Chunks
+      const chunksEl = el<HTMLSpanElement>(entry.chunksId);
+      if (chunksEl && mod) chunksEl.textContent = String(mod.processed_chunks ?? 0);
+
+      // Encoder
+      const encoderEl = el<HTMLSpanElement>(entry.encoderId);
+      if (encoderEl && mod?.extra) {
+        encoderEl.textContent = mod.extra.encoder_label || (mod.extra.using_gpu ? "GPU" : "CPU") || "--";
+      }
+    }
+  });
+</script>

@@ -1,4 +1,7 @@
 ---
+import { t, initLanguage } from "../lib/i18n";
+initLanguage();
+
 interface Props {
   state?: 'idle' | 'running' | 'stopping';
 }
@@ -10,36 +13,36 @@ const { state = 'idle' } = Astro.props;
   <div class="status-top">
     <div class="status-left">
       <span class="status-dot" id="status-dot" role="status" aria-live="polite"></span>
-      <span class="status-text" id="status-text">APAGADO</span>
+      <span class="status-text" id="status-text">{t("status_off")}</span>
     </div>
     <div class="mode-selector">
-      <button class="mode-btn active" data-mode="local" id="btn-mode-local" aria-label="Modo local">🏠 LOCAL</button>
-      <button class="mode-btn" data-mode="remote" id="btn-mode-remote" aria-label="Modo remoto">🌐 REMOTE</button>
+      <button class="mode-btn active" data-mode="local" id="btn-mode-local" aria-label={t("local")}>🏠 {t("local")}</button>
+      <button class="mode-btn" data-mode="remote" id="btn-mode-remote" aria-label={t("remote")}>🌐 {t("remote")}</button>
     </div>
     <div class="status-right">
-      <button class="btn-stop" id="btn-stop" disabled aria-label="Detener el pipeline de procesamiento">
-        <span class="btn-text">⏹ Detener</span>
+      <button class="btn-stop" id="btn-stop" disabled aria-label={t("stop")}>
+        <span class="btn-text">⏹ {t("stop")}</span>
         <span class="btn-loading" aria-hidden="true"></span>
       </button>
-      <button class="btn-start" id="btn-start" aria-label="Iniciar el pipeline de procesamiento">
-        <span class="btn-text">▶ Iniciar</span>
+      <button class="btn-start" id="btn-start" aria-label={t("start")}>
+        <span class="btn-text">▶ {t("start")}</span>
         <span class="btn-loading" aria-hidden="true"></span>
       </button>
     </div>
   </div>
   <div class="urls-row">
     <div class="url-item">
-      <span class="url-label" id="url-emision-label">SRT:</span>
+      <span class="url-label" id="url-emision-label">{t("srt_label")}</span>
       <code class="url-value" id="url-emision">srt://...</code>
       <button class="btn-copy-small" id="btn-copy-emision" aria-label="Copiar URL de emisión">📋</button>
     </div>
     <div class="url-item">
-      <span class="url-label">Stream:</span>
+      <span class="url-label">{t("stream_label")}</span>
       <code class="url-value" id="url-stream">http://...</code>
       <button class="btn-copy-small" id="btn-copy-stream" aria-label="Copiar URL del stream">📋</button>
     </div>
     <div class="url-item">
-      <span class="url-label">Player:</span>
+      <span class="url-label">{t("player_label")}</span>
       <a class="url-link" id="url-player" href="/player" target="_blank" rel="noopener noreferrer">http://...</a>
       <button class="btn-copy-small" id="btn-copy-player" aria-label="Copiar URL del player">📋</button>
     </div>
@@ -48,27 +51,68 @@ const { state = 'idle' } = Astro.props;
 
 <div class="remote-config" id="remote-config" style="display: none;">
   <div class="form-group">
-    <label class="form-label" for="emitter-address">Emisor SRT Address</label>
-    <input type="text" class="form-input" id="emitter-address" placeholder="203.0.113.xx" />
+    <label class="form-label" for="emitter-address">{t("emitter_address_label")}</label>
+    <input type="text" class="form-input" id="emitter-address" placeholder={t("emitter_placeholder")} />
   </div>
 </div>
 
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    // Stop pipeline button
-    const btnStop = document.getElementById('btn-stop');
-    if (btnStop) {
-      btnStop.addEventListener('click', function() {
-        if (window.stopPipeline) window.stopPipeline();
-      });
-    }
+  import { effect } from "@preact/signals-core";
+  import {
+    pipelineStatus,
+    connectionUrls,
+    wsConnected,
+  } from "../lib/store/signals";
+  import { t } from "../lib/i18n";
 
-    // Start pipeline button
+  function el<T extends HTMLElement>(id: string): T | null {
+    return document.getElementById(id) as T | null;
+  }
+
+  // Update status text and buttons
+  effect(() => {
+    const status = pipelineStatus.value;
+    const dot = el<HTMLSpanElement>("status-dot");
+    const text = el<HTMLSpanElement>("status-text");
+    const btnStart = el<HTMLButtonElement>("btn-start");
+    const btnStop = el<HTMLButtonElement>("btn-stop");
+
+    if (!dot || !text) return;
+
+    const running = status?.state === "running";
+    const stopping = status?.state === "stopping";
+    const error = status?.state === "error";
+
+    dot.className = "status-dot";
+    dot.classList.toggle("running", running);
+    dot.classList.toggle("error", error);
+    dot.classList.toggle("stopped", !running && !error && !stopping);
+
+    text.textContent = running ? t("status_active") : error ? t("status_error") : stopping ? t("status_stopping") : t("status_off");
+
+    if (btnStart) { btnStart.disabled = running; btnStart.style.opacity = running ? "0.5" : "1"; }
+    if (btnStop) { btnStop.disabled = !running; btnStop.style.opacity = running ? "1" : "0.5"; }
+  });
+
+  // Update URLs
+  effect(() => {
+    const urls = connectionUrls.value;
+    const emLabel = el<HTMLSpanElement>("url-emision-label");
+    const emValue = el<HTMLSpanElement>("url-emision");
+    const stValue = el<HTMLSpanElement>("url-stream");
+    const plLink = el<HTMLAnchorElement>("url-player");
+
+    if (emLabel) emLabel.textContent = urls.primaryLabel;
+    if (emValue) emValue.textContent = urls.primaryUrl;
+    if (stValue) stValue.textContent = urls.streamUrl;
+    if (plLink) { plLink.textContent = urls.playerUrl; plLink.href = urls.playerUrl; }
+  });
+
+  // Button event handlers
+  document.addEventListener('DOMContentLoaded', function() {
+    const btnStop = document.getElementById('btn-stop');
+    if (btnStop) btnStop.addEventListener('click', () => { if (window.stopPipeline) window.stopPipeline(); });
     const btnStart = document.getElementById('btn-start');
-    if (btnStart) {
-      btnStart.addEventListener('click', function() {
-        if (window.startPipeline) window.startPipeline();
-      });
-    }
+    if (btnStart) btnStart.addEventListener('click', () => { if (window.startPipeline) window.startPipeline(); });
   });
 </script>

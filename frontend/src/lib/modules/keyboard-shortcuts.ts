@@ -9,6 +9,7 @@
 
 import { handleSaveConfig } from "../dashboard";
 import { showToast } from "../utils";
+import { t } from "../i18n";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -35,7 +36,7 @@ const shortcuts: ShortcutDefinition[] = [
     handler: (e) => {
       e.preventDefault();
       handleSaveConfig();
-      showToast("Configuración guardada (Ctrl+S)", "info");
+      showToast(t("config_saved_shortcut"), "info");
     },
     description: "Guardar configuración",
     preventDefault: true,
@@ -54,11 +55,11 @@ const shortcuts: ShortcutDefinition[] = [
       if (isDark) {
         htmlElement.classList.remove("dark");
         localStorage.setItem("srt2web_theme", "light");
-        showToast("Modo claro activado", "info");
+        showToast(t("light_mode_on"), "info");
       } else {
         htmlElement.classList.add("dark");
         localStorage.setItem("srt2web_theme", "dark");
-        showToast("Modo oscuro activado", "info");
+        showToast(t("dark_mode_on"), "info");
       }
     },
     description: "Alternar modo oscuro",

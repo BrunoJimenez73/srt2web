@@ -83,3 +83,47 @@
 - `pytest tests/unit/` → 0 failures (959+1 xpassed)
 - `mypy core/ server/ --strict` → 0 errores
 - `feature_list.json` actualizado (F20: in_progress → done)
+
+## 2026-05-13 — Plan de mejoras F34-F54
+
+### Análisis completo del proyecto
+
+- **Auditoría:** código, tests, frontend, backend, CI/CD, docs, arquitectura
+- **Identificadas:** 21 nuevas features distribuidas en 8 áreas
+- **Priorización:** 4 alta, 8 media, 9 baja (basado en impacto/esfuerzo)
+
+### Nuevas features en feature_list.json
+
+| ID  | Nombre                   | Área         | Prioridad | Estado         |
+| --- | ------------------------ | ------------ | --------- | -------------- |
+| F34 | i18n Integration UI      | UX           | Alta      | 🔵 in_progress |
+| F35 | Reactive Components      | Arquitectura | Alta      | ⏳ pending     |
+| F36 | HLS Audio Passthrough    | Rendimiento  | Alta      | ⏳ pending     |
+| F37 | Robust Config Validation | Estabilidad  | Alta      | ⏳ pending     |
+| F38 | Webhook Notifications    | Arquitectura | Media     | ⏳ pending     |
+| F39 | Recording Manager        | UX           | Media     | ⏳ pending     |
+| F40 | Theme Switcher UI        | UX           | Media     | ⏳ pending     |
+| F41 | Keyboard Shortcuts UI    | UX           | Media     | ⏳ pending     |
+| F42 | PWA Support              | UX           | Media     | ⏳ pending     |
+| F43 | Prometheus Metrics       | DevOps       | Media     | ⏳ pending     |
+| F44 | API Caching Layer        | Rendimiento  | Media     | ⏳ pending     |
+| F45 | Multi-Language Subtitles | Features     | Media     | ⏳ pending     |
+| F46 | User Management          | Seguridad    | Baja      | ⏳ pending     |
+| F47 | Cloud Export             | Features     | Baja      | ⏳ pending     |
+| F48 | Stream Scheduling        | Features     | Baja      | ⏳ pending     |
+| F49 | Load Testing Suite       | Testing      | Baja      | ⏳ pending     |
+| F50 | Structured JSON Logging  | DevOps       | Baja      | ⏳ pending     |
+| F51 | Kubernetes Helm Chart    | DevOps       | Baja      | ⏳ pending     |
+| F52 | E2E Playwright Tests     | Testing      | Baja      | ⏳ pending     |
+| F53 | Frontend Bundle Opt.     | Rendimiento  | Baja      | ⏳ pending     |
+| F54 | Visual Regression        | Testing      | Baja      | ⏳ pending     |
+
+### Archivos modificados
+
+- `feature_list.json` features extendidas de 33 → 54 (añadidas F34-F54)
+- `progress/current.md` actualizado con plan de sesión F34
+- `progress/history.md` entrada de esta sesión añadida
+
+### Próximo paso
+
+Implementar F34 (i18n Integration) siguiendo el plan en progress/current.md.

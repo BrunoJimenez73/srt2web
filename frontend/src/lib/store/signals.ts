@@ -122,9 +122,7 @@ export const connectionUrls = computed(() => {
   const publicIp = (status as any)?.network?.public_ip;
   const remAddr = emitterAddress.value || publicIp || "";
   const host =
-    connectionMode.value === "remote"
-      ? remAddr || "localhost"
-      : "127.0.0.1";
+    connectionMode.value === "remote" ? remAddr || "localhost" : "127.0.0.1";
 
   const inputTypeValue = pipelineConfig.value?.input?.type ?? "srt";
   // Update reactive signal
@@ -180,6 +178,11 @@ export const cpuHistory = signal<number[]>([]);
 export const gpuHistory = signal<number[]>([]);
 
 export const cpuAlertActive = signal<boolean>(false);
+
+// ── i18n (F34) ────────────────────────────────────────────────────
+
+/** Current UI language */
+export const currentLanguage = signal<"en" | "es">("en");
 
 // ── Presets (F19) ─────────────────────────────────────────────────
 

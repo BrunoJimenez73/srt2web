@@ -272,7 +272,9 @@ class WebOutputConfig(BaseModel):
     """Configuración de salida Web (HLS)."""
 
     segment_duration: int = Field(default=15, ge=1, le=30, description="Duración de segmento HLS en segundos")
-    list_size: int = Field(default=6, ge=1, le=20, description="Número de segmentos en manifiesto")
+    list_size: int = Field(
+        default=6, ge=2, le=20, description="Número de segmentos en manifiesto (mínimo 2 para buffer estable)"
+    )
     audio_offset_ms: int = Field(default=0, ge=-1000, le=1000, description="Offset de audio en ms")
     encoder_mode: EncoderModeEnum = Field(default=EncoderModeEnum.AUTO, description="Modo de encoder de video")
 
@@ -470,6 +472,14 @@ class ModulesConfig(BaseModel):
     video_muxer: VideoMuxerConfig = Field(default_factory=VideoMuxerConfig, description="Muxer de video")
 
 
+class WebhookConfig(BaseModel):
+    """Configuración de un webhook de notificación."""
+
+    url: str = Field(default="", description="URL del webhook")
+    events: list[str] = Field(default_factory=lambda: ["start", "stop", "error"], description="Eventos a notificar")
+    secret: str = Field(default="", description="Secreto compartido para firmar requests")
+
+
 class SubtitleSyncConfig(BaseModel):
     """Configuración de sincronización de subtítulos."""
 
@@ -506,6 +516,7 @@ class SRT2WebConfig(BaseModel):
     subtitle_sync: SubtitleSyncConfig = Field(
         default_factory=SubtitleSyncConfig, description="Configuración de sincronización de subtítulos"
     )
+    webhooks: list[WebhookConfig] = Field(default_factory=list, description="Lista de webhooks de notificación")
     output_dir: OutputDirConfig = Field(default_factory=OutputDirConfig, description="Directorio de salida")
 
     # -------------------------------------------------------------------------

@@ -23,6 +23,7 @@ import {
 import { showToast, copyToClipboard } from "../utils";
 import { formatTime } from "../utils/format";
 import { MESSAGES, DEFAULTS, INTERVALS } from "../constants";
+import { t } from "../i18n";
 import { connectionMode, emitterAddress } from "../store/signals";
 import {
   pipelineStatus,
@@ -62,14 +63,14 @@ function isLoading(): boolean {
 
 export async function handleStart(): Promise<void> {
   if (isLoading()) return;
-  setLoading(true, "Iniciando pipeline");
+  setLoading(true, t("pipeline_starting"));
   try {
-    addLog("INFO", MESSAGES.PIPELINE_STARTING);
+    addLog("INFO", t("pipeline_starting"));
     await startPipeline();
     const status = await getStatus();
     updateStatus(status);
     enterPostStartMode();
-    addLog("INFO", MESSAGES.PIPELINE_STARTED);
+    addLog("INFO", t("pipeline_started"));
   } catch (e) {
     addLog("ERROR", `Error: ${(e as Error).message}`);
   } finally {
@@ -78,13 +79,13 @@ export async function handleStart(): Promise<void> {
 }
 
 export async function handleStop(): Promise<void> {
-  if (!confirm(MESSAGES.PIPELINE_CONFIRM_STOP)) {
+  if (!confirm(t("confirm_stop"))) {
     return;
   }
   if (isLoading()) return;
-  setLoading(true, "Deteniendo pipeline");
+  setLoading(true, t("pipeline_stopping"));
   try {
-    addLog("INFO", MESSAGES.PIPELINE_STOPPING);
+    addLog("INFO", t("pipeline_stopping"));
     await stopPipeline();
     const status = await getStatus();
     updateStatus(status);
@@ -92,7 +93,7 @@ export async function handleStop(): Promise<void> {
     postStartMode = false;
     if (postStartTimeout) clearTimeout(postStartTimeout);
     restartPolling();
-    addLog("INFO", MESSAGES.PIPELINE_STOPPED);
+    addLog("INFO", t("pipeline_stopped"));
   } catch (e) {
     addLog("ERROR", `Error: ${(e as Error).message}`);
   } finally {
@@ -102,7 +103,7 @@ export async function handleStop(): Promise<void> {
 
 export async function handleSaveConfig(): Promise<void> {
   if (isLoading()) return;
-  setLoading(true, "Guardando config");
+  setLoading(true, t("saving_config"));
   try {
     const newConfig = collectConfigFromUI();
 
@@ -122,7 +123,7 @@ export async function handleSaveConfig(): Promise<void> {
     // Sync chunk duration to all pipeline modules
     try {
       await updateChunkDuration(chunkDuration);
-      addLog("INFO", `Chunk synced: ${chunkDuration}s`);
+      addLog("INFO", `${t("chunk_synced")}: ${chunkDuration}s`);
     } catch (chunkError) {
       addLog("WARNING", `Chunk sync failed: ${(chunkError as Error).message}`);
     }
@@ -130,12 +131,12 @@ export async function handleSaveConfig(): Promise<void> {
     const cfg = await getConfig();
     pipelineConfig.value = cfg;
     applyConfigToUI(cfg);
-    showToast(MESSAGES.CONFIG_SAVED, "success");
-    addLog("INFO", "Configuración guardada");
+    showToast(t("config_saved"), "success");
+    addLog("INFO", t("config_saved"));
   } catch (e) {
     const msg = (e as Error).message;
-    showToast(`${MESSAGES.CONFIG_SAVE_ERROR}: ${msg}`, "error");
-    addLog("ERROR", `Error al guardar: ${msg}`);
+    showToast(`${t("config_save_error")}: ${msg}`, "error");
+    addLog("ERROR", `${t("config_save_error")}: ${msg}`);
   } finally {
     setLoading(false);
   }
@@ -146,18 +147,18 @@ export async function handleSaveConfig(): Promise<void> {
 export async function fileInputPlay(): Promise<void> {
   try {
     await apiCall("POST", "input/control/play");
-    showToast(MESSAGES.INPUT_FILE_PLAY, "success");
+    showToast(t("input_file_play"), "success");
   } catch (e) {
-    showToast(`Error al reproducir: ${(e as Error).message}`, "error");
+    showToast(`${t("error")}: ${(e as Error).message}`, "error");
   }
 }
 
 export async function fileInputPause(): Promise<void> {
   try {
     await apiCall("POST", "input/control/pause");
-    showToast(MESSAGES.INPUT_FILE_PAUSE, "success");
+    showToast(t("input_file_pause"), "success");
   } catch (e) {
-    showToast(`Error al pausar: ${(e as Error).message}`, "error");
+    showToast(`${t("error")}: ${(e as Error).message}`, "error");
   }
 }
 
@@ -165,7 +166,10 @@ export async function fileInputSeek(position: number): Promise<void> {
   try {
     await apiCall("POST", "input/control/seek", { position });
   } catch (e) {
-    showToast(`Error al buscar posición: ${(e as Error).message}`, "error");
+    showToast(
+      `${t("input_file_seek_error")}: ${(e as Error).message}`,
+      "error",
+    );
   }
 }
 
@@ -396,7 +400,7 @@ export async function initDashboard(): Promise<void> {
   // Initialize log panel first so logs can be displayed
   initLogPanel();
 
-  addLog("INFO", MESSAGES.LOADING);
+  addLog("INFO", t("loading"));
 
   try {
     // Load config and apply to UI
@@ -443,14 +447,14 @@ export async function initDashboard(): Promise<void> {
       }
     });
     wsClient.onError(() => {
-      addLog("ERROR", MESSAGES.WS_ERROR);
+      addLog("ERROR", t("ws_error"));
     });
     wsClient.onClose((wasFirstAttempt: boolean) => {
       wsConnected.value = false;
       if (wasFirstAttempt) {
-        addLog("WARNING", "WebSocket connection failed");
+        addLog("WARNING", t("reconnect_failed"));
       } else {
-        addLog("ERROR", MESSAGES.WS_DISCONNECTED);
+        addLog("ERROR", t("ws_disconnected"));
       }
     });
     wsClient.connect();
@@ -458,9 +462,9 @@ export async function initDashboard(): Promise<void> {
     // Start adaptive HTTP polling
     startPolling();
 
-    addLog("INFO", MESSAGES.SUCCESS);
+    addLog("INFO", t("success"));
   } catch (e) {
-    addLog("ERROR", `Error de inicialización: ${(e as Error).message}`);
+    addLog("ERROR", `${t("init_error")}: ${(e as Error).message}`);
   }
 }
 
@@ -500,7 +504,9 @@ export function setupEventListeners(): void {
         const info = await res.json();
         if (info.public_ip) {
           emitterAddress.value = info.public_ip;
-          const input = document.getElementById("emitter-address") as HTMLInputElement;
+          const input = document.getElementById(
+            "emitter-address",
+          ) as HTMLInputElement;
           if (input) input.value = info.public_ip;
         }
       } catch {}
@@ -566,14 +572,14 @@ export async function loadPresets(): Promise<void> {
     const data = await response.json();
     presets.value = data.presets || [];
   } catch (e) {
-    addLog("ERROR", `Error loading presets: ${(e as Error).message}`);
+    addLog("ERROR", `${t("presets_load_error")}: ${(e as Error).message}`);
   }
 }
 
 /** Apply a preset by name (built-in or saved) */
 export async function applyPreset(name: string): Promise<void> {
   try {
-    setLoading(true, `Applying preset: ${name}`);
+    setLoading(true, `${t("preset_applying")}: ${name}`);
     const response = await fetch(
       `/api/presets/${encodeURIComponent(name)}/apply`,
       {
@@ -589,11 +595,11 @@ export async function applyPreset(name: string): Promise<void> {
     pipelineConfig.value = data.config;
     applyConfigToUI(data.config);
     selectedPreset.value = name;
-    showToast(`Preset applied: ${name}`, "success");
-    addLog("INFO", `Preset applied: ${name}`);
+    showToast(`${t("preset_applied")}: ${name}`, "success");
+    addLog("INFO", `${t("preset_applied")}: ${name}`);
   } catch (e) {
-    showToast(`Error applying preset: ${(e as Error).message}`, "error");
-    addLog("ERROR", `Error applying preset: ${(e as Error).message}`);
+    showToast(`${t("preset_error")}: ${(e as Error).message}`, "error");
+    addLog("ERROR", `${t("preset_error")}: ${(e as Error).message}`);
   } finally {
     setLoading(false);
   }
@@ -602,7 +608,7 @@ export async function applyPreset(name: string): Promise<void> {
 /** Save current config as a named preset */
 export async function savePreset(name: string): Promise<void> {
   try {
-    setLoading(true, `Saving preset: ${name}`);
+    setLoading(true, `${t("preset_saving")}: ${name}`);
     const response = await fetch("/api/presets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -613,11 +619,11 @@ export async function savePreset(name: string): Promise<void> {
       throw new Error(err || `Failed to save preset: ${name}`);
     }
     await loadPresets(); // Refresh list
-    showToast(`Preset saved: ${name}`, "success");
-    addLog("INFO", `Preset saved: ${name}`);
+    showToast(`${t("preset_saved")}: ${name}`, "success");
+    addLog("INFO", `${t("preset_saved")}: ${name}`);
   } catch (e) {
-    showToast(`Error saving preset: ${(e as Error).message}`, "error");
-    addLog("ERROR", `Error saving preset: ${(e as Error).message}`);
+    showToast(`${t("preset_save_error")}: ${(e as Error).message}`, "error");
+    addLog("ERROR", `${t("preset_save_error")}: ${(e as Error).message}`);
   } finally {
     setLoading(false);
   }
@@ -628,7 +634,7 @@ export function exportConfig(): void {
   try {
     const cfg = pipelineConfig.value;
     if (!cfg) {
-      showToast("No config to export", "error");
+      showToast(t("config_export_error"), "error");
       return;
     }
     const yamlStr = dumpConfig(cfg);
@@ -639,9 +645,9 @@ export function exportConfig(): void {
     a.download = `srt2web-config-${new Date().toISOString().slice(0, 10)}.yaml`;
     a.click();
     URL.revokeObjectURL(url);
-    showToast("Config exported", "success");
+    showToast(t("config_exported"), "success");
   } catch (e) {
-    showToast(`Export failed: ${(e as Error).message}`, "error");
+    showToast(`${t("error")}: ${(e as Error).message}`, "error");
   }
 }
 
@@ -672,8 +678,8 @@ function setupCopyButtons(): void {
     const urlEl = document.getElementById("url-emision");
     if (urlEl?.textContent) {
       copyToClipboard(urlEl.textContent)
-        .then(() => showToast("URL de emisión copiada", "success"))
-        .catch(() => showToast("Error al copiar URL", "error"));
+        .then(() => showToast(t("url_copied"), "success"))
+        .catch(() => showToast(t("url_copy_error"), "error"));
     }
   });
 
@@ -681,8 +687,8 @@ function setupCopyButtons(): void {
     const urlEl = document.getElementById("url-stream");
     if (urlEl?.textContent) {
       copyToClipboard(urlEl.textContent)
-        .then(() => showToast("URL del stream copiada", "success"))
-        .catch(() => showToast("Error al copiar URL", "error"));
+        .then(() => showToast(t("url_copied"), "success"))
+        .catch(() => showToast(t("url_copy_error"), "error"));
     }
   });
 
@@ -692,8 +698,8 @@ function setupCopyButtons(): void {
       const url = urlEl.getAttribute("href") || urlEl.textContent;
       if (url)
         copyToClipboard(url)
-          .then(() => showToast("URL del player copiada", "success"))
-          .catch(() => showToast("Error al copiar URL", "error"));
+          .then(() => showToast(t("url_copied"), "success"))
+          .catch(() => showToast(t("url_copy_error"), "error"));
     }
   });
 }

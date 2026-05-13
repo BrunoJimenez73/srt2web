@@ -17,6 +17,19 @@ logger = logging.getLogger("srt2web.api.pipeline")
 router = APIRouter(tags=["pipeline"])
 
 
+def _check_port_available(port: int) -> bool:
+    """Check if a TCP port is available for listening."""
+    import socket
+
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(0.5)
+            result = s.connect_ex(("127.0.0.1", port))
+            return result != 0  # port is free if connection refused
+    except Exception:
+        return True  # assume available if check fails
+
+
 def _ctx(request: Request) -> dict[str, Any]:
     return cast(dict[str, Any], request.app.state.ctx)
 
@@ -102,8 +115,22 @@ async def start_pipeline(request: Request) -> dict[str, Any]:
         except Exception as e:
             logger.warning(f"Could not reset pipeline state: {e}")
 
-    # RTMP input setup - no external server needed, FFmpeg listens for connections
+    # Validar puertos antes de arrancar
     input_type = config.get("input.type", "srt") if config else "srt"
+    if input_type == "srt":
+        srt_port = config.get("input.srt.listen_port", 9000)
+        if not _check_port_available(srt_port):
+            raise HTTPException(
+                400,
+                f"El puerto SRT {srt_port} ya está en uso. Elige otro puerto o cierra la aplicación que lo está usando.",
+            )
+    elif input_type == "rtmp":
+        rtmp_port = config.get("input.rtmp.listen_port", 1935)
+        if not _check_port_available(rtmp_port):
+            raise HTTPException(
+                400,
+                f"El puerto RTMP {rtmp_port} ya está en uso. Elige otro puerto o cierra la aplicación que lo está usando.",
+            )
     logger.info(f"Starting pipeline with input type: {input_type}")
 
     if input_type == "rtmp" and input_source:

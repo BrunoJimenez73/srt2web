@@ -33,6 +33,7 @@ from core.exceptions import PipelineError, PipelineStateError
 from core.hardware_monitor import HardwareMonitor
 from core.module_base import BaseModule, PipelineData
 from core.schemas import SystemMetrics
+from core.webhook_manager import webhook_manager
 
 try:
     from modules.outputs.composite_output import CompositeOutput
@@ -256,17 +257,26 @@ class UnifiedPipeline:
         return list(self._modules)
 
     def _set_state(self, new_state: PipelineState) -> None:
-        """Actualizar estado del pipeline y notificar callback."""
+        """Cambiar estado y notificar."""
         old_state = self._state
         self._state = new_state
-
-        logger.info(f"Pipeline state changed: {old_state.value} → {new_state.value}")
-
+        if self.metrics.start_time is None and new_state == PipelineState.RUNNING:
+            self.metrics.start_time = time.time()
         if self._on_state_change:
-            try:
-                self._on_state_change(new_state.value)
-            except Exception as e:
-                logger.error(f"Error en state callback: {e}")
+            self._on_state_change(new_state.value)
+
+        # Webhook notifications
+        try:
+            if new_state == PipelineState.RUNNING:
+                webhook_manager.emit("pipeline.start", {"state": "running", "mode": self.mode.value})
+            elif new_state == PipelineState.ERROR:
+                webhook_manager.emit("pipeline.error", {"state": "error", "previous_state": old_state.value})
+            elif new_state == PipelineState.IDLE:
+                webhook_manager.emit(
+                    "pipeline.stop", {"state": "stopped", "chunks_processed": self.metrics.chunks_processed}
+                )
+        except Exception as e:
+            logger.error(f"Error en webhook notification: {e}")
 
     def _log(self, level: str, message: str) -> None:
         """Emitir log y notificar callback."""
@@ -551,7 +561,8 @@ class UnifiedPipeline:
                                 processor.error = str(e)
                                 if not getattr(module, "is_critical", True):
                                     self._log(
-                                        "warning", f"Non-critical module {module.name} failed, continuing in degraded mode"
+                                        "warning",
+                                        f"Non-critical module {module.name} failed, continuing in degraded mode",
                                     )
                                     continue
                                 break

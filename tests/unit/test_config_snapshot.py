@@ -25,7 +25,16 @@ class TestDefaultConfigSnapshot:
 
     def test_default_config_has_all_sections(self):
         """Default config should have all top-level sections."""
-        expected_sections = {"server", "input", "output", "pipeline", "modules", "output_dir", "subtitle_sync"}
+        expected_sections = {
+            "server",
+            "input",
+            "output",
+            "pipeline",
+            "modules",
+            "output_dir",
+            "subtitle_sync",
+            "webhooks",
+        }
         assert set(DEFAULT_CONFIG.keys()) == expected_sections
 
     def test_default_server_section(self):
