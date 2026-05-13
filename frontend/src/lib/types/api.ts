@@ -379,6 +379,13 @@ export type AudioCodec = "aac" | "mp3" | "opus";
 
 // ── Tipos de Status ────────────────────────────────────────────────────────────
 
+export interface SyncStatus {
+  drift_ms: number;
+  state: 'in_sync' | 'drifting' | 'correcting';
+  correction_active: boolean;
+  threshold_ms: number;
+}
+
 export interface Status {
   state: PipelineState;
   chunks_processed: number;
@@ -388,6 +395,7 @@ export interface Status {
   input_receiving?: boolean;
   input_info?: InputInfo;
   network?: NetworkInfo;
+  sync?: SyncStatus;
 }
 
 export type PipelineState =

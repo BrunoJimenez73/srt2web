@@ -161,8 +161,9 @@ class TestConfigValues:
         with open(CONFIG_PATH) as f:
             config = yaml.safe_load(f)
 
-        # segment_duration should be reasonable (1-10 seconds for low latency)
-        assert 1 <= config["output"]["web"]["segment_duration"] <= 10
+        # segment_duration should match chunk_duration (not split)
+        chunk = config["pipeline"]["chunk_duration_sec"]
+        assert config["output"]["web"]["segment_duration"] == chunk
 
     def test_hls_list_size_is_2(self) -> None:
         """Test output.web.list_size is set for buffer."""

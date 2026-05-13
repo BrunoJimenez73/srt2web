@@ -36,15 +36,17 @@ class TestLatencyConfig:
         """Test pipeline chunk duration is reasonable (OBS keyframe constraint 10s max)."""
         assert config['pipeline']['chunk_duration_sec'] <= 10
     
-    def test_output_segment_duration_is_2(self, config) -> None:
-        """Test output segment duration is optimized for low latency (≤4s)."""
-        assert config['output']['web']['segment_duration'] <= 4
-        assert config['output']['hls']['segment_duration'] <= 4
+    def test_output_segment_matches_chunk(self, config) -> None:
+        """Test output segment duration matches pipeline chunk for stable HLS."""
+        chunk = config['pipeline']['chunk_duration_sec']
+        assert config['output']['web']['segment_duration'] == chunk
     
-    def test_list_size_minimal(self, config) -> None:
-        """Test list size is reasonable for latency (≤6)."""
-        assert config['output']['web']['list_size'] <= 6
-        assert config['output']['hls']['list_size'] <= 10
+    def test_list_size_sufficient_buffer(self, config) -> None:
+        """Test list size ensures at least 60s of buffer."""
+        chunk = config['pipeline']['chunk_duration_sec']
+        list_size = config['output']['web']['list_size']
+        assert list_size * chunk >= 60
+        assert list_size >= 6
     
     def test_max_concurrent_chunks_increased(self, config) -> None:
         """Test max concurrent chunks is increased for parallelism."""

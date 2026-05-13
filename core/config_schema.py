@@ -270,7 +270,7 @@ class InputConfig(BaseModel):
 class WebOutputConfig(BaseModel):
     """Configuración de salida Web (HLS)."""
 
-    segment_duration: int = Field(default=4, ge=1, le=30, description="Duración de segmento HLS en segundos")
+    segment_duration: int = Field(default=15, ge=1, le=30, description="Duración de segmento HLS en segundos")
     list_size: int = Field(default=6, ge=1, le=20, description="Número de segmentos en manifiesto")
     audio_offset_ms: int = Field(default=0, ge=-1000, le=1000, description="Offset de audio en ms")
     encoder_mode: EncoderModeEnum = Field(default=EncoderModeEnum.AUTO, description="Modo de encoder de video")
@@ -434,7 +434,7 @@ class VideoMuxerConfig(BaseModel):
 
     enabled: bool = Field(default=True, description="Módulo habilitado")
     engine: Literal["hls", "webrtc"] = Field(default="hls", description="Motor de salida")
-    hls_segment_duration: int = Field(default=4, ge=1, le=30, description="Duración de segmento HLS en segundos")
+    hls_segment_duration: int = Field(default=15, ge=1, le=30, description="Duración de segmento HLS en segundos")
     hls_list_size: int = Field(default=6, ge=1, le=20, description="Número de segmentos en manifiesto")
     audio_offset_ms: int = Field(default=0, ge=-1000, le=1000, description="Offset de audio en ms")
     encoder_mode: EncoderModeEnum = Field(default=EncoderModeEnum.AUTO, description="Modo de encoder de video")
@@ -469,6 +469,25 @@ class ModulesConfig(BaseModel):
     video_muxer: VideoMuxerConfig = Field(default_factory=VideoMuxerConfig, description="Muxer de video")
 
 
+class SubtitleSyncConfig(BaseModel):
+    """Configuración de sincronización de subtítulos."""
+    
+    sync_correction_threshold: int = Field(
+        default=500,
+        ge=100,  # >= 100ms
+        le=2000,  # <= 2000ms
+        description="Threshold en ms para activar corrección de sincronización"
+    )
+    enable_drift_detection: bool = Field(
+        default=False,
+        description="Habilitar detección automática de drift"
+    )
+    drift_history_size: int = Field(
+        default=100,
+        description="Número de mediciones de drift a mantener en historial"
+    )
+
+
 class OutputDirConfig(BaseModel):
     """Configuración de directorio de salida."""
 
@@ -489,6 +508,7 @@ class SRT2WebConfig(BaseModel):
     output: OutputConfig = Field(default_factory=OutputConfig, description="Configuración de salida")
     pipeline: PipelineConfig = Field(default_factory=PipelineConfig, description="Configuración del pipeline")
     modules: ModulesConfig = Field(default_factory=ModulesConfig, description="Configuración de módulos")
+    subtitle_sync: SubtitleSyncConfig = Field(default_factory=SubtitleSyncConfig, description="Configuración de sincronización de subtítulos")
     output_dir: OutputDirConfig = Field(default_factory=OutputDirConfig, description="Directorio de salida")
 
     # -------------------------------------------------------------------------
@@ -606,25 +626,26 @@ class SRT2WebConfig(BaseModel):
     def validate_chunk_duration_consistency(self) -> "SRT2WebConfig":
         """Unified chunk timing - pipeline is the fallback source of truth.
 
-        Input types use their explicit value if set, otherwise fall back to pipeline.chunk_duration_sec.
-        Subtitle generator uses pipeline.chunk_duration_sec.
-        - SRT minimum: 2s (OBS keyframe constraint)
-        - HLS segment: 4s minimum
-        - OBS keyframe warning if < 10s
+        Syncs only:
+        - Input chunk durations → pipeline.chunk_duration_sec (if at default)
+        - Subtitle generator chunk_duration → pipeline.chunk_duration_sec
+        - Warns if output/web or video_muxer settings don't match pipeline chunk
+
+        Output/HLS timing sync happens in API endpoints (POST/PUT /config)
+        to avoid overwriting config.yaml on every load.
         """
+        import logging
+        validator_logger = logging.getLogger("srt2web.config.validator")
         pipeline_chunk = self.pipeline.chunk_duration_sec
 
         # Enforce minimums
         pipeline_chunk = max(2, pipeline_chunk)  # Hard minimum
 
         # Apply pipeline value as fallback only when input value is at its default
-        # SRTInputConfig.chunk_duration_sec default is 10
         if self.input.srt.chunk_duration_sec == 10:
             self.input.srt.chunk_duration_sec = max(2, pipeline_chunk)
-        # RTMPInputConfig.chunk_duration_sec default is 10
         if self.input.rtmp.chunk_duration_sec == 10:
             self.input.rtmp.chunk_duration_sec = max(2, pipeline_chunk)
-        # FileInputConfig.chunk_duration_sec default is 10
         if self.input.file.chunk_duration_sec == 10:
             self.input.file.chunk_duration_sec = max(2, pipeline_chunk)
 
@@ -632,7 +653,31 @@ class SRT2WebConfig(BaseModel):
         if self.modules.subtitle_generator.enabled:
             self.modules.subtitle_generator.chunk_duration = pipeline_chunk
 
+        # Warn if output segment_duration doesn't match pipeline chunk
+        if self.output.web.segment_duration != pipeline_chunk:
+            validator_logger.warning(
+                f"output.web.segment_duration ({self.output.web.segment_duration}s) "
+                f"!= pipeline.chunk_duration_sec ({pipeline_chunk}s). "
+                f"Use POST /api/config/chunk to auto-sync."
+            )
+
         return self
+
+    @staticmethod
+    def calculate_list_size(chunk_duration_sec: int) -> int:
+        """Calculate minimum list_size for stable HLS playback.
+        
+        Ensures at least 60 seconds of buffer in the playlist,
+        with a minimum of 6 segments.
+        
+        Args:
+            chunk_duration_sec: Duration of each chunk in seconds
+            
+        Returns:
+            Minimum list_size for stable playback
+        """
+        buffer_target_sec = 60
+        return max(6, (buffer_target_sec + chunk_duration_sec - 1) // chunk_duration_sec)
 
     def to_dict(self) -> dict[str, Any]:
         """Convertir a diccionario serializable."""

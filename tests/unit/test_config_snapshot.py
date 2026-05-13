@@ -24,7 +24,7 @@ class TestDefaultConfigSnapshot:
 
     def test_default_config_has_all_sections(self):
         """Default config should have all top-level sections."""
-        expected_sections = {"server", "input", "output", "pipeline", "modules", "output_dir"}
+        expected_sections = {"server", "input", "output", "pipeline", "modules", "output_dir", "subtitle_sync"}
         assert set(DEFAULT_CONFIG.keys()) == expected_sections
 
     def test_default_server_section(self):
@@ -60,7 +60,7 @@ class TestDefaultConfigSnapshot:
         """Output defaults should have web as default type."""
         output_cfg = DEFAULT_CONFIG["output"]
         assert output_cfg["type"] == "web"
-        assert output_cfg["web"]["segment_duration"] == 4
+        assert output_cfg["web"]["segment_duration"] == 15
         assert output_cfg["web"]["list_size"] == 6
         assert output_cfg["web"]["encoder_mode"] == "auto"
 

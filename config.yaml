@@ -14,29 +14,29 @@ input:
     mode: listener
     latency_ms: 200
     caller_address: ''
-    chunk_duration_sec: 15
+    chunk_duration_sec: 10
   rtmp:
     listen_port: 1935
     app: live
     stream_key: stream
     url: ''
     mode: listener
-    chunk_duration_sec: 15
+    chunk_duration_sec: 10
   file:
     path: C:\fakepath\curso_Sniper - 19 febrero 2026 - 09-38-40  - 00000.mp4
     loop: false
     speed: 1.0
-    chunk_duration_sec: 5
+    chunk_duration_sec: 10
 output:
   type: web
   web:
-    segment_duration: 2
-    list_size: 2
+    segment_duration: 10
+    list_size: 6
     audio_offset_ms: 0
     encoder_mode: auto
   hls:
-    segment_duration: 2
-    list_size: 2
+    segment_duration: 10
+    list_size: 6
     audio_offset_ms: 0
     encoder_mode: auto
   rtmp:
@@ -81,14 +81,14 @@ output:
     type: web
     enabled: true
     config:
-      segment_duration: 4
+      segment_duration: 15
       list_size: 6
       audio_offset_ms: 0
       encoder_mode: auto
 pipeline:
-  chunk_duration_sec: 15
+  chunk_duration_sec: 10
   mode: sequential
-  max_concurrent_chunks: 4
+  max_concurrent_chunks: 2
   buffer_size: 10
   retry_attempts: 3
   retry_delay: 1.0
@@ -109,7 +109,7 @@ modules:
     enabled: true
     format: srt
     use_translated: true
-    chunk_duration: 15
+    chunk_duration: 10
   tts_engine:
     enabled: true
     engine: piper
@@ -125,7 +125,7 @@ modules:
     enabled: true
     engine: hls
     hls_segment_duration: 10
-    hls_list_size: 2
+    hls_list_size: 6
     audio_offset_ms: 0
     encoder_mode: auto
     video_quality: medium
@@ -141,5 +141,9 @@ modules:
     audio_sample_rate: 24000
     gpu_preset: p7
     video_preset: medium
+subtitle_sync:
+  sync_correction_threshold: 500
+  enable_drift_detection: false
+  drift_history_size: 100
 output_dir:
   directory: ./output

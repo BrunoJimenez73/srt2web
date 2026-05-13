@@ -23,6 +23,9 @@ import {
   cpuHistory,
   gpuHistory,
   cpuAlertActive,
+  syncDriftMs,
+  syncState,
+  syncCorrectionActive,
 } from "./signals";
 import {
   PipelineState,
@@ -758,6 +761,28 @@ function stopThroughputEffect(): void {
   _efThroughputHistory?.();
 }
 
+// ── Sync Effects (F30) ────────────────────────────────────────────────────────
+
+let _efSync: (() => void) | null = null;
+
+function startSyncEffects(): void {
+  _efSync = effect(() => {
+    // Subscribe to websocket messages for sync status
+    // In a real implementation, this would handle incoming WS messages
+    // For now, we'll simulate by reading from pipelineStatus
+    const status = pipelineStatus.value;
+    if (status && status.sync) {
+      syncDriftMs.value = status.sync.drift_ms ?? 0;
+      syncState.value = status.sync.state ?? 'in_sync';
+      syncCorrectionActive.value = status.sync.correction_active ?? false;
+    }
+  });
+}
+
+function stopSyncEffects(): void {
+  _efSync?.();
+}
+
 // ── Pipeline Logs Effect ───────────────────────────────────────────────────────
 
 let _efPipelineLogs: (() => void) | null = null;
@@ -793,6 +818,7 @@ export function startEffects(): void {
   startRemoteModeEffect();
   startThroughputEffect();
   startLogsEffect();
+  startSyncEffects();
 }
 
 export function stopEffects(): void {

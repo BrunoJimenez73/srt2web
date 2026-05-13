@@ -182,9 +182,11 @@ async def update_chunk_duration(request: Request, body: ChunkDurationRequest) ->
     Accepts: {"chunk_duration_sec": <int>}
     Syncs to:
     - config.pipeline.chunk_duration_sec
-    - config.input.srt.chunk_duration_sec
-    - config.modules.video_muxer.hls_segment_duration
-    - config.modules.hls_output.segment_duration
+    - config.input.*.chunk_duration_sec
+    - config.output.web|hls.segment_duration + list_size
+    - config.modules.video_muxer.hls_segment_duration + list_size
+    - config.modules.subtitle_generator.chunk_duration
+    - named outputs with type web/hls
     - Reconfigures running pipeline modules
     """
     ctx = _ctx(request)
@@ -192,15 +194,35 @@ async def update_chunk_duration(request: Request, body: ChunkDurationRequest) ->
     pipeline = ctx["pipeline"]
 
     chunk_duration = body.chunk_duration_sec
+    chunk_duration = max(2, chunk_duration)  # Hard minimum
 
-    # Sync to all config sections using config.set() method
+    # Calculate list_size for stable HLS buffer (at least 60s, min 6 segments)
+    buffer_target_sec = 60
+    calculated_list_size = max(6, (buffer_target_sec + chunk_duration - 1) // chunk_duration)
+
+    # Sync pipeline
     config.set("pipeline.chunk_duration_sec", chunk_duration)
+    # Sync input types
     config.set("input.srt.chunk_duration_sec", chunk_duration)
+    config.set("input.rtmp.chunk_duration_sec", chunk_duration)
+    config.set("input.file.chunk_duration_sec", chunk_duration)
+    # Sync web/hls output
+    config.set("output.web.segment_duration", chunk_duration)
+    config.set("output.web.list_size", calculated_list_size)
+    config.set("output.hls.segment_duration", chunk_duration)
+    config.set("output.hls.list_size", calculated_list_size)
+    # Sync video_muxer
     config.set("modules.video_muxer.hls_segment_duration", chunk_duration)
-    config.set("modules.hls_output.segment_duration", chunk_duration)
+    config.set("modules.video_muxer.hls_list_size", calculated_list_size)
+    # Sync subtitle generator
     config.set("modules.subtitle_generator.chunk_duration", chunk_duration)
+    # Sync named outputs
+    # (handled by schema validator on save/reload)
 
-    logger.info(f"[CHUNK] Syncing chunk_duration={chunk_duration}s to all modules")
+    logger.info(
+        f"[CHUNK] Syncing chunk_duration={chunk_duration}s, "
+        f"list_size={calculated_list_size} to all modules"
+    )
 
     try:
         config.save()
@@ -217,11 +239,15 @@ async def update_chunk_duration(request: Request, body: ChunkDurationRequest) ->
     return {
         "status": "updated",
         "chunk_duration_sec": chunk_duration,
+        "list_size": calculated_list_size,
+        "buffer_sec": chunk_duration * calculated_list_size,
         "synced_to": [
             "pipeline.chunk_duration_sec",
-            "input.srt.chunk_duration_sec",
+            "input.srt/rtmp/file.chunk_duration_sec",
+            "output.web/hls.segment_duration",
+            "output.web/hls.list_size",
             "modules.video_muxer.hls_segment_duration",
-            "modules.hls_output.segment_duration",
+            "modules.video_muxer.hls_list_size",
             "modules.subtitle_generator.chunk_duration",
         ],
     }

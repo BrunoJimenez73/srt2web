@@ -14,6 +14,7 @@ import threading
 from pathlib import Path
 from typing import Optional
 
+from core.cache import LRUCache
 from core.module_base import BaseModule, ModuleState, PipelineData
 
 logger = logging.getLogger("srt2web.module.subtitle_generator")
@@ -34,20 +35,28 @@ class SubtitleGenerator(BaseModule):
         self._use_translated = True
         self._subtitles_dir = Path()
         self._vtt_path = Path()
-        self._chunk_duration = 4
+        self._chunk_duration = 5  # Default, will be overridden by config
         self._lock = threading.Lock()
 
         self._last_chunk_index = -1
         self._last_cumulative = 0.0  # Track last cumulative for validation
+        self._last_wall_clock = 0.0  # Track wall clock time for drift detection
 
         # Rolling window for VTT entries (prevent unbounded growth)
         self._vtt_entries: list[dict] = []
         self._max_vtt_entries = 2000  # Keep last 2000 subtitle entries (~200 chunks)
         self._vtt_max_age_seconds = 7200.0  # Remove entries older than 2 hours
 
+        # Cache for timestamp formatting to avoid recomputation
+        self.timestamp_format_cache = LRUCache(maxsize=500, ttl_seconds=60)
+        # Cache for calculated timestamps (text, start_ms) -> timestamp
+        self.timestamp_cache = LRUCache(maxsize=500, ttl_seconds=60)
+        # Sync correction factor for drift compensation (1.0 = no correction)
+        self.sync_correction_factor = 1.0
+
         self._history = []
         self._max_history = 10
-        self._previous_chunk_duration = 4
+        self._previous_chunk_duration = 5
         super().__init__("subtitle_generator", config)
 
     def configure(self, config: dict) -> None:
@@ -252,11 +261,27 @@ class SubtitleGenerator(BaseModule):
                         # ABSOLUTE timestamps: chunk_start + relative offset
                         abs_start = chunk_start_time + rel_start
                         abs_end = chunk_start_time + rel_end
+                        
+                        # Apply timestamp caching with sync correction
+                        cache_key = (clean_text, int(abs_start * 1000))  # text, start_ms
+                        cached_timestamp = self.timestamp_cache.get(cache_key)
+                        
+                        if cached_timestamp is not None:
+                            # Cache hit: use cached timestamp with sync correction
+                            corrected_start = cached_timestamp + (self.sync_correction_factor - 1.0) * abs_start
+                            corrected_end = cached_timestamp + (self.sync_correction_factor - 1.0) * abs_end + (abs_end - abs_start)
+                            logger.debug(f"Cache hit for subtitle: {clean_text[:20]}...")
+                        else:
+                            # Cache miss: calculate and store
+                            self.timestamp_cache.set(cache_key, abs_start)
+                            corrected_start = abs_start
+                            corrected_end = abs_end
+                            logger.debug(f"Cache miss for subtitle: {clean_text[:20]}...")
 
                         self._vtt_entries.append(
                             {
-                                "start": abs_start,  # ABSOLUTE timestamp!
-                                "end": abs_end,  # ABSOLUTE timestamp!
+                                "start": corrected_start,  # ABSOLUTE timestamp with sync correction!
+                                "end": corrected_end,  # ABSOLUTE timestamp with sync correction!
                                 "text": clean_text,
                                 "chunk_start": chunk_start_time,
                             }
@@ -297,3 +322,4 @@ class SubtitleGenerator(BaseModule):
             logger.error(f"Error writing chunk SRT: {e}")
 
         return data
+

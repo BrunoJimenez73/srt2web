@@ -49,6 +49,32 @@ async def get_status(request: Request) -> dict[str, Any]:
     network["caller_address"] = caller_address
     status["network"] = network
 
+    # Add subtitle sync information
+    subtitle_sync_config = config.get_section("subtitle_sync")
+    if subtitle_sync_config.get("enable_drift_detection", False):
+        if hasattr(pipeline, 'subtitle_sync_monitor') and pipeline.subtitle_sync_monitor:
+            monitor = pipeline.subtitle_sync_monitor
+            status["sync"] = {
+                "drift_ms": round(monitor.get_drift_ms(), 1),
+                "state": monitor.get_state(),
+                "correction_active": monitor.correction_active,
+                "threshold_ms": subtitle_sync_config.get("sync_correction_threshold", 500)
+            }
+        else:
+            status["sync"] = {
+                "drift_ms": 0,
+                "state": "in_sync",
+                "correction_active": False,
+                "threshold_ms": subtitle_sync_config.get("sync_correction_threshold", 500)
+            }
+    else:
+        status["sync"] = {
+            "drift_ms": 0,
+            "state": "in_sync",
+            "correction_active": False,
+            "threshold_ms": subtitle_sync_config.get("sync_correction_threshold", 500)
+        }
+
     return status
 
 

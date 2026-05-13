@@ -45,6 +45,11 @@ export const throughputHistory = signal<number[]>([]);
 /** Input type signal (srt/rtmp/file) - reactive */
 export const inputType = signal<"srt" | "rtmp" | "file">("srt");
 
+/** Subtitle sync signals (F30) */
+export const syncDriftMs = signal<number>(0);
+export const syncState = signal<'in_sync' | 'drifting' | 'correcting'>('in_sync');
+export const syncCorrectionActive = signal<boolean>(false);
+
 // ── Computed: Pipeline ────────────────────────────────────────────────────────
 
 export const pipelineState = computed<PipelineState>(() => {

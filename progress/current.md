@@ -29,4 +29,32 @@
 - pytest_tmp_manual/ existe en disco → Baja
 - startup_stdout.txt y startup_stderr.txt existen en raíz → Alta (no deberían)
 
-### Pendiente: decisión del usuario sobre si arreglar estos detalles o pasar a otra cosa
+## F30 Sincronización fina de subtítulos
+**Feature**: F30 Sincronización fina de subtítulos y optimización de rendimiento
+**Status**: done
+**Plan**:
+- Día 1-2: Backend core (cache, monitor, config, API)
+- Día 3: Frontend (signals, effects, badge)
+- Día 4: Tests e integración
+
+### Resumen
+- ✅ core/cache.py: LRUCache con TTL (max 500, TTL 60s)
+- ✅ modules/subtitle_generator.py: timestamp_cache + sync_correction_factor
+- ✅ core/subtitle_sync_monitor.py: detección de drift con exponential smoothing
+- ✅ core/app_context.py: registro del monitor en pipeline
+- ✅ core/config_schema.py: SubtitleSyncConfig (threshold, enable_drift_detection, history_size)
+- ✅ server/routes/pipeline.py: /status expone sync object (drift_ms, state, correction_active)
+- ✅ Frontend signals.ts: syncDriftMs, syncState, syncCorrectionActive
+- ✅ Frontend effects.ts: actualización automática desde pipelineStatus.sync
+- ✅ Frontend SubtitleCard.astro: badge con 3 estados (IN SYNC / DRIFT DETECTED / CORRECTING)
+- ✅ Tests: test_subtitle_sync_monitor.py (4 tests), test_subtitle_generator.py (4 tests)
+- ✅ init.ps1 -Quick: todos verdes, mypy 0 errores
+- ✅ TypeScript tsc --noEmit: 0 errores
+
+### Pendiente (futuro)
+- Conexión automática entre SubtitleSyncMonitor y SubtitleGenerator (sync_correction_factor)
+- Persistencia de estado post-crash
+- Latencia de subtítulo medida en logs
+
+**Bloqueadores**: Ninguno
+**Notas**: Ver IMPLEMENTACION_PASO_A_PASO.md para arquitectura completa

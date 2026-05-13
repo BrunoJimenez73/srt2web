@@ -4,7 +4,12 @@
   "rules": {
     "one_feature_at_a_time": true,
     "require_tests_to_close": true,
-    "valid_status": ["pending", "in_progress", "done", "blocked"]
+    "valid_status": [
+      "pending",
+      "in_progress",
+      "done",
+      "blocked"
+    ]
   },
   "features": [
     {
@@ -586,6 +591,71 @@
         ".playwright-mcp/ (eliminar del tracking, agregar a .gitignore)",
         "py_write_dir/, pytest_tmp_manual/ (eliminar)"
       ]
+    },
+    {
+      "id": 30,
+      "name": "subtitle_sync_and_performance",
+      "title": "Sincronización fina de subtítulos y optimización de rendimiento",
+      "status": "done",
+      "area": "rendimiento",
+      "priority": "Alta",
+      "description": "La sincronización de subtítulos puede desviarse bajo condiciones de carga alta, cambios de chunk_duration o desincronización de audio. No hay mecanismo de detección y corrección de drift. El módulo SubtitleGenerator no optimiza cálculos de timestamp. El caching de subtítulos está ausente. Falta monitoreo en tiempo real del desfase A/V.",
+      "problems_identified": [
+        "SubtitleGenerator calcula timestamps secuencialmente sin caché, causando latencia en volúmenes altos (100+ subtítulos/minuto)",
+        "No hay mecanismo de detección de drift entre audio y subtítulos durante la ejecución",
+        "chunk_duration dinámico sin ajuste automático de timings de subtítulos",
+        "Sin persistencia de estado de sincronización entre reintentos",
+        "Falta métrica de latencia de subtítulo (tiempo desde generación hasta renderizado)",
+        "AudioMixer puede introducir delays variables sin compensación en SubtitleGenerator",
+        "Sin warmup de modelos de timing para clips cortos",
+        "HLS segment timing no garantiza precisión al 100ms en subtítulos embebidos"
+      ],
+      "acceptance": [
+        "SubtitleGenerator implementa cache LRU para timestamps cálculados (max 500 entradas, TTL 60s)",
+        "Nuevo módulo SubtitleSyncMonitor que calcula drift A/V cada 10 subtítulos emitidos",
+        "Métrica sync_drift_ms en status endpoint (desviación actual en ms respecto a audio)",
+        "Si drift > 500ms, SubtitleGenerator ajusta timestamps automáticamente (drift_correction factor)",
+        "Config permite ajuste de sync_correction_threshold (default 500ms, min 100ms, max 2000ms)",
+        "Frontend muestra badge en SubtitleCard: 'IN SYNC' (verde), 'DRIFT DETECTED' (amarillo), 'CORRECTING' (azul)",
+        "Test unitario SubtitleSyncMonitor.test.py verifica detección de drift con ±50ms precisión",
+        "Latencia de subtítulo medida: timestamp_generated - timestamp_emitted < 200ms (verificable en logs)",
+        "Benchmarks: GenerateSubtitle con 1000 entradas no supera 50ms (fue ~150ms antes)",
+        "Persistencia: SubtitleState serializado a Redis/pickle si offset_correction aplicada (para recuperación post-crash)"
+      ],
+      "implementation_notes": [
+        "SubtitleSyncMonitor debe ser decorador del pipeline (F21 config push lo permite)",
+        "Use signal de sync_drift_ms en frontend/src/lib/store/signals.ts (similar a wsConnected)",
+        "Drift detection usa simple exponential smoothing: drift_smoothed = 0.7 * drift_prev + 0.3 * drift_actual",
+        "Cache invalidación: si chunk_duration cambia, limpiar cache (detectar en ConfigManager callback)",
+        "Tests deben incluir escenarios: (1) drift gradual, (2) salto abrupto, (3) corrección exitosa, (4) config changes"
+      ],
+      "files_to_touch": [
+        "modules/subtitle_generator.py (agregar LRU cache, sync_correction_factor)",
+        "core/subtitle_sync_monitor.py (nuevo módulo, detección de drift)",
+        "core/app_context.py (registrar SubtitleSyncMonitor como middleware)",
+        "core/config_schema.py (agregar sync_correction_threshold, enable_drift_detection)",
+        "server/api_routes.py (exponer sync_drift_ms en GET /api/status)",
+        "frontend/src/components/SubtitleCard.astro (mostrar badge de sync state)",
+        "frontend/src/lib/store/signals.ts (signal syncDriftMs, syncState: 'in_sync'|'drifting'|'correcting')",
+        "frontend/src/lib/store/effects.ts (efecto para actualizar señal de sync desde WebSocket)",
+        "tests/unit/test_subtitle_generator.py (tests de cache y timestamp)",
+        "tests/unit/test_subtitle_sync_monitor.py (nuevo, tests de drift detection)",
+        "tests/integration/test_sync_e2e.py (nuevo, test E2E de sincronización bajo carga)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "Cache tiene TTL y límite de size para evitar memory leaks",
+          "Drift correction es opcional (enable_drift_detection = false por default, habilitar vía config)",
+          "Fallback: si SubtitleSyncMonitor falla, pipeline continúa sin corrección (graceful degrade F17)",
+          "Cambios en signature de SubtitleGenerator mínimos (backward compatible)"
+        ]
+      },
+      "performance_expectations": {
+        "before_optimization": "~150ms para 1000 subts sin cache, sync check cada 30s (no existe)",
+        "after_optimization": "~50ms para 1000 subts con cache, sync check automático cada 10 subts, drift < 100ms en condiciones normales"
+      },
+      "order_hint": "Después de F24 (mypy strict) y F21 (config push WebSocket). Antes de F25 (frontend coverage)."
     }
   ]
 }
