@@ -293,105 +293,6 @@
       "name": "api_caching_layer",
       "title": "Capa de caché para endpoints frecuentes (status, config)",
       "status": "done",
-      "area": "rendimiento",
-      "priority": "Media",
-      "description": "Los endpoints /api/status y /api/config se llaman cada 3-10s vía polling HTTP. En pipelines largos (horas), esto genera cientos de requests que procesan la misma información. Una caché en memoria con invalidación por WebSocket reduciría carga innecesaria.",
-      "problems_identified": [
-        "/api/status se computa cada 3s (polling) pero rara vez cambia cada 3s",
-        "/api/config se solicita repetidamente aunque no haya cambios",
-        "Cada request de status recorre todo el pipeline para construir respuesta",
-        "core/cache.py existe (LRUCache con TTL) pero no se usa para API caching",
-        "WebSocket ya envía status updates, pero el polling HTTP duplica el trabajo"
-      ],
-      "acceptance": [
-        "Caché para GET /api/status con TTL 500ms (invalidado por WS status push)",
-        "Caché para GET /api/config con TTL 5s (invalidado por WS config_update)",
-        "Caché para GET /api/health con TTL 10s",
-        "Usar core/cache.py existente (LRUCache con TTL)",
-        "No cachear POST/PUT/DELETE (operaciones de escritura)",
-        "Header Cache-Control en respuestas cacheadas",
-        "Invalidación manual via event listener en ConfigManager changes",
-        "Test: test_api_cache.py verifica cache hits/misses"
-      ],
-      "files_to_touch": [
-        "core/cache.py (verificar API para caching, posiblemente extender)",
-        "server/routes/pipeline.py (aplicar cache a GET /status)",
-        "server/routes/config.py (aplicar cache a GET /config)",
-        "server/app.py (middleware de cache opcional o decorador en handlers)",
-        "tests/unit/test_api_cache.py (nuevo)"
-      ]
-    },
-    {
-      "id": 45,
-      "name": "multi_language_subtitles",
-      "title": "Soporte para múltiples tracks de subtítulos simultáneos",
-      "status": "done",
-      "area": "features",
-      "priority": "Media",
-      "description": "Actualmente solo se genera un track de subtítulos (original o traducido, según use_translated). Para audiencias multilingües, sería útil generar tracks simultáneos: original + traducido + segundos idiomas, servidos como subs_en.vtt, subs_es.vtt, etc.",
-      "problems_identified": [
-        "Un solo track de subtítulos (use_translated: true/false)",
-        "No hay soporte para múltiples idiomas de traducción simultáneos",
-        "Los subtítulos en diferentes idiomas no tienen URLs separadas",
-        "El reproductor HLS no puede seleccionar track de subtítulos",
-        "No hay configuración para idiomas adicionales en config.yaml"
-      ],
-      "acceptance": [
-        "SubtitleGenerator puede emitir múltiples tracks: original + traducido + extra",
-        "Nueva configuración: modules.subtitle_generator.additional_languages: [fr, de]",
-        "Archivos separados: subs.{lang}.vtt servidos estáticamente",
-        "HLS playlist master.m3u8 incluye entradas para cada track de subtítulos",
-        "Frontend: SubtitleCard muestra tracks disponibles con selector",
-        "Backward compatible: si no hay additional_languages, comportamiento actual",
-        "Test: test_multi_language_subtitles.py con 3 tracks simultáneos"
-      ],
-      "files_to_touch": [
-        "modules/subtitle_generator.py (múltiples tracks, nuevos formatos de salida)",
-        "core/config_schema.py (additional_languages en SubtitleGeneratorConfig)",
-        "modules/outputs/hls_output.py (incluir tracks en playlist HLS)",
-        "frontend/src/components/SubtitleCard.astro (selector de tracks)",
-        "tests/unit/test_subtitle_generator.py (tests multi-track)"
-      ]
-    },
-    {
-      "id": 46,
-      "name": "user_management_auth",
-      "title": "Sistema multi-usuario con login y roles",
-      "status": "done",
-      "area": "seguridad",
-      "priority": "Baja",
-      "description": "Actualmente la autenticación es token único global (server.auth_token). No hay distinción entre usuarios, ni roles (admin/operator/viewer), ni sesiones. Para entornos multi-operador, se necesita login, gestión de tokens por usuario, y roles con permisos.",
-      "problems_identified": [
-        "Un solo token de auth compartido entre todos los operadores",
-        "No hay login UI (solo token en localStorage o query param)",
-        "No hay roles: cualquier usuario auth puede parar el pipeline",
-        "No hay sesiones: no se puede revocar acceso de un usuario sin cambiar token global",
-        "No hay auditoría de qué usuario hizo qué acción"
-      ],
-      "acceptance": [
-        "Login page con usuario/contraseña (hash bcrypt almacenado en SQLite)",
-        "Roles: admin (todo), operator (start/stop/config), viewer (solo ver dashboard)",
-        "Tokens JWT por sesión con expiración configurable",
-        "Logout y revocación de tokens",
-        "Auditoría básica: log de qué usuario inició/paró pipeline",
-        "Backward compatible: si no hay users configurados, modo single-token actual",
-        "Test: test_auth_multi_user.py con simulación de roles"
-      ],
-      "files_to_touch": [
-        "server/routes/auth.py (nuevo, login/logout/register)",
-        "server/security.py (JWT validation, role checking middleware)",
-        "core/database.py (nuevo, SQLite init + user CRUD)",
-        "core/config_schema.py (users config section)",
-        "frontend/src/components/LoginPanel.astro (nuevo)",
-        "frontend/src/pages/login.astro (nuevo)",
-        "tests/unit/test_auth_multi_user.py (nuevo)"
-      ]
-    },
-    {
-      "id": 47,
-      "name": "cloud_export_s3_gcs",
-      "title": "Exportación automática de grabaciones a S3/GCS",
-      "status": "pending",
       "area": "features",
       "priority": "Baja",
       "description": "Las grabaciones locales pueden perderse o llenar el disco. La exportación automática a cloud storage (S3, GCS, Azure Blob) al completar una grabación permite almacenamiento duradero y accesible desde cualquier lugar.",
@@ -453,7 +354,7 @@
         "tests/unit/test_scheduler.py (nuevo)"
       ]
     },
-{
+    {
       "id": 49,
       "name": "load_testing_suite",
       "title": "Suite de tests de carga con locust para medir throughput máximo",
@@ -484,6 +385,14 @@
         "core/module_base.py (duration_ms en logging de procesos)",
         "tests/unit/test_structured_log.py (validar formato JSON)"
       ]
+    },
+    {
+      "id": 50,
+      "name": "structured_json_logging",
+      "title": "Logs estructurados en JSON",
+      "status": "done",
+      "area": "devops",
+      "priority": "Baja"
     },
     {
       "id": 51,
@@ -528,7 +437,7 @@
       "id": 52,
       "name": "e2e_playwright_tests",
       "title": "Tests E2E con Playwright para flujos críticos del dashboard",
-      "status": "pending",
+      "status": "done",
       "area": "testing",
       "priority": "Baja",
       "description": "Los tests E2E existentes (tests/e2e/) son pytest que verifican APIs. No hay tests que naveguen el dashboard real en un navegador. Se necesita Playwright para simular interacciones de usuario: iniciar pipeline, verificar estado de módulos, cambiar config, exportar logs.",
