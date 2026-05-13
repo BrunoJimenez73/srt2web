@@ -321,11 +321,11 @@
         "tests/unit/test_cloud_export.py (nuevo)"
       ]
     },
-    {
-      "id": 48,
-      "name": "stream_scheduling",
-      "title": "Programación de streams con calendario y reglas cron",
-      "status": "pending",
+{
+      "id": 46,
+      "name": "user_management_auth",
+      "title": "Sistema multi-usuario con login y roles",
+      "status": "done",
       "area": "features",
       "priority": "Baja",
       "description": "No hay forma de programar el inicio/parada del pipeline en horarios específicos. Operadores deben iniciar/detener manualmente. Un scheduler con reglas estilo cron permitiría automatizar streams recurrentes.",

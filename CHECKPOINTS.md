@@ -5,32 +5,32 @@
 
 ## C1 — feature_list.json consistente
 
-- [ ] ≤ 1 feature en `in_progress`
-- [ ] Toda feature `done` tiene tests asociados que pasan
-- [ ] No hay features con status inválido
+- [x] ≤ 1 feature en `in_progress` (ninguna actualmente)
+- [x] Toda feature `done` tiene tests asociados que pasan
+- [x] No hay features con status inválido
 
 ## C2 — init.ps1 pasa (checks obligatorios)
 
-- [ ] Python 3.12 disponible
-- [ ] Archivos base del arnés existen
-- [ ] feature_list.json válido
-- [ ] `pytest tests/unit/ -q --tb=short` → 0 failures
+- [x] Python 3.12 disponible
+- [x] Archivos base del arnés existen
+- [x] feature_list.json válido
+- [x] `pytest tests/unit/ -q --tb=short` → 0 failures
 
 ## C3 — init.ps1 pasa (checks opcionales)
 
-- [ ] `npx tsc --noEmit` (WARN ok)
-- [ ] `npm test` (WARN ok)
-- [ ] `npm run build:local` (WARN ok)
+- [x] `npx tsc --noEmit` (WARN ok)
+- [x] `npm test` (WARN ok)
+- [x] `npm run build:local` (WARN ok)
 
 ## C4 — Código limpio
 
-- [ ] Sin `print()`, `console.log()`, TODOs sin contexto en código nuevo
-- [ ] Sin archivos temporales ni `__pycache__` fuera de `.gitignore`
-- [ ] Sin archivos sueltos en raíz (package.json, package-lock.json, skills-lock.json)
+- [x] Sin `print()`, `console.log()`, TODOs sin contexto en código nuevo
+- [x] Sin archivos temporales ni `__pycache__` fuera de `.gitignore`
+- [x] Sin archivos sueltos en raíz (package.json, package-lock.json, skills-lock.json)
 
 ## C5 — Sesión cerrada correctamente
 
-- [ ] `progress/current.md` refleja estado real o está vacío (plantilla)
-- [ ] `progress/history.md` tiene entrada de la última sesión
-- [ ] `feature_list.json` actualizado (in_progress → done según corresponda)
-- [ ] Sin cambios sin commit si la sesión terminó
+- [x] `progress/current.md` refleja estado real
+- [x] `progress/history.md` tiene entrada de la última sesión
+- [x] `feature_list.json` actualizado — todas las features implementadas están en `done`
+- [x] Sin cambios sin commit — todos los cambios pusheados

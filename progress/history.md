@@ -127,3 +127,47 @@
 ### Próximo paso
 
 Implementar F34 (i18n Integration) siguiendo el plan en progress/current.md.
+
+## 2026-05-13/14 — Sesión completa: 15 features implementadas
+
+### Features implementadas
+
+| ID | Feature | Commits |
+|----|---------|---------|
+| F34 | i18n Integration UI | `0824dbd` |
+| F35 | Reactive Components Refactor | `0824dbd` |
+| F36 | HLS Audio Passthrough Fix | `0824dbd` |
+| F37 | Robust Config Validation | `0824dbd` |
+| F38 | Webhook Notifications | `0824dbd` |
+| F39 | Recording Manager | `2f00207` |
+| F40 | Theme Switcher UI | `a580171` |
+| F41 | Keyboard Shortcuts UI | `3c9aa4a` |
+| F42 | PWA Support | `3c38ecd` |
+| F43 | Prometheus Metrics | `07cf25d` |
+| F44 | API Caching Layer | `1d1efb0` |
+| F45 | Multi-Language Subtitles | `6a889ad` |
+| F46 | User Management & Auth | `592875a` |
+| F49 | Load Testing Suite | `d882644` |
+| F52 | E2E Playwright Tests | `1d1efb0` |
+
+### Archivos nuevos creados
+
+- `core/auth_db.py`, `core/webhook_manager.py`, `core/metrics_collector.py`
+- `server/routes/auth.py`, `server/routes/recordings.py`, `server/routes/metrics.py`
+- `tests/load/locustfile.py`, `tests/unit/test_webhook_manager.py`
+- `tests/unit/test_recording_manager.py`, `tests/unit/test_auth_multi_user.py`
+- `tests/unit/test_api_cache.py`, `tests/unit/test_metrics_endpoint.py`
+- `frontend/e2e/*.spec.ts`, `frontend/playwright.config.ts`
+- `frontend/public/service-worker.js`, `frontend/public/manifest.json`, `frontend/public/icons/*.svg`
+- `.github/workflows/playwright.yml`
+
+### Verificación final
+
+- `pytest tests/unit/` → 0 failures
+- `mypy core/ server/ --strict` → 0 errores
+- `npx tsc --noEmit` → 0 errores
+- `git push` → origin/main actualizado
+
+### Pendientes
+
+F47 (Cloud Export), F48 (Stream Scheduling), F50 (Structured JSON Logging), F51 (Helm Chart), F53 (Bundle Opt), F54 (Visual Regression).
