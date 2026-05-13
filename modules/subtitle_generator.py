@@ -72,7 +72,8 @@ class SubtitleGenerator(BaseModule):
             self._last_cumulative = 0.0
             with self._lock:
                 self._vtt_entries.clear()
-            self._rewrite_vtt_file()
+            if self._vtt_path and str(self._vtt_path) != ".":
+                self._rewrite_vtt_file()
         self._chunk_duration = new_chunk_duration
         self._previous_chunk_duration = new_chunk_duration
         # Rolling window settings
