@@ -1,1 +1,0 @@
-async function a(e){try{return await navigator.clipboard.writeText(e),!0}catch{return!1}}function n(e,o="info"){const t=document.createElement("div");t.className=`toast toast-${o}`,t.textContent=e,document.body.appendChild(t),setTimeout(()=>t.remove(),3e3)}export{a as c,n as s};

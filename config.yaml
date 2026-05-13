@@ -33,12 +33,12 @@ output:
     segment_duration: 6
     list_size: 10
     audio_offset_ms: 0
-    encoder_mode: auto
+    encoder_mode: passthrough
   hls:
     segment_duration: 6
     list_size: 10
     audio_offset_ms: 0
-    encoder_mode: auto
+    encoder_mode: passthrough
   rtmp:
     url: rtmp://localhost/live/stream
     video_bitrate: 2500k
@@ -79,7 +79,7 @@ output:
   outputs: []
 pipeline:
   chunk_duration_sec: 6
-  mode: sequential
+  mode: thread_parallel
   max_concurrent_chunks: 4
   buffer_size: 10
   retry_attempts: 3
@@ -89,7 +89,7 @@ modules:
     enabled: true
   transcriber:
     enabled: true
-    model: tiny
+    model: small
     language: auto
     device: auto
     beam_size: 2
@@ -116,10 +116,10 @@ modules:
   video_muxer:
     enabled: true
     engine: hls
-    hls_segment_duration: 2
-    hls_list_size: 2
+    hls_segment_duration: 6
+    hls_list_size: 10
     audio_offset_ms: 0
-    encoder_mode: auto
+    encoder_mode: passthrough
     video_quality: medium
     video_crf: 23
     audio_codec: aac
