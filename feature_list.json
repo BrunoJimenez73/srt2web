@@ -74,6 +74,46 @@
       "status": "done"
     },
     {
+      "id": 36,
+      "name": "hls_audio_passthrough_fix",
+      "title": "Fix audio passthrough en HLS cuando TTS est\u00e1 deshabilitado",
+      "status": "done",
+      "area": "rendimiento",
+      "priority": "Alta",
+      "description": "F31 activ\u00f3 encoder_mode: passthrough para video (-c:v copy), pero cuando TTS est\u00e1 disabled, el audio del HLS output se recodifica innecesariamente. El audio de entrada ya est\u00e1 en AAC y no necesita recodificaci\u00f3n. Falta detecci\u00f3n de TTS state para decidir si usar -c:a copy o mantener el mix actual.",
+      "problems_identified": [
+        "hls_output.py usa -c:a aac siempre, incluso cuando TTS est\u00e1 disabled y no hay mezcla",
+        "La recodificaci\u00f3n de audio a\u00f1ade latencia innecesaria (~100-200ms) cuando no hay TTS",
+        "No hay detecci\u00f3n del estado del m\u00f3dulo tts_engine en la l\u00f3gica de encoding de HLS",
+        "El modo passthrough parcial (video s\u00ed, audio no) es inconsistente",
+        "config.yaml tiene encoder_mode: passthrough en output.web y output.hls pero no cubre audio"
+      ],
+      "acceptance": [
+        "HLS output detecta si TTS est\u00e1 habilitado desde pipeline context",
+        "Si TTS disabled: usa -c:a copy adem\u00e1s de -c:v copy (sin recodificaci\u00f3n de audio)",
+        "Si TTS enabled: mantiene comportamiento actual con mixer de audio",
+        "Latencia de audio reducida ~100-200ms cuando TTS est\u00e1 disabled",
+        "Test: verificar que FFmpeg command incluye -c:a copy cuando TTS disabled",
+        "init.ps1 pasa verde tras el cambio"
+      ],
+      "files_to_touch": [
+        "modules/outputs/hls_output.py (detectar TTS state, conditional -c:a copy)",
+        "tests/unit/test_hls_output.py (test para comando FFmpeg con/sin TTS)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "Si el codec de entrada no es compatible con copy, FFmpeg falla con error claro",
+          "Se puede revertir instant\u00e1neamente deshabilitando passthrough",
+          "C\u00f3digo existente ya maneja ambos caminos (fast/slow path)"
+        ]
+      },
+      "performance_expectations": {
+        "before_optimization": "~100-200ms por chunk para recodificaci\u00f3n de audio AAC",
+        "after_optimization": "~0ms (copy directo sin recodificar)"
+      }
+    },
+    {
       "id": 38,
       "name": "webhook_notifications",
       "title": "Sistema de webhooks para notificaciones de eventos del pipeline",

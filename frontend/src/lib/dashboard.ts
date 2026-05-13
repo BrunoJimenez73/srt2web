@@ -29,8 +29,21 @@ export {
 
 // Initialize i18n language
 import { initLanguage } from "./i18n";
-import { currentLanguage } from "./store/signals";
+import { currentLanguage, currentTheme } from "./store/signals";
 currentLanguage.value = initLanguage();
+
+// Initialize theme
+const storedTheme = typeof window !== "undefined" ? localStorage.getItem("srt2web_theme") : null;
+if (storedTheme === "light" || storedTheme === "dark") {
+  currentTheme.value = storedTheme;
+  document.documentElement.classList.toggle("dark", storedTheme === "dark");
+} else if (typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: light)").matches) {
+  currentTheme.value = "light";
+  document.documentElement.classList.remove("dark");
+} else {
+  currentTheme.value = "dark";
+  document.documentElement.classList.add("dark");
+}
 
 // Re-export config functions from config-collector
 export {

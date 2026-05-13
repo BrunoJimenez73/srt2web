@@ -184,6 +184,9 @@ export const cpuAlertActive = signal<boolean>(false);
 /** Current UI language */
 export const currentLanguage = signal<"en" | "es">("en");
 
+/** Current UI theme */
+export const currentTheme = signal<"dark" | "light">("dark");
+
 // ── Presets (F19) ─────────────────────────────────────────────────
 
 /** List of available presets (built-in + saved) */

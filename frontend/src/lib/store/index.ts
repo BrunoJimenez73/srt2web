@@ -34,6 +34,7 @@ export {
   presets,
   selectedPreset,
   currentLanguage,
+  currentTheme,
 } from "./signals";
 
 // Effects (DOM update subscriptions)

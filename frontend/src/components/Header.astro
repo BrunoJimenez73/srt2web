@@ -26,6 +26,11 @@ const { version = 'Astro' } = Astro.props;
   </div>
 
   <div class="header-right">
+    <!-- Theme Toggle -->
+    <button class="btn-theme" id="btn-theme-toggle" aria-label="Toggle theme">
+      <span id="theme-icon">🌙</span>
+    </button>
+
     <!-- Language Selector -->
     <select class="lang-select" id="lang-select" aria-label={t("language_selector")}>
       <option value="en">🇬🇧 EN</option>
@@ -136,6 +141,24 @@ const { version = 'Astro' } = Astro.props;
   .lang-select option {
     background: var(--bg-surface);
     color: var(--text-prime);
+  }
+
+  .btn-theme {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    color: var(--text-prime);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    cursor: pointer;
+    line-height: 1;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+  }
+
+  .btn-theme:hover {
+    border-color: var(--accent);
   }
 
   .btn-docs {
@@ -476,6 +499,26 @@ const { version = 'Astro' } = Astro.props;
     langSelect.addEventListener('change', () => {
       localStorage.setItem('srt2web_language', langSelect.value);
       location.reload();
+    });
+  }
+
+  // Theme toggle: change → persist (no reload)
+  const themeBtn = document.getElementById('btn-theme-toggle') as HTMLButtonElement;
+  const themeIcon = document.getElementById('theme-icon') as HTMLSpanElement;
+  if (themeBtn) {
+    const isDark = document.documentElement.classList.contains('dark');
+    themeIcon.textContent = isDark ? '🌙' : '☀️';
+    themeBtn.addEventListener('click', () => {
+      const currentlyDark = document.documentElement.classList.contains('dark');
+      if (currentlyDark) {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('srt2web_theme', 'light');
+        themeIcon.textContent = '☀️';
+      } else {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('srt2web_theme', 'dark');
+        themeIcon.textContent = '🌙';
+      }
     });
   }
 

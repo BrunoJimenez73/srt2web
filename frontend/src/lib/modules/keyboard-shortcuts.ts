@@ -51,14 +51,17 @@ const shortcuts: ShortcutDefinition[] = [
       // Toggle dark mode
       const htmlElement = document.documentElement;
       const isDark = htmlElement.classList.contains("dark");
+      const themeIcon = document.getElementById("theme-icon") as HTMLSpanElement | null;
 
       if (isDark) {
         htmlElement.classList.remove("dark");
         localStorage.setItem("srt2web_theme", "light");
+        if (themeIcon) themeIcon.textContent = "☀️";
         showToast(t("light_mode_on"), "info");
       } else {
         htmlElement.classList.add("dark");
         localStorage.setItem("srt2web_theme", "dark");
+        if (themeIcon) themeIcon.textContent = "🌙";
         showToast(t("dark_mode_on"), "info");
       }
     },

@@ -1,6 +1,6 @@
 # Sesión activa — 2026-05-13
 
-**Estado:** 5 features completadas (F34-F38)
+**Estado:** F36 completada (sesión 2026-05-14: cleanup + tests + bugfix)
 **Iniciada:** 2026-05-13
 
 ## Features completadas hoy
@@ -9,7 +9,7 @@
 | --- | ---------------------------- | ------------------------------------- | ---------- |
 | F34 | i18n Integration UI          | 14 archivos                           | ✅         |
 | F35 | Reactive Components Refactor | 7 archivos (effects.ts 837→143 lines) | ✅         |
-| F36 | HLS Audio Passthrough Fix    | 1 archivo (1 línea)                   | ✅         |
+| F36 | HLS Audio Passthrough Fix    | 3 archivos (dead code + test + mypy fix) | ✅ 11 tests |
 | F37 | Robust Config Validation     | 3 archivos                            | ✅         |
 | F38 | Webhook Notifications        | 4 archivos + 1 nuevo                  | ✅ 5 tests |
 
@@ -47,6 +47,14 @@
 - [x] feature_list.json válido
 - [x] init.ps1 -Quick → OK
 
+## Detalle F36 (2026-05-14)
+
+- `modules/outputs/hls_output.py`: Eliminado if/else muerto en `write()` (ambas ramas idénticas)
+- `core/unified_pipeline.py`: Fix `try/except` mal formado en `_set_state()` — `except` huérfano sin `try`
+- `tests/unit/test_hls_output.py`: Nuevo test `test_passthrough_uses_copy_when_tts_disabled`
+- `feature_list.json`: Añadida entrada F36 con status `done`
+- Verificación: pytest HLS tests OK, mypy 0 errores
+
 ## Próximo paso
 
-Implementar F39 (Recording Manager) o revisar lo completado hasta ahora.
+F39 (Recording Manager) o siguiente feature pendiente.
