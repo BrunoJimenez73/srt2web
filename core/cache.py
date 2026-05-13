@@ -16,7 +16,6 @@ class LRUCache:
         if key in self.cache:
             value, timestamp = self.cache[key]
             if time.time() - timestamp < self.ttl_seconds:
-                # Move to end (LRU)
                 self.cache.move_to_end(key)
                 return value
             else:
@@ -27,18 +26,54 @@ class LRUCache:
         if key in self.cache:
             del self.cache[key]
         elif len(self.cache) >= self.maxsize:
-            # Remove oldest (first item in OrderedDict)
             self.cache.popitem(last=False)
-
         self.cache[key] = (value, time.time())
 
     def clear(self) -> None:
         self.cache.clear()
 
+    def invalidate(self, key: Any) -> None:
+        self.cache.pop(key, None)
 
-# Tests mínimos:
-if __name__ == "__main__":
-    cache = LRUCache(maxsize=3, ttl_seconds=1)
-    cache.set("a", 1)
-    assert cache.get("a") == 1
-    print("✓ LRUCache básico funciona")
+
+class APICache:
+    """
+    Named caches for API endpoints.
+
+    Provides per-endpoint caching with configurable TTLs
+    and bulk invalidation by endpoint name.
+    """
+
+    def __init__(self) -> None:
+        self._caches: dict[str, LRUCache] = {}
+
+    def _get_or_create(self, name: str, ttl_seconds: int, maxsize: int = 1) -> LRUCache:
+        if name not in self._caches:
+            self._caches[name] = LRUCache(maxsize=maxsize, ttl_seconds=ttl_seconds)
+        return self._caches[name]
+
+    def get(self, name: str, key: str = "default") -> Optional[Any]:
+        cache = self._caches.get(name)
+        if cache is None:
+            return None
+        return cache.get(key)
+
+    def set(self, name: str, value: Any, key: str = "default") -> None:
+        cache = self._caches.get(name)
+        if cache is not None:
+            cache.set(key, value)
+
+    def ensure(self, name: str, ttl_seconds: int, maxsize: int = 1) -> None:
+        self._get_or_create(name, ttl_seconds, maxsize)
+
+    def invalidate(self, name: str) -> None:
+        cache = self._caches.get(name)
+        if cache is not None:
+            cache.clear()
+
+    def invalidate_all(self) -> None:
+        for cache in self._caches.values():
+            cache.clear()
+
+
+api_cache = APICache()
