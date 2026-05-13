@@ -8,6 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
+from core.cache import cached, invalidate_cache
 from server.validators import ChunkDurationRequest, ConfigUpdate, validate_module_dependencies
 
 logger = logging.getLogger("srt2web.api.config")
@@ -128,6 +129,7 @@ async def delete_preset(request: Request, name: str) -> dict[str, Any]:
 
 
 @router.get("/config")
+@cached("config", ttl_seconds=5)
 async def get_config(request: Request) -> dict[str, Any]:
     """Get current configuration."""
     ctx = _ctx(request)
@@ -154,10 +156,11 @@ async def update_config(request: Request, body: ConfigUpdate) -> dict[str, Any]:
     try:
         config.update_from_dict(body.config)
         config.save()
-        # Hot reload: force reload from disk to avoid stale cache
         config.reload()
     except ValueError as e:
         logger.warning(f"Invalid config but accepting anyway: {e}")
+        invalidate_cache("config")
+        invalidate_cache("status")
         return {"status": "updated", "config": config.to_dict(), "warning": str(e)}
     except Exception as e:
         logger.error(f"Failed to save config: {e}")
@@ -171,6 +174,8 @@ async def update_config(request: Request, body: ConfigUpdate) -> dict[str, Any]:
         logger.error(f"Failed to reconfigure pipeline: {e}")
         raise HTTPException(500, f"Pipeline reconfiguration failed: {e}")
 
+    invalidate_cache("config")
+    invalidate_cache("status")
     return {"status": "updated", "config": config.to_dict()}
 
 
@@ -242,6 +247,8 @@ async def update_chunk_duration(request: Request, body: ChunkDurationRequest) ->
     except Exception as e:
         logger.warning(f"[CHUNK] Pipeline reconfigure failed (may not be running): {e}")
 
+    invalidate_cache("config")
+    invalidate_cache("status")
     return {
         "status": "updated",
         "chunk_duration_sec": chunk_duration,

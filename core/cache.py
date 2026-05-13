@@ -77,3 +77,46 @@ class APICache:
 
 
 api_cache = APICache()
+
+
+# ── Cached decorator for FastAPI endpoints ───────────────────────────────
+
+from functools import wraps
+from typing import Any, Callable, TypeVar
+
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+def cached(name: str, ttl_seconds: int = 2, maxsize: int = 1) -> Callable[[F], F]:
+    """
+    Decorador que cachea la respuesta de un endpoint.
+
+    Args:
+        name: Nombre del cache (ej: "status", "config")
+        ttl_seconds: Tiempo de vida del cache en segundos
+        maxsize: Máximo de entradas cacheadas
+
+    Uso:
+        @router.get("/status")
+        @cached("status", ttl_seconds=1)
+        async def get_status():
+            ...
+    """
+    api_cache.ensure(name, ttl_seconds, maxsize)
+
+    def decorator(func: F) -> F:
+        @wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            cached_value = api_cache.get(name)
+            if cached_value is not None:
+                return cached_value
+            result = await func(*args, **kwargs)
+            api_cache.set(name, result)
+            return result
+        return wrapper  # type: ignore[return-value]
+    return decorator
+
+
+def invalidate_cache(name: str) -> None:
+    """Invalidate a named cache (call from write endpoints)."""
+    api_cache.invalidate(name)

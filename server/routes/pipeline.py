@@ -10,6 +10,7 @@ from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, Request
 
+from core.cache import cached, invalidate_cache
 from server.validators import SeekPosition
 
 logger = logging.getLogger("srt2web.api.pipeline")
@@ -35,6 +36,7 @@ def _ctx(request: Request) -> dict[str, Any]:
 
 
 @router.get("/status")
+@cached("status", ttl_seconds=1)
 async def get_status(request: Request) -> dict[str, Any]:
     """Get full pipeline status including all modules and input/output."""
     ctx = _ctx(request)
@@ -178,6 +180,7 @@ async def start_pipeline(request: Request) -> dict[str, Any]:
     if input_source:
         input_info = input_source.get_connection_info()
 
+    invalidate_cache("status")
     return {"status": "started", "input": input_info}
 
 
@@ -245,6 +248,7 @@ async def stop_pipeline(request: Request) -> dict[str, Any]:
             except OSError:
                 pass
 
+    invalidate_cache("status")
     return {"status": "stopped"}
 
 
