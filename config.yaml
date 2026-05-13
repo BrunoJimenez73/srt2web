@@ -14,29 +14,29 @@ input:
     mode: listener
     latency_ms: 200
     caller_address: ''
-    chunk_duration_sec: 15
+    chunk_duration_sec: 6
   rtmp:
     listen_port: 1935
     app: live
     stream_key: stream
     url: ''
     mode: listener
-    chunk_duration_sec: 15
+    chunk_duration_sec: 6
   file:
     path: ''
     loop: false
     speed: 1.0
-    chunk_duration_sec: 15
+    chunk_duration_sec: 6
 output:
   type: web
   web:
-    segment_duration: 15
-    list_size: 6
+    segment_duration: 6
+    list_size: 10
     audio_offset_ms: 0
     encoder_mode: auto
   hls:
-    segment_duration: 15
-    list_size: 6
+    segment_duration: 6
+    list_size: 10
     audio_offset_ms: 0
     encoder_mode: auto
   rtmp:
@@ -78,7 +78,7 @@ output:
     video_preset: fast
   outputs: []
 pipeline:
-  chunk_duration_sec: 15
+  chunk_duration_sec: 6
   mode: thread_parallel
   max_concurrent_chunks: 4
   buffer_size: 5
@@ -101,7 +101,7 @@ modules:
     enabled: true
     format: webvtt
     use_translated: true
-    chunk_duration: 15
+    chunk_duration: 6
   tts_engine:
     enabled: false
     engine: edge-tts
@@ -117,7 +117,7 @@ modules:
     enabled: true
     engine: hls
     hls_segment_duration: 15
-    hls_list_size: 6
+    hls_list_size: 10
     audio_offset_ms: 0
     encoder_mode: auto
     video_quality: medium

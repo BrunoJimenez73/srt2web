@@ -162,15 +162,40 @@ class HLSOutput(OutputSink):
 
         encoder_mode = self._encoder_config.encoder_mode
 
-        # ── Fast path: passthrough sin TTS → copiar archivo, sin FFmpeg ──
+        # ── Fast path: passthrough sin TTS → FFmpeg solo remux (copy + PTS offset) ──
+        # Necesitamos -output_ts_offset para que los PTS del segmento alineen con
+        # los timestamps absolutos del VTT de subtítulos.
         if encoder_mode == "passthrough" and not audio_input:
-            import shutil
             segment_name = f"seg_{self._segment_index:06d}.ts"
             segment_path = os.path.join(self._hls_dir, segment_name)
+            cmd = [
+                self._ffmpeg_path, "-y",
+                "-i", input_path,
+                "-c:v", "copy",
+                "-c:a", "copy",
+                "-output_ts_offset", offset_sec,
+                "-f", "mpegts",
+                segment_path,
+            ]
             try:
-                shutil.copy2(input_path, segment_path)
+                result = subprocess.run(
+                    cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    timeout=60,
+                    creationflags=(subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0),
+                )
+                if result.returncode != 0:
+                    self.logger.error(f"FFmpeg mux error: {result.stderr[-500:]}")
+                    self._set_error(f"FFmpeg exit code {result.returncode}")
+                    return
+            except subprocess.TimeoutExpired:
+                self.logger.error("FFmpeg mux timed out")
+                self._set_error("FFmpeg mux timed out")
+                return
             except Exception as e:
-                self.logger.error(f"Failed to copy HLS segment: {e}")
+                self.logger.error(f"FFmpeg mux exception: {e}")
                 self._set_error(str(e))
                 return
 
@@ -183,7 +208,7 @@ class HLSOutput(OutputSink):
             self._update_write_stats(seg_size)
             self._clear_error()
             self.logger.info(
-                f"HLS segment written (copy): {segment_name} (duration={chunk_duration:.3f}s, process_time={elapsed:.1f}ms)"
+                f"HLS segment written (remux): {segment_name} (duration={chunk_duration:.3f}s, process_time={elapsed:.1f}ms)"
             )
             self._segment_index += 1
             return

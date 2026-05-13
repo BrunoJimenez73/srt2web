@@ -60,15 +60,20 @@ class TestConfigHotReloadOnUpdate:
         manager = ConfigManager(config_path)
         
         original_value = manager.get('pipeline.chunk_duration_sec')
+        assert original_value is not None, "Original chunk_duration should not be None"
         
-        new_value = 15
+        new_value = 30
         manager.set('pipeline.chunk_duration_sec', new_value)
         manager.save()
         manager.reload()
         
         reloaded_value = manager.get('pipeline.chunk_duration_sec')
         
-        assert reloaded_value is not None
+        assert reloaded_value == new_value, f"Expected {new_value}, got {reloaded_value}"
+        
+        # Restore original value to avoid side effects on other tests
+        manager.set('pipeline.chunk_duration_sec', original_value)
+        manager.save()
 
 
 class TestConfigCachePrevention:

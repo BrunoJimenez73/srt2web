@@ -202,22 +202,26 @@ async def update_chunk_duration(request: Request, body: ChunkDurationRequest) ->
 
     # Sync pipeline
     config.set("pipeline.chunk_duration_sec", chunk_duration)
+    config.set("pipeline.mode", "thread_parallel")
+    config.set("pipeline.max_concurrent_chunks", 4)
     # Sync input types
     config.set("input.srt.chunk_duration_sec", chunk_duration)
     config.set("input.rtmp.chunk_duration_sec", chunk_duration)
     config.set("input.file.chunk_duration_sec", chunk_duration)
-    # Sync web/hls output
+    # Sync web/hls output (passthrough para evitar recodificación)
     config.set("output.web.segment_duration", chunk_duration)
     config.set("output.web.list_size", calculated_list_size)
+    config.set("output.web.encoder_mode", "passthrough")
     config.set("output.hls.segment_duration", chunk_duration)
     config.set("output.hls.list_size", calculated_list_size)
+    config.set("output.hls.encoder_mode", "passthrough")
     # Sync video_muxer
     config.set("modules.video_muxer.hls_segment_duration", chunk_duration)
     config.set("modules.video_muxer.hls_list_size", calculated_list_size)
+    config.set("modules.video_muxer.encoder_mode", "passthrough")
     # Sync subtitle generator
     config.set("modules.subtitle_generator.chunk_duration", chunk_duration)
-    # Sync named outputs
-    # (handled by schema validator on save/reload)
+    # Sync named outputs (handled by schema validator on save/reload)
 
     logger.info(
         f"[CHUNK] Syncing chunk_duration={chunk_duration}s, " f"list_size={calculated_list_size} to all modules"
@@ -240,13 +244,19 @@ async def update_chunk_duration(request: Request, body: ChunkDurationRequest) ->
         "chunk_duration_sec": chunk_duration,
         "list_size": calculated_list_size,
         "buffer_sec": chunk_duration * calculated_list_size,
+        "encoder_mode": "passthrough",
+        "pipeline_mode": "thread_parallel",
         "synced_to": [
             "pipeline.chunk_duration_sec",
+            "pipeline.mode",
+            "pipeline.max_concurrent_chunks",
             "input.srt/rtmp/file.chunk_duration_sec",
             "output.web/hls.segment_duration",
             "output.web/hls.list_size",
+            "output.web/hls.encoder_mode",
             "modules.video_muxer.hls_segment_duration",
             "modules.video_muxer.hls_list_size",
+            "modules.video_muxer.encoder_mode",
             "modules.subtitle_generator.chunk_duration",
         ],
     }
