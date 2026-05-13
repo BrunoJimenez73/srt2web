@@ -1,0 +1,86 @@
+site_name: SRT2Web
+site_description: Streaming en tiempo real con subtítulos y traducción automática
+site_author: BrunoJimenez73
+site_url: https://brunojimenez73.github.io/srt2web/
+docs_dir: .
+
+# Repository
+repo_name: BrunoJimenez73/srt2web
+repo_url: https://github.com/BrunoJimenez73/srt2web
+edit_uri: edit/main/docs/
+
+# Theme
+theme:
+  name: material
+  language: es
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - toc.integrate
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+# Plugins
+plugins:
+  - search:
+      lang:
+        - es
+        - en
+  - mermaid2:
+      version: 10.6.0
+      arguments:
+        theme: default
+
+# Extensions
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - admonition
+  - pymdownx.details
+  - pymdownx.mark
+  - attr_list
+  - md_in_html
+  - tables
+
+# Navigation
+nav:
+  - Inicio: index.md
+  - Despliegue: deployment.md
+  - Arquitectura: architecture.md
+  - Sistema de Salidas: outputs.md
+  - CLI: cli.md
+  - Nuevo Modulo: new_module_guide.md
+  - Contribuir: contributing.md
+
+# Options
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/BrunoJimenez73/srt2web
+  generator: false
+
+watch:
+  - .
