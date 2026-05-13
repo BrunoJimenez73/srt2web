@@ -2,6 +2,7 @@ site_name: SRT2Web
 site_description: Streaming en tiempo real con subtítulos y traducción automática
 site_author: BrunoJimenez73
 site_url: https://brunojimenez73.github.io/srt2web/
+docs_dir: .
 
 # Repository
 repo_name: BrunoJimenez73/srt2web
@@ -82,4 +83,4 @@ extra:
   generator: false
 
 watch:
-  - docs
+  - .

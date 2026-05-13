@@ -45,6 +45,9 @@ export const throughputHistory = signal<number[]>([]);
 /** Input type signal (srt/rtmp/file) - reactive */
 export const inputType = signal<"srt" | "rtmp" | "file">("srt");
 
+/** Emitter address for remote mode */
+export const emitterAddress = signal<string>("");
+
 /** Subtitle sync signals (F30) */
 export const syncDriftMs = signal<number>(0);
 export const syncState = signal<"in_sync" | "drifting" | "correcting">(
@@ -115,10 +118,11 @@ export const systemMetrics = computed(() => {
 
 export const connectionUrls = computed(() => {
   const cfg = pipelineConfig.value;
+  // Read emitterAddress signal for reactivity (silence unused warning)
+  void emitterAddress.value;
   const host =
     connectionMode.value === "remote"
-      ? (document.getElementById("emitter-address") as HTMLInputElement)
-          ?.value || "localhost"
+      ? emitterAddress.value || "localhost"
       : "127.0.0.1";
 
   const inputTypeValue = pipelineConfig.value?.input?.type ?? "srt";
