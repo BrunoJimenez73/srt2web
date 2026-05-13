@@ -18,6 +18,7 @@ from core.config_schema import (
     SRT2WebConfig,
 )
 
+
 @pytest.mark.unit
 class TestDefaultConfigSnapshot:
     """Snapshot tests para la configuracion por defecto."""

@@ -105,10 +105,10 @@ def _register_modules(
     chunk_duration: int,
 ) -> None:
     """Register all processing modules with the pipeline."""
+    from core.subtitle_sync_monitor import SubtitleSyncMonitor
     from modules.audio_extractor import AudioExtractor
     from modules.audio_mixer import AudioMixer
     from modules.subtitle_generator import SubtitleGenerator
-    from core.subtitle_sync_monitor import SubtitleSyncMonitor
     from modules.transcriber import Transcriber
     from modules.translator import Translator
     from modules.tts_engine import TTSEngine
@@ -133,12 +133,11 @@ def _register_modules(
 
         module = module_class(**kwargs)
         pipeline.register_module(module)
-    
+
     # Register subtitle sync monitor as a special module (doesn't process data, just monitors)
     sync_config = config_manager.get_section("subtitle_sync")
     sync_monitor = SubtitleSyncMonitor(
-        threshold_ms=sync_config.get("sync_correction_threshold", 500),
-        smoothing_factor=0.7
+        threshold_ms=sync_config.get("sync_correction_threshold", 500), smoothing_factor=0.7
     )
     # Store reference in pipeline for access
     pipeline.subtitle_sync_monitor = sync_monitor  # type: ignore[attr-defined]

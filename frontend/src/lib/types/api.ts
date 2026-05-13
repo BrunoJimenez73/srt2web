@@ -381,7 +381,7 @@ export type AudioCodec = "aac" | "mp3" | "opus";
 
 export interface SyncStatus {
   drift_ms: number;
-  state: 'in_sync' | 'drifting' | 'correcting';
+  state: "in_sync" | "drifting" | "correcting";
   correction_active: boolean;
   threshold_ms: number;
 }

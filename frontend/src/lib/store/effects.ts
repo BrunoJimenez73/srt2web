@@ -773,7 +773,7 @@ function startSyncEffects(): void {
     const status = pipelineStatus.value;
     if (status && status.sync) {
       syncDriftMs.value = status.sync.drift_ms ?? 0;
-      syncState.value = status.sync.state ?? 'in_sync';
+      syncState.value = status.sync.state ?? "in_sync";
       syncCorrectionActive.value = status.sync.correction_active ?? false;
     }
   });

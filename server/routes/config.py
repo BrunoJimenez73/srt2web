@@ -220,8 +220,7 @@ async def update_chunk_duration(request: Request, body: ChunkDurationRequest) ->
     # (handled by schema validator on save/reload)
 
     logger.info(
-        f"[CHUNK] Syncing chunk_duration={chunk_duration}s, "
-        f"list_size={calculated_list_size} to all modules"
+        f"[CHUNK] Syncing chunk_duration={chunk_duration}s, " f"list_size={calculated_list_size} to all modules"
     )
 
     try:

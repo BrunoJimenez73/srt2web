@@ -9,10 +9,7 @@ cd /d "%~dp0"
 
 :: 1. Parar SOLO python.exe que ejecuta srt2web (main.py)
 echo Deteniendo procesos srt2web...
-powershell -NoProfile -Command ^
-  "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" ^
-  | Where-Object { $_.CommandLine -like '*main.py*' } ^
-  | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }" 2>nul
+powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | Where-Object { $_.CommandLine -like '*main.py*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }" 2>nul
 taskkill /F /IM ffmpeg.exe /T 2>nul
 taskkill /F /IM ffprobe.exe /T 2>nul
 timeout /t 2 >nul
@@ -21,7 +18,7 @@ timeout /t 2 >nul
 echo Liberando puertos...
 for %%p in (9999 9000 8000 1935) do (
   for /f "tokens=5" %%a in ('netstat -ano ^| findstr "%%p" ^| findstr "LISTENING"') do (
-    taskkill /F /PID %%a 2>nul
+    taskkill /F /PID %%a
   )
 )
 timeout /t 1 >nul
@@ -52,35 +49,56 @@ echo Limpiando logs...
 if exist "logs" rd /S /Q "logs" 2>nul
 if not exist "logs" mkdir "logs"
 
-:: 6. Segunda pasada de limpieza de procesos residuales
+:: 6. Limpiar directorios temporales (excepto temporales de grabación activa)
+echo Limpiando archivos temporales...
+:: Limpiar HLS (segmentos de transmisión temporal)
+if exist "output\hls" (
+  rd /S /Q "output\hls"
+  mkdir "output\hls"
+)
+:: Limpiar subtítulos (chunks temporales)
+if exist "output\subtitles" (
+  rd /S /Q "output\subtitles"
+  mkdir "output\subtitles"
+)
+:: Limpiar audio temporal
+if exist "output\audio" rd /S /Q "output\audio"
+:: Limpiar video temporal
+if exist "output\video" rd /S /Q "output\video"
+:: Limpiar chunks de grabación solo si no hay MP4 activo (grabación completada o detenida)
+if exist "output\recording.mp4" (
+  if exist "output\recording" rd /S /Q "output\recording"
+)
+
+:: 7. Segunda pasada de limpieza de procesos residuales
 echo Limpieza final de procesos...
 taskkill /F /IM ffmpeg.exe /T 2>nul
 taskkill /F /IM ffprobe.exe /T 2>nul
 timeout /t 1 >nul
 
-:: 7. Verificar estado final
+:: 8. Verificar estado final
 echo.
 echo === ESTADO FINAL DE LIMPIEZA ===
 echo Procesos activos:
-tasklist 2^>nul ^| findstr /I "python ffmpeg ffprobe" || echo   Ninguno
+tasklist 2>nul | findstr /I "python ffmpeg ffprobe" || echo   Ninguno
 echo.
 echo Grabacion final (save_video=True genera output\recording.mp4):
-if exist "output\recording.mp4" (dir /b "output\recording.mp4" 2^>nul) else echo   No existe
+if exist "output\recording.mp4" (dir /b "output\recording.mp4" 2>nul) else echo   No existe
 echo.
 echo Directorio recording (solo estructura, sin chunks temporales):
-if exist "output\recording" (dir /b "output\recording" 2^>nul || echo   Vacio) else echo   No existe
+if exist "output\recording" (dir /b "output\recording" 2>nul || echo   Vacio) else echo   No existe
 echo.
 echo Directorio hls:
-if exist "output\hls" (dir /b "output\hls" 2^>nul || echo   Vacio) else echo   No existe
+if exist "output\hls" (dir /b "output\hls" 2>nul || echo   Vacio) else echo   No existe
 echo.
 echo Directorio audio:
-if exist "output\audio" (dir /b "output\audio" 2^>nul || echo   Vacio) else echo   No existe
+if exist "output\audio" (dir /b "output\audio" 2>nul || echo   Vacio) else echo   No existe
 echo.
 echo Directorio subtitles:
-if exist "output\subtitles" (dir /b "output\subtitles" 2^>nul || echo   Vacio) else echo   No existe
+if exist "output\subtitles" (dir /b "output\subtitles" 2>nul || echo   Vacio) else echo   No existe
 echo.
 echo Directorio video:
-if exist "output\video" (dir /b "output\video" 2^>nul || echo   Vacio) else echo   No existe
+if exist "output\video" (dir /b "output\video" 2>nul || echo   Vacio) else echo   No existe
 echo.
 echo ========================================
 echo LIMPIEZA TOTAL COMPLETADA

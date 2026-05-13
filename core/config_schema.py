@@ -471,21 +471,15 @@ class ModulesConfig(BaseModel):
 
 class SubtitleSyncConfig(BaseModel):
     """Configuración de sincronización de subtítulos."""
-    
+
     sync_correction_threshold: int = Field(
         default=500,
         ge=100,  # >= 100ms
         le=2000,  # <= 2000ms
-        description="Threshold en ms para activar corrección de sincronización"
+        description="Threshold en ms para activar corrección de sincronización",
     )
-    enable_drift_detection: bool = Field(
-        default=False,
-        description="Habilitar detección automática de drift"
-    )
-    drift_history_size: int = Field(
-        default=100,
-        description="Número de mediciones de drift a mantener en historial"
-    )
+    enable_drift_detection: bool = Field(default=False, description="Habilitar detección automática de drift")
+    drift_history_size: int = Field(default=100, description="Número de mediciones de drift a mantener en historial")
 
 
 class OutputDirConfig(BaseModel):
@@ -508,7 +502,9 @@ class SRT2WebConfig(BaseModel):
     output: OutputConfig = Field(default_factory=OutputConfig, description="Configuración de salida")
     pipeline: PipelineConfig = Field(default_factory=PipelineConfig, description="Configuración del pipeline")
     modules: ModulesConfig = Field(default_factory=ModulesConfig, description="Configuración de módulos")
-    subtitle_sync: SubtitleSyncConfig = Field(default_factory=SubtitleSyncConfig, description="Configuración de sincronización de subtítulos")
+    subtitle_sync: SubtitleSyncConfig = Field(
+        default_factory=SubtitleSyncConfig, description="Configuración de sincronización de subtítulos"
+    )
     output_dir: OutputDirConfig = Field(default_factory=OutputDirConfig, description="Directorio de salida")
 
     # -------------------------------------------------------------------------
@@ -635,6 +631,7 @@ class SRT2WebConfig(BaseModel):
         to avoid overwriting config.yaml on every load.
         """
         import logging
+
         validator_logger = logging.getLogger("srt2web.config.validator")
         pipeline_chunk = self.pipeline.chunk_duration_sec
 
@@ -666,13 +663,13 @@ class SRT2WebConfig(BaseModel):
     @staticmethod
     def calculate_list_size(chunk_duration_sec: int) -> int:
         """Calculate minimum list_size for stable HLS playback.
-        
+
         Ensures at least 60 seconds of buffer in the playlist,
         with a minimum of 6 segments.
-        
+
         Args:
             chunk_duration_sec: Duration of each chunk in seconds
-            
+
         Returns:
             Minimum list_size for stable playback
         """

@@ -1,16 +1,17 @@
 # File: core/cache.py
 import time
-from typing import Any, Optional, Tuple
 from collections import OrderedDict
+from typing import Any, Optional
+
 
 class LRUCache:
     """LRU cache con TTL (Time To Live)"""
-    
+
     def __init__(self, maxsize: int = 500, ttl_seconds: int = 60):
         self.maxsize = maxsize
         self.ttl_seconds = ttl_seconds
-        self.cache: OrderedDict[Any, Tuple[Any, float]] = OrderedDict()
-    
+        self.cache: OrderedDict[Any, tuple[Any, float]] = OrderedDict()
+
     def get(self, key: Any) -> Optional[Any]:
         if key in self.cache:
             value, timestamp = self.cache[key]
@@ -21,18 +22,19 @@ class LRUCache:
             else:
                 del self.cache[key]
         return None
-    
+
     def set(self, key: Any, value: Any) -> None:
         if key in self.cache:
             del self.cache[key]
         elif len(self.cache) >= self.maxsize:
             # Remove oldest (first item in OrderedDict)
             self.cache.popitem(last=False)
-        
+
         self.cache[key] = (value, time.time())
-    
+
     def clear(self) -> None:
         self.cache.clear()
+
 
 # Tests mínimos:
 if __name__ == "__main__":

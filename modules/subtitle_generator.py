@@ -261,15 +261,17 @@ class SubtitleGenerator(BaseModule):
                         # ABSOLUTE timestamps: chunk_start + relative offset
                         abs_start = chunk_start_time + rel_start
                         abs_end = chunk_start_time + rel_end
-                        
+
                         # Apply timestamp caching with sync correction
                         cache_key = (clean_text, int(abs_start * 1000))  # text, start_ms
                         cached_timestamp = self.timestamp_cache.get(cache_key)
-                        
+
                         if cached_timestamp is not None:
                             # Cache hit: use cached timestamp with sync correction
                             corrected_start = cached_timestamp + (self.sync_correction_factor - 1.0) * abs_start
-                            corrected_end = cached_timestamp + (self.sync_correction_factor - 1.0) * abs_end + (abs_end - abs_start)
+                            corrected_end = (
+                                cached_timestamp + (self.sync_correction_factor - 1.0) * abs_end + (abs_end - abs_start)
+                            )
                             logger.debug(f"Cache hit for subtitle: {clean_text[:20]}...")
                         else:
                             # Cache miss: calculate and store
@@ -322,4 +324,3 @@ class SubtitleGenerator(BaseModule):
             logger.error(f"Error writing chunk SRT: {e}")
 
         return data
-

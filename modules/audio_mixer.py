@@ -15,6 +15,8 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
+
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.module_base import BaseModule, ModuleState, PipelineData
 
@@ -39,6 +41,9 @@ class AudioMixer(BaseModule):
         self._last_measured_duration = 0.0
         # Duration cache to avoid repeated ffprobe calls
         self._duration_cache: dict[str, float] = {}
+        # Crossfade settings to prevent clicks at boundaries
+        self._crossfade_duration = 0.01  # 10ms crossfade
+        self._prev_end_sample: Optional[np.ndarray] = None
         super().__init__("audio_mixer", config)
 
     def configure(self, config: dict) -> None:
@@ -151,6 +156,29 @@ class AudioMixer(BaseModule):
             # Mix: apply volumes and add
             mixed = orig_samples * self._original_volume + tts_samples * self._tts_volume
             mixed = np.clip(mixed, -32768, 32767).astype(np.int16)
+            
+            # Apply crossfade to prevent clicks at chunk boundaries
+            if self._prev_end_sample is not None and len(self._prev_end_sample) > 0:
+                # Crossfade between previous chunk's end and current chunk's start
+                crossfade_samples = int(self._crossfade_duration * orig_sr)
+                if crossfade_samples > 0 and len(mixed) >= crossfade_samples:
+                    # Fade out previous chunk's end
+                    fade_out = np.linspace(1.0, 0.0, crossfade_samples)
+                    # Fade in current chunk's start
+                    fade_in = np.linspace(0.0, 1.0, crossfade_samples)
+                    
+                    # Apply crossfade
+                    mixed[-crossfade_samples:] = (
+                        mixed[-crossfade_samples:] * fade_in + 
+                        self._prev_end_sample[-crossfade_samples:] * fade_out
+                    )
+
+            # Save end of current chunk for next crossfade
+            crossfade_samples = int(self._crossfade_duration * orig_sr)
+            if crossfade_samples > 0 and len(mixed) >= crossfade_samples:
+                self._prev_end_sample = mixed[-crossfade_samples:].copy()
+            else:
+                self._prev_end_sample = None
 
             # Write output WAV
             with wave.open(str(mix_wav), "wb") as wf:
