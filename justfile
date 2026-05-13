@@ -99,6 +99,18 @@ dev:
     python main.py --reload
 
 # ═══════════════════════════════════════════════════════
+# Load Testing
+# ═══════════════════════════════════════════════════════
+
+# Run locust load test
+load-test:
+    locust -f tests/load/locustfile.py --host=http://localhost:9999 --headless -u 10 -r 2 --run-time 30s
+
+# Start locust web UI
+load-test-web:
+    locust -f tests/load/locustfile.py --host=http://localhost:9999
+
+# ═══════════════════════════════════════════════════════
 # Cleanup
 # ═══════════════════════════════════════════════════════
 

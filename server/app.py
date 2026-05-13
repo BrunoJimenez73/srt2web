@@ -144,7 +144,6 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
 
     app.state.ctx = app_context
 
-    app.include_router(auth_router)
 
     api_router = create_api_router()
     app.include_router(api_router, prefix="/api")

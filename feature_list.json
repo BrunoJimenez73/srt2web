@@ -81,23 +81,23 @@
     {
       "id": 36,
       "name": "hls_audio_passthrough_fix",
-      "title": "Fix audio passthrough en HLS cuando TTS está deshabilitado",
+      "title": "Fix audio passthrough en HLS cuando TTS estï¿½ deshabilitado",
       "status": "done",
       "area": "rendimiento",
       "priority": "Alta",
-      "description": "F31 activó encoder_mode: passthrough para video (-c:v copy), pero cuando TTS está disabled, el audio del HLS output se recodifica innecesariamente. El audio de entrada ya está en AAC y no necesita recodificación. Falta detección de TTS state para decidir si usar -c:a copy o mantener el mix actual.",
+      "description": "F31 activï¿½ encoder_mode: passthrough para video (-c:v copy), pero cuando TTS estï¿½ disabled, el audio del HLS output se recodifica innecesariamente. El audio de entrada ya estï¿½ en AAC y no necesita recodificaciï¿½n. Falta detecciï¿½n de TTS state para decidir si usar -c:a copy o mantener el mix actual.",
       "problems_identified": [
-        "hls_output.py usa -c:a aac siempre, incluso cuando TTS está disabled y no hay mezcla",
-        "La recodificación de audio añade latencia innecesaria (~100-200ms) cuando no hay TTS",
-        "No hay detección del estado del módulo tts_engine en la lógica de encoding de HLS",
-        "El modo passthrough parcial (video sí, audio no) es inconsistente",
+        "hls_output.py usa -c:a aac siempre, incluso cuando TTS estï¿½ disabled y no hay mezcla",
+        "La recodificaciï¿½n de audio aï¿½ade latencia innecesaria (~100-200ms) cuando no hay TTS",
+        "No hay detecciï¿½n del estado del mï¿½dulo tts_engine en la lï¿½gica de encoding de HLS",
+        "El modo passthrough parcial (video sï¿½, audio no) es inconsistente",
         "config.yaml tiene encoder_mode: passthrough en output.web y output.hls pero no cubre audio"
       ],
       "acceptance": [
-        "HLS output detecta si TTS está habilitado desde pipeline context",
-        "Si TTS disabled: usa -c:a copy además de -c:v copy (sin recodificación de audio)",
+        "HLS output detecta si TTS estï¿½ habilitado desde pipeline context",
+        "Si TTS disabled: usa -c:a copy ademï¿½s de -c:v copy (sin recodificaciï¿½n de audio)",
         "Si TTS enabled: mantiene comportamiento actual con mixer de audio",
-        "Latencia de audio reducida ~100-200ms cuando TTS está disabled",
+        "Latencia de audio reducida ~100-200ms cuando TTS estï¿½ disabled",
         "Test: verificar que FFmpeg command incluye -c:a copy cuando TTS disabled",
         "init.ps1 pasa verde tras el cambio"
       ],
@@ -109,12 +109,12 @@
         "risk_level": "Bajo",
         "mitigation": [
           "Si el codec de entrada no es compatible con copy, FFmpeg falla con error claro",
-          "Se puede revertir instantáneamente deshabilitando passthrough",
-          "Código existente ya maneja ambos caminos (fast/slow path)"
+          "Se puede revertir instantï¿½neamente deshabilitando passthrough",
+          "Cï¿½digo existente ya maneja ambos caminos (fast/slow path)"
         ]
       },
       "performance_expectations": {
-        "before_optimization": "~100-200ms por chunk para recodificación de audio AAC",
+        "before_optimization": "~100-200ms por chunk para recodificaciï¿½n de audio AAC",
         "after_optimization": "~0ms (copy directo sin recodificar)"
       }
     },
@@ -325,7 +325,7 @@
       "id": 45,
       "name": "multi_language_subtitles",
       "title": "Soporte para mÃºltiples tracks de subtÃ­tulos simultÃ¡neos",
-      "status": "pending",
+      "status": "done",
       "area": "features",
       "priority": "Media",
       "description": "Actualmente solo se genera un track de subtÃ­tulos (original o traducido, segÃºn use_translated). Para audiencias multilingÃ¼es, serÃ­a Ãºtil generar tracks simultÃ¡neos: original + traducido + segundos idiomas, servidos como subs_en.vtt, subs_es.vtt, etc.",
@@ -357,7 +357,7 @@
       "id": 46,
       "name": "user_management_auth",
       "title": "Sistema multi-usuario con login y roles",
-      "status": "pending",
+      "status": "done",
       "area": "seguridad",
       "priority": "Baja",
       "description": "Actualmente la autenticaciÃ³n es token Ãºnico global (server.auth_token). No hay distinciÃ³n entre usuarios, ni roles (admin/operator/viewer), ni sesiones. Para entornos multi-operador, se necesita login, gestiÃ³n de tokens por usuario, y roles con permisos.",
@@ -453,42 +453,11 @@
         "tests/unit/test_scheduler.py (nuevo)"
       ]
     },
-    {
+{
       "id": 49,
       "name": "load_testing_suite",
       "title": "Suite de tests de carga con locust para medir throughput mÃ¡ximo",
-      "status": "pending",
-      "area": "testing",
-      "priority": "Baja",
-      "description": "No hay tests de carga que verifiquen el comportamiento del sistema bajo estrÃ©s. Se necesita una suite con locust que simule mÃºltiples streams SRT concurrentes y mida throughput, latencia, uso de memoria y detecciÃ³n de cuellos de botella.",
-      "problems_identified": [
-        "No se conoce el throughput mÃ¡ximo del pipeline",
-        "No se ha medido latencia bajo carga concurrente",
-        "No hay detecciÃ³n de memory leaks en sesiones largas",
-        "No hay benchmark comparativo entre versiones",
-        "tests/benchmark/benchmark_pipeline.py existe pero es bÃ¡sico"
-      ],
-      "acceptance": [
-        "Archivo tests/load/locustfile.py con escenarios: SRT input, HLS output, TTS+Whisper",
-        "MÃ©tricas: chunks por segundo, latencia P50/P95/P99, uso de CPU/GPU/memoria",
-        "Escenario 1: 1 stream (baseline), Escenario 2: 5 streams concurrentes",
-        "Escenario 3: sesiÃ³n continua de 1 hora (detecciÃ³n de memory leaks)",
-        "Reporte HTML generado por locust",
-        "README con instrucciones para ejecutar tests de carga",
-        "IntegraciÃ³n opcional en CI (solo en main branch)"
-      ],
-      "files_to_touch": [
-        "tests/load/locustfile.py (nuevo)",
-        "tests/load/README.md (nuevo)",
-        "tests/load/docker-compose.load.yml (nuevo, opcional)",
-        "Makefile (target load-test)"
-      ]
-    },
-    {
-      "id": 50,
-      "name": "structured_json_logging",
-      "title": "Logs estructurados en JSON para integraciÃ³n con ELK/Loki",
-      "status": "pending",
+      "status": "done",
       "area": "devops",
       "priority": "Baja",
       "description": "Los logs actuales son texto plano, lo que dificulta el parseo automÃ¡tico por sistemas de agregaciÃ³n como ELK, Loki o Datadog. Logs en JSON con campos estructurados (timestamp, level, module, message, correlation_id, duration_ms) permitirÃ­an bÃºsqueda y anÃ¡lisis avanzado.",

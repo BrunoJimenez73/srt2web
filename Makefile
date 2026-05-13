@@ -123,6 +123,17 @@ docs: ## Build documentation (MkDocs)
 docs-serve: ## Serve documentation locally
 	cd docs && mkdocs serve
 
+# ── Load Testing ──────────────────────────────────────────────────────────────
+
+load-test: ## Run locust load test (10 users, 30s)
+	@echo "$(CYAN)Running load test...$(RESET)"
+	locust -f tests/load/locustfile.py --host=http://localhost:9999 --headless -u 10 -r 2 --run-time 30s --csv=results/load-test
+	@echo "$(GREEN)✓ Load test complete! Results in results/load-test*.csv$(RESET)"
+
+load-test-web: ## Run locust with web UI
+	@echo "$(CYAN)Starting locust web UI at http://localhost:8089$(RESET)"
+	locust -f tests/load/locustfile.py --host=http://localhost:9999
+
 # ── Security ───────────────────────────────────────────────────────────────────
 
 security-audit: ## Run security audit on Python dependencies
