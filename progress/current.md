@@ -71,13 +71,23 @@ Procesamiento por chunk (10s): ~3.5s (HLS encode 49%, audio extract 30%, whisper
 | ID | Feature | Ahorro estimado | Riesgo | Estado |
 |----|---------|----------------|--------|--------|
 | F31 | HLS passthrough (encoder_mode: passthrough) | ~1650ms (49%) | Bajo | ✅ done |
-| F32 | Eliminar -threads 1 en audio_extractor | ~200-400ms (9%) | Bajo | ⏳ pending |
-| F33 | Pipeline parallelism (solapamiento real) | ~300ms (8%) | Medio | ⏳ pending |
+| F32 | Eliminar -threads 1 en audio_extractor | ~200-400ms (9%) | Bajo | ✅ done |
+| F33 | Pipeline parallelism (solapamiento real) | ~300ms (8%) | Medio | ✅ done |
 
-**Target post-optimización**: ~1.7s procesamiento → E2E ~10-12s
-**Orden**: F31 ✅ → F32 → F33
+**Target post-optimización**: ~1.7s procesamiento → E2E ~10-12s ✅
+**Orden**: F31 ✅ → F32 ✅ → F33 ✅
 
 ### F31 — HLS passthrough (completado 13/05)
 - config.yaml: encoder_mode cambiado de auto a passthrough en output.web, output.hls, named outputs y video_muxer
 - hls_output.py: audio en modo passthrough sin TTS usa -c:a copy (sin recodificar)
 - Ahorro estimado: de ~1700ms a ~50ms por chunk
+
+### F32 — Audio multi-thread (completado 13/05)
+- audio_extractor.py: eliminado -threads 1, FFmpeg auto-detecta núcleos
+- test_subtitle_generator.py: usa tempfile con cleanup automático
+- Ahorro estimado: ~200-400ms por chunk
+
+### F33 — Pipeline parallelism (completado 13/05)
+- Workers integrados con ThreadParallelStrategy para tracking real de concurrencia
+- GET /api/status ahora expone concurrent_chunks (active_chunks) y strategy
+- Verificado: 0 residuos de archivos temporales en raíz

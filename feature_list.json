@@ -740,7 +740,7 @@
       "id": 33,
       "name": "pipeline_parallelism_optimization",
       "title": "Optimizar paralelismo del pipeline para solapamiento de chunks",
-      "status": "pending",
+      "status": "done",
       "area": "rendimiento",
       "priority": "Media",
       "description": "El pipeline en modo thread_parallel con max_concurrent_chunks=4 debería solapar chunks para procesamiento concurrente. Sin embargo, los logs muestran chunks procesados secuencialmente sin solapamiento real. Es necesario revisar colas, semáforos y flujo de datos.",

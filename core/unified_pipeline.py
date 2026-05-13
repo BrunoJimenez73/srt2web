@@ -174,6 +174,7 @@ class UnifiedPipeline:
 
         # Initialize processing strategy (if available)
         self._strategy: Optional[PipelineStrategy] = None
+        self._active_chunks = 0
         if create_strategy and StrategyConfig:  # type: ignore[truthy-function]
             try:
                 strategy_config = StrategyConfig(max_concurrent_chunks=max_concurrent_chunks)
@@ -530,24 +531,30 @@ class UnifiedPipeline:
                 start_time = time.perf_counter()
 
                 try:
-                    for module in self._modules:
-                        if not module.enabled or self._stop_event.is_set():
-                            continue
-                        try:
-                            module_start = time.perf_counter()
-                            data = module.process(data)
-                            processor.stages_completed[module.name] = (time.perf_counter() - module_start) * 1000
-                            if module.state.value == "degraded" and not getattr(module, "is_critical", True):
-                                self._log("warning", f"Non-critical module {module.name} degraded, continuing pipeline")
-                        except Exception as e:
-                            self._log("error", f"Module {module.name} error: {e}")
-                            processor.error = str(e)
-                            if not getattr(module, "is_critical", True):
-                                self._log(
-                                    "warning", f"Non-critical module {module.name} failed, continuing in degraded mode"
-                                )
+                    # Use strategy for concurrent chunk processing if available
+                    if self._strategy:
+                        data = self._strategy.process_chunk(data)
+                    else:
+                        for module in self._modules:
+                            if not module.enabled or self._stop_event.is_set():
                                 continue
-                            break
+                            try:
+                                module_start = time.perf_counter()
+                                data = module.process(data)
+                                processor.stages_completed[module.name] = (time.perf_counter() - module_start) * 1000
+                                if module.state.value == "degraded" and not getattr(module, "is_critical", True):
+                                    self._log(
+                                        "warning", f"Non-critical module {module.name} degraded, continuing pipeline"
+                                    )
+                            except Exception as e:
+                                self._log("error", f"Module {module.name} error: {e}")
+                                processor.error = str(e)
+                                if not getattr(module, "is_critical", True):
+                                    self._log(
+                                        "warning", f"Non-critical module {module.name} failed, continuing in degraded mode"
+                                    )
+                                    continue
+                                break
 
                     processor.data = data
                     elapsed = time.perf_counter() - start_time
@@ -870,6 +877,14 @@ class UnifiedPipeline:
         # Métricas del sistema
         system_metrics = self._hardware_monitor.get_system_metrics()
 
+        # Obtener métricas de concurrencia desde la estrategia
+        strategy_metrics = {}
+        if self._strategy:
+            try:
+                strategy_metrics = self._strategy.get_metrics()
+            except Exception:
+                pass
+
         return {
             "state": self._state.value,
             "mode": self.mode.value,
@@ -878,10 +893,12 @@ class UnifiedPipeline:
             "avg_processing_time_ms": round(avg_time * 1000, 2),
             "uptime_seconds": round(self._pipeline_metrics.uptime, 1),
             "max_concurrent_chunks": self.max_concurrent_chunks,
+            "concurrent_chunks": strategy_metrics.get("active_chunks", 0),
             "buffer_size": self.buffer_size,
             "modules": modules_status,
             "system": system_metrics,
             "system_metrics": system_metrics,
+            "strategy": strategy_metrics.get("strategy", "none"),
         }
 
     def reconfigure(self, config_manager: Any) -> None:
