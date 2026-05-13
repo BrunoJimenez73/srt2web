@@ -110,7 +110,7 @@ modules:
     speed: 1.0
   audio_mixer:
     enabled: true
-    original_volume: 0.7
+    original_volume: 0.6
     tts_volume: 1.0
     dubbed_volume: 1.0
   video_muxer:

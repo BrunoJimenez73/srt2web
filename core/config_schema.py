@@ -169,6 +169,7 @@ class EncoderModeEnum(str, Enum):
     """Modos de encoder de video permitidos."""
 
     AUTO = "auto"
+    PASSTHROUGH = "passthrough"
     CPU = "cpu"
     GPU_NVENC = "gpu_nvenc"
     GPU_AMF = "gpu_amf"
