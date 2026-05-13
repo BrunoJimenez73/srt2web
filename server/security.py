@@ -112,6 +112,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/api/openapi.json",
             "/hls/",
             "/ws/logs",  # WebSocket has its own auth
+            "/api/auth/",
         }
         if path in public_paths:
             return True
@@ -287,3 +288,53 @@ def validate_ws_auth(request: Request, get_auth_token: Callable[[], str]) -> boo
         return False
 
     return True
+
+import os
+import jwt
+from typing import Any
+
+from core.database import UserRole
+
+JWT_SECRET = os.environ.get("SRT2WEB_JWT_SECRET", "srt2web-default-secret-change-in-production")
+JWT_ALGORITHM = "HS256"
+
+
+def get_jwt_user(request: Any) -> dict[str, Any] | None:
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+    try:
+        decoded = jwt.decode(auth_header[7:], JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return decoded
+    except jwt.InvalidTokenError:
+        return None
+
+
+def require_role(required_role: str) -> Any:
+    from functools import wraps
+    from fastapi import HTTPException
+
+    def decorator(func: Any) -> Any:
+        @wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            request: Any = None
+            for arg in args:
+                if isinstance(arg, Request):
+                    request = arg
+                    break
+            if request is None:
+                for arg in args:
+                    if hasattr(arg, "headers"):
+                        request = arg
+                        break
+            user = get_jwt_user(request)
+            if user is None:
+                raise HTTPException(401, "Authentication required")
+            role = user.get("role", "")
+            if not isinstance(role, str):
+                role = str(role)
+            if not UserRole.has_permission(role, required_role):
+                raise HTTPException(403, f"Insufficient permissions. Required: {required_role}")
+            return await func(*args, **kwargs)
+        return wrapper
+    return decorator
