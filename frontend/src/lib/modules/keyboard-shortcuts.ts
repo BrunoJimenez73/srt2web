@@ -7,9 +7,8 @@
  * - Ctrl+D: Toggle dark mode
  */
 
-import { handleSaveConfig, handleStart, handleStop } from "../dashboard";
+import { handleSaveConfig } from "../dashboard";
 import { showToast } from "../utils";
-import { MESSAGES } from "../constants";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -41,29 +40,7 @@ const shortcuts: ShortcutDefinition[] = [
     description: "Guardar configuración",
     preventDefault: true,
   },
-  {
-    key: " ",
-    handler: (e) => {
-      // Only trigger if no input/textarea is focused
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
-        return;
-      }
 
-      e.preventDefault();
-
-      // Check current pipeline state and toggle
-      import("../store/index").then(({ pipelineStatus }) => {
-        if (pipelineStatus.value?.state === "running") {
-          handleStop();
-        } else {
-          handleStart();
-        }
-      });
-    },
-    description: "Iniciar/Detener pipeline",
-    preventDefault: true,
-  },
   {
     key: "d",
     ctrlKey: true,
