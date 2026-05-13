@@ -656,6 +656,125 @@
         "after_optimization": "~50ms para 1000 subts con cache, sync check autom√°tico cada 10 subts, drift < 100ms en condiciones normales"
       },
       "order_hint": "Despu√©s de F24 (mypy strict) y F21 (config push WebSocket). Antes de F25 (frontend coverage)."
+    },
+    {
+      "id": 31,
+      "name": "hls_passthrough_mode",
+      "title": "Modo passthrough HLS para eliminar re-codificaciÛn NVENC",
+      "status": "done",
+      "area": "rendimiento",
+      "priority": "Alta",
+      "description": "El HLS output re-codifica cada chunk con h264_nvenc (~1700ms por chunk) aunque el TS de entrada ya viene en H.264 desde OBS/SRT. El modo passthrough copia los streams sin re-codificar, eliminando el principal cuello de botella del pipeline.",
+      "problems_identified": [
+        "HLSOutput.write() re-codifica video con h264_nvenc en cada chunk (~1700ms, 49% del tiempo total)",
+        "El chunk TS de entrada ya est· codificado en H.264 (desde OBS/SRT), la re-codificaciÛn es redundante",
+        "encoder_mode: auto detecta GPU NVENC y lo usa aunque no sea necesario",
+        "No hay fallback autom·tico a passthrough cuando el codec de entrada coincide con el de salida",
+        "La re-codificaciÛn GPU NVENC aÒade ~1700ms de latencia por chunk sin mejora de calidad perceptible"
+      ],
+      "acceptance": [
+        "config.output.web.encoder_mode = \"passthrough\" usa -c:v copy -c:a copy (sin re-codificar)",
+        "HLS segment escrito en < 100ms por chunk (vs ~1700ms con NVENC)",
+        "FFmpeg command usa -c:v copy en vez de -c:v h264_nvenc",
+        "Calidad de video idÈntica (misma que entra del SRT)",
+        "Latencia extremo a extremo reducida de ~24s a ~10-12s",
+        "Test: verificar que stream.m3u8 contiene segmentos con duraciÛn correcta",
+        "init.ps1 pasa verde tras el cambio"
+      ],
+      "files_to_touch": [
+        "config.yaml (cambiar encoder_mode: auto a passthrough en output.web y video_muxer)",
+        "modules/outputs/hls_output.py (verificar que modo passthrough funcione con -c:v copy)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "Si el codec de entrada no es compatible con copy, FFmpeg falla con error claro",
+          "Se puede revertir a encoder_mode: auto instant·neamente",
+          "Passthrough ya est· implementado en hls_output.py lÌnea 274, solo no estaba activado"
+        ]
+      },
+      "performance_expectations": {
+        "before_optimization": "~1700ms por chunk para HLS encoding con NVENC",
+        "after_optimization": "~50ms por chunk con passthrough (copy)"
+      },
+      "order_hint": "Primero de las optimizaciones de latencia (mayor impacto). Antes de F32 y F33."
+    },
+    {
+      "id": 32,
+      "name": "audio_extraction_multithread",
+      "title": "Optimizar extracciÛn de audio FFmpeg con multi-threading",
+      "status": "pending",
+      "area": "rendimiento",
+      "priority": "Media",
+      "description": "La extracciÛn de audio con FFmpeg usa -threads 1, limitando a un solo n˙cleo. Eliminar esta restricciÛn permite a FFmpeg usar m˙ltiples n˙cleos para decodificar AAC a PCM m·s r·pido.",
+      "problems_identified": [
+        "audio_extractor.py fuerza -threads 1 en FFmpeg, limitando a un solo n˙cleo CPU",
+        "ExtracciÛn de audio tarda ~1050ms por chunk (30% del tiempo total de procesamiento)",
+        "No hay razÛn para limitar a 1 thread en CPUs multi-n˙cleo modernas",
+        "La decodificaciÛn AAC se beneficia del paralelismo"
+      ],
+      "acceptance": [
+        "-threads 1 eliminado de audio_extractor.py (FFmpeg usa auto-detecciÛn)",
+        "Tiempo de extracciÛn de audio reducido de ~1050ms a ~600-800ms por chunk",
+        "Calidad de audio idÈntica (mismos par·metros -ar 8000 -ac 1 -c:a pcm_s16le)",
+        "init.ps1 pasa verde tras el cambio"
+      ],
+      "files_to_touch": [
+        "modules/audio_extractor.py (eliminar -threads y \"1\")"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "FFmpeg auto-detecta el n˙mero Ûptimo de threads",
+          "Si hay contenciÛn de CPU, el scheduler del OS lo maneja",
+          "Revertible eliminando solo 2 lÌneas"
+        ]
+      },
+      "performance_expectations": {
+        "before_optimization": "~1050ms por chunk con -threads 1",
+        "after_optimization": "~600-800ms por chunk con auto-threads"
+      },
+      "order_hint": "DespuÈs de F31. Antes de F33."
+    },
+    {
+      "id": 33,
+      "name": "pipeline_parallelism_optimization",
+      "title": "Optimizar paralelismo del pipeline para solapamiento de chunks",
+      "status": "pending",
+      "area": "rendimiento",
+      "priority": "Media",
+      "description": "El pipeline en modo thread_parallel con max_concurrent_chunks=4 deberÌa solapar chunks para procesamiento concurrente. Sin embargo, los logs muestran chunks procesados secuencialmente sin solapamiento real. Es necesario revisar colas, sem·foros y flujo de datos.",
+      "problems_identified": [
+        "max_concurrent_chunks=4 pero los chunks se procesan uno tras otro en los logs",
+        "No hay solapamiento visible: chunk N+1 empieza cuando chunk N termina completamente",
+        "Las colas internas del pipeline pueden estar bloqueando la concurrencia",
+        "El mÛdulo de audio_mixer o tts_engine puede estar actuando como cuello de botella secuencial"
+      ],
+      "acceptance": [
+        "Los chunks se procesan concurrentemente: al menos 2 chunks solapados en los logs",
+        "Pipeline throughput: tiempo total para 10 chunks < 10 * tiempo_por_chunk",
+        "max_concurrent_chunks configurable y efectivo",
+        "Logs muestran procesamiento de chunk N+1 iniciando antes de que chunk N termine",
+        "init.ps1 pasa verde tras el cambio",
+        "Tests existentes siguen pasando"
+      ],
+      "files_to_touch": [
+        "core/unified_pipeline.py (revisar lÛgica de colas y sem·foros)",
+        "core/pipeline/strategies.py (verificar estrategia thread_parallel)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "El pipeline ya tiene modo thread_parallel implementado, solo necesita ajustes",
+          "Los tests existentes validan que no se rompe funcionalidad",
+          "Se puede revertir a mode: sequential si hay inestabilidad"
+        ]
+      },
+      "performance_expectations": {
+        "before_optimization": "Chunks procesados secuencialmente",
+        "after_optimization": "Al menos 2 chunks concurrentes, throughput ~1.5-2x"
+      },
+      "order_hint": "DespuÈs de F32. Depende de entender el flujo de datos del pipeline."
     }
   ]
 }

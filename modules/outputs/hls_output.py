@@ -170,8 +170,18 @@ class HLSOutput(OutputSink):
             audio_delay_sec = self._audio_offset_ms / 1000.0
             cmd.extend(["-itsoffset", str(audio_delay_sec), "-i", audio_input])
 
-        # Obtener argumentos de audio desde EncoderConfig
-        audio_args = self._encoder_config.get_audio_args()
+        # Obtener argumentos de audio
+        # En modo passthrough sin audio externo: copiar audio también
+        # En modo passthrough con audio externo (TTS WAV): codificar audio
+        # En modo normal: usar configuración de audio
+        encoder_mode = self._encoder_config.encoder_mode
+        if encoder_mode == "passthrough" and not audio_input:
+            audio_args = ["-c:a", "copy"]
+        elif encoder_mode == "passthrough" and audio_input:
+            # Mixed WAV needs encoding to streamable format
+            audio_args = self._encoder_config.get_audio_args()
+        else:
+            audio_args = self._encoder_config.get_audio_args()
 
         cmd.extend(
             [

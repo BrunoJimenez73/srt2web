@@ -150,30 +150,35 @@ Ver `feature_list.json` para lista completa y estados.
 
 **Features 1–14**: todas DONE (ciclo Abril–Mayo 2026).
 
-**Features 15–29**: plan de mejoras de rendimiento, estabilidad, arquitectura y UX
-generado en sesión Mayo 2026. Ver sección siguiente para resumen.
+**Features 15–30**: completadas en sesiones Mayo 2026.
 
-### Resumen del plan de mejoras (F15–F29)
+**Features 31–33**: plan de optimizaciones de latencia — pendientes.
 
-| ID  | Área               | Nombre corto                            | Prioridad |
-| --- | ------------------ | --------------------------------------- | --------- |
-| F15 | Rendimiento        | WS resilience & adaptive polling        | Alta      |
-| F16 | UX / Rendimiento   | LogPanel virtual scroll & export        | Alta      |
-| F17 | Estabilidad        | Piper heartbeat & graceful degrade      | Alta      |
-| F18 | UX / Visualización | Metrics sparklines & latency meter      | Media     |
-| F19 | UX                 | Pipeline presets / profiles             | Media     |
-| F20 | Estabilidad        | Output health monitoring                | Alta      |
-| F21 | Arquitectura       | Config push via WebSocket               | Media     |
-| F22 | Mantenibilidad     | Cleanup dead code final                 | Media     |
-| F23 | Arquitectura       | API versioning & Pydantic responses     | Media     |
-| F24 | Mantenibilidad     | mypy strict mode core/ + server/        | Alta      |
-| F25 | Testing            | Frontend coverage 80%+                  | Media     |
-| F26 | UX / Diseño        | Mobile-responsive layout                | Baja      |
-| F27 | UX / Visualización | Dependencias del pipeline (diagrama)    | Baja      |
-| F28 | DevOps             | Docker optimization & health checks     | Media     |
-| F29 | Mantenibilidad     | Repo hygiene (PARA BORRAR, stale files) | Alta      |
+### Resumen del plan de mejoras (F15–F33)
 
-**Orden sugerido de implementación**: F29 → F22 → F24 → F15 → F17 → F20 → F16 → F21 → F23 → F25 → F18 → F19 → F26 → F28 → F27
+| ID  | Área               | Nombre corto                            | Prioridad | Estado      |
+| --- | ------------------ | --------------------------------------- | --------- | ----------- |
+| F15 | Rendimiento        | WS resilience & adaptive polling        | Alta      | ✅ done     |
+| F16 | UX / Rendimiento   | LogPanel virtual scroll & export        | Alta      | ✅ done     |
+| F17 | Estabilidad        | Piper heartbeat & graceful degrade      | Alta      | ✅ done     |
+| F18 | UX / Visualización | Metrics sparklines & latency meter      | Media     | ✅ done     |
+| F19 | UX                 | Pipeline presets / profiles             | Media     | ✅ done     |
+| F20 | Estabilidad        | Output health monitoring                | Alta      | ✅ done     |
+| F21 | Arquitectura       | Config push via WebSocket               | Media     | ✅ done     |
+| F22 | Mantenibilidad     | Cleanup dead code final                 | Media     | ✅ done     |
+| F23 | Arquitectura       | API versioning & Pydantic responses     | Media     | ✅ done     |
+| F24 | Mantenibilidad     | mypy strict mode core/ + server/        | Alta      | ✅ done     |
+| F25 | Testing            | Frontend coverage 80%+                  | Media     | ✅ done     |
+| F26 | UX / Diseño        | Mobile-responsive layout                | Baja      | ✅ done     |
+| F27 | UX / Visualización | Dependencias del pipeline (diagrama)    | Baja      | ✅ done     |
+| F28 | DevOps             | Docker optimization & health checks     | Media     | ✅ done     |
+| F29 | Mantenibilidad     | Repo hygiene (PARA BORRAR, stale files) | Alta      | ✅ done     |
+| F30 | Rendimiento        | Subtitle sync & performance             | Alta      | ✅ done     |
+| F31 | Rendimiento        | HLS passthrough mode                    | Alta      | ✅ done     |
+| F32 | Rendimiento        | Audio extraction multi-thread           | Media     | ⏳ pending  |
+| F33 | Rendimiento        | Pipeline parallelism optimization       | Media     | ⏳ pending  |
+
+**Orden sugerido de implementación (latencia)**: F31 → F32 → F33
 
 ## 8. Historial compacto (post-Abril 2026)
 
@@ -217,6 +222,42 @@ generado en sesión Mayo 2026. Ver sección siguiente para resumen.
 - Fix PipelineData creation (dict→dataclass syntax en SRT input)
 - Logging persistente con RotatingFileHandler (10MB, 3 backups)
 - cuDNN 9.x incompatible con ONNX Runtime GPU (issue #23519)
+
+## 9. Plan de optimización de latencia (F31–F33)
+
+Basado en análisis de logs del 13/05. Latencia total actual ~20-24s extremo a extremo.
+
+| Paso | Feature | Cambio | Ahorro estimado |
+|------|---------|--------|----------------|
+| 1 | F31 | HLS passthrough (encoder_mode: passthrough) | ~1650ms (49%) |
+| 2 | F32 | Eliminar -threads 1 en audio_extractor | ~200-400ms (9%) |
+| 3 | F33 | Revisar paralelismo real del pipeline | ~300ms (8%) |
+
+**Latencia estimada post-optimización**: de ~3.5s de procesamiento a ~1.7s → E2E ~10-12s.
+
+### F31 — HLS passthrough mode (Alta prioridad)
+
+**Qué**: Cambiar `encoder_mode: auto` → `encoder_mode: passthrough` en config.yaml. FFmpeg usará `-c:v copy -c:a copy` sin re-codificar.
+
+**Archivos**: `config.yaml`, `modules/outputs/hls_output.py` (verificar).
+
+**Riesgo**: Bajo. Ya implementado, solo no activado. Revertible.
+
+### F32 — Audio extraction multi-thread (Media prioridad)
+
+**Qué**: Eliminar `-threads 1` de `audio_extractor.py` para que FFmpeg auto-detecte núcleos.
+
+**Archivos**: `modules/audio_extractor.py`.
+
+**Riesgo**: Bajo. FFmpeg maneja auto-threads correctamente.
+
+### F33 — Pipeline parallelism (Media prioridad)
+
+**Qué**: Investigar por qué `max_concurrent_chunks=4` no produce solapamiento real. Revisar colas y semáforos.
+
+**Archivos**: `core/unified_pipeline.py`, `core/pipeline/strategies.py`.
+
+**Riesgo**: Medio. Requiere entender el flujo de datos interno.
 
 ### Commits recientes relevantes
 

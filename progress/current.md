@@ -1,7 +1,7 @@
-# Sesión activa — 2026-05-12
+# Sesión activa — 2026-05-13
 
-**Estado:** Audit completado — detalles encontrados
-**Iniciada:** 2026-05-12
+**Estado:** Plan de optimización de latencia creado
+**Iniciada:** 2026-05-13
 
 ## Audit de features
 
@@ -30,14 +30,17 @@
 - startup_stdout.txt y startup_stderr.txt existen en raíz → Alta (no deberían)
 
 ## F30 Sincronización fina de subtítulos
+
 **Feature**: F30 Sincronización fina de subtítulos y optimización de rendimiento
 **Status**: done
 **Plan**:
+
 - Día 1-2: Backend core (cache, monitor, config, API)
 - Día 3: Frontend (signals, effects, badge)
 - Día 4: Tests e integración
 
 ### Resumen
+
 - ✅ core/cache.py: LRUCache con TTL (max 500, TTL 60s)
 - ✅ modules/subtitle_generator.py: timestamp_cache + sync_correction_factor
 - ✅ core/subtitle_sync_monitor.py: detección de drift con exponential smoothing
@@ -52,9 +55,29 @@
 - ✅ TypeScript tsc --noEmit: 0 errores
 
 ### Pendiente (futuro)
+
 - Conexión automática entre SubtitleSyncMonitor y SubtitleGenerator (sync_correction_factor)
 - Persistencia de estado post-crash
 - Latencia de subtítulo medida en logs
 
 **Bloqueadores**: Ninguno
 **Notas**: Ver IMPLEMENTACION_PASO_A_PASO.md para arquitectura completa
+
+## Plan de optimización de latencia (F31-F33)
+
+Basado en análisis de logs del 13/05. Latencia total actual ~20-24s extremo a extremo.
+Procesamiento por chunk (10s): ~3.5s (HLS encode 49%, audio extract 30%, whisper 9%, translate 7%, TTS 4%)
+
+| ID | Feature | Ahorro estimado | Riesgo | Estado |
+|----|---------|----------------|--------|--------|
+| F31 | HLS passthrough (encoder_mode: passthrough) | ~1650ms (49%) | Bajo | ✅ done |
+| F32 | Eliminar -threads 1 en audio_extractor | ~200-400ms (9%) | Bajo | ⏳ pending |
+| F33 | Pipeline parallelism (solapamiento real) | ~300ms (8%) | Medio | ⏳ pending |
+
+**Target post-optimización**: ~1.7s procesamiento → E2E ~10-12s
+**Orden**: F31 ✅ → F32 → F33
+
+### F31 — HLS passthrough (completado 13/05)
+- config.yaml: encoder_mode cambiado de auto a passthrough en output.web, output.hls, named outputs y video_muxer
+- hls_output.py: audio en modo passthrough sin TTS usa -c:a copy (sin recodificar)
+- Ahorro estimado: de ~1700ms a ~50ms por chunk
