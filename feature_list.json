@@ -703,7 +703,7 @@
       "id": 32,
       "name": "audio_extraction_multithread",
       "title": "Optimizar extracción de audio FFmpeg con multi-threading",
-      "status": "pending",
+      "status": "done",
       "area": "rendimiento",
       "priority": "Media",
       "description": "La extracción de audio con FFmpeg usa -threads 1, limitando a un solo núcleo. Eliminar esta restricción permite a FFmpeg usar múltiples núcleos para decodificar AAC a PCM más rápido.",

@@ -175,7 +175,7 @@ Ver `feature_list.json` para lista completa y estados.
 | F29 | Mantenibilidad     | Repo hygiene (PARA BORRAR, stale files) | Alta      | ✅ done     |
 | F30 | Rendimiento        | Subtitle sync & performance             | Alta      | ✅ done     |
 | F31 | Rendimiento        | HLS passthrough mode                    | Alta      | ✅ done     |
-| F32 | Rendimiento        | Audio extraction multi-thread           | Media     | ⏳ pending  |
+| F32 | Rendimiento        | Audio extraction multi-thread           | Media     | ✅ done     |
 | F33 | Rendimiento        | Pipeline parallelism optimization       | Media     | ⏳ pending  |
 
 **Orden sugerido de implementación (latencia)**: F31 → F32 → F33

@@ -105,8 +105,6 @@ class AudioExtractor(FFmpegModule):
                 "1",
                 "-c:a",
                 "pcm_s16le",
-                "-threads",
-                "1",
                 "-f",
                 "wav",
                 output_path,
