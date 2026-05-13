@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 
 from server.api_routes import create_api_router
 from server.routes.metrics import router as metrics_router
+from server.routes.auth import router as auth_router
 from server.routes.recordings import router as recordings_router
 from server.security import (
     AuthMiddleware,
@@ -156,6 +157,7 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
 
     app.include_router(recordings_router, prefix="/api")
     app.include_router(metrics_router)
+    app.include_router(auth_router, prefix="/api")
 
     @app.get("/health")
     async def health() -> dict[str, Any]:

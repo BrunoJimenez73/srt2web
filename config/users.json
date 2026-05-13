@@ -1,0 +1,10 @@
+{
+  "admin": {
+    "password_hash": "573759d1c5b156d1eacc5a9b80c6638b956a53da6df70a6cfacf463f1800d30d",
+    "password_salt": "0562b2772c284c8000002e584082df84",
+    "role": "admin",
+    "enabled": true,
+    "created_at": 1778713681.8036256,
+    "last_login": 0.0
+  }
+}
