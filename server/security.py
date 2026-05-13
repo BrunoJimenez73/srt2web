@@ -107,6 +107,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/player",
             "/api/available",
             "/api/health",
+            "/api/docs",
+            "/api/redoc",
+            "/api/openapi.json",
             "/hls/",
             "/ws/logs",  # WebSocket has its own auth
         }
@@ -117,6 +120,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if path.startswith("/assets/"):
             return True
         if path.startswith("/hls/"):
+            return True
+        if path.startswith("/api/docs"):  # Swagger UI static assets
             return True
         return False
 
