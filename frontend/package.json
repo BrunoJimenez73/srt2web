@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build --outDir ../server/static",
-    "build:local": "astro build",
+    "build:local": "astro build && cd .. && python -m mkdocs build -f docs/mkdocs.yml --site-dir server/static/docs",
     "build:docs": "astro build --outDir ../server/static",
     "preview": "astro preview",
     "astro": "astro",
