@@ -23,6 +23,7 @@ import {
 import { showToast, copyToClipboard } from "../utils";
 import { formatTime } from "../utils/format";
 import { MESSAGES, DEFAULTS, INTERVALS } from "../constants";
+import { connectionMode } from "../store/signals";
 import {
   pipelineStatus,
   pipelineConfig,
@@ -485,6 +486,14 @@ export function cleanup(): void {
 export function setupEventListeners(): void {
   document.getElementById("btn-start")?.addEventListener("click", handleStart);
   document.getElementById("btn-stop")?.addEventListener("click", handleStop);
+
+  // Mode buttons (LOCAL / REMOTE)
+  document.getElementById("btn-mode-local")?.addEventListener("click", () => {
+    connectionMode.value = "local";
+  });
+  document.getElementById("btn-mode-remote")?.addEventListener("click", () => {
+    connectionMode.value = "remote";
+  });
 
   // TTS engine change → toggle voice dropdowns
   document.getElementById("tts-engine")?.addEventListener("change", (e) => {
