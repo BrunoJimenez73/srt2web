@@ -131,10 +131,15 @@ export const connectionUrls = computed(() => {
   inputType.value = inputTypeValue as "srt" | "rtmp" | "file";
 
   const srtPort = cfg?.input?.srt?.port ?? 9000;
+  const srtMode = cfg?.input?.srt?.mode ?? "listener";
+  const srtLatency = cfg?.input?.srt?.latency_ms ?? 200;
   const rtmpPort = cfg?.input?.rtmp?.port ?? 1935;
   const serverPort = cfg?.server?.port ?? 9999;
 
-  const srtUrl = `srt://${host}:${srtPort}`;
+  // The URL is for the CLIENT to connect to us.
+  // If we listen, client must be caller. If we call, client must be listener.
+  const clientMode = srtMode === "listener" ? "caller" : "listener";
+  const srtUrl = `srt://${host}:${srtPort}?mode=${clientMode}&latency=${srtLatency}`;
   const rtmpUrl = `rtmp://${host}:${rtmpPort}`;
   const streamUrl = `http://${host}:${serverPort}/hls/stream.m3u8`;
   const playerUrl = `http://${host}:${serverPort}/player`;
