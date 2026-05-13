@@ -411,6 +411,7 @@ class SubtitleGeneratorConfig(BaseModel):
         le=60,
         description="Duración de chunk de subtítulos en segundos",
     )
+    dual_track: bool = Field(default=False, description="Generar track alternativo (original+traducido)")
 
 
 class TTSEngineConfig(BaseModel):

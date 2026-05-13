@@ -408,16 +408,27 @@ class HLSOutput(OutputSink):
             subs_path_hls = os.path.join(self._hls_dir, "subs.vtt")
             has_subs = os.path.exists(subs_path_local) or os.path.exists(subs_path_hls)
 
+            # Check for dual track (alternative language)
+            alt_subs_path = os.path.join(subs_dir, "subs_original.vtt")
+            has_alt_subs = os.path.exists(alt_subs_path)
+
             master_lines = [
                 "#EXTM3U",
                 "#EXT-X-VERSION:4",
             ]
 
             if has_subs:
-                # Use the mounted /subtitles endpoint so browser can fetch it
+                # Primary subtitle track
                 master_lines.append(
                     f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="/subtitles/subs.vtt"'
                 )
+                # Secondary track (original language) if dual track is active
+                if has_alt_subs:
+                    alt_lang = "en" if self._subtitle_language != "en" else "es"
+                    alt_name = "Original" if self._subtitle_language_name != "English" else "Translated"
+                    master_lines.append(
+                        f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{alt_name}",DEFAULT=NO,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{alt_lang}",URI="/subtitles/subs_original.vtt"'
+                    )
                 master_lines.append(
                     '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"'
                 )

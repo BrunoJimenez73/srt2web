@@ -18,7 +18,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from server.api_routes import create_api_router
-from server.cache_middleware import cached, invalidate_cache
+from server.routes.metrics import router as metrics_router
+from server.routes.recordings import router as recordings_router
 from server.security import (
     AuthMiddleware,
     RateLimiter,
@@ -28,8 +29,6 @@ from server.security import (
 )
 from server.webrtc_routes import create_webrtc_router
 from server.ws_routes import create_ws_router
-from server.routes.recordings import router as recordings_router
-from server.routes.metrics import router as metrics_router
 
 logger = logging.getLogger("srt2web.server")
 
@@ -68,12 +67,6 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
         from core.output_sink import set_output_health_broadcaster
 
         set_output_health_broadcaster(log_broadcaster)
-
-        # Wire up config change listener for cache invalidation
-        config = app_context.get("config")
-        if config and hasattr(config, "add_listener"):
-            config.add_listener(lambda key, value: invalidate_cache("config"))
-            config.add_listener(lambda key, value: invalidate_cache("status"))
 
         # No arrancamos el pipeline aquí — lo arranca el usuario desde la UI.
         # Solo nos aseguramos de hacer shutdown limpio al cerrar.

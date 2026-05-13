@@ -8,7 +8,6 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
-from server.cache_middleware import cached, invalidate_cache
 from server.validators import ChunkDurationRequest, ConfigUpdate, validate_module_dependencies
 
 logger = logging.getLogger("srt2web.api.config")
@@ -129,8 +128,6 @@ async def delete_preset(request: Request, name: str) -> dict[str, Any]:
 
 
 @router.get("/config")
-@cached("config")
-@cached("config")
 async def get_config(request: Request) -> dict[str, Any]:
     """Get current configuration."""
     ctx = _ctx(request)
@@ -174,10 +171,6 @@ async def update_config(request: Request, body: ConfigUpdate) -> dict[str, Any]:
         logger.error(f"Failed to reconfigure pipeline: {e}")
         raise HTTPException(500, f"Pipeline reconfiguration failed: {e}")
 
-    invalidate_cache("config")
-    invalidate_cache("status")
-    invalidate_cache("config")
-    invalidate_cache("status")
     return {"status": "updated", "config": config.to_dict()}
 
 

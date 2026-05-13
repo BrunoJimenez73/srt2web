@@ -102,6 +102,7 @@ modules:
     format: webvtt
     use_translated: true
     chunk_duration: 6
+    dual_track: false
   tts_engine:
     enabled: true
     engine: piper
