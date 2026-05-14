@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import datetime
 
 from rich.text import Text
-from textual.app import ComposeResult
 from textual.reactive import reactive
 from textual.widgets import Static
 
@@ -46,6 +45,6 @@ class TUIHeader(Static):
                 " │ ",
                 (now, "dim"),
                 " │ ",
-                ("[Space] Start/Stop  [S]ave  [L]ogs  [?] Help", "dim"),
+                ("[Space] Start/Stop  [S]ave  [L]ogs  [I]nput  [P]reset  [R]ec  [?] Help", "dim"),
             )
         )

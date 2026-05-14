@@ -14,10 +14,9 @@ from cli.client.http_client import (
     OutputInfo,
     PipelineStatus,
 )
-from cli.client.http_client import LogEntry
-
 
 # ── mock helpers ──
+
 
 def _mock_response(json_data, status_code=200):
     r = MagicMock(spec=httpx.Response)
@@ -147,9 +146,7 @@ class TestAPIClientHTTP:
 
     @pytest.mark.asyncio
     async def test_get_outputs(self, mock_httpx):
-        mock_httpx.get.return_value = _mock_response(
-            {"outputs": [{"name": "hls", "type": "hls", "state": "running"}]}
-        )
+        mock_httpx.get.return_value = _mock_response({"outputs": [{"name": "hls", "type": "hls", "state": "running"}]})
         api = APIClient()
         result = await api.get_outputs()
         assert len(result) == 1
@@ -273,9 +270,7 @@ class TestAPIClientHTTP:
 
     @pytest.mark.asyncio
     async def test_get_recordings(self, mock_httpx):
-        mock_httpx.get.return_value = _mock_response(
-            {"recordings": [{"name": "rec1.mp4", "size_bytes": 1024}]}
-        )
+        mock_httpx.get.return_value = _mock_response({"recordings": [{"name": "rec1.mp4", "size_bytes": 1024}]})
         api = APIClient()
         result = await api.get_recordings()
         assert len(result) == 1

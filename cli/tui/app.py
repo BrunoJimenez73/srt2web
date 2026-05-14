@@ -14,7 +14,10 @@ from cli.client.http_client import APIClient, LogEntry, ModuleInfo, PipelineStat
 from cli.client.ws_client import WSClient
 from cli.tui.screens.dashboard import DashboardScreen
 from cli.tui.screens.help import HelpScreen
+from cli.tui.screens.input_control import InputControlScreen
 from cli.tui.screens.module_detail import ModuleDetailScreen
+from cli.tui.screens.presets_screen import PresetsScreen
+from cli.tui.screens.recordings_screen import RecordingsScreen
 from cli.tui.widgets.module_grid import CARD_NAMES, ModuleSelected
 
 logger = logging.getLogger("srt2web.tui")
@@ -99,6 +102,9 @@ class SRT2WebTUI(App):
         Binding("c", "focus_config", "Config"),
         Binding("o", "focus_outputs", "Outputs"),
         Binding("m", "open_module", "Module"),
+        Binding("p", "open_presets", "Presets"),
+        Binding("R", "open_recordings", "Recordings"),
+        Binding("i", "open_input_control", "Input"),
     ]
     if sys.platform == "darwin":
         BINDINGS.insert(0, Binding("ctrl+q", "quit", "Quit (macOS)"))
@@ -266,6 +272,15 @@ class SRT2WebTUI(App):
     def action_focus_outputs(self) -> None:
         dashboard = self.query_one(DashboardScreen)
         dashboard.focus_outputs()
+
+    def action_open_presets(self) -> None:
+        self.push_screen(PresetsScreen(self.api))
+
+    def action_open_recordings(self) -> None:
+        self.push_screen(RecordingsScreen(self.api))
+
+    def action_open_input_control(self) -> None:
+        self.push_screen(InputControlScreen(self.api))
 
     async def action_refresh(self) -> None:
         try:

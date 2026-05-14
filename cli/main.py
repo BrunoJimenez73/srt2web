@@ -4,25 +4,25 @@ import asyncio
 import sys
 from typing import Optional
 
-import colorama
 import click
+import colorama
 from rich.console import Console
 
 colorama.init()
 
 # Fix Windows console encoding for Unicode chars
-if hasattr(sys.stdout, 'reconfigure'):
+if hasattr(sys.stdout, "reconfigure"):
     try:
-        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stdout.reconfigure(encoding="utf-8")
     except Exception:
         pass
-if hasattr(sys.stderr, 'reconfigure'):
+if hasattr(sys.stderr, "reconfigure"):
     try:
-        sys.stderr.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding="utf-8")
     except Exception:
         pass
 
-from cli.client.http_client import APIClient, DEFAULT_SERVER
+from cli.client.http_client import DEFAULT_SERVER, APIClient
 
 
 @click.group(invoke_without_command=True)
@@ -41,6 +41,7 @@ def cli(ctx: click.Context, server: str, token: Optional[str], json_output: bool
     if ctx.invoked_subcommand is None:
         # Default: launch TUI
         from cli.tui.app import run_tui
+
         asyncio.run(run_tui(server=server, token=token))
 
 
@@ -49,23 +50,27 @@ def cli(ctx: click.Context, server: str, token: Optional[str], json_output: bool
 @click.pass_context
 def pipeline(ctx: click.Context, action: str) -> None:
     """Control the pipeline: start, stop, or restart."""
+
     async def _run():
         api = APIClient(ctx.obj["server"], ctx.obj["token"])
         console = Console()
         try:
             if action == "start":
                 from cli.commands.start import run_start
+
                 return await run_start(api, console, ctx.obj["json"])
             elif action == "stop":
                 from cli.commands.stop import run_stop
+
                 return await run_stop(api, console, ctx.obj["json"])
             elif action == "restart":
                 result = await api.restart_pipeline()
                 if ctx.obj["json"]:
                     import json
+
                     console.print(json.dumps(result, indent=2))
                 else:
-                    console.print(f"[green]✓ Pipeline restarted[/]")
+                    console.print("[green]✓ Pipeline restarted[/]")
                 return 0
         finally:
             await api.close()
@@ -79,25 +84,29 @@ def pipeline(ctx: click.Context, action: str) -> None:
 @click.pass_context
 def config(ctx: click.Context, key: Optional[str], value: Optional[str]) -> None:
     """View or modify pipeline configuration.
-    
+
     Usage: config [KEY] [VALUE]
-    
+
     Without arguments, shows the full configuration tree.
     With KEY, shows the value at that dotted path (e.g. server.port).
     With KEY and VALUE, sets the configuration parameter.
     """
+
     async def _run():
         api = APIClient(ctx.obj["server"], ctx.obj["token"])
         console = Console()
         try:
             if key and value:
                 from cli.commands.config import run_config_set
+
                 return await run_config_set(api, console, key, value, ctx.obj["json"])
             elif key:
                 from cli.commands.config import run_config_get
+
                 return await run_config_get(api, console, key, ctx.obj["json"])
             else:
                 from cli.commands.config import run_config_show
+
                 return await run_config_show(api, console, ctx.obj["json"])
         finally:
             await api.close()
@@ -114,25 +123,32 @@ def config(ctx: click.Context, key: Optional[str], value: Optional[str]) -> None
 def logs(ctx: click.Context, follow: bool, no_follow: bool, level: Optional[str], tail: int) -> None:
     """View pipeline logs in real-time."""
     from cli.commands.logs import run_logs
-    sys.exit(asyncio.run(run_logs(
-        api_base=ctx.obj["server"],
-        token=ctx.obj["token"],
-        console=Console(),
-        level_filter=level,
-        follow=follow and not no_follow,
-        tail_lines=tail,
-    )))
+
+    sys.exit(
+        asyncio.run(
+            run_logs(
+                api_base=ctx.obj["server"],
+                token=ctx.obj["token"],
+                console=Console(),
+                level_filter=level,
+                follow=follow and not no_follow,
+                tail_lines=tail,
+            )
+        )
+    )
 
 
 @cli.command()
 @click.pass_context
 def status(ctx: click.Context) -> None:
     """Show pipeline status, modules, and system resources."""
+
     async def _run():
         api = APIClient(ctx.obj["server"], ctx.obj["token"])
         console = Console()
         try:
             from cli.commands.status import run_status
+
             return await run_status(api, console, ctx.obj["json"])
         finally:
             await api.close()
@@ -145,6 +161,7 @@ def status(ctx: click.Context) -> None:
 def tui(ctx: click.Context) -> None:
     """Launch the interactive terminal UI (default)."""
     from cli.tui.app import run_tui
+
     run_tui(server=ctx.obj["server"], token=ctx.obj["token"])
 
 
@@ -152,6 +169,7 @@ def tui(ctx: click.Context) -> None:
 @click.pass_context
 def health(ctx: click.Context) -> None:
     """Show detailed system health."""
+
     async def _run():
         api = APIClient(ctx.obj["server"], ctx.obj["token"])
         console = Console()
@@ -160,6 +178,7 @@ def health(ctx: click.Context) -> None:
             if ctx.obj["json"]:
                 import json
                 from dataclasses import asdict
+
                 console.print(json.dumps(asdict(health_info), indent=2))
             else:
                 console.print(f"Status: [green]{health_info.status}[/]")
@@ -172,6 +191,54 @@ def health(ctx: click.Context) -> None:
             await api.close()
 
     sys.exit(asyncio.run(_run()))
+
+
+@cli.command()
+def module():
+    """Module management commands."""
+    from cli.commands.module import module
+
+    module()
+
+
+@cli.command()
+def output():
+    """Output management commands."""
+    from cli.commands.output import output
+
+    output()
+
+
+@cli.command()
+def preset():
+    """Preset management commands."""
+    from cli.commands.preset import preset
+
+    preset()
+
+
+@cli.command()
+def recording():
+    """Recording management commands."""
+    from cli.commands.recording import recording
+
+    recording()
+
+
+@cli.command()
+def input():
+    """Input control commands."""
+    from cli.commands.input import input
+
+    input()
+
+
+@cli.command()
+def network():
+    """Network information commands."""
+    from cli.commands.network import network
+
+    network()
 
 
 def cli_entry() -> None:

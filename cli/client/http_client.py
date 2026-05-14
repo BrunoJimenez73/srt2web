@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -294,6 +293,21 @@ class APIClient:
 
     async def delete_recording(self, name: str) -> dict:
         return await self._delete(f"/api/recordings/{name}")
+
+    async def update_output(self, name: str, config: dict | None = None, enabled: bool | None = None) -> dict:
+        body = {}
+        if config is not None:
+            body["config"] = config
+        if enabled is not None:
+            body["enabled"] = enabled
+        return await self._put(f"/api/outputs/{name}", body)
+
+    async def download_recording(self, name: str) -> bytes:
+        r = await self._client.get(f"/api/recordings/{name}/download")
+        if r.status_code == 401:
+            raise PermissionError("Authentication required.")
+        r.raise_for_status()
+        return r.content
 
     async def health_check(self) -> dict:
         return await self._get("/health")

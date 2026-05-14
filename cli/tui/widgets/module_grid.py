@@ -96,7 +96,13 @@ class CardClicked(Message):
 
 
 class TUIModuleGrid(Static):
-    pass
+    BINDINGS = [
+        ("right", "move_next", "Next"),
+        ("down", "move_next", "Next"),
+        ("left", "move_prev", "Prev"),
+        ("up", "move_prev", "Prev"),
+        ("enter", "select_card", "Open"),
+    ]
 
     def compose(self) -> ComposeResult:
         from textual.containers import Horizontal, Vertical
@@ -133,7 +139,30 @@ class TUIModuleGrid(Static):
                 cards["video_muxer"].update(state, enabled, chunks, last_time, extra)
 
     def on_card_clicked(self, event: CardClicked) -> None:
+        self._selected_index = CARD_NAMES.index(event.module_name) if event.module_name in CARD_NAMES else 0
         self.post_message(ModuleSelected(event.module_name))
+
+    def move_selection(self, delta: int) -> None:
+        self._selected_index = (self._selected_index + delta) % len(CARD_NAMES)
+        cards = list(self.query(TUIModuleCard))
+        if 0 <= self._selected_index < len(cards):
+            cards[self._selected_index].focus()
+
+    def focus_card(self, index: int) -> None:
+        self._selected_index = index % len(CARD_NAMES)
+        cards = list(self.query(TUIModuleCard))
+        if 0 <= self._selected_index < len(cards):
+            cards[self._selected_index].focus()
+
+    def action_move_next(self) -> None:
+        self.move_selection(1)
+
+    def action_move_prev(self) -> None:
+        self.move_selection(-1)
+
+    def action_select_card(self) -> None:
+        if 0 <= self._selected_index < len(CARD_NAMES):
+            self.post_message(ModuleSelected(CARD_NAMES[self._selected_index]))
 
 
 class ModuleSelected(Message):

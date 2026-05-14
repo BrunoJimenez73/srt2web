@@ -93,6 +93,7 @@ modules:
     language: auto
     device: auto
     beam_size: 2
+    timeout_sec: 120.0
   translator:
     enabled: true
     source_lang: en

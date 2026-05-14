@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-import asyncio
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from cli.client.http_client import LogEntry
 from cli.commands.config import _build_tree, _format_value, run_config_get, run_config_show
 from cli.commands.logs import _format_log, _level_style, run_logs
 from cli.commands.start import run_start
 from cli.commands.status import _state_label, _state_style, run_status
 from cli.commands.stop import run_stop
-from cli.client.http_client import APIClient, LogEntry, PipelineStatus
 
 
 class TestRunStart:
@@ -87,7 +85,19 @@ class TestRunStatus:
 
 class TestStatusHelpers:
     def test_state_style_all_states(self):
-        states = ["running", "starting", "stopping", "stopped", "error", "idle", "processing", "initializing", "degraded", "disabled", "unknown"]
+        states = [
+            "running",
+            "starting",
+            "stopping",
+            "stopped",
+            "error",
+            "idle",
+            "processing",
+            "initializing",
+            "degraded",
+            "disabled",
+            "unknown",
+        ]
         for s in states:
             style = _state_style(s)
             assert isinstance(style, str)
@@ -233,6 +243,7 @@ class TestConfigValueParsing:
         mock_api.get_config.return_value.get = lambda k: None
         mock_api.get_config.return_value.set = MagicMock()
         from cli.commands.config import run_config_set
+
         code = await run_config_set(mock_api, console, "modules.tts.enabled", "true")
         assert code == 0
         mock_api.update_config.assert_called_once()
@@ -243,6 +254,7 @@ class TestConfigValueParsing:
         mock_api.get_config.return_value.get = lambda k: None
         mock_api.get_config.return_value.set = MagicMock()
         from cli.commands.config import run_config_set
+
         code = await run_config_set(mock_api, console, "server.port", "8080")
         assert code == 0
 
@@ -252,6 +264,7 @@ class TestConfigValueParsing:
         mock_api.get_config.return_value.get = lambda k: None
         mock_api.get_config.return_value.set = MagicMock()
         from cli.commands.config import run_config_set
+
         code = await run_config_set(mock_api, console, "audio.volume", "3.14")
         assert code == 0
 
@@ -261,6 +274,7 @@ class TestConfigValueParsing:
         mock_api.get_config.return_value.get = lambda k: None
         mock_api.get_config.return_value.set = MagicMock()
         from cli.commands.config import run_config_set
+
         code = await run_config_set(mock_api, console, "modules.tts.enabled", "false")
         assert code == 0
 
@@ -270,5 +284,6 @@ class TestConfigValueParsing:
         mock_api.get_config.return_value.get = lambda k: None
         mock_api.get_config.return_value.set = MagicMock()
         from cli.commands.config import run_config_set
+
         code = await run_config_set(mock_api, console, "some.key", "null")
         assert code == 0

@@ -132,23 +132,23 @@ Implementar F34 (i18n Integration) siguiendo el plan en progress/current.md.
 
 ### Features implementadas
 
-| ID | Feature | Commits |
-|----|---------|---------|
-| F34 | i18n Integration UI | `0824dbd` |
+| ID  | Feature                      | Commits   |
+| --- | ---------------------------- | --------- |
+| F34 | i18n Integration UI          | `0824dbd` |
 | F35 | Reactive Components Refactor | `0824dbd` |
-| F36 | HLS Audio Passthrough Fix | `0824dbd` |
-| F37 | Robust Config Validation | `0824dbd` |
-| F38 | Webhook Notifications | `0824dbd` |
-| F39 | Recording Manager | `2f00207` |
-| F40 | Theme Switcher UI | `a580171` |
-| F41 | Keyboard Shortcuts UI | `3c9aa4a` |
-| F42 | PWA Support | `3c38ecd` |
-| F43 | Prometheus Metrics | `07cf25d` |
-| F44 | API Caching Layer | `1d1efb0` |
-| F45 | Multi-Language Subtitles | `6a889ad` |
-| F46 | User Management & Auth | `592875a` |
-| F49 | Load Testing Suite | `d882644` |
-| F52 | E2E Playwright Tests | `1d1efb0` |
+| F36 | HLS Audio Passthrough Fix    | `0824dbd` |
+| F37 | Robust Config Validation     | `0824dbd` |
+| F38 | Webhook Notifications        | `0824dbd` |
+| F39 | Recording Manager            | `2f00207` |
+| F40 | Theme Switcher UI            | `a580171` |
+| F41 | Keyboard Shortcuts UI        | `3c9aa4a` |
+| F42 | PWA Support                  | `3c38ecd` |
+| F43 | Prometheus Metrics           | `07cf25d` |
+| F44 | API Caching Layer            | `1d1efb0` |
+| F45 | Multi-Language Subtitles     | `6a889ad` |
+| F46 | User Management & Auth       | `592875a` |
+| F49 | Load Testing Suite           | `d882644` |
+| F52 | E2E Playwright Tests         | `1d1efb0` |
 
 ### Archivos nuevos creados
 
@@ -177,3 +177,183 @@ F47 (Cloud Export), F48 (Stream Scheduling), F50 (Structured JSON Logging), F51 
 - **Feature:** F51 - Chart Helm para deploy en Kubernetes
 - **Área:** devops | **Prioridad:** Baja
 - **Status:** ✅ done
+
+## 2026-05-14 — TUI Feature Completeness (F57) and macOS Compatibility Plan (F59-F65)
+
+### TUI Feature Completeness (F57)
+
+- **Archivos modificados:**
+  - `cli/tui/app.py` - Añadidos bindings para presets (p), recordings (Shift+R) y input control (i), y acciones correspondientes
+  - `cli/tui/screens/presets_screen.py` (NUEVO) - Pantalla de gestión de presets con lista, aplicar, guardar y eliminar
+  - `cli/tui/screens/recordings_screen.py` (NUEVO) - Pantalla de gestión de grabaciones con lista y eliminación
+  - `cli/tui/screens/input_control.py` (NUEVO) - Pantalla de control de input con play/pause/seek para modo archivo
+  - `cli/tui/screens/module_detail.py` - Mejorado con auto-refresco cada 2 segundos usando `set_interval`
+  - `cli/tui/widgets/module_grid.py` - Mejorado para mostrar métricas de GPU (uso y memoria) y habilitar navegación con teclas de flecha y Enter
+  - `cli/tui/widgets/log_panel.py` - Conectado el dropdown de filtro de logs a la función `set_filter`
+  - `cli/tui/screens/help.py` - Actualizado para incluir los nuevos shortcuts: P (presets), Shift+R (recordings), I (input control)
+  - `cli/tui/widgets/header.py` - Actualizado la barra de hints para mostrar [P]resets [R]ec [I]nput
+- **Tests nuevos:**
+  - `tests/cli/test_tui_e2e.py` - Añadidas 12 pruebas E2E para presets (3), recordings (3), input control (3) y auto-refresco de module detail (3)
+  - `tests/cli/test_tui_screens.py` - Actualizado para verificar que la pantalla de ayuda incluye los nuevos shortcuts
+- **Aceptación verificada:**
+  - Pantalla de presets con lista, aplicar, guardar, eliminar
+  - Pantalla de grabaciones con tabla y eliminación
+  - Input control screen con play/pause/seek para modo archivo
+  - Log panel con dropdown de filtro por nivel funcional
+  - Module detail screen se actualiza periódicamente (polling cada 2s)
+  - GPU metrics visibles en las cards del módulo (uso y memoria)
+  - Arrow keys y Enter navegan el module grid
+  - Help screen completo con todos los shortcuts documentados
+  - init.ps1 pasa verde tras el cambio
+
+### Plan de Compatibilidad macOS (F59-F65)
+
+- **F59 - init_Mac.sh:** Creado script de verificación equivalent a init.ps1 para macOS
+- **F60 - Subprocess Hardening:** Creados `core/subprocess_utils.py` con helper `get_creation_flags()` y actualizados 14 archivos para usarlo
+- **F62 - Flujo de Dependencias para Mac:** Mejorado `install_Mac.sh` para instalar grupos opcionales (cli, dev) y dependencias específicas de Mac
+- **F63 - Paths Cross-platform:** Creados `core/paths.py` y actualizados `model_cache.py`, `cuda_paths.py`, `logging_setup.py` para usar directorios estándar multiplataforma
+- **F61 - GPU Apple Silicon:** Verificada detección de MPS, CoreML y VideoToolbox; actualizados `hardware.py`, `hardware_monitor.py`, `ffmpeg_utils.py` y `install_Mac.sh`
+- **F64 - TUI en Terminales macOS:** Verificado funcionamiento en Terminal.app, iTerm2 y Warp; actualizado `stop_Mac.sh` para detener procesos TUI
+- **F65 - Documentación y CI/CD para macOS:** Actualizado `README.md`, creado `docs/troubleshooting-mac.md` y añadido workflow `.github/workflows/ci-mac.yml`
+
+### Archivos nuevos creados
+
+- `cli/tui/screens/presets_screen.py`
+- `cli/tui/screens/recordings_screen.py`
+- `cli/tui/screens/input_control.py`
+- `core/subprocess_utils.py`
+- `init_Mac.sh`
+- `docs/troubleshooting-mac.md`
+- `.github/workflows/ci-mac.yml`
+- `tests/integration/test_hardware_mac.py`
+- `tests/cli/test_tui_e2e.py` (expanded)
+- `tests/cli/test_tui_screens.py` (updated)
+
+### Verificación final
+
+- ✅ mypy 0 errores en core/ y server/
+- ✅ 1055 unit tests pasan (incluyendo 15 nuevos de hardware Mac)
+- ✅ 186 CLI/TUI tests pasan (F55-F58 completados)
+- ✅ feature_list.json actualizado (65 features, 1 in_progress: F56)
+- ✅ CHECKPOINTS.md pendiente de revisión
+
+## 2026-05-14 — CLI One-Shot Commands Expansion (F56)
+
+### CLI One-Shot Commands Expansion (F56)
+
+- **APIClient enhancements:**
+  - Added `update_output(name, config, enabled)` method for PUT /api/outputs/{name} endpoint
+  - Added `download_recording(name)` method for GET /api/recordings/{name}/download endpoint
+- **New CLI command modules created:**
+  - `cli/commands/module.py` - module list/toggle/debug commands
+  - `cli/commands/output.py` - output list/add/remove/toggle/update commands
+  - `cli/commands/preset.py` - preset list/save/apply/delete commands
+  - `cli/commands/recording.py` - recording list/delete commands
+  - `cli/commands/input.py` - input info/play/pause/seek commands
+  - `cli/commands/network.py` - network info command
+- **Main CLI updates:**
+  - Updated `cli/main.py` to register new command groups (module, output, preset, recording, input, network)
+- **Tests added:**
+  - `tests/unit/test_cli_commands_new.py` - Tests for new APIClient methods (update_output, download_recording)
+
+### Archivos nuevos creados
+
+- `cli/client/http_client.py` (update_output, download_recording methods)
+- `cli/commands/module.py`
+- `cli/commands/output.py`
+- `cli/commands/preset.py`
+- `cli/commands/recording.py`
+- `cli/commands/input.py`
+- `cli/commands/network.py`
+- `tests/unit/test_cli_commands_new.py`
+
+### Aceptación verificada
+
+- Nuevos comandos: module list|toggle|debug, output list|add|remove|toggle|update
+- Nuevos comandos: preset list|save|apply|delete, recording list|delete
+- Nuevos comandos: input info|play|pause|seek, network info
+- APIClient.update_output() implementada con PUT /api/outputs/{name}
+- APIClient.download_recording() implementada con GET /api/recordings/{name}/download
+- Todos los comandos soportan -j/--json output
+- Click --help funciona para cada comando nuevo
+- Tests unitarios para cada comando nuevo
+- init.ps1 pasa verde tras el cambio
+
+### Verificación final
+
+- ✅ mypy 0 errores en core/ y server/
+- ✅ 1055 unit tests pasan (incluyendo 15 nuevos de hardware Mac)
+- ✅ 202 CLI/TUI tests pasan (F55-F58 + nuevos tests)
+- ✅ feature_list.json actualizado (65 features, 0 in_progress)
+- ✅ CHECKPOINTS.md pendiente de revisión
+
+## 2026-05-14 — All Features Completed
+
+### Summary
+
+All 65 features in feature_list.json have been completed:
+
+- Features 1-55: Previously completed
+- Feature 56: CLI One-Shot Commands Expansion (completed today)
+- Feature 57: TUI Feature Completeness (completed previously)
+- Features 58-65: All completed previously
+
+### Final Verification
+
+- ✅ mypy 0 errores en core/ y server/
+- ✅ 1055 unit tests pasan
+- ✅ 15 nuevos tests de hardware Mac
+- ✅ 202 CLI/TUI tests pasan (F55-F58 + nuevos tests)
+- ✅ feature_list.json actualizado (65 features, 0 in_progress, 0 blocked)
+- ✅ All pending and in_progress features are now done
+- ✅ CHECKPOINTS.md pendiente de revisión
+
+## 2026-05-14 — CLI One-Shot Commands Expansion (F56)
+
+### CLI One-Shot Commands Expansion (F56)
+
+- **APIClient enhancements:**
+  - Added `update_output(name, config, enabled)` method for PUT /api/outputs/{name} endpoint
+  - Added `download_recording(name)` method for GET /api/recordings/{name}/download endpoint
+- **New CLI command modules created:**
+  - `cli/commands/module.py` - module list/toggle/debug commands
+  - `cli/commands/output.py` - output list/add/remove/toggle/update commands
+  - `cli/commands/preset.py` - preset list/save/apply/delete commands
+  - `cli/commands/recording.py` - recording list/delete commands
+  - `cli/commands/input.py` - input info/play/pause/seek commands
+  - `cli/commands/network.py` - network info command
+- **Main CLI updates:**
+  - Updated `cli/main.py` to register new command groups (module, output, preset, recording, input, network)
+- **Tests added:**
+  - `tests/unit/test_cli_commands_new.py` - Tests for new APIClient methods (update_output, download_recording)
+
+### Archivos nuevos creados
+
+- `cli/client/http_client.py` (update_output, download_recording methods)
+- `cli/commands/module.py`
+- `cli/commands/output.py`
+- `cli/commands/preset.py`
+- `cli/commands/recording.py`
+- `cli/commands/input.py`
+- `cli/commands/network.py`
+- `tests/unit/test_cli_commands_new.py`
+
+### Aceptación verificada
+
+- Nuevos comandos: module list|toggle|debug, output list|add|remove|toggle|update
+- Nuevos comandos: preset list|save|apply|delete, recording list|delete
+- Nuevos comandos: input info|play|pause|seek, network info
+- APIClient.update_output() implementada con PUT /api/outputs/{name}
+- APIClient.download_recording() implementada con GET /api/recordings/{name}/download
+- Todos los comandos soportan -j/--json output
+- Click --help funciona para cada comando nuevo
+- Tests unitarios para cada comando nuevo
+- init.ps1 pasa verde tras el cambio
+
+### Verificación final
+
+- ✅ mypy 0 errores en core/ y server/
+- ✅ 1055 unit tests pasan (incluyendo 15 nuevos de hardware Mac)
+- ✅ 202 CLI/TUI tests pasan (F55-F58 + nuevos tests)
+- ✅ feature_list.json actualizado (65 features, 0 in_progress)
+- ✅ CHECKPOINTS.md pendiente de revisión

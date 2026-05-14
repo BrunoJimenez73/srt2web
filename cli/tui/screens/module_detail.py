@@ -144,7 +144,9 @@ class ModuleConfigForm(Vertical):
         icon = MODULE_ICONS.get(self.module_name, "[" + self.module_name.upper()[:7] + "]")
 
         yield Static(f"{icon} {title}", classes="form-title")
-        yield Static(f"State: {state} | Chunks: {chunks} | Time: {last_time:.0f}ms", classes="form-status")
+        yield Static(
+            f"State: {state} | Chunks: {chunks} | Time: {last_time:.0f}ms", id="form-status-line", classes="form-status"
+        )
 
         if schema:
             yield Static("Configuration:", classes="section-label")
@@ -158,7 +160,11 @@ class ModuleConfigForm(Vertical):
         circuit = getattr(self.module_info, "circuit_state", "closed") if self.module_info else "closed"
         extra_info = self.module_info.extra if self.module_info else {}
         gpu_info = extra_info.get("using_gpu", False) or extra_info.get("device", "")
-        yield Static(f"Memory: {mem_mb:.0f} MB | Circuit: {circuit} | GPU: {gpu_info or 'N/A'}", classes="form-metrics")
+        yield Static(
+            f"Memory: {mem_mb:.0f} MB | Circuit: {circuit} | GPU: {gpu_info or 'N/A'}",
+            id="form-metrics-line",
+            classes="form-metrics",
+        )
 
         yield Horizontal(
             Button("Save", variant="primary", id="btn-save-module"),
@@ -206,6 +212,22 @@ class ModuleConfigForm(Vertical):
                 except ValueError:
                     values[key] = inp.value
         return values
+
+    def update_module_info(self, module_dict: dict) -> None:
+        state = module_dict.get("state", "idle")
+        chunks = module_dict.get("processed_chunks", 0)
+        last_time = module_dict.get("last_process_time_ms", 0.0)
+        extra = module_dict.get("extra", {})
+        mem_mb = extra.get("memory_mb", 0.0) or 0.0
+        circuit = module_dict.get("circuit_state", "closed")
+        gpu_info = extra.get("using_gpu", False) or extra.get("device", "")
+        try:
+            status_line = self.query_one("#form-status-line", Static)
+            status_line.update(f"State: {state} | Chunks: {chunks} | Time: {last_time:.0f}ms")
+            metrics_line = self.query_one("#form-metrics-line", Static)
+            metrics_line.update(f"Memory: {mem_mb:.0f} MB | Circuit: {circuit} | GPU: {gpu_info or 'N/A'}")
+        except Exception:
+            pass
 
 
 class ModuleConfigSaved(Message):
@@ -291,6 +313,9 @@ class ModuleDetailScreen(Screen):
         self.config = config
         self.api_client = api_client
         self._form_mounted = False
+        self._form = None
+        self._polling = False
+        self._refresh_timer = None
 
     def compose(self) -> ComposeResult:
         yield ScrollableContainer(id="form-container")
@@ -298,7 +323,29 @@ class ModuleDetailScreen(Screen):
     def on_mount(self) -> None:
         container = self.query_one("#form-container", ScrollableContainer)
         form = ModuleConfigForm(self.module_name, self.module_info, self.config)
+        self._form = form
         container.mount(form)
+        self._refresh_timer = self.set_interval(2.0, self._poll_module_info)
+
+    async def _poll_module_info(self) -> None:
+        if self._polling:
+            return
+        self._polling = True
+        try:
+            status = await self.api_client.get_status()
+            for m in status.modules:
+                if m.get("name") == self.module_name and m.get("state"):
+                    if self._form:
+                        self._form.update_module_info(m)
+                    break
+        except Exception:
+            pass
+        finally:
+            self._polling = False
+
+    def on_unmount(self) -> None:
+        if hasattr(self, "_refresh_timer") and self._refresh_timer:
+            self._refresh_timer.stop()
 
     async def on_module_config_saved(self, event: ModuleConfigSaved) -> None:
         if event.module_name in self.config.get("modules", {}):

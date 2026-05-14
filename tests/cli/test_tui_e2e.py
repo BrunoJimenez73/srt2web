@@ -3,12 +3,14 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from textual.widgets import Static
 
 from cli.client.http_client import PipelineStatus
 from cli.tui.app import SRT2WebTUI
 from cli.tui.screens.help import HelpScreen
+from cli.tui.screens.input_control import InputControlScreen
 from cli.tui.screens.module_detail import ModuleDetailScreen
+from cli.tui.screens.presets_screen import PresetsScreen
+from cli.tui.screens.recordings_screen import RecordingsScreen
 from cli.tui.widgets.header import TUIHeader
 from cli.tui.widgets.log_panel import TUILogPanel
 from cli.tui.widgets.metrics_panel import TUIMetricsPanel
@@ -18,21 +20,93 @@ from cli.tui.widgets.status_bar import TUIStatusBar
 
 def _make_mock_status(**overrides):
     defaults = dict(
-        state="stopped", mode="thread_parallel", chunks_processed=0,
-        chunks_failed=0, avg_processing_time_ms=0.0, uptime_seconds=0.0,
-        max_concurrent_chunks=4, concurrent_chunks=0, buffer_size=0,
-        strategy="thread_parallel", modules=[
-            {"name": "input", "state": "idle", "enabled": True, "processed_chunks": 0, "last_process_time_ms": 0.0, "extra": {}},
-            {"name": "audio_extractor", "state": "idle", "enabled": True, "processed_chunks": 0, "last_process_time_ms": 0.0, "extra": {}},
-            {"name": "transcriber", "state": "idle", "enabled": True, "processed_chunks": 0, "last_process_time_ms": 0.0, "extra": {}},
-            {"name": "translator", "state": "idle", "enabled": True, "processed_chunks": 0, "last_process_time_ms": 0.0, "extra": {}},
-            {"name": "subtitle_generator", "state": "idle", "enabled": True, "processed_chunks": 0, "last_process_time_ms": 0.0, "extra": {}},
-            {"name": "tts_engine", "state": "idle", "enabled": True, "processed_chunks": 0, "last_process_time_ms": 0.0, "extra": {}},
-            {"name": "audio_mixer", "state": "idle", "enabled": True, "processed_chunks": 0, "last_process_time_ms": 0.0, "extra": {}},
-            {"name": "video_muxer", "state": "idle", "enabled": True, "processed_chunks": 0, "last_process_time_ms": 0.0, "extra": {}},
+        state="stopped",
+        mode="thread_parallel",
+        chunks_processed=0,
+        chunks_failed=0,
+        avg_processing_time_ms=0.0,
+        uptime_seconds=0.0,
+        max_concurrent_chunks=4,
+        concurrent_chunks=0,
+        buffer_size=0,
+        strategy="thread_parallel",
+        modules=[
+            {
+                "name": "input",
+                "state": "idle",
+                "enabled": True,
+                "processed_chunks": 0,
+                "last_process_time_ms": 0.0,
+                "extra": {},
+            },
+            {
+                "name": "audio_extractor",
+                "state": "idle",
+                "enabled": True,
+                "processed_chunks": 0,
+                "last_process_time_ms": 0.0,
+                "extra": {},
+            },
+            {
+                "name": "transcriber",
+                "state": "idle",
+                "enabled": True,
+                "processed_chunks": 0,
+                "last_process_time_ms": 0.0,
+                "extra": {},
+            },
+            {
+                "name": "translator",
+                "state": "idle",
+                "enabled": True,
+                "processed_chunks": 0,
+                "last_process_time_ms": 0.0,
+                "extra": {},
+            },
+            {
+                "name": "subtitle_generator",
+                "state": "idle",
+                "enabled": True,
+                "processed_chunks": 0,
+                "last_process_time_ms": 0.0,
+                "extra": {},
+            },
+            {
+                "name": "tts_engine",
+                "state": "idle",
+                "enabled": True,
+                "processed_chunks": 0,
+                "last_process_time_ms": 0.0,
+                "extra": {},
+            },
+            {
+                "name": "audio_mixer",
+                "state": "idle",
+                "enabled": True,
+                "processed_chunks": 0,
+                "last_process_time_ms": 0.0,
+                "extra": {},
+            },
+            {
+                "name": "video_muxer",
+                "state": "idle",
+                "enabled": True,
+                "processed_chunks": 0,
+                "last_process_time_ms": 0.0,
+                "extra": {},
+            },
         ],
-        system={"cpu_percent": 10.0, "memory_percent": 50.0, "memory_mb": 2048.0, "gpu_util": 0.0, "gpu_memory_mb": 0.0},
-        network={}, sync={}, input_receiving=False, input_info={},
+        system={
+            "cpu_percent": 10.0,
+            "memory_percent": 50.0,
+            "memory_mb": 2048.0,
+            "gpu_util": 0.0,
+            "gpu_memory_mb": 0.0,
+        },
+        network={},
+        sync={},
+        input_receiving=False,
+        input_info={},
     )
     defaults.update(overrides)
     return PipelineStatus.from_dict(defaults)
@@ -189,9 +263,7 @@ async def test_module_click_opens_detail(mock_deps):
         await pilot.pause()
 
         card.post_message(
-            type(card).CardClicked(card.module_name)
-            if hasattr(type(card), "CardClicked")
-            else MagicMock()
+            type(card).CardClicked(card.module_name) if hasattr(type(card), "CardClicked") else MagicMock()
         )
         await pilot.pause()
 
@@ -266,3 +338,162 @@ async def test_ws_connection_created(mock_deps):
     async with app.run_test(size=(120, 36)) as pilot:
         await pilot.pause()
         mock_deps["ws_cls"].assert_called()
+
+
+@pytest.mark.asyncio
+async def test_presets_screen_opens(mock_deps):
+    """Pressing P opens PresetsScreen; Esc closes it."""
+    app = SRT2WebTUI()
+    async with app.run_test(size=(120, 36)) as pilot:
+        await pilot.pause()
+        await pilot.press("p")
+        assert isinstance(app.screen, PresetsScreen)
+        await pilot.press("escape")
+        assert not isinstance(app.screen, PresetsScreen)
+
+
+@pytest.mark.asyncio
+async def test_presets_screen_shows_presets(mock_deps):
+    """PresetsScreen calls get_presets and renders list."""
+    mock_deps["api"].get_presets = AsyncMock(
+        return_value=[
+            {"name": "low-latency", "description": "Optimized for speed", "built_in": True},
+            {"name": "high-quality", "description": "Best quality output", "built_in": False},
+        ]
+    )
+    app = SRT2WebTUI()
+    async with app.run_test(size=(120, 36)) as pilot:
+        await pilot.press("p")
+        await pilot.pause()
+        mock_deps["api"].get_presets.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_presets_save(mock_deps):
+    """Saving a preset calls save_preset API."""
+    mock_deps["api"].save_preset = AsyncMock(return_value={"status": "ok", "name": "my-preset"})
+    app = SRT2WebTUI()
+    async with app.run_test(size=(120, 36)) as pilot:
+        await pilot.press("p")
+        await pilot.pause()
+        screen = app.screen
+        inp = screen.query_one("#save-input")
+        inp.value = "my-preset"
+        btn = screen.query_one("#btn-save-preset")
+        await pilot.click(btn)
+        await pilot.pause()
+        mock_deps["api"].save_preset.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_presets_apply(mock_deps):
+    """Applying a preset calls apply_preset API."""
+    mock_deps["api"].get_presets = AsyncMock(
+        return_value=[
+            {"name": "low-latency", "description": "Fast", "built_in": True},
+        ]
+    )
+    mock_deps["api"].apply_preset = AsyncMock(return_value={"status": "ok"})
+    app = SRT2WebTUI()
+    async with app.run_test(size=(120, 36)) as pilot:
+        await pilot.press("p")
+        await pilot.pause()
+        await pilot.press("a")
+        await pilot.pause()
+        mock_deps["api"].apply_preset.assert_called_once_with("low-latency")
+
+
+@pytest.mark.asyncio
+async def test_recordings_screen_opens(mock_deps):
+    """Pressing Shift+R opens RecordingsScreen; Esc closes it."""
+    app = SRT2WebTUI()
+    async with app.run_test(size=(120, 36)) as pilot:
+        await pilot.pause()
+        await pilot.press("R")
+        await pilot.pause()
+        assert isinstance(app.screen, RecordingsScreen)
+        await pilot.press("escape")
+        assert not isinstance(app.screen, RecordingsScreen)
+
+
+@pytest.mark.asyncio
+async def test_recordings_screen_shows_list(mock_deps):
+    """RecordingsScreen fetches and renders recordings."""
+    mock_deps["api"].get_recordings = AsyncMock(
+        return_value=[
+            {"name": "recording_001.mp4", "size_formatted": "12 MB", "format": "mp4", "modified": "2026-05-14"},
+        ]
+    )
+    app = SRT2WebTUI()
+    async with app.run_test(size=(120, 36)) as pilot:
+        await pilot.press("R")
+        await pilot.pause()
+        mock_deps["api"].get_recordings.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_recordings_delete(mock_deps):
+    """Pressing d in recordings screen calls delete_recording."""
+    mock_deps["api"].get_recordings = AsyncMock(
+        return_value=[
+            {"name": "test_rec.mp4", "size_formatted": "5 MB"},
+        ]
+    )
+    mock_deps["api"].delete_recording = AsyncMock(return_value={"status": "ok"})
+    app = SRT2WebTUI()
+    async with app.run_test(size=(120, 36)) as pilot:
+        await pilot.press("R")
+        await pilot.pause()
+        await pilot.press("d")
+        await pilot.pause()
+        mock_deps["api"].delete_recording.assert_called_once_with("test_rec.mp4")
+
+
+@pytest.mark.asyncio
+async def test_input_control_screen_opens(mock_deps):
+    """Pressing I opens InputControlScreen; Esc closes it."""
+    app = SRT2WebTUI()
+    async with app.run_test(size=(120, 36)) as pilot:
+        await pilot.pause()
+        await pilot.press("i")
+        await pilot.pause()
+        assert isinstance(app.screen, InputControlScreen)
+        await pilot.press("escape")
+        assert not isinstance(app.screen, InputControlScreen)
+
+
+@pytest.mark.asyncio
+async def test_input_control_shows_info(mock_deps):
+    """InputControlScreen fetches input info on mount."""
+    mock_deps["api"].get_input_info = AsyncMock(return_value={"type": "srt", "url": "srt://localhost:5000"})
+    app = SRT2WebTUI()
+    async with app.run_test(size=(120, 36)) as pilot:
+        await pilot.press("i")
+        await pilot.pause()
+        mock_deps["api"].get_input_info.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_input_control_play(mock_deps):
+    """Play button calls control_input('play')."""
+    mock_deps["api"].control_input = AsyncMock(return_value={"status": "playing"})
+    app = SRT2WebTUI()
+    async with app.run_test(size=(120, 36)) as pilot:
+        await pilot.press("i")
+        await pilot.pause()
+        screen = app.screen
+        btn = screen.query_one("#btn-play")
+        await pilot.click(btn)
+        await pilot.pause()
+        mock_deps["api"].control_input.assert_called_with("play")
+
+
+@pytest.mark.asyncio
+async def test_module_detail_auto_refresh_refetches(mock_deps):
+    """Module detail screen periodically fetches status."""
+    app = SRT2WebTUI()
+    async with app.run_test(size=(120, 36)) as pilot:
+        await pilot.press("m")
+        await pilot.pause()
+        await pilot.pause()
+        mock_deps["api"].get_status.assert_called()

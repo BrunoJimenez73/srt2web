@@ -302,7 +302,8 @@
       "id": 56,
       "name": "cli_commands_expansion",
       "title": "CLI One-Shot Commands Expansion",
-      "status": "pending",
+      "status": "done",
+      "completed_date": "2026-05-14",
       "area": "cli-tui",
       "priority": "Media",
       "description": "Agregar comandos one-shot faltantes para cubrir toda la API del servidor: módulos, outputs, presets, recordings, input control, network info.",
@@ -339,10 +340,8 @@
       "id": 57,
       "name": "tui_feature_completeness",
       "title": "TUI Feature Completeness",
-      "status": "pending",
-      "area": "cli-tui",
-      "priority": "Media",
-      "description": "Cerrar gaps funcionales entre el dashboard web y el TUI: presets, recordings, input control, log filter, GPU metrics, keyboard navigation.",
+      "status": "done",
+      "completed_date": "2026-05-14",
       "problems_identified": [
         "No hay pantalla de presets en TUI",
         "No hay pantalla de grabaciones en TUI",
@@ -379,7 +378,8 @@
       "id": 58,
       "name": "cli_tui_test_coverage",
       "title": "CLI/TUI Test Coverage",
-      "status": "in_progress",
+      "status": "done",
+      "completed_date": "2026-05-14",
       "problems_identified": [
         "ws_client.py: 0% cobertura (128 líneas, lógica de reconexión no testeada)",
         "TUI completo: 0% cobertura (~300 líneas en 7 archivos)",
@@ -414,7 +414,8 @@
       "id": 59,
       "name": "mac_init_verification",
       "title": "Script init_Mac.sh de verificación del harness",
-      "status": "pending",
+      "status": "done",
+      "completed_date": "2026-05-14",
       "area": "macos",
       "priority": "Alta",
       "description": "Crear script bash init_Mac.sh como equivalente funcional de init.ps1 para macOS. Verifica Python 3.12, venv, dependencias, mypy y tests.",
@@ -722,6 +723,41 @@
         "mitigation": [
           "Documentación no afecta código de producción",
           "CI workflow en macOS es informativo (no bloqueante)"
+        ]
+      }
+    },
+    {
+      "id": 66,
+      "name": "strategy_dry_refactor",
+      "title": "Strategy DRY Refactor — Eliminar duplicación en pipelines strategies",
+      "status": "done",
+      "completed_date": "2026-05-14",
+      "area": "core",
+      "priority": "Alta",
+      "description": "Refactorizar core/pipeline/strategies.py para eliminar ~60% de duplicación entre SequentialStrategy, ThreadParallelStrategy y AsyncIOStrategy extrayendo lógica común a PipelineStrategy (contadores, start/stop, _process_modules, get_metrics base).",
+      "problems_identified": [
+        "3 estrategias (Sequential, ThreadParallel, AsyncIO) compartían ~70% de código idéntico",
+        "start()/stop() eran idénticos excepto el message de log",
+        "get_metrics() repetía la misma estructura 3 veces con solo strategy name diferente",
+        "El loop de módulos (for module in self._modules) se duplicaba en las 3 estrategias",
+        "Los contadores _chunks_processed, _chunks_failed, _total_time, _active_chunks se declaraban por separado"
+      ],
+      "acceptance": [
+        "PipelineStrategy base class tiene: start(), stop(), _process_modules(), get_metrics() base",
+        "Cada subclase solo sobrescribe process_chunk() y añade su semáforo/lock específico",
+        "API pública 100% compatible hacia atrás (mismos nombres de clase y factory)",
+        "1057+ unit tests pasan sin cambios",
+        "mypy --strict 0 errores en core/pipeline/strategies.py",
+        "init.ps1 pasa verde"
+      ],
+      "files_to_touch": ["core/pipeline/strategies.py (refactor principal)"],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "Refactor mecánico: extracción de métodos comunes sin cambiar lógica",
+          "Tests existentes (94 pipeline tests + 57 unified pipeline tests) validan comportamiento",
+          "API pública y nombres de clase sin cambios",
+          "Factory create_strategy() intacta"
         ]
       }
     }

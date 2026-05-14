@@ -5,11 +5,9 @@ from unittest.mock import MagicMock
 
 import pytest
 from textual.app import App, ComposeResult
-from textual.widgets import Button, Input, Markdown, Select, Switch
 
-from cli.client.http_client import LogEntry, PipelineStatus
 from cli.tui.screens.dashboard import DashboardScreen
-from cli.tui.screens.help import HELP_TEXT, HelpScreen
+from cli.tui.screens.help import HELP_TEXT
 from cli.tui.screens.module_detail import (
     MODULE_CONFIG_SCHEMA,
     MODULE_ICONS,
@@ -18,12 +16,10 @@ from cli.tui.screens.module_detail import (
     ModuleConfigForm,
     ModuleDetailScreen,
 )
-from cli.tui.widgets.header import TUIHeader
 from cli.tui.widgets.log_panel import LOG_LEVELS, TUILogPanel
 from cli.tui.widgets.metrics_panel import TUIMetricsPanel
 from cli.tui.widgets.module_grid import CARD_NAMES, TUIModuleCard, TUIModuleGrid
 from cli.tui.widgets.status_bar import TUIStatusBar
-
 
 # ── Test helpers ──
 
@@ -53,7 +49,7 @@ class TestHelpScreen:
         assert "Quit" in HELP_TEXT
 
     def test_help_mentions_all_keys(self):
-        for key in ["Space", "S", "L", "Q", "Esc", "C", "O", "R", "M"]:
+        for key in ["Space", "S", "L", "Q", "Esc", "C", "O", "R", "M", "P", "Shift+R", "I"]:
             assert key in HELP_TEXT, f"Key '{key}' not in HELP_TEXT"
 
 
@@ -133,21 +129,25 @@ class TestTUIStatusBar:
 class TestTUIMetricsPanel:
     def test_bar_function(self):
         from cli.tui.widgets.metrics_panel import _bar
+
         result = _bar(50, 100, 20)
         assert any(c in result for c in "█▓▒░")
 
     def test_sparkline_function(self):
         from cli.tui.widgets.metrics_panel import _sparkline
+
         result = _sparkline([10, 20, 30, 40, 50], 10)
         assert len(result) == 10
 
     def test_sparkline_empty(self):
         from cli.tui.widgets.metrics_panel import _sparkline
+
         result = _sparkline([], 10)
         assert len(result) == 10
 
     def test_sparkline_single_value(self):
         from cli.tui.widgets.metrics_panel import _sparkline
+
         result = _sparkline([42], 10)
         assert len(result) == 10
 
@@ -171,6 +171,7 @@ class TestTUILogPanel:
 
     def test_level_style_function(self):
         from cli.tui.widgets.log_panel import _level_style
+
         assert "green" in _level_style("INFO")
         assert "yellow" in _level_style("WARNING")
         assert "red" in _level_style("ERROR")
@@ -236,18 +237,35 @@ class TestTUIModuleGrid:
 
     def test_update_modules_normal(self):
         grid = TUIModuleGrid()
-        grid.update_modules([
-            {"name": "transcriber", "state": "running", "enabled": True, "processed_chunks": 10, "last_process_time_ms": 150.0},
-        ])
+        grid.update_modules(
+            [
+                {
+                    "name": "transcriber",
+                    "state": "running",
+                    "enabled": True,
+                    "processed_chunks": 10,
+                    "last_process_time_ms": 150.0,
+                },
+            ]
+        )
 
     def test_update_modules_output_mapped(self):
         grid = TUIModuleGrid()
-        grid.update_modules([
-            {"name": "output", "state": "running", "enabled": True, "processed_chunks": 5, "last_process_time_ms": 100.0},
-        ])
+        grid.update_modules(
+            [
+                {
+                    "name": "output",
+                    "state": "running",
+                    "enabled": True,
+                    "processed_chunks": 5,
+                    "last_process_time_ms": 100.0,
+                },
+            ]
+        )
 
     def test_messages(self):
         from cli.tui.widgets.module_grid import CardClicked, ModuleSelected
+
         assert CardClicked("tts_engine").module_name == "tts_engine"
         assert ModuleSelected("transcriber").module_name == "transcriber"
 
@@ -320,15 +338,18 @@ class TestModuleConfigSchema:
 class TestModuleConfigMessages:
     def test_config_saved_message(self):
         from cli.tui.screens.module_detail import ModuleConfigSaved
+
         msg = ModuleConfigSaved("transcriber", {"enabled": True})
         assert msg.module_name == "transcriber"
 
     def test_toggle_request_message(self):
         from cli.tui.screens.module_detail import ModuleToggleRequest
+
         assert ModuleToggleRequest("tts_engine").module_name == "tts_engine"
 
     def test_back_message(self):
         from cli.tui.screens.module_detail import ModuleDetailBack
+
         assert ModuleDetailBack() is not None
 
 

@@ -14,7 +14,9 @@ HELP_TEXT = """# srt2web TUI — Keyboard Shortcuts
 | `C` | Focus config panel |
 | `O` | Focus outputs panel |
 | `M` | Open module detail |
-| `R` | Refresh status |
+| `P` | Open presets management |
+| `Shift+R` | Open recordings management |
+| `I` | Open input control |
 | `?` | Show this help |
 | `Q` | Quit |
 | `Esc` | Back / Close panel |

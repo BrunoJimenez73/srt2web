@@ -5,6 +5,9 @@ Cada estrategia implementa un algoritmo de procesamiento diferente:
 - SequentialStrategy: Procesa chunks uno a la vez
 - ThreadParallelStrategy: Procesa chunks en paralelo usando threads
 - AsyncIOStrategy: Procesa chunks en paralelo usando asyncio
+
+Refactorizado (F66): Se extrajo la lógica común a PipelineStrategy como clase base concreta,
+eliminando ~60% de duplicación entre las 3 estrategias.
 """
 
 import asyncio
@@ -30,12 +33,68 @@ class StrategyConfig:
 
 
 class PipelineStrategy(ABC):
-    """Clase base abstracta para estrategias de pipeline."""
+    """
+    Clase base abstracta para estrategias de pipeline.
+
+    Proporciona implementación común para:
+    - Contadores de chunks procesados/fallados/activos
+    - Métodos start()/stop() con logging
+    - Métricas base (chunks_processed, total_time, avg_time)
+    - Iteración sobre módulos habilitados
+    """
 
     def __init__(self, config: Optional[StrategyConfig] = None):
         self._config = config or StrategyConfig()
         self._modules: list[BaseModule] = []
         self._is_running = False
+        # Contadores comunes a todas las estrategias
+        self._chunks_processed = 0
+        self._chunks_failed = 0
+        self._total_time = 0.0
+        self._active_chunks = 0
+
+    def set_modules(self, modules: list[BaseModule]) -> None:
+        """Configura los módulos a usar."""
+        self._modules = modules
+
+    @property
+    def is_running(self) -> bool:
+        return self._is_running
+
+    # --- Métodos concretos compartidos por todas las estrategias ---
+
+    def start(self) -> None:
+        """Inicia la estrategia."""
+        self._is_running = True
+        logger.info("%s started (max_concurrent=%s)", self.__class__.__name__, self._config.max_concurrent_chunks)
+
+    def stop(self) -> None:
+        """Detiene la estrategia."""
+        self._is_running = False
+        logger.info("%s stopped", self.__class__.__name__)
+
+    def _process_modules(self, data: PipelineData) -> PipelineData:
+        """
+        Itera sobre los módulos habilitados procesando el chunk.
+        Es el corazón del pipeline, compartido por todas las estrategias.
+        """
+        for module in self._modules:
+            if not module.enabled:
+                continue
+            data = module.process(data)
+        return data
+
+    def get_metrics(self) -> dict[str, Any]:
+        """Retorna métricas base comunes."""
+        return {
+            "chunks_processed": self._chunks_processed,
+            "chunks_failed": self._chunks_failed,
+            "active_chunks": self._active_chunks,
+            "total_time_sec": round(self._total_time, 3),
+            "avg_time_sec": round(self._total_time / max(self._chunks_processed, 1), 3),
+        }
+
+    # --- Métodos abstractos que cada estrategia debe implementar ---
 
     @abstractmethod
     def process_chunk(self, data: PipelineData) -> PipelineData:
@@ -50,29 +109,6 @@ class PipelineStrategy(ABC):
         """
         pass
 
-    @abstractmethod
-    def start(self) -> None:
-        """Inicia la estrategia."""
-        pass
-
-    @abstractmethod
-    def stop(self) -> None:
-        """Detiene la estrategia."""
-        pass
-
-    @abstractmethod
-    def get_metrics(self) -> dict[str, Any]:
-        """Retorna métricas de la estrategia."""
-        pass
-
-    def set_modules(self, modules: list[BaseModule]) -> None:
-        """Configura los módulos a usar."""
-        self._modules = modules
-
-    @property
-    def is_running(self) -> bool:
-        return self._is_running
-
 
 class SequentialStrategy(PipelineStrategy):
     """
@@ -84,40 +120,18 @@ class SequentialStrategy(PipelineStrategy):
     - Sistemas con recursos limitados
     """
 
-    def __init__(self, config: Optional[StrategyConfig] = None):
-        super().__init__(config)
-        self._chunks_processed = 0
-        self._total_time = 0.0
-
     def process_chunk(self, data: PipelineData) -> PipelineData:
         """Procesa un chunk secuencialmente."""
         start_time = time.time()
-
-        for module in self._modules:
-            if not module.enabled:
-                continue
-
-            data = module.process(data)
-
+        data = self._process_modules(data)
         self._chunks_processed += 1
         self._total_time += time.time() - start_time
         return data
 
-    def start(self) -> None:
-        self._is_running = True
-        logger.info("SequentialStrategy started")
-
-    def stop(self) -> None:
-        self._is_running = False
-        logger.info("SequentialStrategy stopped")
-
     def get_metrics(self) -> dict[str, Any]:
-        return {
-            "strategy": "sequential",
-            "chunks_processed": self._chunks_processed,
-            "total_time_sec": round(self._total_time, 3),
-            "avg_time_sec": round(self._total_time / max(self._chunks_processed, 1), 3),
-        }
+        metrics = super().get_metrics()
+        metrics["strategy"] = "sequential"
+        return metrics
 
 
 class ThreadParallelStrategy(PipelineStrategy):
@@ -133,10 +147,6 @@ class ThreadParallelStrategy(PipelineStrategy):
     def __init__(self, config: Optional[StrategyConfig] = None):
         super().__init__(config)
         self._semaphore = threading.Semaphore(self._config.max_concurrent_chunks)
-        self._chunks_processed = 0
-        self._chunks_failed = 0
-        self._total_time = 0.0
-        self._active_chunks = 0
         self._lock = threading.Lock()
 
     def process_chunk(self, data: PipelineData) -> PipelineData:
@@ -147,10 +157,7 @@ class ThreadParallelStrategy(PipelineStrategy):
 
             try:
                 start_time = time.time()
-                for module in self._modules:
-                    if not module.enabled:
-                        continue
-                    data = module.process(data)
+                data = self._process_modules(data)
 
                 with self._lock:
                     self._chunks_processed += 1
@@ -160,29 +167,16 @@ class ThreadParallelStrategy(PipelineStrategy):
             except Exception as e:
                 with self._lock:
                     self._chunks_failed += 1
-                logger.error(f"ThreadParallelStrategy: chunk {data.chunk_index} failed: {e}")
+                logger.error("ThreadParallelStrategy: chunk %s failed: %s", data.chunk_index, e)
                 raise
             finally:
                 with self._lock:
                     self._active_chunks -= 1
 
-    def start(self) -> None:
-        self._is_running = True
-        logger.info(f"ThreadParallelStrategy started (max_concurrent={self._config.max_concurrent_chunks})")
-
-    def stop(self) -> None:
-        self._is_running = False
-        logger.info("ThreadParallelStrategy stopped")
-
     def get_metrics(self) -> dict[str, Any]:
-        return {
-            "strategy": "thread_parallel",
-            "chunks_processed": self._chunks_processed,
-            "chunks_failed": self._chunks_failed,
-            "active_chunks": self._active_chunks,
-            "total_time_sec": round(self._total_time, 3),
-            "avg_time_sec": round(self._total_time / max(self._chunks_processed, 1), 3),
-        }
+        metrics = super().get_metrics()
+        metrics["strategy"] = "thread_parallel"
+        return metrics
 
 
 class AsyncIOStrategy(PipelineStrategy):
@@ -190,7 +184,7 @@ class AsyncIOStrategy(PipelineStrategy):
     Estrategia asyncio nativa - Procesa chunks concurrentemente con async/await.
 
     Adecuada para:
-    - Alta并发 (muchos chunks)
+    - Alta concurrencia (muchos chunks)
     - I/O no bloqueante
     - Integración con servidores async (FastAPI)
     """
@@ -198,10 +192,6 @@ class AsyncIOStrategy(PipelineStrategy):
     def __init__(self, config: Optional[StrategyConfig] = None):
         super().__init__(config)
         self._semaphore: Optional[asyncio.Semaphore] = None
-        self._chunks_processed = 0
-        self._chunks_failed = 0
-        self._total_time = 0.0
-        self._active_chunks = 0
 
     async def process_chunk_async(self, data: PipelineData) -> PipelineData:
         """Procesa un chunk de forma asíncrona."""
@@ -212,19 +202,16 @@ class AsyncIOStrategy(PipelineStrategy):
             self._active_chunks += 1
             try:
                 start_time = time.time()
-                for module in self._modules:
-                    if not module.enabled:
-                        continue
-                    # Wrap sync process in run_in_executor for true async
-                    loop = asyncio.get_event_loop()
-                    data = await loop.run_in_executor(None, module.process, data)
+                # Wrap sync process in run_in_executor for true async
+                loop = asyncio.get_event_loop()
+                data = await loop.run_in_executor(None, self._process_modules, data)
 
                 self._chunks_processed += 1
                 self._total_time += time.time() - start_time
                 return data
             except Exception as e:
                 self._chunks_failed += 1
-                logger.error(f"AsyncIOStrategy: chunk {data.chunk_index} failed: {e}")
+                logger.error("AsyncIOStrategy: chunk %s failed: %s", data.chunk_index, e)
                 raise
             finally:
                 self._active_chunks -= 1
@@ -245,23 +232,10 @@ class AsyncIOStrategy(PipelineStrategy):
         except RuntimeError:
             return asyncio.run(self.process_chunk_async(data))
 
-    def start(self) -> None:
-        self._is_running = True
-        logger.info(f"AsyncIOStrategy started (max_concurrent={self._config.max_concurrent_chunks})")
-
-    def stop(self) -> None:
-        self._is_running = False
-        logger.info("AsyncIOStrategy stopped")
-
     def get_metrics(self) -> dict[str, Any]:
-        return {
-            "strategy": "asyncio",
-            "chunks_processed": self._chunks_processed,
-            "chunks_failed": self._chunks_failed,
-            "active_chunks": self._active_chunks,
-            "total_time_sec": round(self._total_time, 3),
-            "avg_time_sec": round(self._total_time / max(self._chunks_processed, 1), 3),
-        }
+        metrics = super().get_metrics()
+        metrics["strategy"] = "asyncio"
+        return metrics
 
 
 def create_strategy(mode: str, config: Optional[StrategyConfig] = None) -> PipelineStrategy:

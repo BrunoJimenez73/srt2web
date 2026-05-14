@@ -389,6 +389,9 @@ class TranscriberConfig(BaseModel):
     language: LanguageEnum = Field(default=LanguageEnum.AUTO, description="Idioma de transcripción")
     device: DeviceEnum = Field(default=DeviceEnum.AUTO, description="Dispositivo de cómputo")
     beam_size: int = Field(default=2, ge=1, le=10, description="Tamaño de beam para decoding")
+    timeout_sec: float = Field(
+        default=120.0, ge=10.0, le=600.0, description="Timeout máximo para transcripción de un chunk (segundos)"
+    )
 
 
 class TranslatorConfig(BaseModel):
