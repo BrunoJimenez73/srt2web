@@ -76,3 +76,14 @@ class SystemMetrics(BaseModel):
     gpu_memory_mb: float = 0.0
     gpu_memory_percent: float = 0.0
     chunks_per_second: float = 0.0
+
+
+class ValidationResultSchema(BaseModel):
+    """Result of a pipeline stage validation."""
+
+    stage: str
+    passed: bool
+    score: float = 1.0
+    message: str = ""
+    details: dict[str, Any] = Field(default_factory=dict)
+    is_critical: bool = False

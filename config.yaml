@@ -138,6 +138,44 @@ subtitle_sync:
   sync_correction_threshold: 500
   enable_drift_detection: false
   drift_history_size: 100
+pipeline_validation:
+  enabled: false
+  fail_on_critical: true
+  audio_extractor:
+    enabled: true
+    min_confidence: 0.3
+    min_sample_rate: 8000
+    max_duration_ratio: 1.5
+    max_generation_time: 30.0
+    max_empty_ratio: 0.9
+  transcriber:
+    enabled: true
+    min_confidence: 0.3
+    min_sample_rate: 8000
+    max_duration_ratio: 1.5
+    max_generation_time: 30.0
+    max_empty_ratio: 0.9
+  translator:
+    enabled: true
+    min_confidence: 0.3
+    min_sample_rate: 8000
+    max_duration_ratio: 1.5
+    max_generation_time: 30.0
+    max_empty_ratio: 0.9
+  tts_engine:
+    enabled: true
+    min_confidence: 0.3
+    min_sample_rate: 8000
+    max_duration_ratio: 1.5
+    max_generation_time: 30.0
+    max_empty_ratio: 0.9
+  audio_mixer:
+    enabled: true
+    min_confidence: 0.3
+    min_sample_rate: 8000
+    max_duration_ratio: 1.5
+    max_generation_time: 30.0
+    max_empty_ratio: 0.9
 webhooks: []
 output_dir:
   directory: ./output

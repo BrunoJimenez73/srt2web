@@ -481,6 +481,29 @@ class WebhookConfig(BaseModel):
     secret: str = Field(default="", description="Secreto compartido para firmar requests")
 
 
+class StageValidationConfig(BaseModel):
+    """Configuración de validación para una etapa del pipeline."""
+
+    enabled: bool = Field(default=True, description="Habilitar validación para esta etapa")
+    min_confidence: float = Field(default=0.3, ge=0.0, le=1.0, description="Confianza mínima (transcripción)")
+    min_sample_rate: int = Field(default=8000, ge=1000, description="Sample rate mínimo (audio)")
+    max_duration_ratio: float = Field(default=1.5, ge=0.1, description="Ratio máximo de duración vs esperada")
+    max_generation_time: float = Field(default=30.0, ge=1.0, description="Tiempo máximo de generación (TTS)")
+    max_empty_ratio: float = Field(default=0.9, ge=0.0, le=1.0, description="Ratio máximo de vacío (traducción)")
+
+
+class PipelineValidationConfig(BaseModel):
+    """Configuración del sistema de validación del pipeline."""
+
+    enabled: bool = Field(default=False, description="Habilitar validación de etapas")
+    fail_on_critical: bool = Field(default=True, description="Detener pipeline si validación crítica falla")
+    audio_extractor: StageValidationConfig = Field(default_factory=StageValidationConfig)
+    transcriber: StageValidationConfig = Field(default_factory=StageValidationConfig)
+    translator: StageValidationConfig = Field(default_factory=StageValidationConfig)
+    tts_engine: StageValidationConfig = Field(default_factory=StageValidationConfig)
+    audio_mixer: StageValidationConfig = Field(default_factory=StageValidationConfig)
+
+
 class SubtitleSyncConfig(BaseModel):
     """Configuración de sincronización de subtítulos."""
 
@@ -516,6 +539,9 @@ class SRT2WebConfig(BaseModel):
     modules: ModulesConfig = Field(default_factory=ModulesConfig, description="Configuración de módulos")
     subtitle_sync: SubtitleSyncConfig = Field(
         default_factory=SubtitleSyncConfig, description="Configuración de sincronización de subtítulos"
+    )
+    pipeline_validation: PipelineValidationConfig = Field(
+        default_factory=PipelineValidationConfig, description="Configuración de validación del pipeline"
     )
     webhooks: list[WebhookConfig] = Field(default_factory=list, description="Lista de webhooks de notificación")
     output_dir: OutputDirConfig = Field(default_factory=OutputDirConfig, description="Directorio de salida")

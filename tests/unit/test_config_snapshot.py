@@ -34,6 +34,7 @@ class TestDefaultConfigSnapshot:
             "output_dir",
             "subtitle_sync",
             "webhooks",
+            "pipeline_validation",
         }
         assert set(DEFAULT_CONFIG.keys()) == expected_sections
 
