@@ -2,12 +2,15 @@
 Transcriber Module — speech-to-text using faster-whisper.
 
 Takes extracted audio chunks and produces transcripts with timestamps.
+Includes LRU cache for duplicate chunks (F68) and timeout protection (F67).
 """
 
+import hashlib
 import logging
 import os
 from typing import Optional
 
+from core.cache import LRUCache
 from core.model_cache import ModelCache
 from core.module_base import BaseModule, ModuleState, ModuleStatus, PipelineData
 
@@ -18,6 +21,10 @@ class Transcriber(BaseModule):
     """
     Transcribes audio chunks using the faster-whisper model.
     Performance is heavily dependent on the chosen model size and hardware (CPU vs GPU).
+
+    Features:
+    - LRU cache (F68): avoids re-transcribing identical chunks (e.g. silence, repeats)
+    - Timeout protection (F67): prevents pipeline hangs on corrupted audio
     """
 
     def __init__(self, config: Optional[dict] = None) -> None:
@@ -30,6 +37,8 @@ class Transcriber(BaseModule):
         self._device = "cpu"
         self._compute_type = "int8"
         self._model_cache = ModelCache()
+        # LRU cache for transcription results (F68)
+        self._transcript_cache = LRUCache(maxsize=100, ttl_seconds=300)
         super().__init__("transcriber", config)
 
     def configure(self, config: dict) -> None:
@@ -101,7 +110,7 @@ class Transcriber(BaseModule):
             self.enabled = False
 
     def stop(self) -> None:
-        """Cleanup model resources."""
+        """Cleanup model resources and clear cache."""
         self._state = ModuleState.STOPPING
         if self._model:
             del self._model
@@ -116,70 +125,110 @@ class Transcriber(BaseModule):
             except ImportError:
                 pass
 
+        self._transcript_cache.clear()
         self._state = ModuleState.IDLE
+
+    def _make_cache_key(self, data: PipelineData) -> str:
+        """
+        Build a deterministic cache key from chunk attributes.
+        Two chunks with the same path, offset and language produce the same key,
+        avoiding re-transcription of duplicate content (e.g. silence segments).
+        """
+        path = data.audio_chunk_path or ""
+        raw = f"{path}:{data.timestamp}:{data.duration}:{self._language}:{self._model_size}"
+        return hashlib.sha256(raw.encode()).hexdigest()
+
+    def _transcribe_impl(self, data: PipelineData) -> Optional[PipelineData]:
+        """
+        Actual transcription logic (uncached).
+        Returns None if transcription should be skipped (timeout).
+        """
+        timeout_sec = self._timeout_sec
+
+        import concurrent.futures
+
+        def _transcribe_sync() -> tuple:
+            """Run transcription in a thread pool to allow timeout."""
+            return self._model.transcribe(
+                data.audio_chunk_path,
+                language=self._language,
+                beam_size=self._beam_size,
+                vad_filter=True,
+                vad_parameters=dict(min_silence_duration_ms=500),
+            )
+
+        # Run transcription with timeout via thread pool
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_transcribe_sync)
+            try:
+                segments_iter, info = future.result(timeout=timeout_sec)
+            except concurrent.futures.TimeoutError:
+                logger.warning(
+                    f"Transcription timeout after {timeout_sec}s for chunk "
+                    f"{data.chunk_index} ({data.audio_chunk_path}) — skipping"
+                )
+                return None
+
+        # Extract text and store segment timing
+        full_text = []
+        segment_list = []
+
+        for segment in segments_iter:
+            text = segment.text.strip()
+            if text:
+                full_text.append(text)
+                segment_list.append({"start": segment.start, "end": segment.end, "text": text})
+
+        if full_text:
+            data.transcript = " ".join(full_text)
+            data.transcript_segments = segment_list
+            data.detected_language = info.language
+            logger.debug(f"Transcript: {data.transcript}")
+            self.logger.info(f"[{info.language}] {data.transcript}")
+
+        return data
 
     def _do_process(self, data: PipelineData) -> PipelineData:
         """
-        Transcribe the audio chunk with timeout protection.
+        Transcribe the audio chunk with LRU cache (F68) and timeout protection (F67).
 
-        If transcription exceeds timeout_sec (configurable via config.yaml,
-        default 120s), the chunk is skipped with a warning log instead of
-        hanging the pipeline indefinitely.
+        Cache hit (F68): returns cached transcript immediately, no GPU time wasted.
+        Cache miss: runs transcription with timeout, stores result in cache.
+        Timeout (F67): logs warning, returns data unchanged, pipeline continues.
         """
         if not self._model or not data.audio_chunk_path:
             return data
 
-        timeout_sec = self._timeout_sec
+        # F68: Check LRU cache first
+        cache_key = self._make_cache_key(data)
+        cached = self._transcript_cache.get(cache_key)
+        if cached is not None:
+            logger.debug(f"Transcription cache hit for chunk {data.chunk_index} ({data.audio_chunk_path})")
+            # Restore cached transcript fields without re-running the model
+            data.transcript = cached.get("transcript")
+            data.transcript_segments = cached.get("segments", [])
+            data.detected_language = cached.get("language")
+            return data
 
+        # Cache miss: run actual transcription
         try:
-            import concurrent.futures
-
-            def _transcribe_sync() -> tuple:
-                """Run transcription in a thread pool to allow timeout."""
-                return self._model.transcribe(
-                    data.audio_chunk_path,
-                    language=self._language,
-                    beam_size=self._beam_size,
-                    vad_filter=True,
-                    vad_parameters=dict(min_silence_duration_ms=500),
-                )
-
-            # Run transcription with timeout via thread pool
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(_transcribe_sync)
-                try:
-                    segments_iter, info = future.result(timeout=timeout_sec)
-                except concurrent.futures.TimeoutError:
-                    logger.warning(
-                        f"Transcription timeout after {timeout_sec}s for chunk "
-                        f"{data.chunk_index} ({data.audio_chunk_path}) — skipping"
-                    )
-                    return data
-
-            # Extract text and store segment timing
-            full_text = []
-            segment_list = []
-
-            for segment in segments_iter:
-                text = segment.text.strip()
-                if text:
-                    full_text.append(text)
-                    segment_list.append({"start": segment.start, "end": segment.end, "text": text})
-
-            if full_text:
-                data.transcript = " ".join(full_text)
-                data.transcript_segments = segment_list
-                data.detected_language = info.language
-
-                logger.debug(f"Transcript: {data.transcript}")
-
-                # Send to websocket logs if requested
-                self.logger.info(f"[{info.language}] {data.transcript}")
-
+            result = self._transcribe_impl(data)
         except Exception as e:
             logger.error(f"Transcription error for chunk {data.chunk_index}: {e}")
+            return data
 
-        return data
+        if result is None:
+            # Timeout — return data as-is (no transcript)
+            return data
+
+        # F68: Store in LRU cache for future hits
+        self._transcript_cache.set(cache_key, {
+            "transcript": result.transcript,
+            "segments": result.transcript_segments,
+            "language": result.detected_language,
+        })
+
+        return result
 
     def get_status(self) -> ModuleStatus:
         """Get current status including device info."""
