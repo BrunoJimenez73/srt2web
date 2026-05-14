@@ -1,6 +1,6 @@
 {
   "project": "srt2web",
-  "description": "Pipeline de subtitulado y streaming en tiempo real con SRT, Whisper, traducci\u00c3\u00b3n y HLS",
+  "description": "Pipeline de subtitulado y streaming en tiempo real con SRT, Whisper, traducción y HLS",
   "rules": {
     "one_feature_at_a_time": true,
     "require_tests_to_close": true,
@@ -15,13 +15,13 @@
     {
       "id": 1,
       "name": "fix_dependency_management",
-      "title": "Arreglar gesti\u00c3\u00b3n de dependencias",
+      "title": "Arreglar gestión de dependencias",
       "status": "done"
     },
     {
       "id": 2,
       "name": "fix_critical_pipeline_bugs",
-      "title": "Corregir bugs cr\u00c3\u00adticos del pipeline",
+      "title": "Corregir bugs críticos del pipeline",
       "status": "done"
     },
     {
@@ -33,7 +33,7 @@
     {
       "id": 4,
       "name": "add_missing_core_tests",
-      "title": "Agregar tests para m\u00c3\u00b3dulos cr\u00c3\u00adticos sin cobertura",
+      "title": "Agregar tests para módulos críticos sin cobertura",
       "status": "done"
     },
     {
@@ -51,7 +51,7 @@
     {
       "id": 7,
       "name": "fix_webrtc_and_dead_code",
-      "title": "Arreglar WebRTC y limpiar c\u00c3\u00b3digo muerto",
+      "title": "Arreglar WebRTC y limpiar código muerto",
       "status": "done"
     },
     {
@@ -63,41 +63,41 @@
     {
       "id": 9,
       "name": "fix_subtitle_desync",
-      "title": "Corregir desincronizaci\u00c3\u00b3n de subt\u00c3\u00adtulos al cambiar chunk_duration",
+      "title": "Corregir desincronización de subtítulos al cambiar chunk_duration",
       "status": "done"
     },
     {
       "id": 10,
       "name": "fix_runtime_crashes",
-      "title": "Corregir crashes runtime cr\u00c3\u00adticos",
+      "title": "Corregir crashes runtime críticos",
       "status": "done"
     },
     {
       "id": 11,
       "name": "fix_test_quality",
-      "title": "Arreglar tests placeholder, content-scraping y fr\u00c3\u00a1giles",
+      "title": "Arreglar tests placeholder, content-scraping y frágiles",
       "status": "done"
     },
     {
       "id": 36,
       "name": "hls_audio_passthrough_fix",
-      "title": "Fix audio passthrough en HLS cuando TTS est\u00ef\u00bf\u00bd deshabilitado",
+      "title": "Fix audio passthrough en HLS cuando TTS est� deshabilitado",
       "status": "done",
       "area": "rendimiento",
       "priority": "Alta",
-      "description": "F31 activ\u00ef\u00bf\u00bd encoder_mode: passthrough para video (-c:v copy), pero cuando TTS est\u00ef\u00bf\u00bd disabled, el audio del HLS output se recodifica innecesariamente. El audio de entrada ya est\u00ef\u00bf\u00bd en AAC y no necesita recodificaci\u00ef\u00bf\u00bdn. Falta detecci\u00ef\u00bf\u00bdn de TTS state para decidir si usar -c:a copy o mantener el mix actual.",
+      "description": "F31 activ� encoder_mode: passthrough para video (-c:v copy), pero cuando TTS est� disabled, el audio del HLS output se recodifica innecesariamente. El audio de entrada ya est� en AAC y no necesita recodificaci�n. Falta detecci�n de TTS state para decidir si usar -c:a copy o mantener el mix actual.",
       "problems_identified": [
-        "hls_output.py usa -c:a aac siempre, incluso cuando TTS est\u00ef\u00bf\u00bd disabled y no hay mezcla",
-        "La recodificaci\u00ef\u00bf\u00bdn de audio a\u00ef\u00bf\u00bdade latencia innecesaria (~100-200ms) cuando no hay TTS",
-        "No hay detecci\u00ef\u00bf\u00bdn del estado del m\u00ef\u00bf\u00bddulo tts_engine en la l\u00ef\u00bf\u00bdgica de encoding de HLS",
-        "El modo passthrough parcial (video s\u00ef\u00bf\u00bd, audio no) es inconsistente",
+        "hls_output.py usa -c:a aac siempre, incluso cuando TTS est� disabled y no hay mezcla",
+        "La recodificaci�n de audio a�ade latencia innecesaria (~100-200ms) cuando no hay TTS",
+        "No hay detecci�n del estado del m�dulo tts_engine en la l�gica de encoding de HLS",
+        "El modo passthrough parcial (video s�, audio no) es inconsistente",
         "config.yaml tiene encoder_mode: passthrough en output.web y output.hls pero no cubre audio"
       ],
       "acceptance": [
-        "HLS output detecta si TTS est\u00ef\u00bf\u00bd habilitado desde pipeline context",
-        "Si TTS disabled: usa -c:a copy adem\u00ef\u00bf\u00bds de -c:v copy (sin recodificaci\u00ef\u00bf\u00bdn de audio)",
+        "HLS output detecta si TTS est� habilitado desde pipeline context",
+        "Si TTS disabled: usa -c:a copy adem�s de -c:v copy (sin recodificaci�n de audio)",
         "Si TTS enabled: mantiene comportamiento actual con mixer de audio",
-        "Latencia de audio reducida ~100-200ms cuando TTS est\u00ef\u00bf\u00bd disabled",
+        "Latencia de audio reducida ~100-200ms cuando TTS est� disabled",
         "Test: verificar que FFmpeg command incluye -c:a copy cuando TTS disabled",
         "init.ps1 pasa verde tras el cambio"
       ],
@@ -109,12 +109,12 @@
         "risk_level": "Bajo",
         "mitigation": [
           "Si el codec de entrada no es compatible con copy, FFmpeg falla con error claro",
-          "Se puede revertir instant\u00ef\u00bf\u00bdneamente deshabilitando passthrough",
-          "C\u00ef\u00bf\u00bddigo existente ya maneja ambos caminos (fast/slow path)"
+          "Se puede revertir instant�neamente deshabilitando passthrough",
+          "C�digo existente ya maneja ambos caminos (fast/slow path)"
         ]
       },
       "performance_expectations": {
-        "before_optimization": "~100-200ms por chunk para recodificaci\u00ef\u00bf\u00bdn de audio AAC",
+        "before_optimization": "~100-200ms por chunk para recodificaci�n de audio AAC",
         "after_optimization": "~0ms (copy directo sin recodificar)"
       }
     },
@@ -125,22 +125,22 @@
       "status": "done",
       "area": "ux",
       "priority": "Media",
-      "description": "Las grabaciones se guardan en output/ pero no hay interfaz para gestionarlas. El usuario debe acceder al sistema de archivos manualmente para ver, descargar o eliminar grabaciones. Un gestor en el dashboard mejorar\u00c3\u00ada significativamente la UX.",
+      "description": "Las grabaciones se guardan en output/ pero no hay interfaz para gestionarlas. El usuario debe acceder al sistema de archivos manualmente para ver, descargar o eliminar grabaciones. Un gestor en el dashboard mejoraría significativamente la UX.",
       "problems_identified": [
         "No hay listado de grabaciones disponibles en la UI",
         "No hay descarga directa de grabaciones desde el navegador",
         "No hay forma de eliminar grabaciones viejas desde el dashboard",
         "El espacio usado por grabaciones no se muestra",
-        "No hay metadatos visibles: duraci\u00c3\u00b3n, tama\u00c3\u00b1o, fecha, formato"
+        "No hay metadatos visibles: duración, tamaño, fecha, formato"
       ],
       "acceptance": [
-        "Endpoint GET /api/recordings lista grabaciones con metadatos (nombre, tama\u00c3\u00b1o, duraci\u00c3\u00b3n, fecha, formato)",
-        "Endpoint DELETE /api/recordings/{name} elimina una grabaci\u00c3\u00b3n",
+        "Endpoint GET /api/recordings lista grabaciones con metadatos (nombre, tamaño, duración, fecha, formato)",
+        "Endpoint DELETE /api/recordings/{name} elimina una grabación",
         "Endpoint GET /api/recordings/{name}/download descarga archivo",
         "Frontend: RecordingManagerCard con tabla/listado de grabaciones",
-        "Columna: nombre, tama\u00c3\u00b1o formateado, duraci\u00c3\u00b3n, fecha, acciones (descargar/eliminar)",
-        "Confirmaci\u00c3\u00b3n antes de eliminar grabaciones",
-        "M\u00c3\u00a9trica de espacio total usado por grabaciones en output/",
+        "Columna: nombre, tamaño formateado, duración, fecha, acciones (descargar/eliminar)",
+        "Confirmación antes de eliminar grabaciones",
+        "Métrica de espacio total usado por grabaciones en output/",
         "Test: test_recording_manager.py con archivos mock"
       ],
       "files_to_touch": [
@@ -156,25 +156,25 @@
     {
       "id": 40,
       "name": "theme_switcher_ui",
-      "title": "Theme switcher visible en UI (Light/Dark) con bot\u00c3\u00b3n en Header",
+      "title": "Theme switcher visible en UI (Light/Dark) con botón en Header",
       "status": "done",
       "area": "ux",
       "priority": "Media",
-      "description": "El cambio de tema oscuro/claro solo existe como atajo de teclado Ctrl+D. No hay bot\u00c3\u00b3n visible ni indicaci\u00c3\u00b3n al usuario de que puede cambiar el tema. La UI siempre arranca en modo oscuro sin respetar la preferencia del sistema.",
+      "description": "El cambio de tema oscuro/claro solo existe como atajo de teclado Ctrl+D. No hay botón visible ni indicación al usuario de que puede cambiar el tema. La UI siempre arranca en modo oscuro sin respetar la preferencia del sistema.",
       "problems_identified": [
-        "No hay bot\u00c3\u00b3n visible de cambio de tema en Header ni en Settings",
+        "No hay botón visible de cambio de tema en Header ni en Settings",
         "Ctrl+D no es discoverable para usuarios nuevos",
         "No se respeta prefers-color-scheme del sistema operativo",
         "El tema se guarda en localStorage pero no hay UI para cambiarlo",
         "No hay indicador visual del tema actual (icono sol/luna)",
-        "La keyboard shortcut no tiene feedback visual de que funcion\u00c3\u00b3"
+        "La keyboard shortcut no tiene feedback visual de que funcionó"
       ],
       "acceptance": [
-        "Bot\u00c3\u00b3n de theme toggle en Header con icono sol/luna seg\u00c3\u00ban tema actual",
+        "Botón de theme toggle en Header con icono sol/luna según tema actual",
         "Al hacer click cambia a light/dark y persiste en localStorage",
         "Al cargar, respeta prefers-color-scheme del SO (si no hay preferencia guardada)",
         "Signal reactiva currentTheme en signals.ts",
-        "Transici\u00c3\u00b3n suave CSS entre temas (transition en variables de color)",
+        "Transición suave CSS entre temas (transition en variables de color)",
         "Tema light completo implementado (no solo invertir colores)",
         "Test visual: verificar que las cards y texto son legibles en ambos modos"
       ],
@@ -194,27 +194,27 @@
       "status": "done",
       "area": "ux",
       "priority": "Media",
-      "description": "Actualmente hay 3 atajos de teclado (Ctrl+S guardar, Space start/stop, Ctrl+D theme) pero no son visibles para el usuario. No hay forma de descubrirlos sin leer el c\u00c3\u00b3digo. Faltan atajos \u00c3\u00batiles como Ctrl+Enter para iniciar pipeline.",
+      "description": "Actualmente hay 3 atajos de teclado (Ctrl+S guardar, Space start/stop, Ctrl+D theme) pero no son visibles para el usuario. No hay forma de descubrirlos sin leer el código. Faltan atajos útiles como Ctrl+Enter para iniciar pipeline.",
       "problems_identified": [
         "No hay atajo para iniciar/detener pipeline (Ctrl+Enter)",
         "No hay atajo para abrir/cerrar LogPanel (Ctrl+L)",
-        "No hay bot\u00c3\u00b3n ? para mostrar panel de ayuda con shortcuts",
+        "No hay botón ? para mostrar panel de ayuda con shortcuts",
         "No hay atajo para toggle de outputs panel",
         "Ctrl+D para tema no tiene feedback visual de tema actual",
         "Los shortcuts no se pueden deshabilitar/personalizar"
       ],
       "acceptance": [
         "Nuevos atajos: Ctrl+Enter (start/stop), Ctrl+L (toggle LogPanel), Escape (cerrar modales)",
-        "Bot\u00c3\u00b3n ? en Header que abre modal ShortcutsHelp.astro",
-        "ShortcutsHelp.astro lista todos los atajos con su descripci\u00c3\u00b3n",
-        "Funci\u00c3\u00b3n disableKeyboardShortcuts() temporal (para inputs de texto)",
+        "Botón ? en Header que abre modal ShortcutsHelp.astro",
+        "ShortcutsHelp.astro lista todos los atajos con su descripción",
+        "Función disableKeyboardShortcuts() temporal (para inputs de texto)",
         "Feedback visual al activar shortcut (toast sutil: 'Ctrl+S: Guardado')",
         "Los shortcuts se deshabilitan cuando un input/textarea tiene foco",
-        "Test: test_keyboard_shortcuts.ts con simulaci\u00c3\u00b3n de eventos keydown"
+        "Test: test_keyboard_shortcuts.ts con simulación de eventos keydown"
       ],
       "files_to_touch": [
         "frontend/src/components/ShortcutsHelp.astro (nuevo)",
-        "frontend/src/components/layout/Header.astro (bot\u00c3\u00b3n ?)",
+        "frontend/src/components/layout/Header.astro (botón ?)",
         "frontend/src/lib/modules/keyboard-shortcuts.ts (nuevos atajos, disable logic)",
         "frontend/src/lib/types/api.ts (tipos ShortcutInfo)",
         "frontend/tests/keyboard-shortcuts.test.ts (nuevo)"
@@ -227,9 +227,9 @@
       "status": "done",
       "area": "ux",
       "priority": "Media",
-      "description": "El dashboard es una SPA que podr\u00c3\u00ada ser instalable como PWA con service worker para cache offline parcial, manifest.json para instalaci\u00c3\u00b3n en dispositivos, y notificaciones push para alertas del pipeline.",
+      "description": "El dashboard es una SPA que podría ser instalable como PWA con service worker para cache offline parcial, manifest.json para instalación en dispositivos, y notificaciones push para alertas del pipeline.",
       "problems_identified": [
-        "No se puede instalar el dashboard como app en m\u00c3\u00b3vil/desktop",
+        "No se puede instalar el dashboard como app en móvil/desktop",
         "Sin service worker: cada visita requiere descargar todos los assets",
         "Sin cache offline: si el servidor no responde, no hay UI",
         "Sin manifest.json: no hay icono ni splash screen personalizados",
@@ -237,12 +237,12 @@
       ],
       "acceptance": [
         "manifest.json con nombre, iconos 192/512, theme_color, display standalone",
-        "Service worker registra cache de assets est\u00c3\u00a1ticos (versi\u00c3\u00b3n actual)",
-        "Cache offline: \u00c3\u00baltima configuraci\u00c3\u00b3n y estado disponibles sin conexi\u00c3\u00b3n",
+        "Service worker registra cache de assets estáticos (versión actual)",
+        "Cache offline: última configuración y estado disponibles sin conexión",
         "Iconos en frontend/public/icons/ (192x192, 512x512)",
         "Notificaciones push para eventos pipeline.start y pipeline.error (opcional, feature flag)",
         "BaseLayout.astro incluye <link rel=manifest> y <meta name=theme-color>",
-        "Sin regresi\u00c3\u00b3n en build de Astro (npm run build:local exitoso)"
+        "Sin regresión en build de Astro (npm run build:local exitoso)"
       ],
       "files_to_touch": [
         "frontend/public/manifest.json (nuevo)",
@@ -260,29 +260,29 @@
       "status": "done",
       "area": "devops",
       "priority": "Media",
-      "description": "No hay m\u00c3\u00a9tricas exportables para sistemas de monitoreo externos. Un endpoint /metrics con formato Prometheus permitir\u00c3\u00ada integrar SRT2Web con Grafana, alertas, y dashboards de infraestructura.",
+      "description": "No hay métricas exportables para sistemas de monitoreo externos. Un endpoint /metrics con formato Prometheus permitiría integrar SRT2Web con Grafana, alertas, y dashboards de infraestructura.",
       "problems_identified": [
-        "No hay endpoint de m\u00c3\u00a9tricas en formato Prometheus",
-        "M\u00c3\u00a9tricas internas (chunks, latencia, GPU) no son visibles en sistemas de monitoreo",
+        "No hay endpoint de métricas en formato Prometheus",
+        "Métricas internas (chunks, latencia, GPU) no son visibles en sistemas de monitoreo",
         "Operadores no pueden configurar alertas sobre fallos del pipeline",
-        "No hay hist\u00c3\u00b3ricos de m\u00c3\u00a9tricas m\u00c3\u00a1s all\u00c3\u00a1 de lo que guarda signals.ts",
+        "No hay históricos de métricas más allá de lo que guarda signals.ts",
         "La health API es binaria (ok/error) sin granularidad"
       ],
       "acceptance": [
         "Nuevo endpoint GET /metrics en formato text/plain Prometheus",
-        "M\u00c3\u00a9tricas: srt2web_chunks_processed_total, srt2web_chunks_failed_total",
-        "M\u00c3\u00a9tricas: srt2web_pipeline_state, srt2web_module_state{name='...'}",
-        "M\u00c3\u00a9tricas: srt2web_processing_time_ms (summary/histogram)",
-        "M\u00c3\u00a9tricas: srt2web_websocket_connections, srt2web_uptime_seconds",
-        "M\u00c3\u00a9tricas: srt2web_gpu_utilization_percent, srt2web_cpu_percent",
-        "Usar prometheus_client (a\u00c3\u00b1adir a pyproject.toml como optional)",
-        "No afecta rendimiento: m\u00c3\u00a9tricas se actualizan en background cada 15s",
+        "Métricas: srt2web_chunks_processed_total, srt2web_chunks_failed_total",
+        "Métricas: srt2web_pipeline_state, srt2web_module_state{name='...'}",
+        "Métricas: srt2web_processing_time_ms (summary/histogram)",
+        "Métricas: srt2web_websocket_connections, srt2web_uptime_seconds",
+        "Métricas: srt2web_gpu_utilization_percent, srt2web_cpu_percent",
+        "Usar prometheus_client (añadir a pyproject.toml como optional)",
+        "No afecta rendimiento: métricas se actualizan en background cada 15s",
         "Test: test_metrics_endpoint.py verifica formato y valores"
       ],
       "files_to_touch": [
         "server/routes/metrics.py (nuevo, endpoint /metrics)",
         "server/app.py (registrar router metrics)",
-        "core/metrics_collector.py (nuevo, recolector de m\u00c3\u00a9tricas Prometheus)",
+        "core/metrics_collector.py (nuevo, recolector de métricas Prometheus)",
         "core/unified_pipeline.py (alimentar metrics_collector)",
         "pyproject.toml (prometheus_client como dependencia opcional core)",
         "tests/unit/test_metrics_endpoint.py (nuevo)"
@@ -291,24 +291,24 @@
     {
       "id": 44,
       "name": "api_caching_layer",
-      "title": "Capa de cach\u00c3\u00a9 para endpoints frecuentes (status, config)",
+      "title": "Capa de caché para endpoints frecuentes (status, config)",
       "status": "done",
       "area": "features",
       "priority": "Baja",
-      "description": "Las grabaciones locales pueden perderse o llenar el disco. La exportaci\u00c3\u00b3n autom\u00c3\u00a1tica a cloud storage (S3, GCS, Azure Blob) al completar una grabaci\u00c3\u00b3n permite almacenamiento duradero y accesible desde cualquier lugar.",
+      "description": "Las grabaciones locales pueden perderse o llenar el disco. La exportación automática a cloud storage (S3, GCS, Azure Blob) al completar una grabación permite almacenamiento duradero y accesible desde cualquier lugar.",
       "problems_identified": [
         "Grabaciones solo en disco local, sin backup externo",
-        "No hay integraci\u00c3\u00b3n con servicios cloud (AWS S3, Google Cloud Storage, Azure Blob)",
+        "No hay integración con servicios cloud (AWS S3, Google Cloud Storage, Azure Blob)",
         "Disco local puede llenarse con grabaciones largas",
-        "No hay mecanismo de limpieza autom\u00c3\u00a1tica post-subida a cloud",
-        "No hay indicaci\u00c3\u00b3n en UI de que una grabaci\u00c3\u00b3n fue subida a cloud"
+        "No hay mecanismo de limpieza automática post-subida a cloud",
+        "No hay indicación en UI de que una grabación fue subida a cloud"
       ],
       "acceptance": [
         "Config: cloud.s3.bucket, cloud.s3.region, cloud.s3.access_key, cloud.s3.secret_key",
         "Config: cloud.gcs.bucket, cloud.gcs.credentials_path",
-        "Al completar grabaci\u00c3\u00b3n, subir autom\u00c3\u00a1ticamente a cloud configurado",
+        "Al completar grabación, subir automáticamente a cloud configurado",
         "Progreso de subida visible en UI (porcentaje, velocidad)",
-        "Opci\u00c3\u00b3n delete_after_upload: true/false en config",
+        "Opción delete_after_upload: true/false en config",
         "Usar boto3 para S3 y google-cloud-storage para GCS (deps opcionales)",
         "Test: test_cloud_export.py con moto (mock S3)"
       ],
@@ -328,20 +328,20 @@
       "status": "done",
       "area": "features",
       "priority": "Baja",
-      "description": "No hay forma de programar el inicio/parada del pipeline en horarios espec\u00c3\u00adficos. Operadores deben iniciar/detener manualmente. Un scheduler con reglas estilo cron permitir\u00c3\u00ada automatizar streams recurrentes.",
+      "description": "No hay forma de programar el inicio/parada del pipeline en horarios específicos. Operadores deben iniciar/detener manualmente. Un scheduler con reglas estilo cron permitiría automatizar streams recurrentes.",
       "problems_identified": [
         "Inicio/parada del pipeline siempre manual",
-        "No hay programaci\u00c3\u00b3n por hora/d\u00c3\u00ada/semana",
-        "No hay reglas recurrentes (ej: 'todos los d\u00c3\u00adas a las 20:00')",
+        "No hay programación por hora/día/semana",
+        "No hay reglas recurrentes (ej: 'todos los días a las 20:00')",
         "No hay calendario visual de eventos programados",
-        "No hay integraci\u00c3\u00b3n con webhooks para notificar programaci\u00c3\u00b3n"
+        "No hay integración con webhooks para notificar programación"
       ],
       "acceptance": [
         "Endpoint CRUD: GET/POST/PUT/DELETE /api/schedule",
         "Formato: cron expression + action (start/stop) + enabled + timezone",
         "Scheduler en core/scheduler.py ejecuta acciones en segundo plano",
         "Frontend: SchedulePanel con tabla de reglas y toggle enable/disable",
-        "Log de ejecuciones programadas (pr\u00c3\u00b3xima ejecuci\u00c3\u00b3n, \u00c3\u00baltima ejecuci\u00c3\u00b3n)",
+        "Log de ejecuciones programadas (próxima ejecución, última ejecución)",
         "Persistencia en config/schedule.json",
         "Test: test_scheduler.py con croniter para validar expresiones"
       ],
@@ -357,26 +357,26 @@
     {
       "id": 49,
       "name": "load_testing_suite",
-      "title": "Suite de tests de carga con locust para medir throughput m\u00c3\u00a1ximo",
+      "title": "Suite de tests de carga con locust para medir throughput máximo",
       "status": "done",
       "area": "devops",
       "priority": "Baja",
-      "description": "Los logs actuales son texto plano, lo que dificulta el parseo autom\u00c3\u00a1tico por sistemas de agregaci\u00c3\u00b3n como ELK, Loki o Datadog. Logs en JSON con campos estructurados (timestamp, level, module, message, correlation_id, duration_ms) permitir\u00c3\u00adan b\u00c3\u00basqueda y an\u00c3\u00a1lisis avanzado.",
+      "description": "Los logs actuales son texto plano, lo que dificulta el parseo automático por sistemas de agregación como ELK, Loki o Datadog. Logs en JSON con campos estructurados (timestamp, level, module, message, correlation_id, duration_ms) permitirían búsqueda y análisis avanzado.",
       "problems_identified": [
-        "Logs en texto plano sin estructura est\u00c3\u00a1ndar",
-        "No hay correlation_id para trazar requests a trav\u00c3\u00a9s del pipeline",
+        "Logs en texto plano sin estructura estándar",
+        "No hay correlation_id para trazar requests a través del pipeline",
         "No hay campo duration_ms en logs de operaciones",
-        "Integraci\u00c3\u00b3n con ELK/Loki requiere parseo custom de logs",
-        "Rotaci\u00c3\u00b3n de logs existe pero no hay compresi\u00c3\u00b3n ni retenci\u00c3\u00b3n configurable"
+        "Integración con ELK/Loki requiere parseo custom de logs",
+        "Rotación de logs existe pero no hay compresión ni retención configurable"
       ],
       "acceptance": [
         "core/logging_setup.py: nuevo formateador JSON en vez de texto plano",
         "Formato: {timestamp, level, logger, module, message, correlation_id?, duration_ms?}",
-        "correlation_id propagado a trav\u00c3\u00a9s del pipeline para tracing",
-        "Duration_ms autom\u00c3\u00a1tico en logs de procesamiento de chunks y m\u00c3\u00b3dulos",
+        "correlation_id propagado a través del pipeline para tracing",
+        "Duration_ms automático en logs de procesamiento de chunks y módulos",
         "Config: logging.format (text/json), logging.retention_days",
         "Backward compatible: default 'text' para no romper instalaciones existentes",
-        "Rotaci\u00c3\u00b3n con compresi\u00c3\u00b3n gzip (RotatingFileHandler ya existe)"
+        "Rotación con compresión gzip (RotatingFileHandler ya existe)"
       ],
       "files_to_touch": [
         "core/logging_setup.py (JSON formatter, campos estructurados)",
@@ -401,21 +401,21 @@
       "status": "done",
       "area": "devops",
       "priority": "Baja",
-      "description": "El deploy actual es docker-compose (single node). Para entornos de producci\u00c3\u00b3n que requieran alta disponibilidad, escalado horizontal y rolling updates, se necesita un chart Helm para Kubernetes con ConfigMap, Secrets, HPA, Ingress y PVC.",
+      "description": "El deploy actual es docker-compose (single node). Para entornos de producción que requieran alta disponibilidad, escalado horizontal y rolling updates, se necesita un chart Helm para Kubernetes con ConfigMap, Secrets, HPA, Ingress y PVC.",
       "problems_identified": [
         "Sin soporte Kubernetes: solo docker-compose para deploy",
-        "Sin auto-escalado horizontal (HPA) para m\u00c3\u00baltiples pipelines",
-        "Sin ConfigMap para configuraci\u00c3\u00b3n externa a la imagen",
+        "Sin auto-escalado horizontal (HPA) para múltiples pipelines",
+        "Sin ConfigMap para configuración externa a la imagen",
         "Sin Ingress para TLS termination y routing",
         "Sin PVC para persistencia de outputs y logs fuera del pod",
-        "Sin readiness/liveness probes espec\u00c3\u00adficas (solo healthcheck gen\u00c3\u00a9rico)"
+        "Sin readiness/liveness probes específicas (solo healthcheck genérico)"
       ],
       "acceptance": [
-        "Chart Helm en deploy/helm/srt2web/ con templates est\u00c3\u00a1ndar",
+        "Chart Helm en deploy/helm/srt2web/ con templates estándar",
         "Values: deployment.replicas, service.type, ingress.enable, persistence.size",
         "ConfigMap montado desde values.yaml para server config",
         "Secrets para auth_token, s3_keys, etc. (soporte SealedSecrets opcional)",
-        "HPA: escalado por CPU > 70% (min 1, max 5 r\u00c3\u00a9plicas)",
+        "HPA: escalado por CPU > 70% (min 1, max 5 réplicas)",
         "Ingress con annotations para TLS cert-manager",
         "PVC para /app/output y /app/logs (ReadWriteMany opcional)",
         "Readiness probe: GET /ready, Liveness probe: GET /live",
@@ -436,23 +436,23 @@
     {
       "id": 52,
       "name": "e2e_playwright_tests",
-      "title": "Tests E2E con Playwright para flujos cr\u00c3\u00adticos del dashboard",
+      "title": "Tests E2E con Playwright para flujos críticos del dashboard",
       "status": "done",
       "area": "testing",
       "priority": "Baja",
-      "description": "Los tests E2E existentes (tests/e2e/) son pytest que verifican APIs. No hay tests que naveguen el dashboard real en un navegador. Se necesita Playwright para simular interacciones de usuario: iniciar pipeline, verificar estado de m\u00c3\u00b3dulos, cambiar config, exportar logs.",
+      "description": "Los tests E2E existentes (tests/e2e/) son pytest que verifican APIs. No hay tests que naveguen el dashboard real en un navegador. Se necesita Playwright para simular interacciones de usuario: iniciar pipeline, verificar estado de módulos, cambiar config, exportar logs.",
       "problems_identified": [
         "No hay tests que abran el dashboard en un navegador real",
         "No se verifica que el DOM se actualice correctamente tras cambios de estado",
         "No hay snapshot testing de componentes visuales",
-        "Flujos cr\u00c3\u00adticos (start \u00e2\u2020\u2019 modules running \u00e2\u2020\u2019 stop) no se prueban E2E",
+        "Flujos críticos (start → modules running → stop) no se prueban E2E",
         "Los tests e2e actuales son solo HTTP API tests"
       ],
       "acceptance": [
         "Playwright config en frontend/playwright.config.ts",
         "Test: abrir dashboard, verificar header y status card visibles",
         "Test: cambiar input type, verificar que se actualiza formulario",
-        "Test: cambiar chunk_duration, verificar confirmaci\u00c3\u00b3n en UI",
+        "Test: cambiar chunk_duration, verificar confirmación en UI",
         "Test: toggle log panel, verificar visibilidad",
         "Test: export logs, verificar que se descarga archivo",
         "CI job playwright ejecuta tests E2E contra servidor de prueba",
@@ -470,21 +470,21 @@
     {
       "id": 53,
       "name": "frontend_bundle_optimization",
-      "title": "Optimizaci\u00c3\u00b3n del bundle frontend: code-splitting y lazy loading",
-      "status": "pending",
+      "title": "Optimización del bundle frontend: code-splitting y lazy loading",
+      "status": "done",
       "area": "rendimiento",
       "priority": "Baja",
-      "description": "El bundle de frontend incluye signals-core y todos los componentes en un solo chunk. No hay code-splitting por ruta ni lazy loading de componentes pesados (PipelineGraph, LogPanel, OutputManagerCard). El an\u00c3\u00a1lisis con vite-bundle-analyzer revelar\u00c3\u00ada optimizaciones.",
+      "description": "El bundle de frontend incluye signals-core y todos los componentes en un solo chunk. No hay code-splitting por ruta ni lazy loading de componentes pesados (PipelineGraph, LogPanel, OutputManagerCard). El análisis con vite-bundle-analyzer revelaría optimizaciones.",
       "problems_identified": [
         "Todo el dashboard en un solo bundle JS sin code-splitting",
         "PipelineGraph y PipelineDiagram son SVG generados que pesan en bundle inicial",
-        "LogPanel con virtual scroll incluye toda la l\u00c3\u00b3gica en bundle cr\u00c3\u00adtico",
-        "OutputManagerCard con formularios podr\u00c3\u00ada ser lazy-loaded",
-        "No se usa dynamic import() para componentes que no est\u00c3\u00a1n en viewport inicial",
-        "No hay medici\u00c3\u00b3n actual del bundle size ni presupuesto de rendimiento"
+        "LogPanel con virtual scroll incluye toda la lógica en bundle crítico",
+        "OutputManagerCard con formularios podría ser lazy-loaded",
+        "No se usa dynamic import() para componentes que no están en viewport inicial",
+        "No hay medición actual del bundle size ni presupuesto de rendimiento"
       ],
       "acceptance": [
-        "An\u00c3\u00a1lisis de bundle con vite-bundle-analyzer documentado",
+        "Análisis de bundle con vite-bundle-analyzer documentado",
         "PipelineGraph lazy-loaded via dynamic import() (solo cuando usuario hace click en toggle)",
         "LogPanel inicial renderizado con placeholder y carga completa diferida",
         "OutputManagerCard lazy-loaded",
@@ -505,15 +505,15 @@
       "id": 54,
       "name": "visual_regression_testing",
       "title": "Visual regression testing con Storybook y Chromatic",
-      "status": "pending",
+      "status": "done",
       "area": "testing",
       "priority": "Baja",
-      "description": "No hay pruebas visuales que detecten cambios no intencionales en la UI. Storybook permitir\u00c3\u00ada desarrollar y testear componentes de forma aislada. Chromatic o Percy detectar\u00c3\u00adan regresiones visuales en CI.",
+      "description": "No hay pruebas visuales que detecten cambios no intencionales en la UI. Storybook permitiría desarrollar y testear componentes de forma aislada. Chromatic o Percy detectarían regresiones visuales en CI.",
       "problems_identified": [
-        "No hay cat\u00c3\u00a1logo de componentes (Storybook)",
+        "No hay catálogo de componentes (Storybook)",
         "Cambios CSS pueden romper layout sin que tests unitarios lo detecten",
         "No hay snapshots visuales de referencia",
-        "Responsive breakpoints no se verifican autom\u00c3\u00a1ticamente",
+        "Responsive breakpoints no se verifican automáticamente",
         "Los cambios de tema (light/dark) no tienen cobertura visual"
       ],
       "acceptance": [
@@ -543,27 +543,27 @@
       "status": "done",
       "area": "ux",
       "priority": "Media",
-      "description": "Interfaz de terminal con TUI (Textual) que replica la funcionalidad del dashboard web: monitoreo de estado, m\u00c3\u00a9tricas, m\u00c3\u00b3dulos, logs en vivo y control del pipeline. Incluye comandos one-shot para scripting (status, start, stop, config, logs). Ambos frontend web y TUI pueden funcionar simult\u00c3\u00a1neamente.",
+      "description": "Interfaz de terminal con TUI (Textual) que replica la funcionalidad del dashboard web: monitoreo de estado, métricas, módulos, logs en vivo y control del pipeline. Incluye comandos one-shot para scripting (status, start, stop, config, logs). Ambos frontend web y TUI pueden funcionar simultáneamente.",
       "problems_identified": [
         "Sin acceso al dashboard desde terminal (SSH, servidores headless)",
         "No hay forma de monitorear el pipeline sin navegador web",
-        "No hay comandos one-shot para scripting/automatizaci\u00c3\u00b3n",
-        "No hay integraci\u00c3\u00b3n con pipes de Unix o scripts CI/CD",
+        "No hay comandos one-shot para scripting/automatización",
+        "No hay integración con pipes de Unix o scripts CI/CD",
         "El servidor y frontend web ya existen pero no hay cliente de terminal"
       ],
       "acceptance": [
         "Comando srt2web-tui --help lista todos los subcomandos",
-        "srt2web-tui status muestra pipeline, m\u00c3\u00b3dulos y recursos del sistema",
+        "srt2web-tui status muestra pipeline, módulos y recursos del sistema",
         "srt2web-tui start/stop/restart controla el pipeline",
-        "srt2web-tui config [get/set] permite ver/modificar configuraci\u00c3\u00b3n",
+        "srt2web-tui config [get/set] permite ver/modificar configuración",
         "srt2web-tui logs -f muestra logs en tiempo real con filtro por nivel",
         "srt2web-tui tui lanza interfaz TUI interactiva",
-        "TUI muestra: header con estado, status bar, m\u00c3\u00a9tricas, grid 4x2 de m\u00c3\u00b3dulos, config panel y log panel",
+        "TUI muestra: header con estado, status bar, métricas, grid 4x2 de módulos, config panel y log panel",
         "Atajos de teclado: Space=start/stop, S=save, L=toggle logs, ?=help, Q=quit",
-        "WebSocket con reconexi\u00c3\u00b3n para logs en vivo",
+        "WebSocket con reconexión para logs en vivo",
         "Polling adaptativo del estado del pipeline (1s running / 3s stopped)",
-        "Autenticaci\u00c3\u00b3n via --token o login screen en TUI",
-        "Funciona simult\u00c3\u00a1neamente con frontend web (no bloquea ni interfiere)",
+        "Autenticación via --token o login screen en TUI",
+        "Funciona simultáneamente con frontend web (no bloquea ni interfiere)",
         "Tests unitarios para modelos de datos y comandos",
         "-j/--json output para todos los comandos one-shot"
       ],
@@ -577,7 +577,7 @@
         "pyproject.toml (deps cli, entry point srt2web-tui)",
         "tests/unit/test_cli_client.py (nuevo)",
         "tests/unit/test_cli_commands.py (nuevo)",
-        "AGENTS.md (secci\u00c3\u00b3n CLI)"
+        "AGENTS.md (sección CLI)"
       ],
       "completed_date": "2026-05-14"
     }
