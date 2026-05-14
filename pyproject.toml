@@ -51,7 +51,10 @@ tts = [
     "edge-tts>=6.1.0",
 ]
 cli = [
-    "requests>=2.31.0",
+    "textual>=0.52.0",
+    "httpx>=0.27.0",
+    "click>=8.0.0",
+    "rich>=13.0.0",
     "colorama>=0.4.6",
 ]
 dev = [
@@ -66,15 +69,16 @@ dev = [
 
 [project.scripts]
 srt2web = "main:main"
+srt2web-tui = "cli.main:cli_entry"
 
 [tool.setuptools]
-packages = ["core", "modules", "server", "scripts"]
+packages = ["core", "modules", "server", "scripts", "cli", "cli.client", "cli.tui", "cli.tui.screens", "cli.tui.widgets", "cli.commands"]
 include-package-data = true
 
 [tool.ruff]
 target-version = "py312"
 line-length = 120
-src = ["core", "modules", "server", "scripts", "tests"]
+src = ["core", "modules", "server", "scripts", "tests", "cli"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
@@ -87,7 +91,7 @@ known-first-party = ["core", "modules", "server"]
 python_version = "3.12"
 strict = true
 ignore_missing_imports = false
-exclude = ["desktop", "scripts", "desktop/dist", "venv", "tests"]
+exclude = ["desktop", "scripts", "desktop/dist", "venv", "tests", "cli"]
 warn_unused_ignores = true
 show_error_codes = true
 

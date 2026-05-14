@@ -1,0 +1,182 @@
+from __future__ import annotations
+
+import asyncio
+import sys
+from typing import Optional
+
+import colorama
+import click
+from rich.console import Console
+
+colorama.init()
+
+# Fix Windows console encoding for Unicode chars
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+if hasattr(sys.stderr, 'reconfigure'):
+    try:
+        sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
+from cli.client.http_client import APIClient, DEFAULT_SERVER
+
+
+@click.group(invoke_without_command=True)
+@click.option("--server", "-s", default=DEFAULT_SERVER, help="Server base URL (default: http://localhost:9999)")
+@click.option("--token", "-t", default=None, help="Auth token for protected servers")
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+@click.version_option(version="0.6.8", prog_name="srt2web-tui")
+@click.pass_context
+def cli(ctx: click.Context, server: str, token: Optional[str], json_output: bool) -> None:
+    """srt2web CLI + TUI — Monitor and control the srt2web pipeline from the terminal."""
+    ctx.ensure_object(dict)
+    ctx.obj["server"] = server
+    ctx.obj["token"] = token
+    ctx.obj["json"] = json_output
+
+    if ctx.invoked_subcommand is None:
+        # Default: launch TUI
+        from cli.tui.app import run_tui
+        asyncio.run(run_tui(server=server, token=token))
+
+
+@cli.command()
+@click.argument("action", type=click.Choice(["start", "stop", "restart"]))
+@click.pass_context
+def pipeline(ctx: click.Context, action: str) -> None:
+    """Control the pipeline: start, stop, or restart."""
+    async def _run():
+        api = APIClient(ctx.obj["server"], ctx.obj["token"])
+        console = Console()
+        try:
+            if action == "start":
+                from cli.commands.start import run_start
+                return await run_start(api, console, ctx.obj["json"])
+            elif action == "stop":
+                from cli.commands.stop import run_stop
+                return await run_stop(api, console, ctx.obj["json"])
+            elif action == "restart":
+                result = await api.restart_pipeline()
+                if ctx.obj["json"]:
+                    import json
+                    console.print(json.dumps(result, indent=2))
+                else:
+                    console.print(f"[green]✓ Pipeline restarted[/]")
+                return 0
+        finally:
+            await api.close()
+
+    sys.exit(asyncio.run(_run()))
+
+
+@cli.command()
+@click.argument("key", required=False, default=None)
+@click.argument("value", required=False, default=None)
+@click.pass_context
+def config(ctx: click.Context, key: Optional[str], value: Optional[str]) -> None:
+    """View or modify pipeline configuration.
+    
+    Usage: config [KEY] [VALUE]
+    
+    Without arguments, shows the full configuration tree.
+    With KEY, shows the value at that dotted path (e.g. server.port).
+    With KEY and VALUE, sets the configuration parameter.
+    """
+    async def _run():
+        api = APIClient(ctx.obj["server"], ctx.obj["token"])
+        console = Console()
+        try:
+            if key and value:
+                from cli.commands.config import run_config_set
+                return await run_config_set(api, console, key, value, ctx.obj["json"])
+            elif key:
+                from cli.commands.config import run_config_get
+                return await run_config_get(api, console, key, ctx.obj["json"])
+            else:
+                from cli.commands.config import run_config_show
+                return await run_config_show(api, console, ctx.obj["json"])
+        finally:
+            await api.close()
+
+    sys.exit(asyncio.run(_run()))
+
+
+@cli.command()
+@click.option("--follow", "-f", is_flag=True, default=True, help="Follow log output (default: True)")
+@click.option("--no-follow", is_flag=True, help="Print existing logs and exit")
+@click.option("--level", "-l", default=None, help="Filter by level: INFO, WARNING, ERROR")
+@click.option("--tail", default=50, help="Number of lines to show (default: 50)")
+@click.pass_context
+def logs(ctx: click.Context, follow: bool, no_follow: bool, level: Optional[str], tail: int) -> None:
+    """View pipeline logs in real-time."""
+    from cli.commands.logs import run_logs
+    sys.exit(asyncio.run(run_logs(
+        api_base=ctx.obj["server"],
+        token=ctx.obj["token"],
+        console=Console(),
+        level_filter=level,
+        follow=follow and not no_follow,
+        tail_lines=tail,
+    )))
+
+
+@cli.command()
+@click.pass_context
+def status(ctx: click.Context) -> None:
+    """Show pipeline status, modules, and system resources."""
+    async def _run():
+        api = APIClient(ctx.obj["server"], ctx.obj["token"])
+        console = Console()
+        try:
+            from cli.commands.status import run_status
+            return await run_status(api, console, ctx.obj["json"])
+        finally:
+            await api.close()
+
+    sys.exit(asyncio.run(_run()))
+
+
+@cli.command()
+@click.pass_context
+def tui(ctx: click.Context) -> None:
+    """Launch the interactive terminal UI (default)."""
+    from cli.tui.app import run_tui
+    run_tui(server=ctx.obj["server"], token=ctx.obj["token"])
+
+
+@cli.command()
+@click.pass_context
+def health(ctx: click.Context) -> None:
+    """Show detailed system health."""
+    async def _run():
+        api = APIClient(ctx.obj["server"], ctx.obj["token"])
+        console = Console()
+        try:
+            health_info = await api.get_health()
+            if ctx.obj["json"]:
+                import json
+                from dataclasses import asdict
+                console.print(json.dumps(asdict(health_info), indent=2))
+            else:
+                console.print(f"Status: [green]{health_info.status}[/]")
+                console.print(f"Pipeline: {health_info.pipeline_state}")
+                console.print(f"Uptime: {health_info.uptime_seconds:.0f}s")
+                console.print(f"Memory: {health_info.memory_mb:.0f} MB ({health_info.memory_percent:.1f}%)")
+                console.print(f"Chunks: {health_info.chunks_processed}")
+            return 0
+        finally:
+            await api.close()
+
+    sys.exit(asyncio.run(_run()))
+
+
+def cli_entry() -> None:
+    cli(obj={})
+
+
+if __name__ == "__main__":
+    cli_entry()

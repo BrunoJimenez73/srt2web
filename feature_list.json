@@ -535,6 +535,50 @@
         "frontend/src/components/LogPanel.stories.ts (nuevo)",
         "frontend/package.json (scripts storybook, chromatic)"
       ]
+    },
+    {
+      "id": 34,
+      "name": "cli_tui_interface",
+      "title": "CLI con TUI interactiva para monitoreo y control del pipeline",
+      "status": "done",
+      "area": "ux",
+      "priority": "Media",
+      "description": "Interfaz de terminal con TUI (Textual) que replica la funcionalidad del dashboard web: monitoreo de estado, métricas, módulos, logs en vivo y control del pipeline. Incluye comandos one-shot para scripting (status, start, stop, config, logs). Ambos frontend web y TUI pueden funcionar simultáneamente.",
+      "problems_identified": [
+        "Sin acceso al dashboard desde terminal (SSH, servidores headless)",
+        "No hay forma de monitorear el pipeline sin navegador web",
+        "No hay comandos one-shot para scripting/automatización",
+        "No hay integración con pipes de Unix o scripts CI/CD",
+        "El servidor y frontend web ya existen pero no hay cliente de terminal"
+      ],
+      "acceptance": [
+        "Comando srt2web-tui --help lista todos los subcomandos",
+        "srt2web-tui status muestra pipeline, módulos y recursos del sistema",
+        "srt2web-tui start/stop/restart controla el pipeline",
+        "srt2web-tui config [get/set] permite ver/modificar configuración",
+        "srt2web-tui logs -f muestra logs en tiempo real con filtro por nivel",
+        "srt2web-tui tui lanza interfaz TUI interactiva",
+        "TUI muestra: header con estado, status bar, métricas, grid 4x2 de módulos, config panel y log panel",
+        "Atajos de teclado: Space=start/stop, S=save, L=toggle logs, ?=help, Q=quit",
+        "WebSocket con reconexión para logs en vivo",
+        "Polling adaptativo del estado del pipeline (1s running / 3s stopped)",
+        "Autenticación via --token o login screen en TUI",
+        "Funciona simultáneamente con frontend web (no bloquea ni interfiere)",
+        "Tests unitarios para modelos de datos y comandos",
+        "-j/--json output para todos los comandos one-shot"
+      ],
+      "files_to_touch": [
+        "cli/__init__.py (nuevo)",
+        "cli/__main__.py (nuevo)",
+        "cli/main.py (nuevo, entry point click)",
+        "cli/client/ (nuevo, API + WS clients)",
+        "cli/commands/ (nuevo, status/start/stop/config/logs)",
+        "cli/tui/ (nuevo, app/screens/widgets Textual)",
+        "pyproject.toml (deps cli, entry point srt2web-tui)",
+        "tests/unit/test_cli_client.py (nuevo)",
+        "tests/unit/test_cli_commands.py (nuevo)",
+        "AGENTS.md (sección CLI)"
+      ]
     }
   ]
 }

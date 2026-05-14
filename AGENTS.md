@@ -18,6 +18,7 @@
 | `modules/`            | Procesamiento (audio, TTS, transcripción) + I/O plugins | Para implementar       |
 | `server/`             | FastAPI, WebSocket, seguridad                           | Para implementar       |
 | `frontend/`           | Dashboard Astro + TypeScript + Tailwind                 | Para implementar       |
+| `cli/`                | CLI + TUI (Textual) — cliente HTTP/WS + comandos        | Para implementar       |
 | `tests/`              | Tests pytest + vitest                                   | Para verificar         |
 | `config.yaml`         | Configuración runtime del pipeline                      | Para entender defaults |
 | `docs/`               | MkDocs, ADRs, guías de arquitectura                     | Para contexto técnico  |
@@ -129,6 +130,18 @@ Por defecto `thread_parallel` con 2 workers concurrentes. Las estrategias viven 
 - Tema único (dark) — soporte light/dark en F17
 - Logs: panel virtual con export JSON/TXT en F16
 
+### CLI / TUI (F34)
+
+- `cli/` package completo: `cli/client/` (API + WS), `cli/commands/` (one-shot), `cli/tui/` (Textual)
+- Entry point: `srt2web-tui` definido en `pyproject.toml`
+- **Comandos one-shot**: `status`, `start`, `stop`, `restart`, `config [get|set]`, `logs [-f] [--level]`, `health`
+- **TUI interactiva** (Textual): Header con WS status y reloj, StatusBar con estado/chunks/modo, MetricsPanel con barras CPU/RAM/GPU y sparklines, ModuleGrid 4×2 con 8 cards de módulos, ConfigPanel con vista YAML, LogPanel con logs en vivo
+- Atajos: `Space` start/stop, `S` save, `L` toggle logs, `C` config, `O` outputs, `?` help, `Q` quit
+- Conexión vía WebSocket con exponential backoff + jitter (mismo patrón frontend)
+- Polling adaptativo: 1s (running), 3s (stopped), 5s (error)
+- Soporta `--server` y `--token` para servidores remotos con auth
+- Ambos frontend web + TUI funcionan simultáneamente
+
 ### Testing
 
 - `pytest` con `asyncio_mode = auto`. Fixtures function-scoped en `tests/conftest.py`
@@ -152,9 +165,11 @@ Ver `feature_list.json` para lista completa y estados.
 
 **Features 15–30**: completadas en sesiones Mayo 2026.
 
-**Features 31–33**: plan de optimizaciones de latencia — pendientes.
+**Features 31–33**: plan de optimizaciones de latencia — completadas.
 
-### Resumen del plan de mejoras (F15–F33)
+**Feature 34**: CLI + TUI interactiva — completada Mayo 2026.
+
+### Resumen del plan de mejoras (F15–F34)
 
 | ID  | Área               | Nombre corto                            | Prioridad | Estado      |
 | --- | ------------------ | --------------------------------------- | --------- | ----------- |
@@ -177,10 +192,21 @@ Ver `feature_list.json` para lista completa y estados.
 | F31 | Rendimiento        | HLS passthrough mode                    | Alta      | ✅ done     |
 | F32 | Rendimiento        | Audio extraction multi-thread           | Media     | ✅ done     |
 | F33 | Rendimiento        | Pipeline parallelism optimization       | Media     | ✅ done     |
+| F34 | UX                 | CLI + TUI interactiva                   | Media     | ✅ done     |
 
 **Orden sugerido de implementación (latencia)**: F31 → F32 → F33
 
 ## 8. Historial compacto (post-Abril 2026)
+
+### 14/05 — CLI + TUI interactiva (F34)
+
+- `cli/` package completo: client HTTP/WS, 5 one-shot commands, TUI Textual
+- `srt2web-tui` entry point con 6 subcomandos: status, start/stop/restart, config, logs, health, tui
+- TUI replica dashboard web: header, status bar, metrics, module grid 4×2, config panel, log panel
+- WebSocket con exponential backoff + jitter para logs en vivo
+- Polling adaptativo 1s/3s según estado del pipeline
+- Tests unitarios para modelos de datos y comandos
+- Ambos frontend web + TUI funcionan simultáneamente
 
 ### 12/05 — Plan de mejoras F15-F29
 
