@@ -18,6 +18,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Optional
 
+from core.subprocess_utils import get_creation_flags
+
 logger = logging.getLogger("srt2web.ffmpeg")
 
 # Cached FFmpeg path to avoid repeated lookups
@@ -301,10 +303,10 @@ def _get_creation_flags() -> int:
     Returns:
         Creation flags integer
     """
+    flags = get_creation_flags()
     if sys.platform == "win32":
-        # Combine flags for Windows
-        return subprocess.CREATE_NO_WINDOW | subprocess.BELOW_NORMAL_PRIORITY_CLASS
-    return 0
+        flags |= subprocess.BELOW_NORMAL_PRIORITY_CLASS
+    return flags
 
 
 def run_ffmpeg(
@@ -383,7 +385,7 @@ def cleanup_ffmpeg_processes() -> None:
                 ["taskkill", "/F", "/IM", "ffmpeg.exe"],
                 capture_output=True,
                 text=True,
-                creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
+                creationflags=get_creation_flags(),
             )
             if result.returncode == 0:
                 logger.info("Cleaned up orphaned FFmpeg processes")
@@ -457,10 +459,7 @@ def run_ffmpeg_with_timeout(cmd: list[str], timeout: int = 30, **kwargs: Any) ->
         cmd = ["timeout", str(timeout)] + cmd
 
     try:
-        # Set creation flags for Windows to hide console
-        creationflags = 0
-        if platform.system() == "Windows":
-            creationflags = subprocess.CREATE_NO_WINDOW
+        creationflags = get_creation_flags()
 
         process = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=creationflags, **kwargs
@@ -484,3 +483,25 @@ def run_ffmpeg_with_timeout(cmd: list[str], timeout: int = 30, **kwargs: Any) ->
         if "process" in locals():
             kill_process_gracefully(process, timeout=5)
         raise
+
+
+def check_videotoolbox_support() -> bool:
+    """
+    Check if FFmpeg has VideoToolbox hardware acceleration (macOS).
+
+    Returns:
+        True if h264_videotoolbox encoder is available.
+    """
+    ffmpeg = find_ffmpeg()
+    if not ffmpeg:
+        return False
+    try:
+        result = subprocess.run(
+            [ffmpeg, "-encoders"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        return "h264_videotoolbox" in result.stdout
+    except Exception:
+        return False

@@ -15,6 +15,7 @@ from typing import Optional
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.module_base import PipelineData
 from core.output_sink import OutputSink
+from core.subprocess_utils import get_creation_flags
 
 logger = logging.getLogger("srt2web.output.rtmp")
 
@@ -94,7 +95,7 @@ class RTMPOutput(OutputSink):
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            creationflags=(subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0),
+            creationflags=get_creation_flags(),
         )
 
         self._monitor_thread = threading.Thread(
@@ -145,7 +146,7 @@ class RTMPOutput(OutputSink):
                     subprocess.run(
                         ["taskkill", "/F", "/T", "/PID", str(self._ffmpeg_proc.pid)],
                         capture_output=True,
-                        creationflags=subprocess.CREATE_NO_WINDOW,
+                        creationflags=get_creation_flags(),
                     )
                 else:
                     self._ffmpeg_proc.terminate()

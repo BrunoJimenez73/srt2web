@@ -1,13 +1,9 @@
 from __future__ import annotations
 
 import json
-import sys
 from typing import Any
 
-from rich import box
 from rich.console import Console
-from rich.syntax import Syntax
-from rich.table import Table
 from rich.tree import Tree
 
 from cli.client.http_client import APIClient

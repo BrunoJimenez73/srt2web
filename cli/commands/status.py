@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import json
-import sys
 
 from rich import box
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
-from cli.client.http_client import APIClient, PipelineStatus
+from cli.client.http_client import APIClient
 
 
 def _state_style(state: str) -> str:
@@ -24,11 +23,6 @@ def _state_style(state: str) -> str:
         "degraded": "orange1",
         "disabled": "dim",
     }.get(state, "white")
-
-
-def _state_dot(state: str) -> Text:
-    style = _state_style(state)
-    return Text("●", style=style)
 
 
 def _state_label(state: str) -> Text:
@@ -55,8 +49,7 @@ async def run_status(api: APIClient, console: Console, json_output: bool = False
             "uptime_seconds": status.uptime_seconds,
             "strategy": status.strategy,
             "modules": [
-                {"name": m.get("name"), "state": m.get("state"), "enabled": m.get("enabled")}
-                for m in status.modules
+                {"name": m.get("name"), "state": m.get("state"), "enabled": m.get("enabled")} for m in status.modules
             ],
             "system": status.system,
         }
@@ -70,7 +63,9 @@ async def run_status(api: APIClient, console: Console, json_output: bool = False
     table.add_row("State", _state_label(status.state))
     table.add_row("Mode", status.mode or status.strategy or "—")
     table.add_row("Chunks Processed", str(status.chunks_processed))
-    table.add_row("Chunks Failed", f"[red]{status.chunks_failed}[/]" if status.chunks_failed else str(status.chunks_failed))
+    table.add_row(
+        "Chunks Failed", f"[red]{status.chunks_failed}[/]" if status.chunks_failed else str(status.chunks_failed)
+    )
     table.add_row("Avg Processing", f"{status.avg_processing_time_ms:.0f} ms" if status.avg_processing_time_ms else "—")
     table.add_row("Uptime", f"{status.uptime_seconds:.0f}s" if status.uptime_seconds else "—")
     table.add_row("Concurrent", f"{status.concurrent_chunks}/{status.max_concurrent_chunks}")

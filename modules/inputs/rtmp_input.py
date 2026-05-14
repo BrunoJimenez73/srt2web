@@ -19,6 +19,7 @@ from typing import Optional
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.input_source import InputSource
 from core.module_base import ModuleState, ModuleStatus
+from core.subprocess_utils import get_creation_flags
 
 logger = logging.getLogger("srt2web.input.rtmp")
 
@@ -185,7 +186,7 @@ class RTMPInput(InputSource):
         # Use CREATE_NO_WINDOW on Windows to avoid console popup
         creation_flags = 0
         if sys.platform == "win32":
-            creation_flags = subprocess.CREATE_NO_WINDOW
+            creation_flags = get_creation_flags()
 
         # Capture stdout/stderr to see what FFmpeg outputs
         self._ffmpeg_proc = subprocess.Popen(
@@ -243,7 +244,7 @@ class RTMPInput(InputSource):
                     subprocess.run(
                         ["taskkill", "/F", "/T", "/PID", str(self._ffmpeg_proc.pid)],
                         capture_output=True,
-                        creationflags=subprocess.CREATE_NO_WINDOW,
+                        creationflags=get_creation_flags(),
                     )
                 else:
                     self._ffmpeg_proc.terminate()

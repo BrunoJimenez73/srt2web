@@ -1,8 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
 chcp 65001 >nul
-title SRT2Web - Iniciando
-color 0a
 
 set "SCRIPT_DIR=%~dp0"
 cd /d "%SCRIPT_DIR%"
@@ -21,14 +19,9 @@ if not exist "venv\Scripts\python.exe" (
 )
 
 set "PYTHON=venv\Scripts\python.exe"
-set "FFMPEG=bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe"
+set "FFMPEG_PATH=%SCRIPT_DIR%bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe"
 
-REM =============================================
-REM Verificar puerto del servidor
-REM =============================================
-set "PORT=8083"
-
-REM Leer puerto del servidor de config.yaml (buscar en seccion server)
+set "PORT=9999"
 for /f "tokens=2" %%A in ('findstr /C:"  port:" config.yaml 2^>nul') do (
     set "PORT=%%A"
 )
@@ -36,76 +29,56 @@ set "PORT=!PORT: =!"
 
 echo [INFO] Puerto del servidor: !PORT!
 
-REM =============================================
-REM Verificar FFmpeg
-REM =============================================
+REM Check if port is already in use (only LISTENING = server already running)
+powershell -NoProfile -Command "if (Get-NetTCPConnection -LocalPort !PORT! -State Listen -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }" >nul 2>&1
+if !errorlevel! equ 0 (
+    echo [WARNING] Puerto !PORT! ya esta en uso.
+    echo [INFO] El servidor probablemente ya esta corriendo.
+    echo.
+)
+
+REM Verify FFmpeg exists
 echo.
-if exist "%FFMPEG%" (
+if exist "%FFMPEG_PATH%" (
     echo [OK] FFmpeg encontrado.
-    
-    REM Verificar NVENC
-    "%FFMPEG%" -encoders 2>nul | findstr /C:"h264_nvenc" >nul 2>&1
+    powershell -NoProfile -Command "try { $p = [System.Diagnostics.Process]::Start('\"%FFMPEG_PATH%\"', '-version'); $p.WaitForExit(2000); if ($p.HasExited -and $p.ExitCode -eq 0) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul
     if !errorlevel! equ 0 (
-        echo [OK] NVENC disponible ^(video GPU^)
+        echo [OK] FFmpeg responde.
     ) else (
-        echo [WARNING] FFmpeg sin NVENC ^(CPU encoding^)
+        echo [WARNING] FFmpeg no responde o esta bloqueado.
     )
 ) else (
     echo [WARNING] FFmpeg no encontrado en bin/
-    echo [INFO] Ejecuta Install.bat para descargar.
 )
 
-REM =============================================
-REM Verificar GPU (usando venv)
-REM =============================================
+REM GPU check
 echo.
-set "VENV_PYTHON=venv\Scripts\python.exe"
+%PYTHON% -c "import torch; print('[GPU] ' + torch.cuda.get_device_name(0) if torch.cuda.is_available() else '[GPU] No disponible')" 2>nul
 
-REM Verificar GPU con PyTorch y fallback pynvml
-%VENV_PYTHON% -c "import torch; print('GPU: ' + torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'GPU: No disponible')" 2>nul
-if errorlevel 1 (
-    REM Fallback: verificar con pynvml si PyTorch falla
-    %VENV_PYTHON% -c "import pynvml; pynvml.nvmlInit(); print('GPU: ' + pynvml.nvmlDeviceGetName(pynvml.nvmlDeviceGetHandleByIndex(0)).decode())" 2>nul || echo GPU: No disponible
-)
+REM ONNX GPU check
+powershell -NoProfile -Command "python -c \"import onnxruntime as ort; print('[ONNX] ' + ('GPU' if 'CUDAExecutionProvider' in ort.get_available_providers() else 'CPU'))\"" 2>nul
 
-REM Verificar ONNX GPU
-%VENV_PYTHON% -c "import onnxruntime as ort; print('ONNX: ' + ('GPU' if 'CUDAExecutionProvider' in ort.get_available_providers() else 'CPU'))" 2>nul
+set "PATH=%SCRIPT_DIR%bin\ffmpeg-master-latest-win64-gpl\bin;%PATH%"
 
-REM =============================================
-REM Iniciar servidor
-REM =============================================
 echo.
 echo [OK] Iniciando servidor...
 echo [INFO] Dashboard: http://localhost:!PORT!
-echo [INFO] API: http://localhost:!PORT!/docs
+echo [INFO] API: http://localhost:!PORT!/api/docs
 echo.
 
-REM NOTE: CUDA/cuDNN paths handled by main.py (from venv site-packages)
-REM Just add FFmpeg
-set "PATH=%SCRIPT_DIR%bin\ffmpeg-master-latest-win64-gpl\bin;%PATH%"
+REM Launch server via PowerShell Start-Process (bypasses cmd shell limitations)
+powershell -NoProfile -Command "Start-Process -FilePath 'python.exe' -ArgumentList '-X utf8 main.py' -WorkingDirectory '%SCRIPT_DIR%' -PassThru | Select-Object Id, ProcessName" >nul 2>&1
 
-REM Iniciar servidor DIRECTAMENTE en esta consola (no en ventana oculta)
-echo [INFO] Iniciando servidor en esta consola...
-echo [INFO] Para detener: Ctrl+C
-echo.
-
-"%PYTHON%" -X utf8 main.py 2>&1
-
-REM Si llegamos aqui, el servidor se cerro
-set EXIT_CODE=%errorlevel%
-
+echo [OK] Servidor iniciado.
 echo.
 echo ===============================================
-echo            SERVIDOR DETENIDO
+echo  El servidor se esta ejecutando en:
+echo  http://localhost:!PORT!
+echo  Dashboard: http://localhost:!PORT!
+echo.
+echo  Para detener: ejecuta Stop.bat
 echo ===============================================
 echo.
-if %EXIT_CODE% neq 0 (
-    echo [ERROR] El servidor fallo con codigo de error: %EXIT_CODE%
-    echo.
-    echo Verifica los logs en logs/srt2web.log para mas detalles.
-) else (
-    echo [OK] Servidor cerrado correctamente.
-)
-echo.
-echo Presiona cualquier tecla para cerrar esta ventana...
-pause >nul
+
+REM Exit immediately so user can close this window
+exit /b 0

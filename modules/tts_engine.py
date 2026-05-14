@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Optional
 
 from core.module_base import BaseModule, ModuleState, ModuleStatus, PipelineData
+from core.subprocess_utils import get_creation_flags
 
 logger = logging.getLogger("srt2web.module.tts_engine")
 
@@ -279,7 +280,7 @@ class TTSEngine(BaseModule):
         subprocess.run(
             cmd,
             capture_output=True,
-            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+            creationflags=get_creation_flags(),
         )
 
         if Path(temp_mp3).exists():

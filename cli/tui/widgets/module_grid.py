@@ -2,10 +2,8 @@ from __future__ import annotations
 
 from rich.text import Text
 from textual.app import ComposeResult
-from textual.events import Click
 from textual.message import Message
 from textual.widgets import Static
-
 
 CARD_NAMES = [
     "input",
@@ -98,12 +96,11 @@ class CardClicked(Message):
 
 
 class TUIModuleGrid(Static):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._selected_index = 0
+    pass
 
     def compose(self) -> ComposeResult:
         from textual.containers import Horizontal, Vertical
+
         with Vertical():
             with Horizontal():
                 for name in CARD_NAMES[:4]:
@@ -136,20 +133,7 @@ class TUIModuleGrid(Static):
                 cards["video_muxer"].update(state, enabled, chunks, last_time, extra)
 
     def on_card_clicked(self, event: CardClicked) -> None:
-        self._selected_index = CARD_NAMES.index(event.module_name) if event.module_name in CARD_NAMES else 0
         self.post_message(ModuleSelected(event.module_name))
-
-    def _move_selection(self, delta: int) -> None:
-        self._selected_index = (self._selected_index + delta) % len(CARD_NAMES)
-        cards = list(self.query(TUIModuleCard))
-        if 0 <= self._selected_index < len(cards):
-            cards[self._selected_index].focus()
-
-    def focus_card(self, index: int) -> None:
-        self._selected_index = index % len(CARD_NAMES)
-        cards = list(self.query(TUIModuleCard))
-        if 0 <= self._selected_index < len(cards):
-            cards[self._selected_index].focus()
 
 
 class ModuleSelected(Message):

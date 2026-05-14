@@ -13,7 +13,6 @@ Configuración (output.web o output.hls):
 import glob
 import os
 import subprocess
-import sys
 import threading
 from typing import Optional
 
@@ -22,6 +21,7 @@ from core.ffmpeg_pool import shutdown_pool
 from core.ffmpeg_utils import check_gpu_support, ensure_ffmpeg
 from core.module_base import ModuleState, ModuleStatus, PipelineData
 from core.output_sink import OutputSink
+from core.subprocess_utils import get_creation_flags
 
 
 class HLSOutput(OutputSink):
@@ -192,7 +192,7 @@ class HLSOutput(OutputSink):
                     stderr=subprocess.PIPE,
                     text=True,
                     timeout=60,
-                    creationflags=(subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0),
+                    creationflags=get_creation_flags(),
                 )
                 if result.returncode != 0:
                     self.logger.error(f"FFmpeg mux error: {result.stderr[-500:]}")
@@ -263,7 +263,7 @@ class HLSOutput(OutputSink):
                 stderr=subprocess.PIPE,
                 text=True,
                 timeout=60,
-                creationflags=(subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0),
+                creationflags=get_creation_flags(),
             )
             if result.returncode != 0:
                 self.logger.error(f"FFmpeg mux error: {result.stderr[-500:]}")

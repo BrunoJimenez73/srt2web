@@ -89,7 +89,7 @@ import OutputCard from './OutputCard.astro';
       if (badge && mod?.extra) {
         const processing = running && mod.enabled && (mod.processed_chunks ?? 0) > 0;
         if (mod.extra.using_gpu) {
-          badge.textContent = "GPU";
+          badge.textContent = mod.extra.device === "mps" ? "MPS" : "GPU";
           badge.style.display = "inline";
           badge.classList.toggle("active", processing);
         } else {
@@ -122,7 +122,8 @@ import OutputCard from './OutputCard.astro';
       // Encoder
       const encoderEl = el<HTMLSpanElement>(entry.encoderId);
       if (encoderEl && mod?.extra) {
-        encoderEl.textContent = mod.extra.encoder_label || (mod.extra.using_gpu ? "GPU" : "CPU") || "--";
+        const deviceLabel = mod.extra.device === "mps" ? "MPS" : mod.extra.using_gpu ? "GPU" : "CPU";
+        encoderEl.textContent = mod.extra.encoder_label || deviceLabel || "--";
       }
     }
   });

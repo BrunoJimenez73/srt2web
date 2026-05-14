@@ -15,6 +15,7 @@ from typing import Optional
 
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.module_base import BaseModule, ModuleState, PipelineData
+from core.subprocess_utils import get_creation_flags
 
 logger = logging.getLogger("srt2web.module.srt_ingest")
 
@@ -121,7 +122,7 @@ class SRTIngest(BaseModule):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            creationflags=(subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0),
+            creationflags=get_creation_flags(),
         )
 
         # Monitor thread reads stderr for logs
@@ -146,7 +147,7 @@ class SRTIngest(BaseModule):
                     subprocess.run(
                         ["taskkill", "/F", "/T", "/PID", str(self._ffmpeg_proc.pid)],
                         capture_output=True,
-                        creationflags=subprocess.CREATE_NO_WINDOW,
+                        creationflags=get_creation_flags(),
                     )
                 else:
                     self._ffmpeg_proc.terminate()

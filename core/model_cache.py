@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
-from core.paths import get_project_root
+from core.paths import get_cache_dir
 
 logger = logging.getLogger("srt2web.model_cache")
 
@@ -64,25 +64,7 @@ class ModelCache:
             cache_dir = Path(explicit_cache_dir).expanduser()
             cache_dir.mkdir(parents=True, exist_ok=True)
             return cache_dir
-
-        bases = []
-        project_root = get_project_root()
-        bases.append(project_root)
-        if os.name == "nt":
-            bases.append(Path(os.environ.get("LOCALAPPDATA", Path.home())))
-        else:
-            bases.append(Path.home())
-
-        for base in bases:
-            cache_dir = base / ".cache" / "srt2web"
-            try:
-                cache_dir.mkdir(parents=True, exist_ok=True)
-                logger.debug(f"Using cache directory: {cache_dir}")
-                return cache_dir
-            except OSError as exc:
-                logger.warning("Could not use model cache directory %s: %s", cache_dir, exc)
-
-        raise RuntimeError("Could not create a writable model cache directory")
+        return get_cache_dir()
 
     @property
     def whisper_cache_dir(self) -> Path:

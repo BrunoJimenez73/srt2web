@@ -3,10 +3,14 @@ CUDA Paths Configuration - Extraído de main.py
 
 Maneja la configuración de paths de CUDA/cuDNN para Windows.
 Extraído para mejorar mantenibilidad.
+
+NOTA: En macOS y Linux sin NVIDIA GPU, todas las funciones
+retornan listas vacías / hacen no-op automáticamente.
 """
 
 import os
 import site
+import sys
 from pathlib import Path
 
 
@@ -16,7 +20,11 @@ def get_cuda_paths() -> list[str]:
 
     Returns:
         Lista de paths priorizados para CUDA (cuDNN 8.x primero).
+        Vacía en macOS o sistemas sin CUDA.
     """
+    if sys.platform != "win32":
+        return []
+
     cuda_paths: list[str] = []
     project_root = Path(__file__).resolve().parent.parent
 

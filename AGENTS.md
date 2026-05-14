@@ -13,7 +13,9 @@
 | `progress/current.md` | Estado de la sesión activa                              | Siempre, al empezar    |
 | `progress/history.md` | Bitácora append-only de sesiones                        | Si necesitas contexto  |
 | `CHECKPOINTS.md`      | Criterios de "estado final correcto"                    | Antes de declarar done |
-| `init.ps1`            | Script de verificación ejecutable                       | Al empezar y al cerrar |
+| `init.ps1`            | Script de verificación (Windows)                        | Al empezar y al cerrar |
+| `init_Mac.sh`         | Script de verificación (macOS)                          | En Mac, al empezar     |
+| `install_Mac.sh`      | Instalador para Mac Silicon                             | En Mac, para setup     |
 | `core/`               | Pipeline, módulos base, config, factories               | Para implementar       |
 | `modules/`            | Procesamiento (audio, TTS, transcripción) + I/O plugins | Para implementar       |
 | `server/`             | FastAPI, WebSocket, seguridad                           | Para implementar       |
@@ -27,25 +29,31 @@
 
 1. Lee `feature_list.json` y elige una feature `pending`
 2. Lee `progress/current.md` para saber dónde se quedó la sesión anterior
-3. Ejecuta `.\init.ps1` — si falla, **para y resuelve** antes de tocar código
+3. Ejecuta el script de verificación:
+   - **Windows**: `.\init.ps1`
+   - **macOS**: `./init_Mac.sh`
+   - Si falla, **para y resuelve** antes de tocar código
 4. Cambia la feature a `in_progress` y anota el plan en `progress/current.md`
 
 ## 3. Reglas duras
 
 - **Una feature a la vez.** No mezcles cambios de varias tareas.
-- **init.ps1 verde para declarar done.** `pytest tests/unit/` pasa siempre.
+- **init.ps1 o init_Mac.sh verde para declarar done.** `pytest tests/unit/` pasa siempre.
 - **Documenta mientras trabajas** en `progress/current.md`, no al final.
 - **Deja el repo limpio:** sin prints, TODOs sin contexto, ni archivos temporales.
 - **CHECKPOINTS.md completo** antes de cerrar sesión.
 - Si te bloqueas, documenta en `progress/current.md` con estado `blocked` y para.
 - **No toques `PARA BORRAR/`** — carpeta candidata a limpieza, ver F29.
+- **Código nuevo debe ser cross-platform.** Siempre verificar en Mac si el cambio afecta subprocess, paths o GPU.
 
 ## 4. Comandos útiles
 
 ```bash
 # Verificar entorno
-.\init.ps1              # Completo (incluye tests lentos + frontend + tsc)
-.\init.ps1 -Quick       # Tests unitarios en paralelo, salta slow + frontend (~30s)
+.\init.ps1              # Windows: completo
+.\init.ps1 -Quick       # Windows: unit tests rápidos
+./init_Mac.sh           # macOS: completo
+./init_Mac.sh --quick   # macOS: unit tests rápidos
 
 # Tests
 python -m pytest tests/unit/ -v              # Unit tests
@@ -60,9 +68,13 @@ cd frontend && npx tsc --noEmit              # TypeScript check
 # Frontend
 cd frontend && npm run build:local           # Build + copiar a server/static/
 
-# Servidor
+# Servidor (Windows)
 .\Start.bat                                   # Iniciar servidor (minimizado)
 .\Stop.bat                                    # Parar solo procesos srt2web
+
+# Servidor (macOS)
+./start_Mac.sh                                # Iniciar servidor
+./stop_Mac.sh                                 # Parar servidor
 
 # Linting
 ruff check core/ modules/ server/ tests/     # Lint Python
@@ -99,11 +111,13 @@ Por defecto `thread_parallel` con 2 workers concurrentes. Las estrategias viven 
 
 ## 6. Notas técnicas
 
-### GPU / CUDA
+### GPU / CUDA / Apple Silicon
 
-- `setup_cuda_environment()` en `core/cuda_paths.py` configura PATH para DLLs CUDA
+- `setup_cuda_environment()` en `core/cuda_paths.py` configura PATH para DLLs CUDA (Windows only)
 - ONNX Runtime GPU NO soporta cuDNN 9.x. Usar `device: auto` o `cpu` en config
-- `HardwareMonitor` (nvidia-ml-py) reporta % uso y memoria GPU
+- `HardwareMonitor` (nvidia-ml-py) reporta % uso y memoria GPU (solo NVIDIA)
+- **En Mac Silicon**: MPS (Metal Performance Shaders) vía PyTorch, CoreML vía ONNX Runtime, VideoToolbox vía FFmpeg
+- `detect_mps()` en `core/hardware.py` — disponible si PyTorch con MPS instalado
 - GPU badge en frontend: verde si módulo usa GPU + está running + processed_chunks > 0
 
 ### Piper TTS
@@ -111,7 +125,7 @@ Por defecto `thread_parallel` con 2 workers concurrentes. Las estrategias viven 
 - `modules/piper_loader.py` usa subprocess persistente (evita bloqueo event loop)
 - Modelos en `models/piper/` (17 voces). Default: `es_ES-sharvard-medium`
 - Voces ES: Sharvard, Davefx (ES), Claude (MX), Daniela (AR)
-- Timeout 90s para carga de modelo. `device: auto` → intenta CUDA, fallback CPU
+- Timeout 90s para carga de modelo. `device: auto` → intenta CUDA/MPS, fallback CPU
 - **Heartbeat**: ver F17 — el subprocess necesita mecanismo de detección de bloqueo
 
 ### FFmpeg
@@ -119,6 +133,7 @@ Por defecto `thread_parallel` con 2 workers concurrentes. Las estrategias viven 
 - Pool de procesos en `core/ffmpeg_pool.py` (max 4, idle 30s)
 - `FFmpegWatchdog` en `core/watchdog.py` detecta crashes/hangs
 - Keyframe interval OBS mínimo ~10s → chunk duration mínima ~10s
+- **En Mac**: FFmpeg vía Homebrew con VideoToolbox para aceleración hardware
 
 ### Frontend
 
@@ -146,7 +161,7 @@ Por defecto `thread_parallel` con 2 workers concurrentes. Las estrategias viven 
 
 - `pytest` con `asyncio_mode = auto`. Fixtures function-scoped en `tests/conftest.py`
 - Markers: `unit`, `integration`, `e2e`, `slow`, `security`, `gpu`, `cpu`
-- Tests marcados `@pytest.mark.slow`: solo `test_whisper_integration.py` y `test_tts_integration.py` (cargan modelos reales, ~30s+). Se excluyen automáticamente con `.\init.ps1 -Quick` y con `-m "not slow"`
+- Tests marcados `@pytest.mark.slow`: solo `test_whisper_integration.py` y `test_tts_integration.py` (cargan modelos reales, ~30s+). Se excluyen automáticamente con flags `--quick`/`-m "not slow"`
 - Frontend: Vitest. `npm test` en `frontend/`. Cobertura: `npm run test:coverage`
 - Objetivo cobertura frontend: 80%+ (ver F25)
 
@@ -156,6 +171,7 @@ Por defecto `thread_parallel` con 2 workers concurrentes. Las estrategias viven 
 - TypeScript: sin `any`, preferir `unknown` + type guard
 - CSS: usar variables CSS del tema (`--bg-card`, `--text-prime`, etc.), no colores hardcoded
 - No `console.log` en producción — usar el logger configurable del módulo
+- **Cross-platform**: Todo subprocess debe usar helper `get_creation_flags()` en vez de `CREATE_NO_WINDOW` directo. Todo path debe usar `pathlib.Path` + `platformdirs`.
 
 ## 7. Estado de features
 
@@ -163,40 +179,24 @@ Ver `feature_list.json` para lista completa y estados.
 
 **Features 1–14**: todas DONE (ciclo Abril–Mayo 2026).
 
-**Features 15–30**: completadas en sesiones Mayo 2026.
+**Features 15–33**: completadas en sesiones Mayo 2026.
 
-**Features 31–33**: plan de optimizaciones de latencia — completadas.
+**Features 34–54**: features adicionales completadas.
 
-**Feature 34**: CLI + TUI interactiva — completada Mayo 2026.
+**Feature 55**: TUI Bug fixes (in_progress).
 
-### Resumen del plan de mejoras (F15–F34)
+**Features 56–58**: TUI/CLI mejoras pendientes.
 
-| ID  | Área               | Nombre corto                            | Prioridad | Estado      |
-| --- | ------------------ | --------------------------------------- | --------- | ----------- |
-| F15 | Rendimiento        | WS resilience & adaptive polling        | Alta      | ✅ done     |
-| F16 | UX / Rendimiento   | LogPanel virtual scroll & export        | Alta      | ✅ done     |
-| F17 | Estabilidad        | Piper heartbeat & graceful degrade      | Alta      | ✅ done     |
-| F18 | UX / Visualización | Metrics sparklines & latency meter      | Media     | ✅ done     |
-| F19 | UX                 | Pipeline presets / profiles             | Media     | ✅ done     |
-| F20 | Estabilidad        | Output health monitoring                | Alta      | ✅ done     |
-| F21 | Arquitectura       | Config push via WebSocket               | Media     | ✅ done     |
-| F22 | Mantenibilidad     | Cleanup dead code final                 | Media     | ✅ done     |
-| F23 | Arquitectura       | API versioning & Pydantic responses     | Media     | ✅ done     |
-| F24 | Mantenibilidad     | mypy strict mode core/ + server/        | Alta      | ✅ done     |
-| F25 | Testing            | Frontend coverage 80%+                  | Media     | ✅ done     |
-| F26 | UX / Diseño        | Mobile-responsive layout                | Baja      | ✅ done     |
-| F27 | UX / Visualización | Dependencias del pipeline (diagrama)    | Baja      | ✅ done     |
-| F28 | DevOps             | Docker optimization & health checks     | Media     | ✅ done     |
-| F29 | Mantenibilidad     | Repo hygiene (PARA BORRAR, stale files) | Alta      | ✅ done     |
-| F30 | Rendimiento        | Subtitle sync & performance             | Alta      | ✅ done     |
-| F31 | Rendimiento        | HLS passthrough mode                    | Alta      | ✅ done     |
-| F32 | Rendimiento        | Audio extraction multi-thread           | Media     | ✅ done     |
-| F33 | Rendimiento        | Pipeline parallelism optimization       | Media     | ✅ done     |
-| F34 | UX                 | CLI + TUI interactiva                   | Media     | ✅ done     |
-
-**Orden sugerido de implementación (latencia)**: F31 → F32 → F33
+**Features 59–65**: Compatibilidad macOS (7 features planificadas).
 
 ## 8. Historial compacto (post-Abril 2026)
+
+### 14/05 — Plan de compatibilidad macOS
+
+- Análisis completo del código para soporte Mac Silicon (ARM64)
+- Identificados 7 bloques de trabajo: init script, subprocess, GPU, deps, paths, TUI terminal, docs
+- ~50 ocurrencias de código platform-specific (CREATE_NO_WINDOW, nvidia-smi, paths Windows)
+- Mac scripts existentes (install_Mac.sh, start_Mac.sh, stop_Mac.sh) pero incompletos
 
 ### 14/05 — CLI + TUI interactiva (F34)
 
@@ -249,48 +249,321 @@ Ver `feature_list.json` para lista completa y estados.
 - Logging persistente con RotatingFileHandler (10MB, 3 backups)
 - cuDNN 9.x incompatible con ONNX Runtime GPU (issue #23519)
 
-## 9. Plan de optimización de latencia (F31–F33)
+---
 
-Basado en análisis de logs del 13/05. Latencia total actual ~20-24s extremo a extremo.
+## 9. Plan de implementación macOS (F59–F65)
 
-| Paso | Feature | Cambio | Ahorro estimado |
-|------|---------|--------|----------------|
-| 1 | F31 | HLS passthrough (encoder_mode: passthrough) | ~1650ms (49%) |
-| 2 | F32 | Eliminar -threads 1 en audio_extractor | ~200-400ms (9%) |
-| 3 | F33 | Revisar paralelismo real del pipeline | ~300ms (8%) |
+Basado en auditoría de código del 14/05/2026. ~50+ ocurrencias de código platform-specific, 3 scripts Mac existentes pero incompletos.
 
-**Latencia estimada post-optimización**: de ~3.5s de procesamiento a ~1.7s → E2E ~10-12s.
-
-### F31 — HLS passthrough mode (Alta prioridad)
-
-**Qué**: Cambiar `encoder_mode: auto` → `encoder_mode: passthrough` en config.yaml. FFmpeg usará `-c:v copy -c:a copy` sin re-codificar.
-
-**Archivos**: `config.yaml`, `modules/outputs/hls_output.py` (verificar).
-
-**Riesgo**: Bajo. Ya implementado, solo no activado. Revertible.
-
-### F32 — Audio extraction multi-thread (Media prioridad)
-
-**Qué**: Eliminar `-threads 1` de `audio_extractor.py` para que FFmpeg auto-detecte núcleos.
-
-**Archivos**: `modules/audio_extractor.py`.
-
-**Riesgo**: Bajo. FFmpeg maneja auto-threads correctamente.
-
-### F33 — Pipeline parallelism (Media prioridad)
-
-**Qué**: Investigar por qué `max_concurrent_chunks=4` no produce solapamiento real. Revisar colas y semáforos.
-
-**Archivos**: `core/unified_pipeline.py`, `core/pipeline/strategies.py`.
-
-**Riesgo**: Medio. Requiere entender el flujo de datos interno.
-
-### Commits recientes relevantes
+### Orden de implementación sugerido
 
 ```
-d8888f4 perf: Replace FFmpeg atempo with Piper native length_scale
-d154642 fix: Set HLS list_size to 2 (20s buffer)
-0604cab perf: Replace FFmpeg with numpy for audio mixing (~100x faster)
-1b2d72e fix: Re-add duration verification in audio_mixer for A/V sync
-18f57a8 fix: Fix pipeline data flow and add logging persistence
+F59 → F60 → F62 → F63 → F61 → F64 → F65
+       ↓
+    F55-F58 (TUI/CLI en paralelo, independiente)
 ```
+
+Razonamiento:
+
+- **F59 primero**: init_Mac.sh permite verificar el entorno antes de cualquier cambio
+- **F60 segundo**: Subprocess hardening evita crashes en Mac al ejecutar el pipeline
+- **F62 tercero**: Dependencias correctas necesarias para todo lo demás
+- **F63 cuarto**: Paths cross-platform necesarios para cache/config/logs
+- **F61 quinto**: GPU acceleration (depende de F62 para deps correctas)
+- **F64 sexto**: TUI terminal (puede probarse con F59 habilitado)
+- **F65 último**: Documentación y CI cierran el ciclo
+
+Las TUI features (F55-F58) son **independientes** y pueden implementarse en paralelo.
+
+---
+
+### F59 — Script init_Mac.sh de verificación del harness (Alta prioridad)
+
+**Qué**: Crear `init_Mac.sh` como equivalente funcional de `init.ps1` para macOS.
+
+**Problema**: No hay script de verificación para Mac. `install_Mac.sh` solo instala pero no verifica.
+`check_mac_deps.py` existe pero no es un harness ejecutable.
+
+**Archivos**: `init_Mac.sh` (nuevo), `scripts/check_mac_deps.py` (mejorar output)
+
+**Riesgo**: Bajo. Script nuevo que no modifica código existente.
+
+**Acceptance**:
+
+- `./init_Mac.sh` exit code 0 = entorno listo
+- Verifica Python 3.12, venv, pip deps, feature_list.json
+- Ejecuta `pytest tests/unit/ -q --tb=short -m "not slow"`
+- Ejecuta mypy core/ server/ (informativo)
+- `--quick` flag salta mypy
+
+### F60 — Hardening cross-platform de subprocess (Alta prioridad)
+
+**Qué**: Crear helper `get_creation_flags()` y reemplazar todos los accesos directos a `subprocess.CREATE_NO_WINDOW`.
+
+**Problema**: 31+ ocurrencias de `CREATE_NO_WINDOW`. Varias sin guardia `sys.platform == "win32"`.
+En macOS, `subprocess.CREATE_NO_WINDOW` no existe → `AttributeError` y crash.
+
+**Archivos**: `core/subprocess_utils.py` (NUEVO helper), más 14 archivos a modificar
+(listados en feature_list.json F60).
+
+**Riesgo**: **Alto** — toca 14+ archivos. Mitigación: cambios mecánicos uno a uno, cada uno testeable.
+
+**Acceptance**:
+
+- `get_creation_flags()` retorna 0 en macOS/darwin
+- Cero `AttributeError` por `CREATE_NO_WINDOW` en macOS
+- Tests unitarios para el helper
+
+### F61 — Aceleración GPU Apple Silicon (Alta prioridad)
+
+**Qué**: Verificar MPS (PyTorch), CoreML (ONNX Runtime), VideoToolbox (FFmpeg) en Mac.
+
+**Problema**: `hardware.py` detecta MPS pero no hay tests de integración en Mac.
+`hardware_monitor.py` usa pynvml que no existe en Mac. Sin badge MPS en frontend.
+
+**Archivos**: `core/hardware.py`, `core/hardware_monitor.py`, `core/ffmpeg_utils.py`,
+`install_Mac.sh`, `frontend/*`, `tests/integration/test_hardware_mac.py` (NUEVO)
+
+**Riesgo**: Medio. GPU acceleration es deseable pero no crítica (CPU fallback existe).
+
+**Acceptance**:
+
+- MPS, CoreML, VideoToolbox detectados correctamente
+- Fallback graceful a CPU si no hay GPU
+- Badge 'MPS' en frontend para Mac
+
+### F62 — Flujo de dependencias para Mac (Media prioridad)
+
+**Qué**: Mejorar `install_Mac.sh` para instalar grupos opcionales (cli, dev) y dependencias platform-specific.
+
+**Problema**: `install_Mac.sh` solo instala `config/requirements.txt` (core). CLI/TUI no se instalan.
+`nvidia-ml-py` es core dep pero no funciona en Mac.
+
+**Archivos**: `install_Mac.sh`, `config/requirements.txt`, `pyproject.toml`, `docs/*`
+
+**Riesgo**: Bajo.
+
+**Acceptance**:
+
+- `install_Mac.sh` instala core + processing + tts + cli + dev
+- Instala `onnxruntime-silicon` (no `onnxruntime-gpu`)
+- No instala `nvidia-ml-py`
+- `srt2web-tui --help` funciona post-instalación
+
+### F63 — Paths cross-platform (Media prioridad)
+
+**Qué**: Estandarizar paths usando `platformdirs` para cache, config y logs en Mac.
+
+**Problema**: `model_cache.py` usa `%LOCALAPPDATA%` (Windows). `cuda_paths.py` es Windows-only.
+No hay detección de directorios estándar en Mac (`~/Library/Caches/`, `~/.config/`).
+
+**Archivos**: `core/model_cache.py`, `core/cuda_paths.py`, `core/paths.py` (NUEVO),
+`core/logging_setup.py`, `pyproject.toml` (platformdirs dep)
+
+**Riesgo**: Medio. platformdirs es librería madura. Compatibilidad hacia atrás mantenida.
+
+**Acceptance**:
+
+- Cache en `~/Library/Caches/srt2web/` en Mac
+- Config en `~/.config/srt2web/` en Mac (XDG compatible)
+- Logs en `~/Library/Logs/srt2web/` en Mac
+- Windows sigue igual (no regresión)
+
+### F64 — TUI en terminales macOS (Media prioridad)
+
+**Qué**: Verificar TUI (Textual) en Terminal.app, iTerm2, Warp. Ajustar bindings, rendering, sparklines.
+
+**Problema**: TUI desarrollada y testeada solo en Windows. Terminal.app tiene soporte limitado de true color.
+Keyboard bindings (cmd vs ctrl) pueden diferir. `stop_Mac.sh` no mata procesos TUI.
+
+**Archivos**: `cli/tui/app.py`, `stop_Mac.sh`, `cli/main.py`, `docs/compatibility.md`
+
+**Riesgo**: Bajo. Textual es cross-platform.
+
+**Acceptance**:
+
+- TUI funciona en Terminal.app, iTerm2, Warp
+- Sparklines renderizan correctamente
+- q, space, s, ? bindings funcionan
+- `stop_Mac.sh` mata también procesos `srt2web-tui`
+
+### F65 — Documentación y CI/CD macOS (Media prioridad)
+
+**Qué**: Actualizar docs y agregar GitHub Actions workflow para macOS.
+
+**Problema**: README.md no cubre Mac. No hay CI en macOS. No hay troubleshooting guide.
+
+**Archivos**: `README.md`, `docs/compatibility.md`, `docs/deployment.md`,
+`docs/troubleshooting-mac.md` (NUEVO), `.github/workflows/ci-mac.yml` (NUEVO)
+
+**Riesgo**: Bajo. Solo documentación y CI.
+
+**Acceptance**:
+
+- README.md con sección Mac install
+- GitHub Actions corre pytest en macOS (sin slow tests)
+- Troubleshooting guide para Mac
+
+---
+
+## 10. Plan de mejora CLI/TUI (F55–F58)
+
+Basado en auditoría de código del 14/05/2026. ~1,012 líneas de CLI/TUI, ~13% cobertura de tests, múltiples bugs y gaps de funcionalidad.
+
+### F55 — TUI/CLI Bug Fixes & Code Quality (Alta prioridad)
+
+**Qué**: Corrección de bugs funcionales, eliminación de dead code, mejora de manejo de errores.
+
+**Bugs identificados**:
+
+| #   | Gravedad   | Archivo                                      | Descripción                                                                                                                                                                                                                             |
+| --- | ---------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **HIGH**   | `cli/tui/screens/module_detail.py:166-174`   | `_get_nested()` parte las keys por `_` y recorre el dict como path anidado. Keys multi-word como `chunk_duration_sec`, `encoder_mode`, `source_lang` → nunca encuentran su valor. Todos los campos multi-word del form aparecen vacíos. |
+| 2   | **HIGH**   | `cli/tui/widgets/module_card.py` (74 líneas) | `TUIModuleCard` duplicado — nunca importado por ningún archivo. La versión en `module_grid.py` es la real. `module_card.py` es dead code.                                                                                               |
+| 3   | **MEDIUM** | `cli/tui/app.py`                             | 20+ bloques `except Exception: pass` silenciosos. Errores de polling, toggle, save, refresh se tragan sin feedback al usuario.                                                                                                          |
+| 4   | **MEDIUM** | `cli/tui/app.py`                             | Tareas fire-and-forget en `action_toggle_pipeline`, `action_save_config`, `on_unmount` → excepciones no manejadas se pierden.                                                                                                           |
+| 5   | **MEDIUM** | `cli/tui/app.py:137-138`                     | `_on_ws_status()` es un no-op. Los eventos de estado vía WS se ignoran completamente, solo se usa HTTP polling.                                                                                                                         |
+| 6   | **MEDIUM** | `cli/tui/widgets/log_panel.py:36-38`         | `set_filter()` definido pero jamás llamado. No hay dropdown de filtro de logs en la UI.                                                                                                                                                 |
+| 7   | **LOW**    | `cli/commands/status.py:29-31`               | `_state_dot()` definida pero nunca usada.                                                                                                                                                                                               |
+| 8   | **LOW**    | `cli/tui/app.py:108`                         | `_module_info_map` inicializado pero nunca usado (módulos se leen de `status.modules`).                                                                                                                                                 |
+| 9   | **LOW**    | `cli/tui/widgets/module_grid.py:142-152`     | `_move_selection()` y `focus_card()` definidos pero jamás llamados. Sin navegación por teclado.                                                                                                                                         |
+| 10  | **LOW**    | `cli/commands/config.py:86-99`               | `run_config_set` usa patrón read-modify-write → riesgo de race condition si config cambia entre `get_config()` y `update_config()`.                                                                                                     |
+| 11  | **LOW**    | `cli/tui/screens/dashboard.py`               | `_dict_to_yaml()` no escapa strings con caracteres especiales, puede producir YAML inválido.                                                                                                                                            |
+
+**Archivos**: `cli/tui/screens/module_detail.py`, `cli/tui/widgets/module_card.py` (eliminar), `cli/tui/app.py`, `cli/tui/widgets/log_panel.py`, `cli/widgets/module_grid.py`, `cli/commands/status.py`, `cli/commands/config.py`
+
+**Riesgo**: Medio. Los bugs funcionales (1) afectan directamente UX del TUI.
+
+### F56 — CLI One-Shot Commands Expansion (Media prioridad)
+
+**Qué**: Agregar comandos faltantes para cubrir toda la API del servidor.
+
+**Comandos a agregar**:
+
+| Comando                                                 | Endpoint API                      | Descripción                        |
+| ------------------------------------------------------- | --------------------------------- | ---------------------------------- |
+| `srt2web-tui module list`                               | `GET /api/modules`                | Lista todos los módulos con estado |
+| `srt2web-tui module toggle <name> [--enable/--disable]` | `PUT /api/modules/{name}/toggle`  | Activa/desactiva módulo            |
+| `srt2web-tui module debug <name>`                       | `GET /api/modules/{name}/debug`   | Estado raw del módulo              |
+| `srt2web-tui output list`                               | `GET /api/outputs`                | Lista outputs activos              |
+| `srt2web-tui output add <type> [--name] [--config]`     | `POST /api/outputs`               | Agrega output                      |
+| `srt2web-tui output remove <name>`                      | `DELETE /api/outputs/{name}`      | Elimina output                     |
+| `srt2web-tui output toggle <name>`                      | `POST /api/outputs/{name}/toggle` | Activa/desactiva output            |
+| `srt2web-tui preset list`                               | `GET /api/presets`                | Lista presets                      |
+| `srt2web-tui preset save <name>`                        | `POST /api/presets`               | Guarda preset                      |
+| `srt2web-tui preset apply <name>`                       | `POST /api/presets/{name}/apply`  | Aplica preset                      |
+| `srt2web-tui preset delete <name>`                      | `DELETE /api/presets/{name}`      | Elimina preset                     |
+| `srt2web-tui recording list`                            | `GET /api/recordings`             | Lista grabaciones                  |
+| `srt2web-tui recording delete <name>`                   | `DELETE /api/recordings/{name}`   | Elimina grabación                  |
+| `srt2web-tui input info`                                | `GET /api/input-info`             | Info de input actual               |
+| `srt2web-tui input play/pause/seek`                     | `POST /api/input/control/*`       | Control de reproducción            |
+| `srt2web-tui network info`                              | `GET /api/network/info`           | Info de red                        |
+
+**SDK gaps a cubrir**:
+
+- `APIClient.update_output(name, config?, enabled?)` → `PUT /api/outputs/{name}` (endpoint existe, método falta)
+- `APIClient.download_recording(name)` → `GET /api/recordings/{name}/download`
+
+**Archivos**: `cli/client/http_client.py`, `cli/commands/` (nuevos archivos o extensión), `cli/main.py`
+
+**Riesgo**: Bajo. Comandos nuevos que siguen patrones existentes, sin cambios en infraestructura.
+
+### F57 — TUI Feature Completeness (Media prioridad)
+
+**Qué**: Cerrar gaps funcionales entre el dashboard web y el TUI.
+
+**Paneles/screens faltantes**:
+
+| Funcionalidad                   | Estado web                    | TUI actual                                   | Acción                                  |
+| ------------------------------- | ----------------------------- | -------------------------------------------- | --------------------------------------- |
+| Presets management              | ✅ Panel PresetsPanel         | ❌ No existe                                 | Agregar pantalla de presets             |
+| Recordings management           | ✅ RecordingManagerCard       | ❌ No existe                                 | Agregar pantalla de grabaciones         |
+| Input control (play/pause/seek) | ✅ En StatusCard (file mode)  | ❌ No existe                                 | Agregar pantalla de control de input    |
+| Log level filter                | ✅ En LogPanel (dropdown)     | ❌ `set_filter()` definido pero no conectado | Conectar dropdown a `set_filter()`      |
+| Module detail auto-refresh      | ✅ N/A (no hay detail screen) | ❌ Datos estáticos al abrir                  | Agregar polling/WS push a module detail |
+| GPU metrics display             | ✅ GPU badge en process cards | ❌ No se muestran en grid                    | Agregar info de GPU a las cards         |
+| Keyboard navigation grid        | ✅ N/A (web)                  | ❌ Arrow keys no funcionan                   | Conectar `_move_selection()` a bindings |
+| Output list keyboard nav        | ✅ N/A (web)                  | ❌ Sin navegación                            | Agregar focus/keyboard a outputs        |
+
+**Archivos**: `cli/tui/app.py`, `cli/tui/screens/` (nuevos screens), `cli/tui/widgets/`, `cli/tui/screens/help.py`
+
+**Riesgo**: Medio. Nuevas pantallas siguen patrones existentes (module_detail.py como referencia).
+
+### F58 — CLI/TUI Test Coverage (Alta prioridad)
+
+**Qué**: Elevar cobertura de tests de ~13% a >70% en cli/.
+
+**Objetivos por módulo**:
+
+| Módulo                                  | Cobertura actual | Objetivo | Tests a agregar                                                                  |
+| --------------------------------------- | :--------------: | :------: | -------------------------------------------------------------------------------- |
+| `cli/client/ws_client.py`               |        0%        |   85%    | Mock WS server, test connect/reconnect/backoff/message routing/ping              |
+| `cli/client/http_client.py` (APIClient) |       ~10%       |   75%    | Test cada método HTTP con `respx` mock. Test auth, errores, timeouts             |
+| `cli/commands/start.py, stop.py`        |        0%        |   90%    | Test start/stop con mock. Test JSON output, errores                              |
+| `cli/commands/logs.py`                  |        0%        |   80%    | Mock WSClient, test follow/non-follow/level filter/Ctrl+C                        |
+| `cli/commands/status.py`                |       ~8%        |   80%    | Test JSON output, table rendering, error paths                                   |
+| `cli/commands/config.py`                |       ~42%       |   85%    | Test `_build_tree`, `_format_value`, `run_config_show`, value parsing edge cases |
+| `cli/main.py`                           |        0%        |   70%    | Click CliRunner tests para todos los comandos                                    |
+| `cli/tui/` (total)                      |        0%        |   50%    | Smoke tests con pytest-textual, test de screens individuales                     |
+
+**Infraestructura de test a agregar**:
+
+- `tests/cli/conftest.py` con fixtures de mock API/WS
+- `tests/cli/test_ws_client.py` (nuevo)
+- `tests/cli/test_cli_commands_full.py` (nuevo, expande test_cli_commands.py)
+- `tests/cli/test_cli_entry.py` (nuevo, CliRunner)
+- `tests/cli/test_tui_screens.py` (nuevo, opcional, pytest-textual)
+
+**Archivos**: Múltiples en `tests/`
+
+**Riesgo**: Bajo. Tests nuevos no modifican código de producción.
+
+**Dependencia**: Idealmente después de F55 (bugs corregidos) para no testear bugs conocidos.
+
+### Orden de implementación sugerido (TUI)
+
+```
+F55 (bugs + code quality) → F58 (tests) → F56 (commands) → F57 (TUI features)
+```
+
+- **F55 primero**: Corrige bugs existentes antes de agregar funcionalidad nueva
+- **F58 segundo**: Tests dan seguridad para cambios posteriores
+- **F56 tercero**: Comandos nuevos son seguros con tests en su lugar
+- **F57 último**: Feature compleja que puede depender de F55 y F56
+
+## 11. Plan de compatibilidad macOS (F59–F65)
+
+### Resumen del plan
+
+| ID  | Área  | Nombre corto                                   | Prioridad | Estado  | Dependencias |
+| --- | ----- | ---------------------------------------------- | --------- | ------- | ------------ |
+| F59 | macOS | Script init_Mac.sh de verificación del harness | Alta      | pending | —            |
+| F60 | macOS | Hardening cross-platform de subprocess         | Alta      | pending | F59          |
+| F61 | macOS | Aceleración GPU Apple Silicon (MPS/CoreML/VT)  | Alta      | pending | F62          |
+| F62 | macOS | Flujo de dependencias para Mac                 | Media     | pending | F59          |
+| F63 | macOS | Estandarización de paths cross-platform        | Media     | pending | F62          |
+| F64 | macOS | Verificación TUI en terminales macOS           | Media     | pending | F59, F55     |
+| F65 | macOS | Documentación y CI/CD para macOS               | Media     | pending | F59-F64      |
+
+### Orden de implementación sugerido
+
+```
+F59 ──→ F60 ──→ F62 ──→ F63 ──→ F61 ──→ F64 ──→ F65
+                ↓
+         F55-F58 (independiente, paralelo)
+```
+
+### Dependencia con TUI
+
+- **F55** (bugs TUI) debe completarse **antes** de **F64** (TUI en Mac) porque los bugs existentes afectarían la experiencia en Mac de igual forma
+- **F58** (tests) debe completarse **antes** de **F56** y **F57** (seguridad para cambios)
+- Las features macOS (F59-F65) y TUI (F55-F58) comparten solo la dependencia F55→F64
+
+### Métricas de éxito
+
+- `./init_Mac.sh` pasa verde en Mac M1/M2/M3 con macOS 14+
+- `srt2web-tui tui` se lanza sin errores en Terminal.app, iTerm2, Warp
+- Pipeline corre end-to-end en Mac con aceleración MPS/CoreML/VideoToolbox
+- Cero `AttributeError` por `CREATE_NO_WINDOW` o `pynvml` en Mac
+- Cobertura de tests >70% en cli/ (F58)
+- GitHub Actions corre tests en macOS en cada PR

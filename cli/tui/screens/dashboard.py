@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import Any
 
 from rich.syntax import Syntax
-from textual import on
+from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
-from textual.widgets import Static, TabbedContent, TabPane, Tree
+from textual.widgets import Static, TabbedContent, TabPane
 
 from cli.client.http_client import LogEntry, PipelineStatus
 from cli.tui.widgets.header import TUIHeader
@@ -28,9 +28,9 @@ class DashboardScreen(Screen):
                     yield TUIModuleGrid(id="module-grid")
                     with TabbedContent(initial="config"):
                         with TabPane("Config", id="config"):
-                            yield Static(id="config-tree", markup="Loading config...")
+                            yield Static("Loading config...", id="config-tree", markup=True)
                         with TabPane("Outputs", id="outputs"):
-                            yield Static(id="outputs-list", markup="Loading outputs...")
+                            yield Static("Loading outputs...", id="outputs-list", markup=True)
             yield TUILogPanel(id="log-panel")
 
     def on_mount(self) -> None:
@@ -119,13 +119,52 @@ class DashboardScreen(Screen):
                         lines.append(f"{prefix}-")
                         lines.append(self._dict_to_yaml(item, indent + 2))
                     else:
-                        lines.append(f"{prefix}- {item}")
-            elif isinstance(v, bool):
-                lines.append(f"{prefix}{k}: {'true' if v else 'false'}")
-            elif v is None:
-                lines.append(f"{prefix}{k}: null")
-            elif isinstance(v, str):
-                lines.append(f"{prefix}{k}: {v}")
+                        lines.append(f"{prefix}- {self._yaml_value(item)}")
             else:
-                lines.append(f"{prefix}{k}: {v}")
+                lines.append(f"{prefix}{k}: {self._yaml_value(v)}")
         return "\n".join(lines)
+
+    @staticmethod
+    def _yaml_value(v: Any) -> str:
+        if v is None:
+            return "null"
+        if isinstance(v, bool):
+            return "true" if v else "false"
+        if isinstance(v, str):
+            needs_quoting = any(
+                c in v
+                for c in (
+                    ":",
+                    "#",
+                    "{",
+                    "}",
+                    "[",
+                    "]",
+                    ",",
+                    "&",
+                    "*",
+                    "?",
+                    "|",
+                    "-",
+                    "<",
+                    ">",
+                    "=",
+                    "!",
+                    "%",
+                    "@",
+                    "`",
+                    "'",
+                    '"',
+                )
+            )
+            needs_quoting = (
+                needs_quoting
+                or not v
+                or v[0] in ("'", '"')
+                or v.lower() in ("true", "false", "null", "yes", "no", "on", "off")
+            )
+            if needs_quoting:
+                escaped = v.replace("\\", "\\\\").replace('"', '\\"')
+                return f'"{escaped}"'
+            return v
+        return str(v)

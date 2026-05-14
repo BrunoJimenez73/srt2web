@@ -23,6 +23,7 @@ from typing import Optional
 from core.ffmpeg_utils import ensure_ffmpeg, get_video_duration
 from core.input_source import InputSource
 from core.module_base import ModuleState, ModuleStatus, PipelineData
+from core.subprocess_utils import get_creation_flags
 
 
 class FileInput(InputSource):
@@ -203,7 +204,7 @@ class FileInput(InputSource):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            creationflags=(subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0),
+            creationflags=get_creation_flags(),
         )
 
         self._monitor_thread = threading.Thread(
@@ -326,7 +327,7 @@ class FileInput(InputSource):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            creationflags=(subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0),
+            creationflags=get_creation_flags(),
         )
 
         # Hilo monitor
@@ -352,7 +353,7 @@ class FileInput(InputSource):
                     subprocess.run(
                         ["taskkill", "/F", "/T", "/PID", str(self._ffmpeg_proc.pid)],
                         capture_output=True,
-                        creationflags=subprocess.CREATE_NO_WINDOW,
+                        creationflags=get_creation_flags(),
                     )
                 else:
                     self._ffmpeg_proc.terminate()

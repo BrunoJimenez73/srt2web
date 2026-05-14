@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from rich.text import Text
-from textual.app import ComposeResult
 from textual.widgets import Static
 
 from cli.client.http_client import PipelineStatus

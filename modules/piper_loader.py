@@ -21,6 +21,8 @@ import threading
 import time
 from pathlib import Path
 
+from core.subprocess_utils import get_creation_flags
+
 logger = logging.getLogger("srt2web.module.tts_engine")
 
 # ──────────────────────────────────────────────────────────────────────
@@ -303,7 +305,7 @@ class PiperSubprocessManager:
                 text=True,
                 bufsize=1,  # Line buffered
                 env=env,
-                creationflags=(subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0),
+                creationflags=get_creation_flags(),
             )
 
             # Start stderr reader thread (prevents deadlock)
@@ -550,7 +552,7 @@ class PiperSubprocessManager:
                         subprocess.run(
                             ["taskkill", "/F", "/T", "/PID", str(self._proc.pid)],
                             capture_output=True,
-                            creationflags=subprocess.CREATE_NO_WINDOW,
+                            creationflags=get_creation_flags(),
                         )
                     else:
                         self._proc.kill()

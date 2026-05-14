@@ -12,6 +12,8 @@ import time
 from collections.abc import Callable
 from typing import Any, Optional
 
+from core.subprocess_utils import get_creation_flags
+
 logger = logging.getLogger("srt2web.watchdog")
 
 
@@ -164,7 +166,7 @@ class FFmpegWatchdog:
                     subprocess.run(
                         ["taskkill", "/F", "/T", "/PID", str(self._process.pid)],
                         capture_output=True,
-                        creationflags=subprocess.CREATE_NO_WINDOW,
+                        creationflags=get_creation_flags(),
                     )
                 else:
                     self._process.kill()
@@ -293,7 +295,7 @@ class ProcessManager:
                                 str(watchdog._process.pid),
                             ],
                             capture_output=True,
-                            creationflags=subprocess.CREATE_NO_WINDOW,
+                            creationflags=get_creation_flags(),
                         )
                     else:
                         watchdog._process.kill()
@@ -328,7 +330,7 @@ class ProcessManager:
                                 subprocess.run(
                                     ["taskkill", "/F", "/PID", pid],
                                     capture_output=True,
-                                    creationflags=subprocess.CREATE_NO_WINDOW,
+                                    creationflags=get_creation_flags(),
                                 )
                                 cleaned += 1
                                 logger.info(f"Cleaned up orphan FFmpeg (PID: {pid})")

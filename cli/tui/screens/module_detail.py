@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from textual.app import ComposeResult
 from textual import on
+from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.message import Message
 from textual.screen import Screen
 from textual.widgets import Button, Input, Select, Static, Switch
-from textual.binding import Binding
 
 from cli.client.http_client import ModuleInfo
-
 
 MODULE_CONFIG_SCHEMA: dict[str, list[tuple[str, str, type, tuple]]] = {
     "input": [
@@ -41,7 +40,12 @@ MODULE_CONFIG_SCHEMA: dict[str, list[tuple[str, str, type, tuple]]] = {
     "tts_engine": [
         ("Enabled", "enabled", bool, ()),
         ("Engine", "engine", str, ("edge-tts", "piper")),
-        ("Voice", "voice", str, ("es-ES-AlvaroNeural", "es-ES-ElviraNeural", "es_ES-sharvard-medium", "es_MX-claude-high")),
+        (
+            "Voice",
+            "voice",
+            str,
+            ("es-ES-AlvaroNeural", "es-ES-ElviraNeural", "es_ES-sharvard-medium", "es_MX-claude-high"),
+        ),
         ("Speed", "speed", float, ()),
         ("Device", "device", str, ("auto", "cuda", "cpu")),
     ],
@@ -164,14 +168,9 @@ class ModuleConfigForm(Vertical):
         )
 
     def _get_nested(self, key: str, data: dict) -> str | None:
-        parts = key.split("_")
-        val = data
-        for p in parts:
-            if isinstance(val, dict) and p in val:
-                val = val[p]
-            else:
-                return None
-        return str(val)
+        if key in data:
+            return str(data[key])
+        return None
 
     @on(Button.Pressed, "#btn-save-module")
     def on_save(self) -> None:

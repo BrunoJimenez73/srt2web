@@ -146,3 +146,66 @@ def get_access_log_file() -> Path:
 def get_error_log_file() -> Path:
     """Get path to error log file."""
     return get_logs_file("error.log")
+
+
+def get_cache_dir() -> Path:
+    """
+    Get the user-level cache directory for models and other cached data.
+
+    macOS: ~/Library/Caches/srt2web/
+    Windows: %LOCALAPPDATA%/srt2web/cache/
+    Linux: ~/.cache/srt2web/
+
+    Falls back to project_root/.cache/ if platformdirs not available.
+    """
+    try:
+        from platformdirs import user_cache_dir
+
+        cache = Path(user_cache_dir("srt2web", ensure_exists=True))
+        return cache
+    except ImportError:
+        cache = get_project_root() / ".cache"
+        cache.mkdir(parents=True, exist_ok=True)
+        return cache
+
+
+def get_user_config_dir() -> Path:
+    """
+    Get the user-level configuration directory.
+
+    macOS: ~/Library/Application Support/srt2web/
+    Windows: %APPDATA%/srt2web/
+    Linux: ~/.config/srt2web/
+
+    Falls back to project_root/config/ if platformdirs not available.
+    """
+    try:
+        from platformdirs import user_config_dir
+
+        cfg = Path(user_config_dir("srt2web", ensure_exists=True))
+        return cfg
+    except ImportError:
+        cfg = get_project_root() / "config"
+        cfg.mkdir(parents=True, exist_ok=True)
+        return cfg
+
+
+def get_user_log_dir() -> Path:
+    """
+    Get the user-level log directory.
+
+    macOS: ~/Library/Logs/srt2web/
+    Windows: %LOCALAPPDATA%/srt2web/log/
+    Linux: ~/.cache/srt2web/log/
+
+    Falls back to project_root/logs/ if platformdirs not available.
+    """
+    try:
+        from platformdirs import user_log_dir
+
+        log = Path(user_log_dir("srt2web", ensure_exists=True))
+        return log
+    except ImportError:
+        log = get_project_root() / "logs"
+        log.mkdir(parents=True, exist_ok=True)
+        return log

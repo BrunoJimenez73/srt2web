@@ -23,6 +23,7 @@ from typing import Optional
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.input_source import InputSource
 from core.module_base import ModuleState, ModuleStatus, PipelineData
+from core.subprocess_utils import get_creation_flags
 from core.watchdog import FFmpegWatchdog
 
 
@@ -269,7 +270,7 @@ class SRTInput(InputSource):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                creationflags=(subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0),
+                creationflags=get_creation_flags(),
             )
 
             if not self._ffmpeg_proc:
@@ -408,7 +409,7 @@ class SRTInput(InputSource):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            creationflags=(subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0),
+            creationflags=get_creation_flags(),
         )
 
         if not self._ffmpeg_proc:
@@ -435,7 +436,7 @@ class SRTInput(InputSource):
                     subprocess.run(
                         ["taskkill", "/F", "/T", "/PID", str(self._ffmpeg_proc.pid)],
                         capture_output=True,
-                        creationflags=subprocess.CREATE_NO_WINDOW,
+                        creationflags=get_creation_flags(),
                         timeout=3,
                     )
                     # ALSO kill any ffmpeg using the SRT port
@@ -447,7 +448,7 @@ class SRTInput(InputSource):
                                 f"for /F \"tokens=5\" %a in ('netstat -ano ^| findstr :{self._srt_port} ^| findstr LISTENING') do @echo %a",
                             ],
                             capture_output=True,
-                            creationflags=subprocess.CREATE_NO_WINDOW,
+                            creationflags=get_creation_flags(),
                             timeout=3,
                         )
                     except:

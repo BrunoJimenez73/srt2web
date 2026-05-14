@@ -4,12 +4,7 @@
   "rules": {
     "one_feature_at_a_time": true,
     "require_tests_to_close": true,
-    "valid_status": [
-      "pending",
-      "in_progress",
-      "done",
-      "blocked"
-    ]
+    "valid_status": ["pending", "in_progress", "done", "blocked"]
   },
   "features": [
     {
@@ -79,462 +74,136 @@
       "status": "done"
     },
     {
-      "id": 36,
-      "name": "hls_audio_passthrough_fix",
-      "title": "Fix audio passthrough en HLS cuando TTS est� deshabilitado",
-      "status": "done",
-      "area": "rendimiento",
-      "priority": "Alta",
-      "description": "F31 activ� encoder_mode: passthrough para video (-c:v copy), pero cuando TTS est� disabled, el audio del HLS output se recodifica innecesariamente. El audio de entrada ya est� en AAC y no necesita recodificaci�n. Falta detecci�n de TTS state para decidir si usar -c:a copy o mantener el mix actual.",
-      "problems_identified": [
-        "hls_output.py usa -c:a aac siempre, incluso cuando TTS est� disabled y no hay mezcla",
-        "La recodificaci�n de audio a�ade latencia innecesaria (~100-200ms) cuando no hay TTS",
-        "No hay detecci�n del estado del m�dulo tts_engine en la l�gica de encoding de HLS",
-        "El modo passthrough parcial (video s�, audio no) es inconsistente",
-        "config.yaml tiene encoder_mode: passthrough en output.web y output.hls pero no cubre audio"
-      ],
-      "acceptance": [
-        "HLS output detecta si TTS est� habilitado desde pipeline context",
-        "Si TTS disabled: usa -c:a copy adem�s de -c:v copy (sin recodificaci�n de audio)",
-        "Si TTS enabled: mantiene comportamiento actual con mixer de audio",
-        "Latencia de audio reducida ~100-200ms cuando TTS est� disabled",
-        "Test: verificar que FFmpeg command incluye -c:a copy cuando TTS disabled",
-        "init.ps1 pasa verde tras el cambio"
-      ],
-      "files_to_touch": [
-        "modules/outputs/hls_output.py (detectar TTS state, conditional -c:a copy)",
-        "tests/unit/test_hls_output.py (test para comando FFmpeg con/sin TTS)"
-      ],
-      "risk_assessment": {
-        "risk_level": "Bajo",
-        "mitigation": [
-          "Si el codec de entrada no es compatible con copy, FFmpeg falla con error claro",
-          "Se puede revertir instant�neamente deshabilitando passthrough",
-          "C�digo existente ya maneja ambos caminos (fast/slow path)"
-        ]
-      },
-      "performance_expectations": {
-        "before_optimization": "~100-200ms por chunk para recodificaci�n de audio AAC",
-        "after_optimization": "~0ms (copy directo sin recodificar)"
-      }
+      "id": 12,
+      "name": "config_sync_validation",
+      "title": "Sincronizar y validar configuraciones duplicadas",
+      "status": "done"
     },
     {
-      "id": 38,
-      "name": "webhook_notifications",
-      "title": "Sistema de webhooks para notificaciones de eventos del pipeline",
-      "status": "done",
-      "area": "ux",
-      "priority": "Media",
-      "description": "Las grabaciones se guardan en output/ pero no hay interfaz para gestionarlas. El usuario debe acceder al sistema de archivos manualmente para ver, descargar o eliminar grabaciones. Un gestor en el dashboard mejoraría significativamente la UX.",
-      "problems_identified": [
-        "No hay listado de grabaciones disponibles en la UI",
-        "No hay descarga directa de grabaciones desde el navegador",
-        "No hay forma de eliminar grabaciones viejas desde el dashboard",
-        "El espacio usado por grabaciones no se muestra",
-        "No hay metadatos visibles: duración, tamaño, fecha, formato"
-      ],
-      "acceptance": [
-        "Endpoint GET /api/recordings lista grabaciones con metadatos (nombre, tamaño, duración, fecha, formato)",
-        "Endpoint DELETE /api/recordings/{name} elimina una grabación",
-        "Endpoint GET /api/recordings/{name}/download descarga archivo",
-        "Frontend: RecordingManagerCard con tabla/listado de grabaciones",
-        "Columna: nombre, tamaño formateado, duración, fecha, acciones (descargar/eliminar)",
-        "Confirmación antes de eliminar grabaciones",
-        "Métrica de espacio total usado por grabaciones en output/",
-        "Test: test_recording_manager.py con archivos mock"
-      ],
-      "files_to_touch": [
-        "server/routes/recordings.py (nuevo, endpoints CRUD)",
-        "server/app.py (registrar router recordings)",
-        "frontend/src/components/RecordingManagerCard.astro (nuevo)",
-        "frontend/src/pages/index.astro (incluir RecordingManagerCard)",
-        "frontend/src/lib/modules/recordings.ts (nuevo, API calls)",
-        "frontend/src/lib/types/api.ts (tipos RecordingInfo)",
-        "tests/unit/test_recording_manager.py (nuevo)"
-      ]
+      "id": 13,
+      "name": "pipeline_data_flow_fix",
+      "title": "Arreglar flujo de datos del pipeline y logging persistente",
+      "status": "done"
     },
     {
-      "id": 40,
-      "name": "theme_switcher_ui",
-      "title": "Theme switcher visible en UI (Light/Dark) con botón en Header",
-      "status": "done",
-      "area": "ux",
-      "priority": "Media",
-      "description": "El cambio de tema oscuro/claro solo existe como atajo de teclado Ctrl+D. No hay botón visible ni indicación al usuario de que puede cambiar el tema. La UI siempre arranca en modo oscuro sin respetar la preferencia del sistema.",
-      "problems_identified": [
-        "No hay botón visible de cambio de tema en Header ni en Settings",
-        "Ctrl+D no es discoverable para usuarios nuevos",
-        "No se respeta prefers-color-scheme del sistema operativo",
-        "El tema se guarda en localStorage pero no hay UI para cambiarlo",
-        "No hay indicador visual del tema actual (icono sol/luna)",
-        "La keyboard shortcut no tiene feedback visual de que funcionó"
-      ],
-      "acceptance": [
-        "Botón de theme toggle en Header con icono sol/luna según tema actual",
-        "Al hacer click cambia a light/dark y persiste en localStorage",
-        "Al cargar, respeta prefers-color-scheme del SO (si no hay preferencia guardada)",
-        "Signal reactiva currentTheme en signals.ts",
-        "Transición suave CSS entre temas (transition en variables de color)",
-        "Tema light completo implementado (no solo invertir colores)",
-        "Test visual: verificar que las cards y texto son legibles en ambos modos"
-      ],
-      "files_to_touch": [
-        "frontend/src/components/layout/Header.astro (theme toggle button)",
-        "frontend/src/lib/store/signals.ts (currentTheme signal)",
-        "frontend/src/lib/store/effects.ts (efecto para aplicar tema)",
-        "frontend/src/styles/globals.css (variables CSS light theme)",
-        "frontend/src/styles/components.css (light theme overrides)",
-        "frontend/src/lib/modules/keyboard-shortcuts.ts (mejorar feedback visual)"
-      ]
+      "id": 14,
+      "name": "test_suite_cleanup",
+      "title": "Suite de tests limpia y 527 tests pasando",
+      "status": "done"
     },
     {
-      "id": 41,
-      "name": "keyboard_shortcuts_ui",
-      "title": "Panel de ayuda de atajos de teclado y nuevos shortcuts",
-      "status": "done",
-      "area": "ux",
-      "priority": "Media",
-      "description": "Actualmente hay 3 atajos de teclado (Ctrl+S guardar, Space start/stop, Ctrl+D theme) pero no son visibles para el usuario. No hay forma de descubrirlos sin leer el código. Faltan atajos útiles como Ctrl+Enter para iniciar pipeline.",
-      "problems_identified": [
-        "No hay atajo para iniciar/detener pipeline (Ctrl+Enter)",
-        "No hay atajo para abrir/cerrar LogPanel (Ctrl+L)",
-        "No hay botón ? para mostrar panel de ayuda con shortcuts",
-        "No hay atajo para toggle de outputs panel",
-        "Ctrl+D para tema no tiene feedback visual de tema actual",
-        "Los shortcuts no se pueden deshabilitar/personalizar"
-      ],
-      "acceptance": [
-        "Nuevos atajos: Ctrl+Enter (start/stop), Ctrl+L (toggle LogPanel), Escape (cerrar modales)",
-        "Botón ? en Header que abre modal ShortcutsHelp.astro",
-        "ShortcutsHelp.astro lista todos los atajos con su descripción",
-        "Función disableKeyboardShortcuts() temporal (para inputs de texto)",
-        "Feedback visual al activar shortcut (toast sutil: 'Ctrl+S: Guardado')",
-        "Los shortcuts se deshabilitan cuando un input/textarea tiene foco",
-        "Test: test_keyboard_shortcuts.ts con simulación de eventos keydown"
-      ],
-      "files_to_touch": [
-        "frontend/src/components/ShortcutsHelp.astro (nuevo)",
-        "frontend/src/components/layout/Header.astro (botón ?)",
-        "frontend/src/lib/modules/keyboard-shortcuts.ts (nuevos atajos, disable logic)",
-        "frontend/src/lib/types/api.ts (tipos ShortcutInfo)",
-        "frontend/tests/keyboard-shortcuts.test.ts (nuevo)"
-      ]
+      "id": 15,
+      "name": "ws_resilience_adaptive_polling",
+      "title": "WS resilience & adaptive polling",
+      "status": "done"
     },
     {
-      "id": 42,
-      "name": "pwa_support",
-      "title": "Soporte PWA: service worker y manifest para dashboard instalable",
-      "status": "done",
-      "area": "ux",
-      "priority": "Media",
-      "description": "El dashboard es una SPA que podría ser instalable como PWA con service worker para cache offline parcial, manifest.json para instalación en dispositivos, y notificaciones push para alertas del pipeline.",
-      "problems_identified": [
-        "No se puede instalar el dashboard como app en móvil/desktop",
-        "Sin service worker: cada visita requiere descargar todos los assets",
-        "Sin cache offline: si el servidor no responde, no hay UI",
-        "Sin manifest.json: no hay icono ni splash screen personalizados",
-        "No hay notificaciones push para eventos del pipeline"
-      ],
-      "acceptance": [
-        "manifest.json con nombre, iconos 192/512, theme_color, display standalone",
-        "Service worker registra cache de assets estáticos (versión actual)",
-        "Cache offline: última configuración y estado disponibles sin conexión",
-        "Iconos en frontend/public/icons/ (192x192, 512x512)",
-        "Notificaciones push para eventos pipeline.start y pipeline.error (opcional, feature flag)",
-        "BaseLayout.astro incluye <link rel=manifest> y <meta name=theme-color>",
-        "Sin regresión en build de Astro (npm run build:local exitoso)"
-      ],
-      "files_to_touch": [
-        "frontend/public/manifest.json (nuevo)",
-        "frontend/public/service-worker.js (nuevo)",
-        "frontend/public/icons/icon-192.png, icon-512.png (nuevo)",
-        "frontend/src/layouts/BaseLayout.astro (manifest link + theme-color)",
-        "frontend/astro.config.mjs (configurar service worker en build)",
-        "frontend/src/lib/modules/pwa.ts (nuevo, registro de SW)"
-      ]
+      "id": 16,
+      "name": "log_panel_virtual_scroll_export",
+      "title": "LogPanel virtual scroll & export",
+      "status": "done"
     },
     {
-      "id": 43,
-      "name": "prometheus_metrics",
-      "title": "Endpoint /metrics para scraping de Prometheus",
-      "status": "done",
-      "area": "devops",
-      "priority": "Media",
-      "description": "No hay métricas exportables para sistemas de monitoreo externos. Un endpoint /metrics con formato Prometheus permitiría integrar SRT2Web con Grafana, alertas, y dashboards de infraestructura.",
-      "problems_identified": [
-        "No hay endpoint de métricas en formato Prometheus",
-        "Métricas internas (chunks, latencia, GPU) no son visibles en sistemas de monitoreo",
-        "Operadores no pueden configurar alertas sobre fallos del pipeline",
-        "No hay históricos de métricas más allá de lo que guarda signals.ts",
-        "La health API es binaria (ok/error) sin granularidad"
-      ],
-      "acceptance": [
-        "Nuevo endpoint GET /metrics en formato text/plain Prometheus",
-        "Métricas: srt2web_chunks_processed_total, srt2web_chunks_failed_total",
-        "Métricas: srt2web_pipeline_state, srt2web_module_state{name='...'}",
-        "Métricas: srt2web_processing_time_ms (summary/histogram)",
-        "Métricas: srt2web_websocket_connections, srt2web_uptime_seconds",
-        "Métricas: srt2web_gpu_utilization_percent, srt2web_cpu_percent",
-        "Usar prometheus_client (añadir a pyproject.toml como optional)",
-        "No afecta rendimiento: métricas se actualizan en background cada 15s",
-        "Test: test_metrics_endpoint.py verifica formato y valores"
-      ],
-      "files_to_touch": [
-        "server/routes/metrics.py (nuevo, endpoint /metrics)",
-        "server/app.py (registrar router metrics)",
-        "core/metrics_collector.py (nuevo, recolector de métricas Prometheus)",
-        "core/unified_pipeline.py (alimentar metrics_collector)",
-        "pyproject.toml (prometheus_client como dependencia opcional core)",
-        "tests/unit/test_metrics_endpoint.py (nuevo)"
-      ]
+      "id": 17,
+      "name": "piper_heartbeat_graceful_degrade",
+      "title": "Piper heartbeat & graceful degrade",
+      "status": "done"
     },
     {
-      "id": 44,
-      "name": "api_caching_layer",
-      "title": "Capa de caché para endpoints frecuentes (status, config)",
-      "status": "done",
-      "area": "features",
-      "priority": "Baja",
-      "description": "Las grabaciones locales pueden perderse o llenar el disco. La exportación automática a cloud storage (S3, GCS, Azure Blob) al completar una grabación permite almacenamiento duradero y accesible desde cualquier lugar.",
-      "problems_identified": [
-        "Grabaciones solo en disco local, sin backup externo",
-        "No hay integración con servicios cloud (AWS S3, Google Cloud Storage, Azure Blob)",
-        "Disco local puede llenarse con grabaciones largas",
-        "No hay mecanismo de limpieza automática post-subida a cloud",
-        "No hay indicación en UI de que una grabación fue subida a cloud"
-      ],
-      "acceptance": [
-        "Config: cloud.s3.bucket, cloud.s3.region, cloud.s3.access_key, cloud.s3.secret_key",
-        "Config: cloud.gcs.bucket, cloud.gcs.credentials_path",
-        "Al completar grabación, subir automáticamente a cloud configurado",
-        "Progreso de subida visible en UI (porcentaje, velocidad)",
-        "Opción delete_after_upload: true/false en config",
-        "Usar boto3 para S3 y google-cloud-storage para GCS (deps opcionales)",
-        "Test: test_cloud_export.py con moto (mock S3)"
-      ],
-      "files_to_touch": [
-        "modules/outputs/cloud_output.py (nuevo)",
-        "core/config_schema.py (CloudConfig section)",
-        "modules/outputs/recording_output.py (trigger cloud upload al completar)",
-        "frontend/src/components/RecordingManagerCard.astro (indicador cloud)",
-        "pyproject.toml (boto3, google-cloud-storage como optional deps)",
-        "tests/unit/test_cloud_export.py (nuevo)"
-      ]
+      "id": 18,
+      "name": "metrics_sparklines_latency",
+      "title": "Metrics sparklines & latency meter",
+      "status": "done"
     },
     {
-      "id": 46,
-      "name": "user_management_auth",
-      "title": "Sistema multi-usuario con login y roles",
-      "status": "done",
-      "area": "features",
-      "priority": "Baja",
-      "description": "No hay forma de programar el inicio/parada del pipeline en horarios específicos. Operadores deben iniciar/detener manualmente. Un scheduler con reglas estilo cron permitiría automatizar streams recurrentes.",
-      "problems_identified": [
-        "Inicio/parada del pipeline siempre manual",
-        "No hay programación por hora/día/semana",
-        "No hay reglas recurrentes (ej: 'todos los días a las 20:00')",
-        "No hay calendario visual de eventos programados",
-        "No hay integración con webhooks para notificar programación"
-      ],
-      "acceptance": [
-        "Endpoint CRUD: GET/POST/PUT/DELETE /api/schedule",
-        "Formato: cron expression + action (start/stop) + enabled + timezone",
-        "Scheduler en core/scheduler.py ejecuta acciones en segundo plano",
-        "Frontend: SchedulePanel con tabla de reglas y toggle enable/disable",
-        "Log de ejecuciones programadas (próxima ejecución, última ejecución)",
-        "Persistencia en config/schedule.json",
-        "Test: test_scheduler.py con croniter para validar expresiones"
-      ],
-      "files_to_touch": [
-        "core/scheduler.py (nuevo)",
-        "server/routes/schedule.py (nuevo)",
-        "server/app.py (iniciar scheduler en lifespan)",
-        "frontend/src/components/SchedulePanel.astro (nuevo)",
-        "frontend/src/lib/modules/schedule.ts (nuevo)",
-        "tests/unit/test_scheduler.py (nuevo)"
-      ]
+      "id": 19,
+      "name": "pipeline_presets_profiles",
+      "title": "Pipeline presets / profiles",
+      "status": "done"
     },
     {
-      "id": 49,
-      "name": "load_testing_suite",
-      "title": "Suite de tests de carga con locust para medir throughput máximo",
-      "status": "done",
-      "area": "devops",
-      "priority": "Baja",
-      "description": "Los logs actuales son texto plano, lo que dificulta el parseo automático por sistemas de agregación como ELK, Loki o Datadog. Logs en JSON con campos estructurados (timestamp, level, module, message, correlation_id, duration_ms) permitirían búsqueda y análisis avanzado.",
-      "problems_identified": [
-        "Logs en texto plano sin estructura estándar",
-        "No hay correlation_id para trazar requests a través del pipeline",
-        "No hay campo duration_ms en logs de operaciones",
-        "Integración con ELK/Loki requiere parseo custom de logs",
-        "Rotación de logs existe pero no hay compresión ni retención configurable"
-      ],
-      "acceptance": [
-        "core/logging_setup.py: nuevo formateador JSON en vez de texto plano",
-        "Formato: {timestamp, level, logger, module, message, correlation_id?, duration_ms?}",
-        "correlation_id propagado a través del pipeline para tracing",
-        "Duration_ms automático en logs de procesamiento de chunks y módulos",
-        "Config: logging.format (text/json), logging.retention_days",
-        "Backward compatible: default 'text' para no romper instalaciones existentes",
-        "Rotación con compresión gzip (RotatingFileHandler ya existe)"
-      ],
-      "files_to_touch": [
-        "core/logging_setup.py (JSON formatter, campos estructurados)",
-        "core/config_schema.py (logging config section)",
-        "core/unified_pipeline.py (propagar correlation_id)",
-        "core/module_base.py (duration_ms en logging de procesos)",
-        "tests/unit/test_structured_log.py (validar formato JSON)"
-      ]
+      "id": 20,
+      "name": "output_health_monitoring",
+      "title": "Output health monitoring",
+      "status": "done"
     },
     {
-      "id": 50,
-      "name": "structured_json_logging",
-      "title": "Logs estructurados en JSON",
-      "status": "done",
-      "area": "devops",
-      "priority": "Baja"
+      "id": 21,
+      "name": "config_push_via_websocket",
+      "title": "Config push via WebSocket",
+      "status": "done"
     },
     {
-      "id": 51,
-      "name": "kubernetes_helm_chart",
-      "title": "Chart Helm para deploy en Kubernetes",
-      "status": "done",
-      "area": "devops",
-      "priority": "Baja",
-      "description": "El deploy actual es docker-compose (single node). Para entornos de producción que requieran alta disponibilidad, escalado horizontal y rolling updates, se necesita un chart Helm para Kubernetes con ConfigMap, Secrets, HPA, Ingress y PVC.",
-      "problems_identified": [
-        "Sin soporte Kubernetes: solo docker-compose para deploy",
-        "Sin auto-escalado horizontal (HPA) para múltiples pipelines",
-        "Sin ConfigMap para configuración externa a la imagen",
-        "Sin Ingress para TLS termination y routing",
-        "Sin PVC para persistencia de outputs y logs fuera del pod",
-        "Sin readiness/liveness probes específicas (solo healthcheck genérico)"
-      ],
-      "acceptance": [
-        "Chart Helm en deploy/helm/srt2web/ con templates estándar",
-        "Values: deployment.replicas, service.type, ingress.enable, persistence.size",
-        "ConfigMap montado desde values.yaml para server config",
-        "Secrets para auth_token, s3_keys, etc. (soporte SealedSecrets opcional)",
-        "HPA: escalado por CPU > 70% (min 1, max 5 réplicas)",
-        "Ingress con annotations para TLS cert-manager",
-        "PVC para /app/output y /app/logs (ReadWriteMany opcional)",
-        "Readiness probe: GET /ready, Liveness probe: GET /live",
-        "README con instrucciones helm install"
-      ],
-      "files_to_touch": [
-        "deploy/helm/srt2web/Chart.yaml (nuevo)",
-        "deploy/helm/srt2web/values.yaml (nuevo)",
-        "deploy/helm/srt2web/templates/deployment.yaml (nuevo)",
-        "deploy/helm/srt2web/templates/service.yaml (nuevo)",
-        "deploy/helm/srt2web/templates/ingress.yaml (nuevo)",
-        "deploy/helm/srt2web/templates/configmap.yaml (nuevo)",
-        "deploy/helm/srt2web/templates/secrets.yaml (nuevo)",
-        "deploy/helm/srt2web/templates/pvc.yaml (nuevo)",
-        "deploy/helm/srt2web/templates/hpa.yaml (nuevo)"
-      ]
+      "id": 22,
+      "name": "cleanup_dead_code_final",
+      "title": "Cleanup dead code final",
+      "status": "done"
     },
     {
-      "id": 52,
-      "name": "e2e_playwright_tests",
-      "title": "Tests E2E con Playwright para flujos críticos del dashboard",
-      "status": "done",
-      "area": "testing",
-      "priority": "Baja",
-      "description": "Los tests E2E existentes (tests/e2e/) son pytest que verifican APIs. No hay tests que naveguen el dashboard real en un navegador. Se necesita Playwright para simular interacciones de usuario: iniciar pipeline, verificar estado de módulos, cambiar config, exportar logs.",
-      "problems_identified": [
-        "No hay tests que abran el dashboard en un navegador real",
-        "No se verifica que el DOM se actualice correctamente tras cambios de estado",
-        "No hay snapshot testing de componentes visuales",
-        "Flujos críticos (start → modules running → stop) no se prueban E2E",
-        "Los tests e2e actuales son solo HTTP API tests"
-      ],
-      "acceptance": [
-        "Playwright config en frontend/playwright.config.ts",
-        "Test: abrir dashboard, verificar header y status card visibles",
-        "Test: cambiar input type, verificar que se actualiza formulario",
-        "Test: cambiar chunk_duration, verificar confirmación en UI",
-        "Test: toggle log panel, verificar visibilidad",
-        "Test: export logs, verificar que se descarga archivo",
-        "CI job playwright ejecuta tests E2E contra servidor de prueba",
-        "Test: keyboard shortcuts (Ctrl+S, Ctrl+D)"
-      ],
-      "files_to_touch": [
-        "frontend/playwright.config.ts (nuevo)",
-        "frontend/e2e/dashboard.spec.ts (nuevo)",
-        "frontend/e2e/pipeline-control.spec.ts (nuevo)",
-        "frontend/e2e/logs.spec.ts (nuevo)",
-        "frontend/e2e/keyboard-shortcuts.spec.ts (nuevo)",
-        ".github/workflows/playwright.yml (nuevo, opcional en CI)"
-      ]
+      "id": 23,
+      "name": "api_versioning_pydantic",
+      "title": "API versioning & Pydantic responses",
+      "status": "done"
     },
     {
-      "id": 53,
-      "name": "frontend_bundle_optimization",
-      "title": "Optimización del bundle frontend: code-splitting y lazy loading",
-      "status": "done",
-      "area": "rendimiento",
-      "priority": "Baja",
-      "description": "El bundle de frontend incluye signals-core y todos los componentes en un solo chunk. No hay code-splitting por ruta ni lazy loading de componentes pesados (PipelineGraph, LogPanel, OutputManagerCard). El análisis con vite-bundle-analyzer revelaría optimizaciones.",
-      "problems_identified": [
-        "Todo el dashboard en un solo bundle JS sin code-splitting",
-        "PipelineGraph y PipelineDiagram son SVG generados que pesan en bundle inicial",
-        "LogPanel con virtual scroll incluye toda la lógica en bundle crítico",
-        "OutputManagerCard con formularios podría ser lazy-loaded",
-        "No se usa dynamic import() para componentes que no están en viewport inicial",
-        "No hay medición actual del bundle size ni presupuesto de rendimiento"
-      ],
-      "acceptance": [
-        "Análisis de bundle con vite-bundle-analyzer documentado",
-        "PipelineGraph lazy-loaded via dynamic import() (solo cuando usuario hace click en toggle)",
-        "LogPanel inicial renderizado con placeholder y carga completa diferida",
-        "OutputManagerCard lazy-loaded",
-        "Bundle size reducido en al menos 30% en initial load",
-        "Lighthouse performance score > 90 en desktop",
-        "npm run build:local exitoso con code-splitting"
-      ],
-      "files_to_touch": [
-        "frontend/astro.config.mjs (configurar code-splitting)",
-        "frontend/src/pages/index.astro (dynamic imports)",
-        "frontend/src/components/PipelineGraph.astro (lazy load)",
-        "frontend/src/components/LogPanel.astro (lazy load)",
-        "frontend/src/components/OutputManagerCard.astro (lazy load)",
-        "frontend/vite.config.ts o astro.config.mjs (bundle analyzer plugin)"
-      ]
+      "id": 24,
+      "name": "mypy_strict_mode",
+      "title": "mypy strict mode core/ + server/",
+      "status": "done"
     },
     {
-      "id": 54,
-      "name": "visual_regression_testing",
-      "title": "Visual regression testing con Storybook y Chromatic",
-      "status": "done",
-      "area": "testing",
-      "priority": "Baja",
-      "description": "No hay pruebas visuales que detecten cambios no intencionales en la UI. Storybook permitiría desarrollar y testear componentes de forma aislada. Chromatic o Percy detectarían regresiones visuales en CI.",
-      "problems_identified": [
-        "No hay catálogo de componentes (Storybook)",
-        "Cambios CSS pueden romper layout sin que tests unitarios lo detecten",
-        "No hay snapshots visuales de referencia",
-        "Responsive breakpoints no se verifican automáticamente",
-        "Los cambios de tema (light/dark) no tienen cobertura visual"
-      ],
-      "acceptance": [
-        "Storybook configurado en frontend/.storybook/",
-        "Stories para componentes clave: Header, StatusCard, MetricsCard, ModuleCard, LogPanel",
-        "Stories en states: running, stopped, error, degraded, loading",
-        "Stories en themes: dark y light",
-        "Chromatic project configurado para CI (opcional, requiere API key)",
-        "npm run storybook funciona y muestra todos los componentes",
-        "No regresiones en build de Astro"
-      ],
-      "files_to_touch": [
-        "frontend/.storybook/main.ts (nuevo)",
-        "frontend/.storybook/preview.ts (nuevo, con themes)",
-        "frontend/src/components/Header.stories.ts (nuevo)",
-        "frontend/src/components/StatusCard.stories.ts (nuevo)",
-        "frontend/src/components/MetricsCard.stories.ts (nuevo)",
-        "frontend/src/components/ModuleCard.stories.ts (nuevo)",
-        "frontend/src/components/LogPanel.stories.ts (nuevo)",
-        "frontend/package.json (scripts storybook, chromatic)"
-      ]
+      "id": 25,
+      "name": "frontend_coverage_80",
+      "title": "Frontend coverage 80%+",
+      "status": "done"
+    },
+    {
+      "id": 26,
+      "name": "mobile_responsive",
+      "title": "Mobile-responsive layout",
+      "status": "done"
+    },
+    {
+      "id": 27,
+      "name": "pipeline_diagram",
+      "title": "Dependencias del pipeline (diagrama)",
+      "status": "done"
+    },
+    {
+      "id": 28,
+      "name": "docker_optimization",
+      "title": "Docker optimization & health checks",
+      "status": "done"
+    },
+    {
+      "id": 29,
+      "name": "repo_hygiene",
+      "title": "Repo hygiene (PARA BORRAR, stale files)",
+      "status": "done"
+    },
+    {
+      "id": 30,
+      "name": "subtitle_sync_perf",
+      "title": "Subtitle sync & performance",
+      "status": "done"
+    },
+    {
+      "id": 31,
+      "name": "hls_passthrough_mode",
+      "title": "HLS passthrough mode",
+      "status": "done"
+    },
+    {
+      "id": 32,
+      "name": "audio_extraction_multithread",
+      "title": "Audio extraction multi-thread",
+      "status": "done"
+    },
+    {
+      "id": 33,
+      "name": "pipeline_parallelism_opt",
+      "title": "Pipeline parallelism optimization",
+      "status": "done"
     },
     {
       "id": 34,
@@ -568,18 +237,493 @@
         "-j/--json output para todos los comandos one-shot"
       ],
       "files_to_touch": [
-        "cli/__init__.py (nuevo)",
-        "cli/__main__.py (nuevo)",
-        "cli/main.py (nuevo, entry point click)",
-        "cli/client/ (nuevo, API + WS clients)",
-        "cli/commands/ (nuevo, status/start/stop/config/logs)",
-        "cli/tui/ (nuevo, app/screens/widgets Textual)",
+        "cli/__init__.py",
+        "cli/__main__.py",
+        "cli/main.py (entry point click)",
+        "cli/client/ (API + WS clients)",
+        "cli/commands/ (status/start/stop/config/logs)",
+        "cli/tui/ (app/screens/widgets Textual)",
         "pyproject.toml (deps cli, entry point srt2web-tui)",
-        "tests/unit/test_cli_client.py (nuevo)",
-        "tests/unit/test_cli_commands.py (nuevo)",
+        "tests/unit/test_cli_client.py",
+        "tests/unit/test_cli_commands.py",
         "AGENTS.md (sección CLI)"
       ],
       "completed_date": "2026-05-14"
+    },
+    {
+      "id": 55,
+      "name": "tui_cli_bug_fixes",
+      "title": "TUI/CLI Bug Fixes & Code Quality",
+      "status": "done",
+      "completed_date": "2026-05-14",
+      "area": "cli-tui",
+      "priority": "Alta",
+      "description": "Corrección de bugs funcionales, eliminación de dead code, mejora de manejo de errores y robustez general del CLI/TUI.",
+      "problems_identified": [
+        "_get_nested() en module_detail.py parte keys multi-word por _ y no encuentra valores (chunk_duration_sec, encoder_mode, etc.)",
+        "module_card.py es dead code (TUIModuleCard duplicado, no importado por nadie)",
+        "20+ bloques except Exception: pass silenciosos en app.py",
+        "Tareas fire-and-forget en action_toggle_pipeline, action_save_config, on_unmount",
+        "_on_ws_status() es no-op — eventos WS ignorados",
+        "set_filter() en log_panel.py definido pero jamás llamado",
+        "_state_dot() en status.py, _module_info_map en app.py, _move_selection()/focus_card() en module_grid.py — código muerto",
+        "run_config_set usa read-modify-write con race condition potencial"
+      ],
+      "acceptance": [
+        "Multi-word keys en module_detail form funcionan correctamente",
+        "module_card.py eliminado sin afectar imports",
+        "Except silenciosos reemplazados con logging + user notification via self.notify()",
+        "Fire-and-forget tasks manejan errores con logging explícito",
+        "Log panel tiene dropdown funcional de filtro por nivel",
+        "Código muerto eliminado de todos los archivos CLI/TUI",
+        "init.ps1 pasa verde tras el cambio",
+        "mypy 0 errores en core/ y server/"
+      ],
+      "files_to_touch": [
+        "cli/tui/screens/module_detail.py (fix _get_nested multi-word keys)",
+        "cli/tui/widgets/module_card.py (ELIMINAR — dead code)",
+        "cli/tui/app.py (fix excepts, fire-and-forget, _on_ws_status)",
+        "cli/tui/widgets/log_panel.py (conectar set_filter a dropdown UI)",
+        "cli/tui/widgets/module_grid.py (eliminar _move_selection/focus_card o implementar)",
+        "cli/commands/status.py (eliminar _state_dot)",
+        "cli/commands/config.py (fix race condition en run_config_set)",
+        "cli/tui/screens/dashboard.py (fix _dict_to_yaml escaping)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Cada bug se corrige individualmente con test",
+          "init.ps1 verifica integridad tras cada cambio",
+          "module_card.py se elimina solo tras confirmar que no hay imports activos"
+        ]
+      }
+    },
+    {
+      "id": 56,
+      "name": "cli_commands_expansion",
+      "title": "CLI One-Shot Commands Expansion",
+      "status": "pending",
+      "area": "cli-tui",
+      "priority": "Media",
+      "description": "Agregar comandos one-shot faltantes para cubrir toda la API del servidor: módulos, outputs, presets, recordings, input control, network info.",
+      "problems_identified": [
+        "Solo 6 comandos implementados (status, start, stop, restart, config, logs, health)",
+        "No hay comandos para: module list/toggle/debug, output CRUD, presets, recordings, input control, network",
+        "APIClient carece de update_output() (PUT /api/outputs/{name} existe en server)",
+        "APIClient carece de download_recording() (GET /api/recordings/{name}/download existe)",
+        "WSClient nunca envía comandos (get_status, ping) a pesar de que el server los soporta"
+      ],
+      "acceptance": [
+        "Nuevos comandos: module list|toggle|debug, output list|add|remove|toggle",
+        "Nuevos comandos: preset list|save|apply|delete, recording list|delete",
+        "Nuevos comandos: input info|play|pause|seek, network info",
+        "APIClient.update_output() implementada con PUT /api/outputs/{name}",
+        "APIClient.download_recording() implementada con GET /api/recordings/{name}/download",
+        "Todos los comandos soportan -j/--json output",
+        "Click --help funciona para cada comando nuevo",
+        "Tests unitarios para cada comando nuevo"
+      ],
+      "files_to_touch": [
+        "cli/client/http_client.py (update_output, download_recording)",
+        "cli/commands/module.py (nuevo)",
+        "cli/commands/output.py (nuevo)",
+        "cli/commands/preset.py (nuevo)",
+        "cli/commands/recording.py (nuevo)",
+        "cli/commands/input.py (nuevo)",
+        "cli/commands/network.py (nuevo)",
+        "cli/main.py (registrar nuevos comandos en Click group)",
+        "tests/unit/test_cli_commands.py (tests para nuevos comandos)"
+      ]
+    },
+    {
+      "id": 57,
+      "name": "tui_feature_completeness",
+      "title": "TUI Feature Completeness",
+      "status": "pending",
+      "area": "cli-tui",
+      "priority": "Media",
+      "description": "Cerrar gaps funcionales entre el dashboard web y el TUI: presets, recordings, input control, log filter, GPU metrics, keyboard navigation.",
+      "problems_identified": [
+        "No hay pantalla de presets en TUI",
+        "No hay pantalla de grabaciones en TUI",
+        "No hay control de input (play/pause/seek) en TUI",
+        "Log panel no tiene dropdown de filtro",
+        "Module detail no se actualiza en vivo",
+        "GPU metrics no se muestran en las cards del módulo",
+        "Arrow keys no funcionan para navegación del grid",
+        "Help screen incompleto (falta M, R, flechas)"
+      ],
+      "acceptance": [
+        "Pantalla de presets con lista, aplicar, guardar, eliminar",
+        "Pantalla de grabaciones con tabla, descarga, eliminación",
+        "Input control screen con play/pause/seek para file mode",
+        "Log panel con dropdown de filtro por nivel funcional",
+        "Module detail screen se actualiza periódicamente (polling 2s)",
+        "GPU metrics visibles en grid cards",
+        "Arrow keys navegan el module grid",
+        "Help screen completo con todos los shortcuts documentados",
+        "init.ps1 pasa verde tras el cambio"
+      ],
+      "files_to_touch": [
+        "cli/tui/app.py (nuevos bindings, pantallas, polling)",
+        "cli/tui/screens/presets_screen.py (nuevo)",
+        "cli/tui/screens/recordings_screen.py (nuevo)",
+        "cli/tui/screens/input_control.py (nuevo)",
+        "cli/tui/widgets/log_panel.py (dropdown filter)",
+        "cli/tui/widgets/module_grid.py (GPU metrics, keyboard nav)",
+        "cli/tui/screens/module_detail.py (auto-refresh)",
+        "cli/tui/screens/help.py (completar shortcuts)"
+      ]
+    },
+    {
+      "id": 58,
+      "name": "cli_tui_test_coverage",
+      "title": "CLI/TUI Test Coverage",
+      "status": "in_progress",
+      "problems_identified": [
+        "ws_client.py: 0% cobertura (128 líneas, lógica de reconexión no testeada)",
+        "TUI completo: 0% cobertura (~300 líneas en 7 archivos)",
+        "run_start, run_stop, run_logs: 0% cobertura",
+        "run_status: solo helpers (8%), comando completo sin testear",
+        "run_config_show, _build_tree, _format_value: 0% cobertura",
+        "APIClient métodos HTTP: ~10% cobertura (solo init/headers)",
+        "cli/main.py entry point: 0% cobertura (sin CliRunner)",
+        "Sin infraestructura de test compartida para CLI (no hay conftest.py en tests/cli/)"
+      ],
+      "acceptance": [
+        "ws_client.py: >85% cobertura (mock WS server, reconnect, backoff, message routing)",
+        "APIClient HTTP methods: >75% cobertura (respx mock, auth, errores)",
+        "Todos los commands (start, stop, status, config, logs): >80% cobertura",
+        "cli/main.py entry point: >70% cobertura (Click CliRunner)",
+        "TUI screens: >50% cobertura (pytest-textual o smoke tests)",
+        "tests/cli/conftest.py con fixtures compartidas de mock API/WS",
+        "init.ps1 pasa verde con -Quick (tests existentes no se rompen)"
+      ],
+      "files_to_touch": [
+        "tests/cli/conftest.py (nuevo, fixtures mock)",
+        "tests/cli/test_ws_client.py (nuevo)",
+        "tests/cli/test_cli_commands_full.py (nuevo)",
+        "tests/cli/test_cli_entry.py (nuevo, CliRunner)",
+        "tests/cli/test_tui_screens.py (nuevo, opcional)",
+        "tests/unit/test_cli_commands.py (expandir existente)",
+        "tests/unit/test_cli_client.py (expandir existente)"
+      ],
+      "dependencies": ["F55 (bugs corregidos para no testear bugs conocidos)"]
+    },
+    {
+      "id": 59,
+      "name": "mac_init_verification",
+      "title": "Script init_Mac.sh de verificación del harness",
+      "status": "pending",
+      "area": "macos",
+      "priority": "Alta",
+      "description": "Crear script bash init_Mac.sh como equivalente funcional de init.ps1 para macOS. Verifica Python 3.12, venv, dependencias, mypy y tests.",
+      "problems_identified": [
+        "No existe script de verificación para Mac (solo init.ps1 para PowerShell/Windows)",
+        "install_Mac.sh no verifica que todo funcione, solo instala",
+        "No hay forma rápida de verificar que el entorno Mac está listo para desarrollo",
+        "check_mac_deps.py existe pero no es un harness de verificación ejecutable",
+        "Los desarrolladores en Mac no pueden ejecutar init.ps1"
+      ],
+      "acceptance": [
+        "init_Mac.sh existe y es ejecutable (chmod +x)",
+        "Verifica Python 3.12 disponible en el sistema",
+        "Verifica entorno virtual (venv) creado y activo",
+        "Verifica dependencias Python instaladas (pip check)",
+        "Verifica feature_list.json válido (≤1 feature in_progress)",
+        "Ejecuta pytest tests/unit/ -q --tb=short -m 'not slow'",
+        "Ejecuta mypy core/ server/ (informativo, no bloqueante)",
+        "Exit code 0 = entorno listo, 1 = bloqueante",
+        "Soporta flag --quick para saltar mypy",
+        "Respetuoso con CI/CD (no modifica archivos del proyecto)"
+      ],
+      "files_to_touch": [
+        "init_Mac.sh (nuevo, bash equivalent de init.ps1)",
+        "scripts/check_mac_deps.py (mejorar output para init_Mac.sh)",
+        "AGENTS.md (referencia a init_Mac.sh)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "init_Mac.sh es script nuevo, no modifica archivos existentes",
+          "Sigue el mismo patrón probado de init.ps1"
+        ]
+      }
+    },
+    {
+      "id": 60,
+      "name": "cross_platform_subprocess",
+      "title": "Hardening cross-platform de subprocess (CREATE_NO_WINDOW seguro en Mac)",
+      "status": "done",
+      "completed_date": "2026-05-14",
+      "area": "macos",
+      "priority": "Alta",
+      "description": "Identificar y corregir todos los accesos a subprocess.CREATE_NO_WINDOW sin guardia de plataforma. Crear función helper cross-platform get_creation_flags().",
+      "problems_identified": [
+        "31+ ocurrencias de CREATE_NO_WINDOW en todo el código",
+        "Varias llamadas usan el flag sin guardia sys.platform == 'win32'",
+        "En macOS, subprocess.CREATE_NO_WINDOW no existe → AttributeError",
+        "El patrón repetitivo 'if sys.platform == win32 else 0' en 20+ lugares es propenso a errores",
+        "No hay función helper centralizada para creation flags",
+        "ffmpeg_utils.py:306 retorna directamente CREATE_NO_WINDOW | BELOW_NORMAL_PRIORITY_CLASS sin guardia"
+      ],
+      "acceptance": [
+        "Función helper get_creation_flags() en core/ffmpeg_utils.py o core/subprocess_utils.py",
+        "Todas las llamadas a subprocess.Popen usan el helper en vez de CREATE_NO_WINDOW directo",
+        "Cero AttributeError por CREATE_NO_WINDOW en macOS",
+        "Tests: verificar que get_creation_flags() retorna 0 en macOS/darwin",
+        "init.ps1 pasa verde tras el cambio",
+        "mypy 0 errores"
+      ],
+      "files_to_touch": [
+        "core/subprocess_utils.py (NUEVO — helper cross-platform)",
+        "core/ffmpeg_utils.py (usar helper, fix línea 306 sin guardia)",
+        "core/ffmpeg_wrapper.py (usar helper)",
+        "core/watchdog.py (usar helper en lugar de flags directos)",
+        "modules/inputs/srt_input.py (usar helper)",
+        "modules/inputs/file_input.py (usar helper)",
+        "modules/inputs/rtmp_input.py (usar helper)",
+        "modules/outputs/hls_output.py (usar helper)",
+        "modules/outputs/rtmp_output.py (usar helper)",
+        "modules/outputs/recording_output.py (usar helper)",
+        "modules/tts_engine.py (usar helper)",
+        "modules/piper_loader.py (usar helper)",
+        "modules/srt_ingest.py (usar helper)",
+        "tests/unit/test_subprocess_utils.py (NUEVO)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Alto",
+        "mitigation": [
+          "El helper es un wrapper trivial, sin efectos secundarios",
+          "Cada archivo se modifica uno a uno con test de regresión",
+          "Se puede revertir por archivo si algo falla",
+          "El cambio es puramente mecánico (find & replace con guardia)"
+        ]
+      }
+    },
+    {
+      "id": 61,
+      "name": "mac_gpu_acceleration",
+      "title": "Aceleración GPU Apple Silicon: MPS, CoreML y VideoToolbox",
+      "status": "done",
+      "completed_date": "2026-05-14",
+      "area": "macos",
+      "priority": "Alta",
+      "description": "Verificar y optimizar la detección y uso de GPU en Mac: PyTorch MPS, ONNX Runtime CoreML, FFmpeg VideoToolbox. Asegurar fallback graceful cuando no hay GPU.",
+      "problems_identified": [
+        "core/hardware.py ya detecta MPS pero no hay tests de integración en Mac",
+        "core/hardware_monitor.py usa pynvml (NVIDIA) — no reporta nada en Mac",
+        "No hay monitor de GPU para Apple Silicon (no existe pynvml en Mac)",
+        "ONNX Runtime CoreML solo se instala via onnxruntime-silicon (package separado)",
+        "FFmpeg VideoToolbox (h264_videotoolbox) no se verifica automáticamente",
+        "install_Mac.sh instala PyTorch pero no verifica MPS funcional",
+        "config.yaml device:auto puede fallar en Mac si intenta CUDA",
+        "No hay badge/metrics de GPU Apple Silicon en el frontend para Mac"
+      ],
+      "acceptance": [
+        "MPS detection en hardware.py: test de creación de tensor en MPS funciona",
+        "HardwareMonitor detecta ausencia de pynvml y reporta GPU desconocida (no crash)",
+        "HardwareMonitor alternativo para Mac: psutil + sysctl para métricas de sistema",
+        "ONNX Runtime CoreML: install_Mac.sh instala onnxruntime-silicon correctamente",
+        "FFmpeg VideoToolbox: detección en ffmpeg_utils.py para encoders h264_videotoolbox",
+        "config.yaml con device: auto en Mac selecciona MPS (no CUDA)",
+        "Badge GPU en frontend para Mac muestra 'MPS' en vez de 'GPU' genérico",
+        "Tests en Mac: test_hardware_mac.py verifica MPS, CoreML, VideoToolbox"
+      ],
+      "files_to_touch": [
+        "core/hardware.py (mejorar detección MPS, agregar VideoToolbox)",
+        "core/hardware_monitor.py (fallback sin GPU para Mac, métricas sysctl)",
+        "core/ffmpeg_utils.py (detección h264_videotoolbox)",
+        "core/config_schema.py (device: auto → MPS en Mac)",
+        "install_Mac.sh (verificar MPS funcional, onnxruntime-silicon)",
+        "frontend/src/lib/store/signals.ts (gpu_type signal para MPS)",
+        "frontend/src/components/ModuleCard.astro (badge 'MPS' para Mac)",
+        "tests/integration/test_hardware_mac.py (NUEVO)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "MPS detection ya existe (solo mejorar robustez)",
+          "Fallback a CPU siempre disponible",
+          "onnxruntime-silicon puede fallar → fallback a onnxruntime CPU",
+          "VideoToolbox es opcional (software encoding funciona igual)"
+        ]
+      }
+    },
+    {
+      "id": 62,
+      "name": "mac_dependency_flow",
+      "title": "Flujo de dependencias para Mac: install, requirements y compatibilidad",
+      "status": "done",
+      "completed_date": "2026-05-14",
+      "area": "macos",
+      "priority": "Media",
+      "description": "Mejorar el flujo de instalación en Mac: instalar grupos opcionales CLI y dev, manejar dependencias específicas de plataforma, actualizar requirements.txt y pyproject.toml.",
+      "problems_identified": [
+        "install_Mac.sh solo instala config/requirements.txt (core), no grupos opcionales",
+        "CLI/TUI (textual, httpx, click, rich, colorama) no se instalan automáticamente",
+        "Dev deps (pytest, mypy, ruff) no se instalan en Mac",
+        "nvidia-ml-py es dependencia core en pyproject.toml — en Mac siempre falla import",
+        "onnxruntime-gpu en grupo gpu no funciona en Mac (solo onnxruntime-silicon)",
+        "No hay plataforma-specific markers en pyproject.toml para dependencias",
+        "Faster-whisper puede tener problemas con CoreML vs CUDA en Mac"
+      ],
+      "acceptance": [
+        "install_Mac.sh instala grupos: core, processing, tts, cli, dev",
+        "install_Mac.sh instala onnxruntime-silicon en vez de onnxruntime-gpu",
+        "install_Mac.sh no instala nvidia-ml-py (no funciona en Mac)",
+        "install_Mac.sh verifica que CLI funciona (srt2web-tui --help)",
+        "config/requirements.txt tiene comentarios claros para Mac",
+        "pyproject.toml tiene platform-specific markers o documentación clara",
+        "Documentación de dependencias Mac en docs/compatibility.md actualizada"
+      ],
+      "files_to_touch": [
+        "install_Mac.sh (instalar grupos opcionales, platform-specific deps)",
+        "config/requirements.txt (comentarios Mac, versiones compatibles)",
+        "pyproject.toml (documentar platform-specific deps)",
+        "docs/compatibility.md (actualizar sección Mac)",
+        "docs/deployment.md (añadir detalles Mac)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "pip install falla graceful si un grupo no se puede instalar",
+          "Cada grupo es opcional (core es el único obligatorio)",
+          "Se puede instalar manualmente cualquier paquete"
+        ]
+      }
+    },
+    {
+      "id": 63,
+      "name": "cross_platform_paths",
+      "title": "Estandarización de paths cross-platform para Mac",
+      "status": "done",
+      "completed_date": "2026-05-14",
+      "area": "macos",
+      "priority": "Media",
+      "description": "Revisar y estandarizar el manejo de paths en todo el código para ser cross-platform. Asegurar que rutas de caché, modelos, logs y config funcionan en macOS.",
+      "problems_identified": [
+        "core/model_cache.py usa %LOCALAPPDATA% para cache (Windows-only)",
+        "core/cuda_paths.py es Windows-only (paths CUDA/cuDNN no existen en Mac)",
+        "core/model_cache.py asume paths Windows con os.name == 'nt'",
+        "No hay detección de directorios estándar en Mac (~/Library/Caches/, ~/.config/)",
+        "desktop/src/python/core/paths.py maneja APPDATA vs ~ pero código Python no",
+        "bin/ directory para FFmpeg no existe en Mac (se usa Homebrew)",
+        "Temp files en Windows usan %TEMP%, en Mac /tmp"
+      ],
+      "acceptance": [
+        "model_cache.py usa platformdirs o appdirs para paths cross-platform",
+        "cuda_paths.py se salta en Mac (no hay CUDA)",
+        "Cache directory: ~/Library/Caches/srt2web/ en Mac",
+        "Config directory: ~/.config/srt2web/ en Mac (o XDG_CONFIG_HOME)",
+        "Log directory: ~/Library/Logs/srt2web/ en Mac",
+        "FFmpeg lookup en Mac via shutil.which('ffmpeg') funciona (Homebrew)",
+        "Tests cross-platform: test_paths.py verifica directorios correctos por SO",
+        "No hay regresión en Windows (paths actuales siguen funcionando)"
+      ],
+      "files_to_touch": [
+        "core/model_cache.py (usar platformdirs, no %LOCALAPPDATA%)",
+        "core/cuda_paths.py (guard al inicio: if sys.platform != 'win32': return [])",
+        "core/paths.py (NUEVO: helper cross-platform para directorios estándar)",
+        "core/logging_setup.py (logs path cross-platform)",
+        "core/config_manager.py (config path cross-platform)",
+        "pyproject.toml (añadir platformdirs como dependencia core)",
+        "tests/unit/test_paths.py (NUEVO)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "platformdirs es librería madura y bien testeada",
+          "Se mantiene compatibilidad hacia atrás (Windows sigue igual)",
+          "Cada cambio se puede revertir individualmente"
+        ]
+      }
+    },
+    {
+      "id": 64,
+      "name": "mac_tui_terminal",
+      "title": "Verificación y ajustes de TUI en terminales macOS",
+      "status": "done",
+      "completed_date": "2026-05-14",
+      "area": "macos",
+      "priority": "Media",
+      "description": "Verificar que la TUI (Textual) funciona correctamente en terminales macOS: Terminal.app, iTerm2, Warp, Alacritty. Ajustar detección de colores, bindings y rendering.",
+      "problems_identified": [
+        "No se ha probado la TUI en macOS (desarrollada y testeada en Windows)",
+        "Terminal.app de macOS tiene soporte limitado de true color vs iTerm2/Warp",
+        "Keyboard bindings pueden diferir en macOS (cmd vs ctrl, fn keys)",
+        "Fuente monospace por defecto en macOS (SF Mono) puede no renderizar sparklines correctamente",
+        "Textual environment detection puede comportarse distinto en macOS terminal",
+        "Stop_Mac.sh no detiene procesos TUI (solo server main.py)",
+        "No hay atajo cmd+Q para salir de TUI en macOS (solo q, bindeado a quit)",
+        "Copy/Paste (cmd+C/cmd+V) en macOS puede interferir con bindings de TUI"
+      ],
+      "acceptance": [
+        "TUI se lanza correctamente con srt2web-tui en Terminal.app, iTerm2, Warp",
+        "Sparklines (unicode ▇▆▅▃▂▁) renderizan correctamente en SF Mono y Nerd Fonts",
+        "Keyboard bindings: q (quit), space (toggle), s (save) funcionan en macOS",
+        "stop_Mac.sh detiene también procesos TUI (srt2web-tui)",
+        "True color detection funciona o fallback a 256 colores",
+        "Copy/Paste no interfiere con bindings (eventos keypress vs keydown)",
+        "Mouse support en TUI funciona en terminales macOS",
+        "init_Mac.sh.sh verifica terminal capabilities (colors, unicode)"
+      ],
+      "files_to_touch": [
+        "cli/tui/app.py (macOS key bindings, cmd+Q como alternativa)",
+        "stop_Mac.sh (detener procesos srt2web-tui además de main.py)",
+        "cli/main.py (detectar macOS y ajustar defaults si es necesario)",
+        "docs/compatibility.md (terminales macOS soportadas)",
+        "init_Mac.sh (verificar terminal capabilities)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "Textual es cross-platform y funciona en macOS nativamente",
+          "Los cambios son ajustes menores no estructurales",
+          "Fallback automático si terminal no soporta true color"
+        ]
+      }
+    },
+    {
+      "id": 65,
+      "name": "mac_docs_and_ci",
+      "title": "Documentación y CI/CD para macOS",
+      "status": "done",
+      "completed_date": "2026-05-14",
+      "area": "macos",
+      "priority": "Media",
+      "description": "Actualizar documentación para cubrir instalación y uso en macOS. Agregar workflow de GitHub Actions para testing en macOS.",
+      "problems_identified": [
+        "README.md y docs/ no cubren instalación en Mac adecuadamente",
+        "docs/compatibility.md lista Mac como compatible pero no da detalles",
+        "No hay GitHub Actions workflow que corra tests en macOS",
+        "install_Mac.sh existe pero no está referenciado en README.md",
+        "No hay guía de troubleshooting para problemas comunes en Mac",
+        ".env.example tiene defaults Windows (paths, puertos)"
+      ],
+      "acceptance": [
+        "README.md tiene sección de instalación en Mac con enlace a install_Mac.sh",
+        "docs/compatibility.md actualizado con terminales, GPUs y limitaciones",
+        "docs/deployment.md cubre deploy en Mac (Homebrew, launchd)",
+        "GitHub Actions workflow corre pytest en macOS (sin slow tests)",
+        "docs/troubleshooting-mac.md (NUEVO) cubre problemas comunes",
+        ".env.example actualizado con valores cross-platform"
+      ],
+      "files_to_touch": [
+        "README.md (sección Mac install)",
+        "docs/compatibility.md (actualizar Mac)",
+        "docs/deployment.md (sección Mac deploy)",
+        "docs/troubleshooting-mac.md (NUEVO)",
+        ".github/workflows/ci-mac.yml (NUEVO)",
+        ".env.example (paths cross-platform)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "Documentación no afecta código de producción",
+          "CI workflow en macOS es informativo (no bloqueante)"
+        ]
+      }
     }
   ]
 }

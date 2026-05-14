@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
-import signal
-import sys
 
 from rich.console import Console
 from rich.table import Table

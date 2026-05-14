@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from textual.app import ComposeResult
 from textual.screen import Screen
-from textual.widgets import Label, Markdown
+from textual.widgets import Markdown
 
 HELP_TEXT = """# srt2web TUI — Keyboard Shortcuts
 
@@ -13,11 +13,15 @@ HELP_TEXT = """# srt2web TUI — Keyboard Shortcuts
 | `L` | Toggle log panel |
 | `C` | Focus config panel |
 | `O` | Focus outputs panel |
+| `M` | Open module detail |
 | `R` | Refresh status |
 | `?` | Show this help |
-| `Q` / `Esc` | Quit |
+| `Q` | Quit |
+| `Esc` | Back / Close panel |
 | `Tab` | Cycle through panels |
-| `↑` / `↓` | Scroll |
+| `↑` / `↓` | Scroll content |
+
+> On macOS: `Cmd+Q` also quits the TUI.
 
 ## One-shot Commands
 

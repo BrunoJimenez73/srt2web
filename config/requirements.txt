@@ -1,4 +1,17 @@
 # SRT2Web - Modular SRT Stream Processor
+# =============================================
+# Compatibilidad: Windows, macOS (Silicon/Intel), Linux
+# =============================================
+#
+# Instalación:
+#   Windows: Install.bat
+#   macOS:   install_Mac.sh
+#   Linux:   pip install -r requirements.txt
+#
+# NOTA: nvidia-ml-py se excluye automáticamente en Mac
+#       (install_Mac.sh lo filtra - no funciona en Apple Silicon).
+#       En Windows se instala vía Install.bat.
+
 # Core
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
@@ -8,6 +21,7 @@ websockets>=12.0
 numpy>=1.24.0
 pydub>=0.25.1
 psutil>=5.9.0
+platformdirs>=4.0.0
 nvidia-ml-py>=12.0.0
 
 # Pydantic v2 (required for this codebase)
@@ -18,10 +32,10 @@ faster-whisper>=1.0.0
 argostranslate>=1.9.0
 piper-tts>=1.2.0
 
-# GPU Support (para Piper TTS y Whisper GPU acceleration)
-# IMPORTANTE: Para GPU con ONNX, usar nvidia-cudnn-cu11 (NO cu12 - tiene cuDNN 9.x incompatible)
-# Ejemplo instalación: pip install nvidia-cudnn-cu11==8.9.4.25
-# NOTA: No agregar como dependencia de pip, se instala manualmente en Install.bat para evitar conflicto
+# GPU Support
+# Windows/Linux: onnxruntime-gpu con cuDNN 8.x (NO cuDNN 9.x)
+# macOS:         onnxruntime-silicon (CoreML) - instalado por install_Mac.sh
+# IMPORTANTE: nvidia-cudnn-cu11 (NO cu12 - tiene cuDNN 9.x incompatible)
 # onnxruntime-gpu>=1.19.0
 
 # WebRTC Support

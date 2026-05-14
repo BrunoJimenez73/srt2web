@@ -6,9 +6,10 @@ import json
 import logging
 import re
 from logging.handlers import RotatingFileHandler
-from pathlib import Path
 from re import Pattern
-from typing import Any, Optional
+from typing import Any
+
+from core.paths import get_user_log_dir
 
 
 class BroadcastHandler(logging.Handler):
@@ -148,9 +149,7 @@ def setup_logging(
     broadcast.setFormatter(logging.Formatter("%(levelname)-5s %(name)s %(message)s"))
 
     if log_file is None:
-        project_root = Path(__file__).resolve().parent.parent
-        logs_dir = project_root / "logs"
-        logs_dir.mkdir(parents=True, exist_ok=True)
+        logs_dir = get_user_log_dir()
         log_file = str(logs_dir / "srt2web.log")
 
     file_handler = RotatingFileHandler(
