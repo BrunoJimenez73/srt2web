@@ -31,7 +31,7 @@ class TUIModuleCard(Static, can_focus=True):
         self._memory_mb = 0.0
 
     def on_mount(self) -> None:
-        self._refresh()
+        self._render_card()
 
     def update(self, state: str, enabled: bool, chunks: int, last_time: float, extra: dict | None = None) -> None:
         self._state = state
@@ -41,12 +41,12 @@ class TUIModuleCard(Static, can_focus=True):
         self._extra = extra or {}
         if extra:
             self._memory_mb = extra.get("memory_mb", 0.0) or 0.0
-        self._refresh()
+        self._render_card()
 
     def on_click(self) -> None:
         self.post_message(CardClicked(self.module_name))
 
-    def _refresh(self) -> None:
+    def _render_card(self) -> None:
         state_style = {
             "running": "green",
             "processing": "green",
@@ -88,7 +88,7 @@ class TUIModuleCard(Static, can_focus=True):
             "\n",
             (f"  {self._chunks}ch | {self._last_time:.0f}ms |{mem_str}", "dim"),
         )
-        self.update(t)
+        super().update(t)
 
 
 class CardClicked(Message):

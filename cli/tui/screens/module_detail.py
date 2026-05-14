@@ -85,24 +85,24 @@ MODULE_ICONS: dict[str, str] = {
 }
 
 
-class ConfigField(Static):
+class ConfigField(Vertical):
     def __init__(self, label: str, key: str, field_type: type, options: tuple, value: str = ""):
-        super().__init__()
+        super().__init__(classes="config-field")
         self.label = label
         self.key = key
         self.field_type = field_type
         self.options = options
-        self.value = value
+        self._initial_value = value
 
     def compose(self) -> ComposeResult:
         yield Static(f"{self.label}:", classes="field-label")
         if self.field_type == bool:
-            yield Switch(value=self.value == "True", id=f"sw-{self.key}")
+            yield Switch(value=self._initial_value == "True", id=f"sw-{self.key}")
         elif self.options:
-            options = [(opt, opt) for opt in self.options]
-            yield Select(options=options, value=self.value or self.options[0] if self.options else "", id=f"sel-{self.key}")
+            current = self._initial_value if self._initial_value else self.options[0]
+            yield Select(options=self.options, value=current, id=f"sel-{self.key}")
         else:
-            yield Input(value=self.value or "", id=f"in-{self.key}")
+            yield Input(value=self._initial_value or "", id=f"in-{self.key}")
 
 
 class ModuleConfigForm(Vertical):
@@ -233,33 +233,34 @@ class ModuleDetailScreen(Screen):
 
     .form-title {
         color: $text;
-        text-style: bold;
-        font-size: 16;
+        bold: true;
         margin-bottom: 2;
     }
 
     .form-status {
         color: $text-muted;
-        font-size: 12;
         margin-bottom: 8;
     }
 
     .section-label {
         color: $accent;
-        text-style: bold;
-        font-size: 11;
+        bold: true;
         margin-top: 4;
         margin-bottom: 2;
     }
 
     .form-metrics {
         color: $text-muted;
-        font-size: 11;
         margin-top: 2;
     }
 
     .module-config-form {
         padding: 4;
+    }
+
+    .config-field {
+        height: auto;
+        margin-top: 2;
     }
 
     #form-container {
@@ -275,15 +276,12 @@ class ModuleDetailScreen(Screen):
 
     .field-label {
         color: $text;
-        font-size: 11;
         margin-top: 2;
     }
     """
 
     BINDINGS = [
         Binding("escape", "app.pop_screen", "Back"),
-        Binding("enter", "save_module", "Save"),
-        Binding("t", "toggle_module", "Toggle"),
     ]
 
     def __init__(self, module_name: str, module_info: ModuleInfo | None, config: dict, api_client):
@@ -292,6 +290,7 @@ class ModuleDetailScreen(Screen):
         self.module_info = module_info
         self.config = config
         self.api_client = api_client
+        self._form_mounted = False
 
     def compose(self) -> ComposeResult:
         yield ScrollableContainer(id="form-container")
