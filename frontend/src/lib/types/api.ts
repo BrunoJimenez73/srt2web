@@ -402,6 +402,14 @@ export interface Status {
   input_info?: InputInfo;
   network?: NetworkInfo;
   sync?: SyncStatus;
+  /** System resource metrics (CPU, memory, GPU) */
+  system_metrics?: MetricsData;
+  /** Legacy alias for system_metrics */
+  system?: MetricsData;
+  /** Server uptime in seconds */
+  uptime_seconds?: number;
+  /** Average processing time per chunk in milliseconds */
+  avg_processing_time_ms?: number;
 }
 
 export type PipelineState =
@@ -412,14 +420,18 @@ export type PipelineState =
   | "error";
 
 export interface MetricsData {
-  cpu_percent: number;
-  memory_mb: number;
-  memory_percent: number;
+  cpu_percent?: number;
+  cpu_usage?: number;
+  memory_mb?: number;
+  memory_percent?: number;
+  memory_usage?: number;
+  gpu_percent?: number;
   gpu_usage?: number;
   gpu_memory?: number;
   gpu_util?: number;
   gpu_memory_mb?: number;
   gpu_memory_percent?: number;
+  gpu_memory_usage?: number;
   chunks_per_second?: number;
 }
 

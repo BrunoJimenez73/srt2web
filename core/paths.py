@@ -163,7 +163,7 @@ def get_cache_dir() -> Path:
 
         cache = Path(user_cache_dir("srt2web", ensure_exists=True))
         return cache
-    except ImportError:
+    except (ImportError, OSError):
         cache = get_project_root() / ".cache"
         cache.mkdir(parents=True, exist_ok=True)
         return cache
@@ -184,7 +184,7 @@ def get_user_config_dir() -> Path:
 
         cfg = Path(user_config_dir("srt2web", ensure_exists=True))
         return cfg
-    except ImportError:
+    except (ImportError, OSError):
         cfg = get_project_root() / "config"
         cfg.mkdir(parents=True, exist_ok=True)
         return cfg
@@ -205,7 +205,7 @@ def get_user_log_dir() -> Path:
 
         log = Path(user_log_dir("srt2web", ensure_exists=True))
         return log
-    except ImportError:
+    except (ImportError, OSError):
         log = get_project_root() / "logs"
         log.mkdir(parents=True, exist_ok=True)
         return log

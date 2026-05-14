@@ -760,6 +760,135 @@
           "Factory create_strategy() intacta"
         ]
       }
+    },
+    {
+      "id": 67,
+      "name": "whisper_timeout_protection",
+      "title": "Whisper Timeout Protection",
+      "status": "done",
+      "completed_date": "2026-05-15",
+      "area": "stability",
+      "priority": "Alta",
+      "description": "Asegurar que la transcripción Whisper no bloquee indefinidamente el pipeline cuando un chunk de audio se queda colgado o tarda demasiado.",
+      "problems_identified": [
+        "La protección previa usaba ThreadPoolExecutor como context manager, lo que podía esperar al hilo al salir incluso tras TimeoutError",
+        "Un chunk corrupto o una llamada bloqueada a faster-whisper podía dejar el pipeline detenido",
+        "No había test específico que comprobara que el timeout cerraba el executor sin wait bloqueante"
+      ],
+      "acceptance": [
+        "Transcriber respeta modules.transcriber.timeout_sec",
+        "TimeoutError cancela el future y devuelve el chunk sin transcript para que el pipeline continúe",
+        "El executor se cierra con wait=false y cancel_futures=true tras timeout",
+        "Hay test unitario que valida el comportamiento no bloqueante",
+        "init.ps1 -Quick pasa verde"
+      ],
+      "files_to_touch": [
+        "modules/transcriber.py",
+        "tests/unit/test_transcriber.py"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "Cambio acotado a la ruta de timeout del transcriber",
+          "La ruta exitosa mantiene el shutdown normal del executor",
+          "Test unitario dedicado cubre la regresión"
+        ]
+      }
+    },
+    {
+      "id": 68,
+      "name": "transcription_lru_cache",
+      "title": "LRU Cache for Transcriptions",
+      "status": "done",
+      "completed_date": "2026-05-15",
+      "area": "performance",
+      "priority": "Alta",
+      "description": "Evitar retraducir/retranscribir chunks de audio idénticos usando una cache LRU con TTL en el transcriber.",
+      "problems_identified": [
+        "La cache inicial dependía de path/timestamp/duration y no detectaba archivos distintos con el mismo contenido",
+        "Chunks repetidos de silencio o contenido duplicado podían consumir GPU/CPU innecesariamente",
+        "Faltaban tests unitarios que verificaran cache hit y cache miss por contenido"
+      ],
+      "acceptance": [
+        "El cache key usa una huella estable del contenido de audio cuando el archivo existe",
+        "Chunks idénticos en paths distintos reutilizan transcript sin llamar otra vez a Whisper",
+        "Cambios de idioma/modelo/beam_size invalidan naturalmente el key",
+        "La cache se limpia al parar el módulo",
+        "Tests unitarios cubren hit y miss de cache"
+      ],
+      "files_to_touch": [
+        "modules/transcriber.py",
+        "tests/unit/test_transcriber.py"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "Cambio acotado a cache del transcriber",
+          "Fallback a key por metadata si el archivo no existe o no puede leerse",
+          "Tests unitarios con mocks evitan cargar modelos reales"
+        ]
+      }
+    },
+    {
+      "id": 69,
+      "name": "frontend_types_cleanup",
+      "title": "Frontend Types Cleanup",
+      "status": "done",
+      "completed_date": "2026-05-15",
+      "area": "frontend",
+      "priority": "Media",
+      "description": "Eliminar casts any innecesarios del estado reactivo frontend y alinear los tipos API con los campos reales del backend.",
+      "problems_identified": [
+        "signals.ts usaba casts any para acceder a system_metrics, system, uptime_seconds y avg_processing_time_ms",
+        "MetricsData no declaraba alias legacy como cpu_usage, memory_usage, gpu_percent o gpu_memory_usage",
+        "Los tipos Status estaban parcialmente por detrás del payload real del backend"
+      ],
+      "acceptance": [
+        "signals.ts no usa casts any para leer métricas del sistema",
+        "MetricsData cubre los nombres actuales y legacy usados por el frontend",
+        "Status tipa uptime_seconds y avg_processing_time_ms",
+        "TypeScript check pasa en frontend",
+        "init.ps1 -Quick pasa verde"
+      ],
+      "files_to_touch": [
+        "frontend/src/lib/store/signals.ts",
+        "frontend/src/lib/types/api.ts"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "Cambio solo de tipos y lectura equivalente de métricas",
+          "No modifica estructura visual ni llamadas API",
+          "Verificación con TypeScript y tests existentes"
+        ]
+      }
+    },
+    {
+      "id": 70,
+      "name": "openapi_documentation",
+      "title": "API OpenAPI Documentation",
+      "status": "done",
+      "completed_date": "2026-05-15",
+      "area": "api",
+      "priority": "Media",
+      "description": "Documentación interactiva de la API REST usando OpenAPI/Swagger UI. FastAPI tiene soporte nativo habilitado.",
+      "problems_identified": [
+        "La descripción original asumía que no había documentación, pero FastAPI ya la tiene habilitada por defecto"
+      ],
+      "acceptance": [
+        "Swagger UI accesible en /api/docs",
+        "ReDoc accesible en /api/redoc",
+        "Spec JSON en /api/openapi.json",
+        "init.ps1 -Quick pasa verde"
+      ],
+      "files_to_touch": [],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "FastAPI tiene soporte nativo OpenAPI ya configurado",
+          "No se requiere ningún cambio de código"
+        ]
+      }
     }
   ]
 }

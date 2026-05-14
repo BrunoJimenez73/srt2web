@@ -287,6 +287,53 @@ F47 (Cloud Export), F48 (Stream Scheduling), F50 (Structured JSON Logging), F51 
 - ✅ feature_list.json actualizado (65 features, 0 in_progress)
 - ✅ CHECKPOINTS.md pendiente de revisión
 
+## 2026-05-15 — Whisper Timeout Protection (F67)
+
+### Contexto
+
+- Se reparó el harness local antes de trabajar: el venv apuntaba a un Python 3.12 eliminado y fue regenerado con Python 3.12.13.
+- `init.ps1 -Quick` fallaba por permisos en paths de usuario. `core/paths.py` ahora hace fallback local también ante `OSError`, no solo ante falta de `platformdirs`.
+
+### Cambios implementados
+
+- `modules/transcriber.py`: el timeout de Whisper cancela el future y cierra el executor con `wait=False` y `cancel_futures=True`, evitando que un chunk bloqueado detenga el pipeline.
+- `tests/unit/test_transcriber.py`: agregado test específico para la ruta de timeout no bloqueante.
+- `feature_list.json`: añadida F67 como `done`.
+
+### Verificación
+
+- ✅ `pytest tests/unit/test_transcriber.py -q` → 8 passed
+- ✅ `init.ps1 -Quick` → verde
+
+## 2026-05-15 — LRU Cache for Transcriptions (F68)
+
+### Cambios implementados
+
+- `modules/transcriber.py`: el cache key del transcriber usa SHA-256 del contenido del audio cuando el archivo existe, por lo que chunks idénticos en paths distintos reutilizan transcript.
+- El key también incluye idioma, modelo y `beam_size`; si no se puede leer el archivo, conserva fallback por metadata.
+- `tests/unit/test_transcriber.py`: añadidos tests de cache hit por contenido idéntico y cache miss por contenido distinto.
+- `feature_list.json`: F68 marcada como `done`.
+
+### Verificación
+
+- ✅ `pytest tests/unit/test_transcriber.py -q` → 10 passed
+- ✅ `init.ps1 -Quick` → verde
+
+## 2026-05-15 — Frontend Types Cleanup (F69)
+
+### Cambios implementados
+
+- `frontend/src/lib/types/api.ts`: `Status` y `MetricsData` ahora cubren los campos actuales y legacy de métricas usados por el dashboard.
+- `frontend/src/lib/store/signals.ts`: eliminados casts `any` en lectura de métricas; se usa `Partial<MetricsData>`.
+- `inputType` dejó de requerir cast manual.
+- `feature_list.json`: F69 marcada como `done`.
+
+### Verificación
+
+- ✅ `frontend/node_modules/.bin/tsc.cmd --noEmit` → 0 errores
+- ✅ `init.ps1 -Quick` → verde
+- ⚠️ `vitest run src/lib/store/signals.test.ts` bloqueado por esbuild/permiso al resolver `vitest.config.ts` en esta sesión
+
 ## 2026-05-14 — All Features Completed
 
 ### Summary

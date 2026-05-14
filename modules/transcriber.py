@@ -5,9 +5,11 @@ Takes extracted audio chunks and produces transcripts with timestamps.
 Includes LRU cache for duplicate chunks (F68) and timeout protection (F67).
 """
 
+import concurrent.futures
 import hashlib
 import logging
 import os
+from pathlib import Path
 from typing import Optional
 
 from core.cache import LRUCache
@@ -128,14 +130,32 @@ class Transcriber(BaseModule):
         self._transcript_cache.clear()
         self._state = ModuleState.IDLE
 
+    def _audio_cache_identity(self, data: PipelineData) -> str:
+        """
+        Return a stable identity for the audio chunk.
+        Prefer content hashing so duplicated chunks in different files share cache entries.
+        """
+        path = data.audio_chunk_path or ""
+        if path:
+            try:
+                digest = hashlib.sha256()
+                with Path(path).open("rb") as audio_file:
+                    for chunk in iter(lambda: audio_file.read(1024 * 1024), b""):
+                        digest.update(chunk)
+                return f"content:{digest.hexdigest()}"
+            except OSError:
+                logger.debug("Could not hash audio chunk for cache key: %s", path, exc_info=True)
+
+        return f"metadata:{path}:{data.timestamp}:{data.duration}"
+
     def _make_cache_key(self, data: PipelineData) -> str:
         """
         Build a deterministic cache key from chunk attributes.
-        Two chunks with the same path, offset and language produce the same key,
+        Two chunks with the same audio bytes and transcription settings produce the same key,
         avoiding re-transcription of duplicate content (e.g. silence segments).
         """
-        path = data.audio_chunk_path or ""
-        raw = f"{path}:{data.timestamp}:{data.duration}:{self._language}:{self._model_size}"
+        identity = self._audio_cache_identity(data)
+        raw = f"{identity}:{self._language}:{self._model_size}:{self._beam_size}"
         return hashlib.sha256(raw.encode()).hexdigest()
 
     def _transcribe_impl(self, data: PipelineData) -> Optional[PipelineData]:
@@ -144,8 +164,6 @@ class Transcriber(BaseModule):
         Returns None if transcription should be skipped (timeout).
         """
         timeout_sec = self._timeout_sec
-
-        import concurrent.futures
 
         def _transcribe_sync() -> tuple:
             """Run transcription in a thread pool to allow timeout."""
@@ -158,16 +176,21 @@ class Transcriber(BaseModule):
             )
 
         # Run transcription with timeout via thread pool
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(_transcribe_sync)
-            try:
-                segments_iter, info = future.result(timeout=timeout_sec)
-            except concurrent.futures.TimeoutError:
-                logger.warning(
-                    f"Transcription timeout after {timeout_sec}s for chunk "
-                    f"{data.chunk_index} ({data.audio_chunk_path}) — skipping"
-                )
-                return None
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        future = executor.submit(_transcribe_sync)
+        timed_out = False
+        try:
+            segments_iter, info = future.result(timeout=timeout_sec)
+        except concurrent.futures.TimeoutError:
+            timed_out = True
+            future.cancel()
+            logger.warning(
+                f"Transcription timeout after {timeout_sec}s for chunk "
+                f"{data.chunk_index} ({data.audio_chunk_path}) — skipping"
+            )
+            return None
+        finally:
+            executor.shutdown(wait=not timed_out, cancel_futures=timed_out)
 
         # Extract text and store segment timing
         full_text = []

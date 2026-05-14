@@ -14,6 +14,7 @@ import type {
   PipelineState,
   ModuleState,
   ConnectionMode,
+  MetricsData,
 } from "../api";
 
 // ── Source Signals ────────────────────────────────────────────────────────────
@@ -98,17 +99,17 @@ export const enabledModules = computed(() => {
 
 export const systemMetrics = computed(() => {
   const s = pipelineStatus.value;
-  const sys = (s as any)?.system_metrics ?? (s as any)?.system ?? {};
-  const uptime = (s as any)?.uptime_seconds ?? 0;
+  const sys: Partial<MetricsData> = s?.system_metrics ?? s?.system ?? {};
+  const uptime = s?.uptime_seconds ?? 0;
   const chunks = s?.chunks_processed ?? 0;
   const cps = uptime > 0 ? chunks / uptime : 0;
   return {
     cpu: sys.cpu_percent ?? sys.cpu_usage ?? 0,
     memoryMb: sys.memory_mb ?? 0,
     memoryPercent: sys.memory_percent ?? sys.memory_usage ?? 0,
-    gpuUtil: sys.gpu_percent ?? sys.gpu_usage ?? 0,
-    gpuMemMb: sys.gpu_memory_mb ?? 0,
-    gpuMemPercent: sys.gpu_memory_usage ?? 0,
+    gpuUtil: sys.gpu_percent ?? sys.gpu_usage ?? sys.gpu_util ?? 0,
+    gpuMemMb: sys.gpu_memory_mb ?? sys.gpu_memory ?? 0,
+    gpuMemPercent: sys.gpu_memory_percent ?? sys.gpu_memory_usage ?? 0,
     chunksPerSec: cps,
     totalChunks: chunks,
   };
@@ -119,14 +120,14 @@ export const systemMetrics = computed(() => {
 export const connectionUrls = computed(() => {
   const cfg = pipelineConfig.value;
   const status = pipelineStatus.value;
-  const publicIp = (status as any)?.network?.public_ip;
+  const publicIp = status?.network?.public_ip;
   const remAddr = emitterAddress.value || publicIp || "";
   const host =
     connectionMode.value === "remote" ? remAddr || "localhost" : "127.0.0.1";
 
   const inputTypeValue = pipelineConfig.value?.input?.type ?? "srt";
   // Update reactive signal
-  inputType.value = inputTypeValue as "srt" | "rtmp" | "file";
+  inputType.value = inputTypeValue;
 
   const srtPort = cfg?.input?.srt?.port ?? 9000;
   const srtMode = cfg?.input?.srt?.mode ?? "listener";
@@ -137,7 +138,7 @@ export const connectionUrls = computed(() => {
   // The URL is for the CLIENT to connect to us.
   // If we listen, client must be caller. If we call, client must be listener.
   const clientMode = srtMode === "listener" ? "caller" : "listener";
-  const srtUrl = `srt://${host}:${srtPort}?mode=${clientMode}&latency=${srtLatency}`;
+  const srtUrl = `srt://${host}:${srtPort}`;
   const rtmpUrl = `rtmp://${host}:${rtmpPort}`;
   const streamUrl = `http://${host}:${serverPort}/hls/stream.m3u8`;
   const playerUrl = `http://${host}:${serverPort}/player`;
@@ -166,7 +167,7 @@ export const throughputAvg = computed(() => {
 // ── Computed: Latency ────────────────────────────────────────────────────────
 
 export const pipelineLatency = computed(() => {
-  const avgTimeMs = (pipelineStatus.value as any)?.avg_processing_time_ms ?? 0;
+  const avgTimeMs = pipelineStatus.value?.avg_processing_time_ms ?? 0;
   // Estimate: avg_processing_time_ms * pipeline stages (input->transcribe->translate->TTS->mix->output)
   const stages = 6;
   return avgTimeMs > 0 ? (avgTimeMs * stages) / 1000 : 0;
@@ -209,9 +210,9 @@ export function updateStatus(status: Status): void {
   pipelineStatus.value = status;
 
   // Calculate chunks_per_second from actual backend fields
-  const uptime = (status as any)?.uptime_seconds ?? 0;
+  const uptime = status?.uptime_seconds ?? 0;
   const chunks = status?.chunks_processed ?? 0;
-  const avgTimeMs = (status as any)?.avg_processing_time_ms ?? 0;
+  const avgTimeMs = status?.avg_processing_time_ms ?? 0;
 
   // Use avg_processing_time_ms for instant throughput estimate
   const tp =
@@ -223,9 +224,9 @@ export function updateStatus(status: Status): void {
   }
 
   // Update CPU/GPU history for sparklines (F18)
-  const sys = (status as any)?.system_metrics ?? (status as any)?.system ?? {};
+  const sys: Partial<MetricsData> = status.system_metrics ?? status.system ?? {};
   const cpu = sys.cpu_percent ?? sys.cpu_usage ?? 0;
-  const gpu = sys.gpu_percent ?? sys.gpu_usage ?? 0;
+  const gpu = sys.gpu_percent ?? sys.gpu_usage ?? sys.gpu_util ?? 0;
 
   if (cpu > 0) {
     cpuHistory.value = [...cpuHistory.value, cpu].slice(-60);
