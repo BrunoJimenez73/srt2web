@@ -100,7 +100,8 @@ class ConfigField(Vertical):
             yield Switch(value=self._initial_value == "True", id=f"sw-{self.key}")
         elif self.options:
             current = self._initial_value if self._initial_value else self.options[0]
-            yield Select(options=self.options, value=current, id=f"sel-{self.key}")
+            select_options = [(opt, opt) for opt in self.options]
+            yield Select(options=select_options, value=current, id=f"sel-{self.key}")
         else:
             yield Input(value=self._initial_value or "", id=f"in-{self.key}")
 
@@ -233,7 +234,7 @@ class ModuleDetailScreen(Screen):
 
     .form-title {
         color: $text;
-        bold: true;
+        text-style: bold;
         margin-bottom: 2;
     }
 
@@ -244,7 +245,7 @@ class ModuleDetailScreen(Screen):
 
     .section-label {
         color: $accent;
-        bold: true;
+        text-style: bold;
         margin-top: 4;
         margin-bottom: 2;
     }
