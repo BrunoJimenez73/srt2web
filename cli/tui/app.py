@@ -77,6 +77,10 @@ class SRT2WebTUI(App):
         margin: 0 1;
         padding: 0 1;
     }
+
+    TUIModuleCard:focus {
+        border: solid $accent;
+    }
     """
 
     BINDINGS = [

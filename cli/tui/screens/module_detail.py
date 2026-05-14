@@ -319,5 +319,6 @@ class ModuleDetailScreen(Screen):
         except Exception as e:
             self.app.notify(f"Error: {e}", severity="error", timeout=5)
 
-    def on_module_detail_back(self) -> None:
+    @on(ModuleDetailBack)
+    def on_back_event(self) -> None:
         self.app.pop_screen()

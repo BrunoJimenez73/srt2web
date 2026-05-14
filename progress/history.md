@@ -171,3 +171,9 @@ Implementar F34 (i18n Integration) siguiendo el plan en progress/current.md.
 ### Pendientes
 
 F47 (Cloud Export), F48 (Stream Scheduling), F50 (Structured JSON Logging), F51 (Helm Chart), F53 (Bundle Opt), F54 (Visual Regression).
+
+## 2026-05-14 12:12 — F51 kubernetes_helm_chart
+
+- **Feature:** F51 - Chart Helm para deploy en Kubernetes
+- **Área:** devops | **Prioridad:** Baja
+- **Status:** ✅ done

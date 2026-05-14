@@ -321,7 +321,7 @@
         "tests/unit/test_cloud_export.py (nuevo)"
       ]
     },
-{
+    {
       "id": 46,
       "name": "user_management_auth",
       "title": "Sistema multi-usuario con login y roles",
@@ -398,7 +398,7 @@
       "id": 51,
       "name": "kubernetes_helm_chart",
       "title": "Chart Helm para deploy en Kubernetes",
-      "status": "pending",
+      "status": "done",
       "area": "devops",
       "priority": "Baja",
       "description": "El deploy actual es docker-compose (single node). Para entornos de producción que requieran alta disponibilidad, escalado horizontal y rolling updates, se necesita un chart Helm para Kubernetes con ConfigMap, Secrets, HPA, Ingress y PVC.",

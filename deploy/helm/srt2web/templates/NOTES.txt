@@ -1,0 +1,10 @@
+Thank you for installing {{ .Chart.Name }} {{ .Chart.Version }}.
+
+To access the dashboard:
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "srt2web.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 9999:9999
+
+Then open http://localhost:9999 in your browser.
+
+For SRT input, use port {{ .Values.srt.port }} (UDP).
+Default credentials: admin / admin
