@@ -117,23 +117,17 @@ class TestConfigYAMLValidity:
 
     def test_config_transcriber_valid_language(self) -> None:
         """Test that transcriber uses a valid language code."""
-        with open(CONFIG_PATH, encoding="utf-8") as f:
-            config = yaml.safe_load(f)
+        from core.config_manager import ConfigManager
 
-        modules = config.get("modules", {})
-        transcriber = modules.get("transcriber", {})
-        language = transcriber.get("language", "")
+        language = ConfigManager(CONFIG_PATH).get("modules.transcriber.language", "")
 
         assert language in VALID_LANGUAGES, f"Invalid language: '{language}'. Valid languages: {VALID_LANGUAGES}"
 
     def test_config_transcriber_valid_device(self) -> None:
         """Test that transcriber uses a valid device."""
-        with open(CONFIG_PATH, encoding="utf-8") as f:
-            config = yaml.safe_load(f)
+        from core.config_manager import ConfigManager
 
-        modules = config.get("modules", {})
-        transcriber = modules.get("transcriber", {})
-        device = transcriber.get("device", "")
+        device = ConfigManager(CONFIG_PATH).get("modules.transcriber.device", "")
 
         assert device in VALID_DEVICES, f"Invalid device: '{device}'. Valid devices: {VALID_DEVICES}"
 

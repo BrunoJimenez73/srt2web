@@ -334,8 +334,8 @@ class ProcessManager:
                                 )
                                 cleaned += 1
                                 logger.info(f"Cleaned up orphan FFmpeg (PID: {pid})")
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                logger.debug("Suppressed error: %s", e, exc_info=True)
             else:
                 subprocess.run(
                     ["pkill", "-f", "ffmpeg.*srt2web"],

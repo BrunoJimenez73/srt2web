@@ -104,6 +104,7 @@ class TestPipelineIntegration:
                 await pipeline._process_chunk(data)
                 success_count += 1
             except Exception:
+                # Expected: some chunks may fail in stress test
                 pass
 
         assert success_count == 10
@@ -199,6 +200,7 @@ class TestExceptionHierarchyIntegration:
         try:
             raise ValueError("Test")
         except Exception:
+            # Intentional: testing that base Exception catches ValueError
             pass
 
         try:

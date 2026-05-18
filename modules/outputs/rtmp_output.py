@@ -10,7 +10,7 @@ import os
 import subprocess
 import sys
 import threading
-from typing import Optional
+from typing import Any, Optional
 
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.module_base import PipelineData
@@ -30,11 +30,11 @@ class RTMPOutput(OutputSink):
 
     name = "rtmp_output"
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: Optional[dict[str, Any]] = None):
         cfg = config or {}
         super().__init__("rtmp", cfg)
         self._ffmpeg_path: Optional[str] = None
-        self._ffmpeg_proc: Optional[subprocess.Popen] = None
+        self._ffmpeg_proc: Optional[subprocess.Popen[Any]] = None
         self._monitor_thread: Optional[threading.Thread] = None
 
         self._url: str = ""
@@ -44,12 +44,12 @@ class RTMPOutput(OutputSink):
         self._preset: str = "medium"
         self._audio_codec: str = "aac"
         self._streaming: bool = False
-        self._watchdog: Optional[any] = None
+        self._watchdog: Optional[Any] = None
 
         if config:
             self.configure(config)
 
-    def configure(self, config: dict) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         """Apply configuration."""
         self._config = config
 
@@ -137,9 +137,10 @@ class RTMPOutput(OutputSink):
 
         if self._ffmpeg_proc:
             try:
-                self._ffmpeg_proc.stdin.close()
-            except Exception:
-                pass
+                if self._ffmpeg_proc.stdin:
+                    self._ffmpeg_proc.stdin.close()
+            except Exception as e:
+                logger.debug("Suppressed error: %s", e, exc_info=True)
 
             try:
                 if sys.platform == "win32":
@@ -154,7 +155,7 @@ class RTMPOutput(OutputSink):
             except Exception:
                 try:
                     self._ffmpeg_proc.kill()
-                except:
+                except Exception:
                     pass
             finally:
                 self._ffmpeg_proc = None
@@ -176,8 +177,8 @@ class RTMPOutput(OutputSink):
                         logger.warning(f"[FFmpeg RTMP] {line}")
                     else:
                         logger.debug(f"[FFmpeg RTMP] {line}")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Suppressed error: %s", e, exc_info=True)
 
         if self._ffmpeg_proc:
             returncode = self._ffmpeg_proc.poll()
@@ -219,7 +220,7 @@ class RTMPOutput(OutputSink):
         """Check if RTMP streaming is active."""
         return self._streaming and self._ffmpeg_proc is not None and self._ffmpeg_proc.poll() is None
 
-    def get_stream_info(self) -> dict:
+    def get_stream_info(self) -> dict[str, Any]:
         """Get RTMP stream information."""
         return {
             "type": "rtmp",
@@ -232,7 +233,7 @@ class RTMPOutput(OutputSink):
         }
 
 
-def _register():
+def _register() -> None:
     """Auto-register this output module."""
     try:
         from core.io_factory import OutputFactory

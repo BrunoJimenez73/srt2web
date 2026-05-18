@@ -16,7 +16,7 @@ from cli.tui.widgets.module_grid import TUIModuleGrid
 from cli.tui.widgets.status_bar import TUIStatusBar
 
 
-class DashboardScreen(Screen):
+class DashboardScreen(Screen[Any]):
     def compose(self) -> ComposeResult:
         with Vertical():
             yield TUIHeader(id="tui-header")
@@ -34,7 +34,7 @@ class DashboardScreen(Screen):
             yield TUILogPanel(id="log-panel")
 
     def on_mount(self) -> None:
-        self._config_data: dict | None = None
+        self._config_data: dict[str, Any] | None = None
 
     def update_status(self, status: PipelineStatus) -> None:
         sb = self.query_one("#status-bar", TUIStatusBar)
@@ -44,15 +44,15 @@ class DashboardScreen(Screen):
         if hasattr(status, "state"):
             h.pipeline_state = status.state
 
-    def update_metrics(self, system: dict) -> None:
+    def update_metrics(self, system: dict[str, Any]) -> None:
         mp = self.query_one("#metrics-panel", TUIMetricsPanel)
         mp.update_metrics(system)
 
-    def update_modules(self, modules: list[dict]) -> None:
+    def update_modules(self, modules: list[dict[str, Any]]) -> None:
         mg = self.query_one("#module-grid", TUIModuleGrid)
         mg.update_modules(modules)
 
-    def update_config(self, config_data: dict) -> None:
+    def update_config(self, config_data: dict[str, Any]) -> None:
         self._config_data = config_data
         tree_widget = self.query_one("#config-tree", Static)
         syntax = Syntax(
@@ -63,7 +63,7 @@ class DashboardScreen(Screen):
         )
         tree_widget.update(syntax)
 
-    def update_outputs(self, outputs: list[dict]) -> None:
+    def update_outputs(self, outputs: list[dict[str, Any]]) -> None:
         out_widget = self.query_one("#outputs-list", Static)
         lines = []
         for o in outputs:
@@ -98,14 +98,17 @@ class DashboardScreen(Screen):
 
     async def save_config(self) -> None:
         if self._config_data:
-            app = self.app
+            api: Any = getattr(self.app, "api", None)
+            if api is None:
+                self.notify("API client not available", severity="error", timeout=3)
+                return
             try:
-                await app.api.update_config(self._config_data)
+                await api.update_config(self._config_data)
                 self.notify("Config saved", severity="information", timeout=3)
             except Exception as e:
                 self.notify(f"Error saving config: {e}", severity="error", timeout=5)
 
-    def _dict_to_yaml(self, d: dict, indent: int = 0) -> str:
+    def _dict_to_yaml(self, d: dict[str, Any], indent: int = 0) -> str:
         lines = []
         prefix = "  " * indent
         for k, v in d.items():

@@ -82,6 +82,7 @@ class HardwareMonitor:
                 metrics["gpu_usage"] = cpu_percent * 0.5
                 metrics["gpu_percent"] = metrics["gpu_usage"]
         except Exception:
+            # Non-critical: GPU metrics fallback to zero
             metrics["gpu_usage"] = 0.0
             metrics["gpu_percent"] = 0.0
 

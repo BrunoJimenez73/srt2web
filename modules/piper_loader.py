@@ -20,6 +20,7 @@ import tempfile
 import threading
 import time
 from pathlib import Path
+from typing import Any
 
 from core.subprocess_utils import get_creation_flags
 
@@ -157,8 +158,9 @@ def main():
                         indices = np.linspace(0, len(samples) - 1, new_length)
                         resampled = np.interp(indices, np.arange(len(samples)), samples)
                         raw_audio = np.clip(resampled, -32768, 32767).astype(np.int16).tobytes()
-                    except Exception:
-                        pass  # Keep original if numpy fails
+                    except Exception as e:
+
+                        logger.debug("Suppressed error: %s", e, exc_info=True)  # Keep original if numpy fails
 
                 # Build WAV header
                 data_size = len(raw_audio)
@@ -226,8 +228,8 @@ class PiperSubprocessManager:
     HEARTBEAT_INTERVAL = 30  # seconds
     HEARTBEAT_TIMEOUT = 5  # seconds
 
-    def __init__(self):
-        self._proc: subprocess.Popen | None = None
+    def __init__(self) -> None:
+        self._proc: subprocess.Popen[Any] | None = None
         self._script_path: str | None = None
         self._lock = threading.Lock()
         self._using_cuda = False
@@ -251,7 +253,7 @@ class PiperSubprocessManager:
     def is_alive(self) -> bool:
         return self._proc is not None and self._proc.poll() is None
 
-    def start(self, model_path: str, config_path: str, device: str = "auto") -> dict:
+    def start(self, model_path: str, config_path: str, device: str = "auto") -> dict[str, Any]:
         """
         Start the persistent subprocess and load the model.
 
@@ -291,8 +293,8 @@ class PiperSubprocessManager:
 
                 ffmpeg_path = ensure_ffmpeg()
                 env["FFMPEG_PATH"] = ffmpeg_path
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Suppressed error: %s", e, exc_info=True)
 
             logger.info("[PiperManager] Starting persistent subprocess...")
 
@@ -370,7 +372,7 @@ class PiperSubprocessManager:
 
         return None
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop the persistent subprocess."""
         self.stop_heartbeat()
         with self._lock:
@@ -430,7 +432,7 @@ class PiperSubprocessManager:
                 except Exception as e:
                     logger.error(f"[PiperManager] Restart failed: {e}")
 
-    def _send_command(self, cmd: dict, timeout: float = 30.0) -> dict:
+    def _send_command(self, cmd: dict[str, Any], timeout: float = 30.0) -> dict[str, Any]:
         """Send a command and wait for response."""
         if not self._proc or not self._proc.stdin or not self._proc.stdout:
             return {"status": "error", "error": "Subprocess not running"}
@@ -446,12 +448,15 @@ class PiperSubprocessManager:
 
             if sys.platform == "win32":
                 # Windows: use threading timer
-                response_line = [None]
-                read_error = [None]
+                response_line: list[str | None] = [None]
+                read_error: list[Exception | None] = [None]
+                proc = self._proc
+                if proc is None or proc.stdout is None:
+                    return {"status": "error", "error": "Subprocess not running"}
 
-                def read_line():
+                def read_line() -> None:
                     try:
-                        response_line[0] = self._proc.stdout.readline()
+                        response_line[0] = proc.stdout.readline()  # type: ignore[union-attr]
                     except Exception as e:
                         read_error[0] = e
 
@@ -477,14 +482,15 @@ class PiperSubprocessManager:
             if not line or not line.strip():
                 return {"status": "error", "error": "Empty response from subprocess"}
 
-            return json.loads(line.strip())
+            parsed: dict[str, Any] = json.loads(line.strip())
+            return parsed
 
         except json.JSONDecodeError as e:
             return {"status": "error", "error": f"Invalid JSON response: {e}"}
         except Exception as e:
             return {"status": "error", "error": str(e)}
 
-    def _read_stderr(self):
+    def _read_stderr(self) -> None:
         """Read stderr in background thread to prevent deadlock."""
         if not self._proc or not self._proc.stderr:
             return
@@ -493,10 +499,10 @@ class PiperSubprocessManager:
                 line = line.strip()
                 if line:
                     logger.info(f"[PiperGPU] {line}")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Suppressed error: %s", e, exc_info=True)
 
-    def _ensure_stopped(self):
+    def _ensure_stopped(self) -> None:
         """Stop subprocess if running (must be called with lock held).
 
         The persistent Piper worker communicates via a JSON line protocol on
@@ -526,13 +532,15 @@ class PiperSubprocessManager:
                                         self._proc.stdout.readline()
                                 else:
                                     # Windows: read in a separate thread with timeout.
-                                    response_line = [None]
+                                    response_line_shutdown: list[str | None] = [None]
+                                    proc_shutdown = self._proc
 
-                                    def _read():
+                                    def _read() -> None:
                                         try:
-                                            response_line[0] = self._proc.stdout.readline()
-                                        except Exception:
-                                            pass
+                                            if proc_shutdown and proc_shutdown.stdout:
+                                                response_line_shutdown[0] = proc_shutdown.stdout.readline()
+                                        except Exception as e:
+                                            logger.debug("Suppressed error: %s", e, exc_info=True)
 
                                     t = threading.Thread(target=_read)
                                     t.start()
@@ -543,7 +551,7 @@ class PiperSubprocessManager:
                         # Wait for the process to exit gracefully.
                         self._proc.wait(timeout=3)
                     except Exception:
-                        # If anything goes wrong we fall back to force‑kill.
+                        # If anything goes wrong we fall back to force-kill.
                         pass
 
                 # Force kill if still running after graceful attempt.
@@ -565,18 +573,18 @@ class PiperSubprocessManager:
                 try:
                     if self._proc.stdin:
                         self._proc.stdin.close()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Suppressed error: %s", e, exc_info=True)
                 try:
                     if self._proc.stdout:
                         self._proc.stdout.close()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Suppressed error: %s", e, exc_info=True)
                 try:
                     if self._proc.stderr:
                         self._proc.stderr.close()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Suppressed error: %s", e, exc_info=True)
                 self._proc = None
 
         # Clean up the temporary worker script file.
@@ -673,7 +681,7 @@ if __name__ == "__main__":
 
 def load_piper_model_subprocess(
     voice_name: str, model_path: str, config_path: str, device: str = "auto", timeout: int = 90
-) -> dict:
+) -> dict[str, Any]:
     """
     Load Piper model in a one-shot subprocess (validates model works).
 
@@ -745,7 +753,7 @@ def load_piper_model_subprocess(
             else:
                 data = json.loads(stdout)
             logger.info(f"[PIPER_DEBUG] Load result: {data}")
-            return data
+            return dict(data)
         except json.JSONDecodeError as e:
             logger.error(f"[PIPER_DEBUG] Failed to parse JSON: {e}")
             return {"status": "error", "error": f"Failed to parse result: {e}"}
@@ -764,9 +772,9 @@ def load_piper_model_subprocess(
             pass
 
 
-def check_piper_environment() -> dict:
+def check_piper_environment() -> dict[str, Any]:
     """Check if piper and onnxruntime are available, report versions."""
-    result = {
+    result: dict[str, Any] = {
         "piper_available": False,
         "onnxruntime_available": False,
         "onnx_version": None,
@@ -788,8 +796,9 @@ def check_piper_environment() -> dict:
 
         result["onnxruntime_available"] = True
         result["onnx_version"] = ort.__version__
-        result["providers"] = ort.get_available_providers()
-        result["cuda_available"] = "CUDAExecutionProvider" in result["providers"]
+        providers: list[str] = list(ort.get_available_providers())
+        result["providers"] = providers
+        result["cuda_available"] = "CUDAExecutionProvider" in providers
     except ImportError as e:
         result["onnx_error"] = str(e)
 

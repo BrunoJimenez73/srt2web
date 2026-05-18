@@ -1033,6 +1033,316 @@
           "Pydantic schema valida los campos mapeados"
         ]
       }
+    },
+    {
+      "id": 74,
+      "name": "repo_cleanup_phase1",
+      "title": "Repo Cleanup Phase 1 — Orphaned files, version unification, error handling, CI",
+      "status": "done",
+      "completed_date": "2026-05-18",
+      "area": "maintenance",
+      "priority": "Alta",
+      "description": "Limpieza integral del repositorio: eliminar archivos huérfanos (files/, desktop/, root), unificar versiones, eliminar configs duplicados, reemplazar 63 bloques except Exception: silenciosos, y fix CI mypy continue-on-error.",
+      "problems_identified": [
+        "files/ directory con 38 archivos de otro proyecto (user_service, DTOs, repos, etc.)",
+        "desktop/ directory con app Electron abandonada (13 entradas incluyendo node_modules)",
+        "Archivos sueltos en raíz: temp_mypy_errors.txt, output.txt, skills-lock.json, tmppytest-srt2web/",
+        "3 versiones inconsistentes: pyproject.toml=0.6.8, frontend=0.6.7, server/app.py=0.4.0",
+        "config/config.yaml duplicado con contenido diferente al config.yaml raíz",
+        "63 bloques except Exception: silenciosos que tragan errores en producción",
+        "CI mypy con continue-on-error: true que mask type errors"
+      ],
+      "acceptance": [
+        "files/ eliminado sin afectar imports activos",
+        "desktop/ eliminado o movido a repo separado",
+        "Archivos huérfanos en raíz eliminados",
+        "Versión unificada: single source of truth en pyproject.toml",
+        "config/config.yaml eliminado o unificado con config.yaml raíz",
+        "63 except Exception: reemplazados con logging + error específico",
+        "CI mypy continue-on-error cambiado a false",
+        "init.ps1 -Quick pasa verde",
+        "mypy 0 errores en core/ y server/",
+        "pytest tests/unit/ pasa sin regresiones"
+      ],
+      "files_to_touch": [
+        "files/ (ELIMINAR completo)",
+        "desktop/ (ELIMINAR completo)",
+        "temp_mypy_errors.txt (ELIMINAR)",
+        "output.txt (ELIMINAR)",
+        "skills-lock.json (ELIMINAR)",
+        "tmppytest-srt2web/ (ELIMINAR)",
+        "server/app.py (version dinámica desde pyproject.toml)",
+        "frontend/src/pages/index.astro (version dinámica)",
+        "config/config.yaml (ELIMINAR o unificar)",
+        "scripts/fix_config.py (actualizar path)",
+        "core/config_manager.py (simplificar lookup)",
+        "tests/e2e/test_config_loading.py (actualizar paths)",
+        "modules/piper_loader.py (fix excepts)",
+        "core/unified_pipeline.py (fix excepts)",
+        "modules/outputs/srt_output.py (fix excepts)",
+        "modules/outputs/rtmp_output.py (fix excepts)",
+        "core/ffmpeg_utils.py (fix excepts)",
+        "cli/tui/app.py (fix excepts)",
+        "core/logging_setup.py (fix excepts)",
+        "server/ws_routes.py (fix excepts)",
+        "tests/conftest.py (fix excepts)",
+        ".github/workflows/ci.yml (fix mypy continue-on-error)",
+        "feature_list.json (F74 in_progress→done)",
+        "progress/current.md (documentar F74)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Cada eliminación se verifica con grep de imports antes",
+          "Version unification usa importlib.metadata (patrón estándar)",
+          "Except fixes son mecánicos: except Exception as e: logger.error(...)",
+          "CI change es solo un flag booleano",
+          "init.ps1 verifica integridad tras cada cambio"
+        ]
+      }
+    },
+    {
+      "id": 75,
+      "name": "mypy_modules_gradual",
+      "title": "mypy gradual en modules/ (Fase 2 — B2)",
+      "status": "done",
+      "completed_date": "2026-05-18",
+      "area": "typing",
+      "priority": "Alta",
+      "phase": "2-type-safety",
+      "plan_ref": "B2",
+      "description": "Habilitar type checking en modules/ de forma gradual: quitar ignore_errors global, activar warn_unused_ignores y corregir errores por subpaquete (inputs → outputs → transcriber/tts).",
+      "problems_identified": [
+        "pyproject.toml tiene modules.* con ignore_errors = true y follow_imports = skip",
+        "Bugs de tipo invisibles en audio_extractor, transcriber, piper_loader, outputs",
+        "F24 solo cubre core/ y server/; el pipeline de procesamiento queda sin mypy",
+        "CI mypy ya es bloqueante (F74) pero no analiza modules/"
+      ],
+      "acceptance": [
+        "modules.* override: ignore_errors = false, follow_imports = normal",
+        "mypy modules/ --config-file pyproject.toml con 0 errores (o lista acotada documentada por submódulo)",
+        "CI ejecuta mypy modules/ además de core/ server/",
+        "Sin regresión: init.ps1 -Quick verde",
+        "pytest tests/unit/ pasa sin cambios de comportamiento"
+      ],
+      "files_to_touch": [
+        "pyproject.toml ([[tool.mypy.overrides]] modules.*)",
+        ".github/workflows/ci.yml (añadir paso mypy modules/)",
+        "modules/**/*.py (anotaciones y fixes de tipo)",
+        "tests/unit/test_mypy_modules.py (smoke: mypy exit 0, opcional)"
+      ],
+      "dependencies": ["F74"],
+      "risk_assessment": {
+        "risk_level": "Alto",
+        "mitigation": [
+          "Abordar por subcarpeta: inputs/, outputs/, luego transcriber/translator/tts",
+          "Mantener type: ignore solo con comentario y ticket/issue",
+          "No cambiar lógica de runtime; solo tipos y casts mínimos"
+        ]
+      }
+    },
+    {
+      "id": 76,
+      "name": "mypy_cli_strict",
+      "title": "mypy strict en cli/ (Fase 2 — G1)",
+      "status": "done",
+      "completed_date": "2026-05-18",
+      "area": "typing",
+      "priority": "Alta",
+      "phase": "2-type-safety",
+      "plan_ref": "G1",
+      "description": "Incluir cli/ en mypy strict: quitar exclude global, añadir override cli.* y corregir tipos en client HTTP/WS, commands y TUI.",
+      "problems_identified": [
+        "pyproject.toml excluye cli/ del análisis mypy (exclude list)",
+        "CLI/TUI tiene ~13% cobertura de integración pero tipos no verificados",
+        "Errores de tipo en Textual/Click no se detectan hasta runtime"
+      ],
+      "acceptance": [
+        "cli/ eliminado de [tool.mypy] exclude",
+        "Override cli.* con strict = true, ignore_errors = false",
+        "mypy cli/ — 0 errores",
+        "CI incluye mypy cli/",
+        "init.ps1 -Quick verde"
+      ],
+      "files_to_touch": [
+        "pyproject.toml (exclude + overrides cli.*)",
+        ".github/workflows/ci.yml",
+        "cli/client/*.py",
+        "cli/commands/*.py",
+        "cli/tui/**/*.py",
+        "cli/main.py"
+      ],
+      "dependencies": ["F74"],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Puede ejecutarse en paralelo con F75 si no tocan pyproject al mismo tiempo",
+          "Textual: usar tipos de textual.widgets donde aplique",
+          "Tests CLI existentes (tests/cli/) validan comportamiento"
+        ]
+      }
+    },
+    {
+      "id": 77,
+      "name": "frontend_typescript_strict",
+      "title": "TypeScript/ESLint strict en frontend (Fase 2 — F2, F3)",
+      "status": "done",
+      "area": "frontend",
+      "priority": "Alta",
+      "phase": "2-type-safety",
+      "plan_ref": "F2,F3,F4",
+      "description": "Endurecer calidad de tipos en frontend: no-explicit-any como error, eliminar ignoreDeprecations, unificar ESLint en eslint.config.js flat config.",
+      "problems_identified": [
+        "@typescript-eslint/no-explicit-any en warn (eslint.config.js y .eslintrc.json duplicado)",
+        "tsconfig.json con ignoreDeprecations: 5.0",
+        "Dos configs ESLint (.eslintrc.json + eslint.config.js) generan confusión",
+        "console.log restante en frontend/src/lib/api.ts:404"
+      ],
+      "acceptance": [
+        "no-explicit-any: error en eslint.config.js",
+        "Eliminar frontend/.eslintrc.json si eslint.config.js es la fuente única",
+        "Quitar ignoreDeprecations de tsconfig.json; tsc --noEmit sin warnings de deprecación",
+        "Eliminar console.log en api.ts (o reemplazar por logger condicional debug)",
+        "npm run lint y npx tsc --noEmit pasan en frontend/",
+        "init.ps1 -Quick verde (incluye tsc si está en init)"
+      ],
+      "files_to_touch": [
+        "frontend/eslint.config.js",
+        "frontend/.eslintrc.json (ELIMINAR si redundante)",
+        "frontend/tsconfig.json",
+        "frontend/src/lib/api.ts",
+        "frontend/package.json (scripts lint si hace falta)"
+      ],
+      "dependencies": ["F74"],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Corregir anys por archivo (api.ts, pipeline-control, signals primero)",
+          "No cambiar comportamiento UI; solo tipos y lint",
+          "Vitest existente valida regresiones"
+        ]
+      }
+    },
+    {
+      "id": 78,
+      "name": "unified_pipeline_refactor",
+      "title": "Refactor unified_pipeline — circuit breaker y metrics (Fase 3 — B3)",
+      "status": "pending",
+      "area": "core",
+      "priority": "Alta",
+      "phase": "3-refactor",
+      "plan_ref": "B3",
+      "description": "Dividir core/unified_pipeline.py (~1000+ líneas) extrayendo circuit breaker, métricas de pipeline y lógica de reconfigure a módulos dedicados sin cambiar API pública.",
+      "problems_identified": [
+        "unified_pipeline.py concentra estado, métricas, reconfigure, circuit breaker y status",
+        "Difícil de testear y revisar en PRs grandes",
+        "F66 solo refactorizó strategies.py, no el orquestador"
+      ],
+      "acceptance": [
+        "Nuevos módulos: core/circuit_breaker.py (o core/pipeline/circuit_breaker.py), core/pipeline_metrics.py",
+        "UnifiedPipeline importa y delega; API pública sin breaking changes",
+        "Tests unitarios existentes de pipeline pasan sin modificar asserts de comportamiento",
+        "Cobertura de nuevos módulos con tests dedicados (test_circuit_breaker, test_pipeline_metrics)",
+        "mypy 0 errores en core/ tras el split",
+        "init.ps1 -Quick verde"
+      ],
+      "files_to_touch": [
+        "core/unified_pipeline.py (reducir tamaño, delegar)",
+        "core/circuit_breaker.py (NUEVO)",
+        "core/pipeline_metrics.py (NUEVO)",
+        "tests/unit/test_unified_pipeline.py",
+        "tests/unit/test_pipeline_metrics.py (NUEVO)"
+      ],
+      "dependencies": ["F75"],
+      "risk_assessment": {
+        "risk_level": "Alto",
+        "mitigation": [
+          "Extracción mecánica primero (mover código sin cambiar lógica)",
+          "Un commit por extracción (metrics, luego circuit breaker, luego reconfigure)",
+          "Comparar get_status() antes/después en test de snapshot"
+        ]
+      }
+    },
+    {
+      "id": 79,
+      "name": "piper_worker_extract",
+      "title": "Extraer piper worker a módulo separado (Fase 3 — B4)",
+      "status": "pending",
+      "area": "modules",
+      "priority": "Alta",
+      "phase": "3-refactor",
+      "plan_ref": "B4",
+      "description": "Refactorizar modules/piper_loader.py (~800 líneas): mover el script de worker persistente a modules/piper_worker.py (o scripts/piper_worker.py importable) y dejar PiperSubprocessManager como orquestador.",
+      "problems_identified": [
+        "piper_loader.py mezcla subprocess manager, script inline del worker y lógica GPU",
+        "Worker script embebido dificulta tests y mypy",
+        "F74 dejó excepts con logging pero el archivo sigue siendo monolítico"
+      ],
+      "acceptance": [
+        "Worker ejecutable/importable en modules/piper_worker.py (sin string gigante inline)",
+        "piper_loader.py < 500 líneas; solo manager + IPC",
+        "Comportamiento TTS idéntico: tests unitarios piper existentes pasan",
+        "init.ps1 -Quick verde",
+        "mypy modules/piper_loader.py y piper_worker.py sin ignore_errors (si F75 done)"
+      ],
+      "files_to_touch": [
+        "modules/piper_loader.py",
+        "modules/piper_worker.py (NUEVO)",
+        "tests/unit/test_piper_loader.py (o equivalente)",
+        "modules/tts_engine.py (imports si cambian)"
+      ],
+      "dependencies": ["F75"],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Mantener mismo protocolo JSON stdin/stdout del worker",
+          "Test de humo con mock subprocess antes de GPU real",
+          "Rollback fácil: worker en archivo separado pero misma interfaz"
+        ]
+      }
+    },
+    {
+      "id": 80,
+      "name": "frontend_modular_control_i18n",
+      "title": "Modularizar pipeline-control e i18n JSON (Fase 3 — B5, B6)",
+      "status": "pending",
+      "area": "frontend",
+      "priority": "Alta",
+      "phase": "3-refactor",
+      "plan_ref": "B5,B6,F7",
+      "description": "Dividir frontend/src/lib/modules/pipeline-control.ts (~700+ líneas) en ws-manager, polling, config y presets; extraer i18n.ts (~700+ líneas) a locales/es.json y locales/en.json con loader tipado.",
+      "problems_identified": [
+        "pipeline-control.ts mezcla WS, polling adaptativo, config push, presets y acciones de pipeline",
+        "i18n.ts monolítico dificulta traducciones y tree-shaking",
+        "F77 puede introducir tipos estrictos; conviene modularizar después o en paralelo con cuidado"
+      ],
+      "acceptance": [
+        "Nuevos módulos: ws-manager.ts, polling.ts, config-client.ts, presets-client.ts (nombres finales documentados en AGENTS.md)",
+        "pipeline-control.ts re-exporta API pública actual (sin breaking imports en Astro/TS)",
+        "locales/es.json, locales/en.json + i18n/index.ts con tipos TranslationKey",
+        "Imports existentes desde pipeline-control siguen funcionando (barrel)",
+        "npx tsc --noEmit y npm test pasan en frontend/",
+        "init.ps1 -Quick verde"
+      ],
+      "files_to_touch": [
+        "frontend/src/lib/modules/pipeline-control.ts",
+        "frontend/src/lib/modules/ws-manager.ts (NUEVO)",
+        "frontend/src/lib/modules/polling.ts (NUEVO)",
+        "frontend/src/lib/modules/config-client.ts (NUEVO)",
+        "frontend/src/lib/modules/presets-client.ts (NUEVO)",
+        "frontend/src/lib/i18n.ts → frontend/src/lib/i18n/index.ts + locales/*.json",
+        "frontend/src/**/*.astro (imports si cambian paths)",
+        "AGENTS.md (sección frontend modules)"
+      ],
+      "dependencies": ["F77"],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Barrel re-exports evitan romper 20+ import sites de golpe",
+          "i18n: migrar un idioma primero, validar UI, luego el segundo",
+          "Vitest + build:local antes de cerrar"
+        ]
+      }
     }
   ]
 }

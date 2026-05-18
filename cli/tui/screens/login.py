@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from typing import Any
+
 from textual.app import ComposeResult
 from textual.screen import Screen
 from textual.widgets import Button, Input, Label
 
 
-class LoginScreen(Screen):
+class LoginScreen(Screen[Any]):
     def compose(self) -> ComposeResult:
         yield Label("Authentication Required", classes="title")
         yield Input(placeholder="Username", id="username")
@@ -18,10 +20,16 @@ class LoginScreen(Screen):
             username = self.query_one("#username", Input).value
             password = self.query_one("#password", Input).value
             try:
-                token = await self.app.api.login(username, password)
+                api = getattr(self.app, "api", None)
+                if api is None:
+                    self.notify("API client not available", severity="error")
+                    return
+                token = await api.login(username, password)
                 if token:
-                    self.app.api.token = token
-                    self.app.ws.token = token
+                    api.token = token
+                    ws = getattr(self.app, "ws", None)
+                    if ws is not None:
+                        ws.token = token
                     self.dismiss(True)
                 else:
                     self.notify("Login failed", severity="error")

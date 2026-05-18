@@ -67,6 +67,7 @@ try:
 
     requests.post = _sandbox_safe_requests_post
 except Exception:
+    # Sandbox setup failed, tests will use default behavior
     pass
 
 
@@ -157,8 +158,9 @@ Subtitle example
 def small_audio_chunk() -> dict:
     """Small audio chunk for testing."""
     import tempfile
+
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
-        f.write(b'\x00\x00\x00\x00')  # Minimal WAV header
+        f.write(b"\x00\x00\x00\x00")  # Minimal WAV header
         path = f.name
     return {
         "path": path,
@@ -185,7 +187,9 @@ def mock_whisper_model():
 def config_factory():
     """Factory for creating test configurations."""
     from core.config_manager import ConfigManager
+
     cm = ConfigManager()
+
     def _factory(**overrides):
         config = cm.get()
         for key, value in overrides.items():
@@ -195,6 +199,7 @@ def config_factory():
             else:
                 setattr(config, key, value)
         return config
+
     return _factory
 
 
@@ -202,6 +207,7 @@ def config_factory():
 def chunk_factory():
     """Factory for creating PipelineData chunks."""
     from core.pipeline.base import PipelineData
+
     def _factory(**overrides):
         defaults = {
             "chunk_index": 0,
@@ -214,6 +220,7 @@ def chunk_factory():
         }
         defaults.update(overrides)
         return PipelineData(**defaults)
+
     return _factory
 
 

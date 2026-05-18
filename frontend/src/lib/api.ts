@@ -401,11 +401,7 @@ export class WSClient {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
       const delay = this.calculateBackoff();
-      console.log(
-        `[WS] Reconnecting in ${delay.toFixed(0)}ms (attempt ${
-          this.reconnectAttempts
-        }/${this.maxReconnectAttempts})`,
-      );
+      // Reconnecting with backoff
       setTimeout(() => {
         this.connect();
       }, delay);

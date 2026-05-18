@@ -2,6 +2,8 @@
 Clase base para outputs - proporciona funcionalidad común.
 """
 
+from typing import Any
+
 from core.output_sink import OutputSink
 
 
@@ -12,7 +14,7 @@ class BaseOutput(OutputSink):
     Proporciona utilidades compartidas para todos los outputs.
     """
 
-    def __init__(self, name: str, config: dict):
+    def __init__(self, name: str, config: dict[str, Any]) -> None:
         super().__init__(name, config)
         self._segment_duration = config.get("segment_duration", 15)
         self._hls_dir: str = ""
@@ -30,4 +32,4 @@ class BaseOutput(OutputSink):
 
     def get_segment_duration(self) -> float:
         """Obtener duración configurada de segmentos."""
-        return self._segment_duration
+        return float(self._segment_duration)

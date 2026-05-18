@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from collections.abc import Sequence
 
 
 def get_creation_flags() -> int:
@@ -16,3 +17,8 @@ def get_creation_flags() -> int:
     if sys.platform == "win32":
         return subprocess.CREATE_NO_WINDOW
     return 0
+
+
+def filter_command(cmd: Sequence[str | None]) -> list[str]:
+    """Drop None entries from an argv list before subprocess calls."""
+    return [part for part in cmd if part is not None]

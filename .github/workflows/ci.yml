@@ -37,8 +37,8 @@ jobs:
 
       - name: Type check with MyPy
         run: |
-          mypy core/ modules/ server/ --config-file pyproject.toml
-        continue-on-error: true
+          mypy core/ modules/ server/ cli/ --config-file pyproject.toml
+        continue-on-error: false
 
       - name: Run tests
         run: |

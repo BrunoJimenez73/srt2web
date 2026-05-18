@@ -185,6 +185,7 @@ def get_video_duration(file_path: str, ffprobe_path: Optional[str] = None) -> fl
         )
         return float(result.stdout.strip())
     except Exception:
+        # Non-critical: duration check is best-effort
         return 0.0
 
 
@@ -195,11 +196,12 @@ def check_srt_support(ffmpeg_path: str) -> bool:
             [ffmpeg_path, "-protocols"],
             capture_output=True,
             text=True,
-            timeout=5,  # Reduced timeout
+            timeout=5,
             creationflags=_get_creation_flags(),
         )
         return "srt" in result.stdout.lower()
     except Exception:
+        # Non-critical: SRT support check is best-effort
         return False
 
 
@@ -506,4 +508,5 @@ def check_videotoolbox_support() -> bool:
         output = (result.stderr + result.stdout).lower()
         return "h264_videotoolbox" in output
     except Exception:
+        # Non-critical: VideoToolbox check is best-effort
         return False

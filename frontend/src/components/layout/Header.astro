@@ -5,7 +5,7 @@ type HeaderProps = {
   version?: string;
 };
 
-const { version = '0.6.1' }: HeaderProps = Astro.props;
+const { version = 'dev' }: HeaderProps = Astro.props;
 ---
 
 <header class="flex justify-between items-center mb-4 pb-3 border-b border-white/8">

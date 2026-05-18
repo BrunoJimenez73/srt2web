@@ -62,14 +62,14 @@ class ConfigManager:
         """Find config.yaml relative to the project root."""
         project_root = Path(__file__).parent.parent
         candidates = [
-            project_root / "config" / "config.yaml",
+            project_root / "config.yaml",
             project_root / "config.yml",
-            Path.cwd() / "config" / "config.yaml",
+            Path.cwd() / "config.yaml",
         ]
         for candidate in candidates:
             if candidate.exists():
                 return str(candidate)
-        return str(project_root / "config" / "config.yaml")
+        return str(project_root / "config.yaml")
 
     def _load(self) -> None:
         """Load configuration from YAML file, merging with defaults."""
@@ -202,8 +202,8 @@ class ConfigManager:
             try:
                 with open(path, encoding="utf-8") as f:
                     return cast(dict[str, Any], json.load(f))
-            except Exception:
-                logger.warning(f"Could not load presets from {path}")
+            except Exception as e:
+                logger.warning("Could not load presets from %s: %s", path, e)
         return {}
 
     def _save_presets(self, presets: dict[str, Any]) -> None:

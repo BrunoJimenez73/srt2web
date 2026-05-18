@@ -10,7 +10,7 @@ from textual.screen import Screen
 from textual.widgets import Button, Static
 
 
-class RecordingsScreen(Screen):
+class RecordingsScreen(Screen[Any]):
     CSS = """
     Screen {
         background: $surface;
@@ -59,7 +59,7 @@ class RecordingsScreen(Screen):
     def __init__(self, api_client: Any):
         super().__init__()
         self.api_client = api_client
-        self._recordings: list[dict] = []
+        self._recordings: list[dict[str, Any]] = []
         self._selected: int = 0
 
     def compose(self) -> ComposeResult:
@@ -93,6 +93,7 @@ class RecordingsScreen(Screen):
             content = self.query_one("#rec-content", Static)
             summary = self.query_one("#summary-bar", Static)
         except Exception:
+            # UI elements not yet mounted, skip render
             return
 
         summary.update(Text(f"{len(self._recordings)} recording(s)", style="dim"))

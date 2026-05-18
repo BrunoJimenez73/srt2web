@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import asyncio
+import json
+
 import click
 
 from cli.client.http_client import APIClient
@@ -46,20 +49,16 @@ async def run_input_control(api: APIClient, action: str, value: float | None, js
 
 
 @click.group()
-def input():
+def input() -> None:
     """Input control commands."""
-    pass
 
 
 @input.command()
 @click.option("-j", "--json", "json_output", is_flag=True, help="Output as JSON")
-def info(json_output: bool):
+def info(json_output: bool) -> None:
     """Get information about the current input."""
-    import asyncio
 
-    from cli.client.http_client import APIClient
-
-    async def _run():
+    async def _run() -> int:
         api = APIClient()
         try:
             return await run_input_info(api, json_output)
@@ -72,13 +71,10 @@ def info(json_output: bool):
 
 @input.command()
 @click.option("-j", "--json", "json_output", is_flag=True, help="Output as JSON")
-def play(json_output: bool):
+def play(json_output: bool) -> None:
     """Start or resume input playback."""
-    import asyncio
 
-    from cli.client.http_client import APIClient
-
-    async def _run():
+    async def _run() -> int:
         api = APIClient()
         try:
             return await run_input_control(api, "play", None, json_output)
@@ -91,13 +87,10 @@ def play(json_output: bool):
 
 @input.command()
 @click.option("-j", "--json", "json_output", is_flag=True, help="Output as JSON")
-def pause(json_output: bool):
+def pause(json_output: bool) -> None:
     """Pause input playback."""
-    import asyncio
 
-    from cli.client.http_client import APIClient
-
-    async def _run():
+    async def _run() -> int:
         api = APIClient()
         try:
             return await run_input_control(api, "pause", None, json_output)
@@ -111,13 +104,10 @@ def pause(json_output: bool):
 @input.command()
 @click.argument("position", type=float)
 @click.option("-j", "--json", "json_output", is_flag=True, help="Output as JSON")
-def seek(position: float, json_output: bool):
+def seek(position: float, json_output: bool) -> None:
     """Seek to a specific position in seconds."""
-    import asyncio
 
-    from cli.client.http_client import APIClient
-
-    async def _run():
+    async def _run() -> int:
         api = APIClient()
         try:
             return await run_input_control(api, "seek", position, json_output)

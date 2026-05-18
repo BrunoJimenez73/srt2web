@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 
 import click
@@ -166,20 +167,16 @@ async def run_output_update(
 
 
 @click.group()
-def output():
+def output() -> None:
     """Output management commands."""
-    pass
 
 
 @output.command()
 @click.option("-j", "--json", "json_output", is_flag=True, help="Output as JSON")
-def list(json_output: bool):
+def list(json_output: bool) -> None:
     """List all outputs."""
-    import asyncio
 
-    from cli.client.http_client import APIClient
-
-    async def _run():
+    async def _run() -> int:
         api = APIClient()
         try:
             return await run_output_list(api, json_output)
@@ -195,13 +192,10 @@ def list(json_output: bool):
 @click.option("--name", help="Name for the output")
 @click.option("--config", help="JSON configuration for the output")
 @click.option("-j", "--json", "json_output", is_flag=True, help="Output as JSON")
-def add(output_type: str, name: str | None, config: str | None, json_output: bool):
+def add(output_type: str, name: str | None, config: str | None, json_output: bool) -> None:
     """Add a new output."""
-    import asyncio
 
-    from cli.client.http_client import APIClient
-
-    async def _run():
+    async def _run() -> int:
         api = APIClient()
         try:
             return await run_output_add(api, output_type, name, config, json_output)
@@ -215,13 +209,10 @@ def add(output_type: str, name: str | None, config: str | None, json_output: boo
 @output.command()
 @click.argument("name")
 @click.option("-j", "--json", "json_output", is_flag=True, help="Output as JSON")
-def remove(name: str, json_output: bool):
+def remove(name: str, json_output: bool) -> None:
     """Remove an output."""
-    import asyncio
 
-    from cli.client.http_client import APIClient
-
-    async def _run():
+    async def _run() -> int:
         api = APIClient()
         try:
             return await run_output_remove(api, name, json_output)
@@ -237,13 +228,10 @@ def remove(name: str, json_output: bool):
 @click.option("--enable", is_flag=True, help="Enable the output")
 @click.option("--disable", is_flag=True, help="Disable the output")
 @click.option("-j", "--json", "json_output", is_flag=True, help="Output as JSON")
-def toggle(name: str, enable: bool, disable: bool, json_output: bool):
+def toggle(name: str, enable: bool, disable: bool, json_output: bool) -> None:
     """Enable or disable an output."""
-    import asyncio
 
-    from cli.client.http_client import APIClient
-
-    async def _run():
+    async def _run() -> int:
         api = APIClient()
         try:
             return await run_output_toggle(api, name, enable, disable, json_output)
@@ -260,13 +248,10 @@ def toggle(name: str, enable: bool, disable: bool, json_output: bool):
 @click.option("--enable", is_flag=True, help="Enable the output")
 @click.option("--disable", is_flag=True, help="Disable the output")
 @click.option("-j", "--json", "json_output", is_flag=True, help="Output as JSON")
-def update(name: str, config: str | None, enable: bool, disable: bool, json_output: bool):
+def update(name: str, config: str | None, enable: bool, disable: bool, json_output: bool) -> None:
     """Update an output's configuration or enabled state."""
-    import asyncio
 
-    from cli.client.http_client import APIClient
-
-    async def _run():
+    async def _run() -> int:
         api = APIClient()
         try:
             return await run_output_update(api, name, config, enable, disable, json_output)

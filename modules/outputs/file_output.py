@@ -8,7 +8,7 @@ Useful for archiving or further processing.
 import logging
 import os
 import shutil
-from typing import Optional
+from typing import Any, Optional
 
 from core.module_base import PipelineData
 from modules.outputs.base import BaseOutput
@@ -26,7 +26,7 @@ class FileOutput(BaseOutput):
     - subtitles/chunk_000001.vtt
     """
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: Optional[dict[str, Any]] = None):
         super().__init__("file", config or {})
         self._video_dir = ""
         self._audio_dir = ""
@@ -36,7 +36,7 @@ class FileOutput(BaseOutput):
         self._save_audio = True
         self._save_subtitles = True
 
-    def configure(self, config: dict) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         """Apply configuration."""
         super().configure(config)
         self._save_video = config.get("save_video", True)
@@ -116,7 +116,7 @@ class FileOutput(BaseOutput):
             self._update_write_stats(total_bytes)
             self._clear_error()
 
-    def get_stream_info(self) -> dict:
+    def get_stream_info(self) -> dict[str, Any]:
         """Get file output information."""
         return {
             "type": "file",
@@ -129,7 +129,7 @@ class FileOutput(BaseOutput):
 
 
 # Auto-register
-def _register():
+def _register() -> None:
     """Auto-register this output module."""
     try:
         from core.io_factory import OutputFactory

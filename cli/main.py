@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import sys
 from typing import Optional
 
 import click
-import colorama
+import colorama  # type: ignore[import-untyped]
 from rich.console import Console
+
+logger = logging.getLogger("srt2web.cli")
 
 colorama.init()
 
@@ -14,22 +17,23 @@ colorama.init()
 if hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Could not reconfigure stdout encoding: %s", e)
 if hasattr(sys.stderr, "reconfigure"):
     try:
         sys.stderr.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Could not reconfigure stderr encoding: %s", e)
 
 from cli.client.http_client import DEFAULT_SERVER, APIClient
+from core.version import get_version
 
 
 @click.group(invoke_without_command=True)
 @click.option("--server", "-s", default=DEFAULT_SERVER, help="Server base URL (default: http://localhost:9999)")
 @click.option("--token", "-t", default=None, help="Auth token for protected servers")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
-@click.version_option(version="0.6.8", prog_name="srt2web-tui")
+@click.version_option(version=get_version(), prog_name="srt2web-tui")
 @click.pass_context
 def cli(ctx: click.Context, server: str, token: Optional[str], json_output: bool) -> None:
     """srt2web CLI + TUI — Monitor and control the srt2web pipeline from the terminal."""
@@ -42,7 +46,7 @@ def cli(ctx: click.Context, server: str, token: Optional[str], json_output: bool
         # Default: launch TUI
         from cli.tui.app import run_tui
 
-        asyncio.run(run_tui(server=server, token=token))
+        run_tui(server=server, token=token)
 
 
 @cli.command()
@@ -51,7 +55,7 @@ def cli(ctx: click.Context, server: str, token: Optional[str], json_output: bool
 def pipeline(ctx: click.Context, action: str) -> None:
     """Control the pipeline: start, stop, or restart."""
 
-    async def _run():
+    async def _run() -> int:
         api = APIClient(ctx.obj["server"], ctx.obj["token"])
         console = Console()
         try:
@@ -59,11 +63,11 @@ def pipeline(ctx: click.Context, action: str) -> None:
                 from cli.commands.start import run_start
 
                 return await run_start(api, console, ctx.obj["json"])
-            elif action == "stop":
+            if action == "stop":
                 from cli.commands.stop import run_stop
 
                 return await run_stop(api, console, ctx.obj["json"])
-            elif action == "restart":
+            if action == "restart":
                 result = await api.restart_pipeline()
                 if ctx.obj["json"]:
                     import json
@@ -72,6 +76,7 @@ def pipeline(ctx: click.Context, action: str) -> None:
                 else:
                     console.print("[green]✓ Pipeline restarted[/]")
                 return 0
+            return 1
         finally:
             await api.close()
 
@@ -92,7 +97,7 @@ def config(ctx: click.Context, key: Optional[str], value: Optional[str]) -> None
     With KEY and VALUE, sets the configuration parameter.
     """
 
-    async def _run():
+    async def _run() -> int:
         api = APIClient(ctx.obj["server"], ctx.obj["token"])
         console = Console()
         try:
@@ -143,7 +148,7 @@ def logs(ctx: click.Context, follow: bool, no_follow: bool, level: Optional[str]
 def status(ctx: click.Context) -> None:
     """Show pipeline status, modules, and system resources."""
 
-    async def _run():
+    async def _run() -> int:
         api = APIClient(ctx.obj["server"], ctx.obj["token"])
         console = Console()
         try:
@@ -170,7 +175,7 @@ def tui(ctx: click.Context) -> None:
 def health(ctx: click.Context) -> None:
     """Show detailed system health."""
 
-    async def _run():
+    async def _run() -> int:
         api = APIClient(ctx.obj["server"], ctx.obj["token"])
         console = Console()
         try:
@@ -194,7 +199,7 @@ def health(ctx: click.Context) -> None:
 
 
 @cli.command()
-def module():
+def module() -> None:
     """Module management commands."""
     from cli.commands.module import module
 
@@ -202,7 +207,7 @@ def module():
 
 
 @cli.command()
-def output():
+def output() -> None:
     """Output management commands."""
     from cli.commands.output import output
 
@@ -210,7 +215,7 @@ def output():
 
 
 @cli.command()
-def preset():
+def preset() -> None:
     """Preset management commands."""
     from cli.commands.preset import preset
 
@@ -218,7 +223,7 @@ def preset():
 
 
 @cli.command()
-def recording():
+def recording() -> None:
     """Recording management commands."""
     from cli.commands.recording import recording
 
@@ -226,7 +231,7 @@ def recording():
 
 
 @cli.command()
-def input():
+def input() -> None:
     """Input control commands."""
     from cli.commands.input import input
 
@@ -234,7 +239,7 @@ def input():
 
 
 @cli.command()
-def network():
+def network() -> None:
     """Network information commands."""
     from cli.commands.network import network
 

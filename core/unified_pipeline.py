@@ -25,7 +25,7 @@ import typing
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import psutil
 
@@ -35,10 +35,13 @@ from core.module_base import BaseModule, PipelineData
 from core.schemas import SystemMetrics
 from core.webhook_manager import webhook_manager
 
-try:
+if TYPE_CHECKING:
     from modules.outputs.composite_output import CompositeOutput
+
+try:
+    from modules.outputs.composite_output import CompositeOutput as _CompositeOutput
 except ImportError:
-    CompositeOutput = None
+    _CompositeOutput = None  # type: ignore[misc, assignment]
 
 try:
     from core.pipeline.strategies import (
@@ -217,7 +220,9 @@ class UnifiedPipeline:
         outputs = OutputFactory.create_multiple(output_configs)
 
         # Crear composite output
-        self._output_sink = CompositeOutput({})
+        if _CompositeOutput is None:
+            raise ImportError("CompositeOutput is not available")
+        self._output_sink = _CompositeOutput({})
         for output in outputs:
             self._output_sink.add_output(output.name, output)
 
@@ -229,9 +234,9 @@ class UnifiedPipeline:
         """Obtener destino de salida (para compatibilidad)."""
         return self._output_sink
 
-    def get_output_sinks(self) -> Optional[CompositeOutput]:
+    def get_output_sinks(self) -> Optional["CompositeOutput"]:
         """Obtener el CompositeOutput si el sink actual es uno."""
-        if CompositeOutput and isinstance(self._output_sink, CompositeOutput):
+        if _CompositeOutput is not None and isinstance(self._output_sink, _CompositeOutput):
             return self._output_sink
         return None
 
@@ -284,8 +289,8 @@ class UnifiedPipeline:
         if self._on_log:
             try:
                 self._on_log(level, message)
-            except Exception:
-                logger.exception("Log callback failed")
+            except Exception as e:
+                logger.exception("Log callback failed: %s", e)
 
     def process_with_strategy(self, data: PipelineData) -> PipelineData:
         """
@@ -830,8 +835,8 @@ class UnifiedPipeline:
         process_memory_mb: Optional[float] = None
         try:
             process_memory_mb = round(psutil.Process().memory_info().rss / 1024 / 1024, 1)
-        except Exception:
-            logger.warning("Failed to read process memory")
+        except Exception as e:
+            logger.warning("Failed to read process memory: %s", e)
 
         modules_status = []
         for module in self._modules:
@@ -863,8 +868,8 @@ class UnifiedPipeline:
                 modules_status.append(output_status)
                 if muxer_status:
                     modules_status.append(muxer_status)
-        except Exception:
-            logger.warning("Failed to get output module status")
+        except Exception as e:
+            logger.warning("Failed to get output module status: %s", e)
 
         # Agregar status del input source al inicio de la lista
         try:
@@ -879,8 +884,8 @@ class UnifiedPipeline:
                         if "name" not in status_dict:
                             status_dict["name"] = "input"
                         modules_status.insert(0, status_dict)
-        except Exception:
-            logger.warning("Failed to get input source status")
+        except Exception as e:
+            logger.warning("Failed to get input source status: %s", e)
 
         # Métricas del pipeline
         avg_time = self._pipeline_metrics.avg_processing_time
@@ -893,8 +898,8 @@ class UnifiedPipeline:
         if self._strategy:
             try:
                 strategy_metrics = self._strategy.get_metrics()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Suppressed error: %s", e, exc_info=True)
 
         return {
             "state": self._state.value,
@@ -1013,8 +1018,8 @@ class UnifiedPipeline:
                             "circuit_state": "closed",
                             "memory_mb": None,
                         }
-            except Exception:
-                logger.warning("Failed to get video muxer status")
+            except Exception as e:
+                logger.warning("Failed to get video muxer status: %s", e)
 
         output_status = {
             "name": "output",

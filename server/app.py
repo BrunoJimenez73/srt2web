@@ -18,8 +18,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from server.api_routes import create_api_router
-from server.routes.metrics import router as metrics_router
 from server.routes.auth import router as auth_router
+from server.routes.metrics import router as metrics_router
 from server.routes.recordings import router as recordings_router
 from server.security import (
     AuthMiddleware,
@@ -37,6 +37,16 @@ PROJECT_ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = PROJECT_ROOT / "output"
 FRONTEND_DIR = PROJECT_ROOT / "server" / "static"
 WEB_DIR = PROJECT_ROOT / "web"
+
+
+def _get_version() -> str:
+    """Read version from pyproject.toml via importlib.metadata."""
+    try:
+        from importlib.metadata import PackageNotFoundError, version
+
+        return version("srt2web")
+    except (PackageNotFoundError, ImportError):
+        return "0.6.8"
 
 
 def create_app(app_context: dict[str, Any]) -> FastAPI:
@@ -83,7 +93,7 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
     app = FastAPI(
         title="SRT2Web",
         description="Modular SRT Stream Processor",
-        version="0.4.0",
+        version=_get_version(),
         docs_url="/api/docs",
         redoc_url="/api/redoc",
         openapi_url="/api/openapi.json",
@@ -145,7 +155,6 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
 
     app.state.ctx = app_context
 
-
     api_router = create_api_router()
     app.include_router(api_router, prefix="/api")
 
@@ -202,8 +211,8 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
                 # Close the connection without accepting (let websocket routes handle it)
                 try:
                     await send({"type": "websocket.close", "code": 1003})
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Suppressed error: %s", e, exc_info=True)
                 return
             await static_files(scope, receive, send)
 

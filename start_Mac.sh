@@ -70,7 +70,7 @@ echo -e "${BLUE}[2/4] Verificando configuración...${NC}"
 
 if [ ! -f "config.yaml" ]; then
     echo -e "${BLUE} Creando config.yaml por defecto...${NC}"
-    cp config/config.yaml config.yaml 2>/dev/null || echo "version: '0.6.2'" > config.yaml
+    echo "version: '0.6.8'" > config.yaml
     echo -e "${GREEN} ✓ Configuración creada${NC}"
 fi
 
@@ -82,20 +82,20 @@ echo -e "${BLUE}[3/4] Verificando frontend...${NC}"
 
 if [ ! -d "server/static" ] || [ ! -f "server/static/index.html" ]; then
     echo -e "${BLUE} Construyendo frontend...${NC}"
-    
+
     if [ -d "frontend" ] && [ -f "frontend/package.json" ]; then
         cd frontend
-        
+
         # Instalar dependencias si es necesario
         if [ ! -d "node_modules" ]; then
             echo -e "${BLUE} Instalando dependencias de frontend...${NC}"
             npm install --silent
         fi
-        
+
         # Construir
         echo -e "${BLUE} Construyendo frontend...${NC}"
         npm run build:local --silent
-        
+
         cd ..
         echo -e "${GREEN} ✓ Frontend construido${NC}"
     else

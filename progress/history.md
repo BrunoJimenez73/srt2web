@@ -1,5 +1,27 @@
 # Historial de sesiones
 
+## 2026-05-18 — F74 repo_cleanup_phase1 + F75 mypy_modules + F76 mypy_cli
+
+### F74 — Repo Cleanup Phase 1
+
+- **Eliminados:** `files/` (38 archivos huérfanos), `desktop/` (13 entradas, Electron abandonada), `temp_mypy_errors.txt`, `output.txt`, `skills-lock.json`, `tmppytest-srt2web/`
+- **Version unification:** `server/app.py` usa `importlib.metadata.version()`, frontend headers default a `'dev'`
+- **Error handling:** 29 bloques `except Exception:` reemplazados con logging o comentarios de intención
+- **Tests:** 5 tests pre-existentes rotos fixeados (path comparison, ModuleStatus vs dict)
+- **Config:** `config/config.yaml` duplicado eliminado
+
+### F75 — mypy gradual en modules/
+
+- **Resultado:** `modules/` ya estaba type-clean bajo `strict = true`
+- **Verificación:** `mypy core/ server/ modules/ --strict` → 0 errores (87 archivos)
+
+### F76 — mypy strict en cli/
+
+- **Resultado:** `cli/` ahora type-clean bajo `strict = true` (211 → 0 errores, 34 archivos)
+- **Cambios:** imports asyncio/json al top, `-> None` en click commands, `cast()` en http_client, `Screen[Any]`/`Task[Any]` tipados
+- **Verificación:** `mypy core/ server/ modules/ cli/ --strict` → 0 errores (121 archivos)
+- **init.ps1 -Quick:** ✅ Verde
+
 ## 2026-05-11 — fix_dependency_management
 
 - **Archivos:** pyproject.toml, requirements.txt, config/config.yaml, .github/workflows/ci.yml
@@ -404,3 +426,26 @@ All 65 features in feature_list.json have been completed:
 - ✅ 202 CLI/TUI tests pasan (F55-F58 + nuevos tests)
 - ✅ feature_list.json actualizado (65 features, 0 in_progress)
 - ✅ CHECKPOINTS.md pendiente de revisión
+
+## 2026-05-18 — F75 mypy_modules_gradual
+
+- **Resultado:** `modules/` ya estaba type-clean bajo `strict = true`
+- **Verificación:** `mypy core/ server/ modules/ --strict` → 0 errores (87 archivos)
+- **init.ps1 -Quick:** ✅ Verde
+- **Nota:** pyproject.toml ya tenía `modules.*` con `strict=true`, `ignore_errors=false`
+
+## 2026-05-18 — F74 repo_cleanup_phase1
+
+- **Archivos nuevos:** `core/version.py`, `tests/unit/test_version.py`
+- **Eliminados:** `config/config.yaml` (duplicado; fuente única: `config.yaml` raíz)
+- **Cambios:** versiones unificadas vía `get_version()`; `ConfigManager` solo busca `config.yaml` raíz; 31+ `except Exception: pass` con logging; CI mypy bloqueante
+- **Tests:** 1068 passed (`init.ps1 -Quick`)
+- **init.ps1 -Quick:** OK
+
+## 2026-05-18 — F75 mypy_modules_gradual
+
+- **Baseline:** 267 errores mypy en `modules/` con strict habilitado
+- **Cambios:** `modules.*` strict en pyproject; export `ModuleState`/`ModuleStatus` en `module_base.__all__`; `OutputSink.get_status() -> ModuleStatus`; `filter_command()` en subprocess_utils; anotaciones en 25 archivos de modules/
+- **Tests:** `tests/unit/test_mypy_modules.py` (smoke mypy)
+- **mypy:** 0 errores en core/, server/, modules/
+- **init.ps1 -Quick:** OK

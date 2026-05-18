@@ -7,8 +7,9 @@ These tests verify:
 3. Module settings are properly initialized
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 
 class TestConfigLoadsFromServer:
@@ -25,9 +26,7 @@ class TestConfigLoadsFromServer:
 
         try:
             response = requests.get(f"{running_server_url}/", timeout=5)
-            assert response.status_code == 200, (
-                f"Server returned {response.status_code}"
-            )
+            assert response.status_code == 200, f"Server returned {response.status_code}"
         except requests.exceptions.ConnectionError:
             pytest.skip("Server is not running - start it with python main.py")
 
@@ -37,9 +36,7 @@ class TestConfigLoadsFromServer:
 
         try:
             response = requests.get(f"{running_server_url}/api/config", timeout=5)
-            assert response.status_code == 200, (
-                f"Config endpoint returned {response.status_code}"
-            )
+            assert response.status_code == 200, f"Config endpoint returned {response.status_code}"
             data = response.json()
             assert isinstance(data, dict), "Config should be a dictionary"
         except requests.exceptions.ConnectionError:
@@ -107,9 +104,7 @@ class TestPortConfiguration:
     def test_server_port_is_valid(self, config_data) -> None:
         """Test that server port is in valid range."""
         server_port = config_data.get("server", {}).get("port")
-        assert 1 <= server_port <= 65535, (
-            f"Server port {server_port} is out of valid range"
-        )
+        assert 1 <= server_port <= 65535, f"Server port {server_port} is out of valid range"
 
 
 class TestModuleConfiguration:
@@ -141,9 +136,7 @@ class TestModuleConfiguration:
             pytest.fail("Transcriber should have a model configured")
         if model not in valid_models:
             # Skip if model is invalid - this may happen due to test pollution
-            pytest.skip(
-                f"Transcriber has invalid model: {model}. Valid models: {valid_models}"
-            )
+            pytest.skip(f"Transcriber has invalid model: {model}. Valid models: {valid_models}")
 
         # Device should exist and be valid
         device = transcriber.get("device")
@@ -165,9 +158,7 @@ class TestModuleConfiguration:
         enabled = transcriber.get("enabled")
         # Note: This may be False if config has invalid values
         if enabled is False:
-            pytest.skip(
-                "Transcriber is disabled - may be due to invalid model in config"
-            )
+            pytest.skip("Transcriber is disabled - may be due to invalid model in config")
 
     def test_subtitle_generator_enabled(self, config_data) -> None:
         """Test that subtitle_generator is enabled by default."""
@@ -190,7 +181,7 @@ class TestDashboardHTMLConfig:
         """Load dashboard HTML."""
         html_path = Path(__file__).parent.parent.parent / "web" / "index.html"
         if html_path.exists():
-            with open(html_path, "r", encoding="utf-8") as f:
+            with open(html_path, encoding="utf-8") as f:
                 return f.read()
         return None
 
@@ -251,16 +242,16 @@ class TestConfigFile:
 
     def test_config_yaml_exists(self) -> None:
         """Test that config.yaml exists."""
-        config_path = Path(__file__).parent.parent.parent / "config" / "config.yaml"
+        config_path = Path(__file__).parent.parent.parent / "config.yaml"
         assert config_path.exists(), f"config.yaml not found at {config_path}"
 
     def test_config_yaml_is_valid_yaml(self) -> None:
         """Test that config.yaml is valid YAML."""
         import yaml
 
-        config_path = Path(__file__).parent.parent.parent / "config" / "config.yaml"
+        config_path = Path(__file__).parent.parent.parent / "config.yaml"
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 yaml.safe_load(f)
         except yaml.YAMLError as e:
             pytest.fail(f"config.yaml is not valid YAML: {e}")
@@ -269,45 +260,39 @@ class TestConfigFile:
         """Test that config.yaml has a valid SRT listen port."""
         import yaml
 
-        config_path = Path(__file__).parent.parent.parent / "config" / "config.yaml"
-        with open(config_path, "r", encoding="utf-8") as f:
+        config_path = Path(__file__).parent.parent.parent / "config.yaml"
+        with open(config_path, encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         srt_port = config.get("input", {}).get("srt", {}).get("listen_port")
         assert srt_port is not None, "config.yaml should have input.srt.listen_port"
         assert isinstance(srt_port, int), f"SRT port should be integer, got {type(srt_port)}"
-        assert 1 <= srt_port <= 65535, (
-            f"config.yaml SRT port {srt_port} is out of valid range"
-        )
+        assert 1 <= srt_port <= 65535, f"config.yaml SRT port {srt_port} is out of valid range"
 
     def test_config_yaml_server_port_is_9999(self) -> None:
         """Test that config.yaml has a valid server port."""
         import yaml
 
-        config_path = Path(__file__).parent.parent.parent / "config" / "config.yaml"
-        with open(config_path, "r", encoding="utf-8") as f:
+        config_path = Path(__file__).parent.parent.parent / "config.yaml"
+        with open(config_path, encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         server_port = config.get("server", {}).get("port")
         assert server_port is not None, "config.yaml should have server.port"
-        assert 1 <= server_port <= 65535, (
-            f"config.yaml server port {server_port} is out of valid range"
-        )
+        assert 1 <= server_port <= 65535, f"config.yaml server port {server_port} is out of valid range"
 
     def test_config_yaml_no_port_conflict(self) -> None:
         """Test that config.yaml has no port conflict."""
         import yaml
 
-        config_path = Path(__file__).parent.parent.parent / "config" / "config.yaml"
-        with open(config_path, "r", encoding="utf-8") as f:
+        config_path = Path(__file__).parent.parent.parent / "config.yaml"
+        with open(config_path, encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         server_port = config.get("server", {}).get("port")
         srt_port = config.get("input", {}).get("srt", {}).get("listen_port")
 
-        assert server_port != srt_port, (
-            f"config.yaml has port conflict: server={server_port}, srt={srt_port}"
-        )
+        assert server_port != srt_port, f"config.yaml has port conflict: server={server_port}, srt={srt_port}"
 
 
 class TestAPIEndpoints:
@@ -323,9 +308,7 @@ class TestAPIEndpoints:
 
         try:
             response = requests.get(f"{running_server_url}/api/status", timeout=5)
-            assert response.status_code == 200, (
-                f"Status endpoint returned {response.status_code}"
-            )
+            assert response.status_code == 200, f"Status endpoint returned {response.status_code}"
         except requests.exceptions.ConnectionError:
             pytest.skip("Server is not running")
 
@@ -335,9 +318,7 @@ class TestAPIEndpoints:
 
         try:
             response = requests.get(f"{running_server_url}/api/srt-info", timeout=5)
-            assert response.status_code == 200, (
-                f"SRT info endpoint returned {response.status_code}"
-            )
+            assert response.status_code == 200, f"SRT info endpoint returned {response.status_code}"
 
             data = response.json()
             srt_port = data.get("port")
@@ -351,9 +332,11 @@ class TestAPIEndpoints:
 
         try:
             response = requests.post(f"{running_server_url}/api/start", timeout=10)
-            assert response.status_code in [200, 400, 500], (
-                f"Start endpoint returned unexpected status {response.status_code}"
-            )
+            assert response.status_code in [
+                200,
+                400,
+                500,
+            ], f"Start endpoint returned unexpected status {response.status_code}"
         except requests.exceptions.ConnectionError:
             pytest.skip("Server is not running")
         except requests.exceptions.Timeout:
@@ -365,8 +348,6 @@ class TestAPIEndpoints:
 
         try:
             response = requests.post(f"{running_server_url}/api/stop", timeout=10)
-            assert response.status_code == 200, (
-                f"Stop endpoint returned {response.status_code}"
-            )
+            assert response.status_code == 200, f"Stop endpoint returned {response.status_code}"
         except requests.exceptions.ConnectionError:
             pytest.skip("Server is not running")

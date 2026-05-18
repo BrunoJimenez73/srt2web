@@ -6,6 +6,8 @@ from rich.text import Text
 from textual.reactive import reactive
 from textual.widgets import Static
 
+from core.version import get_version
+
 
 class TUIHeader(Static):
     ws_connected = reactive(False)
@@ -39,7 +41,7 @@ class TUIHeader(Static):
             Text.assemble(
                 (f" {ws_icon}", ws_style),
                 (" srt2web ", "bold cyan"),
-                ("v0.6.8", "dim"),
+                (f"v{get_version()}", "dim"),
                 " │ ",
                 (f"● {self.pipeline_state}", state_style),
                 " │ ",

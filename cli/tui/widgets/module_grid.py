@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.message import Message
@@ -25,13 +27,15 @@ class TUIModuleCard(Static, can_focus=True):
         self._enabled = True
         self._chunks = 0
         self._last_time = 0.0
-        self._extra: dict = {}
+        self._extra: dict[str, Any] = {}
         self._memory_mb = 0.0
 
     def on_mount(self) -> None:
         self._render_card()
 
-    def update(self, state: str, enabled: bool, chunks: int, last_time: float, extra: dict | None = None) -> None:
+    def update(
+        self, state: str, enabled: bool, chunks: int, last_time: float, extra: dict[str, Any] | None = None
+    ) -> None:  # type: ignore[override]
         self._state = state
         self._enabled = enabled
         self._chunks = chunks
@@ -78,7 +82,7 @@ class TUIModuleCard(Static, can_focus=True):
 
         t = Text.assemble(
             state_dot,
-            (" ",),
+            (" ", ""),
             (f"{label}", "bold"),
             "\n",
             (f"  {self._state}", state_style),
@@ -115,7 +119,7 @@ class TUIModuleGrid(Static):
                 for name in CARD_NAMES[4:]:
                     yield TUIModuleCard(name, id=f"card-{name}")
 
-    def update_modules(self, modules: list[dict]) -> None:
+    def update_modules(self, modules: list[dict[str, Any]]) -> None:
         cards = {card.module_name: card for card in self.query(TUIModuleCard)}
         module_info_map = {m.get("name", ""): m for m in modules}
 

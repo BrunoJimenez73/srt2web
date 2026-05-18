@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import logging
+from typing import Any
+
 from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -10,7 +13,9 @@ from textual.widgets import Button, Input, Select, Static, Switch
 
 from cli.client.http_client import ModuleInfo
 
-MODULE_CONFIG_SCHEMA: dict[str, list[tuple[str, str, type, tuple]]] = {
+logger = logging.getLogger(__name__)
+
+MODULE_CONFIG_SCHEMA: dict[str, list[tuple[str, str, type, tuple[Any, ...]]]] = {
     "input": [
         ("Type", "type", str, ("srt", "rtmp", "file")),
         ("SRT Port", "srt_listen_port", int, ()),
@@ -90,7 +95,7 @@ MODULE_ICONS: dict[str, str] = {
 
 
 class ConfigField(Vertical):
-    def __init__(self, label: str, key: str, field_type: type, options: tuple, value: str = ""):
+    def __init__(self, label: str, key: str, field_type: type, options: tuple[Any, ...], value: str = ""):
         super().__init__(classes="config-field")
         self.label = label
         self.key = key
@@ -111,7 +116,7 @@ class ConfigField(Vertical):
 
 
 class ModuleConfigForm(Vertical):
-    def __init__(self, module_name: str, module_info: ModuleInfo | None, config: dict):
+    def __init__(self, module_name: str, module_info: ModuleInfo | None, config: dict[str, Any]):
         super().__init__(classes="module-config-form")
         self.module_name = module_name
         self.module_info = module_info
@@ -173,7 +178,7 @@ class ModuleConfigForm(Vertical):
             classes="form-buttons",
         )
 
-    def _get_nested(self, key: str, data: dict) -> str | None:
+    def _get_nested(self, key: str, data: dict[str, Any]) -> str | None:
         if key in data:
             return str(data[key])
         return None
@@ -190,8 +195,8 @@ class ModuleConfigForm(Vertical):
     def on_back(self) -> None:
         self.post_message(ModuleDetailBack())
 
-    def _collect_values(self) -> dict:
-        values = {}
+    def _collect_values(self) -> dict[str, Any]:
+        values: dict[str, Any] = {}
         for child in self.query(ConfigField):
             key = child.key
             if child.field_type == bool:
@@ -213,7 +218,7 @@ class ModuleConfigForm(Vertical):
                     values[key] = inp.value
         return values
 
-    def update_module_info(self, module_dict: dict) -> None:
+    def update_module_info(self, module_dict: dict[str, Any]) -> None:
         state = module_dict.get("state", "idle")
         chunks = module_dict.get("processed_chunks", 0)
         last_time = module_dict.get("last_process_time_ms", 0.0)
@@ -226,12 +231,12 @@ class ModuleConfigForm(Vertical):
             status_line.update(f"State: {state} | Chunks: {chunks} | Time: {last_time:.0f}ms")
             metrics_line = self.query_one("#form-metrics-line", Static)
             metrics_line.update(f"Memory: {mem_mb:.0f} MB | Circuit: {circuit} | GPU: {gpu_info or 'N/A'}")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Suppressed error: %s", e, exc_info=True)
 
 
 class ModuleConfigSaved(Message):
-    def __init__(self, module_name: str, values: dict):
+    def __init__(self, module_name: str, values: dict[str, Any]):
         super().__init__()
         self.module_name = module_name
         self.values = values
@@ -247,7 +252,7 @@ class ModuleDetailBack(Message):
     pass
 
 
-class ModuleDetailScreen(Screen):
+class ModuleDetailScreen(Screen[Any]):
     CSS = """
     Screen.module-detail {
         background: $surface;
@@ -306,16 +311,16 @@ class ModuleDetailScreen(Screen):
         Binding("escape", "app.pop_screen", "Back"),
     ]
 
-    def __init__(self, module_name: str, module_info: ModuleInfo | None, config: dict, api_client):
+    def __init__(self, module_name: str, module_info: ModuleInfo | None, config: dict[str, Any], api_client: Any):
         super().__init__()
         self.module_name = module_name
         self.module_info = module_info
         self.config = config
         self.api_client = api_client
         self._form_mounted = False
-        self._form = None
+        self._form: ModuleConfigForm | None = None
         self._polling = False
-        self._refresh_timer = None
+        self._refresh_timer: Any = None
 
     def compose(self) -> ComposeResult:
         yield ScrollableContainer(id="form-container")
@@ -338,8 +343,8 @@ class ModuleDetailScreen(Screen):
                     if self._form:
                         self._form.update_module_info(m)
                     break
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Suppressed error: %s", e, exc_info=True)
         finally:
             self._polling = False
 

@@ -258,6 +258,7 @@ class TestPipeline:
             try:
                 test_data = module.process(test_data)
             except Exception:
+                # Expected: failing module should not crash pipeline
                 pass
 
         assert normal_module._process_count == 1

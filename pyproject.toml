@@ -97,7 +97,7 @@ known-first-party = ["core", "modules", "server"]
 python_version = "3.12"
 strict = true
 ignore_missing_imports = false
-exclude = ["desktop", "scripts", "desktop/dist", "venv", "tests", "cli"]
+exclude = ["desktop", "scripts", "desktop/dist", "venv", "tests"]
 warn_unused_ignores = true
 show_error_codes = true
 
@@ -113,8 +113,25 @@ ignore_errors = false
 
 [[tool.mypy.overrides]]
 module = "modules.*"
-ignore_errors = true
-follow_imports = "skip"
+strict = true
+ignore_errors = false
+follow_imports = "normal"
+
+[[tool.mypy.overrides]]
+module = "cli.*"
+strict = true
+ignore_errors = false
+
+[[tool.mypy.overrides]]
+module = [
+    "onnxruntime",
+    "onnxruntime.*",
+    "argostranslate",
+    "argostranslate.*",
+    "argostranslate.package",
+    "argostranslate.translate",
+]
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "tests.*"

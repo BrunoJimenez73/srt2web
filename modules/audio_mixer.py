@@ -13,7 +13,7 @@ Key features:
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -32,7 +32,7 @@ class AudioMixer(BaseModule):
     to prevent drift accumulation across chunks.
     """
 
-    def __init__(self, config: Optional[dict] = None, output_dir: str = "./output") -> None:
+    def __init__(self, config: Optional[dict[str, Any]] = None, output_dir: str = "./output") -> None:
         self._ffmpeg_path: Optional[str] = None
         self._output_dir = Path(output_dir)
         self._mixer_dir = Path()
@@ -46,7 +46,7 @@ class AudioMixer(BaseModule):
         self._prev_end_sample: Optional[np.ndarray] = None
         super().__init__("audio_mixer", config)
 
-    def configure(self, config: dict) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         super().configure(config)
         self._original_volume = float(config.get("original_volume", self._original_volume))
         self._tts_volume = float(config.get("tts_volume", self._tts_volume))
@@ -156,7 +156,7 @@ class AudioMixer(BaseModule):
             # Mix: apply volumes and add
             mixed = orig_samples * self._original_volume + tts_samples * self._tts_volume
             mixed = np.clip(mixed, -32768, 32767).astype(np.int16)
-            
+
             # Apply crossfade to prevent clicks at chunk boundaries
             if self._prev_end_sample is not None and len(self._prev_end_sample) > 0:
                 # Crossfade between previous chunk's end and current chunk's start
@@ -166,11 +166,10 @@ class AudioMixer(BaseModule):
                     fade_out = np.linspace(1.0, 0.0, crossfade_samples)
                     # Fade in current chunk's start
                     fade_in = np.linspace(0.0, 1.0, crossfade_samples)
-                    
+
                     # Apply crossfade
                     mixed[-crossfade_samples:] = (
-                        mixed[-crossfade_samples:] * fade_in + 
-                        self._prev_end_sample[-crossfade_samples:] * fade_out
+                        mixed[-crossfade_samples:] * fade_in + self._prev_end_sample[-crossfade_samples:] * fade_out
                     )
 
             # Save end of current chunk for next crossfade
@@ -190,7 +189,7 @@ class AudioMixer(BaseModule):
             actual_duration = len(mixed) / orig_sr
             if not getattr(data, "duration", None):
                 data.duration = actual_duration
-            data.mixed_audio_path = mix_wav
+            data.mixed_audio_path = str(mix_wav)
             logger.debug(f"[AudioMixer] Numpy mix: {mix_wav} ({actual_duration:.3f}s)")
 
         except Exception as e:

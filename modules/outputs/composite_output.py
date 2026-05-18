@@ -5,7 +5,7 @@ Delega el trabajo a cada salida individual.
 
 import logging
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from core.module_base import ModuleState, ModuleStatus, PipelineData
@@ -25,7 +25,7 @@ class OutputStatus:
     error: Optional[str] = None
     processed_chunks: int = 0
     last_process_time_ms: float = 0.0
-    extra: dict = None
+    extra: dict[str, Any] = field(default_factory=dict)
 
 
 class CompositeOutput(BaseOutput):
@@ -34,10 +34,10 @@ class CompositeOutput(BaseOutput):
     Delega el trabajo a cada salida individual.
     """
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict[str, Any]):
         super().__init__("composite", config)
         self._outputs: dict[str, OutputSink] = {}
-        self._errors: dict[str, str] = {}
+        self._errors: dict[str, str | None] = {}
         self._reconnect_attempts: dict[str, int] = {}
         self._max_reconnect_attempts = 3
         self._reconnect_delay = 5.0  # segundos
@@ -121,7 +121,7 @@ class CompositeOutput(BaseOutput):
 
         self._reconnect_attempts[name] += 1
 
-        def reconnect():
+        def reconnect() -> None:
             self._reconnect_output(name)
 
         # Programar reconexión después del delay
@@ -168,13 +168,14 @@ class CompositeOutput(BaseOutput):
                 last_process_time_ms = first_status.last_process_time_ms
                 extra = first_status.extra.copy() if first_status.extra else {}
             except Exception:
-                state = "idle"
+                # Fallback to idle state if output status query fails
+                state = ModuleState.IDLE
                 enabled = True
                 processed_chunks = 0
                 last_process_time_ms = 0.0
                 extra = {}
         else:
-            state = "idle"
+            state = ModuleState.IDLE
             enabled = True
             processed_chunks = 0
             last_process_time_ms = 0.0
@@ -244,7 +245,7 @@ class CompositeOutput(BaseOutput):
             except Exception as e:
                 return OutputStatus(name=name, state="error", enabled=True, error=str(e))
 
-    def get_all_output_statuses(self) -> list[dict]:
+    def get_all_output_statuses(self) -> list[dict[str, Any]]:
         """Obtener estado de todas las salidas como diccionarios."""
         with self._lock:
             statuses = []
@@ -300,9 +301,9 @@ class CompositeOutput(BaseOutput):
                 return False
             output = self._outputs[name]
             if hasattr(output, "enabled"):
-                return output.enabled
+                return bool(output.enabled)
             if hasattr(output, "_enabled"):
-                return output._enabled
+                return bool(output._enabled)
             return True
 
     def enable_output(self, name: str, enable: bool = True) -> bool:
@@ -325,8 +326,8 @@ class CompositeOutput(BaseOutput):
             if name in self._outputs:
                 try:
                     self._outputs[name].stop()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Suppressed error: %s", e, exc_info=True)
                 del self._outputs[name]
                 del self._errors[name]
                 del self._reconnect_attempts[name]
@@ -348,7 +349,7 @@ class CompositeOutput(BaseOutput):
         with self._lock:
             return self._outputs.get(name)
 
-    def get_output_errors(self) -> dict[str, str]:
+    def get_output_errors(self) -> dict[str, str | None]:
         """Obtener todos los errores de salidas."""
         with self._lock:
             return self._errors.copy()
@@ -362,7 +363,7 @@ class CompositeOutput(BaseOutput):
 
 
 # Auto-register
-def _register():
+def _register() -> None:
     """Auto-register this output module."""
     try:
         from core.io_factory import OutputFactory

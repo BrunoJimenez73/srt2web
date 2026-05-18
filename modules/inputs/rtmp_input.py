@@ -14,7 +14,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.input_source import InputSource
@@ -38,9 +38,9 @@ class RTMPInput(InputSource):
 
     name = "rtmp_input"
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: Optional[dict[str, Any]] = None):
         self._ffmpeg_path: Optional[str] = None
-        self._ffmpeg_proc: Optional[subprocess.Popen] = None
+        self._ffmpeg_proc: Optional[subprocess.Popen[Any]] = None
         self._monitor_thread: Optional[threading.Thread] = None
         self._output_dir: str = "./output"
         self._chunks_dir: str = ""
@@ -48,12 +48,12 @@ class RTMPInput(InputSource):
         self._last_chunk_mtime: Optional[float] = None
         self._cumulative_duration: float = 0.0  # Track cumulative duration for sync
 
-        self._config: dict = config or {}
+        super().__init__("rtmp", config or {})
         self._url: str = ""
         self._mode: str = "pull"
         self._chunk_duration: int = 10
         self._receiving: bool = False
-        self._watchdog: Optional[any] = None
+        self._watchdog: Optional[Any] = None
 
         # GPU info for hwaccel
         self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
@@ -63,13 +63,9 @@ class RTMPInput(InputSource):
         if config:
             self.configure(config)
 
-    @property
-    def config(self) -> dict:
-        return self._config
-
-    def configure(self, config: dict) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         """Apply configuration."""
-        self._config = config
+        super().configure(config)
 
         self._url = config.get("url", "rtmp://localhost/live/stream")
         self._mode = config.get("mode", "pull")
@@ -206,7 +202,8 @@ class RTMPInput(InputSource):
         if self._ffmpeg_proc.poll() is not None:
             # Process exited immediately - try to read output
             try:
-                output = self._ffmpeg_proc.stdout.read(2000)
+                stdout = self._ffmpeg_proc.stdout
+                output = stdout.read(2000) if stdout else ""
                 logger.error(f"FFmpeg exited immediately. Output: {output}")
             except:
                 logger.error(f"FFmpeg exited immediately with code {self._ffmpeg_proc.returncode}")
@@ -252,7 +249,7 @@ class RTMPInput(InputSource):
             except Exception:
                 try:
                     self._ffmpeg_proc.kill()
-                except:
+                except Exception:
                     pass
             finally:
                 self._ffmpeg_proc = None
@@ -305,7 +302,7 @@ class RTMPInput(InputSource):
                 self._receiving = False
                 logger.error(f"FFmpeg exited with code {returncode}")
 
-    def get_next_chunk(self):
+    def get_next_chunk(self) -> Optional[Any]:
         """Get next available chunk."""
         if not self._chunks_dir:
             return None
@@ -363,7 +360,7 @@ class RTMPInput(InputSource):
             return False
         return self._ffmpeg_proc.poll() is None and self._receiving
 
-    def get_connection_info(self) -> dict:
+    def get_connection_info(self) -> dict[str, Any]:
         """Get connection information."""
         return {
             "type": "rtmp",
@@ -398,7 +395,7 @@ class RTMPInput(InputSource):
 _input_class = RTMPInput
 
 
-def _register():
+def _register() -> None:
     """Auto-register this input module."""
     try:
         from core.io_factory import InputFactory

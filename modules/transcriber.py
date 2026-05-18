@@ -10,7 +10,7 @@ import hashlib
 import logging
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from core.cache import LRUCache
 from core.model_cache import ModelCache
@@ -29,9 +29,9 @@ class Transcriber(BaseModule):
     - Timeout protection (F67): prevents pipeline hangs on corrupted audio
     """
 
-    def __init__(self, config: Optional[dict] = None) -> None:
+    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
         self._model_size = "small"
-        self._language = "es"
+        self._language: str | None = "es"
         self._device_config = "auto"
         self._beam_size = 5
         self._timeout_sec = 120.0  # Default timeout for transcription
@@ -43,12 +43,12 @@ class Transcriber(BaseModule):
         self._transcript_cache = LRUCache(maxsize=100, ttl_seconds=300)
         super().__init__("transcriber", config)
 
-    def configure(self, config: dict) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         super().configure(config)
         self._model_size = config.get("model", self._model_size)
 
         lang = config.get("language", self._language)
-        new_language = None if lang.lower() == "auto" else lang
+        new_language = None if (lang or "").lower() == "auto" else lang
 
         # Check if language changed - needs model reload for proper detection
         model_needs_reload = False
@@ -165,8 +165,10 @@ class Transcriber(BaseModule):
         """
         timeout_sec = self._timeout_sec
 
-        def _transcribe_sync() -> tuple:
+        def _transcribe_sync() -> tuple[Any, ...]:
             """Run transcription in a thread pool to allow timeout."""
+            if self._model is None:
+                raise RuntimeError("Whisper model not loaded")
             return self._model.transcribe(
                 data.audio_chunk_path,
                 language=self._language,

@@ -148,9 +148,8 @@ class TestOutputSink:
         sink = TestSink("test", {})
         status = sink.get_status()
 
-        assert "state" in status
-        assert "enabled" in status
-        assert status["state"] == "idle"
+        assert status.state.value == "idle"
+        assert status.enabled is True
 
 
 class TestCompositeOutputAPI:

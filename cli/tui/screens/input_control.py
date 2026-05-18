@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 from __future__ import annotations
 
 from typing import Any
@@ -10,7 +14,7 @@ from textual.screen import Screen
 from textual.widgets import Button, Input, Static
 
 
-class InputControlScreen(Screen):
+class InputControlScreen(Screen[Any]):
     CSS = """
     Screen {
         background: $surface;
@@ -58,8 +62,8 @@ class InputControlScreen(Screen):
     def __init__(self, api_client: Any):
         super().__init__()
         self.api_client = api_client
-        self._input_info: dict = {}
-        self._status: dict = {}
+        self._input_info: dict[str, Any] = {}
+        self._status: dict[str, Any] = {}
 
     def compose(self) -> ComposeResult:
         yield Static("Input Control", classes="screen-title")
@@ -148,8 +152,8 @@ class InputControlScreen(Screen):
     def _show_status(self, msg: str) -> None:
         try:
             self.query_one("#status-msg", Static).update(f"Status: {msg}")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Suppressed error: %s", e, exc_info=True)
 
     async def action_refresh(self) -> None:
         await self._refresh()

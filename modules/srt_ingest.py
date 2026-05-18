@@ -11,7 +11,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.module_base import BaseModule, ModuleState, PipelineData
@@ -28,12 +28,12 @@ class SRTIngest(BaseModule):
     an SRT stream, and writes fixed-duration segments to the output directory.
     """
 
-    def __init__(self, config: Optional[dict] = None, output_dir: str = "./output"):
+    def __init__(self, config: Optional[dict[str, Any]] = None, output_dir: str = "./output") -> None:
         self._ffmpeg_path: Optional[str] = None
-        self._ffmpeg_proc: Optional[subprocess.Popen] = None
+        self._ffmpeg_proc: Optional[subprocess.Popen[Any]] = None
         self._monitor_thread: Optional[threading.Thread] = None
-        self._output_dir = output_dir
-        self._chunks_dir = ""
+        self._output_dir = Path(output_dir)
+        self._chunks_dir = Path()
         self._last_chunk_index = -1
 
         # SRT config
@@ -42,10 +42,9 @@ class SRTIngest(BaseModule):
         self._srt_latency_ms = 400
         self._srt_caller_address = ""
         self._chunk_duration = 4
-        self._output_dir = Path(output_dir)  # Convert to Path
         super().__init__("srt_ingest", config)
 
-    def configure(self, config: dict) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         super().configure(config)
         # SRT-specific config is usually passed from the parent srt section
         self._srt_port = config.get("listen_port", self._srt_port)
@@ -220,7 +219,7 @@ class SRTIngest(BaseModule):
 
         from core.ffmpeg_utils import get_video_duration
 
-        actual_duration = get_video_duration(chunk_path) or self._chunk_duration
+        actual_duration = get_video_duration(str(chunk_path)) or self._chunk_duration
 
         logger.info(f"New chunk available: {chunk_path}")
 
@@ -228,7 +227,7 @@ class SRTIngest(BaseModule):
             chunk_index=idx,
             timestamp=time.time(),
             duration=actual_duration,
-            video_chunk_path=chunk_path,
+            video_chunk_path=str(chunk_path),
         )
 
     def _monitor_ffmpeg(self) -> None:
@@ -247,8 +246,8 @@ class SRTIngest(BaseModule):
                         logger.warning(f"[FFmpeg] {line}")
                     else:
                         logger.debug(f"[FFmpeg] {line}")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Suppressed error: %s", e, exc_info=True)
 
         # Check if process exited
         if self._ffmpeg_proc:

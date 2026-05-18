@@ -1,8 +1,8 @@
-
-import yaml
 import os
 
-CONFIG_PATH = "config/config.yaml"
+import yaml
+
+CONFIG_PATH = "config.yaml"
 
 DEFAULT_MODULES = {
     "audio_extractor": {"enabled": True},
@@ -23,14 +23,14 @@ DEFAULT_MODULES = {
         "use_translated": True,
     },
     "tts_engine": {
-        "enabled": True, # Forzamos enable para que los veas
+        "enabled": True,  # Forzamos enable para que los veas
         "engine": "edge-tts",
         "voice": "es-ES-AlvaroNeural",
         "speed": 1.0,
-        "use_translated": True
+        "use_translated": True,
     },
     "audio_mixer": {
-        "enabled": True, # Forzamos enable
+        "enabled": True,  # Forzamos enable
         "original_volume": 0.2,
         "tts_volume": 1.0,
     },
@@ -38,15 +38,16 @@ DEFAULT_MODULES = {
         "enabled": True,
         "hls_segment_duration": 4,
         "hls_list_size": 10,
-    }
+    },
 }
+
 
 def fix_config():
     if not os.path.exists(CONFIG_PATH):
         print("Config not found")
         return
 
-    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+    with open(CONFIG_PATH, encoding="utf-8") as f:
         config = yaml.safe_load(f) or {}
 
     if "modules" not in config:
@@ -65,8 +66,9 @@ def fix_config():
 
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
-    
+
     print("Config.yaml fixed and saved!")
+
 
 if __name__ == "__main__":
     fix_config()

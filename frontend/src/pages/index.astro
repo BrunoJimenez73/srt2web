@@ -1,15 +1,23 @@
 ---
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/layout/Header.astro';
 import StatusCard from '../components/StatusCard.astro';
 import MetricsCard from '../components/MetricsCard.astro';
 import ProcessGrid from '../components/ProcessGrid.astro';
 import Toast from '../components/Toast.astro';
+
+const projectRoot = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '../../..');
+const pyproject = readFileSync(path.join(projectRoot, 'pyproject.toml'), 'utf-8');
+const versionMatch = pyproject.match(/^version\s*=\s*"([^"]+)"/m);
+const appVersion = versionMatch?.[1] ?? '0.0.0';
 ---
 
 <BaseLayout title="SRT2Web Dashboard">
   <div class="dashboard">
-    <Header version="0.6.7" />
+    <Header version={appVersion} />
     <StatusCard />
     <MetricsCard />
     <ProcessGrid />

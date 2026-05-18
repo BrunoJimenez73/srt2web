@@ -87,7 +87,8 @@ class LogBroadcaster:
         for msg in self._buffer[-50:]:
             try:
                 await ws.send_text(msg)
-            except Exception:
+            except Exception as e:
+                logger.debug("Failed to send buffered message to subscriber: %s", e)
                 break
 
     def unsubscribe(self, ws: WebSocket) -> None:
@@ -133,7 +134,8 @@ class LogBroadcaster:
         for ws in self._subscribers:
             try:
                 await ws.send_text(data)
-            except Exception:
+            except Exception as e:
+                logger.debug("Removing dead WebSocket subscriber: %s", e)
                 dead.add(ws)
         self._subscribers -= dead
 
@@ -208,8 +210,8 @@ def create_ws_router() -> APIRouter:
                 except RuntimeError:
                     loop = asyncio.new_event_loop()
                 log_broadcaster.set_loop(loop)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Suppressed error: %s", e, exc_info=True)
 
         await log_broadcaster.subscribe(websocket)
 

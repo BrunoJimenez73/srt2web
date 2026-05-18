@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import asyncio
+import json
+
 import click
 
 from cli.client.http_client import APIClient
@@ -47,20 +50,16 @@ async def run_recording_delete(api: APIClient, name: str, json_output: bool) -> 
 
 
 @click.group()
-def recording():
+def recording() -> None:
     """Recording management commands."""
-    pass
 
 
 @recording.command()
 @click.option("-j", "--json", "json_output", is_flag=True, help="Output as JSON")
-def list(json_output: bool):
+def list(json_output: bool) -> None:
     """List all recordings."""
-    import asyncio
 
-    from cli.client.http_client import APIClient
-
-    async def _run():
+    async def _run() -> int:
         api = APIClient()
         try:
             return await run_recording_list(api, json_output)
@@ -74,13 +73,10 @@ def list(json_output: bool):
 @recording.command()
 @click.argument("name")
 @click.option("-j", "--json", "json_output", is_flag=True, help="Output as JSON")
-def delete(name: str, json_output: bool):
+def delete(name: str, json_output: bool) -> None:
     """Delete a recording."""
-    import asyncio
 
-    from cli.client.http_client import APIClient
-
-    async def _run():
+    async def _run() -> int:
         api = APIClient()
         try:
             return await run_recording_delete(api, name, json_output)

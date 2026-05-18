@@ -1,4 +1,10 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 from __future__ import annotations
+
+from typing import Any
 
 from rich.text import Text
 from textual import on
@@ -25,7 +31,7 @@ def _level_style(level: str) -> str:
 class TUILogPanel(Static):
     MAX_VISIBLE = 100
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._logs: list[LogEntry] = []
         self._filter: str | None = None
@@ -60,8 +66,8 @@ class TUILogPanel(Static):
         try:
             sel = self.query_one("#log-filter-select", Select)
             sel.value = level or "ALL"
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Suppressed error: %s", e, exc_info=True)
 
     def _refresh(self) -> None:
         visible = self._logs[-self.MAX_VISIBLE :]

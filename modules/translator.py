@@ -9,7 +9,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from core.model_cache import ModelCache
 from core.module_base import BaseModule, ModuleState, PipelineData
@@ -25,7 +25,7 @@ class Translator(BaseModule):
     Downloads required language packages on first use.
     """
 
-    def __init__(self, config: Optional[dict] = None) -> None:
+    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
         self._source_lang = config.get("source_lang", "es") if config else "es"
         self._target_lang = config.get("target_lang", "en") if config else "en"
         self._translation_pipeline = None
@@ -39,7 +39,7 @@ class Translator(BaseModule):
         self._cache_misses = 0
         super().__init__("translator", config, is_critical=False)
 
-    def configure(self, config: dict) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         """
         Update translator configuration and reload translation model if language settings changed.
         Called during pipeline reconfiguration (hot-reload).
@@ -115,7 +115,7 @@ class Translator(BaseModule):
             logger.error(self._error_message)
             self.enabled = False
 
-    def _load_model(self, source_lang: str, target_lang: str):
+    def _load_model(self, source_lang: str, target_lang: str) -> None:
         """Install package if missing and create translation pipeline using ModelCache."""
         t0 = time.perf_counter()
         import argostranslate.package
@@ -199,6 +199,8 @@ class Translator(BaseModule):
             self._cache_hits += 1
             return self._cache[key]
 
+        if self._translation_pipeline is None:
+            return text
         result = self._translation_pipeline.translate(text)
         self._cache_misses += 1
 
@@ -207,8 +209,9 @@ class Translator(BaseModule):
             oldest_key = next(iter(self._cache))
             del self._cache[oldest_key]
 
-        self._cache[key] = result
-        return result
+        translated = str(result)
+        self._cache[key] = translated
+        return translated
 
     def _do_process(self, data: PipelineData) -> PipelineData:
         """

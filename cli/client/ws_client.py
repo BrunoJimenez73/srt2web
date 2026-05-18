@@ -3,7 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import random
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import websockets
 
@@ -16,8 +17,8 @@ class WSClient:
         url: str,
         token: str | None = None,
         on_log: Callable[[LogEntry], None] | None = None,
-        on_status: Callable[[dict], None] | None = None,
-        on_health: Callable[[dict], None] | None = None,
+        on_status: Callable[[dict[str, Any]], None] | None = None,
+        on_health: Callable[[dict[str, Any]], None] | None = None,
         on_connection_change: Callable[[bool], None] | None = None,
     ):
         self.url = url.rstrip("/").replace("http://", "ws://").replace("https://", "wss://")
@@ -29,13 +30,13 @@ class WSClient:
         self.on_connection_change = on_connection_change
         self._ws: Any = None
         self._running = False
-        self._reconnect_count = 0
-        self._max_reconnect = 5
-        self._backoff_base = 1.0
-        self._max_backoff = 30.0
-        self._jitter = 0.5
+        self._reconnect_count: int = 0
+        self._max_reconnect: int = 5
+        self._backoff_base: float = 1.0
+        self._max_backoff: float = 30.0
+        self._jitter: float = 0.5
         self._manual_disconnect = False
-        self._task: asyncio.Task | None = None
+        self._task: asyncio.Task[Any] | None = None
 
     @property
     def connected(self) -> bool:
@@ -62,8 +63,8 @@ class WSClient:
             self.on_connection_change(False)
 
     def _get_backoff_delay(self) -> float:
-        delay = min(self._backoff_base * (2 ** self._reconnect_count), self._max_backoff)
-        jitter = random.uniform(0, self._jitter)
+        delay: float = min(self._backoff_base * (2**self._reconnect_count), self._max_backoff)
+        jitter: float = random.uniform(0, self._jitter)
         return delay + jitter
 
     async def _run(self) -> None:
@@ -103,6 +104,7 @@ class WSClient:
             except Exception:
                 if self._manual_disconnect:
                     break
+                # Connection error, will attempt reconnect with backoff
 
             if self._running and not self._manual_disconnect:
                 if self.on_connection_change:
@@ -114,7 +116,7 @@ class WSClient:
         if self.on_connection_change:
             self.on_connection_change(False)
 
-    def _handle_message(self, msg: dict) -> None:
+    def _handle_message(self, msg: dict[str, Any]) -> None:
         msg_type = msg.get("type", "")
         if msg_type == "log":
             entry = LogEntry.from_dict(msg)

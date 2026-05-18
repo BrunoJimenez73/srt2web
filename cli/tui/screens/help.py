@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from textual.app import ComposeResult
 from textual.screen import Screen
 from textual.widgets import Markdown
@@ -55,7 +57,7 @@ Press `Q` or `Esc` to close.
 """
 
 
-class HelpScreen(Screen):
+class HelpScreen(Screen[Any]):
     BINDINGS = [("escape", "dismiss"), ("q", "dismiss")]
 
     def compose(self) -> ComposeResult:

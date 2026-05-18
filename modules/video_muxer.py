@@ -10,12 +10,12 @@ import subprocess
 import threading
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from core.encoder_config import EncoderConfig
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.module_base import BaseModule, ModuleState, ModuleStatus, PipelineData
-from core.subprocess_utils import get_creation_flags
+from core.subprocess_utils import filter_command, get_creation_flags
 
 logger = logging.getLogger("srt2web.module.video_muxer")
 logger.setLevel(logging.INFO)
@@ -29,7 +29,7 @@ class VideoMuxer(BaseModule):
     MPEG-TS chunks into HLS segments with a rolling m3u8 manifest.
     """
 
-    def __init__(self, config: Optional[dict] = None, output_dir: str = "./output") -> None:
+    def __init__(self, config: Optional[dict[str, Any]] = None, output_dir: str = "./output") -> None:
         self._ffmpeg_path: Optional[str] = None
         self._output_dir = Path(output_dir)  # Convert to Path
         self._hls_dir = Path()
@@ -40,7 +40,7 @@ class VideoMuxer(BaseModule):
         self._hls_list_size = 30
         self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False}
         self._total_duration_emitted = 0.0
-        self._segment_durations = {}  # Cache durations for manifest: {index: duration}
+        self._segment_durations: dict[int, float] = {}  # Cache durations for manifest: {index: duration}
         # Subtitle language settings
         self._subtitle_language = "es"
         self._subtitle_language_name = "Spanish"
@@ -52,7 +52,7 @@ class VideoMuxer(BaseModule):
         self._encoder_config = EncoderConfig(config) if config else EncoderConfig()
         super().__init__("video_muxer", config)
 
-    def configure(self, config: dict) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         super().configure(config)
         self._hls_segment_duration = config.get("hls_segment_duration", self._hls_segment_duration)
         self._hls_list_size = 4  # Optimized for lower latency
@@ -114,7 +114,7 @@ class VideoMuxer(BaseModule):
         # Track processing time
         start_time = time.perf_counter()
 
-        self._log("info", f"[VideoMuxer.write] Received data chunk {getattr(data, 'chunk_index', 'None')}")
+        logger.info(f"[VideoMuxer.write] Received data chunk {getattr(data, 'chunk_index', 'None')}")
 
         if hasattr(data, "video_path") and not hasattr(data, "video_chunk_path"):
             data.video_chunk_path = data.video_path
@@ -123,23 +123,23 @@ class VideoMuxer(BaseModule):
                 data.video_chunk_path = data["video_path"]
 
         if not hasattr(data, "video_chunk_path") or not data.video_chunk_path:
-            self._log("warning", "[VideoMuxer.write] No video_chunk_path available")
+            logger.warning("[VideoMuxer.write] No video_chunk_path available")
             return data
 
         # Process the data
         try:
             result = self.process(data)
         except Exception as e:
-            self._log("error", f"[VideoMuxer.write] Error: {e}")
+            logger.error(f"[VideoMuxer.write] Error: {e}")
             return data
 
         elapsed = (time.perf_counter() - start_time) * 1000
         self._last_process_time_ms = elapsed
         self._processed_chunks += 1
-        self._log("info", f"[VideoMuxer.write] Processed chunk in {elapsed:.1f}ms")
+        logger.info(f"[VideoMuxer.write] Processed chunk in {elapsed:.1f}ms")
         return result
 
-    def _get_encoder_config(self) -> tuple:
+    def _get_encoder_config(self) -> tuple[str, str, list[str]]:
         """Determinar configuración del encoder (CPU/GPU) basado en preferencias."""
         encoder = "libx264"
         preset = self._encoder_config.video_preset
@@ -214,8 +214,8 @@ class VideoMuxer(BaseModule):
 
                 shutil.copy2(input_path, segment_path)
                 logger.info(f"VideoMuxer segment copied (passthrough): {segment_name}")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Suppressed error: %s", e, exc_info=True)
         else:
             # GPU encode path: use FFmpeg with selected encoder
             try:
@@ -236,7 +236,7 @@ class VideoMuxer(BaseModule):
                     str(segment_path),
                 ]
                 result = subprocess.run(
-                    cmd,
+                    filter_command(cmd),
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.PIPE,
                     text=True,
@@ -252,6 +252,7 @@ class VideoMuxer(BaseModule):
                 else:
                     logger.info(f"VideoMuxer segment encoded ({encoder}): {segment_name}")
             except Exception:
+                # Fallback: copy segment instead of failing
                 import shutil
 
                 shutil.copy2(input_path, segment_path)
@@ -266,7 +267,7 @@ class VideoMuxer(BaseModule):
 
         # Set output path for RecordingOutput
         data.output_hls_path = str(self._hls_dir / "master.m3u8")
-        data.video_path = input_path  # For RecordingOutput
+        data.video_path = str(input_path)  # For RecordingOutput
 
         return data
 

@@ -12,7 +12,7 @@ import logging
 import os
 import threading
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from core.cache import LRUCache
 from core.module_base import BaseModule, ModuleState, PipelineData
@@ -29,7 +29,7 @@ class SubtitleGenerator(BaseModule):
     to prevent drift accumulation across modules.
     """
 
-    def __init__(self, config: Optional[dict] = None, output_dir: str = "./output") -> None:
+    def __init__(self, config: Optional[dict[str, Any]] = None, output_dir: str = "./output") -> None:
         self._output_dir = output_dir
         self._format = "webvtt"
         self._use_translated = True
@@ -45,7 +45,7 @@ class SubtitleGenerator(BaseModule):
         self._last_wall_clock = 0.0  # Track wall clock time for drift detection
 
         # Rolling window for VTT entries (prevent unbounded growth)
-        self._vtt_entries: list[dict] = []
+        self._vtt_entries: list[dict[str, Any]] = []
         self._max_vtt_entries = 2000  # Keep last 2000 subtitle entries (~200 chunks)
         self._vtt_max_age_seconds = 7200.0  # Remove entries older than 2 hours
 
@@ -56,12 +56,12 @@ class SubtitleGenerator(BaseModule):
         # Sync correction factor for drift compensation (1.0 = no correction)
         self.sync_correction_factor = 1.0
 
-        self._history = []
+        self._history: list[dict[str, Any]] = []
         self._max_history = 10
         self._previous_chunk_duration = 5
         super().__init__("subtitle_generator", config)
 
-    def configure(self, config: dict) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         super().configure(config)
         self._use_translated = config.get("use_translated", self._use_translated)
         self._format = config.get("format", self._format)
@@ -182,7 +182,7 @@ class SubtitleGenerator(BaseModule):
         text = data.translated_text if self._use_translated else data.transcript
 
         if not text:
-            data.subtitles_path = self._vtt_path
+            data.subtitles_path = str(self._vtt_path)
             return data
 
         # Use canonical chunk_duration as primary. data.duration may differ if
@@ -222,11 +222,11 @@ class SubtitleGenerator(BaseModule):
             logger.debug(
                 f"[SubtitleGen] Pause loop detected - chunk {data.chunk_index} replaying, skipping subtitle re-add"
             )
-            data.subtitles_path = self._vtt_path
+            data.subtitles_path = str(self._vtt_path)
             return data
         elif data.chunk_index == self._last_chunk_index and self._last_chunk_index >= 0:
             # Duplicate chunk but not marked as loop - skip subtitle re-add
-            data.subtitles_path = self._vtt_path
+            data.subtitles_path = str(self._vtt_path)
             return data
         elif data.chunk_index != self._last_chunk_index + 1 and self._last_chunk_index >= 0:
             logger.warning(
@@ -318,7 +318,7 @@ class SubtitleGenerator(BaseModule):
                         logger.info(f"[SUB] {clean_text}")
 
                 # Dual track entries (separate list for alternate language)
-                alt_entries: list[dict] = []
+                alt_entries: list[dict[str, Any]] = []
                 if alt_text and alt_segments:
                     for seg in alt_segments:
                         rel_start = seg.get("start", 0)
@@ -327,12 +327,14 @@ class SubtitleGenerator(BaseModule):
                         if clean_alt:
                             abs_start = chunk_start_time + rel_start
                             abs_end = chunk_start_time + rel_end
-                            alt_entries.append({
-                                "start": abs_start,
-                                "end": abs_end,
-                                "text": clean_alt,
-                                "chunk_start": chunk_start_time,
-                            })
+                            alt_entries.append(
+                                {
+                                    "start": abs_start,
+                                    "end": abs_end,
+                                    "text": clean_alt,
+                                    "chunk_start": chunk_start_time,
+                                }
+                            )
 
                 # Trim old entries (keep only recent ones)
                 self._trim_vtt_entries()
@@ -356,7 +358,7 @@ class SubtitleGenerator(BaseModule):
             file_size = self._vtt_path.stat().st_size
             logger.debug(f"VTT file size: {file_size} bytes, entries: {len(self._vtt_entries)}")
 
-            data.subtitles_path = self._vtt_path
+            data.subtitles_path = str(self._vtt_path)
         except Exception as e:
             logger.error(f"Error writing global VTT: {e}")
 
@@ -374,7 +376,7 @@ class SubtitleGenerator(BaseModule):
                         f.write(f"{clean_text}\n\n")
 
             if self._format == "srt":
-                data.subtitles_path = chunk_srt_path
+                data.subtitles_path = str(chunk_srt_path)
 
         except Exception as e:
             logger.error(f"Error writing chunk SRT: {e}")

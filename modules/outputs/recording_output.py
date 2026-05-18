@@ -30,12 +30,12 @@ import subprocess
 import threading
 import time
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from core.ffmpeg_utils import check_gpu_support, ensure_ffmpeg
 from core.module_base import ModuleState, ModuleStatus, PipelineData
 from core.output_sink import OutputSink
-from core.subprocess_utils import get_creation_flags
+from core.subprocess_utils import filter_command, get_creation_flags
 
 
 class RecordingOutput(OutputSink):
@@ -47,11 +47,11 @@ class RecordingOutput(OutputSink):
     concat demuxer de FFmpeg.
     """
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict[str, Any]):
         super().__init__("recording", config)
 
         self._ffmpeg_path: Optional[str] = None
-        self._process: Optional[subprocess.Popen] = None
+        self._process: Optional[subprocess.Popen[Any]] = None
         self._output_path: str = ""
         self._current_file: str = ""
         self._segment_index: int = 0
@@ -72,7 +72,7 @@ class RecordingOutput(OutputSink):
 
         self._apply_config(config)
 
-    def _apply_config(self, config: dict) -> None:
+    def _apply_config(self, config: dict[str, Any]) -> None:
         """Aplicar configuración."""
         self._output_path = config.get("output_path", "./output/recording.mp4")
         self._format = config.get("format", "mp4")
@@ -99,12 +99,12 @@ class RecordingOutput(OutputSink):
         os.makedirs(self._recording_dir, exist_ok=True)
         self.logger.info(f"Recording temp dir: {self._recording_dir}")
 
-    def configure(self, config: dict) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         """Aplicar nueva configuración (para hot-reload)."""
         self._apply_config(config)
         self.logger.info("RecordingOutput reconfigured")
 
-    def get_stream_info(self) -> dict:
+    def get_stream_info(self) -> dict[str, Any]:
         """Obtener información del stream."""
         return {
             "type": "recording",
@@ -150,7 +150,7 @@ class RecordingOutput(OutputSink):
                 "saved_videos": len(self._saved_video_paths),
                 "saved_audios": len(self._saved_audio_paths),
             },
-        ).to_dict()
+        )
 
     def _get_next_output_path(self) -> str:
         """Obtener siguiente ruta de salida (para split)."""
@@ -165,11 +165,11 @@ class RecordingOutput(OutputSink):
             return False
         if self._split_mode == "time":
             elapsed = time.time() - self._file_start_time
-            return elapsed >= self._split_value
+            return bool(elapsed >= self._split_value)
         elif self._split_mode == "size":
-            if os.path.exists(self._current_file):
+            if self._current_file and os.path.exists(self._current_file):
                 size_mb = os.path.getsize(self._current_file) / (1024 * 1024)
-                return size_mb >= self._split_value
+                return bool(size_mb >= self._split_value)
         return False
 
     def start(self) -> None:
@@ -200,8 +200,9 @@ class RecordingOutput(OutputSink):
 
         if self._process:
             try:
-                self._process.stdin.flush()
-                self._process.stdin.close()
+                if self._process.stdin:
+                    self._process.stdin.flush()
+                    self._process.stdin.close()
                 self._process.wait(timeout=5)
             except Exception as e:
                 self.logger.warning(f"Error closing FFmpeg: {e}")
@@ -309,7 +310,7 @@ class RecordingOutput(OutputSink):
 
         # Video codec - burnt subtitles require re-encoding with filter
         if self._subtitles == "burnt" and has_subs_input:
-            subs_path_escaped = subs_srt.replace("\\", "/").replace(":", "\\\\:")
+            subs_path_escaped = (subs_srt or "").replace("\\", "/").replace(":", "\\\\:")
             cmd.extend(["-vf", f"subtitles='{subs_path_escaped}'"])
             if self._codec != "copy":
                 cmd.extend(["-c:v", self._codec])
@@ -350,7 +351,7 @@ class RecordingOutput(OutputSink):
 
         try:
             result = subprocess.run(
-                cmd,
+                filter_command(cmd),
                 capture_output=True,
                 text=True,
                 timeout=300,
@@ -486,8 +487,9 @@ class RecordingOutput(OutputSink):
         """Realizar split del archivo."""
         if self._process:
             try:
-                self._process.stdin.flush()
-                self._process.stdin.close()
+                if self._process.stdin:
+                    self._process.stdin.flush()
+                    self._process.stdin.close()
                 self._process.wait(timeout=5)
             except Exception as e:
                 self.logger.warning(f"Error closing current segment: {e}")
@@ -498,7 +500,7 @@ class RecordingOutput(OutputSink):
         self.logger.info(f"Splitting recording: segment {self._segment_index}")
 
 
-def _register():
+def _register() -> None:
     """Auto-register this output module."""
     try:
         from core.io_factory import OutputFactory

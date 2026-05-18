@@ -13,12 +13,17 @@ Configuración (input.file):
     chunk_duration_sec: Duración de cada chunk (default: 15)
 """
 
+import glob
+import logging
+import os
 import subprocess
 import sys
+
+logger = logging.getLogger(__name__)
 import threading
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from core.ffmpeg_utils import ensure_ffmpeg, get_video_duration
 from core.input_source import InputSource
@@ -31,7 +36,7 @@ class FileInput(InputSource):
     Lee un archivo de video local y lo segmenta en chunks.
     """
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__("file", config)
 
         # Configuración
@@ -42,7 +47,7 @@ class FileInput(InputSource):
 
         # Estado interno
         self._ffmpeg_path: Optional[str] = None
-        self._ffmpeg_proc: Optional[subprocess.Popen] = None
+        self._ffmpeg_proc: Optional[subprocess.Popen[Any]] = None
         self._monitor_thread: Optional[threading.Thread] = None
         self._chunks_dir: str = ""
         self._last_chunk_index: int = -1
@@ -60,7 +65,7 @@ class FileInput(InputSource):
         self._hwaccel_enabled = False
         self._hwaccel_device = "0"
 
-    def configure(self, config: dict) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         """Aplicar configuración."""
         self._file_path = config.get("path", self._file_path)
         self._loop = config.get("loop", self._loop)
@@ -73,7 +78,7 @@ class FileInput(InputSource):
             self._cumulative_duration = 0.0
         self._chunk_duration = new_chunk_duration
 
-    def get_connection_info(self) -> dict:
+    def get_connection_info(self) -> dict[str, Any]:
         """Obtener información del archivo incluyendo duración y posición actual."""
         # Obtener duración del archivo si aún no la tenemos
         if self._file_duration == 0.0 and self._file_path and Path(self._file_path).exists():
@@ -358,8 +363,8 @@ class FileInput(InputSource):
                 else:
                     self._ffmpeg_proc.terminate()
                 self._ffmpeg_proc.wait(timeout=2)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Suppressed error: %s", e, exc_info=True)
             finally:
                 self._ffmpeg_proc = None
 
@@ -511,8 +516,8 @@ class FileInput(InputSource):
                         self.logger.error(f"[FFmpeg] {line}")
                     elif "warning" in line.lower():
                         self.logger.warning(f"[FFmpeg] {line}")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Suppressed error: %s", e, exc_info=True)
 
 
 # Auto-registro en factory

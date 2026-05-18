@@ -9,7 +9,7 @@ Optimized for speed with GPU acceleration (NVDEC) when available.
 import logging
 import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from core.ffmpeg_utils import check_gpu_support
 from core.ffmpeg_wrapper import FFmpegModule
@@ -25,13 +25,13 @@ class AudioExtractor(FFmpegModule):
     (16kHz, mono, PCM WAV).
     """
 
-    def __init__(self, config: Optional[dict] = None, output_dir: str = "./output"):
+    def __init__(self, config: Optional[dict[str, Any]] = None, output_dir: str = "./output") -> None:
         self._output_dir = Path(output_dir)
         self._audio_dir = Path()
         self._gpu_info = {"nvenc": False, "nvdec": False}
         super().__init__("audio_extractor", config)
 
-    def configure(self, config: dict) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         super().configure(config)
 
     def start(self) -> None:
@@ -45,6 +45,7 @@ class AudioExtractor(FFmpegModule):
             result = self.ffmpeg.run_command(["-decoders"], timeout=5)
             self._gpu_info["nvdec"] = "h264_cuvid" in result.stdout.lower()
         except Exception:
+            # Non-critical: NVDEC check is best-effort
             self._gpu_info["nvdec"] = False
 
         # Create temporary audio directory

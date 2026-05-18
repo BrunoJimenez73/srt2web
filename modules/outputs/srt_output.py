@@ -10,7 +10,7 @@ import os
 import subprocess
 import threading
 import time as time_module
-from typing import Optional
+from typing import Any, Optional
 
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.module_base import PipelineData
@@ -32,10 +32,10 @@ class SRTOutput(BaseOutput):
     MAX_RETRIES: int = 3
     RETRY_DELAYS: list[float] = [5.0, 15.0, 30.0]
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: Optional[dict[str, Any]] = None):
         super().__init__("srt", config or {})
         self._ffmpeg_path: Optional[str] = None
-        self._ffmpeg_proc: Optional[subprocess.Popen] = None
+        self._ffmpeg_proc: Optional[subprocess.Popen[Any]] = None
         self._monitor_thread: Optional[threading.Thread] = None
 
         # SRT configuration
@@ -58,7 +58,7 @@ class SRTOutput(BaseOutput):
         if config:
             self.configure(config)
 
-    def configure(self, config: dict) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         """Apply configuration."""
         super().configure(config)
 
@@ -89,8 +89,8 @@ class SRTOutput(BaseOutput):
             except Exception:
                 try:
                     self._ffmpeg_proc.kill()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Suppressed error during SRT output stop: %s", e, exc_info=True)
             self._ffmpeg_proc = None
 
         if self._monitor_thread and self._monitor_thread.is_alive():
@@ -175,23 +175,25 @@ class SRTOutput(BaseOutput):
 
         logger.info(f"Starting SRT stream: {srt_url}")
 
+        from core.subprocess_utils import filter_command
+
         self._ffmpeg_proc = subprocess.Popen(
-            cmd,
+            filter_command(cmd),
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
 
         # Monitor thread to log stderr
-        def monitor():
+        def monitor() -> None:
             if self._ffmpeg_proc and self._ffmpeg_proc.stderr:
                 for line in iter(self._ffmpeg_proc.stderr.readline, b""):
                     try:
                         line_str = line.decode("utf-8", errors="ignore").strip()
                         if line_str:
                             logger.debug(f"[SRT] {line_str}")
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("Suppressed error: %s", e, exc_info=True)
 
         self._monitor_thread = threading.Thread(target=monitor, daemon=True)
         self._monitor_thread.start()
@@ -205,8 +207,8 @@ class SRTOutput(BaseOutput):
         if self._ffmpeg_proc:
             try:
                 self._ffmpeg_proc.terminate()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Suppressed error: %s", e, exc_info=True)
             self._ffmpeg_proc = None
 
         if self._retry_count < self.MAX_RETRIES:
@@ -227,7 +229,7 @@ class SRTOutput(BaseOutput):
         """Check if SRT streaming is active."""
         return self._streaming and self._ffmpeg_proc is not None and self._ffmpeg_proc.poll() is None
 
-    def get_stream_info(self) -> dict:
+    def get_stream_info(self) -> dict[str, Any]:
         """Get SRT stream information."""
         return {
             "type": "srt",
@@ -241,7 +243,7 @@ class SRTOutput(BaseOutput):
 
 
 # Auto-register
-def _register():
+def _register() -> None:
     """Auto-register this output module."""
     try:
         from core.io_factory import OutputFactory

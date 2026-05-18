@@ -154,12 +154,12 @@ class TestLogPanelSearchFilter:
 class TestTypeScriptConfiguration:
     """Test TypeScript configuration."""
 
-    def test_tsconfig_has_ignore_deprecations(self) -> None:
-        """Test that tsconfig.json has ignoreDeprecations option."""
+    def test_tsconfig_no_ignore_deprecations(self) -> None:
+        """Test that tsconfig.json does NOT have ignoreDeprecations (tech debt removed)."""
         tsconfig_path = PROJECT_ROOT / "frontend" / "tsconfig.json"
         content = tsconfig_path.read_text(encoding="utf-8")
 
-        assert "ignoreDeprecations" in content
+        assert "ignoreDeprecations" not in content
 
     def test_tsconfig_has_base_url(self) -> None:
         """Test that tsconfig.json has baseUrl for path aliases."""

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 
 import click
@@ -106,20 +107,16 @@ async def run_module_debug(api: APIClient, name: str, json_output: bool) -> int:
 
 
 @click.group()
-def module():
+def module() -> None:
     """Module management commands."""
-    pass
 
 
 @module.command()
 @click.option("-j", "--json", "json_output", is_flag=True, help="Output as JSON")
-def list(json_output: bool):
+def list(json_output: bool) -> None:
     """List all modules."""
-    import asyncio
 
-    from cli.client.http_client import APIClient
-
-    async def _run():
+    async def _run() -> int:
         api = APIClient()
         try:
             return await run_module_list(api, json_output)
@@ -135,13 +132,10 @@ def list(json_output: bool):
 @click.option("--enable", is_flag=True, help="Enable the module")
 @click.option("--disable", is_flag=True, help="Disable the module")
 @click.option("-j", "--json", "json_output", is_flag=True, help="Output as JSON")
-def toggle(name: str, enable: bool, disable: bool, json_output: bool):
+def toggle(name: str, enable: bool, disable: bool, json_output: bool) -> None:
     """Enable or disable a module."""
-    import asyncio
 
-    from cli.client.http_client import APIClient
-
-    async def _run():
+    async def _run() -> int:
         api = APIClient()
         try:
             return await run_module_toggle(api, name, enable, disable, json_output)
@@ -155,13 +149,10 @@ def toggle(name: str, enable: bool, disable: bool, json_output: bool):
 @module.command()
 @click.argument("name")
 @click.option("-j", "--json", "json_output", is_flag=True, help="Output as JSON")
-def debug(name: str, json_output: bool):
+def debug(name: str, json_output: bool) -> None:
     """Get debug information for a module."""
-    import asyncio
 
-    from cli.client.http_client import APIClient
-
-    async def _run():
+    async def _run() -> int:
         api = APIClient()
         try:
             return await run_module_debug(api, name, json_output)

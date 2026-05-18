@@ -14,7 +14,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 from aiortc import AudioStreamTrack, VideoStreamTrack
@@ -49,8 +49,8 @@ class WebRTCEngine:
     Receives real video/audio data via push_video_path/push_audio_path.
     """
 
-    def __init__(self, config: dict = None):
-        self.config = config or {}
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
+        self.config: dict[str, Any] = config or {}
 
         self._running = False
         self._loop: Optional[asyncio.AbstractEventLoop] = None
@@ -107,7 +107,7 @@ class WebRTCEngine:
 
         self._running = True
 
-        def run_loop():
+        def run_loop() -> None:
             self._loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self._loop)
             logger.info("WebRTC event loop started")
@@ -224,22 +224,22 @@ class WebRTCEngine:
         pc.addTrack(audio_track)
 
         @pc.on("datachannel")
-        def on_datachannel(channel):
+        def on_datachannel(channel: Any) -> None:
             logger.info(f"Data channel received: {channel.label}")
             if channel.label == "subtitles":
                 conn.subtitle_channel = channel
 
-                @channel.on("message")
-                def on_message(message):
+                @channel.on("message")  # type: ignore[untyped-decorator]
+                def on_message(message: str) -> None:
                     try:
-                        data = JSON.parse(message)
+                        data = JSON.loads(message)  # was JSON.parse (invalid); loads is stdlib equivalent
                         logger.info(f"Received from client: {data}")
-                    except:
+                    except Exception:
                         pass
 
         answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
-        await pc.iceGatheringStateComplete
+        await pc.iceGatheringStateComplete  # type: ignore[attr-defined]
 
         logger.info(f"WebRTC connection established for client {client_id}")
 
@@ -257,7 +257,7 @@ class WebRTCEngine:
 class WebRTCConnection:
     """Handle a single WebRTC connection."""
 
-    def __init__(self, client_id: str, pc, engine: WebRTCEngine):
+    def __init__(self, client_id: str, pc: Any, engine: WebRTCEngine) -> None:
         self.client_id = client_id
         self.pc = pc
         self.engine = engine
@@ -269,7 +269,7 @@ class WebRTCConnection:
     def _start_subtitle_polling(self) -> None:
         """Start polling for subtitle updates."""
 
-        def poll():
+        def poll() -> None:
             while self.pc.connectionState != "closed":
                 time.sleep(0.5)
                 self._check_and_send_subtitles()
@@ -331,11 +331,11 @@ class WebRTCVideoTrack(VideoStreamTrack):
         super().__init__()
         self.engine = engine
         self.client_id = client_id
-        self._frame_queue: asyncio.Queue = asyncio.Queue(maxsize=300)
+        self._frame_queue: asyncio.Queue[Any] = asyncio.Queue(maxsize=300)
         self._current_path = ""
         self._load_lock = asyncio.Lock()
 
-    async def recv(self):
+    async def recv(self) -> Any:
         """Receive next video frame from decoded HLS segments."""
         pts, time_base = await self.next_timestamp()
 
@@ -349,7 +349,7 @@ class WebRTCVideoTrack(VideoStreamTrack):
         frame.time_base = time_base
         return frame
 
-    async def _get_cached_frame(self) -> Optional[any]:
+    async def _get_cached_frame(self) -> Optional[Any]:
         """Get next frame from cache, loading more if needed."""
         if not self._frame_queue.empty():
             return await self._frame_queue.get()
@@ -385,7 +385,7 @@ class WebRTCVideoTrack(VideoStreamTrack):
                     break
 
     @staticmethod
-    def _decode_frames(path: str) -> list:
+    def _decode_frames(path: str) -> list[Any]:
         """Decode all video frames from a file (runs in executor thread)."""
         import av
 
@@ -417,15 +417,15 @@ class WebRTCAudioTrack(AudioStreamTrack):
         self._sample_rate = 48000
         self._current_path = ""
 
-    async def recv(self):
+    async def recv(self) -> Any:
         """Receive next audio frame from mixed audio files."""
-        pts, time_base = await self.next_timestamp()
+        pts, time_base = await self.next_timestamp()  # type: ignore[attr-defined]
 
         samples = await self._get_samples(960)
 
         from av import AudioFrame
 
-        frame = AudioFrame(samples, layout="mono", rate=self._sample_rate)
+        frame = AudioFrame(samples, layout="mono", rate=self._sample_rate)  # type: ignore[call-arg,arg-type]
         frame.pts = pts
         frame.time_base = time_base
         return frame
@@ -466,7 +466,7 @@ class WebRTCAudioTrack(AudioStreamTrack):
         self._sample_buffer = np.concatenate([self._sample_buffer, samples])
 
     @staticmethod
-    def _read_audio(path: str) -> tuple:
+    def _read_audio(path: str) -> tuple[np.ndarray, int]:
         """Read WAV audio file and return (samples as float32, sample_rate)."""
         import wave
 

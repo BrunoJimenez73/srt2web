@@ -18,12 +18,12 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.input_source import InputSource
 from core.module_base import ModuleState, ModuleStatus, PipelineData
-from core.subprocess_utils import get_creation_flags
+from core.subprocess_utils import filter_command, get_creation_flags
 from core.watchdog import FFmpegWatchdog
 
 
@@ -38,7 +38,7 @@ class SRTInput(InputSource):
     automáticamente el proceso.
     """
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict[str, Any]):
         super().__init__("srt", config)
         self.logger.info("=== SRTInput CREATED ===")
 
@@ -53,7 +53,7 @@ class SRTInput(InputSource):
 
         # Estado interno
         self._ffmpeg_path: Optional[str] = None
-        self._ffmpeg_proc: Optional[subprocess.Popen] = None
+        self._ffmpeg_proc: Optional[subprocess.Popen[Any]] = None
         self._monitor_thread: Optional[threading.Thread] = None
         self._chunks_dir: str = ""
         self._last_chunk_index: int = -1
@@ -75,7 +75,7 @@ class SRTInput(InputSource):
         self._hwaccel_enabled = False
         self._hwaccel_device = "0"
 
-    def configure(self, config: dict) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         """Aplicar configuración."""
         self._srt_port = config.get("listen_port", self._srt_port)
         self._srt_mode = config.get("mode", self._srt_mode)
@@ -95,7 +95,7 @@ class SRTInput(InputSource):
         self._watchdog_hang_timeout = config.get("watchdog_hang_timeout", self._watchdog_hang_timeout)
         self._watchdog_max_restarts = config.get("watchdog_max_restarts", self._watchdog_max_restarts)
 
-    def get_connection_info(self) -> dict:
+    def get_connection_info(self) -> dict[str, Any]:
         """Obtener información de conexión para el usuario."""
         latency_us = self._srt_latency_ms * 1000
 
@@ -260,15 +260,16 @@ class SRTInput(InputSource):
             )
 
             # Log detallado del comando para debug
-            safe_cmd = [c if len(c) < 100 else c[:50] + "..." for c in cmd]
+            cmd_argv = filter_command(cmd)
+            safe_cmd = [c if len(c) < 100 else c[:50] + "..." for c in cmd_argv]
             self.logger.info(f"FFmpeg cmd: {' '.join(safe_cmd)}")
 
-            self.logger.info(f"Starting SRT input: {' '.join(cmd)}")
+            self.logger.info(f"Starting SRT input: {' '.join(cmd_argv)}")
             self.logger.info("Starting FFmpeg process...")
 
             # Iniciar proceso FFmpeg
             self._ffmpeg_proc = subprocess.Popen(
-                cmd,
+                cmd_argv,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -314,11 +315,13 @@ class SRTInput(InputSource):
             restart_delay=2.0,
         )
 
-        self._watchdog.attach_process(
-            process=self._ffmpeg_proc,
-            process_name="SRT-FFmpeg",
-            restart_callback=self._on_ffmpeg_restart,
-        )
+        proc = self._ffmpeg_proc
+        if proc is not None:
+            self._watchdog.attach_process(
+                process=proc,
+                process_name="SRT-FFmpeg",
+                restart_callback=self._on_ffmpeg_restart,
+            )
         self._watchdog.start()
         self.logger.info(
             f"SRT watchdog started (check_interval={self._watchdog_check_interval}s, "
@@ -356,11 +359,13 @@ class SRTInput(InputSource):
 
             # Re-attach al watchdog con el nuevo proceso
             if self._watchdog:
-                self._watchdog.attach_process(
-                    process=self._ffmpeg_proc,
-                    process_name="SRT-FFmpeg",
-                    restart_callback=self._on_ffmpeg_restart,
-                )
+                proc = self._ffmpeg_proc
+                if proc is not None:
+                    self._watchdog.attach_process(
+                        process=proc,
+                        process_name="SRT-FFmpeg",
+                        restart_callback=self._on_ffmpeg_restart,
+                    )
                 self.logger.info("FFmpeg restarted and re-attached to watchdog")
             else:
                 self.logger.warning("Watchdog not available after restart")
@@ -411,11 +416,12 @@ class SRTInput(InputSource):
             chunk_pattern,
         ]
 
-        self.logger.info(f"Restarting SRT input: {' '.join(cmd)}")
+        cmd_argv = filter_command(cmd)
+        self.logger.info(f"Restarting SRT input: {' '.join(cmd_argv)}")
 
         # Iniciar proceso FFmpeg
         self._ffmpeg_proc = subprocess.Popen(
-            cmd,
+            cmd_argv,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -626,7 +632,7 @@ class SRTInput(InputSource):
             return self._watchdog.is_healthy
         return self.is_receiving()
 
-    def get_watchdog_status(self) -> dict:
+    def get_watchdog_status(self) -> dict[str, Any]:
         """Obtener estado del watchdog para debugging."""
         if self._watchdog:
             return {

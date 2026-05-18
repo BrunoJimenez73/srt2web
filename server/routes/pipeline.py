@@ -28,6 +28,7 @@ def _check_port_available(port: int) -> bool:
             result = s.connect_ex(("127.0.0.1", port))
             return result != 0  # port is free if connection refused
     except Exception:
+        # Non-critical: port check is best-effort, assume available on failure
         return True  # assume available if check fails
 
 
@@ -173,8 +174,6 @@ async def start_pipeline(request: Request) -> dict[str, Any]:
     except Exception as e:
         logger.error(f"Failed to start pipeline: {e}")
         raise HTTPException(500, f"Failed to start pipeline: {e}")
-
-
 
     input_info = {}
     if input_source:

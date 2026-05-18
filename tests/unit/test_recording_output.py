@@ -1,10 +1,10 @@
 """Tests for RecordingOutput functionality - matching actual implementation."""
-import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock, mock_open
 import os
 import tempfile
-import shutil
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
@@ -16,18 +16,21 @@ class TestRecordingOutputInitialization:
     def test_recording_output_imports(self) -> None:
         """Test RecordingOutput can be imported."""
         from modules.outputs.recording_output import RecordingOutput
+
         assert RecordingOutput is not None
 
     def test_recording_output_inherits_output_sink(self) -> None:
         """Test RecordingOutput inherits OutputSink."""
-        from modules.outputs.recording_output import RecordingOutput
         from core.output_sink import OutputSink
+        from modules.outputs.recording_output import RecordingOutput
+
         assert issubclass(RecordingOutput, OutputSink)
 
     @patch("modules.outputs.recording_output.ensure_ffmpeg")
     def test_recording_output_default_config(self, mock_ffmpeg) -> None:
         """Test RecordingOutput accepts default config."""
         from modules.outputs.recording_output import RecordingOutput
+
         config = {"output_path": "./output/test.mp4"}
         rec = RecordingOutput(config)
         assert rec._output_path == "./output/test.mp4"
@@ -40,13 +43,14 @@ class TestRecordingOutputWrite:
     def test_recording_output_has_write_method(self, mock_ffmpeg) -> None:
         """Test RecordingOutput has write method (from OutputSink)."""
         from modules.outputs.recording_output import RecordingOutput
+
         assert hasattr(RecordingOutput, "write")
 
     @patch("modules.outputs.recording_output.ensure_ffmpeg")
     def test_recording_output_write_handles_none_video(self, mock_ffmpeg) -> None:
         """Test RecordingOutput write handles None video path."""
-        from modules.outputs.recording_output import RecordingOutput
         from core.module_base import PipelineData
+        from modules.outputs.recording_output import RecordingOutput
 
         config = {"output_path": "./output/test.mp4"}
         rec = RecordingOutput(config)
@@ -72,6 +76,7 @@ class TestRecordingOutputStop:
     def test_recording_output_stop_method_exists(self, mock_ffmpeg, mock_run) -> None:
         """Test stop() method exists."""
         from modules.outputs.recording_output import RecordingOutput
+
         assert hasattr(RecordingOutput, "stop")
 
     @patch("modules.outputs.recording_output.ensure_ffmpeg")
@@ -107,9 +112,8 @@ class TestRecordingOutputStatus:
         rec = RecordingOutput(config)
         status = rec.get_status()
 
-        assert isinstance(status, dict)
-        assert "state" in status
-        assert "enabled" in status
+        assert hasattr(status, "state")
+        assert hasattr(status, "enabled")
 
 
 class TestRecordingOutputExtra:
@@ -124,8 +128,8 @@ class TestRecordingOutputExtra:
         rec = RecordingOutput(config)
         status = rec.get_status()
 
-        assert "extra" in status
-        assert "encoder" in status["extra"]
+        assert status.extra is not None
+        assert "encoder" in status.extra
 
 
 class TestRecordingOutputConfig:

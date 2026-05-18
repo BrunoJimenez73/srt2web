@@ -4,6 +4,7 @@ import asyncio
 import logging
 import sys
 from dataclasses import asdict
+from typing import Any
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -23,13 +24,13 @@ from cli.tui.widgets.module_grid import CARD_NAMES, ModuleSelected
 logger = logging.getLogger("srt2web.tui")
 
 
-def _log_error_on_done(task: asyncio.Task) -> None:
+def _log_error_on_done(task: asyncio.Task[Any]) -> None:
     ex = task.exception()
     if ex:
         logger.error("Background task failed: %s", ex)
 
 
-class SRT2WebTUI(App):
+class SRT2WebTUI(App[Any]):
     CSS = """
     DashboardScreen {
         align: center top;
@@ -114,12 +115,12 @@ class SRT2WebTUI(App):
         self.server = server
         self.api = APIClient(server, token)
         self.ws: WSClient | None = None
-        self._polling_task: asyncio.Task | None = None
+        self._polling_task: asyncio.Task[Any] | None = None
         self.status: PipelineStatus | None = None
         self.logs: list[LogEntry] = []
         self.ws_connected = reactive(False)
         self.pipeline_state = reactive("stopped")
-        self._config_data: dict | None = None
+        self._config_data: dict[str, Any] | None = None
         self._last_module_index = 0
 
     def compose(self) -> ComposeResult:
@@ -149,21 +150,21 @@ class SRT2WebTUI(App):
         dashboard = self.query_one(DashboardScreen)
         dashboard.update_logs(self.logs)
 
-    def _on_ws_status(self, data: dict) -> None:
+    def _on_ws_status(self, data: dict[str, Any]) -> None:
         if not data:
             return
         try:
             self.status = PipelineStatus.from_dict(data)
-            self.pipeline_state = self.status.state
+            self.pipeline_state = self.status.state  # type: ignore[assignment]
             dashboard = self.query_one(DashboardScreen)
             dashboard.update_status(self.status)
             dashboard.update_metrics(self.status.system)
             dashboard.update_modules(self.status.modules)
-        except Exception:
-            logger.warning("Failed to process WS status update", exc_info=True)
+        except Exception as e:
+            logger.warning("Failed to process WS status update: %s", e, exc_info=True)
 
     def _on_ws_connection(self, connected: bool) -> None:
-        self.ws_connected = connected
+        self.ws_connected = connected  # type: ignore[assignment]
         try:
             dashboard = self.query_one(DashboardScreen)
             h = dashboard.query_one("#tui-header")
@@ -182,7 +183,7 @@ class SRT2WebTUI(App):
 
             try:
                 self.status = await self.api.get_status()
-                self.pipeline_state = self.status.state
+                self.pipeline_state = self.status.state  # type: ignore[assignment]
                 dashboard.update_status(self.status)
                 dashboard.update_metrics(self.status.system)
                 dashboard.update_modules(self.status.modules)
@@ -294,7 +295,7 @@ class SRT2WebTUI(App):
             self.app.notify(f"Refresh failed: {e}", severity="error", timeout=3)
             logger.error("Refresh failed: %s", e)
 
-    def on_unmount(self) -> None:
+    async def on_unmount(self) -> None:
         if self._polling_task:
             self._polling_task.cancel()
         if self.ws:

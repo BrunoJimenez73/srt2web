@@ -6,7 +6,7 @@ Provides WebRTC streaming capabilities with subtitle support via data channels.
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from core.encoder_config import EncoderConfig
 from core.module_base import ModuleState, ModuleStatus, PipelineData
@@ -24,7 +24,7 @@ class WebRTCOutput(OutputSink):
     - Data channel for subtitles
     """
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict[str, Any]):
         super().__init__("webrtc", config)
 
         # Import and initialize WebRTC engine
@@ -34,7 +34,7 @@ class WebRTCOutput(OutputSink):
         self._encoder_config = EncoderConfig(config)
 
         # State
-        self._engines: dict[str, any] = {"webrtc": self._engine}
+        self._engines: dict[str, Any] = {"webrtc": self._engine}
         self._running = False
 
         # Directory
@@ -42,7 +42,7 @@ class WebRTCOutput(OutputSink):
 
         logger.info("WebRTC output initialized")
 
-    def configure(self, config: dict) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         """Apply configuration."""
         super().configure(config)
         self._encoder_config = EncoderConfig(config)
@@ -80,12 +80,12 @@ class WebRTCOutput(OutputSink):
         if duration:
             self._engine.update_accumulated_duration(duration)
 
-    def get_stream_info(self) -> dict:
+    def get_stream_info(self) -> dict[str, Any]:
         """Get WebRTC stream information."""
         return {"type": "webrtc", "engine": "aiortc", "status": "running" if self._running else "stopped"}
 
     @property
-    def _webrtc_engine(self) -> Optional[any]:
+    def _webrtc_engine(self) -> Optional[Any]:
         """Get the underlying WebRTC engine."""
         return self._engine
 

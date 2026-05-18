@@ -170,8 +170,8 @@ class TestConfigValues:
         with open(CONFIG_PATH) as f:
             config = yaml.safe_load(f)
 
-        # list_size should be reasonable (2-10 for buffer)
-        assert 2 <= config["output"]["web"]["list_size"] <= 10
+        # list_size should match schema bounds (WebOutputConfig: ge=2, le=20)
+        assert 2 <= config["output"]["web"]["list_size"] <= 20
 
     def test_video_muxer_has_hls_settings(self) -> None:
         """Test video_muxer has hls_segment_duration and hls_list_size."""

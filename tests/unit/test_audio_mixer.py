@@ -75,7 +75,7 @@ class TestAudioMixer:
         expected_mix = mixer._mixer_dir / "mix_000001.wav"
         data = PipelineData(chunk_index=1, audio_chunk_path=orig_path, dubbed_audio_path=tts_path, duration=4.0)
         result = mixer._do_process(data)
-        assert result.mixed_audio_path == expected_mix
+        assert result.mixed_audio_path == str(expected_mix)
         assert expected_mix.exists()
         assert result.duration == pytest.approx(4.0, abs=0.1)
 

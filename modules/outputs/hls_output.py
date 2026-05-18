@@ -14,14 +14,14 @@ import glob
 import os
 import subprocess
 import threading
-from typing import Optional
+from typing import Any, Optional
 
 from core.encoder_config import EncoderConfig
 from core.ffmpeg_pool import shutdown_pool
 from core.ffmpeg_utils import check_gpu_support, ensure_ffmpeg
 from core.module_base import ModuleState, ModuleStatus, PipelineData
 from core.output_sink import OutputSink
-from core.subprocess_utils import get_creation_flags
+from core.subprocess_utils import filter_command, get_creation_flags
 
 
 class HLSOutput(OutputSink):
@@ -32,7 +32,7 @@ class HLSOutput(OutputSink):
     aceleración por hardware (NVENC, QSV, AMF).
     """
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict[str, Any]):
         super().__init__("web", config)
 
         # Configuración HLS
@@ -54,11 +54,11 @@ class HLSOutput(OutputSink):
         self._manifest_lock = threading.Lock()
         self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False}
         self._total_duration_emitted: float = 0.0
-        self._segment_durations: dict = {}
+        self._segment_durations: dict[int, float] = {}
         # Timing tracking for frontend metrics
         self._last_process_time_ms: float = 0.0
 
-    def configure(self, config: dict) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         """Aplicar configuración."""
         self._segment_duration = config.get("segment_duration", self._segment_duration)
         self._list_size = config.get("list_size", self._list_size)
@@ -72,7 +72,7 @@ class HLSOutput(OutputSink):
             f"encoder_mode={self._encoder_config.encoder_mode}, video_preset={self._encoder_config.video_preset}"
         )
 
-    def get_stream_info(self) -> dict:
+    def get_stream_info(self) -> dict[str, Any]:
         """Obtener información del stream para el cliente."""
         return {
             "type": "web",
@@ -97,14 +97,14 @@ class HLSOutput(OutputSink):
         self.logger.info(f"Hardware acceleration: {self._gpu_info}")
 
         # Limpiar archivos antiguos
-        for f in glob.glob(os.path.join(self._hls_dir, "*.ts")):
+        for ts_file in glob.glob(os.path.join(self._hls_dir, "*.ts")):
             try:
-                os.remove(f)
+                os.remove(ts_file)
             except OSError:
                 pass
-        for f in glob.glob(os.path.join(self._hls_dir, "*.m3u8")):
+        for m3u8_file in glob.glob(os.path.join(self._hls_dir, "*.m3u8")):
             try:
-                os.remove(f)
+                os.remove(m3u8_file)
             except OSError:
                 pass
 
@@ -113,14 +113,16 @@ class HLSOutput(OutputSink):
         # Create initial master playlist with correct language
         master_path = os.path.join(self._hls_dir, "master.m3u8")
         try:
-            with open(master_path, "w", encoding="utf-8") as f:
-                f.write("#EXTM3U\n")
-                f.write("#EXT-X-VERSION:4\n")
-                f.write(
+            with open(master_path, "w", encoding="utf-8") as master_file:
+                master_file.write("#EXTM3U\n")
+                master_file.write("#EXT-X-VERSION:4\n")
+                master_file.write(
                     f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="/subtitles/subs.vtt"\n'
                 )
-                f.write('#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"\n')
-                f.write("stream.m3u8\n")
+                master_file.write(
+                    '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"\n'
+                )
+                master_file.write("stream.m3u8\n")
             self.logger.info(f"Created initial master playlist with language: {self._subtitle_language_name}")
         except Exception as e:
             self.logger.error(f"Failed to create initial master playlist: {e}")
@@ -187,7 +189,7 @@ class HLSOutput(OutputSink):
             ]
             try:
                 result = subprocess.run(
-                    cmd,
+                    filter_command(cmd),
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.PIPE,
                     text=True,
@@ -270,7 +272,7 @@ class HLSOutput(OutputSink):
 
         try:
             result = subprocess.run(
-                cmd,
+                filter_command(cmd),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -308,11 +310,11 @@ class HLSOutput(OutputSink):
         )
         self._segment_index += 1
 
-    def _get_encoder_config(self) -> tuple:
+    def _get_encoder_config(self) -> tuple[str, str, list[str]]:
         """Determinar configuración del encoder (CPU/GPU) basado en preferencias."""
         encoder = "libx264"
         preset = self._encoder_config.video_preset
-        extra_args = []
+        extra_args: list[str] = []
 
         # Determinar encoder basado en modo configurado y disponibilidad de hardware
         encoder_mode = self._encoder_config.encoder_mode

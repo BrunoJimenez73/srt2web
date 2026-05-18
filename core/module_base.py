@@ -298,6 +298,7 @@ class PipelineData:
     cumulative_duration: float = 0.0  # Accumulated duration from previous chunks (for sync)
     correlation_id: str = ""  # Unique ID to track chunk across all stages
     video_chunk_path: str | None = None
+    video_path: str | None = None  # Alias used by VideoMuxer / RecordingOutput
     audio_chunk_path: str | None = None
     audio_samples: np.ndarray | None = None
     audio_sample_rate: int = 16000
@@ -597,3 +598,13 @@ class BaseModule(ABC):
             self._state = ModuleState.RUNNING
             self._error_message = None
         self._circuit_breaker.force_reset()
+
+
+__all__ = [
+    "BaseModule",
+    "CircuitBreaker",
+    "CircuitState",
+    "ModuleState",
+    "ModuleStatus",
+    "PipelineData",
+]

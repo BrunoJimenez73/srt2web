@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import click
 
 from cli.client.http_client import APIClient
@@ -45,20 +47,19 @@ async def run_network_info(api: APIClient, json_output: bool) -> int:
 
 
 @click.group()
-def network():
+def network() -> None:
     """Network information commands."""
-    pass
 
 
 @network.command()
 @click.option("-j", "--json", "json_output", is_flag=True, help="Output as JSON")
-def info(json_output: bool):
+def info(json_output: bool) -> None:
     """Get network information."""
     import asyncio
 
     from cli.client.http_client import APIClient
 
-    async def _run():
+    async def _run() -> int:
         api = APIClient()
         try:
             return await run_network_info(api, json_output)

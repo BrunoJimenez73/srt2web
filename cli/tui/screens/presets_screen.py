@@ -10,7 +10,7 @@ from textual.screen import Screen
 from textual.widgets import Button, Input, Static
 
 
-class PresetsScreen(Screen):
+class PresetsScreen(Screen[Any]):
     CSS = """
     Screen {
         background: $surface;
@@ -73,7 +73,7 @@ class PresetsScreen(Screen):
     def __init__(self, api_client: Any):
         super().__init__()
         self.api_client = api_client
-        self._presets: list[dict] = []
+        self._presets: list[dict[str, Any]] = []
         self._selected: int = 0
 
     def compose(self) -> ComposeResult:

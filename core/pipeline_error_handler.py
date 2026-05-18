@@ -234,8 +234,8 @@ class PipelineErrorHandler:
         if self._on_error:
             try:
                 self._on_error(record)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Suppressed error: %s", e, exc_info=True)
 
         return record
 

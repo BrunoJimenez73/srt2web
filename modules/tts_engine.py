@@ -12,7 +12,7 @@ import time
 import traceback
 import wave
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from core.module_base import BaseModule, ModuleState, ModuleStatus, PipelineData
 from core.subprocess_utils import get_creation_flags
@@ -26,7 +26,7 @@ class TTSEngine(BaseModule):
     Provides natural AI voices.
     """
 
-    def __init__(self, config: Optional[dict] = None, output_dir: str = "./output") -> None:
+    def __init__(self, config: Optional[dict[str, Any]] = None, output_dir: str = "./output") -> None:
         self._output_dir = Path(output_dir)
         self._tts_dir = Path()
         self._engine = "edge-tts"  # "edge-tts" (online) or "piper" (offline)
@@ -38,11 +38,11 @@ class TTSEngine(BaseModule):
 
         # Piper specific
         self._piper_voice = None
-        self._piper_manager = None  # Persistent subprocess for GPU synthesis
+        self._piper_manager: Any = None  # PiperSubprocessManager when engine is piper
 
         super().__init__("tts_engine", config, is_critical=False)
 
-    def configure(self, config: dict) -> None:
+    def configure(self, config: dict[str, Any]) -> None:
         super().configure(config)
         old_voice = self._voice_model
         self._engine = config.get("engine", self._engine)
@@ -104,7 +104,7 @@ class TTSEngine(BaseModule):
         else:
             raise ValueError(f"Unknown TTS engine: {self._engine}")
 
-    def _init_piper(self):
+    def _init_piper(self) -> None:
         """
         Initialize Piper TTS using a persistent subprocess with GPU support.
 
@@ -252,7 +252,7 @@ class TTSEngine(BaseModule):
         sign = "+" if delta >= 0 else ""
         return f"{sign}{delta:.0f}%"
 
-    def _run_edge_tts(self, text: str, output_wav: str):
+    def _run_edge_tts(self, text: str, output_wav: str) -> None:
         """Run edge-tts to get highly natural audio."""
         import edge_tts
 
@@ -260,7 +260,7 @@ class TTSEngine(BaseModule):
         rate = self._format_speed(self._speed)
         logger.debug(f"Generating TTS with rate={rate} (speed={self._speed})")
 
-        async def _generate():
+        async def _generate() -> None:
             communicate = edge_tts.Communicate(text, self._voice_model, rate=rate)
             await communicate.save(temp_mp3)
 
@@ -286,7 +286,7 @@ class TTSEngine(BaseModule):
         if Path(temp_mp3).exists():
             os.remove(temp_mp3)
 
-    def _run_piper_tts(self, text: str, output_wav: str):
+    def _run_piper_tts(self, text: str, output_wav: str) -> None:
         """Run Piper TTS synthesis via persistent subprocess (GPU-enabled)."""
         if not self._voice_loaded:
             logger.info(f"[Piper] Lazy loading voice: {self._voice_model}")

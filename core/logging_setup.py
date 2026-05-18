@@ -11,6 +11,8 @@ from typing import Any
 
 from core.paths import get_user_log_dir
 
+logger = logging.getLogger(__name__)
+
 
 class BroadcastHandler(logging.Handler):
     _broadcaster = None
@@ -25,8 +27,8 @@ class BroadcastHandler(logging.Handler):
         try:
             msg = self.format(record)
             self._broadcaster.broadcast(record.levelname.lower(), msg)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Suppressed error: %s", e, exc_info=True)
 
 
 class ConsoleFilter(logging.Filter):
@@ -116,8 +118,8 @@ def setup_logging(
                     return
                 if log_broadcaster:
                     log_broadcaster.broadcast(record.levelname.lower(), msg)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Suppressed error: %s", e, exc_info=True)
 
     class FilteredFileHandler(logging.Handler):
         def __init__(self, file_handler: logging.Handler) -> None:
@@ -130,8 +132,8 @@ def setup_logging(
                 if filter_regex.search(msg) or filter_regex.search(record.name):
                     return
                 self._file_handler.emit(record)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Suppressed error: %s", e, exc_info=True)
 
     file_fmt = _make_formatter(log_format)
     console_fmt = logging.Formatter(

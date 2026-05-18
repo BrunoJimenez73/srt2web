@@ -192,7 +192,7 @@ class ModelCache:
 
         try:
             t0 = time.perf_counter()
-            import argostranslate.translate  # type: ignore[import-untyped]
+            import argostranslate.translate
 
             t1 = time.perf_counter()
             logger.info(f"[TIMING] get_argos_pair: import translate: {t1-t0:.3f}s")

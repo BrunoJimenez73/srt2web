@@ -73,7 +73,7 @@ class TestSRTIngest:
         assert chunk is not None
         assert chunk.chunk_index == 0
         assert chunk.duration == 4.2
-        assert chunk.video_chunk_path == Path("/tmp/chunks/chunk_000000.ts")
+        assert chunk.video_chunk_path == str(Path("/tmp/chunks/chunk_000000.ts"))
         assert ingest._last_chunk_index == 0
 
     @patch("glob.glob")

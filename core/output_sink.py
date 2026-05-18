@@ -15,6 +15,7 @@ from enum import Enum
 from typing import Any, Optional
 
 from core.module_base import PipelineData
+from core.schemas import ModuleState, ModuleStatus
 
 
 class HealthState(Enum):
@@ -121,18 +122,19 @@ class OutputSink(ABC):
         """
         self.config = config
 
-    def get_status(self) -> dict[str, Any]:
+    def get_status(self) -> ModuleStatus:
         """
         Obtener estado del output.
         Override en subclases para proporcionar estado específico.
         """
-        return {
-            "state": "idle",
-            "enabled": True,
-            "processed_chunks": 0,
-            "last_process_time_ms": 0.0,
-            "extra": {},
-        }
+        return ModuleStatus(
+            name=self.name,
+            state=ModuleState.IDLE,
+            enabled=True,
+            processed_chunks=0,
+            last_process_time_ms=0.0,
+            extra={},
+        )
 
     def health_check(self) -> HealthState:
         """

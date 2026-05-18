@@ -2,6 +2,8 @@
 Clase base para inputs - proporciona funcionalidad común.
 """
 
+from typing import Any
+
 from core.input_source import InputSource
 
 
@@ -12,7 +14,7 @@ class BaseInput(InputSource):
     Proporciona utilidades compartidas para todos los inputs.
     """
 
-    def __init__(self, name: str, config: dict):
+    def __init__(self, name: str, config: dict[str, Any]) -> None:
         super().__init__(name, config)
         self._chunk_duration = config.get("chunk_duration_sec", 15)
         self._chunks_dir: str = ""
@@ -30,4 +32,4 @@ class BaseInput(InputSource):
 
     def get_chunk_duration(self) -> float:
         """Obtener duración configurada de chunks."""
-        return self._chunk_duration
+        return float(self._chunk_duration)

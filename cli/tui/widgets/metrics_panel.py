@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from typing import Any
+
 from rich.text import Text
-from textual.app import ComposeResult
 from textual.widgets import Static
 
 
@@ -37,7 +38,7 @@ def _sparkline(values: list[float], width: int = 10) -> str:
 
 
 class TUIMetricsPanel(Static):
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._cpu_history: list[float] = []
         self._gpu_history: list[float] = []
@@ -61,7 +62,7 @@ class TUIMetricsPanel(Static):
         )
         self.update(t)
 
-    def update_metrics(self, system: dict) -> None:
+    def update_metrics(self, system: dict[str, Any]) -> None:
         if not system:
             self._show_idle()
             return

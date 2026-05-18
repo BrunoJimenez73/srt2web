@@ -46,8 +46,8 @@ $testResult = & $VENV_PYTHON -m pytest tests/unit/ @pytestArgs 2>&1
 if ($LASTEXITCODE -eq 0) { Ok "Tests Python: todos pasan" } else { Fail "Tests Python fallan"; Write-Host $testResult -ForegroundColor Red }
 
 Write-Host "`n--- 5. Tipado Python con mypy --strict ---" -ForegroundColor Cyan
-$mypyResult = & $VENV_PYTHON -m mypy core/ server/ --strict 2>&1
-if ($LASTEXITCODE -eq 0) { Ok "mypy: 0 errores en core/ y server/" } else { Fail "mypy encontro errores:"; Write-Host $mypyResult -ForegroundColor Red }
+$mypyResult = & $VENV_PYTHON -m mypy core/ server/ modules/ --config-file pyproject.toml 2>&1
+if ($LASTEXITCODE -eq 0) { Ok "mypy: 0 errores en core/, server/ y modules/" } else { Fail "mypy encontro errores:"; Write-Host $mypyResult -ForegroundColor Red }
 
 if (-not $Quick) {
     Write-Host "`n--- 6. TypeScript (informativo) ---" -ForegroundColor Cyan
