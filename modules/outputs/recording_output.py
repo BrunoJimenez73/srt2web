@@ -57,7 +57,7 @@ class RecordingOutput(OutputSink):
         self._segment_index: int = 0
         self._lock = threading.Lock()
         self._running = False
-        self._gpu_info = {"nvenc": False, "qsv": False, "amf": False}
+        self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False}
 
         self._last_process_time_ms: float = 0.0
         self._processed_chunks: int = 0

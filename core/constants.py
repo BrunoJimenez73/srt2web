@@ -2,13 +2,11 @@
 Centralized constants for SRT2Web.
 All hardcoded values should be defined here.
 """
-from pathlib import Path
-from typing import Dict, List
 
 # Server Configuration
 SERVER_HOST: str = "0.0.0.0"
 SERVER_PORT_DEFAULT: int = 9999
-SERVER_CORS_ORIGINS: List[str] = [
+SERVER_CORS_ORIGINS: list[str] = [
     "http://localhost:*",
     "http://127.0.0.1:*",
     "http://localhost:9999",
@@ -25,7 +23,7 @@ API_VERSION: str = "v1"
 WS_BASE_PATH: str = "/ws"
 
 # API Endpoints
-API_ENDPOINTS: Dict[str, str] = {
+API_ENDPOINTS: dict[str, str] = {
     "status": f"{API_BASE_PATH}/status",
     "start": f"{API_BASE_PATH}/start",
     "stop": f"{API_BASE_PATH}/stop",
@@ -47,7 +45,7 @@ API_ENDPOINTS: Dict[str, str] = {
 }
 
 # WebSocket Paths
-WS_PATHS: Dict[str, str] = {
+WS_PATHS: dict[str, str] = {
     "logs": f"{WS_BASE_PATH}/logs",
     "status": f"{WS_BASE_PATH}/status",
 }
@@ -58,7 +56,7 @@ HLS_PLAYLIST_NAME: str = "stream.m3u8"
 HLS_SEGMENT_PREFIX: str = "segment"
 
 # Default Stream URLs
-DEFAULT_STREAM_URLS: Dict[str, str] = {
+DEFAULT_STREAM_URLS: dict[str, str] = {
     "srt": "srt://localhost:{port}",
     "rtmp": "rtmp://localhost/live/stream",
 }
@@ -83,7 +81,7 @@ EXT_M3U8: str = ".m3u8"
 EXT_TS: str = ".ts"
 
 # FFmpeg Configuration
-FFMPEG_URLS: Dict[str, Dict[str, str]] = {
+FFMPEG_URLS: dict[str, dict[str, str]] = {
     "windows": {
         "x86_64": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
     },
@@ -107,11 +105,15 @@ WEBSOCKET_PING_INTERVAL: int = 30
 WEBSOCKET_TIMEOUT: int = 300
 
 # Whisper Models
-ALLOWED_WHISPER_MODELS: List[str] = [
-    "tiny", "base", "small", "medium",
-    "large-v3", "large-v3-turbo",
+ALLOWED_WHISPER_MODELS: list[str] = [
+    "tiny",
+    "base",
+    "small",
+    "medium",
+    "large-v3",
+    "large-v3-turbo",
 ]
-WHISPER_MODEL_SIZES: Dict[str, int] = {
+WHISPER_MODEL_SIZES: dict[str, int] = {
     "tiny": 75,
     "base": 148,
     "small": 488,
@@ -121,11 +123,25 @@ WHISPER_MODEL_SIZES: Dict[str, int] = {
 }
 
 # Languages
-ALLOWED_LANGUAGES: List[str] = [
-    "auto", "en", "es", "fr", "de", "it", "pt", "ru",
-    "zh", "ja", "ko", "ar", "hi", "nl", "pl", "tr",
+ALLOWED_LANGUAGES: list[str] = [
+    "auto",
+    "en",
+    "es",
+    "fr",
+    "de",
+    "it",
+    "pt",
+    "ru",
+    "zh",
+    "ja",
+    "ko",
+    "ar",
+    "hi",
+    "nl",
+    "pl",
+    "tr",
 ]
-LANGUAGE_NAMES: Dict[str, str] = {
+LANGUAGE_NAMES: dict[str, str] = {
     "auto": "Auto-detect",
     "en": "English",
     "es": "Spanish",
@@ -145,16 +161,16 @@ LANGUAGE_NAMES: Dict[str, str] = {
 }
 
 # Devices
-ALLOWED_DEVICES: List[str] = ["auto", "cpu", "cuda", "mps"]
+ALLOWED_DEVICES: list[str] = ["auto", "cpu", "cuda", "mps"]
 
 # TTS Engines
-ALLOWED_TTS_ENGINES: List[str] = ["edge", "piper"]
+ALLOWED_TTS_ENGINES: list[str] = ["edge", "piper"]
 
-# Encoder Modes
-ALLOWED_ENCODER_MODES: List[str] = ["copy", "encode", "nvenc", "qsv", "amf"]
+# Encoder Modes (sync con EncoderModeEnum en config_schema.py)
+ALLOWED_ENCODER_MODES: list[str] = ["auto", "passthrough", "cpu", "gpu_nvenc", "gpu_amf", "gpu_qsv", "gpu_videotoolbox"]
 
 # Quality Presets
-QUALITY_PRESETS: Dict[str, Dict[str, int]] = {
+QUALITY_PRESETS: dict[str, dict[str, int]] = {
     "low": {"crf": 28, "audio_bitrate": 96},
     "medium": {"crf": 23, "audio_bitrate": 128},
     "high": {"crf": 18, "audio_bitrate": 192},
@@ -162,20 +178,33 @@ QUALITY_PRESETS: Dict[str, Dict[str, int]] = {
 }
 
 # Video Codecs
-ALLOWED_VIDEO_CODECS: List[str] = [
-    "h264", "h265", "hevc", "vp9", "av1", "copy", "nvenc", "qsv", "amf",
+ALLOWED_VIDEO_CODECS: list[str] = [
+    "h264",
+    "h265",
+    "hevc",
+    "vp9",
+    "av1",
+    "copy",
+    "nvenc",
+    "qsv",
+    "amf",
 ]
 
 # Audio Codecs
-ALLOWED_AUDIO_CODECS: List[str] = ["aac", "mp3", "opus", "flac", "copy"]
+ALLOWED_AUDIO_CODECS: list[str] = ["aac", "mp3", "opus", "flac", "copy"]
 
 # Audio Bitrates
-ALLOWED_AUDIO_BITRATES: List[str] = [
-    "64k", "96k", "128k", "192k", "256k", "320k",
+ALLOWED_AUDIO_BITRATES: list[str] = [
+    "64k",
+    "96k",
+    "128k",
+    "192k",
+    "256k",
+    "320k",
 ]
 
 # Subtitle Formats
-ALLOWED_SUBTITLE_FORMATS: List[str] = ["webvtt", "srt", "ass"]
+ALLOWED_SUBTITLE_FORMATS: list[str] = ["webvtt", "srt", "ass"]
 
 # Security
 RATE_LIMIT_RPM: int = 60
@@ -188,7 +217,7 @@ LOG_FILE_MAX_BYTES: int = 10 * 1024 * 1024  # 10MB
 LOG_FILE_BACKUP_COUNT: int = 3
 
 # External URLs (CDN, Fonts)
-EXTERNAL_URLS: Dict[str, str] = {
+EXTERNAL_URLS: dict[str, str] = {
     "google_fonts": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap",
     "font_awesome": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css",
     "highlight_js": "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css",

@@ -179,6 +179,84 @@ async def update_config(request: Request, body: ConfigUpdate) -> dict[str, Any]:
     return {"status": "updated", "config": config.to_dict()}
 
 
+@router.put("/config/video_muxer")
+async def update_video_muxer_config(request: Request) -> dict[str, Any]:
+    """Update video muxer configuration from flat key-value pairs.
+
+    Frontend HlsCard sends flat keys like:
+      {engine: "hls", encoder_mode: "gpu_nvenc", video_crf: 18, ...}
+
+    Maps them to nested config:
+      - modules.video_muxer.* (full encoder settings)
+      - output.hls.* / output.web.* (encoder_mode + audio_offset_ms for CompositeOutput)
+    """
+    ctx = _ctx(request)
+    config = ctx["config"]
+    pipeline = ctx["pipeline"]
+
+    body = await request.json()
+    logger.debug(f"[VIDEO_MUXER] PUT received: {json.dumps(body, indent=2)[:500]}")
+
+    # Keys that map to output section (subset with schema support)
+    OUTPUT_KEYS = {"encoder_mode", "audio_offset_ms"}
+
+    # Keys that map to modules.video_muxer (full VideoMuxerConfig schema)
+    MODULE_KEYS = {
+        "encoder_mode",
+        "video_crf",
+        "video_preset",
+        "gpu_preset",
+        "audio_offset_ms",
+        "audio_codec",
+        "audio_bitrate",
+        "video_bitrate",
+        "video_fps",
+        "video_width",
+        "video_height",
+        "audio_sample_rate",
+    }
+
+    nested: dict[str, Any] = {"output": {}, "modules": {}}
+    has_data = False
+
+    for key in MODULE_KEYS:
+        if key in body:
+            nested["modules"].setdefault("video_muxer", {})[key] = body[key]
+            has_data = True
+
+    for key in OUTPUT_KEYS:
+        if key in body:
+            nested["output"].setdefault("hls", {})[key] = body[key]
+            nested["output"].setdefault("web", {})[key] = body[key]
+            has_data = True
+
+    if not has_data:
+        raise HTTPException(400, "No recognized config keys provided")
+
+    try:
+        config.update_from_dict(nested)
+        config.save()
+        config.reload()
+    except ValueError as e:
+        logger.warning(f"[VIDEO_MUXER] Validation warning: {e}")
+        invalidate_cache("config")
+        invalidate_cache("status")
+        return {"status": "updated", "config": config.to_dict(), "warning": str(e)}
+    except Exception as e:
+        logger.error(f"[VIDEO_MUXER] Save failed: {e}")
+        raise HTTPException(500, f"Failed to save configuration: {e}")
+
+    try:
+        pipeline.reconfigure(config)
+    except Exception as e:
+        logger.error(f"[VIDEO_MUXER] Pipeline reconfigure failed: {e}")
+
+    invalidate_cache("config")
+    invalidate_cache("status")
+    logger.info(f"[VIDEO_MUXER] Config updated: {body}")
+    return {"status": "updated", "config": config.to_dict()}
+
+
 @router.post("/config/chunk")
 async def update_chunk_duration(request: Request, body: ChunkDurationRequest) -> dict[str, Any]:
     """
@@ -216,17 +294,14 @@ async def update_chunk_duration(request: Request, body: ChunkDurationRequest) ->
     config.set("input.srt.chunk_duration_sec", chunk_duration)
     config.set("input.rtmp.chunk_duration_sec", chunk_duration)
     config.set("input.file.chunk_duration_sec", chunk_duration)
-    # Sync web/hls output (passthrough para evitar recodificación)
+    # Sync web/hls output (preservar encoder_mode del usuario, no tocar)
     config.set("output.web.segment_duration", chunk_duration)
     config.set("output.web.list_size", calculated_list_size)
-    config.set("output.web.encoder_mode", "passthrough")
     config.set("output.hls.segment_duration", chunk_duration)
     config.set("output.hls.list_size", calculated_list_size)
-    config.set("output.hls.encoder_mode", "passthrough")
-    # Sync video_muxer
+    # Sync video_muxer (preservar encoder_mode del usuario, no tocar)
     config.set("modules.video_muxer.hls_segment_duration", chunk_duration)
     config.set("modules.video_muxer.hls_list_size", calculated_list_size)
-    config.set("modules.video_muxer.encoder_mode", "passthrough")
     # Sync subtitle generator
     config.set("modules.subtitle_generator.chunk_duration", chunk_duration)
     # Sync named outputs (handled by schema validator on save/reload)
@@ -254,7 +329,6 @@ async def update_chunk_duration(request: Request, body: ChunkDurationRequest) ->
         "chunk_duration_sec": chunk_duration,
         "list_size": calculated_list_size,
         "buffer_sec": chunk_duration * calculated_list_size,
-        "encoder_mode": "passthrough",
         "pipeline_mode": "thread_parallel",
         "synced_to": [
             "pipeline.chunk_duration_sec",
@@ -263,10 +337,9 @@ async def update_chunk_duration(request: Request, body: ChunkDurationRequest) ->
             "input.srt/rtmp/file.chunk_duration_sec",
             "output.web/hls.segment_duration",
             "output.web/hls.list_size",
-            "output.web/hls.encoder_mode",
             "modules.video_muxer.hls_segment_duration",
             "modules.video_muxer.hls_list_size",
-            "modules.video_muxer.encoder_mode",
             "modules.subtitle_generator.chunk_duration",
         ],
+        "encoder_mode_preserved": True,
     }

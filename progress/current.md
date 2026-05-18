@@ -1,106 +1,123 @@
-# Sesión activa — 2026-05-15
+# Sesión activa — 2026-05-18
 
-**Estado:** F70 completada — API OpenAPI Documentation
-**Iniciada:** 2026-05-15
+**Estado:** F71 + F72 + F73 completadas — Fix encoder persistence + GPU + API route
+**Iniciada:** 2026-05-18
 
-## Resumen de la sesión
+## Diagnóstico inicial
 
-Se leyó `AGENTS.md`, `feature_list.json` y `progress/current.md` como punto de entrada.
+Análisis de logs y código:
 
-Antes de continuar se resolvieron dos bloqueos del harness:
+- 24 archivos de log revisados (principal: `logs/srt2web.log` — sin errores críticos)
+- 4 bugs críticos identificados en encoder persistence y GPU
+- 1 bug crítico adicional: frontend llama a `PUT /config/video_muxer` que no existía
 
-- El venv apuntaba a un Python 3.12 eliminado; se regeneró con Python 3.12.13 disponible en Codex.
-- `core/paths.py` no caía a paths locales si `platformdirs` encontraba una carpeta de usuario inaccesible. Se añadió fallback ante `OSError`.
+## Feature completada — F71
 
-Se implementó **F67 — Whisper Timeout Protection**.
+**Fix encoder mode persistence across configure/reconfigure API**
 
-### Cambios F67
+### Cambios F71
 
-- **`modules/transcriber.py`**
-  - El timeout de Whisper ya no usa `ThreadPoolExecutor` como context manager.
-  - En `TimeoutError`, cancela el future y hace `shutdown(wait=False, cancel_futures=True)`.
-  - La ruta exitosa conserva `shutdown(wait=True)` para cerrar correctamente.
+| Archivo                                     | Cambio                                                                                                 |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `modules/video_muxer.py:53-67`              | `configure()` ahora lee `encoder_mode` y recrea `EncoderConfig` cuando cambia                          |
+| `modules/outputs/composite_output.py:46-65` | Nuevo método `configure_outputs(config_manager)` que reconfigura todos los output sinks                |
+| `core/unified_pipeline.py:933-944`          | `reconfigure()` ahora también llama a `configure_outputs` en el output sink                            |
+| `server/routes/config.py:219-231`           | `POST /api/config/chunk` ya no resetea `encoder_mode` a `passthrough` — preserva la config del usuario |
+| `core/constants.py:154`                     | `ALLOWED_ENCODER_MODES` actualizado con valores reales de `EncoderModeEnum`                            |
+| `core/types.py:58-67`                       | `EncoderMode` marcado como `DEPRECATED` — usar `EncoderModeEnum` de `config_schema.py`                 |
+| `tests/unit/test_config_validation.py:72`   | `VALID_ENCODER_MODES` sincronizado con `EncoderModeEnum` (se agregó `gpu_videotoolbox`)                |
+| `feature_list.json`                         | F71 añadida como `done`                                                                                |
 
-- **`tests/unit/test_transcriber.py`**
-  - Añadido test unitario que verifica que el timeout no espera el cierre bloqueante del executor.
+### Verificación F71
 
-- **`feature_list.json`**
-  - Añadida F67 con estado `done`.
+| Check                                            | Resultado      |
+| ------------------------------------------------ | -------------- |
+| `pytest tests/unit/ -q --tb=short -m "not slow"` | ✅ 100% passed |
+| `mypy core/ server/ --strict`                    | ✅ 0 errores   |
+| `init.ps1 -Quick`                                | ✅ Verde       |
 
-### Verificación F67
+## Feature completada — F72
 
-| Check | Resultado |
-|-------|-----------|
-| `pytest tests/unit/test_transcriber.py -q` | ✅ 8 passed |
-| `init.ps1 -Quick` | ✅ Verde |
+**GPU acceleration for VIDEOMUXER and OUTPUT modules**
 
-## Feature completada — F68
+### Cambios F72
 
-Se implementó **F68 — LRU Cache for Transcriptions**.
+| Archivo                                                | Cambio                                                                                                                                 |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `core/encoder_config.py:55`                            | Default `gpu_preset` cambiado de `p3` a `p7` (coherente con `config.yaml`)                                                             |
+| `core/encoder_config.py:141-157`                       | Nuevos métodos: `get_gpu_videotoolbox_args()` y `get_gpu_vaapi_args()`                                                                 |
+| `core/ffmpeg_utils.py:134`                             | `check_gpu_support()` ahora incluye `videotoolbox` en el dict de resultados                                                            |
+| `core/ffmpeg_utils.py:153`                             | `check_gpu_support()` detecta `h264_videotoolbox` y `hevc_videotoolbox`                                                                |
+| `core/ffmpeg_utils.py:505`                             | `check_videotoolbox_support()` ahora lee `stderr + stdout` (no solo `stdout`)                                                          |
+| `modules/outputs/hls_output.py:55`                     | `_gpu_info` incluye `vaapi` y `videotoolbox`                                                                                           |
+| `modules/outputs/hls_output.py:343-356`                | `_get_encoder_config()` maneja `gpu_videotoolbox` y `gpu_vaapi`                                                                        |
+| `modules/outputs/hls_output.py:466-472,494-502`        | `get_status()` maneja `gpu_videotoolbox` y `gpu_vaapi` correctamente                                                                   |
+| `modules/video_muxer.py:39`                            | `_gpu_info` incluye `videotoolbox`                                                                                                     |
+| `modules/video_muxer.py:140-216`                       | Nuevo método `_get_encoder_config()` + `_do_process()` ahora usa FFmpeg con encoder GPU cuando configurado (fallback a copia si falla) |
+| `modules/video_muxer.py:374,406`                       | `get_status()` maneja `gpu_videotoolbox`                                                                                               |
+| `modules/outputs/webrtc_output.py:30,47,97-104`        | Conectado `EncoderConfig`, `get_status()` reporta `encoder_mode` real desde config                                                     |
+| `modules/outputs/recording_output.py:60`               | `_gpu_info` incluye `vaapi` y `videotoolbox`                                                                                           |
+| `tests/unit/test_video_muxer.py:63,88`                 | Mocks actualizados con `videotoolbox`                                                                                                  |
+| `tests/unit/test_gpu_installer_restructure.py:132,164` | Mocks actualizados + `test_default_values` espera `p7`                                                                                 |
+| `feature_list.json`                                    | F72 añadida como `done`                                                                                                                |
 
-### Cambios F68
+### Verificación F72
 
-- **`modules/transcriber.py`**
-  - El cache key ahora usa una huella SHA-256 del contenido del audio cuando el archivo existe.
-  - Chunks idénticos en paths distintos comparten entrada de cache.
-  - El key incluye idioma, modelo y `beam_size`.
-  - Si el archivo no puede leerse, mantiene fallback por metadata.
+| Check                                            | Resultado      |
+| ------------------------------------------------ | -------------- |
+| `pytest tests/unit/ -q --tb=short -m "not slow"` | ✅ 1063 passed |
+| `mypy core/ server/ --strict`                    | ✅ 0 errores   |
+| `init.ps1 -Quick`                                | ✅ Verde       |
 
-- **`tests/unit/test_transcriber.py`**
-  - Añadidos tests para cache hit por contenido idéntico.
-  - Añadido test para cache miss cuando el contenido cambia.
+## Feature completada — F73
 
-### Verificación F68
+**Fix missing PUT /config/video_muxer API route + Fix opus audio crash**
 
-| Check | Resultado |
-|-------|-----------|
-| `pytest tests/unit/test_transcriber.py -q` | ✅ 10 passed |
-| `init.ps1 -Quick` | ✅ Verde |
+### Problema 1: Ruta faltante
 
-## Feature completada — F69
+El frontend `HlsCard.astro` llamaba a `PUT /config/video_muxer` con valores planos como `{encoder_mode: "gpu_nvenc", video_crf: 18, ...}`, pero ese endpoint **no existía** en el servidor. La llamada recibía un 404 y el cambio de encoder se perdía silenciosamente.
 
-Se implementó **F69 — Frontend Types Cleanup**.
+Además, `CompositeOutput.configure_outputs()` solo pasaba `output.hls.*` a `HLSOutput.configure()`, pero los campos de encoder (`video_crf`, `gpu_preset`, `audio_codec`, etc.) no existen en `WebOutputConfig`. Nunca llegaban al `EncoderConfig`.
 
-### Cambios F69
+### Problema 2: Opus + MPEG-TS = crash FFmpeg
 
-- **`frontend/src/lib/types/api.ts`**
-  - `Status` tipa `system_metrics`, `system`, `uptime_seconds` y `avg_processing_time_ms`.
-  - `MetricsData` ahora cubre campos actuales y legacy: `cpu_percent`, `cpu_usage`, `memory_percent`, `memory_usage`, `gpu_percent`, `gpu_usage`, `gpu_util`, `gpu_memory_mb`, `gpu_memory`, `gpu_memory_percent`, `gpu_memory_usage`.
+Aún cuando el encoder_mode se configuraba correctamente a `gpu_nvenc`, el `audio_codec: opus` en `config.yaml` hacía que FFmpeg fallara con:
 
-- **`frontend/src/lib/store/signals.ts`**
-  - Eliminados casts `any` en lectura de métricas.
-  - `systemMetrics` y `updateStatus` usan `Partial<MetricsData>`.
-  - `inputType` ya no necesita cast manual.
+```
+ERROR FFmpeg mux error: [aost#0:1/opus] Could not open encoder before EOF
+Nothing was written into output file
+```
 
-### Verificación F69
+**El códec Opus no es compatible con el contenedor MPEG-TS** usado en HLS. Cada chunk fallaba, no se escribían segmentos `.ts`, y el reproductor mostraba "Error de red".
 
-| Check | Resultado |
-|-------|-----------|
-| `frontend/node_modules/.bin/tsc.cmd --noEmit` | ✅ 0 errores |
-| `init.ps1 -Quick` | ✅ Verde |
-| `vitest run src/lib/store/signals.test.ts` | ⚠️ Bloqueado por esbuild/permiso al resolver `vitest.config.ts` |
+### Cambios F73
 
-## Feature completada — F70
+| Archivo                                     | Cambio                                                                                                                   |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `server/routes/config.py:182-236`           | Nueva ruta `PUT /config/video_muxer` que recibe keys planas y las mapea a `modules.video_muxer.*` + `output.{hls,web}.*` |
+| `modules/outputs/composite_output.py:53-78` | `configure_outputs()` ahora mergea `modules.video_muxer.*` dentro del config que pasa a cada output sink                 |
+| `modules/outputs/hls_output.py:233-245`     | Al generar args de audio para MPEG-TS, overridea `opus` → `aac` automáticamente                                          |
+| `feature_list.json`                         | F73 añadida como `done`                                                                                                  |
 
-Se implementó **F70 — API OpenAPI Documentation**.
+### Flujo corregido
 
-### Descubrimiento
-
-- FastAPI ya tiene soporte nativo OpenAPI habilitado en `server/app.py`
-- Endpoints disponibles:
-  - `/api/docs` - Swagger UI
-  - `/api/redoc` - ReDoc
-  - `/api/openapi.json` - Spec JSON
-
-### Verificación F70
-
-| Check | Resultado |
-|-------|-----------|
-| `init.ps1 -Quick` | ✅ Verde |
+```
+HlsCard.astro → PUT /config/video_muxer {encoder_mode: "gpu_nvenc", video_crf: 18, ...}
+  ↓
+server mapea a modules.video_muxer.* + output.hls.encoder_mode
+  ↓
+config.save() → reload() → pipeline.reconfigure()
+  ↓
+CompositeOutput.configure_outputs() mergea modules.video_muxer + output.hls
+  ↓
+HLSOutput.write() overridea audio_codec opus → aac para MPEG-TS
+  ↓
+FFmpeg: h264_nvenc + aac → segmentos .ts válidos → player OK
+```
 
 ## Estado actual del proyecto
 
-- ✅ `init.ps1 -Quick` pasa con `PYTEST_ADDOPTS=--basetemp=pytest_tmp_manual`
+- ✅ 73 features completadas en `feature_list.json`
+- ✅ `init.ps1 -Quick` pasa verde
 - ✅ mypy 0 errores en core/ y server/
-- ✅ F67-F70 completadas en `feature_list.json`
-- ✅ 70 features completadas en total
+- ✅ Todos los cambios verificados con tests

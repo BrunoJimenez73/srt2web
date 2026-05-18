@@ -89,15 +89,15 @@ modules:
     enabled: true
   transcriber:
     enabled: true
-    model: small
-    language: auto
-    device: auto
+    model: tiny
+    language: es
+    device: cuda
     beam_size: 2
     timeout_sec: 120.0
   translator:
     enabled: true
-    source_lang: en
-    target_lang: es
+    source_lang: es
+    target_lang: it
   subtitle_generator:
     enabled: true
     format: webvtt
@@ -107,12 +107,12 @@ modules:
   tts_engine:
     enabled: true
     engine: piper
-    device: auto
-    voice: es_MX-claude-high
+    device: cuda
+    voice: it_IT-paola-medium
     speed: 1.0
   audio_mixer:
     enabled: true
-    original_volume: 0.6
+    original_volume: 0.9
     tts_volume: 1.0
     dubbed_volume: 1.0
   video_muxer:
@@ -121,13 +121,13 @@ modules:
     hls_segment_duration: 6
     hls_list_size: 10
     audio_offset_ms: 0
-    encoder_mode: passthrough
+    encoder_mode: gpu_nvenc
     video_quality: medium
     video_crf: 23
     audio_codec: aac
     audio_bitrate: 128k
     video_bitrate: 1000k
-    video_fps: 15
+    video_fps: 30
     video_width: 320
     video_height: 240
     webrtc_audio_codec: null

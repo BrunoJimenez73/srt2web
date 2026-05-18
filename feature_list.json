@@ -889,6 +889,150 @@
           "No se requiere ningún cambio de código"
         ]
       }
+    },
+    {
+      "id": 71,
+      "name": "fix_encoder_persistence",
+      "title": "Fix encoder mode persistence across configure/reconfigure API",
+      "status": "done",
+      "completed_date": "2026-05-18",
+      "area": "core",
+      "priority": "Alta",
+      "description": "Corregir la persistencia del encoder_mode en VideoMuxer, HLSOutput y el pipeline. El encoder mode no se guarda porque VideoMuxer.configure() ignora encoder_mode, HLSOutput nunca es reconfigurado por pipeline.reconfigure(), y POST /api/config/chunk resetea encoder_mode a passthrough incondicionalmente. Además existen 3 enum de encoder incompatibles.",
+      "problems_identified": [
+        "VideoMuxer.configure() ignora encoder_mode, nunca actualiza self._encoder_config (video_muxer.py:53-66)",
+        "HLSOutput (OutputSink) nunca recibe configure() en runtime porque pipeline.reconfigure() solo itera BaseModules (unified_pipeline.py:915-944 + app_context.py:116-123)",
+        "POST /api/config/chunk resetea forc encode_mode a passthrough (config.py:222-229)",
+        "ALLOWED_ENCODER_MODES en constants.py tiene valores stale/incompatibles (copy, encode vs auto, passthrough, cpu, gpu_nvenc, ...)",
+        "core/types.py tiene un 4to EncoderMode enum incompatible (software, nvenc, videotoolbox) que nunca se usa",
+        "Test test_config_validation.py tiene su propio VALID_ENCODER_MODES con gpu que no existe en schema"
+      ],
+      "acceptance": [
+        "VideoMuxer.configure() recrea EncoderConfig cuando encoder_mode cambia",
+        "pipeline.reconfigure() tambien reconfigura output sinks (composite_sink)",
+        "POST /api/config/chunk preserva encoder_mode en vez de resetearlo a passthrough",
+        "ALLOWED_ENCODER_MODES en constants.py refleja los valores reales de EncoderModeEnum",
+        "EncoderMode en types.py marcado como deprecated (@deprecated)",
+        "VALID_ENCODER_MODES en tests sincronizado con EncoderModeEnum",
+        "init.ps1 -Quick pasa verde",
+        "mypy 0 errores en core/ y server/"
+      ],
+      "files_to_touch": [
+        "modules/video_muxer.py (fix configure, recrear EncoderConfig)",
+        "core/unified_pipeline.py (reconfigure outputs sinks)",
+        "server/routes/config.py (preservar encoder_mode en chunk endpoint)",
+        "core/constants.py (fix ALLOWED_ENCODER_MODES)",
+        "core/types.py (deprecar EncoderMode)",
+        "tests/unit/test_config_validation.py (sync VALID_ENCODER_MODES)",
+        "feature_list.json (F71 in_progress)",
+        "progress/current.md (documentar F71)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Cada cambio se verifica con tests unitarios",
+          "La API publica no cambia (solo fixes internos)",
+          "init.ps1 verifica no regresion tras cada ronda de cambios"
+        ]
+      }
+    },
+    {
+      "id": 72,
+      "name": "fix_gpu_video_encoding",
+      "title": "GPU acceleration for VIDEOMUXER and OUTPUT modules",
+      "status": "done",
+      "completed_date": "2026-05-18",
+      "area": "core",
+      "priority": "Alta",
+      "description": "Hacer que VideoMuxer, HLSOutput y WebRTC realmente usen GPU para codificación. VideoToolbox (Apple Silicon) y VAAPI estan declarados pero nunca implementados. VideoMuxer._do_process() siempre hace passthrough puro. WebRTC hardcodea CPU.",
+      "problems_identified": [
+        "VideoMuxer._do_process() solo hace shutil.copy2 - nunca codifica con GPU (video_muxer.py:137-168)",
+        "VideoToolbox declarado en EncoderModeEnum pero sin encoder args y no integrado en ninguna ruta de codificación",
+        "check_videotoolbox_support() lee stdout en vez de stderr - falla en FFmpeg real (ffmpeg_utils.py:505)",
+        "check_gpu_support() no chequea VideoToolbox (solo nvenc/qsv/amf/vaapi)",
+        "EncoderConfig no tiene get_gpu_videotoolbox_args() ni get_gpu_vaapi_args()",
+        "HLSOutput._get_encoder_config() no maneja gpu_videotoolbox",
+        "HLSOutput.get_status() lista gpu_vaapi pero nunca asigna using_gpu=True",
+        "WebRTC hardcodea using_gpu=False, sin conexion a EncoderConfig",
+        "gpu_preset default mismatch: p7 en config.yaml vs p3 en EncoderConfig.__init__",
+        "gpu_info key inconsistency: HLSOutput y RecordingOutput no incluyen vaapi"
+      ],
+      "acceptance": [
+        "EncoderConfig.get_gpu_videotoolbox_args() implementado",
+        "EncoderConfig.get_gpu_vaapi_args() implementado",
+        "check_videotoolbox_support() lee stderr correctamente",
+        "check_gpu_support() incluye VideoToolbox check",
+        "HLSOutput._get_encoder_config() maneja gpu_videotoolbox",
+        "HLSOutput.get_status() maneja gpu_vaapi correctamente",
+        "WebRTC detecta GPU y no hardcodea using_gpu=False",
+        "VideoMuxer._do_process() usa FFmpeg con encoder GPU cuando configurado",
+        "gpu_preset default en EncoderConfig = p7 (coherente con config.yaml)",
+        "gpu_info en HLSOutput y RecordingOutput incluye vaapi",
+        "init.ps1 -Quick pasa verde",
+        "mypy 0 errores"
+      ],
+      "files_to_touch": [
+        "core/encoder_config.py (videotoolbox + vaapi args)",
+        "core/ffmpeg_utils.py (fix check_videotoolbox_support stderr, add VideoToolbox to check_gpu_support)",
+        "modules/outputs/hls_output.py (add gpu_videotoolbox to encoder selection, fix vaapi in get_status)",
+        "modules/video_muxer.py (usar FFmpeg con encoder real en _do_process)",
+        "modules/outputs/webrtc_output.py (conectar EncoderConfig, detect GPU)",
+        "core/encoder_config.py (change gpu_preset default to p7)",
+        "modules/outputs/recording_output.py (add vaapi to gpu_info)",
+        "tests/unit/test_encoder_config.py (nuevo)",
+        "tests/unit/test_hls_output_gpu.py (nuevo)",
+        "feature_list.json (F72 pending→in_progress)",
+        "progress/current.md (documentar F72)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Fallback a CPU siempre disponible si GPU no está presente",
+          "Cada integracion GPU se prueba con mock de check_gpu_support",
+          "VideoToolbox solo relevante en macOS, no afecta Windows",
+          "init.ps1 verifica no regresion tras cada cambio"
+        ]
+      }
+    },
+    {
+      "id": 73,
+      "name": "fix_missing_video_muxer_route",
+      "title": "Fix missing PUT /config/video_muxer API route — encoder changes from frontend now reach the server",
+      "status": "done",
+      "completed_date": "2026-05-18",
+      "area": "core",
+      "priority": "Alta",
+      "description": "El frontend HlsCard.astro llama a PUT /config/video_muxer con keys planas para cambiar encoder/gpu, pero ese endpoint no existia en el servidor. Ademas, CompositeOutput.configure_outputs() no pasaba los campos de encoder (video_crf, gpu_preset, etc.) a HLSOutput porque no estan en WebOutputConfig.",
+      "problems_identified": [
+        "Frontend HlsCard llama a PUT /config/video_muxer — ruta inexistente (404)",
+        "Los cambios de encoder desde el frontend se perdian silenciosamente",
+        "CompositeOutput.configure_outputs() solo pasaba output.hls.* a HLSOutput",
+        "WebOutputConfig no tiene campos video_crf, gpu_preset, audio_codec, etc.",
+        "EncoderConfig en HLSOutput siempre recibia defaults excepto encoder_mode"
+      ],
+      "acceptance": [
+        "Nueva ruta PUT /config/video_muxer existe y responde 200",
+        "Mapea encoder_mode a output.hls, output.web y modules.video_muxer",
+        "CompositeOutput.configure_outputs mergea modules.video_muxer + output.hls",
+        "HLSOutput recibe todos los campos de encoder via merged config",
+        "init.ps1 -Quick pasa verde",
+        "mypy 0 errores en core/ y server/"
+      ],
+      "files_to_touch": [
+        "server/routes/config.py (nueva ruta PUT /config/video_muxer)",
+        "modules/outputs/composite_output.py (merge video_muxer config en configure_outputs)",
+        "modules/outputs/hls_output.py (opus override aac en write para MPEG-TS compat)",
+        "feature_list.json (F73 done)",
+        "progress/current.md (documentar F73)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "Ruta nueva no afecta endpoints existentes",
+          "El merge es lectura adicional, no modifica comportamiento si no hay video_muxer config",
+          "Pydantic schema valida los campos mapeados"
+        ]
+      }
     }
   ]
 }

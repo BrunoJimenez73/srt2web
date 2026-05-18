@@ -930,6 +930,22 @@ class UnifiedPipeline:
             except Exception as e:
                 self._log("error", f"Failed to reconfigure {module.name}: {e}")
 
+        # Reconfigure output sinks (HLSOutput, WebRTCOutput, etc.)
+        if self._output_sink:
+            try:
+                configure_outputs = getattr(self._output_sink, "configure_outputs", None)
+                if configure_outputs:
+                    configure_outputs(config_manager)
+                else:
+                    # Direct OutputSink that has configure()
+                    configure_method = getattr(self._output_sink, "configure", None)
+                    if configure_method:
+                        output_config = config_manager.get_section("output")
+                        configure_method(output_config)
+                self._log("info", "Reconfigured output sinks")
+            except Exception as e:
+                self._log("warning", f"Could not reconfigure output sinks: {e}")
+
         # Also update input source config if it has chunk_duration
         if self._input_source:
             try:

@@ -245,11 +245,14 @@ class Transcriber(BaseModule):
             return data
 
         # F68: Store in LRU cache for future hits
-        self._transcript_cache.set(cache_key, {
-            "transcript": result.transcript,
-            "segments": result.transcript_segments,
-            "language": result.detected_language,
-        })
+        self._transcript_cache.set(
+            cache_key,
+            {
+                "transcript": result.transcript,
+                "segments": result.transcript_segments,
+                "language": result.detected_language,
+            },
+        )
 
         return result
 

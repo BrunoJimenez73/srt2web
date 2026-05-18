@@ -52,7 +52,7 @@ class EncoderConfig:
         self.video_tune = config.get("video_tune", "zerolatency")
 
         # Configuración de GPU
-        self.gpu_preset = config.get("gpu_preset", "p3")
+        self.gpu_preset = config.get("gpu_preset", "p7")
 
         # Configuración de audio
         self.audio_codec = config.get("audio_codec", "aac")
@@ -138,6 +138,24 @@ class EncoderConfig:
         args.extend(["-low_power", "1", "-async_depth", "1"])
 
         return args
+
+    def get_gpu_videotoolbox_args(self) -> list[str]:
+        """Obtener argumentos FFmpeg para GPU VideoToolbox (Apple Silicon)."""
+        return [
+            "-preset",
+            self.gpu_preset,
+            "-profile:v",
+            self.video_profile,
+        ]
+
+    def get_gpu_vaapi_args(self) -> list[str]:
+        """Obtener argumentos FFmpeg para GPU VAAPI (Linux)."""
+        return [
+            "-preset",
+            self.video_preset,
+            "-profile:v",
+            self.video_profile,
+        ]
 
     def get_audio_args(self) -> list[str]:
         """Obtener argumentos FFmpeg para audio."""

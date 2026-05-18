@@ -131,7 +131,7 @@ def get_ffmpeg_version(ffmpeg_path: str) -> Optional[str]:
 
 def check_gpu_support(ffmpeg_path: str) -> dict[str, Any]:
     """Check for hardware acceleration support in FFmpeg (encoders)."""
-    results = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
+    results = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False}
     try:
         result = subprocess.run(
             [ffmpeg_path, "-encoders"],
@@ -150,6 +150,7 @@ def check_gpu_support(ffmpeg_path: str) -> dict[str, Any]:
         results["qsv"] = "h264_qsv" in output or "hevc_qsv" in output
         results["amf"] = "h264_amf" in output or "hevc_amf" in output
         results["vaapi"] = "h264_vaapi" in output or "hevc_vaapi" in output
+        results["videotoolbox"] = "h264_videotoolbox" in output or "hevc_videotoolbox" in output
     except Exception as e:
         logger.error(f"Exception during GPU check: {e}")
         pass
@@ -502,6 +503,7 @@ def check_videotoolbox_support() -> bool:
             text=True,
             timeout=30,
         )
-        return "h264_videotoolbox" in result.stdout
+        output = (result.stderr + result.stdout).lower()
+        return "h264_videotoolbox" in output
     except Exception:
         return False

@@ -69,7 +69,7 @@ VALID_TTS_VOICES = [
 
 VALID_VIDEO_PRESETS = ["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"]
 
-VALID_ENCODER_MODES = ["auto", "passthrough", "cpu", "gpu", "gpu_nvenc", "gpu_amf", "gpu_qsv"]
+VALID_ENCODER_MODES = ["auto", "passthrough", "cpu", "gpu_nvenc", "gpu_amf", "gpu_qsv", "gpu_videotoolbox"]
 
 
 class TestConfigYAMLValidity:

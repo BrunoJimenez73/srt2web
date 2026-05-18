@@ -224,7 +224,8 @@ export function updateStatus(status: Status): void {
   }
 
   // Update CPU/GPU history for sparklines (F18)
-  const sys: Partial<MetricsData> = status.system_metrics ?? status.system ?? {};
+  const sys: Partial<MetricsData> =
+    status.system_metrics ?? status.system ?? {};
   const cpu = sys.cpu_percent ?? sys.cpu_usage ?? 0;
   const gpu = sys.gpu_percent ?? sys.gpu_usage ?? sys.gpu_util ?? 0;
 

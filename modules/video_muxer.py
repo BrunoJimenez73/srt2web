@@ -6,6 +6,7 @@ and generates HLS output (m3u8 + ts segments) for web playback.
 """
 
 import logging
+import subprocess
 import threading
 import time
 from pathlib import Path
@@ -14,6 +15,7 @@ from typing import Optional
 from core.encoder_config import EncoderConfig
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.module_base import BaseModule, ModuleState, ModuleStatus, PipelineData
+from core.subprocess_utils import get_creation_flags
 
 logger = logging.getLogger("srt2web.module.video_muxer")
 logger.setLevel(logging.INFO)
@@ -36,7 +38,7 @@ class VideoMuxer(BaseModule):
         self._manifest_lock = threading.Lock()
         self._audio_offset_ms = 0
         self._hls_list_size = 30
-        self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
+        self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False}
         self._total_duration_emitted = 0.0
         self._segment_durations = {}  # Cache durations for manifest: {index: duration}
         # Subtitle language settings
@@ -61,8 +63,11 @@ class VideoMuxer(BaseModule):
         # Subtitle language settings
         self._subtitle_language = config.get("subtitle_language", "es")
         self._subtitle_language_name = config.get("subtitle_language_name", "Spanish")
+        # Encoder mode must be read and applied to EncoderConfig
+        if "encoder_mode" in config:
+            self._encoder_config = EncoderConfig(config)
         logger.info(
-            f"VideoMuxer reconfigured: Audio Offset: {self._audio_offset_ms}ms, Video Preset: {self._video_preset}, GPU Preset: {self._gpu_preset}, Subtitle Language: {self._subtitle_language_name}"
+            f"VideoMuxer reconfigured: Audio Offset: {self._audio_offset_ms}ms, Video Preset: {self._video_preset}, GPU Preset: {self._gpu_preset}, Encoder Mode: {self._encoder_config.encoder_mode}, Subtitle Language: {self._subtitle_language_name}"
         )
 
     def start(self) -> None:
@@ -134,6 +139,60 @@ class VideoMuxer(BaseModule):
         self._log("info", f"[VideoMuxer.write] Processed chunk in {elapsed:.1f}ms")
         return result
 
+    def _get_encoder_config(self) -> tuple:
+        """Determinar configuración del encoder (CPU/GPU) basado en preferencias."""
+        encoder = "libx264"
+        preset = self._encoder_config.video_preset
+        extra_args = []
+
+        encoder_mode = self._encoder_config.encoder_mode
+
+        if encoder_mode == "auto":
+            if self._gpu_info["nvenc"]:
+                encoder_mode = "gpu_nvenc"
+            elif self._gpu_info["amf"]:
+                encoder_mode = "gpu_amf"
+            elif self._gpu_info["qsv"]:
+                encoder_mode = "gpu_qsv"
+            elif self._gpu_info["vaapi"]:
+                encoder_mode = "gpu_vaapi"
+            elif self._gpu_info["videotoolbox"]:
+                encoder_mode = "gpu_videotoolbox"
+            else:
+                encoder_mode = "cpu"
+
+        if encoder_mode == "passthrough" or encoder_mode == "cpu":
+            pass
+        elif encoder_mode == "gpu_nvenc" and self._gpu_info["nvenc"]:
+            encoder = "h264_nvenc"
+            preset = self._encoder_config.gpu_preset
+            extra_args = self._encoder_config.get_gpu_nvenc_args()
+            logger.info(f"VideoMuxer using GPU NVENC (preset: {preset})")
+        elif encoder_mode == "gpu_amf" and self._gpu_info["amf"]:
+            encoder = "h264_amf"
+            preset = self._encoder_config.video_preset
+            extra_args = self._encoder_config.get_gpu_amf_args()
+            logger.info(f"VideoMuxer using GPU AMF (preset: {preset})")
+        elif encoder_mode == "gpu_qsv" and self._gpu_info["qsv"]:
+            encoder = "h264_qsv"
+            preset = self._encoder_config.video_preset
+            extra_args = self._encoder_config.get_gpu_qsv_args()
+            logger.info(f"VideoMuxer using GPU QSV (preset: {preset})")
+        elif encoder_mode == "gpu_videotoolbox" and self._gpu_info["videotoolbox"]:
+            encoder = "h264_videotoolbox"
+            preset = self._encoder_config.gpu_preset
+            extra_args = self._encoder_config.get_gpu_videotoolbox_args()
+            logger.info(f"VideoMuxer using GPU VideoToolbox (preset: {preset})")
+        elif encoder_mode == "gpu_vaapi" and self._gpu_info["vaapi"]:
+            encoder = "h264_vaapi"
+            preset = self._encoder_config.video_preset
+            extra_args = self._encoder_config.get_gpu_vaapi_args()
+            logger.info(f"VideoMuxer using GPU VAAPI (preset: {preset})")
+        else:
+            logger.info(f"VideoMuxer using CPU encoder libx264 (preset: {preset})")
+
+        return encoder, preset, extra_args
+
     def _do_process(self, data: PipelineData) -> PipelineData:
         """Generate HLS segment from video chunk."""
         input_path = data.video_chunk_path
@@ -143,15 +202,59 @@ class VideoMuxer(BaseModule):
         chunk_duration = data.duration or self._hls_segment_duration
         offset_sec = getattr(data, "cumulative_duration", self._total_duration_emitted)
         segment_name = f"seg_{self._segment_index:06d}.ts"
+        segment_path = self._hls_dir / segment_name
 
-        # Copy input to HLS segment (passthrough - no re-encoding)
-        try:
-            import shutil
+        encoder_mode = self._encoder_config.encoder_mode
+        encoder, preset, extra_args = self._get_encoder_config()
 
-            dest_path = self._hls_dir / segment_name
-            shutil.copy2(input_path, dest_path)
-        except Exception:
-            pass
+        if encoder_mode == "passthrough" or encoder == "libx264":
+            # Fast path: copy without re-encoding
+            try:
+                import shutil
+
+                shutil.copy2(input_path, segment_path)
+                logger.info(f"VideoMuxer segment copied (passthrough): {segment_name}")
+            except Exception:
+                pass
+        else:
+            # GPU encode path: use FFmpeg with selected encoder
+            try:
+                cmd = [
+                    self._ffmpeg_path,
+                    "-y",
+                    "-i",
+                    str(input_path),
+                    "-map",
+                    "0:v:0",
+                    "-c:v",
+                    encoder,
+                    "-preset",
+                    preset,
+                    *extra_args,
+                    "-f",
+                    "mpegts",
+                    str(segment_path),
+                ]
+                result = subprocess.run(
+                    cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    timeout=60,
+                    creationflags=get_creation_flags(),
+                )
+                if result.returncode != 0:
+                    logger.error(f"VideoMuxer FFmpeg error: {result.stderr[-500:]}")
+                    # Fallback: copy instead of failing silently
+                    import shutil
+
+                    shutil.copy2(input_path, segment_path)
+                else:
+                    logger.info(f"VideoMuxer segment encoded ({encoder}): {segment_name}")
+            except Exception:
+                import shutil
+
+                shutil.copy2(input_path, segment_path)
 
         # Cache duration for manifest
         self._segment_durations[self._segment_index] = chunk_duration
@@ -268,7 +371,14 @@ class VideoMuxer(BaseModule):
         actual_encoder = "libx264"
         encoder_label = "CPU"
 
-        if self._ffmpeg_path and encoder_mode in ["auto", "gpu_nvenc", "gpu_amf", "gpu_qsv", "gpu_vaapi"]:
+        if self._ffmpeg_path and encoder_mode in [
+            "auto",
+            "gpu_nvenc",
+            "gpu_amf",
+            "gpu_qsv",
+            "gpu_vaapi",
+            "gpu_videotoolbox",
+        ]:
             # Si el binario existe, asumimos la compatibilidad si la configuración lo pide
             if encoder_mode == "gpu_nvenc" and self._gpu_info["nvenc"]:
                 using_gpu = True
@@ -300,6 +410,10 @@ class VideoMuxer(BaseModule):
                 using_gpu = True
                 actual_encoder = "h264_vaapi"
                 encoder_label = "H.264 VAAPI"
+            elif self._gpu_info["videotoolbox"]:
+                using_gpu = True
+                actual_encoder = "h264_videotoolbox"
+                encoder_label = "H.264 VideoToolbox"
 
         # Si no hay GPU, el encoder sigue siendo libx264 (CPU)
         if not using_gpu:

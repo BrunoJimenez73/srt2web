@@ -11,9 +11,10 @@ These tests verify:
 
 import os
 import sys
-import pytest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
+
+import pytest
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 CONFIG_PATH = str(PROJECT_ROOT / "config.yaml")
@@ -24,14 +25,15 @@ sys.path.insert(0, str(PROJECT_ROOT))
 # GPU Indicators Tests
 # ============================================================
 
+
 @pytest.mark.unit
 class TestGPUIndicators:
     """Tests for GPU indicator functionality in modules."""
 
     def test_transcriber_get_status_has_device(self) -> None:
         """Test that transcriber get_status includes device info."""
-        from modules.transcriber import Transcriber
         from core.module_base import ModuleState
+        from modules.transcriber import Transcriber
 
         transcriber = Transcriber({"model": "tiny", "language": "en", "device": "cpu"})
         transcriber._state = ModuleState.IDLE
@@ -43,8 +45,8 @@ class TestGPUIndicators:
 
     def test_transcriber_get_status_gpu_false_for_cpu(self) -> None:
         """Test that transcriber reports GPU=False for CPU device."""
-        from modules.transcriber import Transcriber
         from core.module_base import ModuleState
+        from modules.transcriber import Transcriber
 
         transcriber = Transcriber({"model": "tiny", "language": "en", "device": "cpu"})
         transcriber._state = ModuleState.IDLE
@@ -54,8 +56,8 @@ class TestGPUIndicators:
 
     def test_transcriber_get_status_gpu_true_for_cuda(self) -> None:
         """Test that transcriber reports GPU=True when _device is set to cuda."""
-        from modules.transcriber import Transcriber
         from core.module_base import ModuleState
+        from modules.transcriber import Transcriber
 
         transcriber = Transcriber({"model": "tiny", "language": "en", "device": "cuda"})
         transcriber._state = ModuleState.IDLE
@@ -71,7 +73,6 @@ class TestGPUIndicators:
         """Test that TTS get_status includes device and engine info."""
         mock_listdir.return_value = []
         from modules.tts_engine import TTSEngine
-        from core.module_base import ModuleState
 
         tts = TTSEngine({"engine": "piper", "device": "auto"})
         tts.start()
@@ -129,7 +130,7 @@ class TestGPUIndicators:
     def test_video_muxer_cpu_mode(self, mock_glob, mock_makedirs, mock_gpu, mock_ensure) -> None:
         """Test that video muxer reports CPU when no GPU available."""
         mock_ensure.return_value = "/bin/ffmpeg"
-        mock_gpu.return_value = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
+        mock_gpu.return_value = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False}
         mock_glob.return_value = []
 
         from modules.video_muxer import VideoMuxer
@@ -150,6 +151,7 @@ class TestGPUIndicators:
 # EncoderConfig Tests
 # ============================================================
 
+
 class TestEncoderConfig:
     """Tests for EncoderConfig class."""
 
@@ -161,7 +163,7 @@ class TestEncoderConfig:
         assert config.encoder_mode == "auto"
         assert config.video_preset == "medium"
         assert config.video_crf == 18
-        assert config.gpu_preset == "p3"
+        assert config.gpu_preset == "p7"
         assert config.audio_codec == "aac"
         assert config.audio_bitrate == "192k"
 
@@ -169,13 +171,15 @@ class TestEncoderConfig:
         """Test EncoderConfig with custom values."""
         from core.encoder_config import EncoderConfig
 
-        config = EncoderConfig({
-            "encoder_mode": "gpu_nvenc",
-            "video_preset": "fast",
-            "gpu_preset": "p5",
-            "audio_codec": "opus",
-            "audio_bitrate": "128k",
-        })
+        config = EncoderConfig(
+            {
+                "encoder_mode": "gpu_nvenc",
+                "video_preset": "fast",
+                "gpu_preset": "p5",
+                "audio_codec": "opus",
+                "audio_bitrate": "128k",
+            }
+        )
         assert config.encoder_mode == "gpu_nvenc"
         assert config.video_preset == "fast"
         assert config.gpu_preset == "p5"
@@ -296,6 +300,7 @@ class TestEncoderConfig:
 # Piper Loader Tests
 # ============================================================
 
+
 class TestPiperLoader:
     """Tests for Piper TTS loader subprocess."""
 
@@ -335,7 +340,7 @@ class TestPiperLoader:
             model_path="/nonexistent/model.onnx",
             config_path="/nonexistent/model.onnx.json",
             device="cpu",
-            timeout=10
+            timeout=10,
         )
 
         assert isinstance(result, dict)
@@ -351,7 +356,7 @@ class TestPiperLoader:
             model_path="/nonexistent/model.onnx",
             config_path="/nonexistent/model.onnx.json",
             device="cpu",
-            timeout=5
+            timeout=5,
         )
 
         assert result["status"] == "error"
@@ -360,6 +365,7 @@ class TestPiperLoader:
 # ============================================================
 # Installer/Startup Scripts Tests
 # ============================================================
+
 
 class TestInstallerScripts:
     """Tests for installer and startup scripts."""
@@ -378,40 +384,40 @@ class TestInstallerScripts:
 
     def test_install_bat_has_venv_creation(self) -> None:
         """Test that Install.bat creates virtual environment."""
-        with open("Install.bat", "r", encoding="utf-8") as f:
+        with open("Install.bat", encoding="utf-8") as f:
             content = f.read()
         assert "venv" in content.lower()
         assert "python" in content.lower()
 
     def test_install_bat_has_pip_install(self) -> None:
         """Test that Install.bat installs dependencies."""
-        with open("Install.bat", "r", encoding="utf-8") as f:
+        with open("Install.bat", encoding="utf-8") as f:
             content = f.read()
         assert "pip" in content.lower()
         assert "requirements" in content.lower()
 
     def test_install_bat_checks_cuda(self) -> None:
         """Test that Install.bat checks CUDA availability."""
-        with open("Install.bat", "r", encoding="utf-8") as f:
+        with open("Install.bat", encoding="utf-8") as f:
             content = f.read()
         assert "cuda" in content.lower() or "onnxruntime" in content.lower()
 
     def test_start_bat_uses_venv_python(self) -> None:
         """Test that Start.bat uses virtual environment Python."""
-        with open("Start.bat", "r", encoding="utf-8") as f:
+        with open("Start.bat", encoding="utf-8") as f:
             content = f.read()
         assert "venv" in content.lower()
         assert "python" in content.lower()
 
     def test_start_bat_runs_main_py(self) -> None:
         """Test that Start.bat runs main.py."""
-        with open("Start.bat", "r", encoding="utf-8") as f:
+        with open("Start.bat", encoding="utf-8") as f:
             content = f.read()
         assert "main.py" in content
 
     def test_start_bat_shows_dashboard_url(self) -> None:
         """Test that Start.bat shows dashboard URL."""
-        with open("Start.bat", "r", encoding="utf-8") as f:
+        with open("Start.bat", encoding="utf-8") as f:
             content = f.read()
         assert "localhost" in content.lower() or "9999" in content
 
@@ -419,6 +425,7 @@ class TestInstallerScripts:
 # ============================================================
 # Project Restructure Tests
 # ============================================================
+
 
 class TestProjectStructure:
     """Tests for project directory structure."""
@@ -496,16 +503,13 @@ class TestProjectStructure:
 
     def test_frontend_has_astro_config(self) -> None:
         """Test that frontend has Astro config."""
-        assert os.path.exists(os.path.join("frontend", "astro.config.mjs")), \
-            "frontend/astro.config.mjs not found"
-        assert os.path.exists(os.path.join("frontend", "package.json")), \
-            "frontend/package.json not found"
+        assert os.path.exists(os.path.join("frontend", "astro.config.mjs")), "frontend/astro.config.mjs not found"
+        assert os.path.exists(os.path.join("frontend", "package.json")), "frontend/package.json not found"
 
     def test_requirements_txt_exists(self) -> None:
         """Test that requirements.txt exists (in config/ or root)."""
-        assert (
-            os.path.exists("requirements.txt")
-            or os.path.exists(os.path.join("config", "requirements.txt"))
+        assert os.path.exists("requirements.txt") or os.path.exists(
+            os.path.join("config", "requirements.txt")
         ), "requirements.txt not found"
 
     def test_bin_directory_exists(self) -> None:
@@ -555,17 +559,18 @@ class TestProjectStructure:
 # FFmpeg Pool Tests
 # ============================================================
 
+
 class TestFFmpegPool:
     """Tests for FFmpeg process pool."""
 
     def test_ffmpeg_pool_module_exists(self) -> None:
         """Test that ffmpeg_pool module exists."""
-        assert os.path.exists(os.path.join("core", "ffmpeg_pool.py")), \
-            "core/ffmpeg_pool.py not found"
+        assert os.path.exists(os.path.join("core", "ffmpeg_pool.py")), "core/ffmpeg_pool.py not found"
 
     def test_ffmpeg_pool_can_be_imported(self) -> None:
         """Test that ffmpeg_pool can be imported."""
         from core.ffmpeg_pool import FFmpegPool
+
         assert FFmpegPool is not None
 
 
@@ -573,16 +578,17 @@ class TestFFmpegPool:
 # Watchdog Tests
 # ============================================================
 
+
 class TestWatchdogModule:
     """Tests for watchdog module."""
 
     def test_watchdog_module_exists(self) -> None:
         """Test that watchdog module exists."""
-        assert os.path.exists(os.path.join("core", "watchdog.py")), \
-            "core/watchdog.py not found"
+        assert os.path.exists(os.path.join("core", "watchdog.py")), "core/watchdog.py not found"
 
     def test_watchdog_can_be_imported(self) -> None:
         """Test that watchdog can be imported."""
         from core.watchdog import FFmpegWatchdog, ProcessManager
+
         assert FFmpegWatchdog is not None
         assert ProcessManager is not None

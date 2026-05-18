@@ -56,12 +56,15 @@ class DeviceType(str, Enum):
 
 
 class EncoderMode(str, Enum):
-    """Modos de encoding de video."""
+    """Modos de encoding de video.
+
+    DEPRECATED: Usar EncoderModeEnum en core.config_schema en su lugar.
+    """
 
     SOFTWARE = "software"
     NVENC = "nvenc"  # NVIDIA
     VIDEOTOOLBOX = "videotoolbox"  # Apple
-    QSV = "qsv"  # Intel QuickSync
+    QSZ = "qsv"  # Intel QuickSync
     VAAPI = "vaapi"  # Linux VA-API
 
 

@@ -6,7 +6,7 @@ Delega el trabajo a cada salida individual.
 import logging
 import threading
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 from core.module_base import ModuleState, ModuleStatus, PipelineData
 from core.output_sink import OutputSink
@@ -49,6 +49,34 @@ class CompositeOutput(BaseOutput):
             self._outputs[name] = output
             self._errors[name] = None
             self._reconnect_attempts[name] = 0
+
+    def configure_outputs(self, config_manager: Any) -> None:
+        """Reconfigure each output sink from config_manager.
+
+        Merges output section config (output.web, output.hls) with
+        modules.video_muxer config so the full EncoderConfig is available.
+        """
+        for name, output in self._outputs.items():
+            try:
+                out_type = type(output).__name__.lower().replace("output", "")
+                # Try specific output config first (output.web, output.hls, etc.)
+                section_config = config_manager.get_section("output").get(out_type, {})
+                if not section_config:
+                    section_config = config_manager.get_section("output")
+
+                # Merge video_muxer module config for full encoder settings
+                video_muxer_config = config_manager.get_section("modules.video_muxer")
+                if video_muxer_config:
+                    merged = {**section_config, **video_muxer_config}
+                else:
+                    merged = section_config
+
+                output.configure(merged)
+                self._errors[name] = None
+                logger.info(f"Reconfigured output '{name}' ({out_type})")
+            except Exception as e:
+                self._errors[name] = str(e)
+                logger.warning(f"Failed to reconfigure output '{name}': {e}")
 
     def start(self) -> None:
         """Iniciar todas las salidas."""

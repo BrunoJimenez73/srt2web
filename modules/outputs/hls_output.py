@@ -52,7 +52,7 @@ class HLSOutput(OutputSink):
         self._hls_dir: str = ""
         self._segment_index: int = 0
         self._manifest_lock = threading.Lock()
-        self._gpu_info = {"nvenc": False, "qsv": False, "amf": False}
+        self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False}
         self._total_duration_emitted: float = 0.0
         self._segment_durations: dict = {}
         # Timing tracking for frontend metrics
@@ -230,7 +230,19 @@ class HLSOutput(OutputSink):
             audio_delay_sec = self._audio_offset_ms / 1000.0
             cmd.extend(["-itsoffset", str(audio_delay_sec), "-i", audio_input])
 
-        audio_args = self._encoder_config.get_audio_args()
+        # MPEG-TS container does not support Opus audio — force AAC
+        if self._encoder_config.audio_codec == "opus":
+            audio_codec = "aac"
+        else:
+            audio_codec = self._encoder_config.audio_codec
+        audio_args = [
+            "-c:a",
+            audio_codec,
+            "-b:a",
+            self._encoder_config.audio_bitrate,
+            "-ar",
+            str(self._encoder_config.audio_sample_rate),
+        ]
 
         cmd.extend(
             [
@@ -339,6 +351,18 @@ class HLSOutput(OutputSink):
             preset = self._encoder_config.video_preset
             extra_args = self._encoder_config.get_gpu_qsv_args()
             self.logger.info(f"Using GPU QSV encoder (preset: {preset})")
+
+        elif encoder_mode == "gpu_videotoolbox" and self._gpu_info["videotoolbox"]:
+            encoder = "h264_videotoolbox"
+            preset = self._encoder_config.gpu_preset
+            extra_args = self._encoder_config.get_gpu_videotoolbox_args()
+            self.logger.info(f"Using GPU VideoToolbox encoder (preset: {preset})")
+
+        elif encoder_mode == "gpu_vaapi" and self._gpu_info["vaapi"]:
+            encoder = "h264_vaapi"
+            preset = self._encoder_config.video_preset
+            extra_args = self._encoder_config.get_gpu_vaapi_args()
+            self.logger.info(f"Using GPU VAAPI encoder (preset: {preset})")
 
         else:
             # CPU encoder con configuración CRF
@@ -457,6 +481,7 @@ class HLSOutput(OutputSink):
             "gpu_amf",
             "gpu_qsv",
             "gpu_vaapi",
+            "gpu_videotoolbox",
         ]:
             if encoder_mode == "gpu_nvenc" and self._gpu_info["nvenc"]:
                 using_gpu = True
@@ -478,6 +503,14 @@ class HLSOutput(OutputSink):
                 using_gpu = True
                 actual_encoder = "h264_qsv"
                 encoder_label = "H.264 QSV"
+            elif self._gpu_info["vaapi"]:
+                using_gpu = True
+                actual_encoder = "h264_vaapi"
+                encoder_label = "H.264 VAAPI"
+            elif self._gpu_info["videotoolbox"]:
+                using_gpu = True
+                actual_encoder = "h264_videotoolbox"
+                encoder_label = "H.264 VideoToolbox"
 
         if not using_gpu:
             actual_encoder = "libx264"

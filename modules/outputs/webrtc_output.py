@@ -8,6 +8,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+from core.encoder_config import EncoderConfig
 from core.module_base import ModuleState, ModuleStatus, PipelineData
 from core.output_sink import OutputSink
 
@@ -30,6 +31,7 @@ class WebRTCOutput(OutputSink):
         from modules.webrtc_engine import WebRTCEngine
 
         self._engine = WebRTCEngine(config)
+        self._encoder_config = EncoderConfig(config)
 
         # State
         self._engines: dict[str, any] = {"webrtc": self._engine}
@@ -43,6 +45,7 @@ class WebRTCOutput(OutputSink):
     def configure(self, config: dict) -> None:
         """Apply configuration."""
         super().configure(config)
+        self._encoder_config = EncoderConfig(config)
         if self._engine:
             self._engine.config.update(config)
         logger.info("WebRTC output configured")
@@ -95,11 +98,11 @@ class WebRTCOutput(OutputSink):
             processed_chunks=0,
             last_process_time_ms=0.0,
             extra={
-                "encoder_mode": "webrtc",
+                "encoder_mode": self._encoder_config.encoder_mode,
                 "actual_encoder": "webrtc",
                 "using_gpu": False,
                 "gpu_available": {},
-                "encoder_label": "CPU (WebRTC)",
+                "encoder_label": "WebRTC",
             },
         )
 
