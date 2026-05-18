@@ -10,6 +10,7 @@ Este módulo contiene los componentes principales del pipeline:
 
 # Tipos y excepciones (nuevos módulos de refactorización)
 # Configuración y gestión
+# Nuevas estrategias de pipeline (refactoring)
 from core.config_manager import ConfigManager
 
 # Constantes centralizadas
@@ -74,8 +75,6 @@ from core.logging_setup import (
     get_logger,
     setup_logging,
 )
-
-# Nuevas estrategias de pipeline (refactoring)
 from core.module_base import BaseModule, PipelineData
 
 # Interfaz de módulos (nueva arquitectura)

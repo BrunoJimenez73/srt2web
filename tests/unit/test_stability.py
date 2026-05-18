@@ -2,9 +2,10 @@
 Tests for Circuit Breaker implementation.
 """
 
-import pytest
 import time
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 @pytest.mark.unit
@@ -13,7 +14,7 @@ class TestCircuitBreaker:
 
     def test_initial_state_is_closed(self) -> None:
         """Test that circuit breaker starts in closed state."""
-        from core.module_base import CircuitBreaker
+        from core.circuit_breaker import CircuitBreaker
 
         cb = CircuitBreaker()
         assert cb.state == "closed"
@@ -21,7 +22,7 @@ class TestCircuitBreaker:
 
     def test_records_success(self) -> None:
         """Test that success resets failure count."""
-        from core.module_base import CircuitBreaker
+        from core.circuit_breaker import CircuitBreaker
 
         cb = CircuitBreaker(failure_threshold=3)
 
@@ -35,7 +36,7 @@ class TestCircuitBreaker:
 
     def test_opens_after_threshold(self) -> None:
         """Test that circuit opens after reaching failure threshold."""
-        from core.module_base import CircuitBreaker
+        from core.circuit_breaker import CircuitBreaker
 
         cb = CircuitBreaker(failure_threshold=3)
 
@@ -49,7 +50,7 @@ class TestCircuitBreaker:
 
     def test_half_open_after_timeout(self) -> None:
         """Test that circuit transitions to half-open after timeout."""
-        from core.module_base import CircuitBreaker
+        from core.circuit_breaker import CircuitBreaker
 
         cb = CircuitBreaker(failure_threshold=2, timeout=0.1)
 
@@ -63,7 +64,7 @@ class TestCircuitBreaker:
 
     def test_closes_after_half_open_successes(self) -> None:
         """Test that circuit closes after successful calls in half-open state."""
-        from core.module_base import CircuitBreaker
+        from core.circuit_breaker import CircuitBreaker
 
         cb = CircuitBreaker(failure_threshold=2, timeout=0.1, half_open_max_calls=2)
 
@@ -79,7 +80,7 @@ class TestCircuitBreaker:
 
     def test_force_reset(self) -> None:
         """Test force reset functionality."""
-        from core.module_base import CircuitBreaker
+        from core.circuit_breaker import CircuitBreaker
 
         cb = CircuitBreaker(failure_threshold=2)
         cb.record_failure()
@@ -93,7 +94,7 @@ class TestCircuitBreaker:
 
     def test_half_open_max_calls(self) -> None:
         """Test that circuit opens after threshold and recovers."""
-        from core.module_base import CircuitBreaker
+        from core.circuit_breaker import CircuitBreaker
 
         cb = CircuitBreaker(failure_threshold=2, timeout=0.1, half_open_max_calls=2)
 
@@ -111,7 +112,8 @@ class TestCircuitBreaker:
     def test_concurrent_access(self) -> None:
         """Test thread safety of circuit breaker."""
         import threading
-        from core.module_base import CircuitBreaker
+
+        from core.circuit_breaker import CircuitBreaker
 
         cb = CircuitBreaker(failure_threshold=100)
 
@@ -133,7 +135,7 @@ class TestRetryStrategy:
 
     def test_successful_execution_no_retry(self) -> None:
         """Test that successful execution doesn't retry."""
-        from core.module_base import RetryStrategy
+        from core.circuit_breaker import RetryStrategy
 
         retry = RetryStrategy(max_retries=3)
         func = MagicMock(return_value="success")
@@ -145,12 +147,10 @@ class TestRetryStrategy:
 
     def test_retries_on_failure(self) -> None:
         """Test that retries happen on failure."""
-        from core.module_base import RetryStrategy
+        from core.circuit_breaker import RetryStrategy
 
         retry = RetryStrategy(max_retries=3, base_delay=0.01)
-        func = MagicMock(
-            side_effect=[Exception("fail 1"), Exception("fail 2"), "success"]
-        )
+        func = MagicMock(side_effect=[Exception("fail 1"), Exception("fail 2"), "success"])
 
         result = retry.execute(func)
 
@@ -159,7 +159,7 @@ class TestRetryStrategy:
 
     def test_exhausts_retries(self) -> None:
         """Test that all retries are exhausted."""
-        from core.module_base import RetryStrategy
+        from core.circuit_breaker import RetryStrategy
 
         retry = RetryStrategy(max_retries=2, base_delay=0.01)
         func = MagicMock(side_effect=Exception("always fails"))
@@ -172,7 +172,7 @@ class TestRetryStrategy:
 
     def test_is_recoverable_check(self) -> None:
         """Test that is_recoverable callback is respected."""
-        from core.module_base import RetryStrategy
+        from core.circuit_breaker import RetryStrategy
 
         retry = RetryStrategy(max_retries=3, base_delay=0.01)
         func = MagicMock(side_effect=Exception("timeout"))
@@ -186,7 +186,7 @@ class TestRetryStrategy:
 
     def test_delay_increases_exponentially(self) -> None:
         """Test that delays increase exponentially."""
-        from core.module_base import RetryStrategy
+        from core.circuit_breaker import RetryStrategy
 
         retry = RetryStrategy(max_retries=3, base_delay=0.1, exponential_base=2.0)
 
@@ -197,7 +197,7 @@ class TestRetryStrategy:
 
     def test_max_delay_respected(self) -> None:
         """Test that max_delay is respected."""
-        from core.module_base import RetryStrategy
+        from core.circuit_breaker import RetryStrategy
 
         retry = RetryStrategy(max_retries=5, base_delay=1.0, max_delay=5.0)
 
@@ -212,34 +212,34 @@ class TestIsRecoverableError:
 
     def test_timeout_is_recoverable(self) -> None:
         """Test that timeout errors are recoverable."""
-        from core.module_base import is_recoverable_error
+        from core.circuit_breaker import is_recoverable_error
 
         assert is_recoverable_error(Exception("timeout occurred")) is True
         assert is_recoverable_error(Exception("Connection timed out")) is True
 
     def test_ffmpeg_is_recoverable(self) -> None:
         """Test that FFmpeg errors are recoverable."""
-        from core.module_base import is_recoverable_error
+        from core.circuit_breaker import is_recoverable_error
 
         assert is_recoverable_error(Exception("ffmpeg error")) is True
         assert is_recoverable_error(Exception("FFmpeg process died")) is True
 
     def test_stream_is_recoverable(self) -> None:
         """Test that stream errors are recoverable."""
-        from core.module_base import is_recoverable_error
+        from core.circuit_breaker import is_recoverable_error
 
         assert is_recoverable_error(Exception("stream closed")) is True
         assert is_recoverable_error(Exception("connection lost")) is True
 
     def test_memory_is_recoverable(self) -> None:
         """Test that memory errors are recoverable."""
-        from core.module_base import is_recoverable_error
+        from core.circuit_breaker import is_recoverable_error
 
         assert is_recoverable_error(Exception("out of memory")) is True
 
     def test_generic_error_not_recoverable(self) -> None:
         """Test that generic errors are not recoverable."""
-        from core.module_base import is_recoverable_error
+        from core.circuit_breaker import is_recoverable_error
 
         assert is_recoverable_error(Exception("something went wrong")) is False
         assert is_recoverable_error(Exception("configuration invalid")) is False

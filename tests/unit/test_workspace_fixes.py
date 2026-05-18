@@ -59,7 +59,7 @@ class TestTypeScriptModuleResolution:
         assert astro_dts_path.exists(), "astro.d.ts should exist"
 
         content = astro_dts_path.read_text(encoding="utf-8")
-        assert "declare module '*.astro'" in content
+        assert 'declare module "*.astro"' in content
 
 
 class TestAuthenticationTokenManagement:

@@ -25,13 +25,16 @@ import typing
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 import psutil
 
 from core.exceptions import PipelineError, PipelineStateError
 from core.hardware_monitor import HardwareMonitor
 from core.module_base import BaseModule, PipelineData
+from core.pipeline_metrics import PipelineMetrics
+from core.schemas import PipelineMode as PipelineMode
+from core.schemas import PipelineState as PipelineState
 from core.schemas import SystemMetrics
 from core.webhook_manager import webhook_manager
 
@@ -66,42 +69,16 @@ class _CompletedAwaitable:
         return None
 
 
-from core.schemas import PipelineMode as PipelineMode
-from core.schemas import PipelineState as PipelineState
-
-
 @dataclass
 class ChunkProcessor:
     """Trackea el estado de procesamiento de un chunk."""
 
     chunk_index: int
     timestamp: float
-    data: Optional[PipelineData] = None
+    data: PipelineData | None = None
     stages_completed: dict[str, float] = field(default_factory=dict)
-    error: Optional[str] = None
-    task: Optional[Union[threading.Thread, asyncio.Task[None]]] = None
-
-
-@dataclass
-class PipelineMetrics:
-    """Métricas agregadas del pipeline."""
-
-    chunks_processed: int = 0
-    chunks_failed: int = 0
-    total_processing_time: float = 0.0
-    start_time: Optional[float] = None
-
-    @property
-    def avg_processing_time(self) -> float:
-        if self.chunks_processed == 0:
-            return 0.0
-        return self.total_processing_time / self.chunks_processed
-
-    @property
-    def uptime(self) -> float:
-        if not self.start_time:
-            return 0.0
-        return time.time() - self.start_time
+    error: str | None = None
+    task: threading.Thread | asyncio.Task[None] | None = None
 
 
 class UnifiedPipeline:
@@ -156,17 +133,17 @@ class UnifiedPipeline:
         self._chunk_queue: queue.Queue[ChunkProcessor] = queue.Queue(maxsize=buffer_size)
         self._output_queue: queue.Queue[ChunkProcessor] = queue.Queue(maxsize=buffer_size)
         self._results: dict[int, ChunkProcessor] = {}
-        self._input_thread: Optional[threading.Thread] = None
-        self._output_thread: Optional[threading.Thread] = None
+        self._input_thread: threading.Thread | None = None
+        self._output_thread: threading.Thread | None = None
 
         # Metrics
         self._pipeline_metrics = PipelineMetrics()
         self._system_metrics = SystemMetrics(cpu_percent=0, memory_mb=0, memory_percent=0)
 
         # Callbacks
-        self._on_log: Optional[Callable[[str, str], None]] = None
-        self._on_state_change: Optional[Callable[[str], None]] = None
-        self._on_chunk_complete: Optional[Callable[[int, PipelineData], None]] = None
+        self._on_log: Callable[[str, str], None] | None = None
+        self._on_state_change: Callable[[str], None] | None = None
+        self._on_chunk_complete: Callable[[int, PipelineData], None] | None = None
 
         # Lock para operaciones thread-safe
         self._lock = threading.Lock()
@@ -177,7 +154,7 @@ class UnifiedPipeline:
         self._chunk_duration = 10.0
 
         # Initialize processing strategy (if available)
-        self._strategy: Optional[PipelineStrategy] = None
+        self._strategy: PipelineStrategy | None = None
         self._active_chunks = 0
         if create_strategy and StrategyConfig:  # type: ignore[truthy-function]
             try:
@@ -208,7 +185,7 @@ class UnifiedPipeline:
         """Establecer fuente de entrada."""
         self._input_source = source
 
-    def get_input_source(self) -> Optional[Any]:
+    def get_input_source(self) -> Any | None:
         """Obtener fuente de entrada."""
         return self._input_source
 
@@ -230,17 +207,17 @@ class UnifiedPipeline:
         """Establecer destino de salida (para compatibilidad)."""
         self._output_sink = sink
 
-    def get_output_sink(self) -> Optional[Any]:
+    def get_output_sink(self) -> Any | None:
         """Obtener destino de salida (para compatibilidad)."""
         return self._output_sink
 
-    def get_output_sinks(self) -> Optional["CompositeOutput"]:
+    def get_output_sinks(self) -> "CompositeOutput" | None:
         """Obtener el CompositeOutput si el sink actual es uno."""
         if _CompositeOutput is not None and isinstance(self._output_sink, _CompositeOutput):
             return self._output_sink
         return None
 
-    def register_module(self, module: BaseModule, config: Optional[dict[str, Any]] = None) -> None:
+    def register_module(self, module: BaseModule, config: dict[str, Any] | None = None) -> None:
         """Registrar un módulo en orden de ejecución."""
         self._modules.append(module)
         self._module_map[module.name] = module
@@ -253,7 +230,7 @@ class UnifiedPipeline:
         if self._strategy:
             self._strategy.set_modules(self._modules)
 
-    def get_module(self, name: str) -> Optional[BaseModule]:
+    def get_module(self, name: str) -> BaseModule | None:
         """Obtener un módulo por nombre."""
         return self._module_map.get(name)
 
@@ -362,8 +339,8 @@ class UnifiedPipeline:
 
     def start(
         self,
-        on_log: Optional[Callable[[str, str], None]] = None,
-        on_state_change: Optional[Callable[[str], None]] = None,
+        on_log: Callable[[str, str], None] | None = None,
+        on_state_change: Callable[[str], None] | None = None,
     ) -> "_CompletedAwaitable":
         """Iniciar procesamiento del pipeline."""
         if self._state != PipelineState.IDLE:
@@ -832,7 +809,7 @@ class UnifiedPipeline:
     def get_status(self) -> dict[str, Any]:
         """Obtener estado completo del pipeline."""
         # Leer memoria del proceso UNA SOLA VEZ para todos los módulos
-        process_memory_mb: Optional[float] = None
+        process_memory_mb: float | None = None
         try:
             process_memory_mb = round(psutil.Process().memory_info().rss / 1024 / 1024, 1)
         except Exception as e:
