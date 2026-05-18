@@ -115,9 +115,39 @@ HLSOutput.write() overridea audio_codec opus → aac para MPEG-TS
 FFmpeg: h264_nvenc + aac → segmentos .ts válidos → player OK
 ```
 
-## Estado actual del proyecto
+## Sesión 2026-05-18 (tarde) — Diagnóstico: Stop no funciona desde frontend
 
-- ✅ 73 features completadas en `feature_list.json`
-- ✅ `init.ps1 -Quick` pasa verde
-- ✅ mypy 0 errores en core/ y server/
-- ✅ Todos los cambios verificados con tests
+### Síntoma
+
+El usuario reporta que no puede detener el servidor desde el frontend.
+
+### Diagnóstico
+
+1. **El `POST /api/stop` funciona correctamente** — el pipeline se detiene, limpia temp files, devuelve `{"status": "stopped"}`.
+2. **El pipeline se reinicia automáticamente 10s después** — log muestra `"Starting pipeline with input type: srt"` a las 03:19:10, justo 10s tras el stop a las 03:19:00.
+3. **No hay auto-start en frontend** — `handleStop()` solo llama a `stopPipeline()` + polling; no hay código que llame a `startPipeline()` automáticamente.
+4. **No hay auto-start en WebSocket** — solo broadcast de logs/status, sin comandos de start.
+5. **2 instancias de `main.py` corriendo simultáneamente**:
+   - PID 15312: `Microsoft\WindowsApps\python.exe`
+   - PID 41520: `pythoncore-3.14-64\python.exe` (tiene el puerto 9999)
+6. **Watchdog SRT-FFmpeg en loop infinito** — tras stop, el watchdog sigue detectando crash/hang y reinicia FFmpeg (intentos 1→6/10).
+
+### Causa raíz probable
+
+La segunda instancia de Python (PID 15312, WindowsApps) está llamando `POST /api/start` al servidor vivo (PID 41520), posiblemente tras reconexión WebSocket o por ser un proceso zombie que manda comandos. También podría ser una segunda pestaña del frontend o el TUI ejecutando start inadvertidamente.
+
+### Remedio inmediato
+
+```powershell
+Stop-Process -Id 15312 -Force   # Mata instancia duplicada
+```
+
+### Nota adicional
+
+`config.yaml` modificado por el usuario durante la sesión (cambios de runtime: target_lang, voice, engine webrtc, resolución 1080p). Sin cambios de código.
+
+## CIERRE DE SESIÓN
+
+- 🔍 Diagnóstico completado: stop funciona pero pipeline se reinicia por instancia duplicada
+- 📝 config.yaml modificado por usuario (runtime, no código)
+- 🚀 Push a GitHub pendiente
