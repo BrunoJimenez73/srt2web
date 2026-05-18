@@ -97,7 +97,7 @@ modules:
   translator:
     enabled: true
     source_lang: es
-    target_lang: en
+    target_lang: pt
   subtitle_generator:
     enabled: true
     format: webvtt
@@ -108,7 +108,7 @@ modules:
     enabled: true
     engine: piper
     device: cuda
-    voice: en_US-amy-low
+    voice: pt_BR-cadu-medium
     speed: 1.0
   audio_mixer:
     enabled: true
@@ -117,14 +117,14 @@ modules:
     dubbed_volume: 1.0
   video_muxer:
     enabled: true
-    engine: webrtc
+    engine: hls
     hls_segment_duration: 6
     hls_list_size: 10
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
     video_quality: medium
     video_crf: 24
-    audio_codec: opus
+    audio_codec: aac
     audio_bitrate: 64k
     video_bitrate: 1000k
     video_fps: 30

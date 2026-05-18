@@ -68,6 +68,7 @@ class SRTInput(InputSource):
         self._watchdog_hang_timeout = config.get("watchdog_hang_timeout", 60.0)
         self._watchdog_max_restarts = config.get("watchdog_max_restarts", 10)
         self._is_restarting = False  # Flag para evitar restarts concurrentes
+        self._stopping = threading.Event()  # Señal para abortar restart durante stop
 
         # GPU info for hwaccel (detect once at init)
         self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
@@ -119,6 +120,7 @@ class SRTInput(InputSource):
 
         try:
             self.logger.info("=== STARTING SRT INPUT ===")
+            self._stopping.clear()
             self._ensure_stopped()
 
             # Wait for port release - with better socket handling on Windows
@@ -330,6 +332,10 @@ class SRTInput(InputSource):
             self.logger.warning("Restart already in progress, skipping")
             return
 
+        if self._stopping.is_set():
+            self.logger.info("Pipeline stopping, aborting FFmpeg restart")
+            return
+
         self._is_restarting = True
         try:
             self.logger.info("Watchdog requesting FFmpeg restart...")
@@ -339,6 +345,10 @@ class SRTInput(InputSource):
 
             # Esperar un poco antes de reiniciar
             time.sleep(1.0)
+
+            if self._stopping.is_set():
+                self.logger.info("Pipeline stopping, aborting FFmpeg restart after kill")
+                return
 
             # Reiniciar el proceso
             self.logger.info("Restarting SRT input...")
@@ -467,6 +477,7 @@ class SRTInput(InputSource):
         import subprocess
 
         self.logger.info("=== STOPPING SRT INPUT ===")
+        self._stopping.set()  # Abort any in-flight watchdog restart
 
         # Stop watchdog first
         if self._watchdog:
@@ -491,9 +502,9 @@ class SRTInput(InputSource):
                     except:
                         pass
 
-            # Wait for port to be released with multiple attempts
+            # Quick port check — don't block stop for more than ~3s total
             port_free = False
-            for attempt in range(10):  # Try 10 times (up to 10 seconds)
+            for attempt in range(3):  # Try 3 times max (was 10)
                 try:
                     test_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                     test_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -504,10 +515,10 @@ class SRTInput(InputSource):
                     port_free = True
                     break
                 except OSError as e:
-                    self.logger.warning(f"Port {self._srt_port} still in use: {e}, attempt {attempt+1}/10")
+                    self.logger.warning(f"Port {self._srt_port} still in use: {e}, attempt {attempt+1}/3")
                     # Aggressive cleanup
                     subprocess.run(["taskkill", "/F", "/IM", "ffmpeg.exe"], capture_output=True, timeout=2)
-                    if attempt < 9:
+                    if attempt < 2:
                         time.sleep(1)
 
             if not port_free:
