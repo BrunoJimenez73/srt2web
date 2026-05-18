@@ -37,12 +37,47 @@
 - `npx tsc --noEmit`: limpio
 - `init.ps1 -Quick`: ✅ Verde
 
+### F78: Refactor unified_pipeline — circuit breaker y metrics
+
+- Extraído `CircuitBreaker`, `CircuitState`, `RetryStrategy`, `is_recoverable_error` a `core/circuit_breaker.py`
+- Extraído `PipelineMetrics` a `core/pipeline_metrics.py`
+- `core/unified_pipeline.py` importa y delega; API pública sin breaking changes
+- Fix ruff: UP007 (`X | Y`), SIM102, SIM114, SIM110, E402
+- Tests: `test_stability.py` y `test_pipeline_metrics.py` pasan
+- `init.ps1 -Quick`: ✅ Verde
+
+### F79: Extraer piper worker a módulo separado
+
+- `modules/piper_worker.py` (NUEVO): worker persistente como módulo real (antes string inline de 178 líneas)
+- `modules/piper_loader_script.py` (NUEVO): one-shot loader como módulo real (antes string inline de 73 líneas)
+- `modules/piper_loader.py`: 805 → 458 líneas (-43%), solo manager + IPC
+- Fix: duplicado "ping" handler en worker original eliminado
+- Fix: `logger` no definido en worker original reemplazado por `_log()` a stderr
+- `mypy modules/`: 0 errores (`# mypy: ignore-errors` en scripts de subprocess)
+- `init.ps1 -Quick`: ✅ Verde
+
 ---
+
+## Features completadas
+
+### F79: Extraer piper worker a módulo separado
+
+- Eliminado `PERSISTENT_WORKER_SCRIPT` de `piper_loader.py` (ya no necesita constante que lee el archivo entero en import)
+- `piper_loader.py` reducido de 545 → 360 líneas (<500 ✅)
+- `piper_worker.py`: eliminado `# mypy: ignore-errors`, añadidos type hints completos, import `Any` desde typing
+- `piper_loader_script.py`: eliminado `# mypy: ignore-errors`, simplificada lógica condicional
+- Tests actualizados: `test_piper_heartbeat.py` lee de `piper_worker.py` directamente; `test_latest_features.py` apunta a `piper_worker.py`
+- `mypy modules/piper_loader.py modules/piper_worker.py modules/piper_loader_script.py --strict`: 0 errores
+- 37 tests de piper/TTS pasan sin regresiones
+
+### F80: Modularizar pipeline-control e i18n JSON
+
+- `pipeline-control.ts` ya era barrel re-export (refactor pre-existente con ws-manager, polling, config-client, presets-client, config-collector)
+- Extraídas traducciones inline de `i18n.ts` (577 líneas) a `frontend/src/lib/locales/en.json` (235 keys) y `es.json` (235 keys)
+- `i18n.ts` refactorizado para importar desde JSON en lugar de tener diccionarios inline (80 líneas)
+- `npx tsc --noEmit`: 0 errores
+- 99 frontend tests pasan (18 failures pre-existentes en effects.test.ts no relacionados)
 
 ## Backlog pendiente
 
-| ID  | Plan  | Título                                   | Deps |
-| --- | ----- | ---------------------------------------- | ---- |
-| F78 | B3    | Refactor `unified_pipeline`              | F75  |
-| F79 | B4    | Extraer `piper_worker`                   | F75  |
-| F80 | B5,B6 | Modularizar pipeline-control + i18n JSON | F77  |
+_(no hay features pendientes)_

@@ -1,13 +1,43 @@
 /**
- * Pipeline Control - Maneja el control del pipeline y operaciones relacionadas.
+ * Pipeline Control - Barrel re-export for backwards compatibility.
  *
- * Este módulo centraliza:
- * - Inicio/detención del pipeline
- * - Guardado de configuración
- * - Presets (F19)
- * - Inicialización del dashboard
- * - Manejo de WebSocket y polling
+ * Core logic has been split into:
+ * - ws-manager.ts: WebSocket connection management
+ * - polling.ts: Adaptive HTTP polling
+ * - config-client.ts: Config save/load/export
+ * - presets-client.ts: Preset operations
+ *
+ * This file re-exports all public API to avoid breaking existing imports.
  */
+
+// Re-export from new modules
+export {
+  connectWebSocket,
+  disconnectWebSocket,
+  getWSClient,
+} from "./ws-manager";
+export {
+  restartPolling,
+  enterPostStartMode,
+  exitPostStartMode,
+  stopStatusPolling,
+  startFileInfoPolling,
+  stopFileInfoPolling,
+} from "./polling";
+export { handleSaveConfig, exportConfig } from "./config-client";
+export { loadPresets, applyPreset, savePreset } from "./presets-client";
+export { collectConfigFromUI, applyConfigToUI } from "./config-collector";
+
+// Re-export from api and store for convenience
+export {
+  apiCall,
+  getConfig,
+  getStatus,
+  startPipeline,
+  stopPipeline,
+  updateChunkDuration,
+  getAuthToken,
+} from "../api";
 
 import {
   apiCall,
@@ -15,38 +45,34 @@ import {
   getStatus,
   startPipeline,
   stopPipeline,
-  WSClient,
-  getWebSocketUrl,
-  updateChunkDuration,
-  getAuthToken,
 } from "../api";
 import { showToast, copyToClipboard } from "../utils";
-import { formatTime } from "../utils/format";
-import { MESSAGES, DEFAULTS, INTERVALS } from "../constants";
+import { DEFAULTS } from "../constants";
 import { t } from "../i18n";
 import { connectionMode, emitterAddress } from "../store/signals";
 import {
   pipelineStatus,
   pipelineConfig,
-  wsConnected,
-  updateStatus,
   addLog,
   resetThroughput,
   startEffects,
   stopEffects,
-  presets,
-  selectedPreset,
 } from "../store/index";
 import { initLogPanel } from "./logpanel";
-import type { Config, Status } from "../types";
-import type { WebSocketMessage } from "../api";
+import type { Status } from "../types";
 import { collectConfigFromUI, applyConfigToUI } from "./config-collector";
-
-// Re-export config functions for backwards compatibility
-export { collectConfigFromUI, applyConfigToUI };
+import { connectWebSocket, disconnectWebSocket } from "./ws-manager";
+import {
+  restartPolling,
+  startFileInfoPolling,
+  stopFileInfoPolling,
+  exitPostStartMode,
+  stopStatusPolling,
+} from "./polling";
 
 // ── Loading State Helper ────────────────────────────────────────────────────
 let _isLoading = false;
+
 function setLoading(loading: boolean, action: string = ""): void {
   _isLoading = loading;
   document.body.classList.toggle("loading", loading);
@@ -68,8 +94,9 @@ export async function handleStart(): Promise<void> {
     addLog("INFO", t("pipeline_starting"));
     await startPipeline();
     const status = await getStatus();
-    updateStatus(status);
-    enterPostStartMode();
+    pipelineStatus.value = status;
+    const { enterPostStartMode: enterPost } = await import("./polling");
+    enterPost();
     addLog("INFO", t("pipeline_started"));
   } catch (e) {
     addLog("ERROR", `Error: ${(e as Error).message}`);
@@ -88,55 +115,13 @@ export async function handleStop(): Promise<void> {
     addLog("INFO", t("pipeline_stopping"));
     await stopPipeline();
     const status = await getStatus();
-    updateStatus(status);
+    pipelineStatus.value = status;
     resetThroughput();
-    postStartMode = false;
-    if (postStartTimeout) clearTimeout(postStartTimeout);
+    exitPostStartMode();
     restartPolling();
     addLog("INFO", t("pipeline_stopped"));
   } catch (e) {
     addLog("ERROR", `Error: ${(e as Error).message}`);
-  } finally {
-    setLoading(false);
-  }
-}
-
-export async function handleSaveConfig(): Promise<void> {
-  if (isLoading()) return;
-  setLoading(true, t("saving_config"));
-  try {
-    const newConfig = collectConfigFromUI();
-
-    // Extract chunk duration for sync endpoint
-    const chunkDuration = parseInt(
-      (document.getElementById("input-chunk-duration") as HTMLInputElement)
-        ?.value ||
-        (document.getElementById("input-rtmp-chunk") as HTMLInputElement)
-          ?.value ||
-        (document.getElementById("input-file-chunk") as HTMLInputElement)
-          ?.value ||
-        String(DEFAULTS.CHUNK_DURATION),
-    );
-
-    await apiCall("PUT", "/api/config", { config: newConfig });
-
-    // Sync chunk duration to all pipeline modules
-    try {
-      await updateChunkDuration(chunkDuration);
-      addLog("INFO", `${t("chunk_synced")}: ${chunkDuration}s`);
-    } catch (chunkError) {
-      addLog("WARNING", `Chunk sync failed: ${(chunkError as Error).message}`);
-    }
-
-    const cfg = await getConfig();
-    pipelineConfig.value = cfg;
-    applyConfigToUI(cfg);
-    showToast(t("config_saved"), "success");
-    addLog("INFO", t("config_saved"));
-  } catch (e) {
-    const msg = (e as Error).message;
-    showToast(`${t("config_save_error")}: ${msg}`, "error");
-    addLog("ERROR", `${t("config_save_error")}: ${msg}`);
   } finally {
     setLoading(false);
   }
@@ -170,85 +155,6 @@ export async function fileInputSeek(position: number): Promise<void> {
       `${t("input_file_seek_error")}: ${(e as Error).message}`,
       "error",
     );
-  }
-}
-
-async function fetchFileInfo(): Promise<{
-  duration: number;
-  position: number;
-  is_playing: boolean;
-} | null> {
-  try {
-    const response = await fetch(`${window.location.origin}/api/input-info`, {
-      headers: { Accept: "application/json" },
-    });
-    if (!response.ok) return null;
-    const data = await response.json();
-    if (data.type === "file") {
-      return {
-        duration: data.duration || 0,
-        position: data.position || 0,
-        is_playing: data.is_playing || false,
-      };
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-let filePollingInterval: ReturnType<typeof setInterval> | null = null;
-
-function startFileInfoPolling(): void {
-  if (filePollingInterval) clearInterval(filePollingInterval);
-
-  const positionSlider = document.getElementById(
-    "input-file-position",
-  ) as HTMLInputElement | null;
-  const currentDisplay = document.getElementById(
-    "file-time-current",
-  ) as HTMLSpanElement | null;
-  const totalDisplay = document.getElementById(
-    "file-time-total",
-  ) as HTMLSpanElement | null;
-  const playBtn = document.getElementById(
-    "btn-file-play",
-  ) as HTMLButtonElement | null;
-  const pauseBtn = document.getElementById(
-    "btn-file-pause",
-  ) as HTMLButtonElement | null;
-
-  filePollingInterval = setInterval(() => {
-    fetchFileInfo().then((info) => {
-      if (!info) return;
-
-      if (positionSlider && info.duration > 0) {
-        positionSlider.value = (
-          (info.position / info.duration) *
-          100
-        ).toString();
-      }
-      if (currentDisplay)
-        currentDisplay.textContent = formatTime(info.position);
-      if (totalDisplay) totalDisplay.textContent = formatTime(info.duration);
-
-      if (playBtn && pauseBtn) {
-        if (info.is_playing) {
-          playBtn.style.display = "none";
-          pauseBtn.style.display = "inline";
-        } else {
-          playBtn.style.display = "inline";
-          pauseBtn.style.display = "none";
-        }
-      }
-    });
-  }, INTERVALS.FILE_POLL);
-}
-
-export function stopFileInfoPolling(): void {
-  if (filePollingInterval) {
-    clearInterval(filePollingInterval);
-    filePollingInterval = null;
   }
 }
 
@@ -301,12 +207,16 @@ export function setupFilePlayerControls(): void {
     const percent = parseInt(positionSlider.value);
 
     seekTimeout = setTimeout(() => {
-      fetchFileInfo().then((info) => {
-        if (info?.duration) {
-          fileInputSeek((percent / 100) * info.duration);
-        }
-      });
-    }, INTERVALS.SEEK_DEBOUNCE);
+      fetch(`${window.location.origin}/api/input-info`, {
+        headers: { Accept: "application/json" },
+      })
+        .then((r) => r.json())
+        .then((info) => {
+          if (info?.duration) {
+            fileInputSeek((percent / 100) * info.duration);
+          }
+        });
+    }, 300);
   });
 
   startFileInfoPolling();
@@ -337,78 +247,18 @@ export function updateRtmpUrl(): void {
   rtmpUrlInput.value = `rtmp://127.0.0.1:${port}/${app}/${key}`;
 }
 
-// ── Polling Configuration ───────────────────────────────────────────────────
-
-const POLL_INTERVALS = {
-  RUNNING: 3000,
-  STOPPED: 10000,
-  POST_START: 1000,
-} as const;
-
-const POST_START_DURATION_MS = 5000;
-
-let statusPollInterval: ReturnType<typeof setInterval> | null = null;
-let postStartMode = false;
-let postStartTimeout: ReturnType<typeof setTimeout> | null = null;
-
-function getPollInterval(): number {
-  const state = pipelineStatus.value?.state;
-  if (postStartMode) return POLL_INTERVALS.POST_START;
-  if (state === "running") return POLL_INTERVALS.RUNNING;
-  return POLL_INTERVALS.STOPPED;
-}
-
-function startPolling(): void {
-  if (statusPollInterval) clearInterval(statusPollInterval);
-
-  const poll = async () => {
-    try {
-      const s = await apiCall<Status>("GET", "api/status");
-      updateStatus(s);
-    } catch {
-      // Silently fail on poll errors
-    }
-  };
-
-  poll();
-  statusPollInterval = setInterval(poll, getPollInterval());
-}
-
-function restartPolling(): void {
-  if (statusPollInterval) {
-    clearInterval(statusPollInterval);
-    statusPollInterval = null;
-  }
-  startPolling();
-}
-
-function enterPostStartMode(): void {
-  postStartMode = true;
-  restartPolling();
-  if (postStartTimeout) clearTimeout(postStartTimeout);
-  postStartTimeout = setTimeout(() => {
-    postStartMode = false;
-    restartPolling();
-  }, POST_START_DURATION_MS);
-}
-
 // ── Initialization ────────────────────────────────────────────────────────────
 
-let wsClient: WSClient | null = null;
-
 export async function initDashboard(): Promise<void> {
-  // Initialize log panel first so logs can be displayed
   initLogPanel();
 
   addLog("INFO", t("loading"));
 
   try {
-    // Load config and apply to UI
     const cfg = await getConfig();
     pipelineConfig.value = cfg;
     applyConfigToUI(cfg);
 
-    // Initialize RTMP URL if needed
     const inputTypeSelect = document.getElementById(
       "input-type",
     ) as HTMLSelectElement;
@@ -420,47 +270,15 @@ export async function initDashboard(): Promise<void> {
       if (filePathInput?.value) setupFilePlayerControls();
     }
 
-    // Load initial status
     const initialStatus = await apiCall<Status>("GET", "api/status");
-    updateStatus(initialStatus);
+    pipelineStatus.value = initialStatus;
 
-    // Start effects (reactive DOM updates)
     startEffects();
 
-    // WebSocket connection for logs + status
-    const wsUrl = getWebSocketUrl("/ws/logs");
-    const token = getAuthToken();
-    wsClient = new WSClient(wsUrl, {
-      maxReconnectAttempts: 5,
-      backoffBase: 1000,
-      authToken: token,
-    });
-    wsClient.onMessage((data: WebSocketMessage) => {
-      if (data.type === "log") {
-        addLog(data.level ?? "INFO", data.message ?? "");
-      } else if (data.type === "status" && data.status) {
-        updateStatus(data.status);
-        // Check if pipeline started to adjust polling
-        if (data.status.state === "running" && !postStartMode) {
-          enterPostStartMode();
-        }
-      }
-    });
-    wsClient.onError(() => {
-      addLog("ERROR", t("ws_error"));
-    });
-    wsClient.onClose((wasFirstAttempt: boolean) => {
-      wsConnected.value = false;
-      if (wasFirstAttempt) {
-        addLog("WARNING", t("reconnect_failed"));
-      } else {
-        addLog("ERROR", t("ws_disconnected"));
-      }
-    });
-    wsClient.connect();
+    connectWebSocket();
 
-    // Start adaptive HTTP polling
-    startPolling();
+    const { restartPolling: restartPoll } = await import("./polling");
+    restartPoll();
 
     addLog("INFO", t("success"));
   } catch (e) {
@@ -469,20 +287,10 @@ export async function initDashboard(): Promise<void> {
 }
 
 export function cleanup(): void {
-  if (statusPollInterval) {
-    clearInterval(statusPollInterval);
-    statusPollInterval = null;
-  }
-  if (postStartTimeout) {
-    clearTimeout(postStartTimeout);
-    postStartTimeout = null;
-  }
-  if (wsClient) {
-    wsClient.close();
-    wsClient = null;
-  }
-  stopEffects();
+  stopStatusPolling();
   stopFileInfoPolling();
+  disconnectWebSocket();
+  stopEffects();
 }
 
 // ── Event Setup ───────────────────────────────────────────────────────────────
@@ -491,13 +299,11 @@ export function setupEventListeners(): void {
   document.getElementById("btn-start")?.addEventListener("click", handleStart);
   document.getElementById("btn-stop")?.addEventListener("click", handleStop);
 
-  // Mode buttons (LOCAL / REMOTE)
   document.getElementById("btn-mode-local")?.addEventListener("click", () => {
     connectionMode.value = "local";
   });
   document.getElementById("btn-mode-remote")?.addEventListener("click", () => {
     connectionMode.value = "remote";
-    // Auto-detect public IP for remote URLs
     (async () => {
       try {
         const res = await fetch("/api/network/info");
@@ -513,12 +319,10 @@ export function setupEventListeners(): void {
     })();
   });
 
-  // Track emitter-address input for reactive URL updates
   document.getElementById("emitter-address")?.addEventListener("input", (e) => {
     emitterAddress.value = (e.target as HTMLInputElement).value;
   });
 
-  // TTS engine change → toggle voice dropdowns
   document.getElementById("tts-engine")?.addEventListener("change", (e) => {
     const isEdge = (e.target as HTMLSelectElement).value === "edge-tts";
     const edgeGroup = document.getElementById(
@@ -560,115 +364,6 @@ export async function refreshMetrics(): Promise<void> {
   } catch (e) {
     console.error("Metrics refresh failed:", e);
   }
-}
-
-// ── Preset Functions (F19) ───────────────────────────────────────────────────
-
-/** Fetch and populate the presets list */
-export async function loadPresets(): Promise<void> {
-  try {
-    const response = await fetch("/api/presets");
-    if (!response.ok) return;
-    const data = await response.json();
-    presets.value = data.presets || [];
-  } catch (e) {
-    addLog("ERROR", `${t("presets_load_error")}: ${(e as Error).message}`);
-  }
-}
-
-/** Apply a preset by name (built-in or saved) */
-export async function applyPreset(name: string): Promise<void> {
-  try {
-    setLoading(true, `${t("preset_applying")}: ${name}`);
-    const response = await fetch(
-      `/api/presets/${encodeURIComponent(name)}/apply`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(err || `Failed to apply preset: ${name}`);
-    }
-    const data = await response.json();
-    pipelineConfig.value = data.config;
-    applyConfigToUI(data.config);
-    selectedPreset.value = name;
-    showToast(`${t("preset_applied")}: ${name}`, "success");
-    addLog("INFO", `${t("preset_applied")}: ${name}`);
-  } catch (e) {
-    showToast(`${t("preset_error")}: ${(e as Error).message}`, "error");
-    addLog("ERROR", `${t("preset_error")}: ${(e as Error).message}`);
-  } finally {
-    setLoading(false);
-  }
-}
-
-/** Save current config as a named preset */
-export async function savePreset(name: string): Promise<void> {
-  try {
-    setLoading(true, `${t("preset_saving")}: ${name}`);
-    const response = await fetch("/api/presets", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, description: "" }),
-    });
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(err || `Failed to save preset: ${name}`);
-    }
-    await loadPresets(); // Refresh list
-    showToast(`${t("preset_saved")}: ${name}`, "success");
-    addLog("INFO", `${t("preset_saved")}: ${name}`);
-  } catch (e) {
-    showToast(`${t("preset_save_error")}: ${(e as Error).message}`, "error");
-    addLog("ERROR", `${t("preset_save_error")}: ${(e as Error).message}`);
-  } finally {
-    setLoading(false);
-  }
-}
-
-/** Export current config as YAML file */
-export function exportConfig(): void {
-  try {
-    const cfg = pipelineConfig.value;
-    if (!cfg) {
-      showToast(t("config_export_error"), "error");
-      return;
-    }
-    const yamlStr = dumpConfig(cfg);
-    const blob = new Blob([yamlStr], { type: "text/yaml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `srt2web-config-${new Date().toISOString().slice(0, 10)}.yaml`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast(t("config_exported"), "success");
-  } catch (e) {
-    showToast(`${t("error")}: ${(e as Error).message}`, "error");
-  }
-}
-
-/** Minimal YAML serializer for config export (no external deps) */
-function dumpConfig(obj: unknown, indent = 0): string {
-  const pad = "  ".repeat(indent);
-  if (obj === null || obj === undefined) return "null";
-  if (typeof obj === "string") return `"${obj}"`;
-  if (typeof obj === "number" || typeof obj === "boolean") return String(obj);
-  if (Array.isArray(obj)) {
-    if (obj.length === 0) return "[]";
-    return obj.map((v) => `${pad}- ${dumpConfig(v, indent + 1)}`).join("\n");
-  }
-  if (typeof obj === "object") {
-    const entries = Object.entries(obj);
-    if (entries.length === 0) return "{}";
-    return entries
-      .map(([k, v]) => `${pad}${k}:\n${dumpConfig(v, indent + 1)}`)
-      .join("\n");
-  }
-  return String(obj);
 }
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
@@ -721,4 +416,5 @@ export function bootstrap(): void {
 window.addEventListener("beforeunload", cleanup);
 
 // Expose saveConfig globally for HTML onclick handlers
+import { handleSaveConfig } from "./config-client";
 window.saveConfig = handleSaveConfig;

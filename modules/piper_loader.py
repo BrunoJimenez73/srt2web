@@ -16,7 +16,6 @@ import logging
 import os
 import subprocess
 import sys
-import tempfile
 import threading
 import time
 from pathlib import Path
@@ -26,190 +25,13 @@ from core.subprocess_utils import get_creation_flags
 
 logger = logging.getLogger("srt2web.module.tts_engine")
 
-# ──────────────────────────────────────────────────────────────────────
-# PERSISTENT WORKER SCRIPT
-# Runs in a subprocess, loads Piper with GPU, and handles synthesis
-# requests via stdin/stdout JSON IPC.
-# ──────────────────────────────────────────────────────────────────────
-PERSISTENT_WORKER_SCRIPT = r"""
-import sys
-import os
-import json
-import io
-import wave
-import warnings
-import base64
-import traceback
+# Path to the external worker scripts
+_MODULES_DIR = Path(__file__).parent
+_PERSISTENT_WORKER_PATH = _MODULES_DIR / "piper_worker.py"
+_LOADER_SCRIPT_PATH = _MODULES_DIR / "piper_loader_script.py"
 
-def main():
-    voice = None
-    using_cuda = False
-    sample_rate = 22050
-
-    print("[PERSISTENT] Piper persistent worker started", file=sys.stderr, flush=True)
-
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-
-        try:
-            cmd = json.loads(line)
-        except json.JSONDecodeError:
-            resp = {"status": "error", "error": f"Invalid JSON: {line[:100]}"}
-            print(json.dumps(resp), flush=True)
-            continue
-
-        action = cmd.get("action", "")
-
-        # ── LOAD ──────────────────────────────────────────────
-        if action == "load":
-            model_path = cmd.get("model_path", "")
-            config_path = cmd.get("config_path", "")
-            device = cmd.get("device", "auto")
-
-            try:
-                from piper import PiperVoice
-                import onnxruntime
-
-                print(f"[PERSISTENT] Loading model: {model_path}", file=sys.stderr, flush=True)
-                print(f"[PERSISTENT] Device: {device}", file=sys.stderr, flush=True)
-                print(f"[PERSISTENT] ONNX providers: {onnxruntime.get_available_providers()}",
-                      file=sys.stderr, flush=True)
-
-                cuda_ok = "CUDAExecutionProvider" in onnxruntime.get_available_providers()
-
-                # Try CUDA first if requested and available
-                if device in ("cuda", "auto") and cuda_ok:
-                    try:
-                        print("[PERSISTENT] Attempting CUDA load...", file=sys.stderr, flush=True)
-                        with warnings.catch_warnings():
-                            warnings.simplefilter("ignore")
-                            voice = PiperVoice.load(model_path, config_path, use_cuda=True)
-                        using_cuda = True
-                        print("[PERSISTENT] CUDA load SUCCESS", file=sys.stderr, flush=True)
-                    except Exception as e:
-                        print(f"[PERSISTENT] CUDA load failed: {e}", file=sys.stderr, flush=True)
-                        voice = None
-
-                # Fallback to CPU
-                if voice is None:
-                    print("[PERSISTENT] Loading with CPU...", file=sys.stderr, flush=True)
-                    with warnings.catch_warnings():
-                        warnings.simplefilter("ignore")
-                        voice = PiperVoice.load(model_path, config_path, use_cuda=False)
-                    using_cuda = False
-                    print("[PERSISTENT] CPU load SUCCESS", file=sys.stderr, flush=True)
-
-                sample_rate = voice.config.sample_rate
-                resp = {
-                    "status": "success",
-                    "using_cuda": using_cuda,
-                    "sample_rate": sample_rate,
-                    "provider": "CUDAExecutionProvider" if using_cuda else "CPUExecutionProvider"
-                }
-            except Exception as e:
-                resp = {"status": "error", "error": str(e)}
-
-            print(json.dumps(resp), flush=True)
-
-        # ── SYNTHESIZE ────────────────────────────────────────
-        elif action == "synthesize":
-            if voice is None:
-                resp = {"status": "error", "error": "Voice not loaded"}
-                print(json.dumps(resp), flush=True)
-                continue
-
-            text = cmd.get("text", "")
-            speed = float(cmd.get("speed", 1.0))
-
-            try:
-                import struct
-                from piper.config import SynthesisConfig
-
-                # Use Piper's native length_scale for speed adjustment
-                # length_scale < 1.0 = faster, > 1.0 = slower
-                # Piper supports 0.5x to 2.0x natively
-                length_scale = 1.0 / speed if speed > 0 else 1.0
-                use_piper_speed = 0.5 <= length_scale <= 2.0
-
-                syn_config = SynthesisConfig(
-                    length_scale=length_scale if use_piper_speed else 1.0
-                )
-
-                # Collect raw audio bytes from Piper
-                audio_chunks = []
-                for chunk in voice.synthesize(text, syn_config=syn_config):
-                    audio_chunks.append(chunk.audio_int16_bytes)
-
-                if not audio_chunks:
-                    resp = {"status": "error", "error": "Piper produced no audio"}
-                    print(json.dumps(resp), flush=True)
-                    continue
-
-                raw_audio = b"".join(audio_chunks)
-
-                # Fallback: numpy resampling for extreme speeds outside Piper range
-                if not use_piper_speed and speed != 1.0:
-                    try:
-                        import numpy as np
-                        samples = np.frombuffer(raw_audio, dtype=np.int16).astype(np.float64)
-                        new_length = max(1, int(len(samples) / speed))
-                        indices = np.linspace(0, len(samples) - 1, new_length)
-                        resampled = np.interp(indices, np.arange(len(samples)), samples)
-                        raw_audio = np.clip(resampled, -32768, 32767).astype(np.int16).tobytes()
-                    except Exception as e:
-
-                        logger.debug("Suppressed error: %s", e, exc_info=True)  # Keep original if numpy fails
-
-                # Build WAV header
-                data_size = len(raw_audio)
-                header = struct.pack(
-                    '<4sI4s4sIHHIIHH4sI',
-                    b'RIFF', 36 + data_size, b'WAVE',
-                    b'fmt ', 16, 1, 1, sample_rate,
-                    sample_rate * 2, 2, 16,
-                    b'data', data_size
-                )
-                wav_bytes = header + raw_audio
-
-                audio_b64 = base64.b64encode(wav_bytes).decode("ascii")
-                resp = {
-                    "status": "success",
-                    "audio_base64": audio_b64,
-                    "sample_rate": sample_rate
-                }
-            except Exception as e:
-                trace = traceback.format_exc()
-                print(f"[PERSISTENT] Error during synthesis: {trace}", file=sys.stderr, flush=True)
-                resp = {"status": "error", "error": str(e), "traceback": trace}
-
-            print(json.dumps(resp), flush=True)
-
-        # ── PING (heartbeat) ──────────────────────────────────
-        elif action == "ping":
-            print(json.dumps({"status": "success", "action": "pong"}), flush=True)
-
-        # ── SHUTDOWN ──────────────────────────────────────────
-        elif action == "shutdown":
-            print("[PERSISTENT] Shutting down", file=sys.stderr, flush=True)
-            print(json.dumps({"status": "success"}), flush=True)
-            break
-
-        # ── PING (for heartbeat) ──────────────────────────────
-        elif action == "ping":
-            print(json.dumps({"status": "pong"}), flush=True)
-
-        # ── UNKNOWN ───────────────────────────────────────────
-        else:
-            resp = {"status": "error", "error": f"Unknown action: {action}"}
-            print(json.dumps(resp), flush=True)
-
-    print("[PERSISTENT] Worker exited", file=sys.stderr, flush=True)
-
-if __name__ == "__main__":
-    main()
-"""
+# Backward-compatible constant — actual worker script content
+PERSISTENT_WORKER_SCRIPT = _PERSISTENT_WORKER_PATH.read_text(encoding="utf-8")
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -268,10 +90,10 @@ class PiperSubprocessManager:
             self._last_config_path = config_path
             self._last_device = device
 
-            # Write worker script to temp file
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as f:
-                f.write(PERSISTENT_WORKER_SCRIPT)
-                self._script_path = f.name
+            # Use the external worker script
+            if not _PERSISTENT_WORKER_PATH.exists():
+                raise FileNotFoundError(f"Piper worker script not found: {_PERSISTENT_WORKER_PATH}")
+            self._script_path = str(_PERSISTENT_WORKER_PATH)
 
             # Build environment with CUDA paths and FFmpeg
             env = os.environ.copy()
@@ -587,13 +409,9 @@ class PiperSubprocessManager:
                     logger.debug("Suppressed error: %s", e, exc_info=True)
                 self._proc = None
 
-        # Clean up the temporary worker script file.
-        if self._script_path:
-            try:
-                os.unlink(self._script_path)
-            except OSError:
-                pass
-            self._script_path = None
+        # The worker script is a permanent file (modules/piper_worker.py),
+        # so we don't clean it up here.
+        self._script_path = None
 
         # Reset internal state flags.
         self._model_loaded = False
@@ -604,79 +422,6 @@ class PiperSubprocessManager:
 # ──────────────────────────────────────────────────────────────────────
 # ONE-SHOT LOADER (existing functionality, kept for compatibility)
 # ──────────────────────────────────────────────────────────────────────
-LOADER_SCRIPT = '''
-import sys
-import os
-import json
-import warnings
-
-def main():
-    """Load Piper model and report results."""
-    try:
-        voice_name = sys.argv[1]
-        model_path = sys.argv[2]
-        config_path = sys.argv[3]
-        device = sys.argv[4]
-
-        from piper import PiperVoice
-        import onnxruntime
-
-        print(f"[PIPER_DEBUG] Python: {sys.version}", file=sys.stderr)
-        print(f"[PIPER_DEBUG] ONNX Runtime: {onnxruntime.__version__}", file=sys.stderr)
-        print(f"[PIPER_DEBUG] Available providers: {onnxruntime.get_available_providers()}", file=sys.stderr)
-        print(f"[PIPER_DEBUG] Model path: {model_path}", file=sys.stderr)
-        print(f"[PIPER_DEBUG] Config path: {config_path}", file=sys.stderr)
-        print(f"[PIPER_DEBUG] Device requested: {device}", file=sys.stderr)
-
-        cuda_available = "CUDAExecutionProvider" in onnxruntime.get_available_providers()
-        print(f"[PIPER_DEBUG] CUDA available: {cuda_available}", file=sys.stderr)
-
-        use_cuda = False
-        voice = None
-
-        if device == "cuda" or (device == "auto" and cuda_available):
-            if cuda_available:
-                try:
-                    print(f"[PIPER_DEBUG] Attempting to load with CUDA...", file=sys.stderr)
-                    with warnings.catch_warnings():
-                        warnings.simplefilter("ignore")
-                        voice = PiperVoice.load(model_path, config_path, use_cuda=True)
-                    use_cuda = True
-                    print(f"[PIPER_DEBUG] Successfully loaded with CUDA", file=sys.stderr)
-                except Exception as e:
-                    print(f"[PIPER_DEBUG] CUDA load failed: {e}", file=sys.stderr)
-                    voice = None
-            else:
-                print(f"[PIPER_DEBUG] CUDA requested but not available", file=sys.stderr)
-
-        if voice is None:
-            print(f"[PIPER_DEBUG] Loading with CPU...", file=sys.stderr)
-            voice = PiperVoice.load(model_path, config_path, use_cuda=False)
-            use_cuda = False
-            print(f"[PIPER_DEBUG] Successfully loaded with CPU", file=sys.stderr)
-
-        print(f"[PIPER_DEBUG] Sample rate: {voice.config.sample_rate}", file=sys.stderr)
-
-        result = {
-            "status": "success",
-            "using_cuda": use_cuda,
-            "sample_rate": voice.config.sample_rate,
-            "provider": "CUDAExecutionProvider" if use_cuda else "CPUExecutionProvider"
-        }
-        print(json.dumps(result))
-
-    except ImportError as e:
-        result = {"status": "error", "error": f"Import error: {e}"}
-        print(json.dumps(result))
-        sys.exit(1)
-    except Exception as e:
-        result = {"status": "error", "error": str(e)}
-        print(json.dumps(result))
-        sys.exit(1)
-
-if __name__ == "__main__":
-    main()
-'''
 
 
 def load_piper_model_subprocess(
@@ -690,9 +435,9 @@ def load_piper_model_subprocess(
     """
     start_time = time.time()
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as f:
-        f.write(LOADER_SCRIPT)
-        script_path = f.name
+    if not _LOADER_SCRIPT_PATH.exists():
+        logger.error(f"[PIPER_DEBUG] Loader script not found: {_LOADER_SCRIPT_PATH}")
+        return {"status": "error", "error": f"Loader script not found: {_LOADER_SCRIPT_PATH}"}
 
     try:
         logger.info(f"[PIPER_DEBUG] Starting subprocess loader for {voice_name}")
@@ -716,7 +461,7 @@ def load_piper_model_subprocess(
             logger.info(f"[PIPER_DEBUG] CUDA paths set to: {cuda_paths}")
 
         result = subprocess.run(
-            [sys.executable, script_path, voice_name, model_path, config_path, device],
+            [sys.executable, str(_LOADER_SCRIPT_PATH), voice_name, model_path, config_path, device],
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -748,10 +493,7 @@ def load_piper_model_subprocess(
         try:
             stdout = result.stdout.strip()
             json_start = stdout.find("{")
-            if json_start >= 0:
-                data = json.loads(stdout[json_start:])
-            else:
-                data = json.loads(stdout)
+            data = json.loads(stdout[json_start:] if json_start >= 0 else stdout)
             logger.info(f"[PIPER_DEBUG] Load result: {data}")
             return dict(data)
         except json.JSONDecodeError as e:
@@ -765,11 +507,6 @@ def load_piper_model_subprocess(
     except Exception as e:
         logger.error(f"[PIPER_DEBUG] Unexpected error: {e}")
         return {"status": "error", "error": str(e)}
-    finally:
-        try:
-            os.unlink(script_path)
-        except OSError:
-            pass
 
 
 def check_piper_environment() -> dict[str, Any]:
@@ -785,10 +522,10 @@ def check_piper_environment() -> dict[str, Any]:
     }
 
     try:
-        import piper
+        import importlib.util
 
-        result["piper_available"] = True
-    except ImportError as e:
+        result["piper_available"] = importlib.util.find_spec("piper") is not None
+    except Exception as e:
         result["piper_error"] = str(e)
 
     try:
