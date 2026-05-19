@@ -14,6 +14,7 @@ from typing import Any, Optional
 
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.module_base import PipelineData
+from core.schemas import ModuleState, ModuleStatus
 from modules.outputs.base import BaseOutput
 
 logger = logging.getLogger("srt2web.output.srt")
@@ -54,6 +55,7 @@ class SRTOutput(BaseOutput):
 
         self._streaming: bool = False
         self._retry_count: int = 0
+        self._chunks_written: int = 0
 
         if config:
             self.configure(config)
@@ -119,6 +121,7 @@ class SRTOutput(BaseOutput):
                 with open(video_path, "rb") as f:
                     chunk_data = f.read()
                     self._ffmpeg_proc.stdin.write(chunk_data)
+                    self._chunks_written += 1
                     self._update_write_stats(len(chunk_data))
                     self._clear_error()
                     self._retry_count = 0  # Reset retry count on success
@@ -228,6 +231,17 @@ class SRTOutput(BaseOutput):
     def is_streaming(self) -> bool:
         """Check if SRT streaming is active."""
         return self._streaming and self._ffmpeg_proc is not None and self._ffmpeg_proc.poll() is None
+
+    def get_status(self) -> ModuleStatus:
+        """Get status including chunk count."""
+        return ModuleStatus(
+            name="srt",
+            state=ModuleState.RUNNING if self._streaming else ModuleState.IDLE,
+            enabled=True,
+            processed_chunks=self._chunks_written,
+            last_process_time_ms=0.0,
+            extra={"url": self._url, "mode": self._mode, "streaming": self.is_streaming()},
+        )
 
     def get_stream_info(self) -> dict[str, Any]:
         """Get SRT stream information."""

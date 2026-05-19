@@ -77,6 +77,11 @@ output:
     subtitles: vtt
     video_preset: fast
   outputs:
+  - name: web_1
+    type: web
+    enabled: true
+    config:
+      encoder_mode: passthrough
   - name: srt_1
     type: srt
     enabled: true
@@ -95,14 +100,14 @@ modules:
   transcriber:
     enabled: true
     model: tiny
-    language: es
+    language: en
     device: cuda
     beam_size: 2
     timeout_sec: 120.0
   translator:
     enabled: true
-    source_lang: es
-    target_lang: pt
+    source_lang: en
+    target_lang: es
   subtitle_generator:
     enabled: true
     format: webvtt
@@ -113,7 +118,7 @@ modules:
     enabled: true
     engine: piper
     device: cuda
-    voice: pt_BR-cadu-medium
+    voice: es_ES-davefx-medium
     speed: 1.0
   audio_mixer:
     enabled: true

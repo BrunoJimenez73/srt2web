@@ -987,19 +987,29 @@ class UnifiedPipeline:
                     last_process_time_ms = status_dict.get("last_process_time_ms", last_process_time_ms)
                     extra = status_dict.get("extra", {})
 
-                    # Extract first output's data for video_muxer status
+                    # Find the web/HLS output for video_muxer status
                     outputs = extra.get("outputs", {})
-                    if outputs:
+                    muxer_source = None
+                    # Prefer outputs named "web" or "hls" or with GPU/encoder info in extra
+                    for out_name, out_data in outputs.items():
+                        out_extra = out_data.get("extra", {})
+                        if out_extra.get("using_gpu") is not None or out_extra.get("encoder_mode") is not None:
+                            muxer_source = out_data
+                            break
+                    # Fallback to first output if no specific web/hls found
+                    if muxer_source is None and outputs:
                         first_name = list(outputs.keys())[0]
-                        first_output = outputs[first_name]
-                        muxer_extra = first_output.get("extra", {})
+                        muxer_source = outputs[first_name]
+
+                    if muxer_source:
+                        muxer_extra = muxer_source.get("extra", {})
                         muxer_status = {
                             "name": "video_muxer",
-                            "state": first_output.get("state", state),
-                            "enabled": first_output.get("enabled", True),
+                            "state": muxer_source.get("state", state),
+                            "enabled": muxer_source.get("enabled", True),
                             "error_message": None,
-                            "processed_chunks": first_output.get("processed_chunks", processed_chunks),
-                            "last_process_time_ms": first_output.get("last_process_time_ms", last_process_time_ms),
+                            "processed_chunks": muxer_source.get("processed_chunks", processed_chunks),
+                            "last_process_time_ms": muxer_source.get("last_process_time_ms", last_process_time_ms),
                             "extra": muxer_extra,
                             "circuit_state": "closed",
                             "memory_mb": None,

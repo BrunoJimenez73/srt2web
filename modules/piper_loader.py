@@ -50,6 +50,8 @@ class PiperSubprocessManager:
     HEARTBEAT_INTERVAL = 30  # seconds
     HEARTBEAT_TIMEOUT = 5  # seconds
 
+    MAX_RESTART_ATTEMPTS = 3
+
     def __init__(self) -> None:
         self._proc: subprocess.Popen[Any] | None = None
         self._script_path: str | None = None
@@ -62,6 +64,7 @@ class PiperSubprocessManager:
         self._heartbeat_timeout = 5.0
         self._heartbeat_thread: threading.Thread | None = None
         self._heartbeat_stop = threading.Event()
+        self._restart_count = 0
 
     @property
     def using_cuda(self) -> bool:
@@ -159,6 +162,7 @@ class PiperSubprocessManager:
                     f"[PiperManager] Model loaded: CUDA={self._using_cuda}, "
                     f"sample_rate={self._sample_rate}, provider={provider}"
                 )
+                self._restart_count = 0  # Reset on successful load
                 self.start_heartbeat()
             else:
                 self._model_loaded = False
@@ -241,16 +245,25 @@ class PiperSubprocessManager:
 
     def _restart_subprocess(self) -> None:
         """Restart the subprocess (reload model from scratch)."""
-        logger.warning("[PiperManager] Restarting subprocess...")
+        self._restart_count += 1
+        logger.warning(f"[PiperManager] Restarting subprocess (attempt {self._restart_count}/{self.MAX_RESTART_ATTEMPTS})...")
         with self._lock:
             model_path = getattr(self, "_last_model_path", None)
             config_path = getattr(self, "_last_config_path", None)
             device = getattr(self, "_last_device", "auto")
+            # Downgrade to CPU after max restart attempts
+            if self._restart_count > self.MAX_RESTART_ATTEMPTS:
+                logger.warning(f"[PiperManager] Max restarts reached, forcing CPU fallback")
+                device = "cpu"
+                self._restart_count = 0
             self._ensure_stopped()
             if model_path and config_path:
                 try:
                     self.start(model_path, config_path, device)
-                    logger.info("[PiperManager] Subprocess restarted successfully")
+                    if device == "cpu":
+                        logger.info("[PiperManager] Subprocess restarted on CPU")
+                    else:
+                        logger.info("[PiperManager] Subprocess restarted successfully")
                 except Exception as e:
                     logger.error(f"[PiperManager] Restart failed: {e}")
 
