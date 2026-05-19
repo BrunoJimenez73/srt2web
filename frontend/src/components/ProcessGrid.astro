@@ -92,6 +92,10 @@ import OutputCard from './OutputCard.astro';
           badge.textContent = mod.extra.device === "mps" ? "MPS" : "GPU";
           badge.style.display = "inline";
           badge.classList.toggle("active", processing);
+        } else if (mod.extra.encoder_mode === "passthrough") {
+          badge.textContent = "Directo";
+          badge.style.display = "inline";
+          badge.classList.remove("active");
         } else {
           badge.textContent = "CPU";
           badge.style.display = "inline";
@@ -122,7 +126,7 @@ import OutputCard from './OutputCard.astro';
       // Encoder
       const encoderEl = el<HTMLSpanElement>(entry.encoderId);
       if (encoderEl && mod?.extra) {
-        const deviceLabel = mod.extra.device === "mps" ? "MPS" : mod.extra.using_gpu ? "GPU" : "CPU";
+        const deviceLabel = mod.extra.device === "mps" ? "MPS" : mod.extra.using_gpu ? "GPU" : mod.extra.encoder_mode === "passthrough" ? "Directo" : "CPU";
         encoderEl.textContent = mod.extra.encoder_label || deviceLabel || "--";
       }
     }

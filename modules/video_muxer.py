@@ -372,7 +372,10 @@ class VideoMuxer(BaseModule):
         actual_encoder = "libx264"
         encoder_label = "CPU"
 
-        if self._ffmpeg_path and encoder_mode in [
+        if encoder_mode == "passthrough":
+            actual_encoder = "copy"
+            encoder_label = "Passthrough"
+        elif self._ffmpeg_path and encoder_mode in [
             "auto",
             "gpu_nvenc",
             "gpu_amf",
@@ -416,9 +419,8 @@ class VideoMuxer(BaseModule):
                 actual_encoder = "h264_videotoolbox"
                 encoder_label = "H.264 VideoToolbox"
 
-        # Si no hay GPU, el encoder sigue siendo libx264 (CPU)
-        if not using_gpu:
-            actual_encoder = "libx264"
+        # Si no hay GPU y no es passthrough, el encoder sigue siendo libx264 (CPU)
+        if not using_gpu and encoder_mode != "passthrough":
             encoder_label = "H.264 CPU"
 
         # Reportar estado

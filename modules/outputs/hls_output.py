@@ -477,7 +477,10 @@ class HLSOutput(OutputSink):
 
         encoder_mode = self._encoder_config.encoder_mode
 
-        if self._ffmpeg_path and encoder_mode in [
+        if encoder_mode == "passthrough":
+            actual_encoder = "copy"
+            encoder_label = "Passthrough"
+        elif self._ffmpeg_path and encoder_mode in [
             "auto",
             "gpu_nvenc",
             "gpu_amf",
@@ -514,8 +517,7 @@ class HLSOutput(OutputSink):
                 actual_encoder = "h264_videotoolbox"
                 encoder_label = "H.264 VideoToolbox"
 
-        if not using_gpu:
-            actual_encoder = "libx264"
+        if not using_gpu and encoder_mode != "passthrough":
             encoder_label = "H.264 CPU"
 
         return ModuleStatus(
