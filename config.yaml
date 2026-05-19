@@ -76,7 +76,12 @@ output:
     split_value: 600
     subtitles: vtt
     video_preset: fast
-  outputs: []
+  outputs:
+  - name: srt_1
+    type: srt
+    enabled: true
+    config:
+      port: 9002
 pipeline:
   chunk_duration_sec: 5
   mode: thread_parallel

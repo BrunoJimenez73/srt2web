@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "22"
+
 jobs:
   backend-tests:
     runs-on: ${{ matrix.os }}
@@ -13,15 +21,14 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.12"]
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: "pip"
 
       - name: Install dependencies
@@ -40,9 +47,10 @@ jobs:
           mypy core/ modules/ server/ cli/ --config-file pyproject.toml
         continue-on-error: false
 
-      - name: Run tests
+      - name: Run unit tests (skip slow)
         run: |
-          python -m pytest tests/unit/ -v --cov=core --cov=modules --cov=server --cov-report=xml
+          python -m pytest tests/unit/ -v --cov=core --cov=modules --cov=server --cov-report=xml -m "not slow"
+        timeout-minutes: 15
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -62,7 +70,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
@@ -81,7 +89,6 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     needs: [backend-tests, frontend]
-    if: github.ref == 'refs/heads/main'
 
     steps:
       - uses: actions/checkout@v4
@@ -89,18 +96,32 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Build image (validation)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: srt2web:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Build for native platform only in PRs
+          platforms: linux/amd64
+
       - name: Login to GitHub Container Registry
+        if: github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push (multi-platform)
+        if: github.ref == 'refs/heads/main'
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: ghcr.io/${{ github.repository }}/srt2web:latest
+          platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max

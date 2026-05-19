@@ -1,12 +1,22 @@
 #
-# Dockerfile para SRT2Web
-# Multi-stage build para reducir tamaño de imagen final
+# Dockerfile para SRT2Web — Multi-stage, <500MB, multi-platform
+#
+# Build:    docker build -t srt2web .
+# Run:      docker run -p 9999:9999 -p 9000:9000/udp srt2web
+#
+# GPU:      docker build --build-arg BASE_IMAGE=nvidia/cuda:12.2.0-runtime-ubuntu22.04 .
 #
 
 # -----------------------------------------------------------------------------
-# Etapa 1: Builder - Instalación de dependencias y build frontend
+# Argumentos de build
 # -----------------------------------------------------------------------------
-FROM nvidia/cuda:12.2.0-runtime-ubuntu22.04 AS builder
+ARG BASE_IMAGE=python:3.12-slim
+ARG CUDA_IMAGE=nvidia/cuda:12.2.0-runtime-ubuntu22.04
+
+# -----------------------------------------------------------------------------
+# Etapa 1: Builder — dependencias Python + build frontend
+# -----------------------------------------------------------------------------
+FROM python:3.12-slim AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -14,23 +24,15 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.12 \
-    python3-pip \
-    python3.12-venv \
     nodejs \
     npm \
     ffmpeg \
-    libsm6 \
-    libxext6 \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalar dependencias de Python
 COPY config/requirements.txt config/
-RUN pip3.12 install --no-cache-dir -r config/requirements.txt
+RUN pip install --no-cache-dir -r config/requirements.txt
 
-# Instalar dependencias del frontend y build
 COPY frontend/package*.json frontend/
 RUN cd frontend && npm ci
 
@@ -38,9 +40,9 @@ COPY frontend/ frontend/
 RUN cd frontend && npm run build:local
 
 # -----------------------------------------------------------------------------
-# Etapa 2: Runtime - Imagen final para ejecución
+# Etapa 2: Runtime — imagen mínima de ejecución
 # -----------------------------------------------------------------------------
-FROM nvidia/cuda:12.2.0-runtime-ubuntu22.04 AS runtime
+FROM ${BASE_IMAGE} AS runtime
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -49,33 +51,57 @@ ENV PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
 
 WORKDIR /app
 
-# Instalar dependencias mínimas del sistema
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --from=builder /app/frontend/dist /app/server/static
+
+COPY . .
+
+EXPOSE 9000/udp
+EXPOSE 9999/tcp
+
+VOLUME [ "/app/config", "/app/logs", "/app/output" ]
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9999/health')" || exit 1
+
+ENTRYPOINT [ "python3", "main.py" ]
+
+# -----------------------------------------------------------------------------
+# Etapa 3: Runtime con GPU CUDA (alternativa)
+# -----------------------------------------------------------------------------
+FROM ${CUDA_IMAGE} AS runtime-cuda
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
+ENV CUDA_VISIBLE_DEVICES=0
+
+WORKDIR /app
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3.12 \
     python3-pip \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar dependencias de Python
 COPY --from=builder /usr/local/lib/python3.12/dist-packages /usr/local/lib/python3.12/dist-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
-
-# Copiar build del frontend
 COPY --from=builder /app/frontend/dist /app/server/static
 
-# Copiar código fuente
 COPY . .
 
-# Exponer puertos
-EXPOSE 9000/udp  # SRT
-EXPOSE 9999/tcp  # Web UI / API / HLS
+EXPOSE 9000/udp
+EXPOSE 9999/tcp
 
-# Volúmenes para configuración y logs
 VOLUME [ "/app/config", "/app/logs", "/app/output" ]
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:9999/health || exit 1
+    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:9999/health')" || exit 1
 
-# Comando de inicio
 ENTRYPOINT [ "python3", "main.py" ]

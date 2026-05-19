@@ -410,6 +410,10 @@ export interface Status {
   uptime_seconds?: number;
   /** Average processing time per chunk in milliseconds */
   avg_processing_time_ms?: number;
+  /** Per-module average processing time in milliseconds (F84) */
+  module_avg_time_ms?: Record<string, number>;
+  /** Per-module total processing time in milliseconds (F84) */
+  module_total_times?: Record<string, number>;
 }
 
 export type PipelineState =

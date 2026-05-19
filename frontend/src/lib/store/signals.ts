@@ -164,13 +164,28 @@ export const throughputAvg = computed(() => {
   return hist.reduce((a, b) => a + b, 0) / hist.length;
 });
 
+// ── Computed: Per-module latency breakdown ───────────────────────────────────
+
+export const moduleLatencyBreakdown = computed(() => {
+  const status = pipelineStatus.value;
+  const moduleAvgs = status?.module_avg_time_ms;
+  if (!moduleAvgs || Object.keys(moduleAvgs).length === 0) return [];
+  return Object.entries(moduleAvgs)
+    .map(([name, avgMs]) => ({ name, avgMs }))
+    .sort((a, b) => b.avgMs - a.avgMs);
+});
+
 // ── Computed: Latency ────────────────────────────────────────────────────────
 
 export const pipelineLatency = computed(() => {
+  const breakdown = moduleLatencyBreakdown.value;
+  // Use actual per-module timing when available (F84)
+  if (breakdown.length > 0) {
+    return breakdown.reduce((sum, m) => sum + m.avgMs, 0) / 1000;
+  }
+  // Fallback estimate: avg_processing_time_ms * 6 stages
   const avgTimeMs = pipelineStatus.value?.avg_processing_time_ms ?? 0;
-  // Estimate: avg_processing_time_ms * pipeline stages (input->transcribe->translate->TTS->mix->output)
-  const stages = 6;
-  return avgTimeMs > 0 ? (avgTimeMs * stages) / 1000 : 0;
+  return avgTimeMs > 0 ? (avgTimeMs * 6) / 1000 : 0;
 });
 
 // ── Computed: Metrics History for Sparklines ────────────────────────────────

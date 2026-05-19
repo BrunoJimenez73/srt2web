@@ -1,0 +1,1023 @@
+---
+import { readFileSync, existsSync } from 'node:fs';
+import path from 'node:path';
+
+let projectRoot = process.cwd();
+while (!existsSync(path.join(projectRoot, 'pyproject.toml'))) {
+  const parent = path.dirname(projectRoot);
+  if (parent === projectRoot) { projectRoot = ''; break; }
+  projectRoot = parent;
+}
+const versionMatch = projectRoot
+  ? readFileSync(path.join(projectRoot, 'pyproject.toml'), 'utf-8').match(/^version\s*=\s*"([^"]+)"/m)
+  : null;
+const appVersion = versionMatch?.[1] ?? '0.0.0';
+---
+<!DOCTYPE html>
+<html lang="es" data-skin="broadcast">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SRT2Web — Broadcast Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+</head>
+<body>
+<div class="studio">
+
+  <!-- ===== TOPBAR ===== -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <svg class="topbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+      </svg>
+      <span class="topbar-title">srt2web</span>
+      <span class="topbar-version">{appVersion}</span>
+    </div>
+
+    <div class="topbar-center">
+      <div class="status-indicator live">
+        <span class="status-dot"></span>
+        <span class="status-label">ON AIR</span>
+      </div>
+      <div class="vu-bridge" aria-hidden="true">
+        <span class="vu-seg"></span><span class="vu-seg"></span><span class="vu-seg"></span>
+        <span class="vu-seg"></span><span class="vu-seg"></span><span class="vu-seg"></span>
+        <span class="vu-seg"></span><span class="vu-seg"></span><span class="vu-seg"></span>
+        <span class="vu-seg"></span><span class="vu-seg"></span><span class="vu-seg"></span>
+        <span class="vu-seg"></span><span class="vu-seg"></span>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <div class="mode-toggle" id="mode-toggle" role="button" tabindex="0" aria-label="Toggle local/remote mode">
+        <span class="mode-option active" data-mode="local">LOCAL</span>
+        <span class="mode-option" data-mode="remote">REMOTE</span>
+      </div>
+      <button class="btn-save" disabled>SAVE</button>
+      <div class="live-clock" id="live-clock">--:--:--</div>
+    </div>
+  </header>
+
+  <!-- ===== METRICS STRIP ===== -->
+  <section class="metrics-strip">
+    <div class="metric-block">
+      <div class="metric-label">CPU</div>
+      <div class="metric-value" id="metric-cpu">—</div>
+      <div class="vu-meter"><div class="vu-fill" style="width:65%"></div></div>
+    </div>
+    <div class="metric-block">
+      <div class="metric-label">MEM</div>
+      <div class="metric-value" id="metric-mem">—</div>
+      <div class="vu-meter"><div class="vu-fill" style="width:42%"></div></div>
+    </div>
+    <div class="metric-block">
+      <div class="metric-label">GPU</div>
+      <div class="metric-value" id="metric-gpu">—</div>
+      <div class="vu-meter"><div class="vu-fill" style="width:78%"></div></div>
+    </div>
+    <div class="metric-block">
+      <div class="metric-label">THROUGHPUT</div>
+      <div class="metric-value" id="metric-throughput">—</div>
+      <div class="vu-meter"><div class="vu-fill" style="width:55%"></div></div>
+    </div>
+    <div class="metric-block">
+      <div class="metric-label">LATENCY</div>
+      <div class="metric-value" id="metric-latency">—</div>
+      <div class="vu-meter"><div class="vu-fill" style="width:30%"></div></div>
+    </div>
+    <div class="metric-block">
+      <div class="metric-label">CHUNKS</div>
+      <div class="metric-value" id="metric-chunks">—</div>
+      <div class="vu-meter"><div class="vu-fill" style="width:0%"></div></div>
+    </div>
+  </section>
+
+  <!-- ===== RACK GRID — 9 modules ===== -->
+  <section class="rack-grid">
+
+    <!-- 1: INPUT -->
+    <article class="rack-unit expanded" data-module="input">
+      <div class="rack-ear left"></div>
+      <div class="rack-body">
+        <div class="rack-header" role="button" tabindex="0" aria-expanded="true">
+          <span class="indicator-dot active"></span>
+          <span class="rack-title">INPUT</span>
+          <span class="collapse-icon">−</span>
+        </div>
+        <div class="rack-content">
+          <div class="field">
+            <span class="field-label">Type</span>
+            <select class="field-select"><option>SRT</option><option>RTMP</option><option>File</option></select>
+          </div>
+          <div class="field">
+            <span class="field-label">Port</span>
+            <input class="field-input" type="number" value="9999" min="1" max="65535" />
+          </div>
+          <div class="field">
+            <span class="field-label">Mode</span>
+            <select class="field-select"><option>listener</option><option>caller</option><option>rendezvous</option></select>
+          </div>
+          <div class="field">
+            <span class="field-label">Latency</span>
+            <select class="field-select"><option>low</option><option>medium</option><option>high</option></select>
+          </div>
+        </div>
+        <div class="rack-footer">
+          <span class="signal-led active"></span>
+          <span class="signal-label">SIGNAL</span>
+          <div class="vu-micro"><span></span><span></span><span></span><span></span><span></span></div>
+          <span class="module-status on">ON</span>
+        </div>
+      </div>
+      <div class="rack-ear right"></div>
+    </article>
+
+    <!-- 2: AUDIO EXTRACTOR -->
+    <article class="rack-unit" data-module="audio_extractor">
+      <div class="rack-ear left"></div>
+      <div class="rack-body">
+        <div class="rack-header" role="button" tabindex="0" aria-expanded="false">
+          <span class="indicator-dot active"></span>
+          <span class="rack-title">AUDIO EXTRACTOR</span>
+          <span class="rack-toggle on"></span>
+          <span class="collapse-icon">+</span>
+        </div>
+        <div class="rack-content">
+          <div class="field">
+            <span class="field-label">Codec</span>
+            <select class="field-select"><option>pcm_s16le</option><option>pcm_s32le</option><option>mp3</option><option>aac</option></select>
+          </div>
+          <div class="field">
+            <span class="field-label">Sample Rate</span>
+            <select class="field-select"><option>16000 Hz</option><option>22050 Hz</option><option>44100 Hz</option><option>48000 Hz</option></select>
+          </div>
+          <div class="field">
+            <span class="field-label">Channels</span>
+            <select class="field-select"><option>mono</option><option>stereo</option></select>
+          </div>
+        </div>
+        <div class="rack-footer">
+          <span class="metric-mini"><span class="mm-label">Format</span><span class="mm-value">WAV</span></span>
+          <span class="gpu-indicator">CPU</span>
+          <span class="module-status on">ON</span>
+        </div>
+      </div>
+      <div class="rack-ear right"></div>
+    </article>
+
+    <!-- 3: WHISPER -->
+    <article class="rack-unit" data-module="transcriber">
+      <div class="rack-ear left"></div>
+      <div class="rack-body">
+        <div class="rack-header" role="button" tabindex="0" aria-expanded="false">
+          <span class="indicator-dot active"></span>
+          <span class="rack-title">WHISPER</span>
+          <span class="rack-toggle on"></span>
+          <span class="collapse-icon">+</span>
+        </div>
+        <div class="rack-content">
+          <div class="field">
+            <span class="field-label">Model</span>
+            <select class="field-select"><option>tiny</option><option>small</option><option selected>medium</option><option>large-v2</option></select>
+          </div>
+          <div class="field">
+            <span class="field-label">Language</span>
+            <select class="field-select"><option value="auto">Auto</option><option value="es">Español</option><option value="en">English</option><option value="fr">Français</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="pt">Português</option></select>
+          </div>
+          <div class="field">
+            <span class="field-label">Device</span>
+            <select class="field-select"><option>auto</option><option selected>cuda</option><option>cpu</option></select>
+          </div>
+        </div>
+        <div class="rack-footer">
+          <span class="metric-mini"><span class="mm-label">Time</span><span class="mm-value">—</span></span>
+          <span class="metric-mini"><span class="mm-label">Chunks</span><span class="mm-value">—</span></span>
+          <span class="gpu-indicator active">CUDA</span>
+          <span class="module-status on">ON</span>
+        </div>
+      </div>
+      <div class="rack-ear right"></div>
+    </article>
+
+    <!-- 4: TRANSLATE -->
+    <article class="rack-unit" data-module="translator">
+      <div class="rack-ear left"></div>
+      <div class="rack-body">
+        <div class="rack-header" role="button" tabindex="0" aria-expanded="false">
+          <span class="indicator-dot active"></span>
+          <span class="rack-title">TRANSLATE</span>
+          <span class="rack-toggle on"></span>
+          <span class="collapse-icon">+</span>
+        </div>
+        <div class="rack-content">
+          <div class="field">
+            <span class="field-label">From</span>
+            <select class="field-select"><option value="auto">Auto</option><option value="es" selected>Español</option><option value="en">English</option><option value="fr">Français</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="pt">Português</option></select>
+          </div>
+          <div class="field">
+            <span class="field-label">To</span>
+            <select class="field-select"><option value="es">Español</option><option value="en" selected>English</option><option value="fr">Français</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="pt">Português</option></select>
+          </div>
+        </div>
+        <div class="rack-footer">
+          <span class="metric-mini"><span class="mm-label">Pairs</span><span class="mm-value">active</span></span>
+          <span class="module-status on">ON</span>
+        </div>
+      </div>
+      <div class="rack-ear right"></div>
+    </article>
+
+    <!-- 5: TTS ENGINE -->
+    <article class="rack-unit" data-module="tts_engine">
+      <div class="rack-ear left"></div>
+      <div class="rack-body">
+        <div class="rack-header" role="button" tabindex="0" aria-expanded="false">
+          <span class="indicator-dot active"></span>
+          <span class="rack-title">TTS ENGINE</span>
+          <span class="rack-toggle on"></span>
+          <span class="collapse-icon">+</span>
+        </div>
+        <div class="rack-content">
+          <div class="field">
+            <span class="field-label">Engine</span>
+            <select class="field-select"><option>piper</option><option>edge-tts</option></select>
+          </div>
+          <div class="field">
+            <span class="field-label">Voice</span>
+            <select class="field-select">
+              <optgroup label="Español">
+                <option selected>es_ES-sharvard-medium</option>
+                <option>es_ES-davefx-medium</option>
+                <option>es_MX-claude-high</option>
+                <option>es_MX-ald-medium</option>
+                <option>es_AR-daniela-high</option>
+              </optgroup>
+              <optgroup label="English">
+                <option>en_US-amy-low</option>
+                <option>en_US-ryan-low</option>
+              </optgroup>
+              <optgroup label="Français">
+                <option>fr_FR-siwis-medium</option>
+                <option>fr_FR-gilles-low</option>
+              </optgroup>
+              <optgroup label="Deutsch">
+                <option>de_DE-eva_k-x_low</option>
+                <option>de_DE-thorsten-medium</option>
+              </optgroup>
+              <optgroup label="Italiano">
+                <option>it_IT-paola-medium</option>
+                <option>it_IT-riccardo-x_low</option>
+              </optgroup>
+              <optgroup label="Português">
+                <option>pt_BR-cadu-medium</option>
+                <option>pt_PT-tugao-medium</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="field-row-3">
+            <div class="field">
+              <span class="field-label">Speed</span>
+              <input class="field-input" type="number" value="1.0" min="0.5" max="2.0" step="0.1" />
+            </div>
+            <div class="field">
+              <span class="field-label">Volume</span>
+              <input class="field-input" type="number" value="100" min="0" max="200" />
+            </div>
+          </div>
+        </div>
+        <div class="rack-footer">
+          <span class="metric-mini"><span class="mm-label">Model</span><span class="mm-value">Piper</span></span>
+          <span class="gpu-indicator">CPU</span>
+          <span class="module-status on">ON</span>
+        </div>
+      </div>
+      <div class="rack-ear right"></div>
+    </article>
+
+    <!-- 6: SUBTITLES -->
+    <article class="rack-unit" data-module="subtitle_generator">
+      <div class="rack-ear left"></div>
+      <div class="rack-body">
+        <div class="rack-header" role="button" tabindex="0" aria-expanded="false">
+          <span class="indicator-dot active"></span>
+          <span class="rack-title">SUBTITLES</span>
+          <span class="rack-toggle on"></span>
+          <span class="collapse-icon">+</span>
+        </div>
+        <div class="rack-content">
+          <div class="field">
+            <span class="field-label">Format</span>
+            <select class="field-select"><option>webvtt</option><option>srt</option><option>ass</option></select>
+          </div>
+          <div class="field">
+            <span class="field-label">Source</span>
+            <select class="field-select"><option selected>translated</option><option>original</option></select>
+          </div>
+        </div>
+        <div class="rack-footer">
+          <span class="metric-mini"><span class="mm-label">Status</span><span class="mm-value">active</span></span>
+          <span class="module-status on">ON</span>
+        </div>
+      </div>
+      <div class="rack-ear right"></div>
+    </article>
+
+    <!-- 7: AUDIO MIXER -->
+    <article class="rack-unit" data-module="audio_mixer">
+      <div class="rack-ear left"></div>
+      <div class="rack-body">
+        <div class="rack-header" role="button" tabindex="0" aria-expanded="false">
+          <span class="indicator-dot active"></span>
+          <span class="rack-title">AUDIO MIXER</span>
+          <span class="rack-toggle on"></span>
+          <span class="collapse-icon">+</span>
+        </div>
+        <div class="rack-content">
+          <div class="field-row-3">
+            <div class="field">
+              <span class="field-label">Original</span>
+              <input class="field-input" type="number" value="0.3" min="0" max="2" step="0.1" />
+            </div>
+            <div class="field">
+              <span class="field-label">Dubbed</span>
+              <input class="field-input" type="number" value="1.0" min="0" max="2" step="0.1" />
+            </div>
+          </div>
+          <div class="field">
+            <span class="field-label">Sync Offset</span>
+            <input class="field-input" type="number" value="0" min="-5000" max="5000" /> <span class="field-unit">ms</span>
+          </div>
+        </div>
+        <div class="rack-footer">
+          <span class="signal-led active"></span><span class="signal-label">MIX</span>
+          <div class="vu-micro"><span></span><span></span><span></span><span></span><span class="active"></span></div>
+          <span class="module-status on">ON</span>
+        </div>
+      </div>
+      <div class="rack-ear right"></div>
+    </article>
+
+    <!-- 8: VIDEO MUXER -->
+    <article class="rack-unit" data-module="video_muxer">
+      <div class="rack-ear left"></div>
+      <div class="rack-body">
+        <div class="rack-header" role="button" tabindex="0" aria-expanded="false">
+          <span class="indicator-dot active"></span>
+          <span class="rack-title">VIDEO MUXER</span>
+          <span class="collapse-icon">+</span>
+        </div>
+        <div class="rack-content">
+          <div class="field">
+            <span class="field-label">Engine</span>
+            <select class="field-select"><option>hls</option><option>webrtc</option></select>
+          </div>
+          <div class="field">
+            <span class="field-label">Encoder</span>
+            <select class="field-select"><option>auto</option><option>cpu (libx264)</option><option selected>gpu_nvenc</option><option>gpu_amf</option><option>gpu_qsv</option></select>
+          </div>
+          <div class="field-row-3">
+            <div class="field">
+              <span class="field-label">CRF</span>
+              <input class="field-input" type="number" value="18" min="0" max="51" />
+            </div>
+            <div class="field">
+              <span class="field-label">Bitrate</span>
+              <select class="field-select"><option>64k</option><option>96k</option><option>128k</option><option selected>192k</option><option>256k</option><option>320k</option></select>
+            </div>
+          </div>
+        </div>
+        <div class="rack-footer">
+          <span class="metric-mini"><span class="mm-label">Engine</span><span class="mm-value">HLS</span></span>
+          <span class="gpu-indicator active">NVENC</span>
+          <span class="module-status on">ON</span>
+        </div>
+      </div>
+      <div class="rack-ear right"></div>
+    </article>
+
+    <!-- 9: OUTPUTS -->
+    <article class="rack-unit expanded" data-module="output">
+      <div class="rack-ear left"></div>
+      <div class="rack-body">
+        <div class="rack-header" role="button" tabindex="0" aria-expanded="true">
+          <span class="indicator-dot active"></span>
+          <span class="rack-title">OUTPUTS</span>
+          <span class="rack-badge">2 active</span>
+          <span class="collapse-icon">−</span>
+        </div>
+        <div class="rack-content">
+          <div class="output-item"><span class="signal-led active"></span><span class="field-label">HLS</span><span class="field-value">:8888</span></div>
+          <div class="output-item"><span class="signal-led active"></span><span class="field-label">RTMP</span><span class="field-value">:1935</span></div>
+          <div class="output-item inactive"><span class="signal-led"></span><span class="field-label">Recording</span><span class="field-value">off</span></div>
+          <div class="output-add">
+            <select class="field-select-sm"><option>HLS</option><option>RTMP</option><option>SRT</option><option>File</option><option>Recording</option></select>
+            <button class="btn-add" disabled>+</button>
+          </div>
+        </div>
+        <div class="rack-footer">
+          <span class="metric-mini"><span class="mm-label">Active</span><span class="mm-value">2</span></span>
+          <span class="module-status on">ON</span>
+        </div>
+      </div>
+      <div class="rack-ear right"></div>
+    </article>
+
+  </section>
+
+  <!-- ===== CONNECTION URLS ===== -->
+  <section class="conn-urls" id="conn-urls">
+    <div class="conn-urls-header">
+      <span class="conn-urls-title">CONNECTION URLs</span>
+      <span class="conn-urls-mode" id="conn-mode-label">LOCAL</span>
+    </div>
+    <div class="conn-urls-grid">
+      <div class="url-block">
+        <span class="url-block-label">SRT</span>
+        <div class="url-block-row">
+          <input class="url-input" id="url-srt" value="srt://localhost:9999" readonly />
+          <button class="url-copy" data-target="url-srt" title="Copy">⧉</button>
+        </div>
+      </div>
+      <div class="url-block">
+        <span class="url-block-label">RTMP</span>
+        <div class="url-block-row">
+          <input class="url-input" id="url-rtmp" value="rtmp://localhost:1935/live" readonly />
+          <button class="url-copy" data-target="url-rtmp" title="Copy">⧉</button>
+        </div>
+      </div>
+      <div class="url-block">
+        <span class="url-block-label">HLS</span>
+        <div class="url-block-row">
+          <input class="url-input" id="url-hls" value="http://localhost:8888/hls/srt2web.m3u8" readonly />
+          <button class="url-copy" data-target="url-hls" title="Copy">⧉</button>
+        </div>
+      </div>
+      <div class="url-block">
+        <span class="url-block-label">Player</span>
+        <div class="url-block-row">
+          <input class="url-input" id="url-player" value="http://localhost:9999/player" readonly />
+          <button class="url-copy" data-target="url-player" title="Copy">⧉</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== LOGS PANEL ===== -->
+  <section class="log-panel" id="log-panel">
+    <div class="log-header" id="log-header-toggle" role="button" tabindex="0" aria-expanded="false">
+      <div class="log-header-left">
+        <span class="log-collapse-icon" id="log-collapse-icon">▶</span>
+        <span class="log-title">SYSTEM LOG</span>
+        <span class="log-count" id="log-count">0 entries</span>
+      </div>
+      <div class="log-header-right">
+        <span class="log-filter-tag active" data-level="all">ALL</span>
+        <span class="log-filter-tag" data-level="info">INFO</span>
+        <span class="log-filter-tag" data-level="warn">WARN</span>
+        <span class="log-filter-tag" data-level="error">ERR</span>
+      </div>
+    </div>
+    <div class="log-body" id="log-body">
+      <div class="log-entries" id="log-entries">
+        <div class="log-entry info"><span class="log-time">[ --:--:-- ]</span><span class="log-msg">System initialized — waiting for pipeline</span></div>
+        <div class="log-entry info"><span class="log-time">[ --:--:-- ]</span><span class="log-msg">WebSocket connected</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== STATUS BAR ===== -->
+  <footer class="status-bar">
+    <div class="status-info">
+      <span class="status-dot"></span>
+      <span class="status-text" id="status-text">pipeline stopped</span>
+    </div>
+    <div class="status-icon">
+      <span class="live-clock-sm" id="live-clock-sm">--:--:--</span>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+// === Live Clock ===
+function updateClock() {
+  var now = new Date();
+  var h = String(now.getHours()).padStart(2, '0');
+  var m = String(now.getMinutes()).padStart(2, '0');
+  var s = String(now.getSeconds()).padStart(2, '0');
+  var el = document.getElementById('live-clock');
+  if (el) el.textContent = h + ':' + m + ':' + s;
+  var el2 = document.getElementById('live-clock-sm');
+  if (el2) el2.textContent = h + ':' + m + ':' + s;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// === LOCAL/REMOTE Toggle ===
+(function() {
+  var toggle = document.getElementById('mode-toggle');
+  if (!toggle) return;
+  toggle.addEventListener('click', function() {
+    var active = toggle.querySelector('.mode-option.active');
+    var next = active && active.getAttribute('data-mode') === 'local'
+      ? toggle.querySelector('[data-mode="remote"]')
+      : toggle.querySelector('[data-mode="local"]');
+    if (active) active.classList.remove('active');
+    if (next) next.classList.add('active');
+    var mode = next ? next.getAttribute('data-mode') : 'local';
+    var label = document.getElementById('conn-mode-label');
+    if (label) label.textContent = mode.toUpperCase();
+    var urls = {
+      local: {
+        srt: 'srt://localhost:9999',
+        rtmp: 'rtmp://localhost:1935/live',
+        hls: 'http://localhost:8888/hls/srt2web.m3u8',
+        player: 'http://localhost:9999/player'
+      },
+      remote: {
+        srt: 'srt://192.168.1.100:9999',
+        rtmp: 'rtmp://192.168.1.100:1935/live',
+        hls: 'http://192.168.1.100:8888/hls/srt2web.m3u8',
+        player: 'http://192.168.1.100:9999/player'
+      }
+    };
+    var set = urls[mode] || urls.local;
+    var srt = document.getElementById('url-srt');
+    var rtmp = document.getElementById('url-rtmp');
+    var hls = document.getElementById('url-hls');
+    var player = document.getElementById('url-player');
+    if (srt) srt.value = set.srt;
+    if (rtmp) rtmp.value = set.rtmp;
+    if (hls) hls.value = set.hls;
+    if (player) player.value = set.player;
+  });
+})();
+
+// === Copy URL buttons ===
+document.querySelectorAll('.url-copy').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var targetId = this.getAttribute('data-target');
+    var input = document.getElementById(targetId);
+    if (input) {
+      input.select();
+      try { document.execCommand('copy'); } catch(e) {}
+      var orig = this.textContent;
+      this.textContent = '✓';
+      var self = this;
+      setTimeout(function() { self.textContent = orig; }, 1200);
+    }
+  });
+});
+
+// === Collapse/Expand Cards ===
+document.querySelectorAll('.rack-header').forEach(function(header) {
+  header.addEventListener('click', function() {
+    var unit = this.closest('.rack-unit');
+    var content = unit.querySelector('.rack-content');
+    var icon = unit.querySelector('.collapse-icon');
+    var isExpanded = unit.classList.contains('expanded');
+    if (isExpanded) {
+      var sh = content.scrollHeight;
+      content.style.maxHeight = sh + 'px';
+      requestAnimationFrame(function() {
+        content.style.maxHeight = '0';
+        content.style.opacity = '0';
+        content.style.paddingTop = '0';
+        content.style.paddingBottom = '0';
+      });
+      unit.classList.remove('expanded');
+      if (icon) icon.textContent = '+';
+      this.setAttribute('aria-expanded', 'false');
+    } else {
+      content.style.display = '';
+      var sh = content.scrollHeight;
+      content.style.maxHeight = '0';
+      content.style.opacity = '';
+      content.style.paddingTop = '';
+      content.style.paddingBottom = '';
+      requestAnimationFrame(function() {
+        content.style.maxHeight = sh + 'px';
+        content.style.opacity = '1';
+        content.style.paddingTop = '8px';
+        content.style.paddingBottom = '6px';
+      });
+      unit.classList.add('expanded');
+      if (icon) icon.textContent = '−';
+      this.setAttribute('aria-expanded', 'true');
+    }
+  });
+});
+
+// === Init expanded cards: set correct max-height ===
+document.querySelectorAll('.rack-unit.expanded .rack-content').forEach(function(c) {
+  c.style.maxHeight = c.scrollHeight + 'px';
+  c.style.opacity = '1';
+});
+
+// === Log Panel Toggle ===
+(function() {
+  var toggle = document.getElementById('log-header-toggle');
+  var body = document.getElementById('log-body');
+  var icon = document.getElementById('log-collapse-icon');
+  if (!toggle || !body || !icon) return;
+  body.style.display = 'none';
+  icon.textContent = '▶';
+
+  toggle.addEventListener('click', function() {
+    var isOpen = body.style.display !== 'none';
+    if (isOpen) {
+      body.style.display = 'none';
+      icon.textContent = '▶';
+      toggle.setAttribute('aria-expanded', 'false');
+    } else {
+      body.style.display = 'block';
+      icon.textContent = '▼';
+      toggle.setAttribute('aria-expanded', 'true');
+    }
+  });
+
+  setTimeout(function() {
+    var container = document.getElementById('log-entries');
+    if (!container) return;
+    var fakeLogs = [
+      { time: '12:00:01', level: 'info', msg: 'Pipeline started — 8 modules loaded' },
+      { time: '12:00:02', level: 'info', msg: 'Input: listening on srt://:9999' },
+      { time: '12:00:03', level: 'info', msg: 'Whisper: model large-v2 loaded (CUDA)' },
+      { time: '12:00:04', level: 'warn', msg: 'TTS: piper model loaded (CPU)' },
+      { time: '12:00:05', level: 'info', msg: 'HLS: segmenter started on :8888' },
+      { time: '12:00:06', level: 'info', msg: 'Output: HLS stream active' },
+      { time: '12:00:07', level: 'warn', msg: 'CPU threshold > 70% — monitoring' },
+      { time: '12:00:08', level: 'info', msg: 'Chunk #1 processed — 12.4s segment' },
+      { time: '12:00:10', level: 'info', msg: 'Chunk #2 processed — 11.8s segment' },
+      { time: '12:00:12', level: 'error', msg: 'RTMP output: connection timeout, retry #1' },
+      { time: '12:00:14', level: 'info', msg: 'Chunk #3 processed — 12.1s segment' },
+      { time: '12:00:16', level: 'info', msg: 'RTMP: reconnected successfully' },
+    ];
+    var countEl = document.getElementById('log-count');
+    fakeLogs.forEach(function(log) {
+      var entry = document.createElement('div');
+      entry.className = 'log-entry ' + log.level;
+      entry.innerHTML = '<span class="log-time">[' + log.time + ']</span> <span class="log-msg">' + log.msg + '</span>';
+      container.appendChild(entry);
+    });
+    if (countEl) countEl.textContent = fakeLogs.length + ' entries';
+  }, 500);
+})();
+
+// === Log Filter Tabs ===
+document.querySelectorAll('.log-filter-tag').forEach(function(tag) {
+  tag.addEventListener('click', function() {
+    document.querySelectorAll('.log-filter-tag').forEach(function(t) { t.classList.remove('active'); });
+    this.classList.add('active');
+    var level = this.getAttribute('data-level');
+    document.querySelectorAll('.log-entry').forEach(function(entry) {
+      if (level === 'all') { entry.style.display = ''; return; }
+      entry.style.display = entry.classList.contains(level) ? '' : 'none';
+    });
+  });
+});
+</script>
+</body>
+</html>
+<style>
+/* ============================================================
+   SKIN: BROADCAST STUDIO v3
+   Warm analog audio equipment aesthetic.
+   Collapsible cards, real selects, REMOTE/LOCAL, URL copy.
+   ============================================================ */
+:root {
+  --bg-deep: #141210;
+  --bg-surface: #1C1814;
+  --bg-card: #231F1A;
+  --bg-card-hover: #2B2720;
+  --text-primary: #EDE0C8;
+  --text-secondary: #B0A090;
+  --text-dim: #7A6E5E;
+  --accent: #D4A041;
+  --accent-soft: rgba(212, 160, 65, 0.12);
+  --accent-glow: rgba(212, 160, 65, 0.25);
+  --success: #5CB85C;
+  --warning: #E8A030;
+  --error: #D45050;
+  --border: rgba(212, 160, 65, 0.10);
+  --border-hover: rgba(212, 160, 65, 0.20);
+  --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --radius-lg: 12px;
+  --radius-md: 8px;
+  --radius-sm: 4px;
+  --shadow-card: 0 2px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(212,160,65,0.04);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; -webkit-font-smoothing: antialiased; }
+body {
+  font-family: var(--font-sans); background: var(--bg-deep); color: var(--text-primary);
+  min-height: 100vh; line-height: 1.5;
+}
+.studio {
+  max-width: 1280px; margin: 0 auto; padding: 20px 24px 32px;
+  min-height: 100vh; display: flex; flex-direction: column; gap: 12px;
+}
+
+/* ===== TOPBAR ===== */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; background: var(--bg-surface);
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+.topbar-brand { display: flex; align-items: center; gap: 10px; }
+.topbar-icon { width: 20px; height: 20px; color: var(--accent); filter: drop-shadow(0 0 4px var(--accent-glow)); }
+.topbar-title { font-size: 0.95rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.topbar-version {
+  font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-dim);
+  padding: 2px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.topbar-center { display: flex; align-items: center; gap: 20px; }
+.status-indicator { display: flex; align-items: center; gap: 8px; padding: 3px 10px; border-radius: 20px; font-size: 0.65rem; font-weight: 700; letter-spacing: 2px; }
+.status-indicator.live { background: rgba(92, 184, 92, 0.10); border: 1px solid rgba(92, 184, 92, 0.25); color: var(--success); }
+.status-indicator .status-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--success);
+  box-shadow: 0 0 6px var(--success), 0 0 12px var(--success);
+  animation: pulse-onair 1.5s ease-in-out infinite;
+}
+@keyframes pulse-onair {
+  0%, 100% { opacity: 0.7; box-shadow: 0 0 4px var(--success), 0 0 8px var(--success); }
+  50% { opacity: 1; box-shadow: 0 0 8px var(--success), 0 0 16px var(--success), 0 0 24px var(--success); }
+}
+.vu-bridge { display: flex; align-items: center; gap: 3px; }
+.vu-seg { width: 4px; height: 14px; border-radius: 1px; background: var(--text-dim); transition: all 0.15s ease; }
+.vu-bridge .vu-seg:nth-child(-n+6)  { background: var(--success); }
+.vu-bridge .vu-seg:nth-child(n+7):nth-child(-n+10) { background: var(--warning); }
+.vu-bridge .vu-seg:nth-child(n+11) { background: var(--error); }
+.vu-bridge .vu-seg:nth-child(1)  { animation: vu-bounce 0.6s ease-in-out infinite; }
+.vu-bridge .vu-seg:nth-child(2)  { animation: vu-bounce 0.6s ease-in-out 0.05s infinite; }
+.vu-bridge .vu-seg:nth-child(3)  { animation: vu-bounce 0.6s ease-in-out 0.10s infinite; }
+.vu-bridge .vu-seg:nth-child(4)  { animation: vu-bounce 0.6s ease-in-out 0.15s infinite; }
+.vu-bridge .vu-seg:nth-child(5)  { animation: vu-bounce 0.6s ease-in-out 0.20s infinite; }
+.vu-bridge .vu-seg:nth-child(6)  { animation: vu-bounce 0.6s ease-in-out 0.25s infinite; }
+.vu-bridge .vu-seg:nth-child(7)  { animation: vu-bounce 0.6s ease-in-out 0.30s infinite; }
+.vu-bridge .vu-seg:nth-child(8)  { animation: vu-bounce 0.6s ease-in-out 0.35s infinite; }
+.vu-bridge .vu-seg:nth-child(9)  { animation: vu-bounce 0.6s ease-in-out 0.40s infinite; }
+.vu-bridge .vu-seg:nth-child(10) { animation: vu-bounce 0.6s ease-in-out 0.45s infinite; }
+.vu-bridge .vu-seg:nth-child(11) { animation: vu-bounce 0.6s ease-in-out 0.50s infinite; }
+.vu-bridge .vu-seg:nth-child(12) { animation: vu-bounce 0.6s ease-in-out 0.55s infinite; }
+.vu-bridge .vu-seg:nth-child(13) { animation: vu-bounce 0.6s ease-in-out 0.60s infinite; }
+.vu-bridge .vu-seg:nth-child(14) { animation: vu-bounce 0.6s ease-in-out 0.65s infinite; }
+@keyframes vu-bounce {
+  0%, 100% { opacity: 0.3; transform: scaleY(0.4); }
+  50% { opacity: 1; transform: scaleY(1); }
+}
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+
+/* Mode Toggle */
+.mode-toggle {
+  display: flex; border-radius: 6px; overflow: hidden;
+  border: 1px solid var(--border); cursor: pointer; user-select: none; flex-shrink: 0;
+}
+.mode-option {
+  font-family: var(--font-mono); font-size: 0.55rem; font-weight: 700;
+  letter-spacing: 1px; padding: 4px 10px; transition: all 0.15s;
+  color: var(--text-dim); background: transparent;
+}
+.mode-option.active { color: var(--accent); background: rgba(212, 160, 65, 0.08); }
+
+.btn-save {
+  font-family: var(--font-sans); font-size: 0.6rem; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 12px;
+  border-radius: 20px; border: 1px solid var(--border); background: transparent;
+  color: var(--text-dim); cursor: default;
+}
+.live-clock {
+  font-family: var(--font-mono); font-size: 0.8rem; font-weight: 500;
+  color: var(--accent); letter-spacing: 2px; padding: 4px 10px;
+  background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+  border-radius: var(--radius-md); min-width: 75px; text-align: center;
+}
+
+/* ===== METRICS STRIP ===== */
+.metrics-strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.metric-block {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 8px 10px;
+  display: flex; flex-direction: column; gap: 3px; box-shadow: var(--shadow-card);
+}
+.metric-block .metric-label { font-size: 0.55rem; font-weight: 600; letter-spacing: 1.2px; color: var(--text-dim); text-transform: uppercase; }
+.metric-block .metric-value { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; }
+.vu-meter { width: 100%; height: 3px; background: rgba(0,0,0,0.4); border-radius: 2px; overflow: hidden; margin-top: 1px; }
+.vu-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--success) 0%, var(--warning) 60%, var(--error) 100%); transition: width 0.8s ease; }
+
+/* ===== RACK GRID ===== */
+.rack-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 10px; align-items: start;
+}
+.rack-unit { display: flex; align-items: stretch; gap: 0; }
+
+/* Rack ears */
+.rack-ear {
+  width: 6px; background: linear-gradient(180deg, #2D2820, #201C16);
+  border: 1px solid var(--border); flex-shrink: 0;
+}
+.rack-ear.left { border-right: none; border-radius: 3px 0 0 3px; }
+.rack-ear.right { border-left: none; border-radius: 0 3px 3px 0; }
+
+/* Card body */
+.rack-body {
+  flex: 1; background: var(--bg-card); border: 1px solid var(--border);
+  border-left: none; border-right: none; padding: 0;
+  display: flex; flex-direction: column; transition: background 0.2s ease;
+}
+.rack-unit:hover .rack-body { background: var(--bg-card-hover); }
+.rack-unit:hover .rack-ear { background: linear-gradient(180deg, #352E24, #28221C); }
+
+/* Card header — clickable */
+.rack-header {
+  display: flex; align-items: center; gap: 6px; padding: 6px 10px 5px;
+  border-bottom: 1px solid rgba(212, 160, 65, 0.08); cursor: pointer;
+  user-select: none; transition: background 0.15s;
+}
+.rack-header:hover { background: rgba(212, 160, 65, 0.04); }
+.rack-header:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.indicator-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; transition: all 0.3s ease; }
+.indicator-dot.active { background: var(--success); box-shadow: 0 0 5px var(--success); }
+.rack-title { font-size: 0.55rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--text-secondary); flex: 1; }
+.rack-badge {
+  font-family: var(--font-mono); font-size: 0.5rem; font-weight: 600; color: var(--accent);
+  padding: 1px 5px; border: 1px solid var(--accent-soft); border-radius: 3px;
+  background: rgba(212, 160, 65, 0.06);
+}
+
+.collapse-icon {
+  font-family: var(--font-mono); font-size: 0.7rem; font-weight: 700;
+  color: var(--text-dim); width: 14px; height: 14px; display: flex;
+  align-items: center; justify-content: center; flex-shrink: 0;
+}
+.rack-header:hover .collapse-icon { color: var(--accent); }
+
+/* Toggle in header */
+.rack-toggle {
+  width: 24px; height: 11px; border-radius: 6px; position: relative;
+  flex-shrink: 0; transition: all 0.3s ease;
+}
+.rack-toggle.on { background: var(--success); }
+.rack-toggle.on::after { content: ''; position: absolute; top: 1px; right: 1px; width: 9px; height: 9px; border-radius: 50%; background: #fff; }
+.rack-toggle:not(.on) { background: var(--text-dim); opacity: 0.4; }
+.rack-toggle:not(.on)::after { content: ''; position: absolute; top: 1px; left: 1px; width: 9px; height: 9px; border-radius: 50%; background: #fff; }
+
+/* Card content — expandable */
+.rack-content {
+  padding: 0 10px; display: flex; flex-direction: column; gap: 5px;
+  overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.25s ease;
+  max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0;
+}
+.rack-unit.expanded .rack-content {
+  opacity: 1; padding-top: 6px; padding-bottom: 5px;
+}
+
+.field { display: flex; align-items: center; gap: 6px; }
+.field-label { font-size: 0.55rem; font-weight: 600; letter-spacing: 0.8px; color: var(--text-dim); text-transform: uppercase; min-width: 50px; flex-shrink: 0; }
+
+.field-select {
+  flex: 1; font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-primary);
+  padding: 3px 6px; background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); outline: none; cursor: pointer;
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='6'%3E%3Cpath d='M0 0l4 6 4-6z' fill='%237A6E5E'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 5px center; padding-right: 18px;
+}
+.field-select:focus { border-color: var(--accent); }
+.field-select optgroup { font-family: var(--font-sans); font-size: 0.55rem; color: var(--accent); background: var(--bg-card); }
+.field-select option { font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-primary); background: var(--bg-card); }
+
+.field-input {
+  flex: 1; font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-primary);
+  padding: 3px 6px; background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); outline: none; max-width: 80px;
+}
+.field-input:focus { border-color: var(--accent); }
+.field-input[type=number] { -moz-appearance: textfield; }
+.field-input::-webkit-outer-spin-button, .field-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.field-unit { font-family: var(--font-mono); font-size: 0.55rem; color: var(--text-dim); }
+
+.field-row-3 { display: flex; gap: 6px; }
+.field-row-3 .field { flex: 1; }
+.field-row-3 .field-label { min-width: auto; }
+
+/* Card footer */
+.rack-footer {
+  display: flex; align-items: center; gap: 6px; padding: 4px 10px 6px;
+  border-top: 1px solid rgba(212, 160, 65, 0.06); margin-top: auto;
+}
+.signal-led { width: 4px; height: 4px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; }
+.signal-led.active { background: var(--accent); box-shadow: 0 0 3px var(--accent); }
+.signal-label { font-size: 0.45rem; font-weight: 700; letter-spacing: 1.5px; color: var(--text-dim); text-transform: uppercase; }
+.vu-micro { display: flex; align-items: flex-end; gap: 2px; margin-left: auto; }
+.vu-micro span { width: 2px; background: var(--text-dim); border-radius: 1px; }
+.vu-micro span.active { background: var(--accent); }
+.vu-micro span:nth-child(1) { height: 5px; }
+.vu-micro span:nth-child(2) { height: 8px; }
+.vu-micro span:nth-child(3) { height: 11px; }
+.vu-micro span:nth-child(4) { height: 9px; }
+.vu-micro span:nth-child(5) { height: 6px; }
+
+.metric-mini { display: flex; align-items: center; gap: 3px; }
+.mm-label { font-size: 0.45rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.8px; }
+.mm-value { font-family: var(--font-mono); font-size: 0.55rem; color: var(--text-secondary); }
+
+.gpu-indicator {
+  font-family: var(--font-mono); font-size: 0.45rem; font-weight: 600;
+  padding: 1px 5px; border-radius: 3px; background: rgba(0,0,0,0.3); color: var(--text-dim); margin-left: auto;
+}
+.gpu-indicator.active { background: rgba(92, 184, 92, 0.10); color: var(--success); border: 1px solid rgba(92, 184, 92, 0.2); }
+
+.module-status { font-family: var(--font-mono); font-size: 0.45rem; font-weight: 700; letter-spacing: 1px; padding: 1px 5px; border-radius: 3px; background: rgba(0,0,0,0.25); color: var(--text-dim); }
+.module-status.on { color: var(--success); background: rgba(92, 184, 92, 0.08); border: 1px solid rgba(92, 184, 92, 0.15); }
+
+/* Output items */
+.output-item { display: flex; align-items: center; gap: 6px; padding: 2px 6px; background: rgba(0,0,0,0.15); border-radius: var(--radius-sm); }
+.output-item.inactive { opacity: 0.4; }
+.output-item .field-label { font-family: var(--font-mono); font-size: 0.55rem; min-width: auto; }
+.output-item .field-value { font-family: var(--font-mono); font-size: 0.6rem; margin-left: auto; }
+
+.output-add { display: flex; gap: 4px; margin-top: 2px; }
+.field-select-sm { font-family: var(--font-mono); font-size: 0.55rem; color: var(--text-primary); padding: 2px 5px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: var(--radius-sm); outline: none; cursor: pointer; appearance: none; -webkit-appearance: none; flex: 1; }
+.btn-add { font-family: var(--font-mono); font-size: 0.7rem; padding: 2px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: transparent; color: var(--text-dim); cursor: default; }
+
+/* ===== CONNECTION URLS ===== */
+.conn-urls {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 10px 14px; box-shadow: var(--shadow-card);
+}
+.conn-urls-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.conn-urls-title { font-size: 0.6rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-secondary); }
+.conn-urls-mode { font-family: var(--font-mono); font-size: 0.55rem; color: var(--accent); padding: 1px 8px; border: 1px solid var(--accent-soft); border-radius: 3px; }
+.conn-urls-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.url-block { display: flex; flex-direction: column; gap: 4px; }
+.url-block-label { font-size: 0.55rem; font-weight: 600; letter-spacing: 1px; color: var(--text-dim); text-transform: uppercase; }
+.url-block-row { display: flex; gap: 4px; }
+.url-input {
+  flex: 1; font-family: var(--font-mono); font-size: 0.55rem; color: var(--text-primary);
+  padding: 4px 6px; background: rgba(0,0,0,0.25); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); outline: none;
+}
+.url-input:focus { border-color: var(--accent); }
+.url-copy {
+  font-size: 0.8rem; padding: 3px 8px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: transparent; color: var(--text-dim);
+  cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+}
+.url-copy:hover { color: var(--accent); border-color: var(--accent-soft); background: rgba(212, 160, 65, 0.06); }
+
+/* ===== LOG PANEL ===== */
+.log-panel { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-card); }
+.log-header { display: flex; align-items: center; justify-content: space-between; padding: 7px 14px; cursor: pointer; user-select: none; }
+.log-header:hover { background: rgba(212, 160, 65, 0.04); }
+.log-header-left { display: flex; align-items: center; gap: 10px; }
+.log-collapse-icon { font-family: var(--font-mono); font-size: 0.55rem; color: var(--accent); width: 12px; text-align: center; }
+.log-title { font-size: 0.6rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-secondary); }
+.log-count { font-family: var(--font-mono); font-size: 0.5rem; color: var(--text-dim); }
+.log-header-right { display: flex; gap: 4px; }
+.log-filter-tag {
+  font-family: var(--font-mono); font-size: 0.45rem; font-weight: 600;
+  padding: 1px 6px; border-radius: 3px; cursor: pointer; letter-spacing: 0.5px;
+  color: var(--text-dim); background: rgba(0,0,0,0.2); transition: all 0.15s;
+}
+.log-filter-tag:hover { color: var(--text-secondary); }
+.log-filter-tag.active { color: var(--accent); background: rgba(212, 160, 65, 0.08); }
+.log-body { border-top: 1px solid var(--border); max-height: 220px; overflow-y: auto; background: rgba(0,0,0,0.12); }
+.log-body::-webkit-scrollbar { width: 4px; }
+.log-body::-webkit-scrollbar-thumb { background: var(--text-dim); border-radius: 2px; }
+.log-entries { padding: 3px 0; }
+.log-entry { padding: 2px 14px; font-family: var(--font-mono); font-size: 0.55rem; display: flex; gap: 8px; border-left: 2px solid transparent; }
+.log-time { color: var(--text-dim); flex-shrink: 0; }
+.log-msg { color: var(--text-secondary); }
+.log-entry.info { border-left-color: var(--accent); }
+.log-entry.warn { border-left-color: var(--warning); background: rgba(232, 160, 48, 0.04); }
+.log-entry.warn .log-msg { color: var(--warning); }
+.log-entry.error { border-left-color: var(--error); background: rgba(212, 80, 80, 0.06); }
+.log-entry.error .log-msg { color: var(--error); }
+
+/* ===== STATUS BAR ===== */
+.status-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px; background: var(--bg-surface);
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  font-size: 0.65rem; color: var(--text-secondary); box-shadow: var(--shadow-card);
+}
+.status-info { display: flex; align-items: center; gap: 8px; }
+.status-info .status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-dim); }
+.status-text { font-weight: 500; text-transform: uppercase; letter-spacing: 1px; font-size: 0.55rem; color: var(--text-dim); }
+.live-clock-sm { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim); letter-spacing: 1px; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1024px) { .rack-grid { grid-template-columns: repeat(2, 1fr); } .metrics-strip { grid-template-columns: repeat(3, 1fr); } .conn-urls-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) { .rack-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .rack-grid { grid-template-columns: 1fr; } .metrics-strip { grid-template-columns: repeat(2, 1fr); } .conn-urls-grid { grid-template-columns: 1fr; } .topbar-center { display: none; } }
+@media (max-width: 480px) { .metrics-strip { grid-template-columns: 1fr; } }
+</style>

@@ -148,15 +148,30 @@ const { version = 'dev' }: HeaderProps = Astro.props;
   document.getElementById('btn-save-preset').addEventListener('click', (e) => {
     e.stopPropagation();
     const panel = document.getElementById('preset-panel');
-    panel.classList.toggle('hidden');
+    const btn = e.currentTarget as HTMLElement;
+    const isHidden = panel.classList.toggle('hidden');
+    btn.setAttribute('aria-expanded', String(!isHidden));
   });
 
-  // Close panel on outside click
+  // Close panel on outside click or Escape
   document.addEventListener('click', (e) => {
     const panel = document.getElementById('preset-panel');
     const btn = document.getElementById('btn-save-preset');
     if (!panel.contains(e.target) && !btn.contains(e.target)) {
       panel.classList.add('hidden');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const panel = document.getElementById('preset-panel');
+      const btn = document.getElementById('btn-save-preset');
+      if (!panel.classList.contains('hidden')) {
+        panel.classList.add('hidden');
+        btn.setAttribute('aria-expanded', 'false');
+        btn.focus();
+      }
     }
   });
 </script>

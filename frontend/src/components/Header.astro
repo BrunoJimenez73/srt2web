@@ -11,7 +11,7 @@ const { version = 'dev' } = Astro.props;
 
 <header class="header">
   <div class="logo">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
       <circle cx="16" cy="16" r="14" stroke="url(#grad)" stroke-width="2"/>
       <path d="M10 20L16 10L22 20H10Z" fill="url(#grad)"/>
       <defs>
@@ -45,7 +45,7 @@ const { version = 'dev' } = Astro.props;
     <button class="btn-shortcuts" id="btn-shortcuts-help" aria-label={t("keyboard_shortcuts")} title={t("keyboard_shortcuts")}>
       ⌨️
     </button>
-    <div id="ws-status" class="ws-status disconnected">
+    <div id="ws-status" class="ws-status disconnected" role="status" aria-label="Estado de conexión WebSocket">
       <span class="ws-status-dot"></span>
       <span class="ws-status-label" id="ws-status-label">{t("ws_off")}</span>
     </div>

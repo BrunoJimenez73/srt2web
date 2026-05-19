@@ -14,7 +14,7 @@
   <div class="process-content">
     <!-- Motor selector -->
     <div class="form-group">
-      <label class="form-label">Motor</label>
+      <label class="form-label" for="video-muxer-engine">Motor</label>
       <select class="form-select" id="video-muxer-engine" onchange="window.handleEngineChange(this.value)">
         <option value="hls">HLS (Compatible)</option>
         <option value="webrtc">WebRTC (Baja latencia)</option>
@@ -24,7 +24,7 @@
     <!-- HLS Settings -->
     <div class="hls-settings">
       <div class="form-group">
-        <label class="form-label">Encoder</label>
+        <label class="form-label" for="hls-encoder">Encoder</label>
         <select class="form-select" id="hls-encoder" onchange="window.updateVideoMuxerConfig()">
           <option value="auto">Auto (GPU/CPU)</option>
           <option value="cpu">CPU (libx264)</option>
@@ -40,18 +40,18 @@
                 oninput="document.getElementById('hls-crf-value').textContent = this.value; window.updateVideoMuxerConfig();" />
       </div>
       <div class="form-group">
-        <label class="form-label">Offset audio (ms)</label>
+        <label class="form-label" for="hls-audio-offset">Offset audio (ms)</label>
         <input type="number" class="form-input" id="hls-audio-offset" value="0" onchange="window.updateVideoMuxerConfig()" />
       </div>
       <div class="form-group">
-        <label class="form-label">Audio Codec</label>
+        <label class="form-label" for="hls-audio-codec">Audio Codec</label>
         <select class="form-select" id="hls-audio-codec" onchange="window.updateVideoMuxerConfig()">
           <option value="aac">AAC</option>
           <option value="opus">Opus</option>
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Bitrate</label>
+        <label class="form-label" for="hls-audio-bitrate">Bitrate</label>
         <select class="form-select" id="hls-audio-bitrate" onchange="window.updateVideoMuxerConfig()">
           <option value="64k">64 kbps</option>
           <option value="96k">96 kbps</option>
@@ -66,7 +66,7 @@
      <!-- WebRTC Settings -->
      <div class="webrtc-settings">
        <div class="form-group">
-         <label class="form-label">Encoder</label>
+         <label class="form-label" for="webrtc-encoder">Encoder</label>
          <select class="form-select" id="webrtc-encoder" onchange="window.updateWebRTCConfig()">
            <option value="auto">Auto (GPU/CPU)</option>
            <option value="cpu">CPU (libx264)</option>
@@ -76,7 +76,7 @@
          </select>
        </div>
        <div class="form-group">
-         <label class="form-label">Video Codec</label>
+         <label class="form-label" for="webrtc-video-codec">Video Codec</label>
          <select class="form-select" id="webrtc-video-codec" onchange="window.updateWebRTCConfig()">
            <option value="h264">H.264 (NVENC soportado)</option>
            <option value="vp8">VP8</option>
@@ -84,7 +84,7 @@
          </select>
        </div>
       <div class="form-group">
-        <label class="form-label">Video Bitrate</label>
+        <label class="form-label" for="webrtc-video-bitrate">Video Bitrate</label>
         <select class="form-select" id="webrtc-video-bitrate" onchange="window.updateWebRTCConfig()">
           <option value="500k">500 kbps</option>
           <option value="1000k">1000 kbps</option>
@@ -93,7 +93,7 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Video Resolution</label>
+        <label class="form-label" for="webrtc-video-resolution">Video Resolution</label>
         <select class="form-select" id="webrtc-video-resolution" onchange="window.updateWebRTCConfig()">
           <option value="320x240">320x240</option>
           <option value="640x480">640x480</option>
@@ -102,7 +102,7 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Video FPS</label>
+        <label class="form-label" for="webrtc-video-fps">Video FPS</label>
         <select class="form-select" id="webrtc-video-fps" onchange="window.updateWebRTCConfig()">
           <option value="15">15 fps</option>
           <option value="24">24 fps</option>
@@ -111,14 +111,14 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Audio Codec</label>
+        <label class="form-label" for="webrtc-audio-codec">Audio Codec</label>
         <select class="form-select" id="webrtc-audio-codec" onchange="window.updateWebRTCConfig()">
           <option value="opus">Opus</option>
           <option value="vorbis">Vorbis</option>
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Audio Bitrate</label>
+        <label class="form-label" for="webrtc-audio-bitrate">Audio Bitrate</label>
         <select class="form-select" id="webrtc-audio-bitrate" onchange="window.updateWebRTCConfig()">
           <option value="32k">32 kbps</option>
           <option value="64k">64 kbps</option>
@@ -127,7 +127,7 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Audio Sample Rate</label>
+        <label class="form-label" for="webrtc-audio-sample-rate">Audio Sample Rate</label>
         <select class="form-select" id="webrtc-audio-sample-rate" onchange="window.updateWebRTCConfig()">
           <option value="24000">24 kHz</option>
           <option value="48000">48 kHz</option>

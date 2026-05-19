@@ -77,8 +77,8 @@ class TestPiperSubprocessManager:
 
     def test_piper_worker_uses_length_scale(self) -> None:
         """Test that the Piper worker script computes length_scale from speed."""
-        piper_loader_path = PROJECT_ROOT / "modules" / "piper_loader.py"
-        with open(piper_loader_path) as f:
+        piper_worker_path = PROJECT_ROOT / "modules" / "piper_worker.py"
+        with open(piper_worker_path) as f:
             content = f.read()
 
         assert "length_scale = 1.0 / speed" in content or "length_scale=1.0 / speed" in content

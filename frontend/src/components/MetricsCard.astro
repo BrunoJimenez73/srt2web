@@ -9,8 +9,8 @@ const { title = 'System Metrics' } = Astro.props;
 <div class="metrics-card" id="metrics-card" role="region" aria-label="Métricas del sistema">
   <div class="metrics-header">
     <span class="metrics-title">{title}</span>
-    <span class="latency-indicator" id="latency-indicator" title="Latencia estimada">
-      <span class="latency-icon">⏱</span>
+    <span class="latency-indicator" id="latency-indicator" title="Latencia estimada por etapa">
+      <span class="latency-icon" aria-hidden="true">⏱</span>
       <span class="latency-value" id="latency-value">0s</span>
     </span>
   </div>
@@ -67,6 +67,14 @@ const { title = 'System Metrics' } = Astro.props;
     </div>
   </div>
 </div>
+
+  <div class="module-timing-section" id="module-timing-section" style="display:none">
+    <div class="timing-header">
+      <span class="timing-title">Per-Module Latency</span>
+      <span class="timing-subtitle" id="timing-subtitle">0 stages</span>
+    </div>
+    <div class="timing-stages" id="timing-stages"></div>
+  </div>
 
 <style>
   .metrics-card {
@@ -244,7 +252,82 @@ const { title = 'System Metrics' } = Astro.props;
     animation: pulse-critical 0.5s ease-in-out infinite;
   }
 
-  @keyframes pulse-warning {
+  .module-timing-section {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-dim);
+}
+
+.timing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.timing-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-prime);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.timing-subtitle {
+  font-size: 9px;
+  color: var(--text-sec);
+}
+
+.timing-stages {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.timing-stage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-deep);
+}
+
+.timing-stage-name {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--text-prime);
+  width: 80px;
+  flex-shrink: 0;
+  text-transform: capitalize;
+}
+
+.timing-stage-bar-container {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-surface);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.timing-stage-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+  min-width: 2px;
+}
+
+.timing-stage-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-sec);
+  width: 48px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+@keyframes pulse-warning {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.7; }
   }
@@ -264,6 +347,7 @@ const { title = 'System Metrics' } = Astro.props;
     throughputHistory,
     throughputAvg,
     pipelineLatency,
+    moduleLatencyBreakdown,
     cpuAlertActive,
     pipelineStatus,
   } from "../lib/store/signals";
@@ -359,6 +443,46 @@ const { title = 'System Metrics' } = Astro.props;
       cfText.textContent = `${cf} failed`;
     }
   });
+
+  // Per-module latency breakdown
+  effect(() => {
+    const breakdown = moduleLatencyBreakdown.value;
+    const section = el<HTMLDivElement>("module-timing-section");
+    const stagesEl = el<HTMLDivElement>("timing-stages");
+    const subtitleEl = el<HTMLSpanElement>("timing-subtitle");
+    if (!section || !stagesEl || !subtitleEl) return;
+
+    if (breakdown.length === 0) {
+      section.style.display = "none";
+      return;
+    }
+
+    section.style.display = "block";
+    subtitleEl.textContent = `${breakdown.length} stages`;
+
+    const maxMs = Math.max(...breakdown.map((m) => m.avgMs), 1);
+
+    stagesEl.innerHTML = breakdown
+      .map(
+        (m) => `
+      <div class="timing-stage">
+        <span class="timing-stage-name">${m.name}</span>
+        <div class="timing-stage-bar-container">
+          <div class="timing-stage-bar" style="width:${(m.avgMs / maxMs) * 100}%;background:${getTimingColor(m.avgMs)}"></div>
+        </div>
+        <span class="timing-stage-value">${m.avgMs >= 1000 ? (m.avgMs / 1000).toFixed(1) + 's' : m.avgMs.toFixed(0) + 'ms'}</span>
+      </div>
+    `,
+      )
+      .join("");
+  });
+
+  function getTimingColor(ms: number): string {
+    if (ms < 100) return "#22c55e";
+    if (ms < 500) return "#f59e0b";
+    if (ms < 1000) return "#f97316";
+    return "#ef4444";
+  }
 
   // Sparklines
   effect(() => {

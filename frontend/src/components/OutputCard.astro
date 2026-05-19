@@ -21,7 +21,7 @@
 
       <div class="add-output-form" id="add-output-form" style="display: none;">
         <div class="form-group">
-          <label class="form-label">Tipo de salida</label>
+          <label class="form-label" for="new-output-type">Tipo de salida</label>
           <select class="form-select" id="new-output-type">
             <option value="web">🌐 Web Player (HLS)</option>
             <option value="recording">⏺ Grabación</option>
@@ -608,7 +608,7 @@
       }
 
       item.innerHTML = `
-        <div class="output-item-header" data-output-header="${o.name}">
+        <div class="output-item-header" data-output-header="${o.name}" role="button" tabindex="0" aria-expanded="${isExpanded}" data-output-header-btn="${o.name}">
           <span class="output-collapse-icon${isExpanded ? ' expanded' : ''}">▶</span>
           <span class="output-item-title">${getOutputIcon(o.type)} ${o.name}</span>
           <span class="output-type-badge">${getOutputTypeName(o.type)}</span>
@@ -641,22 +641,33 @@
     setupOutputListeners();
   }
 
+  function toggleOutputHeader(name: string, header: HTMLElement): void {
+    const body = document.querySelector(`[data-output-body="${name}"]`);
+    const icon = header.querySelector('.output-collapse-icon');
+    if (expandedOutputs.has(name)) {
+      expandedOutputs.delete(name);
+      body?.classList.remove('expanded');
+      icon?.classList.remove('expanded');
+      header.setAttribute('aria-expanded', 'false');
+    } else {
+      expandedOutputs.add(name);
+      body?.classList.add('expanded');
+      icon?.classList.add('expanded');
+      header.setAttribute('aria-expanded', 'true');
+    }
+  }
+
   function setupOutputListeners(): void {
     document.querySelectorAll('[data-output-header]').forEach(header => {
       header.addEventListener('click', (e) => {
         const name = (e.currentTarget as HTMLElement).dataset.outputHeader;
-        if (name) {
-          const body = document.querySelector(`[data-output-body="${name}"]`);
-          const icon = (e.currentTarget as HTMLElement).querySelector('.output-collapse-icon');
-          if (expandedOutputs.has(name)) {
-            expandedOutputs.delete(name);
-            body?.classList.remove('expanded');
-            icon?.classList.remove('expanded');
-          } else {
-            expandedOutputs.add(name);
-            body?.classList.add('expanded');
-            icon?.classList.add('expanded');
-          }
+        if (name) toggleOutputHeader(name, e.currentTarget as HTMLElement);
+      });
+      header.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          const name = (e.currentTarget as HTMLElement).dataset.outputHeader;
+          if (name) toggleOutputHeader(name, e.currentTarget as HTMLElement);
         }
       });
     });

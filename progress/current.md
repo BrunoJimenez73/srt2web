@@ -78,6 +78,33 @@
 - `npx tsc --noEmit`: 0 errores
 - 99 frontend tests pasan (18 failures pre-existentes en effects.test.ts no relacionados)
 
+### F81: Fix pre-existing effects.test.ts failures (18 tests)
+
+- `effects.ts` expandido para centralizar todos los DOM updates driven por señales (status, module indicators, metrics, module metrics, throughput, GPU badges, WS badge, remote mode, clock, sync, logs, pipeline indicator)
+- Creados `frontend/src/lib/locales/en.json` y `es.json` con todas las translation keys usadas en el código
+- Añadido `startThroughputEffect()` para actualizar `metric-throughput-value` con el promedio de `throughputHistory`
+- Añadido `startGpuBadgesEffect()` para actualizar badges por módulo (`gpu-badge-{name}`) con `style.display`
+- Fix: warning/critical classes aplicadas a `metric-cpu` en lugar de `metric-cpu-bar`
+- `npm test`: 125/125 passing, 0 failing ✅
+- `npx tsc --noEmit`: 0 errores
+
+## Completado en esta sesión
+
+### F82: Frontend test coverage >85%
+
+- 4 nuevos test files para módulos extraídos en F80:
+  - `ws-manager.test.ts` (12 tests): conexión WS, handlers de mensajes/error/close, disconnect
+  - `polling.test.ts` (14 tests): polling adaptativo, post-start mode, file info polling, intervalos
+  - `config-client.test.ts` (11 tests): save/export config, dumpConfig helper, manejo de errores
+  - `presets-client.test.ts` (11 tests): load/apply/save presets, errores HTTP y de red
+- Total: 52 tests nuevos, 177/177 tests frontend pasando
+- Fix: export `dumpConfig` en `config-client.ts` para testeabilidad
+- Fix: Vitest v4 incompatibilidad con arrow functions en `vi.fn()` (constructor mock requiere `function` keyword)
+- `npm test`: 9 files, 177 tests, 0 failed ✅
+
 ## Backlog pendiente
 
-_(no hay features pendientes)_
+- F83: Integration and E2E tests
+- F84: Performance profiling and pipeline optimization
+- F85: Accessibility audit (WCAG 2.2)
+- F86: Docker and CI improvements

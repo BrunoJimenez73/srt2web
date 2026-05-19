@@ -16,6 +16,8 @@ Características:
 ✅ Manejo de errores unificado
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import queue
@@ -167,7 +169,7 @@ class UnifiedPipeline:
         logger.info(f"UnifiedPipeline initialized mode={mode.value} concurrent={max_concurrent_chunks}")
 
     @property
-    def metrics(self) -> "PipelineMetrics":
+    def metrics(self) -> PipelineMetrics:
         """Alias for _pipeline_metrics for backward compatibility."""
         return self._pipeline_metrics
 
@@ -211,7 +213,7 @@ class UnifiedPipeline:
         """Obtener destino de salida (para compatibilidad)."""
         return self._output_sink
 
-    def get_output_sinks(self) -> "CompositeOutput" | None:
+    def get_output_sinks(self) -> CompositeOutput | None:
         """Obtener el CompositeOutput si el sink actual es uno."""
         if _CompositeOutput is not None and isinstance(self._output_sink, _CompositeOutput):
             return self._output_sink
@@ -341,7 +343,7 @@ class UnifiedPipeline:
         self,
         on_log: Callable[[str, str], None] | None = None,
         on_state_change: Callable[[str], None] | None = None,
-    ) -> "_CompletedAwaitable":
+    ) -> _CompletedAwaitable:
         """Iniciar procesamiento del pipeline."""
         if self._state != PipelineState.IDLE:
             raise PipelineStateError(f"Cannot start pipeline in state: {self._state.value}")
@@ -597,6 +599,11 @@ class UnifiedPipeline:
 
                     self.metrics.chunks_processed += 1
                     self.metrics.total_processing_time += processor.stages_completed.get("total", 0)
+
+                    # Accumulate per-module timing from this chunk
+                    for mod_name, mod_time_ms in processor.stages_completed.items():
+                        if mod_name != "total":
+                            self.metrics.record_module_timing(mod_name, mod_time_ms)
 
                     if self._on_chunk_complete and processor.data:
                         self._on_chunk_complete(next_expected, processor.data)
@@ -892,6 +899,8 @@ class UnifiedPipeline:
             "system": system_metrics,
             "system_metrics": system_metrics,
             "strategy": strategy_metrics.get("strategy", "none"),
+            "module_avg_time_ms": self._pipeline_metrics.module_avg_times,
+            "module_total_times": dict(self._pipeline_metrics.module_total_times),
         }
 
     def reconfigure(self, config_manager: Any) -> None:

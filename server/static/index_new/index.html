@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="es" data-skin="broadcast" data-astro-cid-cod2brur>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SRT2Web — Broadcast Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/_astro/index_new@_@astro.JZEk3aC6.css" />
+  </head>
+  <body data-astro-cid-cod2brur>
+    <div class="studio" data-astro-cid-cod2brur>
+      <!-- ===== HEADER ===== -->
+      <header class="topbar" data-astro-cid-cod2brur>
+        <div class="topbar-brand" data-astro-cid-cod2brur>
+          <svg
+            class="topbar-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            data-astro-cid-cod2brur
+          >
+            <path
+              d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"
+              data-astro-cid-cod2brur
+            ></path>
+          </svg>
+          <span class="topbar-title" data-astro-cid-cod2brur>srt2web</span>
+          <span class="topbar-version" data-astro-cid-cod2brur>0.6.8</span>
+        </div>
+        <div class="topbar-center" data-astro-cid-cod2brur>
+          <div class="status-indicator live" data-astro-cid-cod2brur>
+            <span class="status-dot" data-astro-cid-cod2brur></span>
+            <span class="status-label" data-astro-cid-cod2brur>ON AIR</span>
+          </div>
+          <div class="vu-bridge" aria-hidden="true" data-astro-cid-cod2brur>
+            <span class="vu-seg" data-astro-cid-cod2brur></span
+            ><span class="vu-seg" data-astro-cid-cod2brur></span
+            ><span class="vu-seg" data-astro-cid-cod2brur></span>
+            <span class="vu-seg" data-astro-cid-cod2brur></span
+            ><span class="vu-seg" data-astro-cid-cod2brur></span
+            ><span class="vu-seg" data-astro-cid-cod2brur></span>
+            <span class="vu-seg" data-astro-cid-cod2brur></span
+            ><span class="vu-seg" data-astro-cid-cod2brur></span
+            ><span class="vu-seg" data-astro-cid-cod2brur></span>
+            <span class="vu-seg" data-astro-cid-cod2brur></span
+            ><span class="vu-seg" data-astro-cid-cod2brur></span
+            ><span class="vu-seg" data-astro-cid-cod2brur></span>
+            <span class="vu-seg" data-astro-cid-cod2brur></span
+            ><span class="vu-seg" data-astro-cid-cod2brur></span>
+          </div>
+        </div>
+        <div class="topbar-right" data-astro-cid-cod2brur>
+          <button class="btn-save" disabled data-astro-cid-cod2brur>
+            SAVE
+          </button>
+          <div class="live-clock" id="live-clock" data-astro-cid-cod2brur>
+            --:--:--
+          </div>
+        </div>
+      </header>
+      <!-- ===== METRICS STRIP ===== -->
+      <section class="metrics-strip" data-astro-cid-cod2brur>
+        <div class="metric-block" data-astro-cid-cod2brur>
+          <div class="metric-label" data-astro-cid-cod2brur>CPU</div>
+          <div class="metric-value" id="metric-cpu" data-astro-cid-cod2brur>
+            —
+          </div>
+          <div class="vu-meter" data-level="65" data-astro-cid-cod2brur>
+            <div
+              class="vu-fill"
+              style="width: 65%"
+              data-astro-cid-cod2brur
+            ></div>
+          </div>
+        </div>
+        <div class="metric-block" data-astro-cid-cod2brur>
+          <div class="metric-label" data-astro-cid-cod2brur>MEM</div>
+          <div class="metric-value" id="metric-mem" data-astro-cid-cod2brur>
+            —
+          </div>
+          <div class="vu-meter" data-level="42" data-astro-cid-cod2brur>
+            <div
+              class="vu-fill"
+              style="width: 42%"
+              data-astro-cid-cod2brur
+            ></div>
+          </div>
+        </div>
+        <div class="metric-block" data-astro-cid-cod2brur>
+          <div class="metric-label" data-astro-cid-cod2brur>GPU</div>
+          <div class="metric-value" id="metric-gpu" data-astro-cid-cod2brur>
+            —
+          </div>
+          <div class="vu-meter" data-level="78" data-astro-cid-cod2brur>
+            <div
+              class="vu-fill"
+              style="width: 78%"
+              data-astro-cid-cod2brur
+            ></div>
+          </div>
+        </div>
+        <div class="metric-block" data-astro-cid-cod2brur>
+          <div class="metric-label" data-astro-cid-cod2brur>THROUGHPUT</div>
+          <div
+            class="metric-value"
+            id="metric-throughput"
+            data-astro-cid-cod2brur
+          >
+            —
+          </div>
+          <div class="vu-meter" data-level="55" data-astro-cid-cod2brur>
+            <div
+              class="vu-fill"
+              style="width: 55%"
+              data-astro-cid-cod2brur
+            ></div>
+          </div>
+        </div>
+        <div class="metric-block" data-astro-cid-cod2brur>
+          <div class="metric-label" data-astro-cid-cod2brur>LATENCY</div>
+          <div class="metric-value" id="metric-latency" data-astro-cid-cod2brur>
+            —
+          </div>
+          <div class="vu-meter" data-level="30" data-astro-cid-cod2brur>
+            <div
+              class="vu-fill"
+              style="width: 30%"
+              data-astro-cid-cod2brur
+            ></div>
+          </div>
+        </div>
+        <div class="metric-block" data-astro-cid-cod2brur>
+          <div class="metric-label" data-astro-cid-cod2brur>CHUNKS</div>
+          <div class="metric-value" id="metric-chunks" data-astro-cid-cod2brur>
+            —
+          </div>
+          <div class="vu-meter" data-level="0" data-astro-cid-cod2brur>
+            <div
+              class="vu-fill"
+              style="width: 0%"
+              data-astro-cid-cod2brur
+            ></div>
+          </div>
+        </div>
+      </section>
+      <!-- ===== PROCESS GRID — 9 rack units (3×3) ===== -->
+      <section class="rack-grid" data-astro-cid-cod2brur>
+        <!-- 1: INPUT -->
+        <article
+          class="rack-unit expanded"
+          data-module="input"
+          data-astro-cid-cod2brur
+        >
+          <div class="rack-ear left" data-astro-cid-cod2brur></div>
+          <div class="rack-body" data-astro-cid-cod2brur>
+            <div
+              class="rack-header"
+              role="button"
+              tabindex="0"
+              aria-expanded="true"
+              data-astro-cid-cod2brur
+            >
+              <span class="indicator-dot active" data-astro-cid-cod2brur></span>
+              <span class="rack-title" data-astro-cid-cod2brur>INPUT</span>
+              <span class="rack-badge" data-astro-cid-cod2brur>SRT</span>
+              <span class="collapse-icon" data-astro-cid-cod2brur>−</span>
+            </div>
+            <div class="rack-content" data-astro-cid-cod2brur>
+              <div class="field" data-astro-cid-cod2brur>
+                <span class="field-label" data-astro-cid-cod2brur>Source</span>
+                <div class="field-value" data-astro-cid-cod2brur>
+                  srt://:9999
+                </div>
+              </div>
+              <div class="field" data-astro-cid-cod2brur>
+                <span class="field-label" data-astro-cid-cod2brur>Mode</span>
+                <div class="field-value" data-astro-cid-cod2brur>listener</div>
+              </div>
+              <div class="field" data-astro-cid-cod2brur>
+                <span class="field-label" data-astro-cid-cod2brur>Latency</span>
+                <div class="field-value" data-astro-cid-cod2brur>low</div>
+              </div>
+            </div>
+            <div class="rack-footer" data-astro-cid-cod2brur>
+              <span class="signal-led active" data-astro-cid-cod2brur></span>
+              <span class="signal-label" data-astro-cid-cod2brur>SIGNAL</span>
+              <div class="vu-micro" data-astro-cid-cod2brur>
+                <span data-astro-cid-cod2brur></span
+                ><span data-astro-cid-cod2brur></span
+                ><span data-astro-cid-cod2brur></span
+                ><span data-astro-cid-cod2brur></span
+                ><span data-astro-cid-cod2brur></span>
+              </div>
+              <span class="module-status on" data-astro-cid-cod2brur>ON</span>
+            </div>
+          </div>
+          <div class="rack-ear right" data-astro-cid-cod2brur></div>
+        </article>
+        <!-- 2: AUDIO EXTRACTOR -->
+        <article
+          class="rack-unit"
+          data-module="audio_extractor"
+          data-astro-cid-cod2brur
+        >
+          <div class="rack-ear left" data-astro-cid-cod2brur></div>
+          <div class="rack-body" data-astro-cid-cod2brur>
+            <div
+              class="rack-header"
+              role="button"
+              tabindex="0"
+              aria-expanded="false"
+              data-astro-cid-cod2brur
+            >
+              <span class="indicator-dot active" data-astro-cid-cod2brur></span>
+              <span class="rack-title" data-astro-cid-cod2brur
+                >AUDIO EXTRACTOR</span
+              >
+              <span class="rack-toggle on" data-astro-cid-cod2brur></span>
+              <span class="collapse-icon" data-astro-cid-cod2brur>+</span>
+            </div>
+            <div class="rack-content" data-astro-cid-cod2brur>
+              <div class="field" data-astro-cid-cod2brur>
+                <span class="field-label" data-astro-cid-cod2brur>Codec</span>
+                <div class="field-value" data-astro-cid-cod2brur>pcm_s16le</div>
+              </div>
+              <div class="field" data-astro-cid-cod2brur>
+                <span class="field-label" data-astro-cid-cod2brur
+                  >Sample Rate</span
+                >
+                <div class="field-value" data-astro-cid-cod2brur>16000 Hz</div>
+              </div>
+              <div class="field" data-astro-cid-cod2brur>
+                <span class="field-label" data-astro-cid-cod2brur
+                  >Channels</span
+                >
+                <div class="field-value" data-astro-cid-cod2brur>mono</div>
+              </div>
+            </div>
+            <div class="rack-footer" data-astro-cid-cod2brur>
+              <span class="metric-mini" data-astro-cid-cod2brur
+                ><span class="mm-label" data-astro-cid-cod2brur>Format</span
+                ><span class="mm-value" data-astro-cid-cod2brur>WAV</span></span
+              >
+              <span class="gpu-indicator" data-astro-cid-cod2brur>CPU</span>
+              <span class="module-status on" data-astro-cid-cod2brur>ON</span>
+            </div>
+          </div>
+          <div class="rack-ear right" data-astro-cid-cod2brur></div>
+        </article>
+        <!-- 3: WHISPER -->
+        <article
+          class="rack-unit"
+          data-module="transcriber"
+          data-astro-cid-cod2brur
+        >
+          <div class="rack-ear left" data-astro-cid-cod2brur></div>
+          <div class="rack-body" data-astro-cid-cod2brur>
+            <div
+              class="rack-header"
+              role="button"
+              tabindex="0"
+              aria-expanded="false"
+              data-astro-cid-cod2brur
+            >
+              <span class="indicator-dot active" data-astro-cid-cod2brur></span>
+              <span class="rack-title" data-astro-cid-cod2brur>WHISPER</span>
+              <span class="rack-toggle on" data-astro-cid-cod2brur></span>
+              <span class="collapse-icon" data-astro-cid-cod2brur>+</span>
+            </div>
+            <div class="rack-content" data-astro-cid-cod2brur>
+              <div class="field" data-astro-cid-cod2brur>
+                <span class="field-label" data-astro-cid-cod2brur>Model</span>
+                <div class="field-value" data-astro-cid-cod2brur>large-v2</div>
+              </div>
+              <div class="field-row" data-astro-cid-cod2brur>
+                <div class="field" data-astro-cid-cod2brur>
+                  <span class="field-label" data-astro-cid-cod2brur
+                    >Language</span
+                  >
+                  <div class="field-value" data-astro-cid-cod2brur>
+                    Spanish (es)
+                  </div>
+                </div>
+                <div class="field" data-astro-cid-cod2brur>
+                  <span class="field-label" data-astro-cid-cod2brur
+                    >Device</span
+                  >
+                  <div class="field-value gpu" data-astro-cid-cod2brur>GPU</div>
+                </div>
+              </div>
+            </div>
+            <div class="rack-footer" data-astro-cid-cod2brur>
+              <span class="metric-mini" data-astro-cid-cod2brur
+                ><span class="mm-label" data-astro-cid-cod2brur>Time</span
+                ><span class="mm-value" data-astro-cid-cod2brur>—</span></span
+              >
+              <span class="metric-mini" data-astro-cid-cod2brur
+                ><span class="mm-label" data-astro-cid-cod2brur>Chunks</span
+                ><span class="mm-value" data-astro-cid-cod2brur>—</span></span
+              >
+              <span class="gpu-indicator active" data-astro-cid-cod2brur
+                >CUDA</span
+              >
+              <span class="module-status on" data-astro-cid-cod2brur>ON</span>
+            </div>
+          </div>
+          <div class="rack-ear right" data-astro-cid-cod2brur></div>
+        </article>
+        <!-- 4: TRANSLATE -->
+        <article
+          class="rack-unit"
+          data-module="translator"
+          data-astro-cid-cod2brur
+        >
+          <div class="rack-ear left" data-astro-cid-cod2brur></div>
+          <div class="rack-body" data-astro-cid-cod2brur>
+            <div
+              class="rack-header"
+              role="button"
+              tabindex="0"
+              aria-expanded="false"
+              data-astro-cid-cod2brur
+            >
+              <span class="indicator-dot active" data-astro-cid-cod2brur></span>
+              <span class="rack-title" data-astro-cid-cod2brur>TRANSLATE</span>
+              <span class="rack-toggle on" data-astro-cid-cod2brur></span>
+              <span class="collapse-icon" data-astro-cid-cod2brur>+</span>
+            </div>
+            <div class="rack-content" data-astro-cid-cod2brur>
+              <div class="field" data-astro-cid-cod2brur>
+                <span class="field-label" data-astro-cid-cod2brur>Engine</span>
+                <div class="field-value" data-astro-cid-cod2brur>
+                  Argos Translate
+                </div>
+              </div>
+              <div class="field-row" data-astro-cid-cod2brur>
+                <div class="field" data-astro-cid-cod2brur>
+                  <span class="field-label" data-astro-cid-cod2brur>From</span>
+                  <div class="field-value" data-astro-cid-cod2brur>es</div>
+                </div>
+                <div class="field" data-astro-cid-cod2brur>
+                  <span class="field-label" data-astro-cid-cod2brur>To</span>
+                  <div class="field-value" data-astro-cid-cod2brur>en</div>
+                </div>
+              </div>
+            </div>
+            <div class="rack-footer" data-astro-cid-cod2brur>
+              <span class="metric-mini" data-astro-cid-cod2brur
+                ><span class="mm-label" data-astro-cid-cod2brur>Pairs</span
+                ><span class="mm-value" data-astro-cid-cod2brur
+                  >active</span
+                ></span
+              >
+              <span class="module-status on" data-astro-cid-cod2brur>ON</span>
+            </div>
+          </div>
+          <div class="rack-ear right" data-astro-cid-cod2brur></div>
+        </article>
+        <!-- 5: TTS -->
+        <article
+          class="rack-unit"
+          data-module="tts_engine"
+          data-astro-cid-cod2brur
+        >
+          <div class="rack-ear left" data-astro-cid-cod2brur></div>
+          <div class="rack-body" data-astro-cid-cod2brur>
+            <div
+              class="rack-header"
+              role="button"
+              tabindex="0"
+              aria-expanded="false"
+              data-astro-cid-cod2brur
+            >
+              <span class="indicator-dot active" data-astro-cid-cod2brur></span>
+              <span class="rack-title" data-astro-cid-cod2brur>TTS ENGINE</span>
+              <span class="rack-toggle on" data-astro-cid-cod2brur></span>
+              <span class="collapse-icon" data-astro-cid-cod2brur>+</span>
+            </div>
+            <div class="rack-content" data-astro-cid-cod2brur>
+              <div class="field" data-astro-cid-cod2brur>
+                <span class="field-label" data-astro-cid-cod2brur>Voice</span>
+                <div class="field-value" data-astro-cid-cod2brur>
+                  es_ES-sharvard-medium
+                </div>
+              </div>
+              <div class="field-row" data-astro-cid-cod2brur>
+                <div class="field" data-astro-cid-cod2brur>
+                  <span class="field-label" data-astro-cid-cod2brur>Speed</span>
+                  <div class="field-value" data-astro-cid-cod2brur>1.0x</div>
+                </div>
+                <div class="field" data-astro-cid-cod2brur>
+                  <span class="field-label" data-astro-cid-cod2brur
+                    >Volume</span
+                  >
+                  <div class="field-value" data-astro-cid-cod2brur>100%</div>
+                </div>
+              </div>
+            </div>
+            <div class="rack-footer" data-astro-cid-cod2brur>
+              <span class="metric-mini" data-astro-cid-cod2brur
+                ><span class="mm-label" data-astro-cid-cod2brur>Model</span
+                ><span class="mm-value" data-astro-cid-cod2brur
+                  >Piper</span
+                ></span
+              >
+              <span class="gpu-indicator" data-astro-cid-cod2brur>CPU</span>
+              <span class="module-status on" data-astro-cid-cod2brur>ON</span>
+            </div>
+          </div>
+          <div class="rack-ear right" data-astro-cid-cod2brur></div>
+        </article>
+        <!-- 6: SUBTITLES -->
+        <article
+          class="rack-unit"
+          data-module="subtitle_generator"
+          data-astro-cid-cod2brur
+        >
+          <div class="rack-ear left" data-astro-cid-cod2brur></div>
+          <div class="rack-body" data-astro-cid-cod2brur>
+            <div
+              class="rack-header"
+              role="button"
+              tabindex="0"
+              aria-expanded="false"
+              data-astro-cid-cod2brur
+            >
+              <span class="indicator-dot active" data-astro-cid-cod2brur></span>
+              <span class="rack-title" data-astro-cid-cod2brur>SUBTITLES</span>
+              <span class="rack-toggle on" data-astro-cid-cod2brur></span>
+              <span class="collapse-icon" data-astro-cid-cod2brur>+</span>
+            </div>
+            <div class="rack-content" data-astro-cid-cod2brur>
+              <div class="field" data-astro-cid-cod2brur>
+                <span class="field-label" data-astro-cid-cod2brur>Format</span>
+                <div class="field-value" data-astro-cid-cod2brur>SRT + VTT</div>
+              </div>
+              <div class="field" data-astro-cid-cod2brur>
+                <span class="field-label" data-astro-cid-cod2brur>Style</span>
+                <div class="field-value" data-astro-cid-cod2brur>Burned-in</div>
+              </div>
+              <div class="field" data-astro-cid-cod2brur>
+                <span class="field-label" data-astro-cid-cod2brur>Quality</span>
+                <div class="field-value" data-astro-cid-cod2brur>auto</div>
+              </div>
+            </div>
+            <div class="rack-footer" data-astro-cid-cod2brur>
+              <span class="metric-mini" data-astro-cid-cod2brur
+                ><span class="mm-label" data-astro-cid-cod2brur>Enabled</span
+                ><span class="mm-value" data-astro-cid-cod2brur>yes</span></span
+              >
+              <span class="module-status on" data-astro-cid-cod2brur>ON</span>
+            </div>
+          </div>
+          <div class="rack-ear right" data-astro-cid-cod2brur></div>
+        </article>
+        <!-- 7: AUDIO MIXER -->
+        <article
+          class="rack-unit"
+          data-module="audio_mixer"
+          data-astro-cid-cod2brur
+        >
+          <div class="rack-ear left" data-astro-cid-cod2brur></div>
+          <div class="rack-body" data-astro-cid-cod2brur>
+            <div
+              class="rack-header"
+              role="button"
+              tabindex="0"
+              aria-expanded="false"
+              data-astro-cid-cod2brur
+            >
+              <span class="indicator-dot active" data-astro-cid-cod2brur></span>
+              <span class="rack-title" data-astro-cid-cod2brur
+                >AUDIO MIXER</span
+              >
+              <span class="rack-toggle on" data-astro-cid-cod2brur></span>
+              <span class="collapse-icon" data-astro-cid-cod2brur>+</span>
+            </div>
+            <div class="rack-content" data-astro-cid-cod2brur>
+              <div class="field-row" data-astro-cid-cod2brur>
+                <div class="field" data-astro-cid-cod2brur>
+                  <span class="field-label" data-astro-cid-cod2brur
+                    >Original</span
+                  >
+                  <div class="field-value" data-astro-cid-cod2brur>80%</div>
+                </div>
+                <div class="field" data-astro-cid-cod2brur>
+                  <span class="field-label" data-astro-cid-cod2brur>TTS</span>
+                  <div class="field-value" data-astro-cid-cod2brur>100%</div>
+                </div>
+              </div>
+              <div class="field" data-astro-cid-cod2brur>
+                <span class="field-label" data-astro-cid-cod2brur
+                  >Sync Offset</span
+                >
+                <div class="field-value" data-astro-cid-cod2brur>0 ms</div>
+              </div>
+            </div>
+            <div class="rack-footer" data-astro-cid-cod2brur>
+              <span class="signal-led active" data-astro-cid-cod2brur></span
+              ><span class="signal-label" data-astro-cid-cod2brur>MIX</span>
+              <div class="vu-micro" data-astro-cid-cod2brur>
+                <span data-astro-cid-cod2brur></span
+                ><span data-astro-cid-cod2brur></span
+                ><span data-astro-cid-cod2brur></span
+                ><span data-astro-cid-cod2brur></span
+                ><span class="active" data-astro-cid-cod2brur></span>
+              </div>
+              <span class="module-status on" data-astro-cid-cod2brur>ON</span>
+            </div>
+          </div>
+          <div class="rack-ear right" data-astro-cid-cod2brur></div>
+        </article>
+        <!-- 8: VIDEO MUXER -->
+        <article
+          class="rack-unit"
+          data-module="video_muxer"
+          data-astro-cid-cod2brur
+        >
+          <div class="rack-ear left" data-astro-cid-cod2brur></div>
+          <div class="rack-body" data-astro-cid-cod2brur>
+            <div
+              class="rack-header"
+              role="button"
+              tabindex="0"
+              aria-expanded="false"
+              data-astro-cid-cod2brur
+            >
+              <span class="indicator-dot active" data-astro-cid-cod2brur></span>
+              <span class="rack-title" data-astro-cid-cod2brur
+                >VIDEO MUXER</span
+              >
+              <span class="rack-badge" data-astro-cid-cod2brur>HLS</span>
+              <span class="collapse-icon" data-astro-cid-cod2brur>+</span>
+            </div>
+            <div class="rack-content" data-astro-cid-cod2brur>
+              <div class="field" data-astro-cid-cod2brur>
+                <span class="field-label" data-astro-cid-cod2brur>Encoder</span>
+                <div class="field-value" data-astro-cid-cod2brur>
+                  h264_nvenc
+                </div>
+              </div>
+              <div class="field-row" data-astro-cid-cod2brur>
+                <div class="field" data-astro-cid-cod2brur>
+                  <span class="field-label" data-astro-cid-cod2brur
+                    >Bitrate</span
+                  >
+                  <div class="field-value" data-astro-cid-cod2brur>4 Mbps</div>
+                </div>
+                <div class="field" data-astro-cid-cod2brur>
+                  <span class="field-label" data-astro-cid-cod2brur>CRF</span>
+                  <div class="field-value" data-astro-cid-cod2brur>23</div>
+                </div>
+              </div>
+            </div>
+            <div class="rack-footer" data-astro-cid-cod2brur>
+              <span class="metric-mini" data-astro-cid-cod2brur
+                ><span class="mm-label" data-astro-cid-cod2brur>Engine</span
+                ><span class="mm-value" data-astro-cid-cod2brur>HLS</span></span
+              >
+              <span class="gpu-indicator active" data-astro-cid-cod2brur
+                >NVENC</span
+              >
+              <span class="module-status on" data-astro-cid-cod2brur>ON</span>
+            </div>
+          </div>
+          <div class="rack-ear right" data-astro-cid-cod2brur></div>
+        </article>
+        <!-- 9: OUTPUTS -->
+        <article
+          class="rack-unit expanded"
+          data-module="output"
+          data-astro-cid-cod2brur
+        >
+          <div class="rack-ear left" data-astro-cid-cod2brur></div>
+          <div class="rack-body" data-astro-cid-cod2brur>
+            <div
+              class="rack-header"
+              role="button"
+              tabindex="0"
+              aria-expanded="true"
+              data-astro-cid-cod2brur
+            >
+              <span class="indicator-dot active" data-astro-cid-cod2brur></span>
+              <span class="rack-title" data-astro-cid-cod2brur>OUTPUTS</span>
+              <span class="rack-badge" data-astro-cid-cod2brur>2 active</span>
+              <span class="collapse-icon" data-astro-cid-cod2brur>−</span>
+            </div>
+            <div class="rack-content" data-astro-cid-cod2brur>
+              <div class="output-item" data-astro-cid-cod2brur>
+                <span class="signal-led active" data-astro-cid-cod2brur></span
+                ><span class="field-value" data-astro-cid-cod2brur>HLS</span
+                ><span class="field-label" data-astro-cid-cod2brur>:8888</span>
+              </div>
+              <div class="output-item" data-astro-cid-cod2brur>
+                <span class="signal-led active" data-astro-cid-cod2brur></span
+                ><span class="field-value" data-astro-cid-cod2brur>RTMP</span
+                ><span class="field-label" data-astro-cid-cod2brur>:1935</span>
+              </div>
+              <div class="output-item inactive" data-astro-cid-cod2brur>
+                <span class="signal-led" data-astro-cid-cod2brur></span
+                ><span class="field-value" data-astro-cid-cod2brur
+                  >Recording</span
+                ><span class="field-label" data-astro-cid-cod2brur>off</span>
+              </div>
+            </div>
+            <div class="rack-footer" data-astro-cid-cod2brur>
+              <span class="metric-mini" data-astro-cid-cod2brur
+                ><span class="mm-label" data-astro-cid-cod2brur>Active</span
+                ><span class="mm-value" data-astro-cid-cod2brur>2</span></span
+              >
+              <span class="module-status on" data-astro-cid-cod2brur>ON</span>
+            </div>
+          </div>
+          <div class="rack-ear right" data-astro-cid-cod2brur></div>
+        </article>
+      </section>
+      <!-- ===== LOGS PANEL ===== -->
+      <section class="log-panel" id="log-panel" data-astro-cid-cod2brur>
+        <div
+          class="log-header"
+          id="log-header-toggle"
+          role="button"
+          tabindex="0"
+          aria-expanded="false"
+          data-astro-cid-cod2brur
+        >
+          <div class="log-header-left" data-astro-cid-cod2brur>
+            <span
+              class="log-collapse-icon"
+              id="log-collapse-icon"
+              data-astro-cid-cod2brur
+              >▶</span
+            >
+            <span class="log-title" data-astro-cid-cod2brur>SYSTEM LOG</span>
+            <span class="log-count" id="log-count" data-astro-cid-cod2brur
+              >0 entries</span
+            >
+          </div>
+          <div class="log-header-right" data-astro-cid-cod2brur>
+            <span class="log-level-filter" data-astro-cid-cod2brur>
+              <span
+                class="log-filter-tag active"
+                data-level="all"
+                data-astro-cid-cod2brur
+                >ALL</span
+              >
+              <span
+                class="log-filter-tag"
+                data-level="info"
+                data-astro-cid-cod2brur
+                >INFO</span
+              >
+              <span
+                class="log-filter-tag"
+                data-level="warn"
+                data-astro-cid-cod2brur
+                >WARN</span
+              >
+              <span
+                class="log-filter-tag"
+                data-level="error"
+                data-astro-cid-cod2brur
+                >ERR</span
+              >
+            </span>
+          </div>
+        </div>
+        <div class="log-body" id="log-body" data-astro-cid-cod2brur>
+          <div class="log-entries" id="log-entries" data-astro-cid-cod2brur>
+            <div class="log-entry info" data-astro-cid-cod2brur>
+              <span class="log-time" data-astro-cid-cod2brur>[ --:--:-- ]</span>
+              <span class="log-msg" data-astro-cid-cod2brur
+                >System initialized — waiting for pipeline</span
+              >
+            </div>
+            <div class="log-entry info" data-astro-cid-cod2brur>
+              <span class="log-time" data-astro-cid-cod2brur>[ --:--:-- ]</span>
+              <span class="log-msg" data-astro-cid-cod2brur
+                >WebSocket connected</span
+              >
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- ===== STATUS BAR ===== -->
+      <footer class="status-bar" data-astro-cid-cod2brur>
+        <div class="status-urls" data-astro-cid-cod2brur>
+          <span class="url-chip" data-astro-cid-cod2brur
+            >HLS:
+            <span class="url-path" data-astro-cid-cod2brur
+              >http://localhost:8888/hls/srt2web.m3u8</span
+            ></span
+          >
+          <span class="url-chip" data-astro-cid-cod2brur
+            >Player:
+            <span class="url-path" data-astro-cid-cod2brur
+              >http://localhost:9999/player</span
+            ></span
+          >
+        </div>
+        <div class="status-info" data-astro-cid-cod2brur>
+          <span class="status-dot" data-astro-cid-cod2brur></span>
+          <span class="status-text" id="status-text" data-astro-cid-cod2brur
+            >pipeline stopped</span
+          >
+        </div>
+      </footer>
+    </div>
+    <script type="module">
+      function r() {
+        const n = new Date(),
+          t = String(n.getHours()).padStart(2, "0"),
+          e = String(n.getMinutes()).padStart(2, "0"),
+          l = String(n.getSeconds()).padStart(2, "0"),
+          s = document.getElementById("live-clock");
+        s && (s.textContent = t + ":" + e + ":" + l);
+      }
+      r();
+      setInterval(r, 1e3);
+      document.querySelectorAll(".rack-header").forEach(function (n) {
+        n.addEventListener("click", function () {
+          var t = this.closest(".rack-unit"),
+            e = t.querySelector(".rack-content"),
+            l = t.querySelector(".collapse-icon"),
+            s = t.classList.contains("expanded");
+          s
+            ? (t.classList.remove("expanded"),
+              (e.style.maxHeight = "0"),
+              (e.style.opacity = "0"),
+              (e.style.paddingTop = "0"),
+              (e.style.paddingBottom = "0"),
+              l && (l.textContent = "+"),
+              this.setAttribute("aria-expanded", "false"))
+            : (t.classList.add("expanded"),
+              (e.style.maxHeight = e.scrollHeight + "px"),
+              (e.style.opacity = "1"),
+              (e.style.paddingTop = ""),
+              (e.style.paddingBottom = ""),
+              l && (l.textContent = "−"),
+              this.setAttribute("aria-expanded", "true"));
+        });
+      });
+      (function () {
+        var n = document.getElementById("log-header-toggle"),
+          t = document.getElementById("log-body"),
+          e = document.getElementById("log-collapse-icon");
+        n &&
+          t &&
+          e &&
+          ((t.style.display = "none"),
+          (e.textContent = "▶"),
+          n.addEventListener("click", function () {
+            var l = t.style.display !== "none";
+            l
+              ? ((t.style.display = "none"),
+                (e.textContent = "▶"),
+                n.setAttribute("aria-expanded", "false"))
+              : ((t.style.display = "block"),
+                (e.textContent = "▼"),
+                n.setAttribute("aria-expanded", "true"));
+          }),
+          setTimeout(function () {
+            var l = document.getElementById("log-entries");
+            if (l) {
+              var s = [
+                  {
+                    time: "12:00:01",
+                    level: "info",
+                    msg: "Pipeline started — 8 modules loaded",
+                  },
+                  {
+                    time: "12:00:02",
+                    level: "info",
+                    msg: "Input: listening on srt://:9999",
+                  },
+                  {
+                    time: "12:00:03",
+                    level: "info",
+                    msg: "Whisper: model large-v2 loaded (CUDA)",
+                  },
+                  {
+                    time: "12:00:04",
+                    level: "warn",
+                    msg: "TTS: model es_ES-sharvard-medium loaded (CPU)",
+                  },
+                  {
+                    time: "12:00:05",
+                    level: "info",
+                    msg: "HLS: segmenter started on :8888",
+                  },
+                  {
+                    time: "12:00:06",
+                    level: "info",
+                    msg: "Output: HLS stream active",
+                  },
+                  {
+                    time: "12:00:07",
+                    level: "warn",
+                    msg: "CPU threshold > 70% — monitoring",
+                  },
+                  {
+                    time: "12:00:08",
+                    level: "info",
+                    msg: "Chunk #1 processed — 12.4s segment",
+                  },
+                  {
+                    time: "12:00:10",
+                    level: "info",
+                    msg: "Chunk #2 processed — 11.8s segment",
+                  },
+                  {
+                    time: "12:00:12",
+                    level: "error",
+                    msg: "RTMP output: connection timeout, retry #1",
+                  },
+                  {
+                    time: "12:00:14",
+                    level: "info",
+                    msg: "Chunk #3 processed — 12.1s segment",
+                  },
+                  {
+                    time: "12:00:16",
+                    level: "info",
+                    msg: "RTMP: reconnected successfully",
+                  },
+                ],
+                a = document.getElementById("log-count");
+              s.forEach(function (o) {
+                var i = document.createElement("div");
+                (i.className = "log-entry " + o.level),
+                  (i.innerHTML =
+                    '<span class="log-time">[' +
+                    o.time +
+                    ']</span> <span class="log-msg">' +
+                    o.msg +
+                    "</span>"),
+                  l.appendChild(i);
+              }),
+                a && (a.textContent = s.length + " entries");
+            }
+          }, 500));
+      })();
+      document.querySelectorAll(".log-filter-tag").forEach(function (n) {
+        n.addEventListener("click", function () {
+          document.querySelectorAll(".log-filter-tag").forEach(function (e) {
+            e.classList.remove("active");
+          }),
+            this.classList.add("active");
+          var t = this.getAttribute("data-level");
+          document.querySelectorAll(".log-entry").forEach(function (e) {
+            if (t === "all") {
+              e.style.display = "";
+              return;
+            }
+            e.classList.contains(t)
+              ? (e.style.display = "")
+              : (e.style.display = "none");
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

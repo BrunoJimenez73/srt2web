@@ -84,7 +84,7 @@ export async function exportConfig(): Promise<void> {
   }
 }
 
-function dumpConfig(obj: unknown, indent = 0): string {
+export function dumpConfig(obj: unknown, indent = 0): string {
   const pad = "  ".repeat(indent);
   if (obj === null || obj === undefined) return "null";
   if (typeof obj === "string") return `"${obj}"`;

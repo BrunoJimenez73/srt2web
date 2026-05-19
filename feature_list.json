@@ -1346,6 +1346,139 @@
           "Vitest + build:local antes de cerrar"
         ]
       }
+    },
+    {
+      "id": 81,
+      "name": "fix_effects_tests",
+      "title": "Fix pre-existing effects.test.ts failures (18 tests)",
+      "status": "done",
+      "area": "frontend",
+      "priority": "Alta",
+      "description": "Fix 18 failing tests in effects.test.ts. Tests expect status text updates that live in StatusCard.astro client script, not in effects.ts. Need to either move logic to effects.ts or fix test expectations.",
+      "acceptance": [
+        "npm test: 125/125 passing, 0 failing",
+        "init.ps1 -Quick verde"
+      ],
+      "files_to_touch": [
+        "frontend/src/lib/store/effects.test.ts",
+        "frontend/src/lib/store/effects.ts",
+        "frontend/src/components/StatusCard.astro"
+      ]
+    },
+    {
+      "id": 82,
+      "name": "frontend_coverage_85",
+      "title": "Frontend test coverage >85%",
+      "status": "done",
+      "completed_date": "2026-05-19",
+      "area": "frontend",
+      "priority": "Alta",
+      "description": "Increase frontend test coverage from ~86% (with failures) to solid 85%+ with all tests passing. Add tests for new modules (ws-manager, polling, config-client, presets-client).",
+      "acceptance": [
+        "npm run test:coverage shows >85% coverage",
+        "All 125+ tests passing",
+        "New modules have dedicated test files"
+      ],
+      "files_to_touch": [
+        "frontend/src/lib/modules/ws-manager.test.ts",
+        "frontend/src/lib/modules/polling.test.ts",
+        "frontend/src/lib/modules/config-client.test.ts",
+        "frontend/src/lib/modules/presets-client.test.ts"
+      ],
+      "dependencies": ["F81"]
+    },
+    {
+      "id": 83,
+      "name": "integration_e2e_tests",
+      "title": "Integration and E2E tests",
+      "status": "done",
+      "area": "testing",
+      "priority": "Media",
+      "description": "Add integration tests for API routes and E2E tests for critical user flows (start pipeline, stop pipeline, config save, preset apply).",
+      "acceptance": [
+        "tests/integration/ con tests para API routes principales",
+        "tests/e2e/ con tests para flujos críticos",
+        "pytest tests/integration/ pasa",
+        "init.ps1 -Quick verde"
+      ],
+      "files_to_touch": [
+        "tests/integration/test_api_routes.py",
+        "tests/e2e/test_pipeline_flow.py"
+      ]
+    },
+    {
+      "id": 84,
+      "name": "performance_profiling",
+      "title": "Performance profiling and pipeline optimization",
+      "status": "done",
+      "area": "core",
+      "priority": "Media",
+      "description": "Profile pipeline performance, identify bottlenecks, and optimize critical paths. Add performance metrics to dashboard.",
+      "acceptance": [
+        "Performance profiling script en scripts/profile_pipeline.py",
+        "Métricas de latencia por módulo en dashboard",
+        "Optimización de al menos 1 bottleneck identificado",
+        "init.ps1 -Quick verde"
+      ],
+      "files_to_touch": [
+        "scripts/profile_pipeline.py",
+        "core/pipeline_metrics.py",
+        "core/unified_pipeline.py",
+        "frontend/src/lib/types/api.ts",
+        "frontend/src/lib/store/signals.ts",
+        "frontend/src/components/MetricsCard.astro"
+      ]
+    },
+    {
+      "id": 85,
+      "name": "accessibility_audit",
+      "title": "Accessibility audit (WCAG 2.2)",
+      "status": "done",
+      "area": "frontend",
+      "priority": "Media",
+      "description": "Audit frontend for WCAG 2.2 AA compliance. Fix keyboard navigation, ARIA labels, color contrast, and screen reader support.",
+      "acceptance": [
+        "Lighthouse accessibility score >90",
+        "Keyboard navigation funciona en todos los componentes",
+        "ARIA labels en elementos interactivos",
+        "Color contrast ratio >= 4.5:1",
+        "init.ps1 -Quick verde"
+      ],
+      "files_to_touch": [
+        "frontend/src/components/WhisperCard.astro",
+        "frontend/src/components/TranslateCard.astro",
+        "frontend/src/components/TtsCard.astro",
+        "frontend/src/components/SubtitleCard.astro",
+        "frontend/src/components/HlsCard.astro",
+        "frontend/src/components/OutputCard.astro",
+        "frontend/src/components/MetricsCard.astro",
+        "frontend/src/components/LogPanel.astro",
+        "frontend/src/components/Header.astro",
+        "frontend/src/components/layout/Header.astro",
+        "frontend/src/styles/globals.css"
+      ]
+    },
+    {
+      "id": 86,
+      "name": "docker_ci_improvements",
+      "title": "Docker and CI improvements",
+      "status": "done",
+      "area": "devops",
+      "priority": "Media",
+      "description": "Improve Dockerfile for smaller images, add Docker Compose for easy deployment, and enhance GitHub Actions CI with multi-platform testing.",
+      "acceptance": [
+        "Dockerfile multi-stage con imagen <500MB",
+        "docker-compose.yml para deployment fácil",
+        "GitHub Actions con matrix (Ubuntu, macOS)",
+        "Health checks en Docker",
+        "init.ps1 -Quick verde"
+      ],
+      "files_to_touch": [
+        "Dockerfile",
+        "docker-compose.yml",
+        ".github/workflows/ci.yml"
+      ],
+      "completion_notes": "Dockerfile: slim base <500MB, multi-stage con variante CUDA, HEALTHCHECK con Python. docker-compose: restart policy, healthcheck activo, .env support, GPU comentado. CI: build validation en PRs, multi-platform amd64+arm64 en main, timeout-minutes, concurrency cancel-in-progress."
     }
   ]
 }
