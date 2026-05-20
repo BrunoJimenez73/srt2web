@@ -418,7 +418,7 @@ const { title = 'System Metrics' } = Astro.props;
     const tpBar = el<HTMLDivElement>("metric-throughput-bar");
     const tpValue = el<HTMLSpanElement>("metric-throughput-value");
     if (tpBar) tpBar.style.width = `${Math.min(tpAvg * 10, 100)}%`;
-    if (tpValue) tpValue.textContent = `${tpAvg.toFixed(2)}/s`;
+    if (tpValue) tpValue.textContent = tpAvg < 1 ? `${tpAvg.toFixed(1)}/s` : `${tpAvg.toFixed(1)}/s`;
 
     // Latency
     const latEl = el<HTMLSpanElement>("latency-value");

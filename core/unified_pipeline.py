@@ -885,6 +885,15 @@ class UnifiedPipeline:
             except Exception as e:
                 logger.debug("Suppressed error: %s", e, exc_info=True)
 
+        # Round float fields in all module statuses
+        round_keys = {"last_process_time_ms", "total_processing_time", "average_processing_time"}
+        for mod in modules_status:
+            if isinstance(mod, dict):
+                for k in round_keys:
+                    v = mod.get(k)
+                    if isinstance(v, float):
+                        mod[k] = round(v, 2)
+
         return {
             "state": self._state.value,
             "mode": self.mode.value,
@@ -900,7 +909,7 @@ class UnifiedPipeline:
             "system_metrics": system_metrics,
             "strategy": strategy_metrics.get("strategy", "none"),
             "module_avg_time_ms": self._pipeline_metrics.module_avg_times,
-            "module_total_times": dict(self._pipeline_metrics.module_total_times),
+            "module_total_times": {k: round(v, 2) for k, v in self._pipeline_metrics.module_total_times.items()},
         }
 
     def reconfigure(self, config_manager: Any) -> None:

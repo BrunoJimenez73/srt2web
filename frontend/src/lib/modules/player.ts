@@ -215,8 +215,8 @@ export function initHlsPlayer(): void {
         track = video.textTracks[0];
       } else {
         track = video.addTextTrack("subtitles", "Español", "es");
-        track.mode = "showing";
       }
+      if (track) track.mode = "showing";
 
       if (track && track.cues) {
         const cuesToRemove = Array.from(track.cues);
