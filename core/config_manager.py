@@ -13,7 +13,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import yaml
 
@@ -53,7 +53,7 @@ class ConfigManager:
         config.save()
     """
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None):
         self._config_path = config_path or self._find_config()
         self._config: dict[str, Any] = {}
         self._load()
@@ -182,7 +182,7 @@ class ConfigManager:
             )
         except Exception as ve:
             logger.error(f"Invalid configuration update attempt:\n{ve}")
-            raise ValueError(f"Configuration update failed: {ve}")
+            raise ValueError(f"Configuration update failed: {ve}") from ve
 
     def reload(self) -> None:
         """Reload configuration from file."""

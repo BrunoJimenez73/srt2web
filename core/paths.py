@@ -3,10 +3,9 @@ Centralized path utilities for SRT2Web.
 All path operations should use functions from this module.
 """
 from pathlib import Path
-from typing import Optional
 
 # Cache for project root (computed once)
-_PROJECT_ROOT: Optional[Path] = None
+_PROJECT_ROOT: Path | None = None
 
 
 def get_project_root() -> Path:
@@ -102,7 +101,7 @@ def ensure_project_dirs() -> None:
         ensure_directory(d)
 
 
-def resolve_path(path: str | Path, relative_to: Optional[Path] = None) -> Path:
+def resolve_path(path: str | Path, relative_to: Path | None = None) -> Path:
     """
     Resolve a path that may be relative or absolute.
     If relative, resolves relative to relative_to (default: project root).

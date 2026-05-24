@@ -8,11 +8,12 @@ CRITICAL: Uses data.cumulative_duration from PipelineData for accurate sync,
 not internal tracking, to prevent drift from VideoMuxer.
 """
 
+import contextlib
 import logging
 import os
 import threading
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from core.cache import LRUCache
 from core.module_base import BaseModule, ModuleState, PipelineData
@@ -29,7 +30,7 @@ class SubtitleGenerator(BaseModule):
     to prevent drift accumulation across modules.
     """
 
-    def __init__(self, config: Optional[dict[str, Any]] = None, output_dir: str = "./output") -> None:
+    def __init__(self, config: dict[str, Any] | None = None, output_dir: str = "./output") -> None:
         self._output_dir = output_dir
         self._format = "webvtt"
         self._use_translated = True
@@ -97,10 +98,8 @@ class SubtitleGenerator(BaseModule):
 
         # Clean old chunk SRT files from previous sessions
         for old_chunk in Path(self._output_dir, "subtitles").glob("chunk_*.srt"):
-            try:
+            with contextlib.suppress(OSError):
                 old_chunk.unlink()
-            except OSError:
-                pass
 
         # Reset files with WebVTT header
         with self._lock:
@@ -293,10 +292,8 @@ class SubtitleGenerator(BaseModule):
 
                     clean_text = seg.get("text", "").replace("\n", " ").strip()
                     if clean_text:
-                        try:
+                        with contextlib.suppress(BaseException):
                             clean_text = clean_text.encode("utf-8").decode("utf-8")
-                        except:
-                            pass
 
                         # ABSOLUTE timestamps: chunk_start + relative offset
                         abs_start = chunk_start_time + rel_start

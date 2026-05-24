@@ -111,7 +111,7 @@ async def add_output(request: Request, body: AddOutputRequest) -> dict[str, Any]
         output = OutputFactory.create(output_type, output_config)
         output.name = output_name
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, str(e)) from e
 
     composite = _get_composite(pipeline)
 

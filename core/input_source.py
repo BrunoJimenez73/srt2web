@@ -10,7 +10,7 @@ Proporciona una interfaz común para diferentes tipos de fuentes de input:
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 from core.module_base import PipelineData
 
@@ -47,7 +47,7 @@ class InputSource(ABC):
         pass
 
     @abstractmethod
-    def get_next_chunk(self) -> Optional[PipelineData]:
+    def get_next_chunk(self) -> PipelineData | None:
         """
         Obtener el siguiente chunk de datos.
 

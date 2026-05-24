@@ -6,9 +6,10 @@ Provides WebRTC streaming capabilities with subtitle support via data channels.
 
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from core.encoder_config import EncoderConfig
+from core.io_factory import OutputFactory
 from core.module_base import ModuleState, ModuleStatus, PipelineData
 from core.output_sink import OutputSink
 
@@ -85,7 +86,7 @@ class WebRTCOutput(OutputSink):
         return {"type": "webrtc", "engine": "aiortc", "status": "running" if self._running else "stopped"}
 
     @property
-    def _webrtc_engine(self) -> Optional[Any]:
+    def _webrtc_engine(self) -> Any | None:
         """Get the underlying WebRTC engine."""
         return self._engine
 
@@ -108,6 +109,4 @@ class WebRTCOutput(OutputSink):
 
 
 # Auto-register in factory
-from core.io_factory import OutputFactory
-
 OutputFactory.register("webrtc", WebRTCOutput)

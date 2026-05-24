@@ -3,15 +3,17 @@ Security module tests.
 """
 
 import os
-import pytest
 from pathlib import Path
+
+import pytest
+
 from core.security import (
     PathTraversalError,
-    sanitize_path,
-    sanitize_filename,
-    validate_port,
-    validate_latency,
     escape_ffmpeg_path,
+    sanitize_filename,
+    sanitize_path,
+    validate_latency,
+    validate_port,
 )
 
 
@@ -25,9 +27,7 @@ class TestPathSanitization:
         result = sanitize_path("subdir/file.txt", "base")
         # The function returns an absolute path, so we need to check the relative part
         # Normalize both paths and check that the result ends with our expected relative path
-        assert os.path.normpath(result).endswith(
-            os.path.normpath("base/subdir/file.txt")
-        )
+        assert os.path.normpath(result).endswith(os.path.normpath("base/subdir/file.txt"))
 
     def test_sanitize_path_traversal_attempt(self) -> None:
         """Test that path traversal attempts are blocked."""
@@ -80,9 +80,7 @@ class TestPathSanitization:
         """Test that null bytes are removed."""
         result = sanitize_path("subdir\0file.txt", "base")
         # The function returns an absolute path, check that it ends with our expected path
-        assert os.path.normpath(result).endswith(
-            os.path.normpath("base/subdirfile.txt")
-        )
+        assert os.path.normpath(result).endswith(os.path.normpath("base/subdirfile.txt"))
 
     def test_sanitize_filename_basic(self) -> None:
         """Test basic filename sanitization."""

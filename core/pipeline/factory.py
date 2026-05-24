@@ -11,11 +11,9 @@ from core.pipeline.async_pipeline import AsyncPipeline
 from core.pipeline.base import PipelineStrategy, create_pipeline_metrics
 from core.pipeline.parallel import ParallelPipeline
 from core.pipeline.sequential import SequentialPipeline
+from core.schemas import PipelineMode
 
 logger = logging.getLogger("srt2web.pipeline.factory")
-
-
-from core.schemas import PipelineMode
 
 
 def create_pipeline(

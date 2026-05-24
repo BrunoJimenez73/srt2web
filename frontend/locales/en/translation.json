@@ -1,1 +1,59 @@
-{"name":"English","code":"en","strings":{"app":{"title":"SRT2Web","subtitle":"Stream Processor"},"nav":{"dashboard":"Dashboard","docs":"Docs","secure":"Security","save":"Save"},"status":{"idle":"Idle","running":"Running","error":"Error","starting":"Starting"},"modules":{"audio_extractor":"Audio Extractor","transcriber":"Transcriber","translator":"Translator","subtitle_generator":"Subtitle Generator","tts_engine":"TTS Engine","audio_mixer":"Audio Mixer","video_muxer":"Video Muxer"},"buttons":{"start":"Start","stop":"Stop","restart":"Restart","save":"Save","cancel":"Cancel"},"messages":{"confirm_stop":"Are you sure you want to stop the pipeline?","no_logs":"No logs available","connecting":"Connecting...","connected":"Connected","disconnected":"Disconnected"},"metrics":{"processed_chunks":"Processed Chunks","avg_time":"Average Time","uptime":"Uptime","gpu":"GPU"},"inputs":{"type":"Input Type","srt":"SRT","rtmp":"RTMP","file":"File"},"outputs":{"type":"Output Type","web":"Web/HLS","stream_url":"Stream URL"}}}
+{
+  "name": "English",
+  "code": "en",
+  "strings": {
+    "app": { "title": "SRT2Web", "subtitle": "Stream Processor" },
+    "nav": {
+      "dashboard": "Dashboard",
+      "docs": "Docs",
+      "secure": "Security",
+      "save": "Save"
+    },
+    "status": {
+      "idle": "Idle",
+      "running": "Running",
+      "error": "Error",
+      "starting": "Starting"
+    },
+    "modules": {
+      "audio_extractor": "Audio Extractor",
+      "transcriber": "Transcriber",
+      "translator": "Translator",
+      "subtitle_generator": "Subtitle Generator",
+      "tts_engine": "TTS Engine",
+      "audio_mixer": "Audio Mixer",
+      "video_muxer": "Video Muxer"
+    },
+    "buttons": {
+      "start": "Start",
+      "stop": "Stop",
+      "restart": "Restart",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "messages": {
+      "confirm_stop": "Are you sure you want to stop the pipeline?",
+      "no_logs": "No logs available",
+      "connecting": "Connecting...",
+      "connected": "Connected",
+      "disconnected": "Disconnected"
+    },
+    "metrics": {
+      "processed_chunks": "Processed Chunks",
+      "avg_time": "Average Time",
+      "uptime": "Uptime",
+      "gpu": "GPU"
+    },
+    "inputs": {
+      "type": "Input Type",
+      "srt": "SRT",
+      "rtmp": "RTMP",
+      "file": "File"
+    },
+    "outputs": {
+      "type": "Output Type",
+      "web": "Web/HLS",
+      "stream_url": "Stream URL"
+    }
+  }
+}

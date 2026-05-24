@@ -8,7 +8,7 @@ Useful for archiving or further processing.
 import logging
 import os
 import shutil
-from typing import Any, Optional
+from typing import Any
 
 from core.module_base import PipelineData
 from modules.outputs.base import BaseOutput
@@ -26,7 +26,7 @@ class FileOutput(BaseOutput):
     - subtitles/chunk_000001.vtt
     """
 
-    def __init__(self, config: Optional[dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__("file", config or {})
         self._video_dir = ""
         self._audio_dir = ""

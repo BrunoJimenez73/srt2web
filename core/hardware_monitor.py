@@ -22,7 +22,7 @@ class HardwareMonitor:
         self._nvml_initialized = False
         self._is_macos = sys.platform == "darwin"
         try:
-            import pynvml  # type: ignore[import-untyped]
+            import pynvml
 
             self._pynvml = pynvml
         except ImportError:

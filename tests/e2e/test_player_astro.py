@@ -2,8 +2,9 @@
 Tests for Astro player page functionality.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 
 def get_astro_source_content(file_path):  # type: ignore
@@ -12,7 +13,7 @@ def get_astro_source_content(file_path):  # type: ignore
     astro_file = base_path / file_path
 
     if astro_file.exists():
-        with open(astro_file, "r", encoding="utf-8") as f:
+        with open(astro_file, encoding="utf-8") as f:
             return f.read()
     return None
 
@@ -23,7 +24,7 @@ def get_built_html_content(file_path="player/index.html"):  # type: ignore
     html_file = base_path / file_path
 
     if html_file.exists():
-        with open(html_file, "r", encoding="utf-8") as f:
+        with open(html_file, encoding="utf-8") as f:
             return f.read()
     return None
 
@@ -43,13 +44,7 @@ class TestPlayerAstroStructure:
 
     def test_player_astro_file_exists(self) -> None:
         """Test that player.astro file exists."""
-        astro_path = (
-            Path(__file__).parent.parent.parent
-            / "frontend"
-            / "src"
-            / "pages"
-            / "player.astro"
-        )
+        astro_path = Path(__file__).parent.parent.parent / "frontend" / "src" / "pages" / "player.astro"
         assert astro_path.exists()
 
     def test_player_built_html_exists(self, player_built_content) -> None:
@@ -61,9 +56,7 @@ class TestPlayerAstroStructure:
         if player_built_content is None:
             pytest.skip("Built player/index.html not found")
 
-        assert (
-            "<video" in player_built_content or "video-player" in player_built_content
-        )
+        assert "<video" in player_built_content or "video-player" in player_built_content
         assert "controls" in player_built_content
 
     def test_player_has_waiting_message(self, player_astro_content) -> None:
@@ -71,10 +64,7 @@ class TestPlayerAstroStructure:
         if player_astro_content is None:
             pytest.skip("player.astro not found")
 
-        assert (
-            "Esperando" in player_astro_content
-            or "waiting" in player_astro_content.lower()
-        )
+        assert "Esperando" in player_astro_content or "waiting" in player_astro_content.lower()
 
     def test_player_includes_hls_js(self, player_built_content) -> None:
         """Test that player includes HLS.js library."""
@@ -95,10 +85,7 @@ class TestPlayerAstroStructure:
         if player_built_content is None:
             pytest.skip("Built player/index.html not found")
 
-        assert (
-            "track" in player_built_content.lower()
-            or "subtitle" in player_built_content.lower()
-        )
+        assert "track" in player_built_content.lower() or "subtitle" in player_built_content.lower()
 
 
 class TestPlayerAstroStyles:
@@ -114,20 +101,14 @@ class TestPlayerAstroStyles:
         if player_astro_content is None:
             pytest.skip("player.astro not found")
 
-        assert (
-            "video-container" in player_astro_content
-            or "video" in player_astro_content.lower()
-        )
+        assert "video-container" in player_astro_content or "video" in player_astro_content.lower()
 
     def test_player_has_cue_styling(self, player_astro_content) -> None:
         """Test that player has subtitle cue styling."""
         if player_astro_content is None:
             pytest.skip("player.astro not found")
 
-        assert (
-            "::cue" in player_astro_content
-            or "subtitle" in player_astro_content.lower()
-        )
+        assert "::cue" in player_astro_content or "subtitle" in player_astro_content.lower()
 
 
 class TestPlayerJavaScript:
@@ -150,19 +131,14 @@ class TestPlayerJavaScript:
         if player_built_content is None:
             pytest.skip("Built player/index.html not found")
 
-        assert (
-            "MANIFEST_PARSED" in player_built_content or "ERROR" in player_built_content
-        )
+        assert "MANIFEST_PARSED" in player_built_content or "ERROR" in player_built_content
 
     def test_player_has_vtt_loader(self, player_built_content) -> None:
         """Test that player has VTT loader function."""
         if player_built_content is None:
             pytest.skip("Built player/index.html not found")
 
-        assert (
-            "vtt" in player_built_content.lower()
-            or "subtitle" in player_built_content.lower()
-        )
+        assert "vtt" in player_built_content.lower() or "subtitle" in player_built_content.lower()
 
     def test_player_has_refresh_interval(self, player_built_content) -> None:
         """Test that player has periodic refresh for subtitles."""
@@ -176,9 +152,7 @@ class TestPlayerJavaScript:
         if player_built_content is None:
             pytest.skip("Built player/index.html not found")
 
-        assert (
-            "canPlayType" in player_built_content or "nativeHls" in player_built_content
-        )
+        assert "canPlayType" in player_built_content or "nativeHls" in player_built_content
 
 
 class TestPlayerHLSIntegration:
@@ -201,19 +175,14 @@ class TestPlayerHLSIntegration:
         if player_built_content is None:
             pytest.skip("Built player/index.html not found")
 
-        assert (
-            "vtt" in player_built_content.lower()
-            or "subtitle" in player_built_content.lower()
-        )
+        assert "vtt" in player_built_content.lower() or "subtitle" in player_built_content.lower()
 
     def test_player_has_error_handling(self, player_built_content) -> None:
         """Test that player has error handling."""
         if player_built_content is None:
             pytest.skip("Built player/index.html not found")
 
-        assert (
-            "error" in player_built_content.lower() or "ERROR" in player_built_content
-        )
+        assert "error" in player_built_content.lower() or "ERROR" in player_built_content
 
 
 class TestPlayerControls:
@@ -236,20 +205,14 @@ class TestPlayerControls:
         if player_built_content is None:
             pytest.skip("Built player/index.html not found")
 
-        assert (
-            "volume" in player_built_content.lower()
-            or "video" in player_built_content.lower()
-        )
+        assert "volume" in player_built_content.lower() or "video" in player_built_content.lower()
 
     def test_player_has_fullscreen_support(self, player_built_content) -> None:
         """Test that player has video element which supports browser fullscreen."""
         if player_built_content is None:
             pytest.skip("Built player/index.html not found")
         # Video element inherently supports fullscreen via browser controls
-        assert (
-            "video" in player_built_content.lower()
-            and "controls" in player_built_content.lower()
-        )
+        assert "video" in player_built_content.lower() and "controls" in player_built_content.lower()
 
 
 class TestPlayerSubtitles:
@@ -270,27 +233,18 @@ class TestPlayerSubtitles:
         if player_astro_content is None:
             pytest.skip("player.astro not found")
 
-        assert (
-            "subtitle" in player_astro_content.lower()
-            or "track" in player_astro_content.lower()
-        )
+        assert "subtitle" in player_astro_content.lower() or "track" in player_astro_content.lower()
 
     def test_player_loads_vtt_files(self, player_built_content) -> None:
         """Test that player loads VTT files."""
         if player_built_content is None:
             pytest.skip("Built player/index.html not found")
 
-        assert (
-            "vtt" in player_built_content.lower()
-            or "/hls/subs.vtt" in player_built_content
-        )
+        assert "vtt" in player_built_content.lower() or "/hls/subs.vtt" in player_built_content
 
     def test_player_has_cc_toggle(self, player_built_content) -> None:
         """Test that player has CC toggle button."""
         if player_built_content is None:
             pytest.skip("Built player/index.html not found")
 
-        assert (
-            "cc" in player_built_content.lower()
-            or "subtitle" in player_built_content.lower()
-        )
+        assert "cc" in player_built_content.lower() or "subtitle" in player_built_content.lower()

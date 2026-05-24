@@ -2,13 +2,14 @@
 Integration tests for the FastAPI server.
 """
 
+from unittest.mock import Mock
+
 import pytest
-import json
-from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
+
 from core.config_manager import ConfigManager
-from core.pipeline import Pipeline
 from core.module_base import ModuleState
+from core.pipeline import Pipeline
 from server.app import create_app
 
 
@@ -49,8 +50,6 @@ class TestServerIntegration:
         pipeline = Pipeline()
 
         # Add some test modules
-        from modules.audio_extractor import AudioExtractor
-        from modules.transcriber import Transcriber
 
         # These will fail on start() but that's OK for integration testing
         pipeline.register_module(DummyModule("audio_extractor"))
@@ -134,18 +133,14 @@ class TestServerIntegration:
 
     def test_api_update_config(self, client) -> None:
         """Test PUT /api/config updates configuration."""
-        response = client.put(
-            "/api/config", json={"config": {"server": {"port": 9999}}}
-        )
+        response = client.put("/api/config", json={"config": {"server": {"port": 9999}}})
 
         # API may accept or reject this update
         assert response.status_code in [200, 422]
 
     def test_api_toggle_module(self, client) -> None:
         """Test PUT /api/modules/{name}/toggle toggles module."""
-        response = client.put(
-            "/api/modules/transcriber/toggle", json={"enabled": False}
-        )
+        response = client.put("/api/modules/transcriber/toggle", json={"enabled": False})
 
         # Module may not exist in the pipeline, so 404 is OK
         assert response.status_code in [200, 404]
@@ -200,10 +195,7 @@ class TestServerCORS:
         )
 
         # Should have CORS headers
-        assert (
-            "access-control-allow-origin" in response.headers
-            or response.status_code == 200
-        )
+        assert "access-control-allow-origin" in response.headers or response.status_code == 200
 
 
 class TestServerErrorHandling:

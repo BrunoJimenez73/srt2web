@@ -246,14 +246,16 @@ class PiperSubprocessManager:
     def _restart_subprocess(self) -> None:
         """Restart the subprocess (reload model from scratch)."""
         self._restart_count += 1
-        logger.warning(f"[PiperManager] Restarting subprocess (attempt {self._restart_count}/{self.MAX_RESTART_ATTEMPTS})...")
+        logger.warning(
+            f"[PiperManager] Restarting subprocess (attempt {self._restart_count}/{self.MAX_RESTART_ATTEMPTS})..."
+        )
         with self._lock:
             model_path = getattr(self, "_last_model_path", None)
             config_path = getattr(self, "_last_config_path", None)
             device = getattr(self, "_last_device", "auto")
             # Downgrade to CPU after max restart attempts
             if self._restart_count > self.MAX_RESTART_ATTEMPTS:
-                logger.warning(f"[PiperManager] Max restarts reached, forcing CPU fallback")
+                logger.warning("[PiperManager] Max restarts reached, forcing CPU fallback")
                 device = "cpu"
                 self._restart_count = 0
             self._ensure_stopped()

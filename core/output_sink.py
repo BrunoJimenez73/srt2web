@@ -12,7 +12,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from core.module_base import PipelineData
 from core.schemas import ModuleState, ModuleStatus
@@ -53,8 +53,8 @@ class OutputSink(ABC):
         self._uptime_start: float = time.time()
         self._last_write_time: float = 0.0
         self._bytes_written: int = 0
-        self._last_error: Optional[str] = None
-        self._last_error_time: Optional[float] = None
+        self._last_error: str | None = None
+        self._last_error_time: float | None = None
         self._health_state: HealthState = HealthState.HEALTHY
 
     @abstractmethod

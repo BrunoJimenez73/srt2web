@@ -3,6 +3,7 @@ Pipeline control routes for SRT2Web API.
 """
 
 import asyncio
+import contextlib
 import glob
 import logging
 import os
@@ -173,7 +174,7 @@ async def start_pipeline(request: Request) -> dict[str, Any]:
         )
     except Exception as e:
         logger.error(f"Failed to start pipeline: {e}")
-        raise HTTPException(500, f"Failed to start pipeline: {e}")
+        raise HTTPException(500, f"Failed to start pipeline: {e}") from e
 
     input_info = {}
     if input_source:
@@ -220,16 +221,12 @@ async def stop_pipeline(request: Request) -> dict[str, Any]:
     if os.path.exists(hls_dir):
         # Remove segment files
         for seg_file in glob.glob(os.path.join(hls_dir, "seg_*.ts")):
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(seg_file)
-            except OSError:
-                pass
         # Remove chunk SRT files
         for srt_file in glob.glob(os.path.join(hls_dir, "chunk_*.srt")):
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(srt_file)
-            except OSError:
-                pass
         # Remove playlist files but recreate them empty
         for m3u8_file in ["stream.m3u8", "master.m3u8"]:
             m3u8_path = os.path.join(hls_dir, m3u8_file)
@@ -277,7 +274,7 @@ async def restart_pipeline(request: Request) -> dict[str, Any]:
         )
     except Exception as e:
         logger.error(f"Failed to restart pipeline: {e}")
-        raise HTTPException(500, f"Failed to restart pipeline: {e}")
+        raise HTTPException(500, f"Failed to restart pipeline: {e}") from e
 
     return {"status": "restarted"}
 

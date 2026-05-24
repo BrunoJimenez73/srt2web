@@ -5,12 +5,13 @@ Takes video chunks (with optional processed audio and subtitles)
 and generates HLS output (m3u8 + ts segments) for web playback.
 """
 
+import contextlib
 import logging
 import subprocess
 import threading
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from core.encoder_config import EncoderConfig
 from core.ffmpeg_utils import ensure_ffmpeg
@@ -29,8 +30,8 @@ class VideoMuxer(BaseModule):
     MPEG-TS chunks into HLS segments with a rolling m3u8 manifest.
     """
 
-    def __init__(self, config: Optional[dict[str, Any]] = None, output_dir: str = "./output") -> None:
-        self._ffmpeg_path: Optional[str] = None
+    def __init__(self, config: dict[str, Any] | None = None, output_dir: str = "./output") -> None:
+        self._ffmpeg_path: str | None = None
         self._output_dir = Path(output_dir)  # Convert to Path
         self._hls_dir = Path()
         self._hls_segment_duration = 4
@@ -88,15 +89,11 @@ class VideoMuxer(BaseModule):
 
         # Clean old HLS files
         for f in self._hls_dir.glob("*.ts"):
-            try:
+            with contextlib.suppress(OSError):
                 f.unlink()
-            except OSError:
-                pass
         for f in self._hls_dir.glob("*.m3u8"):
-            try:
+            with contextlib.suppress(OSError):
                 f.unlink()
-            except OSError:
-                pass
 
         self._segment_index = 0
         self._state = ModuleState.RUNNING
@@ -118,9 +115,8 @@ class VideoMuxer(BaseModule):
 
         if hasattr(data, "video_path") and not hasattr(data, "video_chunk_path"):
             data.video_chunk_path = data.video_path
-        elif not hasattr(data, "video_chunk_path"):
-            if isinstance(data, dict) and "video_path" in data:
-                data.video_chunk_path = data["video_path"]
+        elif not hasattr(data, "video_chunk_path") and isinstance(data, dict) and "video_path" in data:
+            data.video_chunk_path = data["video_path"]
 
         if not hasattr(data, "video_chunk_path") or not data.video_chunk_path:
             logger.warning("[VideoMuxer.write] No video_chunk_path available")

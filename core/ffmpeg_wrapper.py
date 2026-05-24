@@ -11,7 +11,7 @@ import subprocess
 import threading
 import time
 from collections.abc import Callable
-from typing import Any, Optional
+from typing import Any
 
 from core.ffmpeg_utils import find_ffmpeg, find_ffprobe
 from core.module_base import BaseModule
@@ -28,17 +28,17 @@ class FFmpegProcess:
         self,
         args: list[str],
         name: str = "ffmpeg",
-        on_stderr: Optional[Callable[[str], None]] = None,
-        creation_flags: Optional[int] = None,
+        on_stderr: Callable[[str], None] | None = None,
+        creation_flags: int | None = None,
     ):
         # Convert all args to strings to avoid WindowsPath issues
         self.args = [str(arg) for arg in args]
         self.name = name
         self.on_stderr = on_stderr
         self.creation_flags = creation_flags or 0
-        self._process: Optional[subprocess.Popen[str]] = None
+        self._process: subprocess.Popen[str] | None = None
         self._stop_event = threading.Event()
-        self._stderr_thread: Optional[threading.Thread] = None
+        self._stderr_thread: threading.Thread | None = None
 
     def start(self) -> None:
         """Starts the FFmpeg process."""
@@ -115,7 +115,7 @@ class FFmpegProcess:
         return self._process is not None and self._process.poll() is None
 
     @property
-    def returncode(self) -> Optional[int]:
+    def returncode(self) -> int | None:
         return self._process.poll() if self._process else None
 
 
@@ -130,7 +130,7 @@ class FFmpegWrapper:
         self.ffprobe_path = str(find_ffprobe())
         self._creation_flags = self._get_default_creation_flags()
 
-    def _get_default_creation_flags(self) -> Optional[int]:
+    def _get_default_creation_flags(self) -> int | None:
         """Returns Windows-specific flags to hide console windows."""
         if platform.system() == "Windows":
             # CREATE_NO_WINDOW = 0x08000000
@@ -138,12 +138,12 @@ class FFmpegWrapper:
         return None
 
     def run_command(
-        self, args: list[str], capture_output: bool = True, timeout: Optional[float] = None
+        self, args: list[str], capture_output: bool = True, timeout: float | None = None
     ) -> subprocess.CompletedProcess[str]:
         """
         Runs a short-lived FFmpeg command.
         """
-        full_args = [self.ffmpeg_path] + args
+        full_args = [self.ffmpeg_path, *args]
         logger.debug(f"Running FFmpeg command: {' '.join(full_args)}")
 
         try:
@@ -167,7 +167,7 @@ class FFmpegWrapper:
         """
         Runs an FFprobe command.
         """
-        full_args = [self.ffprobe_path] + args
+        full_args = [self.ffprobe_path, *args]
         logger.debug(f"Running FFprobe command: {' '.join(full_args)}")
 
         try:
@@ -184,12 +184,12 @@ class FFmpegWrapper:
             raise
 
     def create_process(
-        self, args: list[str], process_name: str = "ffmpeg", on_stderr: Optional[Callable[[str], None]] = None
+        self, args: list[str], process_name: str = "ffmpeg", on_stderr: Callable[[str], None] | None = None
     ) -> FFmpegProcess:
         """
         Creates and returns a managed FFmpeg process.
         """
-        full_args = [self.ffmpeg_path] + args
+        full_args = [self.ffmpeg_path, *args]
         return FFmpegProcess(
             args=full_args, name=process_name, on_stderr=on_stderr, creation_flags=self._creation_flags
         )
@@ -201,7 +201,7 @@ class FFmpegModule(BaseModule):
     Provides common FFmpeg functionality and wrapper instance.
     """
 
-    def __init__(self, module_name: str, config: Optional[dict[str, Any]] = None):
+    def __init__(self, module_name: str, config: dict[str, Any] | None = None):
         super().__init__(module_name, config)
         self.ffmpeg = FFmpegWrapper(name=module_name)
         self.logger = logging.getLogger(f"srt2web.module.{module_name}")

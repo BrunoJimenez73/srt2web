@@ -2,8 +2,9 @@
 Unit tests for FFmpeg utilities.
 """
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 
 @pytest.mark.unit

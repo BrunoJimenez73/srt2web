@@ -3,11 +3,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
-from typing import Optional
 
 import click
 import colorama  # type: ignore[import-untyped]
 from rich.console import Console
+
+from cli.client.http_client import DEFAULT_SERVER, APIClient
+from core.version import get_version
 
 logger = logging.getLogger("srt2web.cli")
 
@@ -25,9 +27,6 @@ if hasattr(sys.stderr, "reconfigure"):
     except Exception as e:
         logger.debug("Could not reconfigure stderr encoding: %s", e)
 
-from cli.client.http_client import DEFAULT_SERVER, APIClient
-from core.version import get_version
-
 
 @click.group(invoke_without_command=True)
 @click.option("--server", "-s", default=DEFAULT_SERVER, help="Server base URL (default: http://localhost:9999)")
@@ -35,7 +34,7 @@ from core.version import get_version
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.version_option(version=get_version(), prog_name="srt2web-tui")
 @click.pass_context
-def cli(ctx: click.Context, server: str, token: Optional[str], json_output: bool) -> None:
+def cli(ctx: click.Context, server: str, token: str | None, json_output: bool) -> None:
     """srt2web CLI + TUI — Monitor and control the srt2web pipeline from the terminal."""
     ctx.ensure_object(dict)
     ctx.obj["server"] = server
@@ -87,7 +86,7 @@ def pipeline(ctx: click.Context, action: str) -> None:
 @click.argument("key", required=False, default=None)
 @click.argument("value", required=False, default=None)
 @click.pass_context
-def config(ctx: click.Context, key: Optional[str], value: Optional[str]) -> None:
+def config(ctx: click.Context, key: str | None, value: str | None) -> None:
     """View or modify pipeline configuration.
 
     Usage: config [KEY] [VALUE]
@@ -125,7 +124,7 @@ def config(ctx: click.Context, key: Optional[str], value: Optional[str]) -> None
 @click.option("--level", "-l", default=None, help="Filter by level: INFO, WARNING, ERROR")
 @click.option("--tail", default=50, help="Number of lines to show (default: 50)")
 @click.pass_context
-def logs(ctx: click.Context, follow: bool, no_follow: bool, level: Optional[str], tail: int) -> None:
+def logs(ctx: click.Context, follow: bool, no_follow: bool, level: str | None, tail: int) -> None:
     """View pipeline logs in real-time."""
     from cli.commands.logs import run_logs
 

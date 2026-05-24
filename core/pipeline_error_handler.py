@@ -14,7 +14,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("srt2web.pipeline.error_handler")
 
@@ -49,10 +49,10 @@ class ErrorRecord:
     category: ErrorCategory
     severity: ErrorSeverity
     message: str
-    module_name: Optional[str] = None
-    chunk_index: Optional[int] = None
-    exception: Optional[Exception] = None
-    recovery_action: Optional[str] = None
+    module_name: str | None = None
+    chunk_index: int | None = None
+    exception: Exception | None = None
+    recovery_action: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -86,13 +86,13 @@ class PipelineErrorHandler:
     y decide cuando degradar graceful o fallar criticamente.
     """
 
-    def __init__(self, policy: Optional[ErrorPolicy] = None):
+    def __init__(self, policy: ErrorPolicy | None = None):
         self._policy = policy or ErrorPolicy()
         self._error_history: list[ErrorRecord] = []
         self._consecutive_errors: int = 0
         self._errors_this_minute: int = 0
         self._last_minute_reset: float = time.time()
-        self._on_error: Optional[Callable[[ErrorRecord], None]] = None
+        self._on_error: Callable[[ErrorRecord], None] | None = None
 
     @property
     def error_count(self) -> int:
@@ -108,9 +108,7 @@ class PipelineErrorHandler:
         """Configurar callback para notificacion de errores."""
         self._on_error = callback
 
-    def classify_error(
-        self, error: Exception, module_name: Optional[str] = None
-    ) -> tuple[ErrorCategory, ErrorSeverity]:
+    def classify_error(self, error: Exception, module_name: str | None = None) -> tuple[ErrorCategory, ErrorSeverity]:
         """
         Clasificar un error por categoria y severidad.
 
@@ -168,9 +166,9 @@ class PipelineErrorHandler:
     def record_error(
         self,
         error: Exception,
-        module_name: Optional[str] = None,
-        chunk_index: Optional[int] = None,
-        context: Optional[dict[str, Any]] = None,
+        module_name: str | None = None,
+        chunk_index: int | None = None,
+        context: dict[str, Any] | None = None,
     ) -> ErrorRecord:
         """
         Registrar un error y decidir accion de recuperacion.
@@ -283,7 +281,7 @@ class PipelineErrorHandler:
         recoverable: bool,
         consecutive_errors: int,
         errors_per_minute: int,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Decidir accion de recuperacion basada en contexto."""
         if severity == ErrorSeverity.CRITICAL:
             return "stop_pipeline"

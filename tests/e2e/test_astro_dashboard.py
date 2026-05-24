@@ -2,8 +2,9 @@
 Tests for Dashboard JavaScript functionality using Astro frontend.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 
 def get_astro_source_content(file_path):  # type: ignore
@@ -12,7 +13,7 @@ def get_astro_source_content(file_path):  # type: ignore
     astro_file = base_path / file_path
 
     if astro_file.exists():
-        with open(astro_file, "r", encoding="utf-8") as f:
+        with open(astro_file, encoding="utf-8") as f:
             return f.read()
     return None
 
@@ -23,7 +24,7 @@ def get_built_html_content(file_path="index.html"):  # type: ignore
     html_file = base_path / file_path
 
     if html_file.exists():
-        with open(html_file, "r", encoding="utf-8") as f:
+        with open(html_file, encoding="utf-8") as f:
             return f.read()
     return None
 
@@ -43,13 +44,7 @@ class TestDashboardAstroStructure:
 
     def test_index_astro_file_exists(self) -> None:
         """Test that index.astro exists."""
-        astro_path = (
-            Path(__file__).parent.parent.parent
-            / "frontend"
-            / "src"
-            / "pages"
-            / "index.astro"
-        )
+        astro_path = Path(__file__).parent.parent.parent / "frontend" / "src" / "pages" / "index.astro"
         assert astro_path.exists()
 
     def test_dashboard_imports_base_layout(self, dashboard_astro_content) -> None:
@@ -130,9 +125,7 @@ class TestDashboardComponents:
         """Test that StatusCard has pipeline controls."""
         if status_card_content is None:
             pytest.skip("StatusCard.astro not found")
-        assert (
-            "btn-start" in status_card_content or "start" in status_card_content.lower()
-        )
+        assert "btn-start" in status_card_content or "start" in status_card_content.lower()
 
     def test_metrics_card_exists(self, metrics_card_content) -> None:
         """Test that MetricsCard component exists."""
@@ -163,15 +156,13 @@ class TestDashboardAPIIntegration:
         base_path = Path(__file__).parent.parent.parent / "frontend" / "src" / "lib"
         api_file = base_path / "api.ts"
         if api_file.exists():
-            with open(api_file, "r", encoding="utf-8") as f:
+            with open(api_file, encoding="utf-8") as f:
                 return f.read()
         return None
 
     def test_api_lib_exists(self) -> None:
         """Test that API library exists."""
-        api_path = (
-            Path(__file__).parent.parent.parent / "frontend" / "src" / "lib" / "api.ts"
-        )
+        api_path = Path(__file__).parent.parent.parent / "frontend" / "src" / "lib" / "api.ts"
         assert api_path.exists()
 
     def test_api_lib_has_status_function(self, api_lib_content) -> None:
@@ -235,11 +226,7 @@ class TestBuiltDashboardHTML:
         """Test that HTML has metrics display."""
         if built_html is None:
             pytest.skip("Built index.html not found")
-        assert (
-            "metric" in built_html.lower()
-            or "cpu" in built_html.lower()
-            or "memory" in built_html.lower()
-        )
+        assert "metric" in built_html.lower() or "cpu" in built_html.lower() or "memory" in built_html.lower()
 
     def test_has_css_styles(self, built_html) -> None:
         """Test that HTML has CSS styles."""
@@ -267,18 +254,13 @@ class TestDashboardJavaScriptFunctions:
         """Test that status update function exists."""
         if dashboard_built is None:
             pytest.skip("Built index.html not found")
-        assert (
-            "status" in dashboard_built.lower() and "update" in dashboard_built.lower()
-        )
+        assert "status" in dashboard_built.lower() and "update" in dashboard_built.lower()
 
     def test_has_module_status_function(self, dashboard_built) -> None:
         """Test that module status function exists."""
         if dashboard_built is None:
             pytest.skip("Built index.html not found")
-        assert (
-            "module" in dashboard_built.lower()
-            or "indicator" in dashboard_built.lower()
-        )
+        assert "module" in dashboard_built.lower() or "indicator" in dashboard_built.lower()
 
     def test_has_start_pipeline_function(self, dashboard_built) -> None:
         """Test that start pipeline function exists."""
@@ -322,10 +304,7 @@ class TestDashboardProcessCards:
         """Test that ProcessGrid has whisper card."""
         if process_grid_content is None:
             pytest.skip("ProcessGrid.astro not found")
-        assert (
-            "whisper" in process_grid_content.lower()
-            or "transcriber" in process_grid_content.lower()
-        )
+        assert "whisper" in process_grid_content.lower() or "transcriber" in process_grid_content.lower()
 
     def test_process_grid_has_translate_card(self, process_grid_content) -> None:
         """Test that ProcessGrid has translate card."""
@@ -343,19 +322,13 @@ class TestDashboardProcessCards:
         """Test that ProcessGrid has TTS/dub card."""
         if process_grid_content is None:
             pytest.skip("ProcessGrid.astro not found")
-        assert (
-            "tts" in process_grid_content.lower()
-            or "dub" in process_grid_content.lower()
-        )
+        assert "tts" in process_grid_content.lower() or "dub" in process_grid_content.lower()
 
     def test_process_grid_has_output_card(self, process_grid_content) -> None:
         """Test that ProcessGrid has output card."""
         if process_grid_content is None:
             pytest.skip("ProcessGrid.astro not found")
-        assert (
-            "output" in process_grid_content.lower()
-            or "hls" in process_grid_content.lower()
-        )
+        assert "output" in process_grid_content.lower() or "hls" in process_grid_content.lower()
 
 
 class TestDashboardWebSocketIntegration:
@@ -372,30 +345,24 @@ class TestDashboardWebSocketIntegration:
         base_path = Path(__file__).parent.parent.parent / "frontend" / "src" / "lib"
         api_file = base_path / "api.ts"
         if api_file.exists():
-            with open(api_file, "r", encoding="utf-8") as f:
+            with open(api_file, encoding="utf-8") as f:
                 return f.read()
         return None
 
     def test_log_panel_has_websocket_url(self, log_panel_content, api_lib_content) -> None:
         """Test that LogPanel or API has WebSocket URL."""
-        has_in_log = log_panel_content and (
-            "/ws" in log_panel_content or "ws://" in log_panel_content
-        )
-        has_in_api = api_lib_content and (
-            "/ws" in api_lib_content or "ws://" in api_lib_content
-        )
+        has_in_log = log_panel_content and ("/ws" in log_panel_content or "ws://" in log_panel_content)
+        has_in_api = api_lib_content and ("/ws" in api_lib_content or "ws://" in api_lib_content)
         if not has_in_log and not has_in_api:
             pytest.skip("WebSocket URL not found in LogPanel or API library")
 
     def test_log_panel_has_connection_handler(self, log_panel_content, api_lib_content) -> None:
         """Test that LogPanel or API has WebSocket connection handler."""
         has_in_log = log_panel_content and any(
-            x in log_panel_content
-            for x in ["onopen", "onmessage", "onclose", "addEventListener"]
+            x in log_panel_content for x in ["onopen", "onmessage", "onclose", "addEventListener"]
         )
         has_in_api = api_lib_content and any(
-            x in api_lib_content
-            for x in ["onopen", "onmessage", "onclose", "addEventListener", "WebSocket"]
+            x in api_lib_content for x in ["onopen", "onmessage", "onclose", "addEventListener", "WebSocket"]
         )
         if not has_in_log and not has_in_api:
             pytest.skip("WebSocket handler not found in LogPanel or API library")
@@ -420,10 +387,7 @@ class TestDashboardConfiguration:
         """Test that StatusCard has configuration fields."""
         if status_card_content is None:
             pytest.skip("StatusCard.astro not found")
-        assert (
-            "config" in status_card_content.lower()
-            or "input" in status_card_content.lower()
-        )
+        assert "config" in status_card_content.lower() or "input" in status_card_content.lower()
 
     def test_has_language_settings(self, status_card_content) -> None:
         """Test that dashboard has configuration settings or URL display."""
@@ -431,11 +395,7 @@ class TestDashboardConfiguration:
             pytest.skip("StatusCard.astro not found")
         # StatusCard might not have language settings but should have some config
         content_lower = status_card_content.lower()
-        has_config = (
-            "config" in content_lower
-            or "setting" in content_lower
-            or "form" in content_lower
-        )
+        has_config = "config" in content_lower or "setting" in content_lower or "form" in content_lower
         has_urls = "url" in content_lower or "srt" in content_lower
         # Skip if neither config nor URLs found
         if not has_config and not has_urls:

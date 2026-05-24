@@ -19,7 +19,8 @@ export default defineConfig({
       rollupOptions: {
         output: {
           manualChunks(id) {
-            if (id.includes("node_modules/@preact/signals-core")) return "vendor-signals";
+            if (id.includes("node_modules/@preact/signals-core"))
+              return "vendor-signals";
             if (id.includes("node_modules/astro")) return "vendor-astro";
             if (id.includes("node_modules")) return "vendor";
             if (id.includes("components/LogPanel")) return "logpanel";

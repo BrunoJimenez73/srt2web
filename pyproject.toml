@@ -97,9 +97,10 @@ known-first-party = ["core", "modules", "server"]
 python_version = "3.12"
 strict = true
 ignore_missing_imports = false
-exclude = ["desktop", "scripts", "desktop/dist", "venv", "tests"]
+exclude = ["desktop", "scripts", "desktop/dist", "venv", "tests", "server/static"]
 warn_unused_ignores = true
 show_error_codes = true
+plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
 module = "core.*"
@@ -122,20 +123,23 @@ module = "cli.*"
 strict = true
 ignore_errors = false
 
+# Third-party libs without stubs
 [[tool.mypy.overrides]]
 module = [
     "onnxruntime",
-    "onnxruntime.*",
-    "argostranslate",
-    "argostranslate.*",
-    "argostranslate.package",
-    "argostranslate.translate",
+    "argostranslate", "argostranslate.package", "argostranslate.translate",
+    "textual", "textual.widgets", "textual.screen", "textual.app",
+    "aiortc", "av",
+    "faster_whisper",
+    "edge_tts",
+    "yaml",
+    "prometheus_client",
+    "pynvml",
+    "piper", "piper.config",
+    "torch",
+    "jwt",
 ]
 ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "tests.*"
-ignore_errors = true
 
 [tool.pytest.ini_options]
 markers = [

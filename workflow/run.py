@@ -20,10 +20,8 @@ import json
 import logging
 import subprocess
 import sys
-import time
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 logger = logging.getLogger("workflow.run")
@@ -47,8 +45,9 @@ def run_pre_flight() -> bool:
         logger.error("init.ps1 not found")
         return False
     try:
-        r = subprocess.run(["powershell", "-File", str(ps1), "-Quick"],
-                           capture_output=True, text=True, timeout=120, cwd=ROOT)
+        r = subprocess.run(
+            ["powershell", "-File", str(ps1), "-Quick"], capture_output=True, text=True, timeout=120, cwd=ROOT
+        )
         if r.returncode != 0:
             logger.error(f"init.ps1 failed (exit {r.returncode})")
             logger.error(r.stdout[-500:] if r.stdout else r.stderr[-500:])
@@ -63,6 +62,7 @@ def run_pre_flight() -> bool:
 def run_validation() -> dict[str, Any]:
     """Run full validation suite."""
     from workflow.validator import WorkflowValidator
+
     logger.info("--- Validation ---")
     v = WorkflowValidator()
     results = v.run_all()
@@ -74,6 +74,7 @@ def run_validation() -> dict[str, Any]:
 def close_session(feature_id: str, report: dict[str, Any], push: bool = False) -> str:
     """Close session: update tracking + commit."""
     from workflow.session import SessionCloser
+
     logger.info("--- Closing session ---")
     closer = SessionCloser()
     data = _read_json(ROOT / "feature_list.json")
@@ -103,7 +104,9 @@ def show_status() -> None:
     in_progress = [f for f in features if f.get("status") == "in_progress"]
     blocked = sum(1 for f in features if f.get("status") == "blocked")
 
-    print(f"\nFeatures: {len(features)} total | {done} done | {len(in_progress)} active | {pending} pending | {blocked} blocked")
+    print(
+        f"\nFeatures: {len(features)} total | {done} done | {len(in_progress)} active | {pending} pending | {blocked} blocked"
+    )
     if in_progress:
         f = in_progress[0]
         print(f"  Current: F{f['id']} - {f['title']}")
@@ -122,6 +125,7 @@ def show_status() -> None:
 
 def main() -> int:
     import argparse
+
     parser = argparse.ArgumentParser(description="SRT2Web Workflow Runner")
     parser.add_argument("--id", help="Feature ID to implement (e.g. F47)")
     parser.add_argument("--validate-only", action="store_true", help="Run validation only")
@@ -156,12 +160,12 @@ def main() -> int:
 
     fid = f"F{feature['id']}"
     title = feature.get("title", "")
-    logger.info(f"")
+    logger.info("")
     logger.info(f"{'='*60}")
     logger.info(f"  Feature: {fid} - {title}")
     logger.info(f"  Area: {feature.get('area', '?')}  Priority: {feature.get('priority', '?')}")
     logger.info(f"{'='*60}")
-    logger.info(f"")
+    logger.info("")
 
     # 2. Pre-flight
     if not run_pre_flight():
@@ -175,16 +179,16 @@ def main() -> int:
             break
     _write_json(ROOT / "feature_list.json", data)
     logger.info(f"{fid}: pending → in_progress")
-    logger.info(f"")
+    logger.info("")
 
     # 4. IMPLEMENTATION STEP (agent does this)
     # The agent reads AGENTS.md, checks current.md, implements the feature
     logger.info(f"{'='*60}")
-    logger.info(f"  IMPLEMENTATION PHASE")
-    logger.info(f"  Read AGENTS.md + progress/current.md + feature spec")
-    logger.info(f"  Implement the code, then run me again with --validate-only")
+    logger.info("  IMPLEMENTATION PHASE")
+    logger.info("  Read AGENTS.md + progress/current.md + feature spec")
+    logger.info("  Implement the code, then run me again with --validate-only")
     logger.info(f"{'='*60}")
-    logger.info(f"")
+    logger.info("")
 
     # Print the feature spec
     print()
@@ -193,7 +197,7 @@ def main() -> int:
     if feature.get("files_to_touch"):
         print(f"  Files: {', '.join(feature['files_to_touch'])}")
     if feature.get("acceptance"):
-        print(f"  Acceptance:")
+        print("  Acceptance:")
         for a in feature["acceptance"]:
             print(f"    - {a}")
 

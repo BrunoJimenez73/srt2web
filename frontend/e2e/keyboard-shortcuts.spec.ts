@@ -12,7 +12,9 @@ test.describe("Keyboard Shortcuts", () => {
     const helpBtn = page.locator("[data-testid='btn-shortcuts-help']");
     if (await helpBtn.isVisible()) {
       await helpBtn.click();
-      await expect(page.locator("[data-testid='shortcuts-modal']")).toBeVisible();
+      await expect(
+        page.locator("[data-testid='shortcuts-modal']"),
+      ).toBeVisible();
     }
   });
 
@@ -22,7 +24,9 @@ test.describe("Keyboard Shortcuts", () => {
     if (await helpBtn.isVisible()) {
       await helpBtn.click();
       await page.keyboard.press("Escape");
-      await expect(page.locator("[data-testid='shortcuts-modal']")).toBeHidden();
+      await expect(
+        page.locator("[data-testid='shortcuts-modal']"),
+      ).toBeHidden();
     }
   });
 });

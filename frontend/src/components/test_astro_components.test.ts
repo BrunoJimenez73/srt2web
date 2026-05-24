@@ -38,23 +38,23 @@ describe("Astro Components", () => {
     it("WhisperCard.astro debe existir", () => {
       expect(true).toBe(true);
     });
-    
+
     it("TtsCard.astro debe existir", () => {
       expect(true).toBe(true);
     });
-    
+
     it("TranslateCard.astro debe existir", () => {
       expect(true).toBe(true);
     });
-    
+
     it("SubtitleCard.astro debe existir", () => {
       expect(true).toBe(true);
     });
-    
+
     it("AudioMixerCard.astro debe existir", () => {
       expect(true).toBe(true);
     });
-    
+
     it("HlsCard.astro debe existir", () => {
       expect(true).toBe(true);
     });

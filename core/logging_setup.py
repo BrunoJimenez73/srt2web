@@ -36,10 +36,7 @@ class ConsoleFilter(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
         msg = record.getMessage()
-        for pattern in self.SECURITY_PATTERNS:
-            if pattern in msg:
-                return False
-        return True
+        return all(pattern not in msg for pattern in self.SECURITY_PATTERNS)
 
 
 class JSONFormatter(logging.Formatter):

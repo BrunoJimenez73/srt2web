@@ -8,7 +8,7 @@ configurables de recursos y control de ciclo de vida.
 import logging
 import threading
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from core.schemas import PipelineMode
 from core.unified_pipeline import UnifiedPipeline
@@ -73,7 +73,7 @@ class PipelineManager:
             )
             return pipeline_id
 
-    def get_pipeline(self, pipeline_id: str) -> Optional[UnifiedPipeline]:
+    def get_pipeline(self, pipeline_id: str) -> UnifiedPipeline | None:
         """Obtener un pipeline por su ID."""
         return self._pipelines.get(pipeline_id)
 

@@ -7,9 +7,9 @@ from cli.client.http_client import (
     ConfigData,
     HealthInfo,
     LogEntry,
+    ModuleInfo,
     NetworkInfo,
     OutputInfo,
-    ModuleInfo,
     PipelineStatus,
 )
 
@@ -80,12 +80,14 @@ class TestConfigData:
 
 class TestLogEntry:
     def test_from_dict(self):
-        entry = LogEntry.from_dict({
-            "level": "ERROR",
-            "message": "test error",
-            "timestamp": 1000000.0,
-            "logger": "pipeline",
-        })
+        entry = LogEntry.from_dict(
+            {
+                "level": "ERROR",
+                "message": "test error",
+                "timestamp": 1000000.0,
+                "logger": "pipeline",
+            }
+        )
         assert entry.level == "ERROR"
         assert entry.message == "test error"
         assert entry.timestamp == 1000000.0
@@ -102,13 +104,15 @@ class TestLogEntry:
 
 class TestOutputInfo:
     def test_from_dict(self):
-        o = OutputInfo.from_dict({
-            "name": "web_1",
-            "type": "hls",
-            "state": "running",
-            "enabled": True,
-            "processed_chunks": 10,
-        })
+        o = OutputInfo.from_dict(
+            {
+                "name": "web_1",
+                "type": "hls",
+                "state": "running",
+                "enabled": True,
+                "processed_chunks": 10,
+            }
+        )
         assert o.name == "web_1"
         assert o.type == "hls"
         assert o.state == "running"
@@ -121,11 +125,13 @@ class TestOutputInfo:
 
 class TestModuleInfo:
     def test_from_dict(self):
-        m = ModuleInfo.from_dict({
-            "name": "transcriber",
-            "state": "running",
-            "processed_chunks": 50,
-        })
+        m = ModuleInfo.from_dict(
+            {
+                "name": "transcriber",
+                "state": "running",
+                "processed_chunks": 50,
+            }
+        )
         assert m.name == "transcriber"
         assert m.state == "running"
 
@@ -137,11 +143,13 @@ class TestModuleInfo:
 
 class TestNetworkInfo:
     def test_from_dict(self):
-        n = NetworkInfo.from_dict({
-            "server_ip": "192.168.1.1",
-            "server_port": 9999,
-            "stream_url": "srt://...",
-        })
+        n = NetworkInfo.from_dict(
+            {
+                "server_ip": "192.168.1.1",
+                "server_port": 9999,
+                "stream_url": "srt://...",
+            }
+        )
         assert n.server_ip == "192.168.1.1"
         assert n.server_port == 9999
 
@@ -152,11 +160,13 @@ class TestNetworkInfo:
 
 class TestHealthInfo:
     def test_from_dict(self):
-        h = HealthInfo.from_dict({
-            "status": "ok",
-            "uptime_seconds": 120.0,
-            "pipeline_state": "running",
-        })
+        h = HealthInfo.from_dict(
+            {
+                "status": "ok",
+                "uptime_seconds": 120.0,
+                "pipeline_state": "running",
+            }
+        )
         assert h.status == "ok"
         assert h.pipeline_state == "running"
 

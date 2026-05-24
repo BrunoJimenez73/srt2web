@@ -6,13 +6,14 @@ and 'piper' for fast, offline, and natural-sounding text-to-speech.
 """
 
 import asyncio
+import contextlib
 import logging
 import os
 import time
 import traceback
 import wave
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from core.module_base import BaseModule, ModuleState, ModuleStatus, PipelineData
 from core.subprocess_utils import get_creation_flags
@@ -26,7 +27,7 @@ class TTSEngine(BaseModule):
     Provides natural AI voices.
     """
 
-    def __init__(self, config: Optional[dict[str, Any]] = None, output_dir: str = "./output") -> None:
+    def __init__(self, config: dict[str, Any] | None = None, output_dir: str = "./output") -> None:
         self._output_dir = Path(output_dir)
         self._tts_dir = Path()
         self._engine = "edge-tts"  # "edge-tts" (online) or "piper" (offline)
@@ -85,10 +86,8 @@ class TTSEngine(BaseModule):
             for name in os.listdir(self._tts_dir):
                 if name.endswith(".wav"):
                     path = self._tts_dir / name
-                    try:
+                    with contextlib.suppress(OSError):
                         os.remove(path)
-                    except OSError:
-                        pass
         except Exception as e:
             logger.warning(f"Could not clean TTS temp dir: {e}")
 

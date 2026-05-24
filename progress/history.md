@@ -3,6 +3,7 @@
 ## 2026-05-19 — F84 Performance profiling + F85 Accessibility + F86 Docker/CI — Proyecto completo (66/66)
 
 ### F84 — Performance profiling and pipeline optimization
+
 - `core/pipeline_metrics.py`: `module_total_times`, `module_chunk_counts`, `record_module_timing()`
 - `core/unified_pipeline.py`: per-module timing acumulado en output thread
 - `get_status()` expone `module_avg_time_ms`, `module_total_times`
@@ -11,6 +12,7 @@
 - Pipeline latency ahora usa suma real de promedios en vez de estimación
 
 ### F85 — Accessibility audit (WCAG 2.2)
+
 - 13+ form labels con `for=id` en WhisperCard, TranslateCard, TtsCard, SubtitleCard, HlsCard
 - 16 labels en OutputCard; expand/collapse con `role="button"`, `tabindex`, `aria-expanded`, keyboard
 - SVG iconos con `aria-hidden="true"` en Header, MetricsCard, LogPanel
@@ -20,12 +22,14 @@
 - Preset panel `aria-expanded` + Escape cierra panel
 
 ### F86 — Docker and CI improvements
+
 - Dockerfile: `python:3.12-slim` (<500MB), multi-stage builder→runtime, CUDA `--build-arg BASE_IMAGE`
 - `docker-compose.yml`: healthcheck, restart, `.env`, GPU section comentada
 - `.github/workflows/ci.yml`: build validation en PRs, multi-platform linux/amd64+arm64 en main push
 - Caches: pip+npm+gha, timeout-minutes: 15, concurrency cancel-in-progress
 
 ### Git
+
 - 131 files changed, +17429 -22497
 - Push a `origin/main`
 - `init.ps1 -Quick` verde, mypy 0 errores

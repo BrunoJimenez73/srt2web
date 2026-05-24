@@ -7,7 +7,7 @@ extracted from the monolithic api_routes.py.
 
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, field_validator
 
@@ -51,40 +51,35 @@ def validate_config_value(key: str, value: Any) -> Any:
             raise ValueError(f"Port must be between 1 and 65535, got: {value}")
 
     if "latency" in key_lower:
-        if not isinstance(value, (int, float)):
+        if not isinstance(value, int | float):
             raise ValueError(f"Latency must be a number, got {type(value).__name__}: {value}")
         if value < 0:
             raise ValueError(f"Latency cannot be negative, got: {value}")
 
-    if key == "transcriber.model":
-        if value not in ALLOWED_WHISPER_MODELS:
-            raise ValueError(
-                f"Invalid Whisper model: '{value}'. Valid models are: {', '.join(sorted(ALLOWED_WHISPER_MODELS))}"
-            )
+    if key == "transcriber.model" and value not in ALLOWED_WHISPER_MODELS:
+        raise ValueError(
+            f"Invalid Whisper model: '{value}'. Valid models are: {', '.join(sorted(ALLOWED_WHISPER_MODELS))}"
+        )
 
-    if key in (
-        "transcriber.language",
-        "translator.source_lang",
-        "translator.target_lang",
+    if (
+        key
+        in (
+            "transcriber.language",
+            "translator.source_lang",
+            "translator.target_lang",
+        )
+        and value not in ALLOWED_LANGUAGES
     ):
-        if value not in ALLOWED_LANGUAGES:
-            raise ValueError(
-                f"Invalid language: '{value}'. Valid languages are: {', '.join(sorted(ALLOWED_LANGUAGES))}"
-            )
+        raise ValueError(f"Invalid language: '{value}'. Valid languages are: {', '.join(sorted(ALLOWED_LANGUAGES))}")
 
-    if key == "transcriber.device":
-        if value not in ALLOWED_DEVICES:
-            raise ValueError(f"Invalid device: '{value}'. Valid devices are: {', '.join(sorted(ALLOWED_DEVICES))}")
+    if key == "transcriber.device" and value not in ALLOWED_DEVICES:
+        raise ValueError(f"Invalid device: '{value}'. Valid devices are: {', '.join(sorted(ALLOWED_DEVICES))}")
 
-    if key == "tts_engine.engine":
-        if value not in ALLOWED_TTS_ENGINES:
-            raise ValueError(
-                f"Invalid TTS engine: '{value}'. Valid engines are: {', '.join(sorted(ALLOWED_TTS_ENGINES))}"
-            )
+    if key == "tts_engine.engine" and value not in ALLOWED_TTS_ENGINES:
+        raise ValueError(f"Invalid TTS engine: '{value}'. Valid engines are: {', '.join(sorted(ALLOWED_TTS_ENGINES))}")
 
-    if key == "tts_engine.device":
-        if value not in ALLOWED_DEVICES:
-            raise ValueError(f"Invalid device: '{value}'. Valid devices are: {', '.join(sorted(ALLOWED_DEVICES))}")
+    if key == "tts_engine.device" and value not in ALLOWED_DEVICES:
+        raise ValueError(f"Invalid device: '{value}'. Valid devices are: {', '.join(sorted(ALLOWED_DEVICES))}")
 
     if key == "tts_engine.voice":
         if not value or not isinstance(value, str):
@@ -92,34 +87,29 @@ def validate_config_value(key: str, value: Any) -> Any:
         if value not in ALLOWED_TTS_VOICES:
             raise ValueError(f"Invalid voice: '{value}'. Valid voices are: {', '.join(sorted(ALLOWED_TTS_VOICES))}")
 
-    if key == "srt.mode":
-        if value not in ALLOWED_SRT_MODES:
-            raise ValueError(f"Invalid SRT mode: '{value}'. Valid modes are: {', '.join(sorted(ALLOWED_SRT_MODES))}")
+    if key == "srt.mode" and value not in ALLOWED_SRT_MODES:
+        raise ValueError(f"Invalid SRT mode: '{value}'. Valid modes are: {', '.join(sorted(ALLOWED_SRT_MODES))}")
 
     if "volume" in key_lower:
-        if not isinstance(value, (int, float)):
+        if not isinstance(value, int | float):
             raise ValueError(f"Volume must be a number, got {type(value).__name__}: {value}")
         if not (0 <= value <= 2.0):
             raise ValueError(f"Volume must be between 0.0 and 2.0, got: {value}")
 
     if "speed" in key_lower:
-        if not isinstance(value, (int, float)):
+        if not isinstance(value, int | float):
             raise ValueError(f"Speed must be a number, got {type(value).__name__}: {value}")
         if not (0.5 <= value <= 2.0):
             raise ValueError(f"Speed must be between 0.5 and 2.0, got: {value}")
 
     # Validate video_muxer presets
-    if key == "video_muxer.video_preset":
-        if value not in ALLOWED_VIDEO_PRESETS:
-            raise ValueError(
-                f"Invalid video preset: '{value}'. Valid presets are: {', '.join(sorted(ALLOWED_VIDEO_PRESETS))}"
-            )
+    if key == "video_muxer.video_preset" and value not in ALLOWED_VIDEO_PRESETS:
+        raise ValueError(
+            f"Invalid video preset: '{value}'. Valid presets are: {', '.join(sorted(ALLOWED_VIDEO_PRESETS))}"
+        )
 
-    if key == "video_muxer.gpu_preset":
-        if value not in ALLOWED_GPU_PRESETS:
-            raise ValueError(
-                f"Invalid GPU preset: '{value}'. Valid presets are: {', '.join(sorted(ALLOWED_GPU_PRESETS))}"
-            )
+    if key == "video_muxer.gpu_preset" and value not in ALLOWED_GPU_PRESETS:
+        raise ValueError(f"Invalid GPU preset: '{value}'. Valid presets are: {', '.join(sorted(ALLOWED_GPU_PRESETS))}")
 
     return value
 
@@ -164,10 +154,10 @@ class ErrorResponse(BaseModel):
     error: str
     message: str
     timestamp: str
-    details: Optional[dict[str, Any]] = None
+    details: dict[str, Any] | None = None
 
 
-def create_error_response(message: str, details: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+def create_error_response(message: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
     """Create a standardized error response."""
     from datetime import datetime
 
@@ -232,12 +222,12 @@ class AddOutputRequest(BaseModel):
     """Request body for adding a new output."""
 
     type: str
-    name: Optional[str] = None
-    config: Optional[dict[str, Any]] = {}
+    name: str | None = None
+    config: dict[str, Any] | None = {}
 
 
 class UpdateOutputRequest(BaseModel):
     """Request body for updating an existing output."""
 
-    config: Optional[dict[str, Any]] = None
-    enabled: Optional[bool] = None
+    config: dict[str, Any] | None = None
+    enabled: bool | None = None

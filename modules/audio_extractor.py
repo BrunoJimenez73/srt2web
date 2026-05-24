@@ -6,10 +6,11 @@ which is the required format for Whisper transcription.
 Optimized for speed with GPU acceleration (NVDEC) when available.
 """
 
+import contextlib
 import logging
 import subprocess
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from core.ffmpeg_utils import check_gpu_support
 from core.ffmpeg_wrapper import FFmpegModule
@@ -25,7 +26,7 @@ class AudioExtractor(FFmpegModule):
     (16kHz, mono, PCM WAV).
     """
 
-    def __init__(self, config: Optional[dict[str, Any]] = None, output_dir: str = "./output") -> None:
+    def __init__(self, config: dict[str, Any] | None = None, output_dir: str = "./output") -> None:
         self._output_dir = Path(output_dir)
         self._audio_dir = Path()
         self._gpu_info = {"nvenc": False, "nvdec": False}
@@ -62,10 +63,8 @@ class AudioExtractor(FFmpegModule):
         try:
             for f in self._audio_dir.iterdir():
                 if f.suffix == ".wav":
-                    try:
+                    with contextlib.suppress(OSError):
                         f.unlink()
-                    except OSError:
-                        pass
         except OSError:
             pass
         self._state = ModuleState.IDLE

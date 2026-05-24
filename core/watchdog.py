@@ -47,13 +47,13 @@ class FFmpegWatchdog:
         self.max_restarts = max_restarts
         self.restart_delay = restart_delay
 
-        self._process: Optional[subprocess.Popen[bytes]] = None
+        self._process: subprocess.Popen[bytes] | None = None
         self._stop_event = threading.Event()
-        self._watch_thread: Optional[threading.Thread] = None
+        self._watch_thread: threading.Thread | None = None
         self._last_output_time = time.time()
         self._restart_count = 0
         self._is_hung = False
-        self._restart_callback: Optional[Callable[[], None]] = None
+        self._restart_callback: Callable[[], None] | None = None
         self._process_name = "FFmpeg"
 
     @property
@@ -74,7 +74,7 @@ class FFmpegWatchdog:
         self,
         process: subprocess.Popen[bytes],
         process_name: str = "FFmpeg",
-        restart_callback: Optional[Callable[[], None]] = None,
+        restart_callback: Callable[[], None] | None = None,
     ) -> None:
         """
         Attach watchdog to a running process.
@@ -233,7 +233,7 @@ class ProcessManager:
         self,
         name: str,
         process: subprocess.Popen[bytes],
-        restart_callback: Optional[Callable[[], None]] = None,
+        restart_callback: Callable[[], None] | None = None,
         **watchdog_kwargs: Any,
     ) -> FFmpegWatchdog:
         """
@@ -265,7 +265,7 @@ class ProcessManager:
             watchdog.stop()
             logger.info(f"Unregistered process '{name}' from ProcessManager")
 
-    def get_watchdog(self, name: str) -> Optional[FFmpegWatchdog]:
+    def get_watchdog(self, name: str) -> FFmpegWatchdog | None:
         """Get the watchdog for a registered process."""
         return self._processes.get(name)
 

@@ -9,7 +9,7 @@ vive en strategies.py para el pipeline unificado.
 import logging
 import time
 from collections.abc import Callable
-from typing import Any, Optional
+from typing import Any
 
 from core.module_base import BaseModule, PipelineData
 
@@ -40,9 +40,9 @@ class PipelineStrategy:
         self.retry_delay = retry_delay
 
         # Callbacks
-        self._on_log: Optional[Callable[[str, str], None]] = None
-        self._on_state_change: Optional[Callable[[str], None]] = None
-        self._on_chunk_complete: Optional[Callable[[int, PipelineData], None]] = None
+        self._on_log: Callable[[str, str], None] | None = None
+        self._on_state_change: Callable[[str], None] | None = None
+        self._on_chunk_complete: Callable[[int, PipelineData], None] | None = None
 
     def start(
         self,
@@ -103,7 +103,7 @@ class MetricsTracker:
         self.chunks_processed: int = 0
         self.chunks_failed: int = 0
         self.total_processing_time: float = 0.0
-        self.start_time: Optional[float] = None
+        self.start_time: float | None = None
 
     @property
     def avg_processing_time(self) -> float:

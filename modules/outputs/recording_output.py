@@ -24,13 +24,14 @@ Configuración (output.recording):
     video_preset: fast, medium, slow (para encoding)
 """
 
+import contextlib
 import os
 import shutil
 import subprocess
 import threading
 import time
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from core.ffmpeg_utils import check_gpu_support, ensure_ffmpeg
 from core.module_base import ModuleState, ModuleStatus, PipelineData
@@ -50,8 +51,8 @@ class RecordingOutput(OutputSink):
     def __init__(self, config: dict[str, Any]):
         super().__init__("recording", config)
 
-        self._ffmpeg_path: Optional[str] = None
-        self._process: Optional[subprocess.Popen[Any]] = None
+        self._ffmpeg_path: str | None = None
+        self._process: subprocess.Popen[Any] | None = None
         self._output_path: str = ""
         self._current_file: str = ""
         self._segment_index: int = 0
@@ -64,11 +65,11 @@ class RecordingOutput(OutputSink):
         self._bytes_written: int = 0
         self._start_time: float = 0.0
         self._file_start_time: float = 0.0
-        self._pending_data: Optional[PipelineData] = None
+        self._pending_data: PipelineData | None = None
         self._recording_dir: str = ""
         self._saved_video_paths: list[str] = []
         self._saved_audio_paths: list[str] = []
-        self._latest_subs_path: Optional[str] = None
+        self._latest_subs_path: str | None = None
 
         self._apply_config(config)
 
@@ -206,10 +207,8 @@ class RecordingOutput(OutputSink):
                 self._process.wait(timeout=5)
             except Exception as e:
                 self.logger.warning(f"Error closing FFmpeg: {e}")
-                try:
+                with contextlib.suppress(Exception):
                     self._process.terminate()
-                except:
-                    pass
             finally:
                 self._process = None
 
@@ -217,18 +216,14 @@ class RecordingOutput(OutputSink):
             self._do_concat()
 
         for f in self._saved_video_paths + self._saved_audio_paths:
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(f)
-            except OSError:
-                pass
         self._saved_video_paths.clear()
         self._saved_audio_paths.clear()
 
         if self._recording_dir and os.path.exists(self._recording_dir):
-            try:
+            with contextlib.suppress(OSError):
                 os.rmdir(self._recording_dir)
-            except OSError:
-                pass
 
         duration = time.time() - self._start_time
         self.logger.info(
@@ -435,7 +430,7 @@ class RecordingOutput(OutputSink):
             self._update_write_stats(total_bytes)
             self._clear_error()
 
-    def _concat_subtitle_chunks(self) -> Optional[str]:
+    def _concat_subtitle_chunks(self) -> str | None:
         """Convert latest VTT subtitle file to SRT for recording."""
         # Check the stored subtitle path first
         if self._latest_subs_path and os.path.exists(self._latest_subs_path):

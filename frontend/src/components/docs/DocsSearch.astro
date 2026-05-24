@@ -39,9 +39,9 @@
 
     async function loadPagefind() {
         if (pagefind || pagefindLoading) return;
-        
+
         pagefindLoading = true;
-        
+
         // Set a timeout to prevent the page from hanging
         pagefindLoadTimeout = setTimeout(() => {
             if (pagefindLoading && !pagefind) {
@@ -56,7 +56,7 @@
             const pf = '/docs/pagefind/pagefind.js';
             pagefind = await import(/* @vite-ignore */ pf);
             await pagefind.init();
-            
+
             // Clear timeout if successful
             if (pagefindLoadTimeout) {
                 clearTimeout(pagefindLoadTimeout);
@@ -70,7 +70,7 @@
                 pagefindLoadTimeout = null;
             }
             pagefindLoading = false;
-            
+
             console.warn('Failed to load pagefind:', e);
             if (results) {
                 results.innerHTML = '<p class="search-hint">Search index not available. Run npm run build first.</p>';

@@ -8,6 +8,7 @@ NOTA: En macOS y Linux sin NVIDIA GPU, todas las funciones
 retornan listas vacías / hacen no-op automáticamente.
 """
 
+import contextlib
 import os
 import site
 import sys
@@ -58,7 +59,7 @@ def get_cuda_paths() -> list[str]:
             cuda_paths.append(path)
 
     # Add Windows System32 LAST (has CUDA runtime but may have incompatible cuDNN)
-    cuda_paths.append(str(Path(os.environ.get("SystemRoot", "C:\\Windows")) / "System32"))
+    cuda_paths.append(str(Path(os.environ.get("SYSTEMROOT", "C:\\Windows")) / "System32"))
 
     return cuda_paths
 
@@ -77,10 +78,8 @@ def setup_cuda_environment() -> None:
         for path in cuda_paths:
             p = Path(path)
             if p.is_dir():
-                try:
+                with contextlib.suppress(AttributeError, OSError):
                     os.add_dll_directory(str(p))
-                except (AttributeError, OSError):
-                    pass  # Not all paths support add_dll_directory
 
 
 def has_cuda_support() -> bool:

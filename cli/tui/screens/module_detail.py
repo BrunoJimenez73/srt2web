@@ -307,7 +307,7 @@ class ModuleDetailScreen(Screen[Any]):
     }
     """
 
-    BINDINGS = [
+    BINDINGS = [  # noqa: RUF012
         Binding("escape", "app.pop_screen", "Back"),
     ]
 

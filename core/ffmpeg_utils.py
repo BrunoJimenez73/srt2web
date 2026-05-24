@@ -16,15 +16,15 @@ import urllib.request
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from core.subprocess_utils import get_creation_flags
 
 logger = logging.getLogger("srt2web.ffmpeg")
 
 # Cached FFmpeg path to avoid repeated lookups
-_cached_ffmpeg_path: Optional[str] = None
-_cached_ffprobe_path: Optional[str] = None
+_cached_ffmpeg_path: str | None = None
+_cached_ffprobe_path: str | None = None
 
 # FFmpeg download URLs for pre-built binaries
 FFMPEG_URLS = {
@@ -38,7 +38,7 @@ def get_project_bin_dir() -> Path:
     return Path(__file__).parent.parent / "bin"
 
 
-def find_ffmpeg() -> Optional[str]:
+def find_ffmpeg() -> str | None:
     """
     Find the FFmpeg binary. Checks in order:
     1. Cached path (if already found)
@@ -55,10 +55,7 @@ def find_ffmpeg() -> Optional[str]:
 
     # Check project bin/ directory first
     bin_dir = get_project_bin_dir()
-    if platform.system() == "Windows":
-        local_ffmpeg = bin_dir / "ffmpeg.exe"
-    else:
-        local_ffmpeg = bin_dir / "ffmpeg"
+    local_ffmpeg = bin_dir / "ffmpeg.exe" if platform.system() == "Windows" else bin_dir / "ffmpeg"
 
     if local_ffmpeg.exists():
         logger.info(f"Found FFmpeg in project bin: {local_ffmpeg}")
@@ -83,7 +80,7 @@ def find_ffmpeg() -> Optional[str]:
     return None
 
 
-def find_ffprobe() -> Optional[str]:
+def find_ffprobe() -> str | None:
     """Find the FFprobe binary (same search logic as FFmpeg)."""
     global _cached_ffprobe_path
 
@@ -112,7 +109,7 @@ def find_ffprobe() -> Optional[str]:
     return None
 
 
-def get_ffmpeg_version(ffmpeg_path: str) -> Optional[str]:
+def get_ffmpeg_version(ffmpeg_path: str) -> str | None:
     """Get the version string of an FFmpeg binary."""
     try:
         result = subprocess.run(
@@ -157,7 +154,7 @@ def check_gpu_support(ffmpeg_path: str) -> dict[str, Any]:
     return results
 
 
-def get_video_duration(file_path: str, ffprobe_path: Optional[str] = None) -> float:
+def get_video_duration(file_path: str, ffprobe_path: str | None = None) -> float:
     """Get the exact duration of a video/audio file using ffprobe."""
     if ffprobe_path is None:
         ffprobe_path = find_ffprobe()
@@ -205,7 +202,7 @@ def check_srt_support(ffmpeg_path: str) -> bool:
         return False
 
 
-def download_ffmpeg(progress_callback: Optional[Callable[[int, int], None]] = None) -> Optional[str]:
+def download_ffmpeg(progress_callback: Callable[[int, int], None] | None = None) -> str | None:
     """
     Download pre-built FFmpeg binaries for the current platform.
 
@@ -270,7 +267,7 @@ def download_ffmpeg(progress_callback: Optional[Callable[[int, int], None]] = No
         return None
 
 
-def ensure_ffmpeg(progress_callback: Optional[Callable[[int, int], None]] = None) -> str:
+def ensure_ffmpeg(progress_callback: Callable[[int, int], None] | None = None) -> str:
     """
     Ensure FFmpeg is available. Downloads if necessary.
 
@@ -314,8 +311,8 @@ def _get_creation_flags() -> int:
 
 def run_ffmpeg(
     args: list[str],
-    ffmpeg_path: Optional[str] = None,
-    timeout: Optional[int] = None,
+    ffmpeg_path: str | None = None,
+    timeout: int | None = None,
     capture_output: bool = True,
 ) -> subprocess.CompletedProcess[str]:
     """
@@ -333,7 +330,7 @@ def run_ffmpeg(
     if ffmpeg_path is None:
         ffmpeg_path = ensure_ffmpeg()
 
-    cmd = [ffmpeg_path] + args
+    cmd = [ffmpeg_path, *args]
     logger.debug(f"Running: {' '.join(cmd)}")
 
     return subprocess.run(
@@ -347,7 +344,7 @@ def run_ffmpeg(
 
 def start_ffmpeg_process(
     args: list[str],
-    ffmpeg_path: Optional[str] = None,
+    ffmpeg_path: str | None = None,
 ) -> subprocess.Popen[str]:
     """
     Start a long-running FFmpeg process (e.g., SRT listener).
@@ -362,7 +359,7 @@ def start_ffmpeg_process(
     if ffmpeg_path is None:
         ffmpeg_path = ensure_ffmpeg()
 
-    cmd = [ffmpeg_path] + args
+    cmd = [ffmpeg_path, *args]
     logger.info(f"Starting FFmpeg process: {' '.join(cmd)}")
 
     return subprocess.Popen(
@@ -409,7 +406,7 @@ def cleanup_ffmpeg_processes() -> None:
         logger.warning(f"Error during FFmpeg cleanup: {e}")
 
 
-def kill_process_gracefully(process: Optional[subprocess.Popen[str]], timeout: int = 5) -> None:
+def kill_process_gracefully(process: subprocess.Popen[str] | None, timeout: int = 5) -> None:
     """Kill a process gracefully with timeout."""
     import platform
     import signal
@@ -459,7 +456,7 @@ def run_ffmpeg_with_timeout(cmd: list[str], timeout: int = 30, **kwargs: Any) ->
 
     # Add timeout to command if supported
     if timeout and platform.system() != "Windows":
-        cmd = ["timeout", str(timeout)] + cmd
+        cmd = ["timeout", str(timeout), *cmd]
 
     try:
         creationflags = get_creation_flags()

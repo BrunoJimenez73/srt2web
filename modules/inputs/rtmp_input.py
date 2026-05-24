@@ -8,13 +8,14 @@ Supports:
 FFmpeg handles both modes natively.
 """
 
+import contextlib
 import logging
 import subprocess
 import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.input_source import InputSource
@@ -38,14 +39,14 @@ class RTMPInput(InputSource):
 
     name = "rtmp_input"
 
-    def __init__(self, config: Optional[dict[str, Any]] = None):
-        self._ffmpeg_path: Optional[str] = None
-        self._ffmpeg_proc: Optional[subprocess.Popen[Any]] = None
-        self._monitor_thread: Optional[threading.Thread] = None
+    def __init__(self, config: dict[str, Any] | None = None):
+        self._ffmpeg_path: str | None = None
+        self._ffmpeg_proc: subprocess.Popen[Any] | None = None
+        self._monitor_thread: threading.Thread | None = None
         self._output_dir: str = "./output"
         self._chunks_dir: str = ""
         self._last_chunk_index = -1
-        self._last_chunk_mtime: Optional[float] = None
+        self._last_chunk_mtime: float | None = None
         self._cumulative_duration: float = 0.0  # Track cumulative duration for sync
 
         super().__init__("rtmp", config or {})
@@ -53,7 +54,7 @@ class RTMPInput(InputSource):
         self._mode: str = "pull"
         self._chunk_duration: int = 10
         self._receiving: bool = False
-        self._watchdog: Optional[Any] = None
+        self._watchdog: Any | None = None
 
         # GPU info for hwaccel
         self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
@@ -119,10 +120,8 @@ class RTMPInput(InputSource):
             logger.info("RTMP Input: No GPU acceleration available, using CPU")
 
         for f in Path(self._chunks_dir).glob("chunk_*.ts"):
-            try:
+            with contextlib.suppress(OSError):
                 f.unlink()
-            except OSError:
-                pass
 
         # Reset cumulative duration tracking
         self._cumulative_duration = 0.0
@@ -205,7 +204,7 @@ class RTMPInput(InputSource):
                 stdout = self._ffmpeg_proc.stdout
                 output = stdout.read(2000) if stdout else ""
                 logger.error(f"FFmpeg exited immediately. Output: {output}")
-            except:
+            except Exception:
                 logger.error(f"FFmpeg exited immediately with code {self._ffmpeg_proc.returncode}")
             # Continue anyway - the process might work if we give it time
 
@@ -247,10 +246,8 @@ class RTMPInput(InputSource):
                     self._ffmpeg_proc.terminate()
                 self._ffmpeg_proc.wait(timeout=2)
             except Exception:
-                try:
+                with contextlib.suppress(Exception):
                     self._ffmpeg_proc.kill()
-                except Exception:
-                    pass
             finally:
                 self._ffmpeg_proc = None
 
@@ -302,7 +299,7 @@ class RTMPInput(InputSource):
                 self._receiving = False
                 logger.error(f"FFmpeg exited with code {returncode}")
 
-    def get_next_chunk(self) -> Optional[Any]:
+    def get_next_chunk(self) -> Any | None:
         """Get next available chunk."""
         if not self._chunks_dir:
             return None

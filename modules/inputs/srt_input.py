@@ -12,16 +12,18 @@ Configuración (input.srt):
     chunk_duration_sec: Duración de cada chunk en segundos (default: 15)
 """
 
+import contextlib
 import struct
 import subprocess
 import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.input_source import InputSource
+from core.io_factory import InputFactory
 from core.module_base import ModuleState, ModuleStatus, PipelineData
 from core.subprocess_utils import filter_command, get_creation_flags
 from core.watchdog import FFmpegWatchdog
@@ -52,17 +54,17 @@ class SRTInput(InputSource):
         self._chunk_duration = config.get("chunk_duration_sec", 10)
 
         # Estado interno
-        self._ffmpeg_path: Optional[str] = None
-        self._ffmpeg_proc: Optional[subprocess.Popen[Any]] = None
-        self._monitor_thread: Optional[threading.Thread] = None
+        self._ffmpeg_path: str | None = None
+        self._ffmpeg_proc: subprocess.Popen[Any] | None = None
+        self._monitor_thread: threading.Thread | None = None
         self._chunks_dir: str = ""
         self._last_chunk_index: int = -1
         self._last_process_time: float = 0.0
-        self._last_chunk_mtime: Optional[float] = None
+        self._last_chunk_mtime: float | None = None
         self._cumulative_duration: float = 0.0  # Track cumulative duration for sync
 
         # Watchdog para detección de crashes/hangs
-        self._watchdog: Optional[FFmpegWatchdog] = None
+        self._watchdog: FFmpegWatchdog | None = None
         self._watchdog_enabled = config.get("watchdog_enabled", True)
         self._watchdog_check_interval = config.get("watchdog_check_interval", 5.0)
         self._watchdog_hang_timeout = config.get("watchdog_hang_timeout", 60.0)
@@ -140,7 +142,7 @@ class SRTInput(InputSource):
                         subprocess.run(["taskkill", "/F", "/IM", "ffmpeg.exe"], capture_output=True, timeout=2)
                         subprocess.run(["taskkill", "/F", "/IM", "ffprobe.exe"], capture_output=True, timeout=2)
                         # Also try to kill by finding PID using netstat
-                        try:
+                        with contextlib.suppress(Exception):
                             result = subprocess.run(
                                 [
                                     "powershell",
@@ -150,8 +152,6 @@ class SRTInput(InputSource):
                                 capture_output=True,
                                 timeout=5,
                             )
-                        except:
-                            pass
                         if attempt < 14:
                             time.sleep(1)
                 else:
@@ -201,10 +201,8 @@ class SRTInput(InputSource):
 
             # Limpiar chunks antiguos
             for f in Path(self._chunks_dir).glob("chunk_*.ts"):
-                try:
+                with contextlib.suppress(OSError):
                     f.unlink()
-                except OSError:
-                    pass
 
             # Reset cumulative duration tracking
             self._cumulative_duration = 0.0
@@ -456,7 +454,7 @@ class SRTInput(InputSource):
                         timeout=3,
                     )
                     # ALSO kill any ffmpeg using the SRT port
-                    try:
+                    with contextlib.suppress(Exception):
                         subprocess.run(
                             [
                                 "cmd",
@@ -467,8 +465,6 @@ class SRTInput(InputSource):
                             creationflags=get_creation_flags(),
                             timeout=3,
                         )
-                    except:
-                        pass
                 else:
                     self._ffmpeg_proc.terminate()
                 self._ffmpeg_proc.wait(timeout=2)
@@ -505,7 +501,7 @@ class SRTInput(InputSource):
                         if result.returncode != 0:
                             break  # No process found
                         time.sleep(0.5)
-                    except:
+                    except Exception:
                         pass
 
             # Quick port check — don't block stop for more than ~3s total
@@ -532,7 +528,7 @@ class SRTInput(InputSource):
 
         self.logger.info("SRT input stopped")
 
-    def get_next_chunk(self) -> Optional[PipelineData]:
+    def get_next_chunk(self) -> PipelineData | None:
         """
         Obtener el siguiente chunk disponible.
 
@@ -717,10 +713,8 @@ class SRTInput(InputSource):
         # Additional cleanup: kill any lingering ffmpeg processes
         if sys.platform == "win32":
             for proc_name in ["ffmpeg.exe", "ffprobe.exe"]:
-                try:
+                with contextlib.suppress(Exception):
                     subprocess.run(["taskkill", "/F", "/IM", proc_name], capture_output=True, timeout=2)
-                except:
-                    pass
 
         # Wait a moment for socket to be released
         time.sleep(1)
@@ -738,6 +732,4 @@ class SRTInput(InputSource):
 
 
 # Auto-registro en factory
-from core.io_factory import InputFactory
-
 InputFactory.register("srt", SRTInput)

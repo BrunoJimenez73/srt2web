@@ -265,7 +265,7 @@ echo [INFO] Verificando FFmpeg...
 
 if exist "bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" (
     echo  [OK] FFmpeg ya existe.
-    
+
     REM Verificar NVENC
     bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe -encoders 2>nul | findstr /C:"h264_nvenc" >nul 2>&1
     if %errorlevel% equ 0 (
@@ -282,7 +282,7 @@ if exist "bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" (
     if exist "bin\ffmpeg.zip" (
         powershell -Command "Expand-Archive -Path 'bin\ffmpeg.zip' -DestinationPath 'bin' -Force" 2>nul
         del "bin\ffmpeg.zip"
-        
+
         REM Mover archivos al nivel correcto
         if exist "bin\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" (
             echo  [OK] FFmpeg con NVENC instalado.

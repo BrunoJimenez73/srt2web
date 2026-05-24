@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from rich.console import Console
 
 from cli.commands.config import run_config_get, run_config_set
 from cli.commands.status import _state_label, _state_style
-from cli.client.http_client import PipelineStatus
 
 
 class TestStatusHelpers:

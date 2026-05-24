@@ -8,15 +8,33 @@
 
 // Import main types from api.ts (single source of truth)
 import type {
-  Config, Status, PipelineState, ModuleStatus, ModuleState,
-  MetricsData, InputConfig, WebSocketMessage, HealthStatus,
-  LogMessage, ModuleExtra, OutputStatus
-} from './api';
+  Config,
+  Status,
+  PipelineState,
+  ModuleStatus,
+  ModuleState,
+  MetricsData,
+  InputConfig,
+  WebSocketMessage,
+  HealthStatus,
+  LogMessage,
+  ModuleExtra,
+  OutputStatus,
+} from "./api";
 
 export type {
-  Config, Status, PipelineState, ModuleStatus, ModuleState,
-  MetricsData, InputConfig, WebSocketMessage, HealthStatus,
-  LogMessage, ModuleExtra, OutputStatus
+  Config,
+  Status,
+  PipelineState,
+  ModuleStatus,
+  ModuleState,
+  MetricsData,
+  InputConfig,
+  WebSocketMessage,
+  HealthStatus,
+  LogMessage,
+  ModuleExtra,
+  OutputStatus,
 };
 
 // ── Tipos específicos para configuración de salidas ──────────────────
@@ -28,25 +46,25 @@ export interface BaseOutputConfig {
 }
 
 export interface RecordingOutputConfig extends BaseOutputConfig {
-  type: 'recording';
+  type: "recording";
   output_path: string;
-  format: 'mp4' | 'mkv' | 'webm';
-  codec: 'copy' | 'h264_nvenc' | 'h265_nvenc' | 'libx264' | 'libx265';
+  format: "mp4" | "mkv" | "webm";
+  codec: "copy" | "h264_nvenc" | "h265_nvenc" | "libx264" | "libx265";
   video_bitrate?: string;
   video_crf?: number;
-  quality_mode: 'cbr' | 'crf';
-  audio_codec: 'copy' | 'aac' | 'opus';
+  quality_mode: "cbr" | "crf";
+  audio_codec: "copy" | "aac" | "opus";
   audio_bitrate?: string;
-  split_mode: 'none' | 'time' | 'size';
+  split_mode: "none" | "time" | "size";
   split_value?: number;
-  subtitles: 'none' | 'burnt' | 'vtt';
+  subtitles: "none" | "burnt" | "vtt";
   video_preset?: string;
 }
 
 export interface SrtOutputConfig extends BaseOutputConfig {
-  type: 'srt';
+  type: "srt";
   url: string;
-  mode: 'caller' | 'listener' | 'rendezvous';
+  mode: "caller" | "listener" | "rendezvous";
   latency_ms: number;
   stream_id?: string;
   passphrase?: string;
@@ -58,7 +76,7 @@ export interface SrtOutputConfig extends BaseOutputConfig {
 }
 
 export interface FileOutputConfig extends BaseOutputConfig {
-  type: 'file';
+  type: "file";
   save_video: boolean;
   save_audio: boolean;
   save_subtitles: boolean;
@@ -66,22 +84,22 @@ export interface FileOutputConfig extends BaseOutputConfig {
 }
 
 export interface RtmpOutputConfig extends BaseOutputConfig {
-  type: 'rtmp';
+  type: "rtmp";
   url: string;
   video_bitrate: string;
   audio_bitrate: string;
   video_codec: string;
   preset: string;
   audio_codec: string;
-  encoder_mode: 'auto' | 'cpu' | 'gpu_nvenc' | 'gpu_vaapi';
+  encoder_mode: "auto" | "cpu" | "gpu_nvenc" | "gpu_vaapi";
 }
 
 export interface WebOutputConfig extends BaseOutputConfig {
-  type: 'web';
+  type: "web";
   segment_duration: number;
   list_size: number;
   audio_offset_ms: number;
-  encoder_mode: 'auto' | 'cpu' | 'gpu_nvenc' | 'gpu_vaapi';
+  encoder_mode: "auto" | "cpu" | "gpu_nvenc" | "gpu_vaapi";
 }
 
 // Tipo unión para todas las configuraciones de salida (usado en outputs.ts)

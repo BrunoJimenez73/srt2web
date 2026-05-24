@@ -2,11 +2,12 @@
 E2E tests for the dashboard page using Astro frontend.
 """
 
-import pytest
 import os
 import sys
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
+
+import pytest
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -19,7 +20,7 @@ def get_astro_source_content(file_path):  # type: ignore
     astro_file = base_path / file_path
 
     if astro_file.exists():
-        with open(astro_file, "r", encoding="utf-8") as f:
+        with open(astro_file, encoding="utf-8") as f:
             return f.read()
     return None
 
@@ -28,7 +29,7 @@ def get_built_html_content(file_path="index.html"):  # type: ignore
     """Load built HTML file for testing."""
     html_path = PROJECT_ROOT / "server" / "static" / file_path
     if html_path.exists():
-        with open(html_path, "r", encoding="utf-8") as f:
+        with open(html_path, encoding="utf-8") as f:
             return f.read()
     return None
 
@@ -37,7 +38,7 @@ def get_js_content(file_path):  # type: ignore
     """Load JavaScript/TypeScript file for testing."""
     js_path = PROJECT_ROOT / "frontend" / "src" / "lib" / file_path
     if js_path.exists():
-        with open(js_path, "r", encoding="utf-8") as f:
+        with open(js_path, encoding="utf-8") as f:
             return f.read()
     return None
 
@@ -69,9 +70,7 @@ class TestDashboardPageStructure:
             pytest.skip("index.html not found")
 
         # Check for dashboard structure
-        assert (
-            "dashboard" in dashboard_html.lower() or "process" in dashboard_html.lower()
-        )
+        assert "dashboard" in dashboard_html.lower() or "process" in dashboard_html.lower()
 
     def test_has_navigation(self, dashboard_html) -> None:
         """Test that navigation elements exist."""
@@ -113,9 +112,7 @@ class TestAppJavaScript:
             pytest.skip("api.ts not found")
 
         assert (
-            "transcriber" in api_lib_content
-            or "translator" in api_lib_content
-            or "module" in api_lib_content.lower()
+            "transcriber" in api_lib_content or "translator" in api_lib_content or "module" in api_lib_content.lower()
         )
 
 
@@ -141,9 +138,7 @@ class TestWebSocketClient:
 
         # Look for reconnection patterns
         has_reconnect = "reconnect" in api_lib_content.lower()
-        has_retry = (
-            "retry" in api_lib_content.lower() or "attempt" in api_lib_content.lower()
-        )
+        has_retry = "retry" in api_lib_content.lower() or "attempt" in api_lib_content.lower()
         assert has_reconnect or has_retry
 
 
@@ -174,9 +169,10 @@ class TestDashboardWithMockServer:
     def mock_server(self) -> None:
         """Create a mock server for testing."""
         from fastapi.testclient import TestClient
-        from server.app import create_app
+
         from core.config_manager import ConfigManager
         from core.pipeline import Pipeline
+        from server.app import create_app
 
         config = ConfigManager()
         pipeline = Pipeline()
@@ -191,7 +187,7 @@ class TestDashboardWithMockServer:
                 self._state = ModuleState.IDLE
 
             def get_status(self):  # type: ignore
-                from core.module_base import ModuleStatus, ModuleState
+                from core.module_base import ModuleStatus
 
                 return ModuleStatus(
                     name=self.name,
@@ -242,9 +238,7 @@ class TestDashboardWithMockServer:
 
     def test_can_update_config(self, mock_server):  # type: ignore
         """Test that configuration can be updated."""
-        response = mock_server.put(
-            "/api/config", json={"config": {"pipeline": {"chunk_duration_sec": 6}}}
-        )
+        response = mock_server.put("/api/config", json={"config": {"pipeline": {"chunk_duration_sec": 6}}})
 
         assert response.status_code == 200
 
@@ -357,10 +351,7 @@ class TestAstroComponents:
         """Test that StatusCard has pipeline controls."""
         if status_card_content is None:
             pytest.skip("StatusCard.astro not found")
-        assert (
-            "start" in status_card_content.lower()
-            or "stop" in status_card_content.lower()
-        )
+        assert "start" in status_card_content.lower() or "stop" in status_card_content.lower()
 
     def test_metrics_card_has_metrics(self, metrics_card_content) -> None:
         """Test that MetricsCard has metrics display."""

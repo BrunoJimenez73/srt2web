@@ -25,7 +25,7 @@ class InputFactory:
         input_source = InputFactory.create("srt", config)
     """
 
-    _inputs: dict[str, type[InputSource]] = {}
+    _inputs: dict[str, type[InputSource]] = {}  # noqa: RUF012
     _initialized: bool = False
 
     @classmethod
@@ -88,7 +88,7 @@ class OutputFactory:
         outputs = OutputFactory.create_multiple([{"type": "rtmp", ...}, ...])
     """
 
-    _outputs: dict[str, type[OutputSink]] = {}
+    _outputs: dict[str, type[OutputSink]] = {}  # noqa: RUF012
     _initialized: bool = False
     # Tipos internos que no se muestran al usuario en /api/outputs/available
     _internal_types = frozenset({"hls", "composite"})

@@ -27,7 +27,7 @@ import time
 import typing
 import uuid
 from contextlib import contextmanager
-from typing import Any, Optional
+from typing import Any
 
 # Logger principal
 _logger = logging.getLogger("srt2web.structured")
@@ -37,12 +37,12 @@ def log_structured(
     module: str,
     stage: str,
     level: str = "info",
-    chunk_index: Optional[int] = None,
-    correlation_id: Optional[str] = None,
-    duration_ms: Optional[float] = None,
+    chunk_index: int | None = None,
+    correlation_id: str | None = None,
+    duration_ms: float | None = None,
     status: str = "info",
     message: str = "",
-    extra: Optional[dict[str, Any]] = None,
+    extra: dict[str, Any] | None = None,
 ) -> None:
     """
     Log estructurado con campos estandarizados.
@@ -103,9 +103,9 @@ class ModuleLogger:
         """
         self.module = module_name
         self._logger = logging.getLogger(f"srt2web.{module_name}")
-        self._correlation_id: Optional[str] = None
+        self._correlation_id: str | None = None
 
-    def set_correlation_id(self, correlation_id: Optional[str] = None) -> str:
+    def set_correlation_id(self, correlation_id: str | None = None) -> str:
         """
         Establecer o generar un correlation ID para el modulo.
 
@@ -128,9 +128,9 @@ class ModuleLogger:
         self,
         level: str,
         stage: str,
-        chunk_index: Optional[int] = None,
-        correlation_id: Optional[str] = None,
-        duration_ms: Optional[float] = None,
+        chunk_index: int | None = None,
+        correlation_id: str | None = None,
+        duration_ms: float | None = None,
         status: str = "info",
         message: str = "",
         **kwargs: Any,
@@ -158,8 +158,8 @@ class ModuleLogger:
     def debug(
         self,
         stage: str,
-        chunk_index: Optional[int] = None,
-        duration_ms: Optional[float] = None,
+        chunk_index: int | None = None,
+        duration_ms: float | None = None,
         message: str = "",
         **kwargs: Any,
     ) -> None:
@@ -169,8 +169,8 @@ class ModuleLogger:
     def info(
         self,
         stage: str,
-        chunk_index: Optional[int] = None,
-        duration_ms: Optional[float] = None,
+        chunk_index: int | None = None,
+        duration_ms: float | None = None,
         message: str = "",
         **kwargs: Any,
     ) -> None:
@@ -180,8 +180,8 @@ class ModuleLogger:
     def warning(
         self,
         stage: str,
-        chunk_index: Optional[int] = None,
-        duration_ms: Optional[float] = None,
+        chunk_index: int | None = None,
+        duration_ms: float | None = None,
         message: str = "",
         **kwargs: Any,
     ) -> None:
@@ -191,10 +191,10 @@ class ModuleLogger:
     def error(
         self,
         stage: str,
-        chunk_index: Optional[int] = None,
-        duration_ms: Optional[float] = None,
+        chunk_index: int | None = None,
+        duration_ms: float | None = None,
         message: str = "",
-        error: Optional[str] = None,
+        error: str | None = None,
         **kwargs: Any,
     ) -> None:
         """Log nivel error."""
@@ -206,9 +206,9 @@ class ModuleLogger:
     def time_stage(
         self,
         stage: str,
-        chunk_index: Optional[int] = None,
+        chunk_index: int | None = None,
         level: str = "info",
-        correlation_id: Optional[str] = None,
+        correlation_id: str | None = None,
         **kwargs: Any,
     ) -> typing.Generator[dict[str, Any], None, None]:
         """
@@ -245,7 +245,7 @@ class ModuleLogger:
 
 @contextmanager
 def time_operation(
-    module: str, stage: str, chunk_index: Optional[int] = None, **kwargs: Any
+    module: str, stage: str, chunk_index: int | None = None, **kwargs: Any
 ) -> typing.Generator[dict[str, Any], None, None]:
     """
     Context manager global para medir operaciones.
@@ -259,7 +259,7 @@ def time_operation(
         yield ctx
 
 
-def parse_structured_log(log_line: str) -> Optional[dict[str, Any]]:
+def parse_structured_log(log_line: str) -> dict[str, Any] | None:
     """
     Parsear un log estructurado desde una linea de texto.
 
@@ -276,6 +276,6 @@ def parse_structured_log(log_line: str) -> Optional[dict[str, Any]]:
             return None
         end = log_line.rfind("}") + 1
         json_str = log_line[start:end]
-        return typing.cast(Optional[dict[str, Any]], json.loads(json_str))
+        return typing.cast(dict[str, Any] | None, json.loads(json_str))
     except (json.JSONDecodeError, ValueError):
         return None

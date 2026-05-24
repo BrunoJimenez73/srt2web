@@ -38,8 +38,8 @@ def create_webrtc_router() -> APIRouter:
         """
         try:
             body = await request.json()
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid JSON")
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=400, detail="Invalid JSON") from exc
 
         sdp = body.get("sdp")
         sdp_type = body.get("type", "offer")
@@ -90,15 +90,15 @@ def create_webrtc_router() -> APIRouter:
             else:
                 raise HTTPException(status_code=503, detail="WebRTC engine event loop not running")
 
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as exc:
             logger.error(f"WebRTC offer handling timed out for client {client_id}")
-            raise HTTPException(status_code=504, detail="WebRTC offer handling timed out")
+            raise HTTPException(status_code=504, detail="WebRTC offer handling timed out") from exc
         except Exception as e:
             logger.error(f"Error handling WebRTC offer: {e}")
             import traceback
 
             logger.error(f"Traceback: {traceback.format_exc()}")
-            raise HTTPException(status_code=500, detail=f"WebRTC error: {e!s}")
+            raise HTTPException(status_code=500, detail=f"WebRTC error: {e!s}") from e
 
     @router.post("/webrtc/close")
     async def handle_webrtc_close(request: Request) -> JSONResponse:
@@ -110,8 +110,8 @@ def create_webrtc_router() -> APIRouter:
         """
         try:
             body = await request.json()
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid JSON")
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=400, detail="Invalid JSON") from exc
 
         client_id = body.get("client_id")
 

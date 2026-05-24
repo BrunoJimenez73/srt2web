@@ -5,14 +5,14 @@ Proporciona configuración centralizada de parámetros de codificación
 de video que puede ser usada por múltiples módulos.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 
 class EncoderConfig:
     """Configuración de codificación de video y audio."""
 
     # Presets de CPU (libx264) con valores CRF asociados
-    CPU_PRESETS = {
+    CPU_PRESETS = {  # noqa: RUF012
         "ultrafast": {"crf": 28, "description": "Máxima velocidad"},
         "superfast": {"crf": 26, "description": "Muy rápida"},
         "veryfast": {"crf": 24, "description": "Rápida"},
@@ -26,7 +26,7 @@ class EncoderConfig:
 
     # Presets de GPU (NVENC) con valores CQ asociados
     # Mayor CQ = menor calidad pero más rápido
-    GPU_PRESETS = {
+    GPU_PRESETS = {  # noqa: RUF012
         "p1": {"cq": 28, "description": "Ultra velocidad"},
         "p2": {"cq": 26, "description": "Muy rápida"},
         "p3": {"cq": 24, "description": "Rápida"},
@@ -37,7 +37,7 @@ class EncoderConfig:
         "p8": {"cq": 15, "description": "Ultra calidad"},
     }
 
-    def __init__(self, config: Optional[dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """Inicializar configuración de encoder."""
         if config is None:
             config = {}
@@ -64,10 +64,7 @@ class EncoderConfig:
         args = []
 
         # Preset y CRF
-        if self.video_preset in self.CPU_PRESETS:
-            crf = self.CPU_PRESETS[self.video_preset]["crf"]
-        else:
-            crf = self.video_crf
+        crf = self.CPU_PRESETS[self.video_preset]["crf"] if self.video_preset in self.CPU_PRESETS else self.video_crf
 
         args.extend(["-preset", self.video_preset, "-crf", str(crf)])
 

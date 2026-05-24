@@ -8,13 +8,14 @@ Provides real-time WebRTC streaming with:
 """
 
 import asyncio
+import contextlib
 import json as JSON
 import logging
 import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 from aiortc import AudioStreamTrack, VideoStreamTrack
@@ -53,8 +54,8 @@ class WebRTCEngine:
         self.config: dict[str, Any] = config or {}
 
         self._running = False
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._thread: Optional[threading.Thread] = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._thread: threading.Thread | None = None
         self._ready_event = threading.Event()
 
         self._output_dir = Path(self.config.get("output_dir", "./output/webrtc"))
@@ -229,7 +230,7 @@ class WebRTCEngine:
             if channel.label == "subtitles":
                 conn.subtitle_channel = channel
 
-                @channel.on("message")  # type: ignore[untyped-decorator]
+                @channel.on("message")  # type: ignore
                 def on_message(message: str) -> None:
                     try:
                         data = JSON.loads(message)  # was JSON.parse (invalid); loads is stdlib equivalent
@@ -317,10 +318,8 @@ class WebRTCConnection:
 
     def close(self) -> None:
         """Close the connection."""
-        try:
+        with contextlib.suppress(Exception):
             self.pc.close()
-        except:
-            pass
         self.engine.remove_connection(self.client_id)
 
 
@@ -349,7 +348,7 @@ class WebRTCVideoTrack(VideoStreamTrack):
         frame.time_base = time_base
         return frame
 
-    async def _get_cached_frame(self) -> Optional[Any]:
+    async def _get_cached_frame(self) -> Any | None:
         """Get next frame from cache, loading more if needed."""
         if not self._frame_queue.empty():
             return await self._frame_queue.get()

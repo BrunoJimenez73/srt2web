@@ -2,11 +2,12 @@
 E2E tests for the player page.
 """
 
-import pytest
 import os
 import sys
 from pathlib import Path
 from unittest.mock import Mock
+
+import pytest
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -17,11 +18,11 @@ def _get_player_html():  # type: ignore
     """Load player HTML content - try built output first, then web dir."""
     built_path = PROJECT_ROOT / "server" / "static" / "player" / "index.html"
     if built_path.exists():
-        with open(built_path, "r", encoding="utf-8") as f:
+        with open(built_path, encoding="utf-8") as f:
             return f.read()
     html_path = PROJECT_ROOT / "web" / "player.html"
     if html_path.exists():
-        with open(html_path, "r", encoding="utf-8") as f:
+        with open(html_path, encoding="utf-8") as f:
             return f.read()
     return None
 
@@ -146,9 +147,10 @@ class TestPlayerFunctionality:
     def mock_server(self) -> None:
         """Create a mock server for testing."""
         from fastapi.testclient import TestClient
-        from server.app import create_app
+
         from core.config_manager import ConfigManager
         from core.pipeline import Pipeline
+        from server.app import create_app
 
         config = ConfigManager()
         pipeline = Pipeline()
@@ -197,7 +199,7 @@ class TestPlayerJavaScript:
         if not player_js_path.exists():
             pytest.skip("player.js not found")
 
-        with open(player_js_path, "r", encoding="utf-8") as f:
+        with open(player_js_path, encoding="utf-8") as f:
             content = f.read()
 
         assert "new Hls" in content
@@ -210,7 +212,7 @@ class TestPlayerJavaScript:
         if not player_js_path.exists():
             pytest.skip("player.js not found")
 
-        with open(player_js_path, "r", encoding="utf-8") as f:
+        with open(player_js_path, encoding="utf-8") as f:
             content = f.read()
 
         assert "Hls.Events.ERROR" in content
@@ -222,7 +224,7 @@ class TestPlayerJavaScript:
         if not player_js_path.exists():
             pytest.skip("player.js not found")
 
-        with open(player_js_path, "r", encoding="utf-8") as f:
+        with open(player_js_path, encoding="utf-8") as f:
             content = f.read()
 
         assert "subtitleTrack" in content
@@ -268,7 +270,7 @@ class TestPlayerResponsive:
         css_dir = PROJECT_ROOT / "server" / "static" / "_astro"
         if css_dir.exists():
             for css_file in css_dir.glob("*.css"):
-                with open(css_file, "r", encoding="utf-8") as f:
+                with open(css_file, encoding="utf-8") as f:
                     css_content = (css_content or "") + f.read()
 
         return html_content, css_content
@@ -290,8 +292,4 @@ class TestPlayerResponsive:
             pytest.skip("player.html not found")
 
         combined = html_content + (css_content or "")
-        assert (
-            "background" in combined
-            or "#000" in combined
-            or "black" in combined
-        )
+        assert "background" in combined or "#000" in combined or "black" in combined

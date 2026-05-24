@@ -10,7 +10,7 @@ import hashlib
 import logging
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from core.cache import LRUCache
 from core.model_cache import ModelCache
@@ -29,7 +29,7 @@ class Transcriber(BaseModule):
     - Timeout protection (F67): prevents pipeline hangs on corrupted audio
     """
 
-    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         self._model_size = "small"
         self._language: str | None = "es"
         self._device_config = "auto"
@@ -158,7 +158,7 @@ class Transcriber(BaseModule):
         raw = f"{identity}:{self._language}:{self._model_size}:{self._beam_size}"
         return hashlib.sha256(raw.encode()).hexdigest()
 
-    def _transcribe_impl(self, data: PipelineData) -> Optional[PipelineData]:
+    def _transcribe_impl(self, data: PipelineData) -> PipelineData | None:
         """
         Actual transcription logic (uncached).
         Returns None if transcription should be skipped (timeout).

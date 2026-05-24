@@ -8,6 +8,6 @@ Contains separated route modules:
 - outputs.py: Output management routes
 """
 
-from server.routes import pipeline, config, modules, outputs
+from server.routes import config, modules, outputs, pipeline
 
 __all__ = ["pipeline", "config", "modules", "outputs"]

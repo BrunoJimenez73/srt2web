@@ -4,23 +4,21 @@
  */
 
 // Módulo del reproductor
-export {
-  initHlsPlayer
-} from './player';
+export { initHlsPlayer } from "./player";
 
 // Módulo del header (seguridad)
 export {
   initSecurityPanel,
   updateSecureState,
-  cleanupSecurityPanel
-} from './header';
+  cleanupSecurityPanel,
+} from "./header";
 
 // Módulo de notificaciones toast
 export {
   showToast as showNotification,
   clearAllToasts,
-  type ToastType
-} from './toast';
+  type ToastType,
+} from "./toast";
 
 // Módulo del panel de logs
 export {
@@ -29,5 +27,5 @@ export {
   filterLogs,
   clearLogs,
   toggleLogPanel,
-  getLogPanelState
-} from './logpanel';
+  getLogPanelState,
+} from "./logpanel";

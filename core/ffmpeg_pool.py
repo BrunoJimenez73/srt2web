@@ -16,7 +16,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("srt2web.ffmpeg_pool")
 
@@ -109,7 +109,7 @@ class FFmpegPool:
 # Instancia global singleton
 # ---------------------------------------------------------------------------
 
-_pool: Optional[FFmpegPool] = None
+_pool: FFmpegPool | None = None
 _pool_lock = threading.Lock()
 
 

@@ -29,10 +29,13 @@ interface ShortcutDefinition {
 
 let initialized = false;
 
-const INPUT_SELECTOR = "input:not([type=checkbox]):not([type=radio]), textarea, select, [contenteditable]";
+const INPUT_SELECTOR =
+  "input:not([type=checkbox]):not([type=radio]), textarea, select, [contenteditable]";
 
 function isInputFocused(): boolean {
-  return document.activeElement ? document.activeElement.matches(INPUT_SELECTOR) : false;
+  return document.activeElement
+    ? document.activeElement.matches(INPUT_SELECTOR)
+    : false;
 }
 
 // ── Shortcut Definitions ───────────────────────────────────────────────
@@ -91,7 +94,9 @@ const shortcuts: ShortcutDefinition[] = [
     handler: (_e) => {
       const htmlElement = document.documentElement;
       const isDark = htmlElement.classList.contains("dark");
-      const themeIcon = document.getElementById("theme-icon") as HTMLSpanElement | null;
+      const themeIcon = document.getElementById(
+        "theme-icon",
+      ) as HTMLSpanElement | null;
 
       if (isDark) {
         htmlElement.classList.remove("dark");
@@ -117,7 +122,11 @@ const shortcuts: ShortcutDefinition[] = [
       if (panel) {
         panel.classList.toggle("collapsed");
         const header = document.getElementById("log-header");
-        if (header) header.setAttribute("aria-expanded", String(!panel.classList.contains("collapsed")));
+        if (header)
+          header.setAttribute(
+            "aria-expanded",
+            String(!panel.classList.contains("collapsed")),
+          );
       }
     },
     description: "Alternar panel de logs",
@@ -148,13 +157,15 @@ const shortcuts: ShortcutDefinition[] = [
 
 function handleKeyDown(event: KeyboardEvent): void {
   // Ignore shortcuts when typing in input fields (except Escape and F-keys)
-  if (isInputFocused() && event.key !== "Escape" && !event.key.startsWith("F")) return;
+  if (isInputFocused() && event.key !== "Escape" && !event.key.startsWith("F"))
+    return;
 
   for (const shortcut of shortcuts) {
     if (
       event.key.toLowerCase() === shortcut.key.toLowerCase() &&
       (shortcut.ctrlKey === undefined || event.ctrlKey === shortcut.ctrlKey) &&
-      (shortcut.shiftKey === undefined || event.shiftKey === shortcut.shiftKey) &&
+      (shortcut.shiftKey === undefined ||
+        event.shiftKey === shortcut.shiftKey) &&
       (shortcut.altKey === undefined || event.altKey === shortcut.altKey)
     ) {
       if (shortcut.preventDefault !== false) {
@@ -184,7 +195,9 @@ function toggleShortcutsHelp(): void {
   const shortcutsList = shortcuts
     .filter((s) => s.key !== "Escape")
     .map((s) => {
-      const keys = `${s.ctrlKey ? "Ctrl+" : ""}${s.shiftKey ? "Shift+" : ""}${s.altKey ? "Alt+" : ""}${s.key === "/" ? "/" : s.key.toUpperCase()}`;
+      const keys = `${s.ctrlKey ? "Ctrl+" : ""}${s.shiftKey ? "Shift+" : ""}${
+        s.altKey ? "Alt+" : ""
+      }${s.key === "/" ? "/" : s.key.toUpperCase()}`;
       return `<div class="shortcut-row"><kbd>${keys}</kbd><span>${s.description}</span></div>`;
     })
     .join("");
@@ -194,7 +207,9 @@ function toggleShortcutsHelp(): void {
     <div class="shortcuts-modal-content">
       <div class="shortcuts-header">
         <span>⌨️ ${t("keyboard_shortcuts")}</span>
-        <button class="shortcuts-close" id="shortcuts-close" aria-label="${t("close")}">✕</button>
+        <button class="shortcuts-close" id="shortcuts-close" aria-label="${t(
+          "close",
+        )}">✕</button>
       </div>
       <div class="shortcuts-body">${shortcutsList}</div>
     </div>
@@ -202,8 +217,12 @@ function toggleShortcutsHelp(): void {
 
   document.body.appendChild(modal);
 
-  document.getElementById("shortcuts-close")?.addEventListener("click", () => modal.remove());
-  modal.querySelector(".shortcuts-modal-backdrop")?.addEventListener("click", () => modal.remove());
+  document
+    .getElementById("shortcuts-close")
+    ?.addEventListener("click", () => modal.remove());
+  modal
+    .querySelector(".shortcuts-modal-backdrop")
+    ?.addEventListener("click", () => modal.remove());
 }
 
 // ── Public API ───────────────────────────────────────────────────────────
@@ -215,9 +234,14 @@ export function initKeyboardShortcuts(): void {
   initialized = true;
 }
 
-export function getShortcutsHelp(): Array<{ key: string; description: string }> {
+export function getShortcutsHelp(): Array<{
+  key: string;
+  description: string;
+}> {
   return shortcuts.map((s) => ({
-    key: `${s.ctrlKey ? "Ctrl+" : ""}${s.shiftKey ? "Shift+" : ""}${s.altKey ? "Alt+" : ""}${s.key.toUpperCase()}`,
+    key: `${s.ctrlKey ? "Ctrl+" : ""}${s.shiftKey ? "Shift+" : ""}${
+      s.altKey ? "Alt+" : ""
+    }${s.key.toUpperCase()}`,
     description: s.description,
   }));
 }

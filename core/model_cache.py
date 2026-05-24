@@ -14,7 +14,7 @@ import os
 import threading
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from core.paths import get_cache_dir
 
@@ -51,7 +51,7 @@ class ModelCache:
         self._whisper_models: dict[str, Any] = {}
         self._argos_indexes: dict[str, Any] = {}
         self._models_loaded = False
-        self._preload_thread: Optional[threading.Thread] = None
+        self._preload_thread: threading.Thread | None = None
         self._preload_done = threading.Event()
 
         self._cache_dir = self._get_cache_dir()
@@ -105,7 +105,7 @@ class ModelCache:
 
         logger.info(f"Loading Whisper model: {cache_key}")
 
-        from faster_whisper import WhisperModel  # type: ignore[import-untyped]
+        from faster_whisper import WhisperModel
 
         model = WhisperModel(
             model_size,
@@ -171,7 +171,7 @@ class ModelCache:
         self,
         source_lang: str,
         target_lang: str,
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """
         Get or create Argos Translate translation pair.
 
@@ -242,7 +242,7 @@ class ModelCache:
             logger.error(f"Failed to load Argos pair {cache_key}: {e}")
             return None
 
-    def preload_argos(self, pairs: Optional[list[tuple[str, str]]] = None) -> None:
+    def preload_argos(self, pairs: list[tuple[str, str]] | None = None) -> None:
         """
         Preload Argos translation pairs.
 
@@ -276,7 +276,7 @@ class ModelCache:
         whisper_model: str = "tiny",
         device: str = "cpu",
         compute_type: str = "int8",
-        argos_pairs: Optional[list[tuple[str, str]]] = None,
+        argos_pairs: list[tuple[str, str]] | None = None,
     ) -> None:
         """
         Preload all models in background threads.

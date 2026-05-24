@@ -50,11 +50,11 @@ def sanitize_path(user_path: str, base_dir: str, allow_absolute: bool = False) -
             # Ensure resolved path is within base_dir
             try:
                 resolved.relative_to(base_resolved)
-            except ValueError:
-                raise PathTraversalError(f"Path escapes base directory: {user_path}")
+            except ValueError as exc:
+                raise PathTraversalError(f"Path escapes base directory: {user_path}") from exc
             return str(resolved)
         except Exception as e:
-            raise PathTraversalError(f"Invalid path: {user_path}")
+            raise PathTraversalError(f"Invalid path: {user_path}") from e
 
     # For relative paths, resolve them relative to base_dir
     try:
@@ -72,23 +72,20 @@ def sanitize_path(user_path: str, base_dir: str, allow_absolute: bool = False) -
                 clean_parts.append(part)
 
         # Reconstruct path
-        if clean_parts:
-            result = base_path / Path(*clean_parts)
-        else:
-            result = base_path
+        result = base_path / Path(*clean_parts) if clean_parts else base_path
 
         # Double-check it's within base_dir
         try:
             result.resolve().relative_to(base_path)
-        except ValueError:
-            raise PathTraversalError(f"Path escapes base directory: {user_path}")
+        except ValueError as exc:
+            raise PathTraversalError(f"Path escapes base directory: {user_path}") from exc
 
         return str(result.resolve())
 
     except PathTraversalError:
         raise
     except Exception as e:
-        raise PathTraversalError(f"Invalid path: {user_path}")
+        raise PathTraversalError(f"Invalid path: {user_path}") from e
 
 
 def sanitize_filename(filename: str) -> str:

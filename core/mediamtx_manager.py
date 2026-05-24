@@ -12,7 +12,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("srt2web.mtx")
 
@@ -25,8 +25,8 @@ MEDIAMTX_CONFIG = MEDIAMTX_DIR / "mediamtx.yml"
 class MediaMTXManager:
     """Manages MediaMTX server for RTMP input."""
 
-    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
-        self._process: Optional[subprocess.Popen[bytes]] = None
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
+        self._process: subprocess.Popen[bytes] | None = None
         self._config = config or {}
         self._rtmp_port = self._config.get("rtmp_port", 1935)
         self._app = self._config.get("app", "live")
@@ -95,7 +95,7 @@ class MediaMTXManager:
                 try:
                     if self._process.stderr:
                         stderr = self._process.stderr.read().decode("utf-8", errors="replace")
-                except:
+                except Exception:
                     pass
                 if not stderr:
                     stderr = "No stderr available"
@@ -156,6 +156,6 @@ class MediaMTXManager:
         return f"rtmp://127.0.0.1:{self._rtmp_port}/{self._app}/{self._stream_key}"
 
 
-def get_mediamtx_manager(config: Optional[dict[str, Any]] = None) -> MediaMTXManager:
+def get_mediamtx_manager(config: dict[str, Any] | None = None) -> MediaMTXManager:
     """Factory function to get MediaMTX manager instance."""
     return MediaMTXManager(config)

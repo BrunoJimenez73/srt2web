@@ -3,8 +3,8 @@
  * Maneja el panel de seguridad, token de autenticación y estado del WebSocket
  */
 
-import { getAuthToken, setAuthToken } from '../api';
-import { showToast } from './toast';
+import { getAuthToken, setAuthToken } from "../api";
+import { showToast } from "./toast";
 
 // DOM Elements
 let btnToggle: HTMLButtonElement | null = null;
@@ -23,13 +23,13 @@ let btnClose: HTMLButtonElement | null = null;
 export function updateSecureState(): void {
   const token = getAuthToken();
   if (token) {
-    if (label) label.textContent = 'Secure ON';
-    btnToggle?.classList.add('active');
+    if (label) label.textContent = "Secure ON";
+    btnToggle?.classList.add("active");
     if (tokenInput) tokenInput.value = token;
   } else {
-    if (label) label.textContent = 'Secure OFF';
-    btnToggle?.classList.remove('active');
-    if (tokenInput) tokenInput.value = '';
+    if (label) label.textContent = "Secure OFF";
+    btnToggle?.classList.remove("active");
+    if (tokenInput) tokenInput.value = "";
   }
 }
 
@@ -38,10 +38,10 @@ export function updateSecureState(): void {
  */
 function togglePanel(): void {
   if (!panel || !arrow) return;
-  
-  const isHidden = panel.classList.toggle('hidden');
-  arrow.classList.toggle('open', !isHidden);
-  
+
+  const isHidden = panel.classList.toggle("hidden");
+  arrow.classList.toggle("open", !isHidden);
+
   if (!isHidden) {
     updateSecureState();
     tokenInput?.focus();
@@ -53,8 +53,8 @@ function togglePanel(): void {
  */
 function closePanel(): void {
   if (!panel || !arrow) return;
-  panel.classList.add('hidden');
-  arrow.classList.remove('open');
+  panel.classList.add("hidden");
+  arrow.classList.remove("open");
 }
 
 /**
@@ -62,13 +62,13 @@ function closePanel(): void {
  */
 function toggleTokenVisibility(): void {
   if (!tokenInput || !btnEye) return;
-  
-  if (tokenInput.type === 'password') {
-    tokenInput.type = 'text';
-    btnEye.textContent = '🙈';
+
+  if (tokenInput.type === "password") {
+    tokenInput.type = "text";
+    btnEye.textContent = "🙈";
   } else {
-    tokenInput.type = 'password';
-    btnEye.textContent = '👁';
+    tokenInput.type = "password";
+    btnEye.textContent = "👁";
   }
 }
 
@@ -77,20 +77,21 @@ function toggleTokenVisibility(): void {
  */
 function generateToken(): void {
   if (!tokenInput || !btnEye) return;
-  
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   const length = 32;
-  let token = '';
+  let token = "";
   const array = new Uint32Array(length);
   crypto.getRandomValues(array);
-  
+
   for (let i = 0; i < length; i++) {
     token += chars[array[i] % chars.length];
   }
-  
+
   tokenInput.value = token;
-  tokenInput.type = 'text';
-  btnEye.textContent = '🙈';
+  tokenInput.type = "text";
+  btnEye.textContent = "🙈";
 }
 
 /**
@@ -98,16 +99,16 @@ function generateToken(): void {
  */
 function saveToken(): void {
   if (!tokenInput) return;
-  
+
   const token = tokenInput.value.trim();
   setAuthToken(token);
   updateSecureState();
-  
-  const message = token 
-    ? '🔐 Token guardado. Recarga para aplicar.' 
-    : '🔓 Autenticación desactivada.';
-  const type = token ? 'success' : 'info';
-  
+
+  const message = token
+    ? "🔐 Token guardado. Recarga para aplicar."
+    : "🔓 Autenticación desactivada.";
+  const type = token ? "success" : "info";
+
   showToast(message, type);
   closePanel();
 }
@@ -117,7 +118,7 @@ function saveToken(): void {
  */
 function handleOutsideClick(e: Event): void {
   if (!panel || !btnToggle) return;
-  
+
   const target = e.target as Node;
   if (!panel.contains(target) && !btnToggle.contains(target)) {
     closePanel();
@@ -129,31 +130,33 @@ function handleOutsideClick(e: Event): void {
  */
 export function initSecurityPanel(): void {
   // Get DOM elements
-  btnToggle = document.getElementById('btn-secure-toggle') as HTMLButtonElement;
-  panel = document.getElementById('secure-panel') as HTMLDivElement;
-  arrow = document.getElementById('secure-arrow') as HTMLSpanElement;
-  label = document.getElementById('secure-label') as HTMLSpanElement;
-  tokenInput = document.getElementById('secure-token-input') as HTMLInputElement;
-  btnEye = document.getElementById('btn-eye-token') as HTMLButtonElement;
-  btnGen = document.getElementById('btn-gen-token') as HTMLButtonElement;
-  btnSave = document.getElementById('btn-save-secure') as HTMLButtonElement;
-  btnClose = document.getElementById('btn-close-secure') as HTMLButtonElement;
+  btnToggle = document.getElementById("btn-secure-toggle") as HTMLButtonElement;
+  panel = document.getElementById("secure-panel") as HTMLDivElement;
+  arrow = document.getElementById("secure-arrow") as HTMLSpanElement;
+  label = document.getElementById("secure-label") as HTMLSpanElement;
+  tokenInput = document.getElementById(
+    "secure-token-input",
+  ) as HTMLInputElement;
+  btnEye = document.getElementById("btn-eye-token") as HTMLButtonElement;
+  btnGen = document.getElementById("btn-gen-token") as HTMLButtonElement;
+  btnSave = document.getElementById("btn-save-secure") as HTMLButtonElement;
+  btnClose = document.getElementById("btn-close-secure") as HTMLButtonElement;
 
   // Setup event listeners
-  btnToggle?.addEventListener('click', (e: Event) => {
+  btnToggle?.addEventListener("click", (e: Event) => {
     e.stopPropagation();
     togglePanel();
   });
 
-  btnClose?.addEventListener('click', closePanel);
-  
-  document.addEventListener('click', handleOutsideClick);
+  btnClose?.addEventListener("click", closePanel);
 
-  btnEye?.addEventListener('click', toggleTokenVisibility);
-  
-  btnGen?.addEventListener('click', generateToken);
-  
-  btnSave?.addEventListener('click', saveToken);
+  document.addEventListener("click", handleOutsideClick);
+
+  btnEye?.addEventListener("click", toggleTokenVisibility);
+
+  btnGen?.addEventListener("click", generateToken);
+
+  btnSave?.addEventListener("click", saveToken);
 
   // Initialize state
   updateSecureState();
@@ -163,5 +166,5 @@ export function initSecurityPanel(): void {
  * Limpia los event listeners (para cleanup)
  */
 export function cleanupSecurityPanel(): void {
-  document.removeEventListener('click', handleOutsideClick);
+  document.removeEventListener("click", handleOutsideClick);
 }

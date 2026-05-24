@@ -58,7 +58,7 @@ Press `Q` or `Esc` to close.
 
 
 class HelpScreen(Screen[Any]):
-    BINDINGS = [("escape", "dismiss"), ("q", "dismiss")]
+    BINDINGS = [("escape", "dismiss"), ("q", "dismiss")]  # noqa: RUF012
 
     def compose(self) -> ComposeResult:
         yield Markdown(HELP_TEXT)

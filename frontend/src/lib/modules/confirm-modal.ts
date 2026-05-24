@@ -1,11 +1,11 @@
 /**
  * Confirmation Modal Module for SRT2Web
- * 
+ *
  * Replaces native browser confirm() with a custom modal
  * Usage: const confirmed = await showConfirm('¿Está seguro?');
  */
 
-import { MESSAGES } from '../constants';
+import { MESSAGES } from "../constants";
 
 // ── State ────────────────────────────────────────────────────────
 
@@ -15,14 +15,14 @@ let resolvePromise: ((value: boolean) => void) | null = null;
 // ── Create Modal DOM ─────────────────────────────────────────────
 
 function createModal(): HTMLElement {
-  const modal = document.createElement('div');
-  modal.id = 'confirm-modal';
-  modal.className = 'confirm-modal-overlay hidden';
-  modal.setAttribute('role', 'dialog');
-  modal.setAttribute('aria-modal', 'true');
-  modal.setAttribute('aria-labelledby', 'confirm-title');
-  modal.setAttribute('aria-describedby', 'confirm-message');
-  
+  const modal = document.createElement("div");
+  modal.id = "confirm-modal";
+  modal.className = "confirm-modal-overlay hidden";
+  modal.setAttribute("role", "dialog");
+  modal.setAttribute("aria-modal", "true");
+  modal.setAttribute("aria-labelledby", "confirm-title");
+  modal.setAttribute("aria-describedby", "confirm-message");
+
   modal.innerHTML = `
     <div class="confirm-modal-content" role="document">
       <h3 id="confirm-title" class="confirm-title">Confirmación</h3>
@@ -37,11 +37,11 @@ function createModal(): HTMLElement {
       </div>
     </div>
   `;
-  
+
   // Add styles if not already present
-  if (!document.getElementById('confirm-modal-styles')) {
-    const style = document.createElement('style');
-    style.id = 'confirm-modal-styles';
+  if (!document.getElementById("confirm-modal-styles")) {
+    const style = document.createElement("style");
+    style.id = "confirm-modal-styles";
     style.textContent = `
       .confirm-modal-overlay {
         position: fixed;
@@ -57,11 +57,11 @@ function createModal(): HTMLElement {
         opacity: 0;
         transition: opacity 0.3s ease;
       }
-      
+
       .confirm-modal-overlay.visible {
         opacity: 1;
       }
-      
+
       .confirm-modal-content {
         background: var(--color-card, #1a1a24);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -72,25 +72,25 @@ function createModal(): HTMLElement {
         transform: scale(0.9);
         transition: transform 0.3s ease;
       }
-      
+
       .confirm-modal-overlay.visible .confirm-modal-content {
         transform: scale(1);
       }
-      
+
       .confirm-title {
         font-size: 16px;
         font-weight: 600;
         color: var(--color-surface-light, #e4e4e8);
         margin-bottom: 8px;
       }
-      
+
       .confirm-message {
         font-size: 13px;
         color: var(--color-surface-dim, #8888a0);
         margin-bottom: 20px;
         line-height: 1.5;
       }
-      
+
       .confirm-buttons {
         display: flex;
         gap: 8px;
@@ -99,30 +99,30 @@ function createModal(): HTMLElement {
     `;
     document.head.appendChild(style);
   }
-  
+
   // Add event listeners
-  modal.querySelector('#btn-confirm-cancel')?.addEventListener('click', () => {
+  modal.querySelector("#btn-confirm-cancel")?.addEventListener("click", () => {
     closeModal(false);
   });
-  
-  modal.querySelector('#btn-confirm-ok')?.addEventListener('click', () => {
+
+  modal.querySelector("#btn-confirm-ok")?.addEventListener("click", () => {
     closeModal(true);
   });
-  
+
   // Close on overlay click
-  modal.addEventListener('click', (e) => {
+  modal.addEventListener("click", (e) => {
     if (e.target === modal) {
       closeModal(false);
     }
   });
-  
+
   // Close on Escape key
-  modal.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
+  modal.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
       closeModal(false);
     }
   });
-  
+
   return modal;
 }
 
@@ -133,29 +133,31 @@ function openModal(message: string): void {
     modalElement = createModal();
     document.body.appendChild(modalElement);
   }
-  
-  const messageEl = modalElement.querySelector('#confirm-message');
+
+  const messageEl = modalElement.querySelector("#confirm-message");
   if (messageEl) messageEl.textContent = message;
-  
+
   // Show modal
-  modalElement.classList.remove('hidden');
+  modalElement.classList.remove("hidden");
   requestAnimationFrame(() => {
-    modalElement?.classList.add('visible');
+    modalElement?.classList.add("visible");
   });
-  
+
   // Focus the cancel button
   setTimeout(() => {
-    (modalElement?.querySelector('#btn-confirm-cancel') as HTMLElement | null)?.focus();
+    (
+      modalElement?.querySelector("#btn-confirm-cancel") as HTMLElement | null
+    )?.focus();
   }, 100);
 }
 
 function closeModal(confirmed: boolean): void {
   if (!modalElement) return;
-  
-  modalElement.classList.remove('visible');
-  
+
+  modalElement.classList.remove("visible");
+
   setTimeout(() => {
-    modalElement?.classList.add('hidden');
+    modalElement?.classList.add("hidden");
     if (resolvePromise) {
       resolvePromise(confirmed);
       resolvePromise = null;

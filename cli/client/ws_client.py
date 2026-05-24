@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import random
 from collections.abc import Callable
@@ -54,10 +55,8 @@ class WSClient:
             await self._ws.close()
         if self._task:
             self._task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError, Exception):
                 await self._task
-            except (asyncio.CancelledError, Exception):
-                pass
             self._task = None
         if self.on_connection_change:
             self.on_connection_change(False)

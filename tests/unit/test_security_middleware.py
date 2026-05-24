@@ -2,9 +2,10 @@
 Tests for the new security middleware (Phase 1).
 """
 
+from unittest.mock import Mock
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
 
@@ -75,10 +76,7 @@ class TestSecurityMiddleware:
         app = FastAPI()
 
         # Add auth middleware with a test token
-        app.add_middleware(
-            AuthMiddleware,
-            get_auth_token=lambda: "test-token-123"
-        )
+        app.add_middleware(AuthMiddleware, get_auth_token=lambda: "test-token-123")
 
         @app.get("/protected")
         async def protected():
@@ -97,7 +95,7 @@ class TestSecurityMiddleware:
         app = FastAPI()
         app.add_middleware(
             AuthMiddleware,
-            get_auth_token=lambda: ""  # No token
+            get_auth_token=lambda: "",  # No token
         )
 
         @app.get("/test")
@@ -117,19 +115,13 @@ class TestSecurityMiddleware:
     def test_auth_middleware_allows_with_valid_token(self, app_with_auth) -> None:
         """Test that requests with valid token are allowed."""
         client = TestClient(app_with_auth)
-        response = client.get(
-            "/protected",
-            headers={"Authorization": "Bearer test-token-123"}
-        )
+        response = client.get("/protected", headers={"Authorization": "Bearer test-token-123"})
         assert response.status_code == 200
 
     def test_auth_middleware_blocks_with_invalid_token(self, app_with_auth) -> None:
         """Test that requests with invalid token are blocked."""
         client = TestClient(app_with_auth, raise_server_exceptions=False)
-        response = client.get(
-            "/protected",
-            headers={"Authorization": "Bearer wrong-token"}
-        )
+        response = client.get("/protected", headers={"Authorization": "Bearer wrong-token"})
         assert response.status_code == 401
 
     def test_auth_middleware_allows_public_paths(self, app_with_auth) -> None:
@@ -255,7 +247,7 @@ class TestConfigManagerDefaults:
 
     def test_default_host_is_localhost(self) -> None:
         """Test that default host is 127.0.0.1 (localhost only)."""
-        from core.config_manager import ConfigManager, DEFAULT_CONFIG
+        from core.config_manager import DEFAULT_CONFIG
 
         assert DEFAULT_CONFIG["server"]["host"] == "127.0.0.1"
 
@@ -279,16 +271,17 @@ class TestSecurityCardComponent:
     def test_security_in_header_component(self) -> None:
         """Test that security button exists in Header component."""
         import os
+
         header_path = "frontend/src/components/Header.astro"
         if not os.path.exists(header_path):
             pytest.skip("Header.astro not found")
-        with open(header_path, "r", encoding="utf-8") as f:
+        with open(header_path, encoding="utf-8") as f:
             content = f.read()
         assert "Secure" in content, "Security toggle should be in Header"
 
     def test_api_ts_has_auth_functions(self) -> None:
         """Test that api.ts has auth token functions."""
-        with open("frontend/src/lib/api.ts", "r") as f:
+        with open("frontend/src/lib/api.ts") as f:
             content = f.read()
 
         assert "getAuthToken" in content, "getAuthToken function not found"

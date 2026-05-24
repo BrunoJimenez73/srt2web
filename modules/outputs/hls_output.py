@@ -10,12 +10,13 @@ Configuración (output.web o output.hls):
     audio_offset_ms: Offset de audio en milisegundos (default: 0)
 """
 
+import contextlib
 import glob
 import os
 import subprocess
 import sys
 import threading
-from typing import Any, Optional
+from typing import Any
 
 from core.encoder_config import EncoderConfig
 from core.ffmpeg_pool import shutdown_pool
@@ -49,7 +50,7 @@ class HLSOutput(OutputSink):
         self._encoder_config = EncoderConfig(config if config else {})
 
         # Estado interno
-        self._ffmpeg_path: Optional[str] = None
+        self._ffmpeg_path: str | None = None
         self._hls_dir: str = ""
         self._segment_index: int = 0
         self._manifest_lock = threading.Lock()
@@ -99,15 +100,11 @@ class HLSOutput(OutputSink):
 
         # Limpiar archivos antiguos
         for ts_file in glob.glob(os.path.join(self._hls_dir, "*.ts")):
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(ts_file)
-            except OSError:
-                pass
         for m3u8_file in glob.glob(os.path.join(self._hls_dir, "*.m3u8")):
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(m3u8_file)
-            except OSError:
-                pass
 
         self._segment_index = 0
 
@@ -234,10 +231,7 @@ class HLSOutput(OutputSink):
             cmd.extend(["-itsoffset", str(audio_delay_sec), "-i", audio_input])
 
         # MPEG-TS container does not support Opus audio — force AAC
-        if self._encoder_config.audio_codec == "opus":
-            audio_codec = "aac"
-        else:
-            audio_codec = self._encoder_config.audio_codec
+        audio_codec = "aac" if self._encoder_config.audio_codec == "opus" else self._encoder_config.audio_codec
         audio_args = [
             "-c:a",
             audio_codec,
@@ -550,9 +544,3 @@ class HLSOutput(OutputSink):
                 "encoder_label": encoder_label,
             },
         )
-
-
-# Auto-registro en factory
-from core.io_factory import OutputFactory
-
-OutputFactory.register("web", HLSOutput)

@@ -35,7 +35,7 @@ def _format_value(v: Any) -> str:
         return "[dim]null[/]"
     if isinstance(v, bool):
         return f"[green]{v}[/]"
-    if isinstance(v, (int, float)):
+    if isinstance(v, int | float):
         return f"[yellow]{v}[/]"
     if isinstance(v, str):
         if not v:

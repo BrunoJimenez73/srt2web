@@ -2,10 +2,9 @@
 Tests for FFmpeg Watchdog implementation.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-import time
-import subprocess
-from unittest.mock import MagicMock, patch, call
 
 
 @pytest.mark.unit
@@ -179,7 +178,7 @@ class TestWatchdogIntegration:
 
     def test_module_with_watchdog(self) -> None:
         """Test that module can use watchdog for process monitoring."""
-        from core.module_base import BaseModule, ModuleState, PipelineData
+        from core.module_base import BaseModule, ModuleState
 
         class MockModule(BaseModule):
             def start(self):  # type: ignore

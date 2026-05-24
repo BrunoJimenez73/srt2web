@@ -61,7 +61,7 @@ describe("formatTimestamp", () => {
 describe("clock", () => {
   beforeEach(() => {
     // Mock the clock element
-    document.body.innerHTML = "<div id=\"live-clock\"></div>";
+    document.body.innerHTML = '<div id="live-clock"></div>';
     vi.useFakeTimers();
   });
 

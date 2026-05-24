@@ -33,7 +33,7 @@ async def debug_module(request: Request, module_name: str) -> dict[str, Any]:
     try:
         safe_module_name = sanitize_module_name(module_name)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, str(e)) from e
 
     ctx = _ctx(request)
     pipeline = ctx["pipeline"]
@@ -58,7 +58,7 @@ async def toggle_module(
     try:
         safe_module_name = sanitize_module_name(module_name)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, str(e)) from e
 
     ctx = _ctx(request)
     pipeline = ctx["pipeline"]

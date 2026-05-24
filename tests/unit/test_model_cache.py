@@ -2,9 +2,10 @@
 Tests for Model Cache implementation.
 """
 
-import pytest
 import threading
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 @pytest.mark.unit

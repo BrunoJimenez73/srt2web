@@ -4,11 +4,11 @@ Tests de carga para SRT2Web usando [Locust](https://locust.io/).
 
 ## Escenarios
 
-| Escenario | Descripción | Ratio |
-|-----------|-------------|-------|
-| `DashboardMonitoring` | Cliente dashboard haciendo polling | 3-5s entre requests |
-| `PipelineControl` | Operador iniciando/parando pipeline | 10-20s entre ops |
-| `MixedLoad` | 70% lecturas + 30% escrituras | 2-6s entre requests |
+| Escenario             | Descripción                         | Ratio               |
+| --------------------- | ----------------------------------- | ------------------- |
+| `DashboardMonitoring` | Cliente dashboard haciendo polling  | 3-5s entre requests |
+| `PipelineControl`     | Operador iniciando/parando pipeline | 10-20s entre ops    |
+| `MixedLoad`           | 70% lecturas + 30% escrituras       | 2-6s entre requests |
 
 ## Requisitos
 
@@ -39,6 +39,7 @@ locust -f tests/load/locustfile.py --host=http://localhost:9999 --headless -u 5 
 ## Interpretación de resultados
 
 Locust genera:
+
 - **RPS** (Requests Per Second): throughput del servidor
 - **Response Time (ms)**: P50, P95, P99 latencia
 - **Failure Rate**: % de requests fallidos
@@ -46,9 +47,9 @@ Locust genera:
 
 ### Objetivos de rendimiento
 
-| Métrica | Target | Alerta |
-|---------|--------|--------|
-| GET /api/status P95 | < 500ms | > 2s |
-| POST /api/start | < 3s | > 10s |
-| Failure rate | < 1% | > 5% |
-| RPS sostenido | > 50 | < 10 |
+| Métrica             | Target  | Alerta |
+| ------------------- | ------- | ------ |
+| GET /api/status P95 | < 500ms | > 2s   |
+| POST /api/start     | < 3s    | > 10s  |
+| Failure rate        | < 1%    | > 5%   |
+| RPS sostenido       | > 50    | < 10   |

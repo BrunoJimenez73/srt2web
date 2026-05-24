@@ -2,11 +2,11 @@
 Unit tests for WebSocket routes.
 """
 
-import pytest
-import asyncio
 import json
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from fastapi import WebSocketDisconnect
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+
 from server.ws_routes import LogBroadcaster, create_ws_router
 
 
@@ -102,10 +102,9 @@ class TestWebSocketIntegration:
     @pytest.mark.asyncio
     async def test_ws_connection_flow(self):
         """Test WebSocket connection and messaging flow."""
-        from fastapi.testclient import TestClient
-        from server.app import create_app
         from core.config_manager import ConfigManager
         from core.pipeline import Pipeline
+        from server.app import create_app
 
         config = ConfigManager()
         pipeline = Pipeline()

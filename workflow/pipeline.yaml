@@ -1,7 +1,7 @@
 # Workflow Pipeline Configuration
 # Define cómo se ejecutan las sesiones de desarrollo.
 
-mode: standard  # core | standard | enhanced
+mode: standard # core | standard | enhanced
 
 validators:
   pytest:
@@ -35,13 +35,13 @@ session:
   commit_message_template: "feat({id}): {title}"
 
 pipeline_validation:
-  enabled: false  # true when Nivel 1 validators are wired in
+  enabled: false # true when Nivel 1 validators are wired in
   stages:
     audio_extractor:
       enabled: true
       thresholds:
         min_sample_rate: 8000
-        max_duration_ratio: 1.5  # max allowed vs expected duration ratio
+        max_duration_ratio: 1.5 # max allowed vs expected duration ratio
 
     transcriber:
       enabled: true

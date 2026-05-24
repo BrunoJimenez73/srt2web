@@ -1479,6 +1479,715 @@
         ".github/workflows/ci.yml"
       ],
       "completion_notes": "Dockerfile: slim base <500MB, multi-stage con variante CUDA, HEALTHCHECK con Python. docker-compose: restart policy, healthcheck activo, .env support, GPU comentado. CI: build validation en PRs, multi-platform amd64+arm64 en main, timeout-minutes, concurrency cancel-in-progress."
+    },
+    {
+      "id": 87,
+      "name": "fix_precommit_hooks",
+      "title": "Fix pre-commit hooks — mypy stubs, ruff, prettier",
+      "status": "done",
+      "completed_date": "2026-05-25",
+      "area": "maintenance",
+      "priority": "Alta",
+      "description": "Resolver los 263 errores de mypy que bloquean pre-commit, corregir 12 errores de ruff en modules/outputs/hls_output.py y modules/subtitle_generator.py, y configurar prettier para ignorar archivos minificados en server/static/. Los errores mypy son mayoritariamente: stubs faltantes (pydantic v2, textual, click, fastapi), type:ignore obsoletos por warn_unused_ignores=true, y decoradores sin tipo en FastAPI/Click.",
+      "problems_identified": [
+        "263 errores mypy en pre-commit: Class cannot subclass BaseModel (pydantic stubs), Class cannot subclass Static (textual stubs), Untyped decorator (FastAPI/Click), unused type:ignore, Returning Any",
+        "12 errores ruff: UP007 (X|Y), SIM105 (contextlib.suppress), SIM108 (ternary), E722 (bare except), E402 (import not at top), B007 (loop var unused), RUF006 (create_task return), RUF015 (single element slice)",
+        "Prettier formatea archivos minificados en server/static/ (JS/CSS build), añadiendo noise a cada commit",
+        "pre-commit --no-verify necesario para cualquier commit, degrada la calidad del repo"
+      ],
+      "acceptance": [
+        "pre-commit run --all-files pasa con 0 errores en ruff, ruff-format, prettier, trailing-whitespace, end-of-file-fixer, check-yaml, check-added-large-files",
+        "mypy en pre-commit: 0 errores (o lista acotada documentada con override)",
+        "Archivos .min.js, .min.css, .js.map en server/static/ excluidos de prettier",
+        "init.ps1 -Quick pasa verde",
+        "npm test pasa en frontend/"
+      ],
+      "files_to_touch": [
+        "pyproject.toml (mypy overrides para stubs, ruff config)",
+        ".pre-commit-config.yaml (ajustar hooks, excluir server/static/ de prettier)",
+        "modules/outputs/hls_output.py (fix ruff: UP007, SIM105, SIM108, E402)",
+        "modules/subtitle_generator.py (fix ruff: UP007, SIM105, E722)",
+        "core/unified_pipeline.py (fix ruff: RUF006, B007, RUF015)",
+        "server/static/ (excluir de prettier via .prettierignore o config)",
+        "modules/piper_loader.py, core/config_schema.py, server/**/*.py, cli/**/*.py, core/**/*.py (fix type:ignore obsoletos y stubs)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Alto",
+        "mitigation": [
+          "Los errores mypy son mayoritariamente de stubs (no afectan runtime)",
+          "Usar overrides en pyproject.toml para módulos sin stubs (textual, pydantic v2, fastapi)",
+          "Ruff fixes son mecánicos y seguros (auto-fix con --unsafe-fixes)",
+          "init.ps1 verifica no regresión tras cada cambio"
+        ]
+      }
+    },
+    {
+      "id": 88,
+      "name": "resolve_workflow_bin_duplication",
+      "title": "Resolver duplicación workflow/ + bin/ — documentar o eliminar",
+      "status": "in_progress",
+      "area": "maintenance",
+      "priority": "Media",
+      "description": "Analizar workflow/ (trackeado en git, 7 archivos, orquestador alternativo para agentes AI) y bin/ (no trackeado, mediamtx.exe 52MB + scripts de orquestación). Decidir si son código activo, moverlos, o eliminarlos.",
+      "problems_identified": [
+        "workflow/ contiene un orquestador de desarrollo (orchestrator.py, session.py, validator.py) que compite conceptualmente con core/unified_pipeline.py",
+        "bin/ contiene mediamtx.exe (52MB, servidor multimedia) + orchestrator.py + scripts que parecen solaparse con workflow/",
+        "No hay documentación clara sobre cuándo usar workflow/ vs core/ vs bin/",
+        "mediamtx.exe en bin/ ocupa 52MB en disco local aunque no esté trackeado en git",
+        "Dos orquestadores (core/unified_pipeline.py y workflow/orchestrator.py) crean confusión"
+      ],
+      "acceptance": [
+        "Análisis documentado de qué hace workflow/ y bin/",
+        "Si es código activo: README.md en cada directorio explicando propósito",
+        "Si es código muerto: movido a PARA BORRAR/",
+        "init.ps1 -Quick pasa verde",
+        "mypy 0 errores en workflow/ (si se mantiene)"
+      ],
+      "files_to_touch": [
+        "workflow/ (README.md o mover a PARA BORRAR/)",
+        "bin/ (README.md o mover a PARA BORRAR/)",
+        "AGENTS.md (documentar sección workflow/ si aplica)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "Análisis primero, acción después (leer antes de borrar)",
+          "Cualquier código movido a PARA BORRAR/ es recuperable"
+        ]
+      }
+    },
+    {
+      "id": 89,
+      "name": "unify_encoder_mode",
+      "title": "Unificar Enum EncoderMode — 3 fuentes de verdad a 1",
+      "status": "pending",
+      "area": "core",
+      "priority": "Media",
+      "description": "Consolidar los 3 enums de encoder incompatibles: EncoderMode en core/types.py (deprecado), ALLOWED_ENCODER_MODES en core/constants.py, y EncoderModeEnum en core/config_schema.py (el activo). Mantener solo EncoderModeEnum y deprecar/eliminar los otros dos.",
+      "problems_identified": [
+        "core/types.py:58 — EncoderMode(str, Enum) con valores SOFTWARE, NVENC, VIDEOTOOLBOX (incompatible con config_schema)",
+        "core/constants.py:169 — ALLOWED_ENCODER_MODES como lista de strings, duplica valores de EncoderModeEnum",
+        "core/config_schema.py:168 — EncoderModeEnum(str, Enum) con AUTO, PASSTHROUGH, CPU, GPU_NVENC, GPU_VIDEOTOOLBOX, GPU_VAAPI (el verdadero activo)",
+        "tests/unit/test_config_validation.py tiene su propio VALID_ENCODER_MODES que puede quedar desync",
+        "core/__init__.py:117 exporta EncoderMode desde types.py (el deprecado)"
+      ],
+      "acceptance": [
+        "EncoderModeEnum en config_schema.py es la única fuente de verdad",
+        "EncoderMode en types.py marcado como @deprecated con comentario claro, o eliminado",
+        "ALLOWED_ENCODER_MODES en constants.py eliminado o convertido a alias de EncoderModeEnum",
+        "core/__init__.py exporta EncoderModeEnum, no EncoderMode",
+        "tests/unit/test_config_validation.py usa EncoderModeEnum directamente",
+        "init.ps1 -Quick pasa verde",
+        "mypy 0 errores en core/ y server/"
+      ],
+      "files_to_touch": [
+        "core/types.py (deprecar o eliminar EncoderMode)",
+        "core/constants.py (eliminar ALLOWED_ENCODER_MODES o convertirlo en alias)",
+        "core/config_schema.py (EncoderModeEnum se queda como está, es el source of truth)",
+        "core/__init__.py (exportar EncoderModeEnum en vez de EncoderMode)",
+        "tests/unit/test_config_validation.py (usar EncoderModeEnum)",
+        "feature_list.json (F89)"
+      ],
+      "dependencies": ["F87"],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "EncoderModeEnum ya es el activo en config_schema.py — solo limpiar los otros",
+          "Cambio puramente mecánico: reemplazar imports de EncoderMode por EncoderModeEnum",
+          "Tests existentes validan que los valores sean correctos",
+          "init.ps1 + mypy verifican no regresión"
+        ]
+      }
+    },
+    {
+      "id": 90,
+      "name": "frontend_hardening",
+      "title": "Hardening frontend — prevenir regresión de calidad",
+      "status": "pending",
+      "area": "frontend",
+      "priority": "Baja",
+      "description": "Asegurar que el frontend mantiene 0 errores tsc, ESLint sin errores, y que los tests (177) sigan pasando. Agregar check de frontend al init.ps1 si no existe. Auditar y limpiar any/unknown restantes.",
+      "problems_identified": [
+        "init.ps1 no verifica npx tsc --noEmit ni npm test (solo informativo en CHECKPOINTS)",
+        "ESLint tiene 22 warnings pre-existentes que pueden escalar a errores",
+        "No hay CI gate que bloquee si el frontend se rompe",
+        "init.ps1 -Quick no incluye validación frontend"
+      ],
+      "acceptance": [
+        "init.ps1 -Quick incluye check de npx tsc --noEmit (exit code 0 = OK)",
+        "init.ps1 -Quick incluye npm test (exit code 0 = OK, o warn_only)",
+        "ESLint warnings reducidos o documentados",
+        "CI corre npm test + npx tsc en PRs",
+        "Todos los tests frontend pasan"
+      ],
+      "files_to_touch": [
+        "init.ps1 (agregar checks frontend)",
+        ".github/workflows/ci.yml (agregar paso frontend)",
+        "frontend/eslint.config.js (documentar warnings restantes)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "Frontend ya tiene 0 errores tsc y 177 tests pasando",
+          "Solo agregar gates de verificación, no cambiar lógica",
+          "npm test y npx tsc se pueden ejecutar en paralelo"
+        ]
+      }
+    },
+    {
+      "id": 91,
+      "name": "audit_gitignore",
+      "title": "Auditar y limpiar .gitignore",
+      "status": "pending",
+      "area": "maintenance",
+      "priority": "Baja",
+      "description": "Revisar .gitignore actual (88 líneas) para eliminar entradas obsoletas (desktop/dist/, desktop/release/ ya no existen), añadir patrones faltantes (startup_*.txt ya cubierto), y verificar que todos los artefactos runtime están cubiertos.",
+      "problems_identified": [
+        "Entradas obsoletas: desktop/dist/, desktop/release/, config.yaml.backup, PRUEBAS/ (ya eliminados del repo)",
+        "py_write_dir/ y pytest_tmp_manual/ no existen",
+        "Software-planning-mcp/ no existe",
+        "Algunos archivos temp como Cleaning, Killing, player_snapshot.md no están cubiertos (aunque ya se movieron a PARA BORRAR/)",
+        ".coverage ya cubierto pero .coverage.* (coverage xml) puede faltar"
+      ],
+      "acceptance": [
+        ".gitignore limpio, sin entradas referenciando directorios que no existen",
+        "Cobertura completa para archivos generados por pytest, coverage, builds",
+        "init.ps1 -Quick pasa verde",
+        "git status muestra solo cambios intencionales (sin ruido de builds)"
+      ],
+      "files_to_touch": [
+        ".gitignore (limpiar entradas obsoletas, añadir patrones faltantes)"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          ".gitignore es solo metadato, no afecta código",
+          "Se puede revertir fácilmente si un patrón es muy agresivo"
+        ]
+      }
+    },
+    {
+      "id": 92,
+      "name": "tooling_harness_baseline",
+      "title": "Estabilizar arnés local y tooling de verificación",
+      "status": "pending",
+      "area": "maintenance",
+      "priority": "Alta",
+      "description": "Hacer que init.ps1/init_Mac.sh y los comandos de verificación funcionen de forma reproducible sin depender de temporales bloqueados, npm/npx global o telemetría que escribe fuera del workspace.",
+      "problems_identified": [
+        "init.ps1 -Quick falla si pytest-xdist intenta crear temporales en AppData/Local/Temp con permisos restringidos",
+        "La verificación solo pasó al forzar PYTEST_ADDOPTS=--basetemp=C:/tmp/srt2web-pytest",
+        "npm/npx global apunta a AppData/Roaming/npm y falla con MODULE_NOT_FOUND",
+        "Astro build falla sin ASTRO_TELEMETRY_DISABLED=1 porque intenta escribir en AppData/Roaming/astro",
+        "ruff y mkdocs no están instalados en el venv actual aunque el arnés y CI los invocan"
+      ],
+      "acceptance": [
+        "init.ps1 define un basetemp seguro dentro de C:/tmp o del workspace para pytest/xdist",
+        "init.ps1 usa binarios locales del frontend (frontend/node_modules/.bin) cuando npm/npx global no existe",
+        "Build frontend desactiva telemetría Astro en scripts locales y CI",
+        "init.ps1 verifica presencia de herramientas dev requeridas y da mensajes accionables",
+        "init.ps1 -Quick pasa verde sin variables manuales",
+        "No quedan temporales de pytest dentro del repo"
+      ],
+      "files_to_touch": [
+        "init.ps1",
+        "init_Mac.sh",
+        "scripts/build-all.bat",
+        "frontend/package.json",
+        "docs/compatibility.md"
+      ],
+      "dependencies": ["F87"],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Cambios limitados a scripts de verificación",
+          "Mantener fallback a comportamiento actual si los paths locales no existen",
+          "Validar en Windows con init.ps1 -Quick y en Mac con init_Mac.sh --quick"
+        ]
+      }
+    },
+    {
+      "id": 93,
+      "name": "dependency_packaging_unification",
+      "title": "Unificar dependencias, extras y empaquetado Python",
+      "status": "pending",
+      "area": "maintenance",
+      "priority": "Alta",
+      "description": "Resolver la divergencia entre pyproject.toml, config/requirements.txt, instaladores y CI para que CLI/TUI, dev tools, docs y subpaquetes se instalen de forma consistente.",
+      "problems_identified": [
+        "config/requirements.txt no instala textual ni rich/httpx completo para la TUI; textual falta en el venv",
+        "config/requirements.txt no instala ruff ni mkdocs aunque init/CI/docs los usan",
+        "CI ejecuta mypy cli/ pero instala config/requirements.txt, por lo que textual falta y mypy falla",
+        "Install.bat instala solo config/requirements.txt y no instala extras cli/dev",
+        "tool.setuptools.packages lista paquetes explícitos pero omite core.pipeline, modules.inputs, modules.outputs y server.routes",
+        "Hay warning de pip: invalid distribution ~ympy en el venv actual"
+      ],
+      "acceptance": [
+        "pyproject.toml es la fuente de verdad para extras core, processing, gpu, webrtc, tts, cli, dev y docs",
+        "requirements.txt/config/requirements.txt quedan generados o documentados como compatibilidad",
+        "Install.bat e install_Mac.sh instalan extras cli/dev/docs según flags claros",
+        "CI instala .[core,cli,dev] o equivalente antes de mypy/tests",
+        "setuptools usa find_packages/include o lista todos los subpaquetes reales",
+        "mypy core/ server/ modules/ cli/ pasa en un entorno limpio"
+      ],
+      "files_to_touch": [
+        "pyproject.toml",
+        "config/requirements.txt",
+        "requirements.txt",
+        "Install.bat",
+        "install_Mac.sh",
+        ".github/workflows/ci.yml",
+        "docs/deployment.md"
+      ],
+      "dependencies": ["F92"],
+      "risk_assessment": {
+        "risk_level": "Alto",
+        "mitigation": [
+          "Separar cambios de packaging de cambios funcionales",
+          "Probar import de core.pipeline, modules.inputs, modules.outputs y server.routes tras pip install -e .",
+          "Mantener requirements.txt como puente para usuarios existentes"
+        ]
+      }
+    },
+    {
+      "id": 94,
+      "name": "security_auth_model_hardening",
+      "title": "Hardening de autenticación, secretos y WebSocket",
+      "status": "pending",
+      "area": "security",
+      "priority": "Alta",
+      "description": "Corregir el modelo mixto de auth_token estático y JWT, eliminar secretos/defaults inseguros, y cerrar fugas de WebSocket antes de autenticación.",
+      "problems_identified": [
+        "config.yaml trackeado tiene server.auth_token vacío, dejando API sin protección por defecto",
+        "AuthMiddleware valida un token estático, mientras /api/auth emite JWT; ambos modelos no protegen las mismas rutas",
+        "JWT_SECRET_KEY usa fallback change-me-in-production",
+        "AuthDB crea admin/admin si no existe config/users.json",
+        "config/users.json está trackeado con hashes/salts de usuarios",
+        "El frontend guarda token en localStorage",
+        "WebSocket /ws/logs hace subscribe y envía buffer antes de verificar el token",
+        "CLI WS envía Authorization header, pero el server exige mensaje inicial {type: auth}"
+      ],
+      "acceptance": [
+        "Decidir y documentar un único modelo de autenticación para API, WebSocket, frontend y CLI",
+        "WebSocket no acepta ni envía logs/status antes de auth válida cuando auth está habilitada",
+        "JWT secret obligatorio por entorno o generado en configuración local no trackeada",
+        "No se crea admin/admin en producción sin aviso bloqueante o bootstrap explícito",
+        "config/users.json deja de estar trackeado o se reemplaza por users.example.json",
+        "Frontend y CLI usan el mismo mecanismo de token sin exponerlo en query string",
+        "Tests de seguridad cubren API, WS, login, token inválido y token ausente"
+      ],
+      "files_to_touch": [
+        "server/security.py",
+        "server/ws_routes.py",
+        "server/routes/auth.py",
+        "core/auth_db.py",
+        "frontend/src/lib/api.ts",
+        "frontend/src/lib/modules/ws-manager.ts",
+        "cli/client/ws_client.py",
+        "config/users.json",
+        "config/users.example.json",
+        "tests/unit/test_security.py",
+        "tests/unit/test_websocket_auth.py"
+      ],
+      "dependencies": ["F93"],
+      "risk_assessment": {
+        "risk_level": "Alto",
+        "mitigation": [
+          "Mantener modo local sin auth solo si server.host es loopback y queda explícitamente documentado",
+          "Agregar tests antes de cambiar middleware",
+          "Hacer migración compatible para usuarios con auth_token existente"
+        ]
+      }
+    },
+    {
+      "id": 95,
+      "name": "frontend_api_xss_hardening",
+      "title": "Hardening frontend: API autenticada, XSS y deuda TypeScript",
+      "status": "pending",
+      "area": "frontend",
+      "priority": "Alta",
+      "description": "Normalizar todas las llamadas HTTP mediante apiCall/fetchWithAuth, eliminar sinks HTML inseguros y cerrar huecos que ESLint no detecta dentro de scripts Astro.",
+      "problems_identified": [
+        "Hay fetch directos a /api/status, /api/input-info, /api/presets y /api/config que no envían Authorization",
+        "DocsSearch.astro usa any y construye resultados con innerHTML desde datos de búsqueda",
+        "ApiEndpoint.astro, Callout.astro y DocsSidebar.astro usan set:html; varios usos necesitan whitelist o reemplazo por render seguro",
+        "index_new.astro es una página monolítica de 967 líneas con innerHTML y lógica duplicada",
+        "ESLint no está capturando any/consoles dentro de scripts Astro",
+        "Quedan console.warn/error/info en código de producción frontend"
+      ],
+      "acceptance": [
+        "Cero fetch directo a rutas /api protegidas fuera de fetchWithAuth/apiCall",
+        "Sinks innerHTML/set:html quedan eliminados o justificados con sanitización/whitelist local",
+        "index_new.astro eliminado, movido a docs/demo, o refactorizado como ruta no productiva",
+        "ESLint cubre scripts Astro con no-explicit-any y no-console en producción",
+        "npx tsc --noEmit, eslint y tests frontend pasan",
+        "Tests cubren auth headers en polling, presets, file input y config save"
+      ],
+      "files_to_touch": [
+        "frontend/src/lib/modules/polling.ts",
+        "frontend/src/lib/modules/presets-client.ts",
+        "frontend/src/lib/modules/pipeline-control.ts",
+        "frontend/src/lib/modules/file-input.ts",
+        "frontend/src/components/AudioMixerCard.astro",
+        "frontend/src/components/docs/*.astro",
+        "frontend/src/pages/index_new.astro",
+        "frontend/eslint.config.js",
+        "frontend/src/**/*.test.ts"
+      ],
+      "dependencies": ["F94"],
+      "risk_assessment": {
+        "risk_level": "Alto",
+        "mitigation": [
+          "Cambiar primero las llamadas API, luego los sinks HTML",
+          "Usar DOM APIs/textContent para renders dinámicos",
+          "Mantener snapshots funcionales del dashboard y docs search"
+        ]
+      }
+    },
+    {
+      "id": 96,
+      "name": "cli_tui_command_registration_auth",
+      "title": "Corregir CLI/TUI: subcomandos reales, dependencias y auth WS",
+      "status": "pending",
+      "area": "cli-tui",
+      "priority": "Alta",
+      "description": "Arreglar comandos one-shot agregados en F56 que no están registrados como grupos Click, instalar Textual y alinear la autenticación WebSocket con el servidor.",
+      "problems_identified": [
+        "python -m cli.main module list falla con 'unexpected extra argument (list)'",
+        "python -m cli.main output list --help muestra solo el wrapper, no subcomandos",
+        "cli/main.py define wrappers @cli.command que llaman grupos internos en vez de registrar los grupos",
+        "Textual no está instalado, por lo que TUI, mypy cli/ y tests/cli fallan en colección",
+        "CLI WS envía Authorization header pero server/ws_routes.py requiere mensaje auth inicial",
+        "Tests CLI solo cubren --help de comandos base y no detectan subcomandos rotos"
+      ],
+      "acceptance": [
+        "srt2web-tui module list/toggle/debug funciona",
+        "srt2web-tui output/preset/recording/input/network subcomandos funcionan y respetan --server/--token/--json global",
+        "WSClient CLI completa handshake auth compatible con servidor",
+        "Textual queda instalado por el flujo CLI/dev",
+        "tests/cli cubren CliRunner de subcomandos reales y auth WS",
+        "mypy cli/ pasa sin ignore_missing_imports global"
+      ],
+      "files_to_touch": [
+        "cli/main.py",
+        "cli/commands/*.py",
+        "cli/client/ws_client.py",
+        "tests/cli/test_cli_entry.py",
+        "tests/cli/test_cli_commands_full.py",
+        "tests/cli/test_ws_client.py",
+        "pyproject.toml",
+        "config/requirements.txt"
+      ],
+      "dependencies": ["F93", "F94"],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Registrar grupos con cli.add_command() para evitar wrappers",
+          "Mantener compatibilidad de comandos antiguos",
+          "Probar cada subcomando con CliRunner antes de tocar TUI"
+        ]
+      }
+    },
+    {
+      "id": 97,
+      "name": "integration_e2e_repair",
+      "title": "Reparar integración/E2E y hacer tests no frágiles",
+      "status": "pending",
+      "area": "testing",
+      "priority": "Alta",
+      "description": "Arreglar tests de integración/CLI/E2E que no coleccionan o dependen de APIs eliminadas, y hacer que frontend tests corran en entornos sandbox.",
+      "problems_identified": [
+        "tests/integration/test_hls_muxer.py y test_pipeline_tts_disabled.py importan PipelineOrchestrator inexistente",
+        "tests/cli/test_tui_e2e.py y test_tui_screens.py fallan si falta textual",
+        "Vitest falla en este sandbox porque esbuild intenta leer directorios ancestros no permitidos",
+        "Unit tests sin xdist se colgaron hasta timeout y mostraron errores de basetemp en C:/tmp/srt2web-pytest-unit",
+        "Playwright workflow usa requirements.txt y python main.py sin instalar frontend/build/docs de forma coherente"
+      ],
+      "acceptance": [
+        "pytest tests/integration tests/e2e tests/cli -m 'not slow' colecciona y pasa en entorno limpio",
+        "Tests antiguos migrados de PipelineOrchestrator a UnifiedPipeline/PipelineManager o eliminados si duplican cobertura",
+        "Vitest corre con root/cache explícitos dentro de frontend o workspace",
+        "Tests que requieren dependencias opcionales se saltan con marcador claro si la extra no está instalada",
+        "CI separa unit, integration, cli, frontend y e2e con dependencias correctas"
+      ],
+      "files_to_touch": [
+        "tests/integration/*.py",
+        "tests/e2e/*.py",
+        "tests/cli/*.py",
+        "tests/conftest.py",
+        "frontend/vitest.config.ts",
+        ".github/workflows/ci.yml",
+        ".github/workflows/playwright.yml"
+      ],
+      "dependencies": ["F92", "F93", "F96"],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Separar corrección de colección de cambios de comportamiento",
+          "Usar markers skipif para dependencias opcionales",
+          "Conservar tests de regresión para bugs ya cerrados"
+        ]
+      }
+    },
+    {
+      "id": 98,
+      "name": "api_validation_file_safety",
+      "title": "Hardening de validación API, archivos y configuración",
+      "status": "pending",
+      "area": "backend",
+      "priority": "Alta",
+      "description": "Corregir validadores que no alcanzan claves anidadas reales, sanitizar rutas/archivos expuestos por API y hacer persistencia de configuración más segura.",
+      "problems_identified": [
+        "server.validators valida claves como transcriber.model pero update_config envía modules.transcriber.model, por lo que parte de la validación no se aplica",
+        "AddOutputRequest usa config: Optional[dict] = {} como default mutable",
+        "recordings/{name}/download y delete construyen Path(recordings_dir) / name sin sanitize_filename explícito",
+        "ConfigManager no usa lock ni escritura atómica para config.yaml/presets.json",
+        "update_config acepta ValueError como warning y guarda estado parcial en algunos endpoints",
+        "_sync_outputs_to_config infiere type desde output.name, propenso a errores si el nombre no sigue convención"
+      ],
+      "acceptance": [
+        "Validación de config recorre rutas completas y coincide con SRT2WebConfig",
+        "Todos los modelos Pydantic usan default_factory para dict/list",
+        "Descarga/borrado de grabaciones usa sanitize_filename y verifica relative_to(recordings_dir)",
+        "ConfigManager guarda config y presets de forma atómica con lock",
+        "Endpoints de config no dejan config parcialmente mutada si validación falla",
+        "Tests cubren claves modules.*, output.outputs, path traversal y errores de validación"
+      ],
+      "files_to_touch": [
+        "server/validators.py",
+        "server/routes/config.py",
+        "server/routes/recordings.py",
+        "server/routes/outputs.py",
+        "core/config_manager.py",
+        "core/security.py",
+        "tests/unit/test_config_validation.py",
+        "tests/unit/test_recording_manager.py",
+        "tests/unit/test_multioutput_api.py"
+      ],
+      "dependencies": ["F94"],
+      "risk_assessment": {
+        "risk_level": "Alto",
+        "mitigation": [
+          "Añadir tests de validación antes de endurecer comportamiento",
+          "Mantener mensajes de error compatibles para frontend/CLI",
+          "Usar backup temporal al escribir config"
+        ]
+      }
+    },
+    {
+      "id": 99,
+      "name": "build_static_artifact_strategy",
+      "title": "Estrategia limpia para build, server/static, docs y Docker",
+      "status": "pending",
+      "area": "devops",
+      "priority": "Alta",
+      "description": "Evitar que el build ensucie el repo y corregir scripts/CI/Docker para generar frontend y docs de forma cross-platform.",
+      "problems_identified": [
+        "server/static está trackeado y cada Astro build cambia hashes, borra antiguos y genera ruido masivo",
+        "npm run build:local usa 'call ..\\\\scripts\\\\build-all.bat', comando Windows-only que falla en Linux/macOS/CI",
+        "Dockerfile ejecuta npm run build:local en Linux y luego copia /app/frontend/dist aunque astro.config.mjs escribe en ../server/static",
+        "mkdocs no está instalado en el venv actual, por lo que no se pudo reconstruir server/static/docs",
+        "El build de Astro necesita ASTRO_TELEMETRY_DISABLED=1 en entornos sin AppData escribible",
+        "CI docs-pages escucha mkdocs.yml raíz, pero el archivo activo está en docs/mkdocs.yml"
+      ],
+      "acceptance": [
+        "Definir si server/static se trackea o se genera siempre; aplicar .gitignore/git rm si se decide no trackear",
+        "build:local funciona en Windows, macOS y Linux sin .bat obligatorio",
+        "Dockerfile usa el outDir real o un build output intermedio consistente",
+        "Docs build instala/usa extra docs y genera server/static/docs cuando se necesita",
+        "CI frontend, docs y docker pasan con Node 22 y Python 3.12",
+        "git status después de build no muestra ruido no intencional"
+      ],
+      "files_to_touch": [
+        "frontend/package.json",
+        "scripts/build-all.bat",
+        "scripts/build-all.sh",
+        "Dockerfile",
+        ".github/workflows/ci.yml",
+        ".github/workflows/docs-pages.yml",
+        ".gitignore",
+        "server/static/",
+        "docs/mkdocs.yml"
+      ],
+      "dependencies": ["F92", "F93"],
+      "risk_assessment": {
+        "risk_level": "Alto",
+        "mitigation": [
+          "Primero documentar decisión de artefactos versionados",
+          "Si se deja de trackear server/static, coordinar con modo offline del servidor",
+          "Validar Docker build tras ajustar scripts"
+        ]
+      }
+    },
+    {
+      "id": 100,
+      "name": "process_management_safety",
+      "title": "Seguridad de scripts Start/Stop y gestión de procesos",
+      "status": "pending",
+      "area": "operations",
+      "priority": "Alta",
+      "description": "Reemplazar scripts de parada destructivos por gestión por PID/puerto/proceso propio, sin matar procesos Python/Node/FFmpeg ajenos al proyecto.",
+      "problems_identified": [
+        "Stop.bat mata todos los python.exe, python3.exe, node.exe, ffmpeg.exe y ffprobe.exe del sistema",
+        "Stop.bat limpia logs y output de forma global sin confirmar ni diferenciar runtime de datos útiles",
+        "Start.bat no escribe PID file ni registra procesos hijos para parada selectiva",
+        "stop_Mac.sh usa pgrep -f patrones amplios y puede capturar procesos no relacionados",
+        "server/routes/pipeline.py limpia output con shutil.rmtree desde output_dir configurable sin validación centralizada"
+      ],
+      "acceptance": [
+        "Start.bat/start_Mac.sh escriben PID file del servidor y metadatos de procesos hijos",
+        "Stop.bat/stop_Mac.sh paran solo procesos asociados a srt2web o puertos configurados tras verificación",
+        "Limpieza de logs/output queda separada en comando explícito --clean o script dedicado con confirmación",
+        "No se mata node.exe global salvo que el PID pertenezca al dev server del repo",
+        "Tests o checks de script validan que no hay patrones taskkill/kill genéricos peligrosos"
+      ],
+      "files_to_touch": [
+        "Start.bat",
+        "Stop.bat",
+        "start_Mac.sh",
+        "stop_Mac.sh",
+        "server/routes/pipeline.py",
+        "docs/deployment.md",
+        "tests/unit/test_workspace_fixes.py"
+      ],
+      "dependencies": ["F98"],
+      "risk_assessment": {
+        "risk_level": "Alto",
+        "mitigation": [
+          "Mantener opción de parada forzada explícita para emergencias",
+          "Probar con procesos simulados antes de tocar procesos reales",
+          "Documentar claramente qué se limpia y cuándo"
+        ]
+      }
+    },
+    {
+      "id": 101,
+      "name": "backend_scalability_cleanup",
+      "title": "Cleanup backend para escalabilidad y mantenibilidad",
+      "status": "pending",
+      "area": "backend",
+      "priority": "Media",
+      "description": "Reducir complejidad restante en backend: orquestación, estrategias legacy, paths, caches y concurrencia multi-pipeline.",
+      "problems_identified": [
+        "core/unified_pipeline.py sigue siendo un punto caliente de 876 líneas",
+        "core/pipeline_manager.py llama pipeline.stop() sin await y no tiene tests directos",
+        "Hay dos PipelineStrategy distintas: core/pipeline/base.py legacy y core/pipeline/strategies.py activa",
+        "core/paths.py existe pero server/app.py, config_manager.py, auth_db.py, ffmpeg_utils.py y mediamtx_manager.py aún calculan rutas con __file__",
+        "APICache/LRUCache no es thread-safe y cachea dicts mutables",
+        "PipelineManager tiene merge superficial de config y no inicializa input/output/modules"
+      ],
+      "acceptance": [
+        "PipelineManager tiene API async correcta, tests y contrato claro o se marca como experimental/no usado",
+        "Estrategias legacy documentadas, migradas o eliminadas",
+        "Paths runtime pasan por core.paths salvo excepciones documentadas",
+        "APICache es thread-safe o se limita a un solo hilo con tests",
+        "UnifiedPipeline reduce más responsabilidades o documenta ownership por submódulos",
+        "mypy strict y tests unitarios pasan"
+      ],
+      "files_to_touch": [
+        "core/unified_pipeline.py",
+        "core/pipeline_manager.py",
+        "core/pipeline/base.py",
+        "core/pipeline/*.py",
+        "core/paths.py",
+        "core/cache.py",
+        "server/app.py",
+        "core/config_manager.py",
+        "tests/unit/test_pipeline_manager.py"
+      ],
+      "dependencies": ["F97", "F98"],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Dividir en subfeatures si toca comportamiento runtime",
+          "Extraer primero sin cambiar API pública",
+          "Añadir tests de contrato antes de eliminar legacy"
+        ]
+      }
+    },
+    {
+      "id": 102,
+      "name": "observability_security_logging",
+      "title": "Observabilidad, readiness y logging de seguridad",
+      "status": "pending",
+      "area": "observability",
+      "priority": "Media",
+      "description": "Mejorar señales operativas: security logs auditables, readiness real, métricas útiles y errores frontend/backend sin ruido de consola.",
+      "problems_identified": [
+        "logging_setup filtra SECURITY: y auth_token not configured del broadcast/file handler",
+        "/ready devuelve ready incluso si el pipeline no está configurado o falló",
+        "Frontend usa console.error/warn/info en producción en lugar de logger/toast controlado",
+        "Polling silencia errores de status y puede ocultar degradación de conexión",
+        "Health/readiness no distinguen servidor vivo, pipeline listo, input activo y outputs saludables"
+      ],
+      "acceptance": [
+        "Eventos SECURITY se registran en un canal/archivo auditable sin exponer secretos al UI",
+        "/health, /live y /ready tienen contratos diferenciados y testeados",
+        "Frontend centraliza logging de errores con niveles y modo debug",
+        "Polling actualiza estado de conexión visible sin spam de logs",
+        "Dashboard/CLI muestran degradación de outputs y auth de forma consistente"
+      ],
+      "files_to_touch": [
+        "core/logging_setup.py",
+        "server/app.py",
+        "server/routes/metrics.py",
+        "frontend/src/lib/modules/polling.ts",
+        "frontend/src/lib/modules/toast.ts",
+        "frontend/src/lib/api.ts",
+        "cli/commands/health.py",
+        "tests/unit/test_health_check.py",
+        "tests/unit/test_security_middleware.py"
+      ],
+      "dependencies": ["F94", "F95"],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "No enviar tokens ni secrets a logs",
+          "Mantener compatibilidad de /health para Docker healthcheck",
+          "Agregar tests para no romper probes existentes"
+        ]
+      }
+    },
+    {
+      "id": 103,
+      "name": "documentation_architecture_drift",
+      "title": "Corregir deriva de documentación y ADRs",
+      "status": "pending",
+      "area": "docs",
+      "priority": "Media",
+      "description": "Actualizar documentación que describe APIs, CLI, WebSocket y arquitectura antigua para que coincida con el código real y el plan de features vigente.",
+      "problems_identified": [
+        "docs/deployment.md documenta WebSocket con ?token=TU_TOKEN, pero el frontend actual usa mensaje auth",
+        "docs/adr/* y docs/search_index generado mencionan PipelineOrchestrator como orquestador central aunque no existe",
+        "docs/cli.md contiene comandos legacy tipo cli/srt2web.py y no refleja Click actual",
+        "docs-pages workflow escucha mkdocs.yml raíz aunque el archivo está en docs/mkdocs.yml",
+        "server/static/docs está generado y puede quedar desincronizado si mkdocs no está instalado"
+      ],
+      "acceptance": [
+        "Docs de auth/API/WS coinciden con implementación final de F94",
+        "Docs CLI coinciden con subcomandos reales de F96",
+        "Arquitectura documenta UnifiedPipeline/PipelineManager sin clases inexistentes",
+        "Docs build se ejecuta en CI con docs/mkdocs.yml",
+        "server/static/docs se regenera o se deja de trackear según F99"
+      ],
+      "files_to_touch": [
+        "docs/deployment.md",
+        "docs/architecture.md",
+        "docs/cli.md",
+        "docs/adr/*.md",
+        ".github/workflows/docs-pages.yml",
+        "AGENTS.md",
+        "server/static/docs/"
+      ],
+      "dependencies": ["F94", "F96", "F99"],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "Actualizar docs después de cerrar los cambios funcionales",
+          "Evitar editar artefactos generados a mano",
+          "Añadir chequeo de links/docs build"
+        ]
+      }
     }
   ]
 }

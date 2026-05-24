@@ -29,6 +29,7 @@ def _log(msg: str) -> None:
 def _resample_numpy(raw_audio: bytes, speed: float) -> bytes | None:
     try:
         import numpy as np
+
         samples = np.frombuffer(raw_audio, dtype=np.int16).astype(np.float64)
         new_length = max(1, int(len(samples) / speed))
         indices = np.linspace(0, len(samples) - 1, new_length)
@@ -43,8 +44,19 @@ def _build_wav(raw_audio: bytes, sample_rate: int) -> bytes:
     data_size = len(raw_audio)
     header = struct.pack(
         "<4sI4s4sIHHIIHH4sI",
-        b"RIFF", 36 + data_size, b"WAVE", b"fmt ", 16, 1, 1,
-        sample_rate, sample_rate * 2, 2, 16, b"data", data_size,
+        b"RIFF",
+        36 + data_size,
+        b"WAVE",
+        b"fmt ",
+        16,
+        1,
+        1,
+        sample_rate,
+        sample_rate * 2,
+        2,
+        16,
+        b"data",
+        data_size,
     )
     return header + raw_audio
 

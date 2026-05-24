@@ -5,13 +5,14 @@ Listens for incoming SRT connections (or connects to a caller)
 and writes MPEG-TS chunks to disk for pipeline processing.
 """
 
+import contextlib
 import logging
 import subprocess
 import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.module_base import BaseModule, ModuleState, PipelineData
@@ -28,10 +29,10 @@ class SRTIngest(BaseModule):
     an SRT stream, and writes fixed-duration segments to the output directory.
     """
 
-    def __init__(self, config: Optional[dict[str, Any]] = None, output_dir: str = "./output") -> None:
-        self._ffmpeg_path: Optional[str] = None
-        self._ffmpeg_proc: Optional[subprocess.Popen[Any]] = None
-        self._monitor_thread: Optional[threading.Thread] = None
+    def __init__(self, config: dict[str, Any] | None = None, output_dir: str = "./output") -> None:
+        self._ffmpeg_path: str | None = None
+        self._ffmpeg_proc: subprocess.Popen[Any] | None = None
+        self._monitor_thread: threading.Thread | None = None
         self._output_dir = Path(output_dir)
         self._chunks_dir = Path()
         self._last_chunk_index = -1
@@ -72,10 +73,8 @@ class SRTIngest(BaseModule):
 
         # Clean old chunks
         for f in self._chunks_dir.glob("chunk_*.ts"):
-            try:
+            with contextlib.suppress(OSError):
                 f.unlink()
-            except OSError:
-                pass
 
         # Build SRT URL
         latency_us = self._srt_latency_ms * 1000
@@ -153,10 +152,8 @@ class SRTIngest(BaseModule):
 
                 self._ffmpeg_proc.wait(timeout=2)
             except Exception as e:
-                try:
+                with contextlib.suppress(Exception):
                     self._ffmpeg_proc.kill()
-                except:
-                    pass
                 logger.debug(f"Process cleanup: {e}")
             finally:
                 self._ffmpeg_proc = None
@@ -170,7 +167,7 @@ class SRTIngest(BaseModule):
         """
         return data
 
-    def get_next_chunk(self) -> Optional[PipelineData]:
+    def get_next_chunk(self) -> PipelineData | None:
         """
         Check for new chunk files and return the next one as PipelineData.
 

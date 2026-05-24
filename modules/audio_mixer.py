@@ -11,9 +11,10 @@ Key features:
 - Duration validation: measures actual output duration
 """
 
+import contextlib
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -32,8 +33,8 @@ class AudioMixer(BaseModule):
     to prevent drift accumulation across chunks.
     """
 
-    def __init__(self, config: Optional[dict[str, Any]] = None, output_dir: str = "./output") -> None:
-        self._ffmpeg_path: Optional[str] = None
+    def __init__(self, config: dict[str, Any] | None = None, output_dir: str = "./output") -> None:
+        self._ffmpeg_path: str | None = None
         self._output_dir = Path(output_dir)
         self._mixer_dir = Path()
         self._original_volume = 0.15  # 15% original volume (ducking)
@@ -43,7 +44,7 @@ class AudioMixer(BaseModule):
         self._duration_cache: dict[str, float] = {}
         # Crossfade settings to prevent clicks at boundaries
         self._crossfade_duration = 0.01  # 10ms crossfade
-        self._prev_end_sample: Optional[np.ndarray] = None
+        self._prev_end_sample: np.ndarray | None = None
         super().__init__("audio_mixer", config)
 
     def configure(self, config: dict[str, Any]) -> None:
@@ -65,10 +66,8 @@ class AudioMixer(BaseModule):
         # Clean old files
         for f in self._mixer_dir.iterdir():
             if f.suffix == ".wav":
-                try:
+                with contextlib.suppress(OSError):
                     f.unlink()
-                except OSError:
-                    pass
 
         self._state = ModuleState.RUNNING
         logger.info(f"AudioMixer ready with volumes orig={self._original_volume}, tts={self._tts_volume}")

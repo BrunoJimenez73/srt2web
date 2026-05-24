@@ -31,7 +31,7 @@ test.describe("Visual Regression", () => {
     await page.waitForSelector(".status-card", { timeout: 10000 });
     await expect(page.locator(".status-card")).toHaveScreenshot(
       "status-card-stopped.png",
-      { maxDiffPixelRatio: 0.05 }
+      { maxDiffPixelRatio: 0.05 },
     );
   });
 
@@ -40,7 +40,7 @@ test.describe("Visual Regression", () => {
     await page.waitForSelector(".metrics-card", { timeout: 10000 });
     await expect(page.locator(".metrics-card")).toHaveScreenshot(
       "metrics-card.png",
-      { maxDiffPixelRatio: 0.05 }
+      { maxDiffPixelRatio: 0.05 },
     );
   });
 
@@ -49,7 +49,7 @@ test.describe("Visual Regression", () => {
     await page.waitForSelector(".process-grid", { timeout: 10000 });
     await expect(page.locator(".process-grid")).toHaveScreenshot(
       "process-grid.png",
-      { maxDiffPixelRatio: 0.05 }
+      { maxDiffPixelRatio: 0.05 },
     );
   });
 
@@ -58,7 +58,7 @@ test.describe("Visual Regression", () => {
     await page.waitForSelector(".log-panel", { timeout: 10000 });
     await expect(page.locator(".log-panel")).toHaveScreenshot(
       "logpanel-collapsed.png",
-      { maxDiffPixelRatio: 0.05 }
+      { maxDiffPixelRatio: 0.05 },
     );
   });
 
@@ -69,7 +69,7 @@ test.describe("Visual Regression", () => {
     await expect(page.locator("html")).not.toHaveClass("dark");
     await expect(page.locator(".dashboard")).toHaveScreenshot(
       "dashboard-light.png",
-      { maxDiffPixelRatio: 0.05 }
+      { maxDiffPixelRatio: 0.05 },
     );
   });
 });

@@ -1,9 +1,6 @@
-import logging
-
-logger = logging.getLogger(__name__)
-
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from rich.text import Text
@@ -13,6 +10,8 @@ from textual.containers import Horizontal
 from textual.widgets import Select, Static
 
 from cli.client.http_client import LogEntry
+
+logger = logging.getLogger(__name__)
 
 LOG_LEVELS = ["ALL", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 

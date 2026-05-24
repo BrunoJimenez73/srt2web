@@ -33,9 +33,9 @@ class TUIModuleCard(Static, can_focus=True):
     def on_mount(self) -> None:
         self._render_card()
 
-    def update(
+    def update(  # type: ignore[override]
         self, state: str, enabled: bool, chunks: int, last_time: float, extra: dict[str, Any] | None = None
-    ) -> None:  # type: ignore[override]
+    ) -> None:
         self._state = state
         self._enabled = enabled
         self._chunks = chunks
@@ -100,7 +100,7 @@ class CardClicked(Message):
 
 
 class TUIModuleGrid(Static):
-    BINDINGS = [
+    BINDINGS = [  # noqa: RUF012
         ("right", "move_next", "Next"),
         ("down", "move_next", "Next"),
         ("left", "move_prev", "Prev"),

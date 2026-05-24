@@ -16,7 +16,7 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from core.module_base import BaseModule, PipelineData
 
@@ -43,7 +43,7 @@ class PipelineStrategy(ABC):
     - Iteración sobre módulos habilitados
     """
 
-    def __init__(self, config: Optional[StrategyConfig] = None):
+    def __init__(self, config: StrategyConfig | None = None):
         self._config = config or StrategyConfig()
         self._modules: list[BaseModule] = []
         self._is_running = False
@@ -144,7 +144,7 @@ class ThreadParallelStrategy(PipelineStrategy):
     - Sistemas multi-core
     """
 
-    def __init__(self, config: Optional[StrategyConfig] = None):
+    def __init__(self, config: StrategyConfig | None = None):
         super().__init__(config)
         self._semaphore = threading.Semaphore(self._config.max_concurrent_chunks)
         self._lock = threading.Lock()
@@ -189,9 +189,9 @@ class AsyncIOStrategy(PipelineStrategy):
     - Integración con servidores async (FastAPI)
     """
 
-    def __init__(self, config: Optional[StrategyConfig] = None):
+    def __init__(self, config: StrategyConfig | None = None):
         super().__init__(config)
-        self._semaphore: Optional[asyncio.Semaphore] = None
+        self._semaphore: asyncio.Semaphore | None = None
 
     async def process_chunk_async(self, data: PipelineData) -> PipelineData:
         """Procesa un chunk de forma asíncrona."""
@@ -238,7 +238,7 @@ class AsyncIOStrategy(PipelineStrategy):
         return metrics
 
 
-def create_strategy(mode: str, config: Optional[StrategyConfig] = None) -> PipelineStrategy:
+def create_strategy(mode: str, config: StrategyConfig | None = None) -> PipelineStrategy:
     """
     Factory function para crear estrategias.
 

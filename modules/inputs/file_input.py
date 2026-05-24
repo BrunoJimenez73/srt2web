@@ -13,22 +13,24 @@ Configuración (input.file):
     chunk_duration_sec: Duración de cada chunk (default: 15)
 """
 
+import contextlib
 import glob
 import logging
 import os
 import subprocess
 import sys
-
-logger = logging.getLogger(__name__)
 import threading
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from core.ffmpeg_utils import ensure_ffmpeg, get_video_duration
 from core.input_source import InputSource
+from core.io_factory import InputFactory
 from core.module_base import ModuleState, ModuleStatus, PipelineData
 from core.subprocess_utils import get_creation_flags
+
+logger = logging.getLogger(__name__)
 
 
 class FileInput(InputSource):
@@ -46,9 +48,9 @@ class FileInput(InputSource):
         self._chunk_duration = config.get("chunk_duration_sec", 15)
 
         # Estado interno
-        self._ffmpeg_path: Optional[str] = None
-        self._ffmpeg_proc: Optional[subprocess.Popen[Any]] = None
-        self._monitor_thread: Optional[threading.Thread] = None
+        self._ffmpeg_path: str | None = None
+        self._ffmpeg_proc: subprocess.Popen[Any] | None = None
+        self._monitor_thread: threading.Thread | None = None
         self._chunks_dir: str = ""
         self._last_chunk_index: int = -1
         self._file_finished: bool = False
@@ -144,10 +146,8 @@ class FileInput(InputSource):
 
         # Limpiar chunks antiguos
         for f in glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")):
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(f)
-            except OSError:
-                pass
 
         self._last_chunk_index = -1
         self._cumulative_duration = position  # Ajustar duración acumulada
@@ -260,21 +260,15 @@ class FileInput(InputSource):
         self._gpu_info = check_gpu_support(self._ffmpeg_path)
 
         # Habilitar hwaccel si hay GPU disponible
-        if self._gpu_info.get("nvenc"):
-            self._hwaccel_enabled = True
-        elif self._gpu_info.get("qsv"):
-            self._hwaccel_enabled = True
-        elif self._gpu_info.get("vaapi"):
+        if self._gpu_info.get("nvenc") or self._gpu_info.get("qsv") or self._gpu_info.get("vaapi"):
             self._hwaccel_enabled = True
         else:
             self._hwaccel_enabled = False
 
         # Limpiar chunks antiguos
         for f in glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")):
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(f)
-            except OSError:
-                pass
 
         # Reset cumulative duration tracking
         self._cumulative_duration = 0.0
@@ -368,7 +362,7 @@ class FileInput(InputSource):
             finally:
                 self._ffmpeg_proc = None
 
-    def get_next_chunk(self) -> Optional[PipelineData]:
+    def get_next_chunk(self) -> PipelineData | None:
         """Obtener siguiente chunk del archivo."""
         # Check if paused - loop last processed chunk to maintain signal
         if self._is_paused:
@@ -398,9 +392,8 @@ class FileInput(InputSource):
             return None
 
         # Verificar si el proceso terminó (archivo terminó)
-        if self._ffmpeg_proc and self._ffmpeg_proc.poll() is not None:
-            if not self._loop:
-                self._file_finished = True
+        if self._ffmpeg_proc and self._ffmpeg_proc.poll() is not None and not self._loop:
+            self._file_finished = True
 
         chunks = sorted(glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")))
 
@@ -429,10 +422,8 @@ class FileInput(InputSource):
                 self._last_chunk_index = -1
                 # Limpiar y reiniciar
                 for f in glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")):
-                    try:
+                    with contextlib.suppress(OSError):
                         os.remove(f)
-                    except OSError:
-                        pass
                 self.start()
             return None
 
@@ -521,6 +512,4 @@ class FileInput(InputSource):
 
 
 # Auto-registro en factory
-from core.io_factory import InputFactory
-
 InputFactory.register("file", FileInput)

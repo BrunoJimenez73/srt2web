@@ -10,7 +10,7 @@ import os
 import subprocess
 import threading
 import time as time_module
-from typing import Any, Optional
+from typing import Any
 
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.module_base import PipelineData
@@ -31,13 +31,13 @@ class SRTOutput(BaseOutput):
 
     # Retry configuration
     MAX_RETRIES: int = 3
-    RETRY_DELAYS: list[float] = [5.0, 15.0, 30.0]
+    RETRY_DELAYS: list[float] = [5.0, 15.0, 30.0]  # noqa: RUF012
 
-    def __init__(self, config: Optional[dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__("srt", config or {})
-        self._ffmpeg_path: Optional[str] = None
-        self._ffmpeg_proc: Optional[subprocess.Popen[Any]] = None
-        self._monitor_thread: Optional[threading.Thread] = None
+        self._ffmpeg_path: str | None = None
+        self._ffmpeg_proc: subprocess.Popen[Any] | None = None
+        self._monitor_thread: threading.Thread | None = None
 
         # SRT configuration
         self._url: str = "srt://localhost:9001"

@@ -22,8 +22,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.unified_pipeline import UnifiedPipeline, PipelineMode
 from core.config_manager import ConfigManager
+from core.unified_pipeline import PipelineMode, UnifiedPipeline
 from modules.inputs.file_input import FileInput
 from modules.outputs.hls_output import HLSOutput
 
@@ -121,11 +121,13 @@ def run_benchmark(
 
     # Configurar output HLS temporal
     hls_output = HLSOutput()
-    hls_output.configure({
-        "output_dir": str(PROJECT_ROOT / "temp_benchmark_hls"),
-        "segment_duration": 5,
-        "list_size": 3,
-    })
+    hls_output.configure(
+        {
+            "output_dir": str(PROJECT_ROOT / "temp_benchmark_hls"),
+            "segment_duration": 5,
+            "list_size": 3,
+        }
+    )
     pipeline.set_output_sink(hls_output)
 
     # Registrar módulos y inicializar
@@ -205,7 +207,7 @@ def save_results(results: dict, output_file: Path) -> None:
     # Cargar resultados previos si existen
     all_results = []
     if output_file.exists():
-        with open(output_file, "r") as f:
+        with open(output_file) as f:
             all_results = json.load(f)
 
     all_results.append(results)

@@ -46,30 +46,32 @@ npm run build    # Build a server/static
 ## Módulos JavaScript
 
 ### api.ts
+
 ```typescript
-getAuthToken()    // Obtener token
-setAuthToken()     // Guardar token
-clearAuthToken()   // Limpiar token
-getWebSocketUrl()  // WebSocket URL con auth
-apiCall()          // Llamadas API
-getConfig()        // Obtener config
-startPipeline()    // Iniciar pipeline
-stopPipeline()     // Detener pipeline
+getAuthToken(); // Obtener token
+setAuthToken(); // Guardar token
+clearAuthToken(); // Limpiar token
+getWebSocketUrl(); // WebSocket URL con auth
+apiCall(); // Llamadas API
+getConfig(); // Obtener config
+startPipeline(); // Iniciar pipeline
+stopPipeline(); // Detener pipeline
 ```
 
 ### dashboard.ts
+
 ```typescript
-initDashboard()              // Inicializar dashboard
-initWebSocket()           // Conectar WebSocket
-handleInputTypeChange()    // Cambio tipo input
-handleOutputFormatChange() // Cambio formato output
+initDashboard(); // Inicializar dashboard
+initWebSocket(); // Conectar WebSocket
+handleInputTypeChange(); // Cambio tipo input
+handleOutputFormatChange(); // Cambio formato output
 ```
 
 ---
 
 ## Estado del Proyecto (2026-04-12)
 
-**Versión**: 0.6.5  
+**Versión**: 0.6.5
 **Tests**: 527 passing ✅
 
 ### Módulos del Pipeline

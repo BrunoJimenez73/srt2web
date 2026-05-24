@@ -2,8 +2,6 @@
 Tests for Recording Manager API endpoints.
 """
 
-import json
-import os
 import tempfile
 from pathlib import Path
 
@@ -32,6 +30,7 @@ def output_dir() -> Path:
 def mock_app(output_dir: Path):
     """Create a mock FastAPI app with recordings routes."""
     from fastapi import FastAPI
+
     from server.routes.recordings import router
 
     app = FastAPI()

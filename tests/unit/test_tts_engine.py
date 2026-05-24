@@ -2,12 +2,13 @@
 Unit tests for TTSEngine module.
 """
 
-import sys
 import os
+import sys
 import tempfile
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -17,13 +18,10 @@ sys.path.insert(0, str(PROJECT_ROOT))
 @pytest.fixture(autouse=True)
 def mock_external_modules():  # type: ignore
     """Mock external modules that are heavy to load or not available in test environment."""
-    with patch.dict('sys.modules', {
-        'edge_tts': MagicMock(),
-        'piper': MagicMock(),
-        'onnxruntime': MagicMock()
-    }):
+    with patch.dict("sys.modules", {"edge_tts": MagicMock(), "piper": MagicMock(), "onnxruntime": MagicMock()}):
+        from core.module_base import ModuleState, PipelineData
         from modules.tts_engine import TTSEngine
-        from core.module_base import PipelineData, ModuleState
+
         yield TTSEngine, PipelineData, ModuleState
 
 

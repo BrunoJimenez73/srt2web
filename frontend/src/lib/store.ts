@@ -11,12 +11,12 @@
  * ✅ Compatibilidad 100% con código existente
  */
 
-import type { Config, Status, LogMessage, OutputStatus } from './api';
+import type { Config, Status, LogMessage, OutputStatus } from "./api";
 
 export interface DashboardState {
   config: Config | null;
   status: Status | null;
-  localMode: 'local' | 'remote';
+  localMode: "local" | "remote";
   wsConnected: boolean;
   logs: LogMessage[];
   isLoading: boolean;
@@ -30,7 +30,7 @@ type PartialState = Partial<DashboardState>;
 const INITIAL_STATE: DashboardState = {
   config: null,
   status: null,
-  localMode: 'local',
+  localMode: "local",
   wsConnected: false,
   logs: [],
   isLoading: false,
@@ -65,7 +65,9 @@ class DashboardStore {
 
     // Comparar shallow para evitar notificaciones innecesarias
     const hasChanges = Object.keys(partial).some(
-      key => prevState[key as keyof DashboardState] !== nextState[key as keyof DashboardState]
+      (key) =>
+        prevState[key as keyof DashboardState] !==
+        nextState[key as keyof DashboardState],
     );
 
     if (!hasChanges) {
@@ -104,11 +106,11 @@ class DashboardStore {
    */
   notify(): void {
     const state = this.getState();
-    this.listeners.forEach(listener => {
+    this.listeners.forEach((listener) => {
       try {
         listener(state);
       } catch (e) {
-        console.error('[Store] Error in listener:', e);
+        console.error("[Store] Error in listener:", e);
       }
     });
   }

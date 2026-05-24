@@ -48,34 +48,35 @@ frontend/src/
 - **Astro** 6.x - Framework
 - **Tailwind CSS** 4.x - Estilos
 - **TypeScript** - Tipos
-frontend/src/
-├── components/
-│   ├── ui/                    # Componentes UI reutilizables
-│   │   ├── Button.astro       # ✅ HTMLAttributes<'button'>
-│   │   ├── Input.astro        # ✅ HTMLAttributes<'input'>
-│   │   ├── Toggle.astro       # ✅ HTMLAttributes<'label'>
-│   │   ├── Badge.astro        # ✅ HTMLAttributes<'span'>
-│   │   ├── Card.astro         # ✅ HTMLAttributes<'div'>
-│   │   └── index.ts
-│   └── layout/
-│       └── Header.astro       # ✅ Tailwind + tipos
-├── lib/
-│   ├── modules/               # Módulos JS extraídos
-│   │   ├── ui.ts
-│   │   ├── config.ts
-│   │   ├── events.ts
-│   │   └── index.ts
-│   ├── dashboard.ts           # ✅ Script principal
-│   ├── types.ts               # ✅ Tipos mejorados
-│   └── api.ts, utils.ts
-├── styles/
-│   └── globals.css            # ✅ Tailwind + clases base
-├── layouts/
-│   └── BaseLayout.astro       # ✅ Usa Tailwind
-└── pages/
-    ├── index.astro            # ✅ Simplificado (~35 líneas)
-    └── player.astro           # ✅ Simplificado (~30 líneas) + Bug fix
-```
+  frontend/src/
+  ├── components/
+  │ ├── ui/ # Componentes UI reutilizables
+  │ │ ├── Button.astro # ✅ HTMLAttributes<'button'>
+  │ │ ├── Input.astro # ✅ HTMLAttributes<'input'>
+  │ │ ├── Toggle.astro # ✅ HTMLAttributes<'label'>
+  │ │ ├── Badge.astro # ✅ HTMLAttributes<'span'>
+  │ │ ├── Card.astro # ✅ HTMLAttributes<'div'>
+  │ │ └── index.ts
+  │ └── layout/
+  │ └── Header.astro # ✅ Tailwind + tipos
+  ├── lib/
+  │ ├── modules/ # Módulos JS extraídos
+  │ │ ├── ui.ts
+  │ │ ├── config.ts
+  │ │ ├── events.ts
+  │ │ └── index.ts
+  │ ├── dashboard.ts # ✅ Script principal
+  │ ├── types.ts # ✅ Tipos mejorados
+  │ └── api.ts, utils.ts
+  ├── styles/
+  │ └── globals.css # ✅ Tailwind + clases base
+  ├── layouts/
+  │ └── BaseLayout.astro # ✅ Usa Tailwind
+  └── pages/
+  ├── index.astro # ✅ Simplificado (~35 líneas)
+  └── player.astro # ✅ Simplificado (~30 líneas) + Bug fix
+
+````
 
 ## Beneficios Alcanzados
 
@@ -103,9 +104,10 @@ frontend/src/
 ## Verificación
 ```bash
 cd frontend && npm run build:local  # ✅ Compila correctamente
-```
+````
 
 ## Notas Importantes
+
 - Toda funcionalidad existente funciona exactamente igual
 - Los componentes UI son opcionales (se pueden usar clases Tailwind directamente)
 - Los módulos JS están tipados con TypeScript estricto

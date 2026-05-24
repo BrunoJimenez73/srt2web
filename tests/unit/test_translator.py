@@ -2,11 +2,12 @@
 Unit tests for Translator module.
 """
 
-import sys
 import os
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -26,8 +27,8 @@ sys.modules["argostranslate"] = mock_argos
 sys.modules["argostranslate.package"] = mock_package
 sys.modules["argostranslate.translate"] = mock_translate
 
+from core.module_base import ModuleState, PipelineData
 from modules.translator import Translator
-from core.module_base import PipelineData, ModuleState
 
 
 @pytest.mark.unit

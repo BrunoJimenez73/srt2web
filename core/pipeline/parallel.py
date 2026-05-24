@@ -5,11 +5,12 @@ Esta estrategia usa múltiples workers en threads para procesar
 múltiples chunks simultáneamente. Es el modo default para alto throughput.
 """
 
+import contextlib
 import logging
 import queue
 import threading
 import time
-from typing import Any, Optional
+from typing import Any
 
 from core.module_base import BaseModule
 from core.pipeline.base import MetricsTracker, PipelineStrategy
@@ -45,8 +46,8 @@ class ParallelPipeline(PipelineStrategy):
         )
 
         self._modules: list[BaseModule] = []
-        self._input_source: Optional[Any] = None
-        self._output_sink: Optional[Any] = None
+        self._input_source: Any | None = None
+        self._output_sink: Any | None = None
 
         # Control
         self._stop_event = threading.Event()
@@ -59,9 +60,9 @@ class ParallelPipeline(PipelineStrategy):
         self._results: dict[int, Any] = {}
 
         # Threads
-        self._input_thread: Optional[threading.Thread] = None
+        self._input_thread: threading.Thread | None = None
         self._worker_threads: list[threading.Thread] = []
-        self._output_thread: Optional[threading.Thread] = None
+        self._output_thread: threading.Thread | None = None
 
         # Lock
         self._lock = threading.Lock()
@@ -164,10 +165,8 @@ class ParallelPipeline(PipelineStrategy):
 
                 data = self._input_source.get_next_chunk()
                 if data is None:
-                    try:
+                    with contextlib.suppress(queue.Empty):
                         self._chunk_queue.get_nowait()
-                    except queue.Empty:
-                        pass
                     time.sleep(0.01)
                     continue
 

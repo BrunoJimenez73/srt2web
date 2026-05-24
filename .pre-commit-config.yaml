@@ -5,33 +5,48 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
-        exclude: ^docs/mkdocs\.yml$
+        exclude: ^(docs/|server/static/docs/)
       - id: check-added-large-files
+        exclude: server/static/
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.1.6
     hooks:
       - id: ruff
         args: [--fix, --config=pyproject.toml]
+        exclude: ^server/static/|^tests/
+        files: ^(core|server|modules|cli)/
       - id: ruff-format
         args: [--config=pyproject.toml]
+        exclude: ^server/static/
 
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v3.1.0
     hooks:
       - id: prettier
+        exclude: ^server/static/|^node_modules/|^venv/|^\.cache/
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.15.0
     hooks:
       - id: mypy
-        args:
-          [
-            --config-file=pyproject.toml,
-            --ignore-missing-imports,
-            core/,
-            server/,
-            modules/,
-            cli/,
-          ]
+        args: [--config-file=pyproject.toml, core/, server/, modules/, cli/]
         pass_filenames: false
+        exclude: ^server/static/|^node_modules/|^venv/
+        additional_dependencies:
+          - pydantic>=2.0.0
+          - pydantic[mypy]
+          - fastapi>=0.100.0
+          - click>=8.0.0
+          - textual>=0.52.0
+          - httpx>=0.27.0
+          - psutil>=5.9.0
+          - websockets>=12.0
+          - numpy>=1.24.0
+          - "uvicorn[standard]>=0.24.0"
+          - python-multipart>=0.0.6
+          - types-PyYAML
+          - types-psutil
+          - PyJWT
+          - aiortc>=1.14.0
+          - av>=10.0.0

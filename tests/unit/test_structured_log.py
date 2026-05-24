@@ -5,8 +5,6 @@ Tests for structured JSON logging (F50).
 import json
 import logging
 
-import pytest
-
 from core.logging_setup import JSONFormatter, setup_logging
 
 

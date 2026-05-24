@@ -9,7 +9,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from core.model_cache import ModelCache
 from core.module_base import BaseModule, ModuleState, PipelineData
@@ -25,7 +25,7 @@ class Translator(BaseModule):
     Downloads required language packages on first use.
     """
 
-    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         self._source_lang = config.get("source_lang", "es") if config else "es"
         self._target_lang = config.get("target_lang", "en") if config else "en"
         self._translation_pipeline = None
@@ -54,13 +54,11 @@ class Translator(BaseModule):
         model_needs_reload = False
 
         # Case 1: We're not waiting for language and source/target changed
-        if not new_waiting_for_language and (
-            new_source_lang != self._source_lang or new_target_lang != self._target_lang
-        ):
-            model_needs_reload = True
-
         # Case 2: We were waiting for language but now have a fixed source language
-        elif self._waiting_for_language and not new_waiting_for_language and new_source_lang != "auto":
+        if (
+            not new_waiting_for_language
+            and (new_source_lang != self._source_lang or new_target_lang != self._target_lang)
+        ) or (self._waiting_for_language and not new_waiting_for_language and new_source_lang != "auto"):
             model_needs_reload = True
 
         # Reload model if needed
@@ -84,7 +82,7 @@ class Translator(BaseModule):
             t1 = time.perf_counter()
             logger.info(f"[TIMING] import argostranslate.package: {t1-t0:.3f}s")
 
-            import argostranslate.translate
+            import argostranslate.translate  # noqa: F401
 
             t2 = time.perf_counter()
             logger.info(f"[TIMING] import argostranslate.translate: {t2-t1:.3f}s")

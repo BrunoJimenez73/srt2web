@@ -407,8 +407,8 @@ class UnifiedPipeline:
             self._output_thread.start()
 
         elif self.mode == PipelineMode.ASYNCIO:
-            # Ejecución asyncio
-            asyncio.create_task(self._run_async_loop())
+            task = asyncio.create_task(self._run_async_loop())
+            self._tasks.append(task)
 
         self._set_state(PipelineState.RUNNING)
         self._log("info", "UnifiedPipeline started successfully")
@@ -1000,14 +1000,14 @@ class UnifiedPipeline:
                     outputs = extra.get("outputs", {})
                     muxer_source = None
                     # Prefer outputs named "web" or "hls" or with GPU/encoder info in extra
-                    for out_name, out_data in outputs.items():
+                    for _out_name, out_data in outputs.items():
                         out_extra = out_data.get("extra", {})
                         if out_extra.get("using_gpu") is not None or out_extra.get("encoder_mode") is not None:
                             muxer_source = out_data
                             break
                     # Fallback to first output if no specific web/hls found
                     if muxer_source is None and outputs:
-                        first_name = list(outputs.keys())[0]
+                        first_name = next(iter(outputs.keys()))
                         muxer_source = outputs[first_name]
 
                     if muxer_source:

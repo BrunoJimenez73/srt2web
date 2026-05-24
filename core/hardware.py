@@ -12,7 +12,7 @@ Elimina la necesidad de que el usuario edite el config.yaml manualmente.
 import logging
 import sys
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("srt2web.hardware")
 
@@ -86,7 +86,7 @@ def detect_cuda() -> dict[str, Any]:
     # Fallback: verificar vía nvidia-smi o pynvml
     if not result["available"]:
         try:
-            import pynvml  # type: ignore[import-untyped]
+            import pynvml
 
             pynvml.nvmlInit()
             device_count = pynvml.nvmlDeviceGetCount()
@@ -190,7 +190,7 @@ def detect_hardware() -> dict[str, Any]:
     }
 
 
-def get_optimal_device(preferred: Optional[str] = None) -> str:
+def get_optimal_device(preferred: str | None = None) -> str:
     """
     Obtiene el mejor dispositivo para usar.
 

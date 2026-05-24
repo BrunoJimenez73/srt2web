@@ -3,11 +3,12 @@ Integration tests for HLS muxer output.
 Tests that the VideoMuxer generates valid .m3u8 playlists and .ts segments.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
-from core.pipeline_manager import PipelineOrchestrator
+import pytest
+
 from core.config_manager import ConfigManager
+from core.pipeline_manager import PipelineOrchestrator
 
 
 @pytest.fixture
@@ -42,7 +43,7 @@ class TestHLSMuxerOutput:
                     enabled=True,
                     state="stopped",
                     processed_chunks=0,
-                    extra={"encoder_mode": "h264_nvenc"}
+                    extra={"encoder_mode": "h264_nvenc"},
                 )
                 mock_muxer.return_value = mock_muxer_instance
 

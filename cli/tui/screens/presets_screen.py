@@ -64,7 +64,7 @@ class PresetsScreen(Screen[Any]):
     }
     """
 
-    BINDINGS = [
+    BINDINGS = [  # noqa: RUF012
         ("escape", "app.pop_screen", "Back"),
         ("a", "apply_preset", "Apply"),
         ("d", "delete_preset", "Delete"),

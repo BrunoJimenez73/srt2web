@@ -6,9 +6,9 @@ interface Props {
     buttonText?: string;
 }
 
-const { 
-    code, 
-    renderOnLoad = false, 
+const {
+    code,
+    renderOnLoad = false,
     showButton = true,
     buttonText = "Render diagram"
 } = Astro.props;
@@ -36,7 +36,7 @@ if (code) {
         )}
         <div class="mermaid-status" id={`${id}-status`}></div>
     </div>
-    
+
     <div class="mermaid" id={id} data-original-content={diagramContent || undefined}>
         {diagramContent || <slot />}
     </div>
@@ -159,7 +159,7 @@ if (code) {
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
             script.async = true;
-            
+
             script.onload = () => {
                 clearTimeout(timeout);
                 if (window.mermaid) {
@@ -168,7 +168,7 @@ if (code) {
                     reject(new Error('Mermaid loaded but not available'));
                 }
             };
-            
+
             script.onerror = () => {
                 clearTimeout(timeout);
                 reject(new Error('Failed to load Mermaid from CDN'));
@@ -184,7 +184,7 @@ if (code) {
         const statusElement = document.getElementById(`${containerId}-status`);
         const renderBtn = document.getElementById(`${containerId}-btn`);
         const mermaidDiv = document.getElementById(containerId);
-        
+
         if (!container || !statusElement || !mermaidDiv) return;
 
         try {
@@ -193,13 +193,13 @@ if (code) {
                 renderBtn.disabled = true;
                 renderBtn.querySelector('span').textContent = 'Loading...';
             }
-            
+
             setStatus(statusElement, 'Loading Mermaid library...', 'loading');
 
             // Cargar Mermaid con reintentos
             let mermaid = null;
             let retries = 2;
-            
+
             while (retries > 0 && !mermaid) {
                 try {
                     mermaid = await loadMermaidCDN();
@@ -245,23 +245,23 @@ if (code) {
 
             // Obtener contenido del diagrama
             let graphDefinition = '';
-            
+
             // Primero intentar obtener del data attribute
             if (mermaidDiv.dataset.originalContent) {
                 graphDefinition = mermaidDiv.dataset.originalContent;
             }
-            
+
             // Si no hay contenido en data attribute, obtener del texto del div
             if (!graphDefinition) {
                 // Obtener todo el contenido del div (incluyendo texto y slots)
                 const fullText = mermaidDiv.textContent?.trim() || '';
-                
+
                 // Si el contenido es exactamente "<slot />" o está vacío, significa que el slot no se procesó
                 if (fullText === '<slot />' || fullText === '' || fullText === 'undefined') {
                     // Intentar obtener el contenido de los nodos hijos
                     const children = mermaidDiv.childNodes;
                     let content = '';
-                    
+
                     for (const child of children) {
                         if (child.nodeType === Node.TEXT_NODE) {
                             content += child.textContent || '';
@@ -269,7 +269,7 @@ if (code) {
                             content += child.textContent || '';
                         }
                     }
-                    
+
                     graphDefinition = content.trim();
                 } else {
                     graphDefinition = fullText;
@@ -300,17 +300,17 @@ if (code) {
 
             // Renderizar diagrama
             const { svg } = await mermaid.render(`mg-${Math.random().toString(36).slice(2)}`, graphDefinition);
-            
+
             // Limpiar y mostrar SVG
             mermaidDiv.innerHTML = svg;
             mermaidDiv.classList.add('rendered');
-            
+
             // Ocultar botón y mostrar éxito
             if (renderBtn) {
                 renderBtn.style.display = 'none';
             }
             setStatus(statusElement, 'Diagram rendered successfully', 'success');
-            
+
             // Limpiar mensaje de éxito después de 3 segundos
             setTimeout(() => {
                 setStatus(statusElement, '', '');
@@ -318,10 +318,10 @@ if (code) {
 
         } catch (error) {
             console.error('Mermaid render error:', error);
-            
+
             // Mostrar error
             setStatus(statusElement, `Error: ${error.message}`, 'error');
-            
+
             // Restaurar botón para reintentar
             if (renderBtn) {
                 renderBtn.disabled = false;

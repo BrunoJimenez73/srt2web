@@ -2,12 +2,12 @@
 E2E tests for the API endpoints.
 """
 
-import pytest
-import json
 import os
 import sys
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
+
+import pytest
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -21,10 +21,11 @@ class TestAPIEndpoints:
     def client(self) -> None:
         """Create a test client."""
         from fastapi.testclient import TestClient
-        from server.app import create_app
+
         from core.config_manager import ConfigManager
-        from core.pipeline import Pipeline
         from core.module_base import ModuleState, ModuleStatus
+        from core.pipeline import Pipeline
+        from server.app import create_app
 
         class DummyModule:
             def __init__(self, name, enabled=True):  # type: ignore
@@ -154,17 +155,13 @@ class TestAPIEndpoints:
 
     def test_toggle_module_disable(self, client):  # type: ignore
         """Test disabling a module."""
-        response = client.put(
-            "/api/modules/transcriber/toggle", json={"enabled": False}
-        )
+        response = client.put("/api/modules/transcriber/toggle", json={"enabled": False})
 
         assert response.status_code in [200, 404]
 
     def test_toggle_module_invalid_name(self, client):  # type: ignore
         """Test toggling with invalid module name."""
-        response = client.put(
-            "/api/modules/invalid-module/toggle", json={"enabled": True}
-        )
+        response = client.put("/api/modules/invalid-module/toggle", json={"enabled": True})
 
         assert response.status_code == 400
 
@@ -204,9 +201,10 @@ class TestAPIValidation:
     def client(self) -> None:
         """Create a test client."""
         from fastapi.testclient import TestClient
-        from server.app import create_app
+
         from core.config_manager import ConfigManager
         from core.pipeline import Pipeline
+        from server.app import create_app
 
         config = ConfigManager()
         pipeline = Pipeline()
@@ -225,18 +223,14 @@ class TestAPIValidation:
 
     def test_invalid_port_value(self, client) -> None:
         """Test that invalid port values are rejected."""
-        response = client.put(
-            "/api/config", json={"config": {"srt": {"listen_port": 70000}}}
-        )
+        response = client.put("/api/config", json={"config": {"srt": {"listen_port": 70000}}})
 
         # API may return 400 or 422 for invalid values
         assert response.status_code in [400, 422]
 
     def test_invalid_latency(self, client) -> None:
         """Test that invalid latency is rejected."""
-        response = client.put(
-            "/api/config", json={"config": {"srt": {"latency_ms": -100}}}
-        )
+        response = client.put("/api/config", json={"config": {"srt": {"latency_ms": -100}}})
 
         # API may return 400 or 422 for invalid values
         assert response.status_code in [400, 422]
@@ -265,9 +259,10 @@ class TestAPIIntegration:
     def client(self) -> None:
         """Create a test client."""
         from fastapi.testclient import TestClient
-        from server.app import create_app
+
         from core.config_manager import ConfigManager
         from core.pipeline import Pipeline
+        from server.app import create_app
 
         config = ConfigManager()
         pipeline = Pipeline()

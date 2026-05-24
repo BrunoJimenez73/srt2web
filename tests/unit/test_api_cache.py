@@ -2,7 +2,7 @@
 Tests for API caching layer.
 """
 
-from core.cache import LRUCache, APICache, api_cache
+from core.cache import LRUCache, api_cache
 
 
 class TestLRUCache:
@@ -32,6 +32,7 @@ class TestLRUCache:
 
     def test_ttl_expiry(self) -> None:
         import time
+
         cache = LRUCache(maxsize=10, ttl_seconds=0)  # 0 TTL = instant expiry
         cache.set("a", 1)
         time.sleep(0.01)
@@ -77,6 +78,7 @@ class TestCachedDecorator:
             return {"count": call_count}
 
         import asyncio
+
         r1 = asyncio.run(my_func())
         r2 = asyncio.run(my_func())
         assert r1 == {"count": 1}  # First call
@@ -95,6 +97,7 @@ class TestCachedDecorator:
             return {"count": call_count}
 
         import asyncio
+
         r1 = asyncio.run(my_func())
         invalidate_cache("invalidate_test")
         r2 = asyncio.run(my_func())

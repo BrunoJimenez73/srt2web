@@ -10,7 +10,7 @@ import inspect
 import logging
 import time
 from collections.abc import Callable
-from typing import Any, Optional
+from typing import Any
 
 from core.exceptions import PipelineStateError
 from core.module_base import BaseModule, PipelineData
@@ -21,7 +21,7 @@ from core.module_base import BaseModule, PipelineData
 # set_input_source, initialize, _process_chunk, etc.).  To keep backward
 # compatibility we retain the original ``AsyncPipeline`` implementation and
 # introduce a new ``AsyncPipelineV2`` class that satisfies the test
-# expectations while re‑using as much of the existing logic as possible.
+# expectations while re-using as much of the existing logic as possible.
 from core.pipeline.base import MetricsTracker, PipelineStrategy
 from core.schemas import PipelineState
 
@@ -52,13 +52,13 @@ class AsyncPipeline(PipelineStrategy):
         )
 
         self._modules: list[BaseModule] = []
-        self._input_source: Optional[Any] = None
-        self._output_sink: Optional[Any] = None
+        self._input_source: Any | None = None
+        self._output_sink: Any | None = None
 
         self._running = False
-        self._stop_event: Optional[asyncio.Event] = None
-        self._task: Optional[asyncio.Task[None]] = None
-        self._semaphore: Optional[asyncio.Semaphore] = None
+        self._stop_event: asyncio.Event | None = None
+        self._task: asyncio.Task[None] | None = None
+        self._semaphore: asyncio.Semaphore | None = None
 
         self.metrics = MetricsTracker()
 
@@ -172,7 +172,7 @@ class AsyncPipeline(PipelineStrategy):
 
 
 # ---------------------------------------------------------------------------
-# AsyncPipelineV2 – Compatibility layer for the test suite
+# AsyncPipelineV2 -- Compatibility layer for the test suite
 # ---------------------------------------------------------------------------
 
 
@@ -184,7 +184,7 @@ class AsyncPipelineV2(PipelineStrategy):
     public API.  The tests, however, expect a class called ``AsyncPipelineV2``
     exposing methods such as ``register_module``, ``set_input_source``,
     ``initialize``, ``_process_chunk`` and callbacks for state changes and
-    chunk completion.  This implementation re‑uses the core ``PipelineStrategy``
+    chunk completion.  This implementation re-uses the core ``PipelineStrategy``
     base class and provides the required behaviour while keeping the original
     ``AsyncPipeline`` untouched for production use.
     """
@@ -207,16 +207,16 @@ class AsyncPipelineV2(PipelineStrategy):
         self.retry_delay = retry_delay
         self.state: PipelineState = PipelineState.IDLE
         self._modules: list[BaseModule] = []
-        self._input_source: Optional[Any] = None
-        self._output_sink: Optional[Any] = None
+        self._input_source: Any | None = None
+        self._output_sink: Any | None = None
         self._semaphore: asyncio.Semaphore = asyncio.Semaphore(self.max_concurrent_chunks)
         # Metrics tracking (simple counters used by the tests)
         self._chunks_processed: int = 0
         self._chunks_failed: int = 0
         self._total_processing_time: float = 0.0
         # Callbacks
-        self._on_state_change: Optional[Callable[[str], None]] = None
-        self._on_chunk_complete: Optional[Callable[[int, Any], None]] = None
+        self._on_state_change: Callable[[str], None] | None = None
+        self._on_chunk_complete: Callable[[int, Any], None] | None = None
 
     @property
     def name(self) -> str:
@@ -241,7 +241,7 @@ class AsyncPipelineV2(PipelineStrategy):
     # Internal state handling (mirrors the original implementation)
     # ---------------------------------------------------------------------
     def _set_state(self, new_state: PipelineState) -> None:
-        """Set the pipeline state and invoke the optional state‑change callback.
+        """Set the pipeline state and invoke the optional state-change callback.
 
         The tests call this private method directly, so we expose it exactly as
         required.
@@ -262,7 +262,7 @@ class AsyncPipelineV2(PipelineStrategy):
         """Add a module (sync or async) to the pipeline.
 
         The tests use simple mock objects that expose ``initialize``, ``process``
-        and ``shutdown`` methods.  No strict type checking is performed – any
+        and ``shutdown`` methods.  No strict type checking is performed -- any
         object with the expected callables is accepted.
         """
         self._modules.append(module)
@@ -278,7 +278,7 @@ class AsyncPipelineV2(PipelineStrategy):
 
         Modules may provide either a synchronous ``initialize`` method or an
         ``async`` one.  The same applies to the input source.  Errors are allowed
-        to propagate – the test suite only checks that the ``initialized`` flag
+        to propagate -- the test suite only checks that the ``initialized`` flag
         on the mock objects becomes ``True``.
         """
         for module in self._modules:
@@ -331,7 +331,7 @@ class AsyncPipelineV2(PipelineStrategy):
         self._set_state(PipelineState.IDLE)
 
     # ---------------------------------------------------------------------
-    # Chunk processing – the core of the test suite
+    # Chunk processing -- the core of the test suite
     # ---------------------------------------------------------------------
     async def _process_chunk(self, data: PipelineData) -> PipelineData:
         """Process a single ``PipelineData`` chunk through all registered modules.
@@ -360,7 +360,7 @@ class AsyncPipelineV2(PipelineStrategy):
                             attempt += 1
                             await asyncio.sleep(self.retry_delay)
                             continue
-                        # Exhausted retries – record failure and re‑raise
+                        # Exhausted retries -- record failure and re-raise
                         self._chunks_failed += 1
                         raise exc
             elapsed = time.perf_counter() - start

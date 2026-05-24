@@ -1,9 +1,6 @@
-import logging
-
-logger = logging.getLogger(__name__)
-
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from rich.text import Text
@@ -12,6 +9,8 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, ScrollableContainer
 from textual.screen import Screen
 from textual.widgets import Button, Input, Static
+
+logger = logging.getLogger(__name__)
 
 
 class InputControlScreen(Screen[Any]):
@@ -54,7 +53,7 @@ class InputControlScreen(Screen[Any]):
     }
     """
 
-    BINDINGS = [
+    BINDINGS = [  # noqa: RUF012
         ("escape", "app.pop_screen", "Back"),
         ("r", "refresh", "Refresh"),
     ]

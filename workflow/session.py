@@ -12,10 +12,8 @@ Uso:
 
 import json
 import logging
-import re
 import subprocess
 import sys
-import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -114,8 +112,8 @@ class SessionCloser:
         if report:
             lines.append("### Validation Report")
             lines.append("")
-            lines.append(f"| Check | Result |")
-            lines.append(f"|-------|--------|")
+            lines.append("| Check | Result |")
+            lines.append("|-------|--------|")
             for c in report.get("checks", []):
                 emoji = "✅" if c["passed"] else "❌"
                 lines.append(f"| {c['name']} | {emoji} ({c['duration_ms']:.0f}ms) |")
@@ -144,7 +142,7 @@ class SessionCloser:
             entry += f"- **Commit:** {commit_hash}\n"
         if files_count:
             entry += f"- **Archivos:** {files_count} cambiados\n"
-        entry += f"- **Status:** ✅ done\n"
+        entry += "- **Status:** ✅ done\n"
 
         with open(path, "a", encoding="utf-8") as f:
             f.write(entry)
@@ -202,6 +200,7 @@ class SessionCloser:
 
 def main() -> int:
     import argparse
+
     parser = argparse.ArgumentParser(description="Workflow Session Manager")
     sub = parser.add_subparsers(dest="command")
 
@@ -236,8 +235,10 @@ def main() -> int:
 
     elif args.command == "status":
         s = closer.status()
-        print(f"\nFeatures: {s['total_features']} total | {s['done']} done | "
-              f"{s['in_progress']} in_progress | {s['pending']} pending")
+        print(
+            f"\nFeatures: {s['total_features']} total | {s['done']} done | "
+            f"{s['in_progress']} in_progress | {s['pending']} pending"
+        )
         if s["current"]:
             print(f"Current: F{s['current']['id']} - {s['current']['title']} ({s['current']['status']})")
         print(f"Git changes: {'yes (' + str(s['git_changes_count']) + ' files)' if s['git_changes'] else 'clean'}")

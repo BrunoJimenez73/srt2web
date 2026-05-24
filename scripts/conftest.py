@@ -1,16 +1,17 @@
 import json
-import requests
-from pathlib import Path
-import pytest
 import traceback
-from fastapi.testclient import TestClient
+from pathlib import Path
 from unittest.mock import MagicMock
+
+import pytest
+import requests
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture
 def mock_module():
     """Create a mock module for testing."""
-    from core.module_base import BaseModule, ModuleState, PipelineData
+    from core.module_base import BaseModule, ModuleState
 
     class MockModule(BaseModule):
         def __init__(self, name):
@@ -36,7 +37,6 @@ def mock_module():
 def mock_pipeline(mock_module):
     """Create a mock pipeline for testing."""
     from core.pipeline import Pipeline
-    from core.module_base import ModuleState
 
     pipeline = Pipeline()
 
@@ -152,9 +152,7 @@ def pytest_runtest_makereport(item, call):
                     success = True
                     break
                 else:
-                    print(
-                        f"[FAIL] Failed to register failure with MCP server at {endpoint}: {response.status_code}"
-                    )
+                    print(f"[FAIL] Failed to register failure with MCP server at {endpoint}: {response.status_code}")
             except requests.RequestException as e:
                 print(f"[FAIL] Error connecting to MCP server at {endpoint}: {e}")
 

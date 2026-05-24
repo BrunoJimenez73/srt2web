@@ -86,8 +86,8 @@ async def apply_preset(request: Request, name: str) -> dict[str, Any]:
         # Try saved preset
         try:
             preset_config = config.load_preset(name)
-        except KeyError:
-            raise HTTPException(404, f"Preset '{name}' not found")
+        except KeyError as exc:
+            raise HTTPException(404, f"Preset '{name}' not found") from exc
 
     # Apply the preset config (merge with current, then validate)
     try:
@@ -95,7 +95,7 @@ async def apply_preset(request: Request, name: str) -> dict[str, Any]:
         config.save()
         config.reload()
     except ValueError as e:
-        raise HTTPException(400, f"Invalid preset configuration: {e}")
+        raise HTTPException(400, f"Invalid preset configuration: {e}") from e
 
     # Reconfigure pipeline if running
     try:
@@ -119,8 +119,8 @@ async def delete_preset(request: Request, name: str) -> dict[str, Any]:
 
     try:
         config.delete_preset(name)
-    except KeyError:
-        raise HTTPException(404, f"Preset '{name}' not found")
+    except KeyError as exc:
+        raise HTTPException(404, f"Preset '{name}' not found") from exc
 
     return {"status": "deleted", "name": name}
 
@@ -164,7 +164,7 @@ async def update_config(request: Request, body: ConfigUpdate) -> dict[str, Any]:
         return {"status": "updated", "config": config.to_dict(), "warning": str(e)}
     except Exception as e:
         logger.error(f"Failed to save config: {e}")
-        raise HTTPException(500, f"Failed to save configuration: {e}")
+        raise HTTPException(500, f"Failed to save configuration: {e}") from e
 
     # Hot reload!
     pipeline = ctx["pipeline"]
@@ -172,7 +172,7 @@ async def update_config(request: Request, body: ConfigUpdate) -> dict[str, Any]:
         pipeline.reconfigure(config)
     except Exception as e:
         logger.error(f"Failed to reconfigure pipeline: {e}")
-        raise HTTPException(500, f"Pipeline reconfiguration failed: {e}")
+        raise HTTPException(500, f"Pipeline reconfiguration failed: {e}") from e
 
     invalidate_cache("config")
     invalidate_cache("status")
@@ -244,7 +244,7 @@ async def update_video_muxer_config(request: Request) -> dict[str, Any]:
         return {"status": "updated", "config": config.to_dict(), "warning": str(e)}
     except Exception as e:
         logger.error(f"[VIDEO_MUXER] Save failed: {e}")
-        raise HTTPException(500, f"Failed to save configuration: {e}")
+        raise HTTPException(500, f"Failed to save configuration: {e}") from e
 
     try:
         pipeline.reconfigure(config)

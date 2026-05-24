@@ -9,9 +9,9 @@ let initialized = false;
 export function startClockUpdates(): void {
   if (initialized) return;
   initialized = true;
-  
+
   updateClock(); // Update immediately
-  
+
   clockInterval = setInterval(() => {
     updateClock();
   }, 1000);
@@ -26,9 +26,11 @@ export function stopClockUpdates(): void {
 }
 
 function updateClock(): void {
-  const clock = document.getElementById('live-clock');
+  const clock = document.getElementById("live-clock");
   if (clock) {
-    clock.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+    clock.textContent = new Date().toLocaleTimeString("en-US", {
+      hour12: false,
+    });
   }
 }
 

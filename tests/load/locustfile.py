@@ -111,7 +111,7 @@ class PipelineControl(HttpUser):
             with self.client.put(
                 f"/api/modules/{module}/toggle",
                 json={"enabled": False},
-                name=f"PUT /api/modules/{{name}}/toggle",
+                name="PUT /api/modules/{name}/toggle",
                 catch_response=True,
             ) as resp:
                 if resp.status_code not in (200, 404):
@@ -141,13 +141,16 @@ class MixedLoad(HttpUser):
     def read_operations(self) -> None:
         """Mix of read endpoints."""
         import random
-        endpoint = random.choice([
-            "/api/status",
-            "/api/config",
-            "/api/health",
-            "/api/outputs",
-            "/api/presets",
-        ])
+
+        endpoint = random.choice(
+            [
+                "/api/status",
+                "/api/config",
+                "/api/health",
+                "/api/outputs",
+                "/api/presets",
+            ]
+        )
         with self.client.get(endpoint, name=f"GET {endpoint}", catch_response=True) as resp:
             if resp.status_code != 200:
                 resp.failure(f"{endpoint} returned {resp.status_code}")
@@ -156,6 +159,7 @@ class MixedLoad(HttpUser):
     def write_operations(self) -> None:
         """Mix of write endpoints."""
         import random
+
         action = random.choice(["chunk", "toggle", "preset"])
         if action == "chunk":
             with self.client.post(

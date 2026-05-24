@@ -2,9 +2,9 @@
 Tests for Astro documentation pages.
 """
 
-import pytest
 from pathlib import Path
 
+import pytest
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
@@ -15,7 +15,7 @@ def get_astro_source_content(file_path):  # type: ignore
     astro_file = base_path / file_path
 
     if astro_file.exists():
-        with open(astro_file, "r", encoding="utf-8") as f:
+        with open(astro_file, encoding="utf-8") as f:
             return f.read()
     return None
 
@@ -28,7 +28,7 @@ class TestDocumentationIndex:
         """Load docs index content."""
         docs_path = PROJECT_ROOT / "docs" / "index.md"
         if docs_path.exists():
-            with open(docs_path, "r", encoding="utf-8") as f:
+            with open(docs_path, encoding="utf-8") as f:
                 return f.read()
         return None
 
@@ -72,9 +72,7 @@ class TestAstroPagesStructure:
         if player_page is None:
             pytest.skip("player.astro not found")
         # Player might not use a layout but should have proper HTML structure
-        assert (
-            "<html" in player_page or "<body" in player_page or "DOCTYPE" in player_page
-        )
+        assert "<html" in player_page or "<body" in player_page or "DOCTYPE" in player_page
 
 
 class TestAstroComponentsAvailability:
@@ -123,7 +121,7 @@ class TestAstroConfiguration:
         """Load Astro config."""
         config_path = PROJECT_ROOT / "frontend" / "astro.config.mjs"
         if config_path.exists():
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 return f.read()
         return None
 
@@ -154,7 +152,7 @@ class TestAstroPackageJson:
         if pkg_path.exists():
             import json
 
-            with open(pkg_path, "r", encoding="utf-8") as f:
+            with open(pkg_path, encoding="utf-8") as f:
                 return json.load(f)
         return None
 

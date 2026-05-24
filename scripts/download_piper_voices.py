@@ -5,8 +5,8 @@ Run this script once to download all voices.
 """
 
 import os
-import urllib.request
 import urllib.error
+import urllib.request
 
 VOICES_TO_DOWNLOAD = [
     # English
@@ -99,9 +99,7 @@ def download_file(url, dest_path, voice_name):
         # Create request with user agent to avoid 403 errors
         req = urllib.request.Request(
             url,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            },
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
         )
 
         with urllib.request.urlopen(req, timeout=300) as response:
@@ -159,7 +157,7 @@ def download_model(voice_name, base_url):
         if not download_file(onnx_url, onnx_path, voice_name):
             return False
     else:
-        print(f"  [OK] ONNX already exists, skipping download")
+        print("  [OK] ONNX already exists, skipping download")
 
     # Download .onnx.json file if missing
     if not os.path.exists(json_path):
@@ -169,14 +167,12 @@ def download_model(voice_name, base_url):
             # If JSON fails, try alternate URL format
             json_url_alt = base_url.replace(".onnx", ".onnx.json")
             if json_url_alt != json_url:
-                if not download_file(
-                    json_url_alt, json_dest, f"{voice_name} (config - alt)"
-                ):
+                if not download_file(json_url_alt, json_dest, f"{voice_name} (config - alt)"):
                     print(f"  [!] Warning: Could not download config file for {voice_name}")
                     # Don't fail completely if config is missing
                     return True
     else:
-        print(f"  [OK] Config already exists, skipping download")
+        print("  [OK] Config already exists, skipping download")
 
     return True
 

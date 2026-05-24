@@ -9,9 +9,10 @@ Este módulo contiene las estrategias de procesamiento de pipeline:
 - factory.py: Factory para crear instancias
 """
 
+from core.pipeline.async_pipeline import AsyncPipeline
 from core.pipeline.base import (
-    PipelineStrategy,
     MetricsTracker,
+    PipelineStrategy,
     create_pipeline_metrics,
 )
 from core.pipeline.factory import (
@@ -19,9 +20,8 @@ from core.pipeline.factory import (
     create_pipeline,
     get_available_modes,
 )
-from core.pipeline.sequential import SequentialPipeline
 from core.pipeline.parallel import ParallelPipeline
-from core.pipeline.async_pipeline import AsyncPipeline
+from core.pipeline.sequential import SequentialPipeline
 
 # Backwards compatibility - import from unified_pipeline
 # Los tests y código legacy pueden usar estos nombres

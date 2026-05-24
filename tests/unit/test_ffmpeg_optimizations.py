@@ -2,8 +2,9 @@
 Tests for FFmpeg optimizations: process pool and optimized utilities.
 """
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import MagicMock, patch
 
 
 @pytest.mark.unit
@@ -12,8 +13,9 @@ class TestFFmpegUtilsOptimizations:
 
     def test_get_creation_flags_windows(self) -> None:
         """Test Windows creation flags."""
-        from core.ffmpeg_utils import _get_creation_flags
         import subprocess
+
+        from core.ffmpeg_utils import _get_creation_flags
 
         with patch("sys.platform", "win32"):
             flags = _get_creation_flags()

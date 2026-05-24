@@ -4,15 +4,13 @@ Metrics Collector - Expone métricas internas en formato Prometheus.
 Provee métricas del pipeline para scraping por Prometheus y visualización en Grafana.
 """
 
-import time
-from collections.abc import Callable
 from threading import Lock
-from typing import Any
 
 # Lazy import to avoid dependency if prometheus_client is not installed
 _prometheus_available = False
 try:
-    from prometheus_client import Counter, Gauge, Histogram, generate_latest  # type: ignore[import-not-found]
+    from prometheus_client import Counter, Gauge, Histogram, generate_latest
+
     _prometheus_available = True
 except ImportError:
     pass
@@ -39,7 +37,9 @@ class MetricsCollector:
                 "Processing time per chunk (ms)",
                 buckets=[50, 100, 250, 500, 1000, 2000, 5000],
             )
-            self._pipeline_state = Gauge("srt2web_pipeline_state", "Pipeline state (0=idle,1=running,2=error)", ["state"])
+            self._pipeline_state = Gauge(
+                "srt2web_pipeline_state", "Pipeline state (0=idle,1=running,2=error)", ["state"]
+            )
             self._cpu_gauge = Gauge("srt2web_cpu_percent", "CPU usage percentage")
             self._memory_gauge = Gauge("srt2web_memory_mb", "Memory usage in MB")
             self._gpu_gauge = Gauge("srt2web_gpu_utilization_percent", "GPU utilization percentage")

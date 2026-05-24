@@ -1,7 +1,9 @@
 # File: core/cache.py
 import time
 from collections import OrderedDict
-from typing import Any, Optional
+from collections.abc import Callable
+from functools import wraps
+from typing import Any, TypeVar
 
 
 class LRUCache:
@@ -12,7 +14,7 @@ class LRUCache:
         self.ttl_seconds = ttl_seconds
         self.cache: OrderedDict[Any, tuple[Any, float]] = OrderedDict()
 
-    def get(self, key: Any) -> Optional[Any]:
+    def get(self, key: Any) -> Any | None:
         if key in self.cache:
             value, timestamp = self.cache[key]
             if time.time() - timestamp < self.ttl_seconds:
@@ -52,7 +54,7 @@ class APICache:
             self._caches[name] = LRUCache(maxsize=maxsize, ttl_seconds=ttl_seconds)
         return self._caches[name]
 
-    def get(self, name: str, key: str = "default") -> Optional[Any]:
+    def get(self, name: str, key: str = "default") -> Any | None:
         cache = self._caches.get(name)
         if cache is None:
             return None
@@ -80,9 +82,6 @@ api_cache = APICache()
 
 
 # ── Cached decorator for FastAPI endpoints ───────────────────────────────
-
-from functools import wraps
-from typing import Any, Callable, TypeVar
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -113,7 +112,9 @@ def cached(name: str, ttl_seconds: int = 2, maxsize: int = 1) -> Callable[[F], F
             result = await func(*args, **kwargs)
             api_cache.set(name, result)
             return result
+
         return wrapper  # type: ignore[return-value]
+
     return decorator
 
 

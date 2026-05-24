@@ -2,9 +2,9 @@
 Tests for module status indicators functionality.
 """
 
-import pytest
-import re
 from pathlib import Path
+
+import pytest
 
 
 class TestStatusIndicatorsCSS:
@@ -15,7 +15,7 @@ class TestStatusIndicatorsCSS:
         """Load dashboard HTML content."""
         html_path = Path(__file__).parent.parent.parent / "web" / "index.html"
         if html_path.exists():
-            with open(html_path, "r", encoding="utf-8") as f:
+            with open(html_path, encoding="utf-8") as f:
                 return f.read()
         return None
 
@@ -105,7 +105,7 @@ class TestStatusIndicatorsHTML:
         """Load dashboard HTML content."""
         html_path = Path(__file__).parent.parent.parent / "web" / "index.html"
         if html_path.exists():
-            with open(html_path, "r", encoding="utf-8") as f:
+            with open(html_path, encoding="utf-8") as f:
                 return f.read()
         return None
 
@@ -153,9 +153,7 @@ class TestStatusIndicatorsHTML:
             pytest.skip("index.html not found")
 
         assert 'id="card-dub"' in dashboard_html
-        assert (
-            'class="process-card"' in dashboard_html or "process-card" in dashboard_html
-        )
+        assert 'class="process-card"' in dashboard_html or "process-card" in dashboard_html
 
     def test_card_subtitle_exists(self, dashboard_html) -> None:
         """Test that card-subtitle element exists."""
@@ -173,7 +171,7 @@ class TestStatusIndicatorsJavaScript:
         """Load dashboard HTML content."""
         html_path = Path(__file__).parent.parent.parent / "web" / "index.html"
         if html_path.exists():
-            with open(html_path, "r", encoding="utf-8") as f:
+            with open(html_path, encoding="utf-8") as f:
                 return f.read()
         return None
 
@@ -241,7 +239,7 @@ class TestStatusIndicatorsMappings:
         """Load dashboard HTML content."""
         html_path = Path(__file__).parent.parent.parent / "web" / "index.html"
         if html_path.exists():
-            with open(html_path, "r", encoding="utf-8") as f:
+            with open(html_path, encoding="utf-8") as f:
                 return f.read()
         return None
 

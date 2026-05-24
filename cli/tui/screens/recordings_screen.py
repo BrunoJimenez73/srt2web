@@ -50,7 +50,7 @@ class RecordingsScreen(Screen[Any]):
     }
     """
 
-    BINDINGS = [
+    BINDINGS = [  # noqa: RUF012
         ("escape", "app.pop_screen", "Back"),
         ("d", "delete_recording", "Delete"),
         ("r", "refresh", "Refresh"),

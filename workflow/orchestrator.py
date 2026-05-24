@@ -116,8 +116,7 @@ class DevelopmentOrchestrator:
 
     # ── Step 4: Close Session ───────────────────────────────────────────
 
-    def close_session(self, feature: dict[str, Any], report: dict[str, Any],
-                      push: bool = False) -> str:
+    def close_session(self, feature: dict[str, Any], report: dict[str, Any], push: bool = False) -> str:
         """Close the session: update tracking + commit."""
         from workflow.session import SessionCloser
 
@@ -183,9 +182,12 @@ class DevelopmentOrchestrator:
 def print_status() -> None:
     """Print current project status."""
     from workflow.session import SessionCloser
+
     s = SessionCloser().status()
-    print(f"\nFeatures: {s['total_features']} total | {s['done']} done | "
-          f"{s['in_progress']} in_progress | {s['pending']} pending")
+    print(
+        f"\nFeatures: {s['total_features']} total | {s['done']} done | "
+        f"{s['in_progress']} in_progress | {s['pending']} pending"
+    )
     if s["current"]:
         c = s["current"]
         print(f"Current: F{c['id']} - {c['title']} ({c['status']})")
@@ -194,6 +196,7 @@ def print_status() -> None:
 
 def main() -> int:
     import argparse
+
     parser = argparse.ArgumentParser(description="Development Workflow Orchestrator")
     sub = parser.add_subparsers(dest="command")
 

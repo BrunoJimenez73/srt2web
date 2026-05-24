@@ -93,7 +93,7 @@ class SRT2WebTUI(App[Any]):
     }
     """
 
-    BINDINGS = [
+    BINDINGS = [  # noqa: RUF012
         Binding("q", "quit", "Quit"),
         Binding("space", "toggle_pipeline", "Start/Stop"),
         Binding("s", "save_config", "Save"),
@@ -155,7 +155,7 @@ class SRT2WebTUI(App[Any]):
             return
         try:
             self.status = PipelineStatus.from_dict(data)
-            self.pipeline_state = self.status.state  # type: ignore[assignment]
+            self.pipeline_state = self.status.state
             dashboard = self.query_one(DashboardScreen)
             dashboard.update_status(self.status)
             dashboard.update_metrics(self.status.system)
@@ -164,11 +164,11 @@ class SRT2WebTUI(App[Any]):
             logger.warning("Failed to process WS status update: %s", e, exc_info=True)
 
     def _on_ws_connection(self, connected: bool) -> None:
-        self.ws_connected = connected  # type: ignore[assignment]
+        self.ws_connected = connected
         try:
             dashboard = self.query_one(DashboardScreen)
             h = dashboard.query_one("#tui-header")
-            h.ws_connected = connected
+            h.ws_connected = connected  # type: ignore[attr-defined]
         except Exception:
             logger.debug("Header not yet mounted on WS connection change")
 
@@ -183,7 +183,7 @@ class SRT2WebTUI(App[Any]):
 
             try:
                 self.status = await self.api.get_status()
-                self.pipeline_state = self.status.state  # type: ignore[assignment]
+                self.pipeline_state = self.status.state
                 dashboard.update_status(self.status)
                 dashboard.update_metrics(self.status.system)
                 dashboard.update_modules(self.status.modules)

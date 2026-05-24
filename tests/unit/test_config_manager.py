@@ -2,11 +2,10 @@
 Unit tests for ConfigManager.
 """
 
-import os
 import sys
-import tempfile
-import pytest
 from pathlib import Path
+
+import pytest
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))

@@ -6,7 +6,7 @@ Delega el trabajo a cada salida individual.
 import logging
 import threading
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from core.module_base import ModuleState, ModuleStatus, PipelineData
 from core.output_sink import OutputSink
@@ -22,7 +22,7 @@ class OutputStatus:
     name: str
     state: str
     enabled: bool
-    error: Optional[str] = None
+    error: str | None = None
     processed_chunks: int = 0
     last_process_time_ms: float = 0.0
     extra: dict[str, Any] = field(default_factory=dict)
@@ -66,10 +66,7 @@ class CompositeOutput(BaseOutput):
 
                 # Merge video_muxer module config for full encoder settings
                 video_muxer_config = config_manager.get_section("modules.video_muxer")
-                if video_muxer_config:
-                    merged = {**section_config, **video_muxer_config}
-                else:
-                    merged = section_config
+                merged = {**section_config, **video_muxer_config} if video_muxer_config else section_config
 
                 output.configure(merged)
                 self._errors[name] = None
@@ -155,8 +152,8 @@ class CompositeOutput(BaseOutput):
         first_name = None
         with self._lock:
             if self._outputs:
-                first_name = list(self._outputs.keys())[0]
-                first_output = list(self._outputs.values())[0]
+                first_name = next(iter(self._outputs.keys()))
+                first_output = next(iter(self._outputs.values()))
 
         # Base del primer output o defaults
         if first_output and hasattr(first_output, "get_status"):
@@ -211,7 +208,7 @@ class CompositeOutput(BaseOutput):
             extra=extra,
         )
 
-    def get_output_status(self, name: str) -> Optional[OutputStatus]:
+    def get_output_status(self, name: str) -> OutputStatus | None:
         """Obtener estado de una salida específica."""
         with self._lock:
             if name not in self._outputs:
@@ -344,7 +341,7 @@ class CompositeOutput(BaseOutput):
         with self._lock:
             return [type(output).__name__ for output in self._outputs.values()]
 
-    def get_output_by_name(self, name: str) -> Optional[OutputSink]:
+    def get_output_by_name(self, name: str) -> OutputSink | None:
         """Obtener una salida por nombre."""
         with self._lock:
             return self._outputs.get(name)
@@ -357,7 +354,7 @@ class CompositeOutput(BaseOutput):
     def clear_output_errors(self) -> None:
         """Limpiar todos los errores de salidas."""
         with self._lock:
-            for name in self._errors.keys():
+            for name in self._errors:
                 self._errors[name] = None
                 self._reconnect_attempts[name] = 0
 

@@ -76,26 +76,43 @@ class WorkflowValidator:
 
     def check_pytest(self) -> CheckResult:
         start = time.perf_counter()
-        rc, out, err = self._run([self._python, "-m", "pytest", "tests/unit/", "-q", "--tb=short", "-m", "not slow"],
-                                 timeout=180)
+        rc, out, err = self._run(
+            [self._python, "-m", "pytest", "tests/unit/", "-q", "--tb=short", "-m", "not slow"], timeout=180
+        )
         passed = rc == 0
-        return CheckResult(name="pytest", passed=passed, duration_ms=(time.perf_counter() - start) * 1000,
-                           output=out.strip(), error=err.strip())
+        return CheckResult(
+            name="pytest",
+            passed=passed,
+            duration_ms=(time.perf_counter() - start) * 1000,
+            output=out.strip(),
+            error=err.strip(),
+        )
 
     def check_mypy(self) -> CheckResult:
         start = time.perf_counter()
         rc, out, err = self._run([self._python, "-m", "mypy", "core/", "server/", "--strict"], timeout=120)
         passed = rc == 0
-        return CheckResult(name="mypy", passed=passed, duration_ms=(time.perf_counter() - start) * 1000,
-                           output=out.strip(), error=err.strip())
+        return CheckResult(
+            name="mypy",
+            passed=passed,
+            duration_ms=(time.perf_counter() - start) * 1000,
+            output=out.strip(),
+            error=err.strip(),
+        )
 
     def check_ruff(self) -> CheckResult:
         start = time.perf_counter()
-        rc, out, err = self._run([self._python, "-m", "ruff", "check", "core/", "modules/", "server/", "tests/"],
-                                 timeout=60)
+        rc, out, err = self._run(
+            [self._python, "-m", "ruff", "check", "core/", "modules/", "server/", "tests/"], timeout=60
+        )
         passed = rc == 0
-        return CheckResult(name="ruff", passed=passed, duration_ms=(time.perf_counter() - start) * 1000,
-                           output=out.strip(), error=err.strip())
+        return CheckResult(
+            name="ruff",
+            passed=passed,
+            duration_ms=(time.perf_counter() - start) * 1000,
+            output=out.strip(),
+            error=err.strip(),
+        )
 
     # ── Frontend Checks ────────────────────────────────────────────────
 
@@ -106,8 +123,13 @@ class WorkflowValidator:
             return CheckResult(name="tsc", passed=True, duration_ms=0, details={"skipped": "tsc not available"})
         rc, out, err = self._run([str(tsc), "--noEmit"], timeout=60, cwd=ROOT / "frontend")
         passed = rc == 0
-        return CheckResult(name="tsc", passed=passed, duration_ms=(time.perf_counter() - start) * 1000,
-                           output=out.strip(), error=err.strip())
+        return CheckResult(
+            name="tsc",
+            passed=passed,
+            duration_ms=(time.perf_counter() - start) * 1000,
+            output=out.strip(),
+            error=err.strip(),
+        )
 
     # ── Repository Checks ──────────────────────────────────────────────
 
@@ -118,6 +140,7 @@ class WorkflowValidator:
             return CheckResult(name="feature_list", passed=False, duration_ms=0, error="feature_list.json not found")
         try:
             import json
+
             data = json.loads(fl.read_text(encoding="utf-8"))
             features = data.get("features", [])
             in_progress = [f for f in features if f.get("status") == "in_progress"]
@@ -129,21 +152,24 @@ class WorkflowValidator:
             if invalid:
                 errors.append(f"{len(invalid)} features con status inválido")
             return CheckResult(
-                name="feature_list", passed=len(errors) == 0,
+                name="feature_list",
+                passed=len(errors) == 0,
                 duration_ms=(time.perf_counter() - start) * 1000,
                 details={"features": len(features), "in_progress": len(in_progress), "errors": errors},
                 error="; ".join(errors),
             )
         except Exception as e:
-            return CheckResult(name="feature_list", passed=False,
-                               duration_ms=(time.perf_counter() - start) * 1000, error=str(e))
+            return CheckResult(
+                name="feature_list", passed=False, duration_ms=(time.perf_counter() - start) * 1000, error=str(e)
+            )
 
     def check_checkpoints(self) -> CheckResult:
         start = time.perf_counter()
         required = ["AGENTS.md", "CHECKPOINTS.md", "feature_list.json", "progress/current.md", "progress/history.md"]
         missing = [f for f in required if not (ROOT / f).exists()]
         return CheckResult(
-            name="checkpoints", passed=len(missing) == 0,
+            name="checkpoints",
+            passed=len(missing) == 0,
             duration_ms=(time.perf_counter() - start) * 1000,
             details={"missing": missing},
             error=f"Missing: {', '.join(missing)}" if missing else "",
@@ -167,8 +193,14 @@ class WorkflowValidator:
             "python": [self.check_pytest, self.check_mypy, self.check_ruff],
             "frontend": [self.check_tsc],
             "repo": [self.check_feature_list, self.check_checkpoints],
-            "all": [self.check_pytest, self.check_mypy, self.check_ruff, self.check_tsc,
-                    self.check_feature_list, self.check_checkpoints],
+            "all": [
+                self.check_pytest,
+                self.check_mypy,
+                self.check_ruff,
+                self.check_tsc,
+                self.check_feature_list,
+                self.check_checkpoints,
+            ],
         }
         self._results = [c() for c in checks.get(category, checks["all"])]
         return self._results
@@ -181,8 +213,14 @@ class WorkflowValidator:
             "successful": sum(1 for x in r if x.passed),
             "failed": sum(1 for x in r if not x.passed),
             "checks": [
-                {"name": x.name, "passed": x.passed, "duration_ms": x.duration_ms,
-                 "output": x.output, "error": x.error, "details": x.details}
+                {
+                    "name": x.name,
+                    "passed": x.passed,
+                    "duration_ms": x.duration_ms,
+                    "output": x.output,
+                    "error": x.error,
+                    "details": x.details,
+                }
                 for x in r
             ],
         }
@@ -213,6 +251,7 @@ class WorkflowValidator:
 
 def main() -> int:
     import argparse
+
     parser = argparse.ArgumentParser(description="Workflow Validator")
     parser.add_argument("--category", choices=["python", "frontend", "repo", "all"], default="all")
     parser.add_argument("--json", action="store_true", help="Output as JSON")

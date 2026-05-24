@@ -15,7 +15,7 @@ Características:
 """
 
 from enum import Enum
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -449,13 +449,13 @@ class VideoMuxerConfig(BaseModel):
     video_crf: int = Field(default=23, ge=0, le=51, description="CRF para compresión video")
     audio_codec: AudioCodecEnum = Field(default=AudioCodecEnum.AAC, description="Códec de audio")
     audio_bitrate: str = Field(default="128k", description="Bitrate de audio")
-    video_bitrate: Optional[str] = Field(default=None, description="Bitrate de video fijo")
-    video_fps: Optional[int] = Field(default=None, ge=1, le=120, description="FPS de video")
-    video_width: Optional[int] = Field(default=None, ge=160, le=7680, description="Ancho de video")
-    video_height: Optional[int] = Field(default=None, ge=90, le=4320, description="Alto de video")
-    webrtc_audio_codec: Optional[AudioCodecEnum] = Field(default=None, description="Códec audio WebRTC")
-    webrtc_audio_bitrate: Optional[str] = Field(default=None, description="Bitrate audio WebRTC")
-    audio_sample_rate: Optional[int] = Field(default=None, ge=8000, le=96000, description="Sample rate de audio")
+    video_bitrate: str | None = Field(default=None, description="Bitrate de video fijo")
+    video_fps: int | None = Field(default=None, ge=1, le=120, description="FPS de video")
+    video_width: int | None = Field(default=None, ge=160, le=7680, description="Ancho de video")
+    video_height: int | None = Field(default=None, ge=90, le=4320, description="Alto de video")
+    webrtc_audio_codec: AudioCodecEnum | None = Field(default=None, description="Códec audio WebRTC")
+    webrtc_audio_bitrate: str | None = Field(default=None, description="Bitrate audio WebRTC")
+    audio_sample_rate: int | None = Field(default=None, ge=8000, le=96000, description="Sample rate de audio")
     gpu_preset: str = Field(default="p7", description="Preset de encoder GPU")
     video_preset: str = Field(default="medium", description="Preset de calidad CPU")
 

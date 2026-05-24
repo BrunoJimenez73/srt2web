@@ -29,8 +29,14 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["node"]
   },
-  "references": [
-    { "path": "./frontend" }
-  ],
-  "exclude": ["node_modules", "dist", "build", ".astro", "output", "logs", "server/static"]
+  "references": [{ "path": "./frontend" }],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    ".astro",
+    "output",
+    "logs",
+    "server/static"
+  ]
 }

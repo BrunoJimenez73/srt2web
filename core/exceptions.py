@@ -28,7 +28,7 @@ Jerarquía de excepciones:
      └─ ResourceExhaustedError
 """
 
-from typing import Any, Optional
+from typing import Any
 
 
 class SRT2WebError(Exception):
@@ -48,12 +48,12 @@ class SRT2WebError(Exception):
 
     def __init__(
         self,
-        message: Optional[str] = None,
-        details: Optional[dict[str, Any]] = None,
-        recoverable: Optional[bool] = None,
-        cause: Optional[Exception] = None,
-        context: Optional[dict[str, Any]] = None,
-        module: Optional[str] = None,
+        message: str | None = None,
+        details: dict[str, Any] | None = None,
+        recoverable: bool | None = None,
+        cause: Exception | None = None,
+        context: dict[str, Any] | None = None,
+        module: str | None = None,
     ):
         self.details = details or {}
         if context:
@@ -284,7 +284,7 @@ class ResourceExhaustedError(InfrastructureError):
 def wrap_exception(
     exc: Exception,
     target_exception: type[SRT2WebError],
-    details: Optional[dict[str, Any]] = None,
+    details: dict[str, Any] | None = None,
 ) -> SRT2WebError:
     """
     Envuelve una excepción externa en una excepción estandarizada de SRT2Web.

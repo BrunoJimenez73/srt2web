@@ -3,18 +3,19 @@ Unit tests for core exceptions.
 """
 
 import pytest
+
 from core.exceptions import (
-    SRT2WebError,
     ConfigurationError,
     ConfigurationValidationError,
-    PipelineError,
-    PipelineStateError,
-    ModuleProcessingError,
-    ModuleError,
-    TranscriberError,
-    TTSError,
     FFmpegError,
     InfrastructureError,
+    ModuleError,
+    ModuleProcessingError,
+    PipelineError,
+    PipelineStateError,
+    SRT2WebError,
+    TranscriberError,
+    TTSError,
 )
 
 

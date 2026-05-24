@@ -2,9 +2,10 @@
 Unit tests for BaseModule.
 """
 
-import pytest
 import numpy as np
-from core.module_base import BaseModule, PipelineData, ModuleState, ModuleStatus
+import pytest
+
+from core.module_base import BaseModule, ModuleState, ModuleStatus, PipelineData
 
 
 @pytest.mark.unit

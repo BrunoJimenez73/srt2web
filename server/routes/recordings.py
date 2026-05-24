@@ -41,13 +41,15 @@ def _scan_recordings(recordings_dir: Path) -> list[dict[str, Any]]:
     for f in sorted(recordings_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
         if f.is_file() and f.suffix.lower() in video_extensions:
             stat = f.stat()
-            results.append({
-                "name": f.name,
-                "size_bytes": stat.st_size,
-                "size_formatted": _format_size(stat.st_size),
-                "modified": stat.st_mtime,
-                "format": f.suffix.lower().lstrip("."),
-            })
+            results.append(
+                {
+                    "name": f.name,
+                    "size_bytes": stat.st_size,
+                    "size_formatted": _format_size(stat.st_size),
+                    "modified": stat.st_mtime,
+                    "format": f.suffix.lower().lstrip("."),
+                }
+            )
     return results
 
 
@@ -113,4 +115,4 @@ async def delete_recording(request: Request, name: str) -> dict[str, Any]:
         return {"status": "deleted", "name": name}
     except OSError as e:
         logger.error(f"Failed to delete recording {name}: {e}")
-        raise HTTPException(500, f"Failed to delete recording: {e}")
+        raise HTTPException(500, f"Failed to delete recording: {e}") from e

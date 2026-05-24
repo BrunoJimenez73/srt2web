@@ -15,8 +15,8 @@ def main() -> None:
         config_path = sys.argv[3]
         device = sys.argv[4]
 
-        from piper import PiperVoice
         import onnxruntime
+        from piper import PiperVoice
 
         print(f"[PIPER_DEBUG] Python: {sys.version}", file=sys.stderr)
         print(f"[PIPER_DEBUG] ONNX Runtime: {onnxruntime.__version__}", file=sys.stderr)
@@ -33,20 +33,20 @@ def main() -> None:
 
         if device == "cuda" or (device == "auto" and cuda_available) and cuda_available:
             try:
-                print(f"[PIPER_DEBUG] Attempting to load with CUDA...", file=sys.stderr)
+                print("[PIPER_DEBUG] Attempting to load with CUDA...", file=sys.stderr)
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     voice = PiperVoice.load(model_path, config_path, use_cuda=True)
                 use_cuda = True
-                print(f"[PIPER_DEBUG] Successfully loaded with CUDA", file=sys.stderr)
+                print("[PIPER_DEBUG] Successfully loaded with CUDA", file=sys.stderr)
             except Exception as e:
                 print(f"[PIPER_DEBUG] CUDA load failed: {e}", file=sys.stderr)
                 voice = None
 
         if voice is None:
-            print(f"[PIPER_DEBUG] Loading with CPU...", file=sys.stderr)
+            print("[PIPER_DEBUG] Loading with CPU...", file=sys.stderr)
             voice = PiperVoice.load(model_path, config_path, use_cuda=False)
-            print(f"[PIPER_DEBUG] Successfully loaded with CPU", file=sys.stderr)
+            print("[PIPER_DEBUG] Successfully loaded with CPU", file=sys.stderr)
 
         print(f"[PIPER_DEBUG] Sample rate: {voice.config.sample_rate}", file=sys.stderr)
 
@@ -63,10 +63,6 @@ def main() -> None:
         sys.exit(1)
     except Exception as e:
         print(json.dumps({"status": "error", "error": str(e)}))
-        sys.exit(1)
-    except Exception as e:
-        result = {"status": "error", "error": str(e)}
-        print(json.dumps(result))
         sys.exit(1)
 
 

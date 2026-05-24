@@ -2,11 +2,11 @@
 Unit tests for Preset API endpoints (F19).
 """
 
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-import sys
 
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -18,7 +18,6 @@ from fastapi.testclient import TestClient
 def client_with_presets():
     """Create a test client with patched rate limiter and preset methods."""
     from core.pipeline import Pipeline
-    from server import app as app_module
     from server.security import RateLimiter
 
     # Patch RateLimiter.is_allowed to always allow
@@ -27,7 +26,7 @@ def client_with_presets():
     def mock_is_allowed(self, key):
         return True, 999
 
-    with patch.object(RateLimiter, 'is_allowed', mock_is_allowed):
+    with patch.object(RateLimiter, "is_allowed", mock_is_allowed):
         config = MagicMock()
         config.get.side_effect = lambda key, default=None: {
             "server.auth_token": "",
@@ -36,21 +35,28 @@ def client_with_presets():
 
         config.to_dict.return_value = {
             "server": {"port": 9999, "host": "127.0.0.1"},
-            "pipeline": {"chunk_duration_sec": 5, "mode": "sequential",
-                          "max_concurrent_chunks": 4, "buffer_size": 10,
-                          "retry_attempts": 3, "retry_delay": 1.0},
+            "pipeline": {
+                "chunk_duration_sec": 5,
+                "mode": "sequential",
+                "max_concurrent_chunks": 4,
+                "buffer_size": 10,
+                "retry_attempts": 3,
+                "retry_delay": 1.0,
+            },
             "output_dir": {"directory": "./output"},
             "modules": {
                 "audio_extractor": {"enabled": True},
-                "transcriber": {"enabled": False, "model": "tiny", "language": "en",
-                                 "device": "auto", "beam_size": 2},
+                "transcriber": {"enabled": False, "model": "tiny", "language": "en", "device": "auto", "beam_size": 2},
                 "translator": {"enabled": True, "source_lang": "fr", "target_lang": "es"},
-                "subtitle_generator": {"enabled": True, "format": "srt",
-                                        "use_translated": True, "chunk_duration": 5},
-                "tts_engine": {"enabled": True, "engine": "piper", "device": "auto",
-                                "voice": "es_ES-davefx-medium", "speed": 1.2},
-                "audio_mixer": {"enabled": True, "original_volume": 0.6,
-                                 "tts_volume": 1.0, "dubbed_volume": 1.0},
+                "subtitle_generator": {"enabled": True, "format": "srt", "use_translated": True, "chunk_duration": 5},
+                "tts_engine": {
+                    "enabled": True,
+                    "engine": "piper",
+                    "device": "auto",
+                    "voice": "es_ES-davefx-medium",
+                    "speed": 1.2,
+                },
+                "audio_mixer": {"enabled": True, "original_volume": 0.6, "tts_volume": 1.0, "dubbed_volume": 1.0},
                 "video_muxer": {"enabled": True, "engine": "hls"},
             },
         }
@@ -77,6 +83,7 @@ def client_with_presets():
         }
 
         from server.app import create_app
+
         app = create_app(app_context)
         client = TestClient(app, raise_server_exceptions=True)
         yield client, config
@@ -104,9 +111,7 @@ class TestListPresets:
 
     def test_saved_presets_included(self, client_with_presets):
         client, config = client_with_presets
-        config.list_presets.return_value = [
-            {"name": "my_preset", "description": "Test", "config_keys": ["pipeline"]}
-        ]
+        config.list_presets.return_value = [{"name": "my_preset", "description": "Test", "config_keys": ["pipeline"]}]
         response = client.get("/api/presets")
         assert response.status_code == 200
         names = [p["name"] for p in response.json()["presets"]]

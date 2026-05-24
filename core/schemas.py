@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -39,13 +39,13 @@ class ModuleStatus(BaseModel):
     name: str
     state: ModuleState
     enabled: bool
-    error_message: Optional[str] = None
+    error_message: str | None = None
     last_process_time_ms: float = 0.0
     processed_chunks: int = 0
     total_processing_time: float = 0.0
     average_processing_time: float = 0.0
-    circuit_state: Optional[str] = None
-    memory_mb: Optional[float] = None
+    circuit_state: str | None = None
+    memory_mb: float | None = None
     extra: dict[str, Any] = Field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:

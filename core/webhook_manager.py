@@ -9,6 +9,7 @@ Características:
 """
 
 import asyncio
+import contextlib
 import json
 import logging
 import time
@@ -99,10 +100,8 @@ class WebhookManager:
         self._running = False
         if self._worker_task:
             self._worker_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._worker_task
-            except asyncio.CancelledError:
-                pass
             self._worker_task = None
         logger.info("Webhook manager stopped")
 

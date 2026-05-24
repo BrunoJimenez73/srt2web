@@ -33,11 +33,15 @@ import { currentLanguage, currentTheme } from "./store/signals";
 currentLanguage.value = initLanguage();
 
 // Initialize theme
-const storedTheme = typeof window !== "undefined" ? localStorage.getItem("srt2web_theme") : null;
+const storedTheme =
+  typeof window !== "undefined" ? localStorage.getItem("srt2web_theme") : null;
 if (storedTheme === "light" || storedTheme === "dark") {
   currentTheme.value = storedTheme;
   document.documentElement.classList.toggle("dark", storedTheme === "dark");
-} else if (typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: light)").matches) {
+} else if (
+  typeof window !== "undefined" &&
+  window.matchMedia("(prefers-color-scheme: light)").matches
+) {
   currentTheme.value = "light";
   document.documentElement.classList.remove("dark");
 } else {

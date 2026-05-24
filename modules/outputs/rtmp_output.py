@@ -5,12 +5,13 @@ Supports pushing the processed stream to external RTMP servers
 (e.g., YouTube, Twitch, or custom RTMP endpoints).
 """
 
+import contextlib
 import logging
 import os
 import subprocess
 import sys
 import threading
-from typing import Any, Optional
+from typing import Any
 
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.module_base import PipelineData
@@ -30,12 +31,12 @@ class RTMPOutput(OutputSink):
 
     name = "rtmp_output"
 
-    def __init__(self, config: Optional[dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         cfg = config or {}
         super().__init__("rtmp", cfg)
-        self._ffmpeg_path: Optional[str] = None
-        self._ffmpeg_proc: Optional[subprocess.Popen[Any]] = None
-        self._monitor_thread: Optional[threading.Thread] = None
+        self._ffmpeg_path: str | None = None
+        self._ffmpeg_proc: subprocess.Popen[Any] | None = None
+        self._monitor_thread: threading.Thread | None = None
 
         self._url: str = ""
         self._video_bitrate: str = "2500k"
@@ -44,7 +45,7 @@ class RTMPOutput(OutputSink):
         self._preset: str = "medium"
         self._audio_codec: str = "aac"
         self._streaming: bool = False
-        self._watchdog: Optional[Any] = None
+        self._watchdog: Any | None = None
 
         if config:
             self.configure(config)
@@ -153,10 +154,8 @@ class RTMPOutput(OutputSink):
                     self._ffmpeg_proc.terminate()
                 self._ffmpeg_proc.wait(timeout=5)
             except Exception:
-                try:
+                with contextlib.suppress(Exception):
                     self._ffmpeg_proc.kill()
-                except Exception:
-                    pass
             finally:
                 self._ffmpeg_proc = None
 

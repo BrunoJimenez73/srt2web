@@ -7,7 +7,7 @@ Provides login, logout, register, user management endpoints.
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from core.auth_db import auth_db
@@ -46,11 +46,13 @@ def _get_current_user(request: Request) -> dict[str, Any]:
 
 def _require_role(required_role: str) -> Any:
     """Dependency factory for role-based access."""
+
     async def role_dependency(request: Request) -> dict[str, Any]:
         user = _get_current_user(request)
         if not auth_db.has_permission(user["role"], required_role):
             raise HTTPException(403, f"Role '{user['role']}' cannot perform this action")
         return user
+
     return role_dependency
 
 

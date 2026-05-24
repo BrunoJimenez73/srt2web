@@ -13,12 +13,11 @@ import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Optional
-
-logger = logging.getLogger("srt2web.pipeline.state_manager")
-
+from typing import Any
 
 from core.schemas import ModuleState, PipelineState
+
+logger = logging.getLogger("srt2web.pipeline.state_manager")
 
 
 @dataclass
@@ -28,7 +27,7 @@ class StateTransition:
     timestamp: float
     from_state: str
     to_state: str
-    reason: Optional[str] = None
+    reason: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -47,7 +46,7 @@ class ModuleStateInfo:
     state: ModuleState
     enabled: bool = True
     processed_chunks: int = 0
-    last_error: Optional[str] = None
+    last_error: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -82,9 +81,9 @@ class PipelineStateManager:
         self._state = initial_state
         self._modules: dict[str, ModuleStateInfo] = {}
         self._history: list[StateTransition] = []
-        self._on_state_change: Optional[Callable[[str, str, Optional[str]], None]] = None
-        self._started_at: Optional[float] = None
-        self._stopped_at: Optional[float] = None
+        self._on_state_change: Callable[[str, str, str | None], None] | None = None
+        self._started_at: float | None = None
+        self._stopped_at: float | None = None
 
     @property
     def state(self) -> PipelineState:
@@ -109,7 +108,7 @@ class PipelineStateManager:
         end = self._stopped_at or time.time()
         return end - self._started_at
 
-    def set_callback(self, callback: Callable[[str, str, Optional[str]], None]) -> None:
+    def set_callback(self, callback: Callable[[str, str, str | None], None]) -> None:
         """Configurar callback para cambios de estado."""
         self._on_state_change = callback
 
@@ -118,7 +117,7 @@ class PipelineStateManager:
         allowed = VALID_TRANSITIONS.get(self._state, [])
         return target in allowed
 
-    def transition_to(self, target: PipelineState, reason: Optional[str] = None) -> bool:
+    def transition_to(self, target: PipelineState, reason: str | None = None) -> bool:
         """
         Intentar transicionar a un nuevo estado.
 
@@ -148,9 +147,12 @@ class PipelineStateManager:
         # Trackear tiempos
         if target == PipelineState.RUNNING:
             self._started_at = time.time()
-        elif target in (PipelineState.IDLE, PipelineState.ERROR):
-            if self._state == PipelineState.IDLE and self._started_at:
-                self._stopped_at = time.time()
+        elif (
+            target in (PipelineState.IDLE, PipelineState.ERROR)
+            and self._state == PipelineState.IDLE
+            and self._started_at
+        ):
+            self._stopped_at = time.time()
 
         logger.info(f"Pipeline state: {old_state} -> {target.value}" + (f" ({reason})" if reason else ""))
 
@@ -175,9 +177,9 @@ class PipelineStateManager:
         self,
         name: str,
         state: ModuleState,
-        processed_chunks: Optional[int] = None,
-        error: Optional[str] = None,
-        extra: Optional[dict[str, Any]] = None,
+        processed_chunks: int | None = None,
+        error: str | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> None:
         """Actualizar estado de un modulo."""
         if name not in self._modules:
@@ -193,7 +195,7 @@ class PipelineStateManager:
         if extra is not None:
             info.extra.update(extra)
 
-    def get_module_state(self, name: str) -> Optional[ModuleStateInfo]:
+    def get_module_state(self, name: str) -> ModuleStateInfo | None:
         """Obtener estado de un modulo."""
         return self._modules.get(name)
 

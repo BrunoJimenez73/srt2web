@@ -10,10 +10,10 @@ import json
 import os
 import secrets
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import jwt
 
@@ -37,7 +37,7 @@ class User:
     last_login: float = 0.0
 
 
-def _hash_password(password: str, salt: Optional[str] = None) -> tuple[str, str]:
+def _hash_password(password: str, salt: str | None = None) -> tuple[str, str]:
     if salt is None:
         salt = secrets.token_hex(16)
     h = hashlib.sha256((salt + password).encode()).hexdigest()
