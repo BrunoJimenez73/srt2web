@@ -55,17 +55,37 @@ ruff, ruff-format, prettier, mypy.
 
 ---
 
-## F88 [en progreso] — Resolver duplicación workflow/ + bin/
+## F88 [completado] — Resolver duplicación workflow/ + bin/
+
+### Análisis
+
+- **workflow/**: Herramienta de automatización de desarrollo para agentes AI.
+  NO overlap con core/unified_pipeline.py. 7 archivos trackeados en git.
+  Activo (referenciado en AGENTS.md). Recomendación: **KEEP**.
+- **bin/**: Cache de binarios runtime (FFmpeg ~193MB + MediaMTX ~50MB).
+  NO trackeado en git (.gitignore). Consumido por core/ffmpeg_utils.py
+  y core/mediamtx_manager.py. Recomendación: **KEEP**.
+
+### Acciones
+
+- `workflow/pipeline.yaml`: eliminada sección `pipeline_validation`
+  (lines 37-66, `enabled: false`, código muerto sin referencias)
+- feature_list.json actualizado: F88 → done
+
+---
+
+## F89 [en progreso] — Unificar Enum EncoderMode
 
 ### Objetivo
 
-Analizar workflow/ (trackeado, 7 archivos, orquestador alternativo) y bin/
-(no trackeado, mediamtx.exe 52MB). Decidir si mantener, mover o eliminar.
+Consolidar los 3 enums de encoder incompatibles en una sola fuente de verdad:
+EncoderModeEnum en core/config_schema.py. Deprecar EncoderMode en
+core/types.py y ALLOWED_ENCODER_MODES en core/constants.py.
 
 ### Plan
 
-1. Leer workflow/ para entender propósito
-2. Leer bin/ para entender su contenido
-3. Decidir destino (mantener con README, mover a PARA BORRAR/, o eliminar)
-4. Actualizar feature_list.json
-5. init.ps1 -Quick verde
+1. Marcar EncoderMode en types.py como @deprecated
+2. Eliminar ALLOWED_ENCODER_MODES en constants.py o convertirlo en alias
+3. Actualizar core/**init**.py para exportar EncoderModeEnum
+4. Actualizar test_config_validation.py
+5. Verificar init.ps1 -Quick + mypy 0 errores

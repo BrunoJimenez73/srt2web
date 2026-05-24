@@ -33,34 +33,3 @@ session:
   auto_commit: true
   auto_push: false
   commit_message_template: "feat({id}): {title}"
-
-pipeline_validation:
-  enabled: false # true when Nivel 1 validators are wired in
-  stages:
-    audio_extractor:
-      enabled: true
-      thresholds:
-        min_sample_rate: 8000
-        max_duration_ratio: 1.5 # max allowed vs expected duration ratio
-
-    transcriber:
-      enabled: true
-      thresholds:
-        min_confidence: 0.3
-        min_segments: 1
-
-    translator:
-      enabled: true
-      thresholds:
-        max_empty_ratio: 0.9
-        min_length_change: 0.0
-
-    tts_engine:
-      enabled: true
-      thresholds:
-        max_generation_time: 30.0
-
-    audio_mixer:
-      enabled: true
-      thresholds:
-        max_volume_deviation: 0.5
