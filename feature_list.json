@@ -1639,7 +1639,7 @@
       "id": 91,
       "name": "audit_gitignore",
       "title": "Auditar y limpiar .gitignore",
-      "status": "pending",
+      "status": "done",
       "area": "maintenance",
       "priority": "Baja",
       "description": "Revisar .gitignore actual (88 líneas) para eliminar entradas obsoletas (desktop/dist/, desktop/release/ ya no existen), añadir patrones faltantes (startup_*.txt ya cubierto), y verificar que todos los artefactos runtime están cubiertos.",

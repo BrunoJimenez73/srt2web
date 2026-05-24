@@ -21,7 +21,7 @@ Thumbs.db
 
 # Testing
 .pytest_cache/
-.coverage
+.coverage*
 htmlcov/
 .tox/
 .nox/
@@ -35,14 +35,8 @@ config.yaml
 /config/config.yaml
 !config.yaml.example
 
-# External projects
-Software-planning-mcp/
-
-# Trash
+# Trash / temp
 PARA BORRAR/
-
-# Pruebas
-PRUEBAS/
 
 # ML Models
 models/
@@ -53,7 +47,6 @@ bin/
 # Temporary test files
 test_api.py
 test_*.txt
-*.log
 screenshot-*.png
 .playwright-mcp/
 
@@ -68,10 +61,6 @@ node_modules/
 # ML model cache
 .cache/
 
-# Desktop build output
-desktop/dist/
-desktop/release/
-
 # Temp startup logs
 startup_stdout.txt
 startup_stderr.txt
@@ -79,11 +68,6 @@ startup_stderr.txt
 # Logs
 logs/
 
-# Legacy backup
-config.yaml.backup
-
 # Temp / scratch
 temp/
-py_write_dir/
-pytest_tmp_manual/
 tmpsrt2web-pytest/
