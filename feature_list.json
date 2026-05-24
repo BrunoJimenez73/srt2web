@@ -1604,7 +1604,7 @@
       "id": 90,
       "name": "frontend_hardening",
       "title": "Hardening frontend — prevenir regresión de calidad",
-      "status": "pending",
+      "status": "done",
       "area": "frontend",
       "priority": "Baja",
       "description": "Asegurar que el frontend mantiene 0 errores tsc, ESLint sin errores, y que los tests (177) sigan pasando. Agregar check de frontend al init.ps1 si no existe. Auditar y limpiar any/unknown restantes.",

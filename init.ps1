@@ -49,24 +49,27 @@ Write-Host "`n--- 5. Tipado Python con mypy --strict ---" -ForegroundColor Cyan
 $mypyResult = & $VENV_PYTHON -m mypy core/ server/ modules/ --config-file pyproject.toml 2>&1
 if ($LASTEXITCODE -eq 0) { Ok "mypy: 0 errores en core/, server/ y modules/" } else { Fail "mypy encontro errores:"; Write-Host $mypyResult -ForegroundColor Red }
 
+Write-Host "`n--- 6. TypeScript (obligatorio) ---" -ForegroundColor Cyan
+Push-Location frontend
+try {
+    $tscResult = & "npx" tsc --noEmit 2>&1
+    if ($LASTEXITCODE -eq 0) { Ok "TypeScript: 0 errores" } else { Fail "TypeScript tiene errores:"; Write-Host $tscResult -ForegroundColor Red }
+} finally { Pop-Location }
+
+Write-Host "`n--- 7. Tests frontend (obligatorio en Quick, informativo en full) ---" -ForegroundColor Cyan
+Push-Location frontend
+try {
+    $npmResult = & "npm" test 2>&1
+    if ($LASTEXITCODE -eq 0) { Ok "Frontend tests: pasan" } else { Warn "Frontend tests fallan (no bloqueante en Quick)" }
+} finally { Pop-Location }
+
 if (-not $Quick) {
-    Write-Host "`n--- 6. TypeScript (informativo) ---" -ForegroundColor Cyan
-    if (Test-Path "frontend/node_modules/.bin/tsc") {
-        $tscResult = & "frontend/node_modules/.bin/tsc" --noEmit 2>&1
-        if ($LASTEXITCODE -eq 0) { Ok "TypeScript: 0 errores" } else { Warn "TypeScript tiene errores (no bloqueante)" }
-    } else { Warn "TypeScript no disponible (frontend/node_modules/.bin/tsc)" }
-
-    Write-Host "`n--- 7. Tests frontend (informativo) ---" -ForegroundColor Cyan
-    if (Test-Path "frontend/node_modules/.bin/vitest") {
-        $npmResult = & "npm" test --prefix frontend 2>&1
-        if ($LASTEXITCODE -eq 0) { Ok "Frontend tests: pasan" } else { Warn "Frontend tests fallan (no bloqueante)" }
-    } else { Warn "Vitest no disponible" }
-
     Write-Host "`n--- 8. Build frontend (informativo) ---" -ForegroundColor Cyan
-    if (Test-Path "frontend/node_modules/.bin/astro") {
-        $buildResult = & "npm" run build:local --prefix frontend 2>&1
+    Push-Location frontend
+    try {
+        $buildResult = & "npm" run build:local 2>&1
         if ($LASTEXITCODE -eq 0) { Ok "Frontend build: exitoso" } else { Warn "Frontend build falla (no bloqueante)" }
-    } else { Warn "Astro no disponible" }
+    } finally { Pop-Location }
 }
 
 Write-Host "`n--- Resumen ---" -ForegroundColor Cyan
