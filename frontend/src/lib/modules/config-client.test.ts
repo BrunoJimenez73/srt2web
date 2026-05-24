@@ -82,7 +82,14 @@ describe("config-client - handleSaveConfig", () => {
     const collector = await import("./config-collector");
     vi.spyOn(collector, "collectConfigFromUI").mockReturnValue({
       input: { type: "srt" },
-      pipeline: { chunk_duration_sec: 3, mode: "thread_parallel", max_concurrent_chunks: 2, buffer_size: 10, retry_attempts: 3, retry_delay: 5 },
+      pipeline: {
+        chunk_duration_sec: 3,
+        mode: "thread_parallel",
+        max_concurrent_chunks: 2,
+        buffer_size: 10,
+        retry_attempts: 3,
+        retry_delay: 5,
+      },
     } as Partial<Config>);
   });
 

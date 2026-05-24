@@ -166,6 +166,7 @@ class SubtitleGenerator(BaseModule):
         """Rewrite VTT file with current rolling window entries (atomic write)."""
         tmp_path = Path(self._subtitles_dir) / ".subs.vtt.tmp"
         import sys as _sys
+
         try:
             with open(tmp_path, "w", encoding="utf-8") as f:
                 f.write("WEBVTT\n\n")

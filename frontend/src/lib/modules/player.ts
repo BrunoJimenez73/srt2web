@@ -250,7 +250,9 @@ export function initHlsPlayer(): void {
 
   function handlePlayError(err: unknown) {
     if (err instanceof DOMException && err.name === "NotAllowedError") {
-      showError("Haz clic en el reproductor o presiona Reintentar para reproducir");
+      showError(
+        "Haz clic en el reproductor o presiona Reintentar para reproducir",
+      );
     } else {
       console.error("play() failed:", err);
     }
