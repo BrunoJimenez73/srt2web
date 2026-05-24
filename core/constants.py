@@ -3,6 +3,8 @@ Centralized constants for SRT2Web.
 All hardcoded values should be defined here.
 """
 
+from core.config_schema import EncoderModeEnum
+
 # Server Configuration
 SERVER_HOST: str = "0.0.0.0"
 SERVER_PORT_DEFAULT: int = 9999
@@ -166,8 +168,7 @@ ALLOWED_DEVICES: list[str] = ["auto", "cpu", "cuda", "mps"]
 # TTS Engines
 ALLOWED_TTS_ENGINES: list[str] = ["edge", "piper"]
 
-# Encoder Modes (sync con EncoderModeEnum en config_schema.py)
-ALLOWED_ENCODER_MODES: list[str] = ["auto", "passthrough", "cpu", "gpu_nvenc", "gpu_amf", "gpu_qsv", "gpu_videotoolbox"]
+ALLOWED_ENCODER_MODES: list[str] = [m.value for m in EncoderModeEnum]
 
 # Quality Presets
 QUALITY_PRESETS: dict[str, dict[str, int]] = {

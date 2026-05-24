@@ -69,7 +69,7 @@ VALID_TTS_VOICES = [
 
 VALID_VIDEO_PRESETS = ["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"]
 
-VALID_ENCODER_MODES = ["auto", "passthrough", "cpu", "gpu_nvenc", "gpu_amf", "gpu_qsv", "gpu_videotoolbox"]
+from core.constants import ALLOWED_ENCODER_MODES as VALID_ENCODER_MODES
 
 
 class TestConfigYAMLValidity:
