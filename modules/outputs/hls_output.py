@@ -13,6 +13,7 @@ Configuración (output.web o output.hls):
 import glob
 import os
 import subprocess
+import sys
 import threading
 from typing import Any, Optional
 
@@ -422,8 +423,15 @@ class HLSOutput(OutputSink):
                 media_lines.append(seg_name)
 
             try:
-                with open(media_path, "w", encoding="utf-8") as f:
+                media_tmp = media_path + ".tmp"
+                with open(media_tmp, "w", encoding="utf-8") as f:
                     f.write("\n".join(media_lines) + "\n")
+                if sys.platform == "win32":
+                    if os.path.exists(media_path):
+                        os.remove(media_path)
+                    os.rename(media_tmp, media_path)
+                else:
+                    os.replace(media_tmp, media_path)
             except Exception as e:
                 self.logger.error(f"Failed to write media playlist: {e}")
 
@@ -464,8 +472,15 @@ class HLSOutput(OutputSink):
             master_lines.append("stream.m3u8")
 
             try:
-                with open(master_path, "w", encoding="utf-8") as f:
+                master_tmp = master_path + ".tmp"
+                with open(master_tmp, "w", encoding="utf-8") as f:
                     f.write("\n".join(master_lines) + "\n")
+                if sys.platform == "win32":
+                    if os.path.exists(master_path):
+                        os.remove(master_path)
+                    os.rename(master_tmp, master_path)
+                else:
+                    os.replace(master_tmp, master_path)
             except Exception as e:
                 self.logger.error(f"Failed to write master playlist: {e}")
 

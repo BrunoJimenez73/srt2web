@@ -95,14 +95,20 @@ class SubtitleGenerator(BaseModule):
         vtt_open_path = os.path.join(self._output_dir, "subtitles", "subs.vtt")
         self._vtt_alt_path = self._subtitles_dir / "subs_original.vtt"
 
+        # Clean old chunk SRT files from previous sessions
+        for old_chunk in Path(self._output_dir, "subtitles").glob("chunk_*.srt"):
+            try:
+                old_chunk.unlink()
+            except OSError:
+                pass
+
         # Reset files with WebVTT header
         with self._lock:
-            for path in [vtt_open_path]:
-                try:
-                    with open(path, "w", encoding="utf-8") as f:
-                        f.write("WEBVTT\n\n")
-                except Exception as e:
-                    logger.error(f"Failed to initialize VTT {path}: {e}")
+            try:
+                with open(vtt_open_path, "w", encoding="utf-8") as f:
+                    f.write("WEBVTT\n\n")
+            except Exception as e:
+                logger.error(f"Failed to initialize VTT {vtt_open_path}: {e}")
 
             # Initialize dual track file if enabled
             if self._dual_track:
@@ -157,18 +163,25 @@ class SubtitleGenerator(BaseModule):
             self._vtt_entries = self._vtt_entries[-self._max_vtt_entries :]
 
     def _rewrite_vtt_file(self) -> None:
-        """Rewrite VTT file with current rolling window entries."""
+        """Rewrite VTT file with current rolling window entries (atomic write)."""
+        tmp_path = Path(self._subtitles_dir) / ".subs.vtt.tmp"
+        import sys as _sys
         try:
-            with open(self._vtt_path, "w", encoding="utf-8") as f:
+            with open(tmp_path, "w", encoding="utf-8") as f:
                 f.write("WEBVTT\n\n")
                 for entry in self._vtt_entries:
                     start_str = self._format_timestamp(entry["start"], "vtt")
                     end_str = self._format_timestamp(entry["end"], "vtt")
-                    # Include chunk_start in VTT for offset calculation
                     chunk_start = entry.get("chunk_start", 0)
                     f.write(f"NOTE chunk_start: {chunk_start:.3f}\n")
                     f.write(f"{start_str} --> {end_str}\n")
                     f.write(f"{entry['text']}\n\n")
+            if _sys.platform == "win32":
+                if self._vtt_path.exists():
+                    self._vtt_path.unlink()
+                tmp_path.rename(self._vtt_path)
+            else:
+                tmp_path.replace(self._vtt_path)
         except Exception as e:
             logger.error(f"Error rewriting VTT file: {e}")
 

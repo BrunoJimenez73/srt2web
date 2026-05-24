@@ -40,8 +40,8 @@
   "file_input": "Archivo",
   "srt_port": "Puerto SRT",
   "mode": "Modo",
-  "listener": "Escuchador",
-  "caller": "Llamador",
+  "listener": "Listener",
+  "caller": "Caller",
   "rendezvous": "Rendezvous",
   "chunk": "Chunk",
   "latency_ms": "Latencia (ms)",
@@ -74,5 +74,12 @@
   "show_hide": "Mostrar/Ocultar",
   "generate_token": "Generar token",
   "save_token": "Guardar token",
-  "save_config": "Guardar configuración"
+  "save_config": "Guardar configuración",
+  "config_saved_shortcut": "Configuración guardada",
+  "light_mode_on": "Modo claro activado",
+  "dark_mode_on": "Modo oscuro activado",
+  "close": "Cerrar",
+  "no_logs": "No hay logs para exportar",
+  "confirm_delete": "¿Confirmar eliminación?",
+  "no_logs_yet": "Aún no hay logs"
 }

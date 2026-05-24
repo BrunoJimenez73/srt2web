@@ -102,9 +102,48 @@
 - Fix: Vitest v4 incompatibilidad con arrow functions en `vi.fn()` (constructor mock requiere `function` keyword)
 - `npm test`: 9 files, 177 tests, 0 failed ✅
 
-## Backlog pendiente
+## Bugfixes post-F84-F86 (Mayo 2026)
 
-- F83: Integration and E2E tests
-- F84: Performance profiling and pipeline optimization
-- F85: Accessibility audit (WCAG 2.2)
-- F86: Docker and CI improvements
+### Stop.bat — rewrite completo
+- Mata TODOS los `python.exe`, `python3.exe`, `ffmpeg.exe`, `ffprobe.exe`
+- Libera puertos del sistema (9999, 9000, 8000, 1935)
+- Limpia `__pycache__`, `.pyc`, `.pyo`, `.ruff_cache`, `.mypy_cache`, `.pytest_cache`
+- Limpia logs y TODOS los directorios temporales de output: `hls`, `subtitles`, `chunks`, `temp_audio`, `temp_mix`, `temp_tts`, `video`, `audio`
+
+### SubtitleGenerator — limpieza y escritura atómica
+- `start()` ahora limpia viejos `chunk_*.srt` de sesiones anteriores
+- `_rewrite_vtt_file()` usa escritura atómica: escribe a `.subs.vtt.tmp` → `Path.replace()` a `subs.vtt`
+- Previene que el webplayer lea el archivo VTT a medio escribir (evita parse errors y subtítulos "colgados")
+
+### LogPanel — auto-expand en primer log
+- `addLog()` en `logpanel.ts` ahora expande automáticamente el panel (collapsed → expanded) cuando llega el primer log, en vez de esperar que el usuario haga clic en el header.
+
+### Stop.bat v3 — soporte para Node, kill por puerto, verificación
+- Añadido `taskkill /F /IM node.exe` para matar servidores Astro/Node
+- Añadido `powershell Stop-Process` por puerto (9999, 9000, 9001, 9002, 8000, 1935, 4321, 5173, 4173)
+- Tres pasadas de kill para atrapar respawns (Windows App execution aliases)
+- Verificación post-limpieza: chequea que no queden procesos Python/FFmpeg/Node
+
+### Webplayer — arreglo de tirones (stuttering)
+- Eliminado `<track>` nativo de `player.astro`: el JS en `player.ts` ya gestiona subtítulos vía `VTTCue`, el `<track>` nativo creaba un sistema dual que causaba conflictos y refrescos de cue innecesarios cada 500ms.
+- `hls.js config` ajustada: `lowLatencyMode: false` (el servidor no emite partial segments), `maxBufferLength: 30` (antes 10 = solo 2 segmentos), `liveSyncMaxLatency: 10` (antes 4, muy agresivo para segmentos de 5s), `liveDurationInfinity: true`.
+- Subtitle polling reducido de 500ms a 2000ms (120 req/min → 30 req/min).
+- `stream.m3u8` y `master.m3u8` ahora se escriben atómicamente (tmp → `os.replace()`) para evitar que hls.js lea playlists a medio escribir.
+
+### Fix Stop pipeline — StatusCard event handlers y WS status broadcast
+- **`window.stopPipeline` / `window.startPipeline` estaban undefined**: El botón Stop/Start en StatusCard.astro llamaba a `window.stopPipeline()` y `window.startPipeline()` (línea 113-116), pero nunca se asignaban. Ahora se exponen en `pipeline-control.ts` (`window.startPipeline = handleStart`, `window.stopPipeline = handleStop`), siguiendo el mismo patrón que `window.saveConfig`.
+- **Handlers duplicados eliminados**: El `DOMContentLoaded` listener en StatusCard.astro que añadía event listeners a los botones era redundante (ya lo hace `setupEventListeners()` en pipeline-control.ts) y encima llamaba a funciones undefined. Eliminado.
+- **WS `broadcast_status` no llegaba al frontend**: El servidor emitía `{"type": "status", "state": "running", ...}` con los campos esparcidos al nivel superior. El frontend espera `data.status` anidado (`{"type": "status", "status": {"state": "running", ...}}`). Corregido: ahora `broadcast_status()` y el handler `get_status` envuelven el status en `status:`.
+- **Efecto**: Ahora las actualizaciones de estado vía WebSocket SÍ se consumen, no solo vía HTTP polling. El dashboard reacciona más rápido a cambios de estado.
+
+### Fix pipeline.stop() bloqueaba event loop — Stop desde frontend no funcionaba
+- `pipeline.stop()` (`async def`) llamaba `thread.join(timeout=5.0)` directamente, **bloqueando el event loop de asyncio** por hasta ~20s (input + 2 workers + output × 5s c/u).
+- El frontend tiene timeout de 15s en `apiCall()`. Al hacer clic en Stop, el POST /api/stop se quedaba colgado → timeout → error en frontend (catch block mostraba error en logs). El usuario creía que el botón no funcionaba.
+- Fix: Envolver los `thread.join()` en `await asyncio.to_thread(...)` para que no congelen el event loop. El servidor sigue respondiendo a otras peticiones (status, health) mientras los threads se unen.
+- Tests: 132 pipeline/core tests pasan.
+
+### Estado actual
+- `pytest tests/unit/ -q --tb=short -m "not slow"` → ✅ 1066 pasan
+- `mypy core/ server/ modules/ --strict` → ✅ 0 errores
+- `ruff check core/ modules/ server/ tests/` → ✅ limpio
+- `npx tsc --noEmit` → 9 errores pre-existentes (i18n keys desactualizadas, no relacionados)

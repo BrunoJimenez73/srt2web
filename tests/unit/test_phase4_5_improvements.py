@@ -3,6 +3,7 @@ Tests for Phase 4-5 improvements (compression, rolling subtitles, UX).
 """
 
 import os
+from pathlib import Path
 
 import pytest
 
@@ -104,7 +105,7 @@ class TestRollingSubtitles:
 
         gen = SubtitleGenerator(output_dir=temp_dir)
         gen._subtitles_dir = temp_dir
-        gen._vtt_path = os.path.join(temp_dir, "test.vtt")
+        gen._vtt_path = Path(temp_dir) / "test.vtt"
 
         gen._vtt_entries = [
             {"start": 0.0, "end": 2.0, "text": "Hello"},

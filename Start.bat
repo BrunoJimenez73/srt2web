@@ -56,7 +56,7 @@ echo.
 %PYTHON% -c "import torch; print('[GPU] ' + torch.cuda.get_device_name(0) if torch.cuda.is_available() else '[GPU] No disponible')" 2>nul
 
 REM ONNX GPU check
-powershell -NoProfile -Command "python -c \"import onnxruntime as ort; print('[ONNX] ' + ('GPU' if 'CUDAExecutionProvider' in ort.get_available_providers() else 'CPU'))\"" 2>nul
+"%SCRIPT_DIR%venv\Scripts\python.exe" -c "import onnxruntime as ort; print('[ONNX] ' + ('GPU' if 'CUDAExecutionProvider' in ort.get_available_providers() else 'CPU'))" 2>nul
 
 set "PATH=%SCRIPT_DIR%bin\ffmpeg-master-latest-win64-gpl\bin;%PATH%"
 
@@ -66,8 +66,8 @@ echo [INFO] Dashboard: http://localhost:!PORT!
 echo [INFO] API: http://localhost:!PORT!/api/docs
 echo.
 
-REM Launch server via PowerShell Start-Process (bypasses cmd shell limitations)
-powershell -NoProfile -Command "Start-Process -FilePath 'python.exe' -ArgumentList '-X utf8 main.py' -WorkingDirectory '%SCRIPT_DIR%' -PassThru | Select-Object Id, ProcessName" >nul 2>&1
+REM Launch server with visible console for logs (logs also saved to logs/srt2web.log)
+start "SRT2Web Server" "%SCRIPT_DIR%venv\Scripts\python.exe" -X utf8 main.py
 
 echo [OK] Servidor iniciado.
 echo.

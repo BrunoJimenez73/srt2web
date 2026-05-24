@@ -60,10 +60,13 @@ export function addLog(
 ): void {
   if (!logContent) return;
 
-  // Hide empty state when adding first log
+  // Auto-expand panel on first log
   if (logEmpty && logEmpty.parentElement === logContent) {
     logEmpty.remove();
     logEmpty = null;
+    if (isCollapsed) {
+      toggleLogPanel();
+    }
   }
 
   const entry = document.createElement("div");

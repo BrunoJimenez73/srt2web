@@ -4,6 +4,7 @@
  * Tests cover: save config, export config, dumpConfig helper
  */
 
+import type { Config } from "../types/api";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 describe("config-client - dumpConfig", () => {
@@ -81,8 +82,8 @@ describe("config-client - handleSaveConfig", () => {
     const collector = await import("./config-collector");
     vi.spyOn(collector, "collectConfigFromUI").mockReturnValue({
       input: { type: "srt" },
-      pipeline: { chunk_duration_sec: 3 },
-    });
+      pipeline: { chunk_duration_sec: 3, mode: "thread_parallel", max_concurrent_chunks: 2, buffer_size: 10, retry_attempts: 3, retry_delay: 5 },
+    } as Partial<Config>);
   });
 
   afterEach(() => {

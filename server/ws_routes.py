@@ -144,7 +144,7 @@ class LogBroadcaster:
         data = json.dumps(
             {
                 "type": "status",
-                **status,
+                "status": status,
             }
         )
 
@@ -246,10 +246,10 @@ def create_ws_router() -> APIRouter:
                     elif msg.get("type") == "get_status":
                         ctx = websocket.app.state.ctx
                         pipeline = ctx["pipeline"]
-                        status = pipeline.get_status()
+                        pipeline_status = pipeline.get_status()
                         srt_ingest = ctx.get("srt_ingest")
-                        status["input_receiving"] = srt_ingest.is_receiving() if srt_ingest else False
-                        await websocket.send_text(json.dumps({"type": "status", **status}))
+                        pipeline_status["input_receiving"] = srt_ingest.is_receiving() if srt_ingest else False
+                        await websocket.send_text(json.dumps({"type": "status", "status": pipeline_status}))
                 except json.JSONDecodeError:
                     pass
         except WebSocketDisconnect:

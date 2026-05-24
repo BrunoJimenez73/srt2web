@@ -79,7 +79,7 @@ def create_app_context(
     pipeline = UnifiedPipeline(
         mode=PipelineMode.THREAD_PARALLEL,
         max_concurrent_chunks=2,
-        buffer_size=2,
+        buffer_size=20,
         retry_attempts=2,
         retry_delay=1.0,
     )

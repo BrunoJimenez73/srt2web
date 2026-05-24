@@ -753,16 +753,16 @@ class UnifiedPipeline:
                     task.cancel()
                 await asyncio.gather(*self._tasks, return_exceptions=True)
         else:
-            # Esperar threads
+            # Esperar threads (en thread executor para no bloquear event loop)
             if self._input_thread and self._input_thread.is_alive():
-                self._input_thread.join(timeout=5.0)
+                await asyncio.to_thread(self._input_thread.join, timeout=5.0)
 
             for worker in self._tasks:
                 if worker.is_alive():
-                    worker.join(timeout=5.0)
+                    await asyncio.to_thread(worker.join, timeout=5.0)
 
             if self._output_thread and self._output_thread.is_alive():
-                self._output_thread.join(timeout=5.0)
+                await asyncio.to_thread(self._output_thread.join, timeout=5.0)
 
         # Detener módulos
         for module in self._modules:

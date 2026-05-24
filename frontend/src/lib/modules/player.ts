@@ -238,13 +238,21 @@ export function initHlsPlayer(): void {
 
   function startSubtitlePolling() {
     loadSubtitles();
-    subtitleInterval = setInterval(loadSubtitles, 500);
+    subtitleInterval = setInterval(loadSubtitles, 2000);
   }
 
   function stopSubtitlePolling() {
     if (subtitleInterval) {
       clearInterval(subtitleInterval);
       subtitleInterval = null;
+    }
+  }
+
+  function handlePlayError(err: unknown) {
+    if (err instanceof DOMException && err.name === "NotAllowedError") {
+      showError("Haz clic en el reproductor o presiona Reintentar para reproducir");
+    } else {
+      console.error("play() failed:", err);
     }
   }
 
@@ -262,13 +270,13 @@ export function initHlsPlayer(): void {
       hls = new Hls({
         debug: false,
         enableWorker: true,
-        lowLatencyMode: true,
+        lowLatencyMode: false,
         backBufferLength: 30,
         maxLoadingDelay: 3,
-        maxBufferLength: 10,
-        maxMaxBufferLength: 20,
-        liveSyncMaxLatency: 4,
-        liveDurationInfinity: false,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+        liveSyncMaxLatency: 10,
+        liveDurationInfinity: true,
       });
 
       hls.loadSource(streamUrl);
@@ -278,7 +286,7 @@ export function initHlsPlayer(): void {
         if (waitingEl) waitingEl.style.display = "none";
         isConnected = true;
         lastManifestTime = Date.now();
-        video.play().catch(console.error);
+        video.play().catch(handlePlayError);
         startSubtitlePolling();
         startHealthCheck();
       });
@@ -312,7 +320,7 @@ export function initHlsPlayer(): void {
       video.addEventListener("loadedmetadata", () => {
         if (waitingEl) waitingEl.style.display = "none";
         isConnected = true;
-        video.play().catch(console.error);
+        video.play().catch(handlePlayError);
         startSubtitlePolling();
         startHealthCheck();
       });

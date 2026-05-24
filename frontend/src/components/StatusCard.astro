@@ -108,11 +108,5 @@ const { state = 'idle' } = Astro.props;
     if (plLink) { plLink.textContent = urls.playerUrl; plLink.href = urls.playerUrl; }
   });
 
-  // Button event handlers
-  document.addEventListener('DOMContentLoaded', function() {
-    const btnStop = document.getElementById('btn-stop');
-    if (btnStop) btnStop.addEventListener('click', () => { if (window.stopPipeline) window.stopPipeline(); });
-    const btnStart = document.getElementById('btn-start');
-    if (btnStart) btnStart.addEventListener('click', () => { if (window.startPipeline) window.startPipeline(); });
-  });
+
 </script>

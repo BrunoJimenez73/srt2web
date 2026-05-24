@@ -415,6 +415,8 @@ export function bootstrap(): void {
 
 window.addEventListener("beforeunload", cleanup);
 
-// Expose saveConfig globally for HTML onclick handlers
+// Expose functions globally for HTML onclick / component event handlers
 import { handleSaveConfig } from "./config-client";
-window.saveConfig = handleSaveConfig;
+(window as unknown as Record<string, unknown>).saveConfig = handleSaveConfig;
+(window as unknown as Record<string, unknown>).startPipeline = handleStart;
+(window as unknown as Record<string, unknown>).stopPipeline = handleStop;

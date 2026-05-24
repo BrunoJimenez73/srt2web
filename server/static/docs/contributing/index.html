@@ -1,0 +1,1719 @@
+
+<!doctype html>
+<html lang="es" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Streaming en tiempo real con subtítulos y traducción automática">
+      
+      
+        <meta name="author" content="BrunoJimenez73">
+      
+      
+        <link rel="canonical" href="https://brunojimenez73.github.io/srt2web/contributing/">
+      
+      
+        <link rel="prev" href="../new_module_guide/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Contribuir - SRT2Web</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#guia-de-contribucion-srt2web" class="md-skip">
+          Saltar a contenido
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Cabecera">
+    <a href=".." title="SRT2Web" class="md-header__button md-logo" aria-label="SRT2Web" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SRT2Web
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Contribuir
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Búsqueda" placeholder="Búsqueda" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Buscar">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Limpiar" aria-label="Limpiar" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Inicializando búsqueda
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/BrunoJimenez73/srt2web" title="Ir al repositorio" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BrunoJimenez73/srt2web
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Pestañas" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Inicio
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../deployment/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Despliegue
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Arquitectura
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../outputs/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Sistema de Salidas
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../cli/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  CLI
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../new_module_guide/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Nuevo Modulo
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Contribuir
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navegación" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="SRT2Web" class="md-nav__button md-logo" aria-label="SRT2Web" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SRT2Web
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/BrunoJimenez73/srt2web" title="Ir al repositorio" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BrunoJimenez73/srt2web
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inicio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Despliegue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Arquitectura
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../outputs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sistema de Salidas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../new_module_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nuevo Modulo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contribuir
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contribuir
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Tabla de contenidos">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Tabla de contenidos
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#bienvenido-a-srt2web" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bienvenido a SRT2Web
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tabla-de-contenidos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tabla de Contenidos
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuracion-del-entorno" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuración del Entorno
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuración del Entorno">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#requisitos-previos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requisitos Previos
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clonar-el-repositorio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clonar el Repositorio
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#instalar-dependencias-python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Instalar Dependencias Python
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#instalar-dependencias-frontend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Instalar Dependencias Frontend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verificar-instalacion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verificar Instalación
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flujo-de-trabajo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flujo de Trabajo
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Flujo de Trabajo">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-crear-rama-de-caracteristicas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Crear Rama de Características
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-desarrollo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Desarrollo
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-ejecutar-tests-locales" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Ejecutar Tests Locales
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-linting-y-type-checking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Linting y Type Checking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-actualizar-documentacion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Actualizar Documentación
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#estandares-de-codigo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estándares de Código
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Estándares de Código">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Python">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#style-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Style Guide
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#docstrings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Docstrings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#naming-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Naming Conventions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#typescript" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TypeScript
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#frontend-signals-effects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Frontend: Signals &amp; Effects
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#git-commits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Git Commits
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tests">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#estructura-de-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estructura de Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ejecutar-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ejecutar Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#escribir-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Escribir Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tests-frontend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests Frontend
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentacion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentación
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Documentación">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#docstrings_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Docstrings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#docstrings-en-funciones" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Docstrings en Funciones
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mkdocs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MkDocs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#areas-de-contribucion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Áreas de Contribución
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Áreas de Contribución">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#anadir-un-nuevo-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Añadir un Nuevo Input
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#anadir-un-nuevo-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Añadir un Nuevo Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#anadir-un-nuevo-modulo-de-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Añadir un Nuevo Módulo de Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#envio-de-cambios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Envío de Cambios
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Envío de Cambios">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-sync-con-main" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Sync con Main
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-push-de-rama" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Push de Rama
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-crear-pull-request" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Crear Pull Request
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#template-de-pr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Template de PR
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#revision-de-codigo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Revisión de Código
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recursos-adicionales" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recursos Adicionales
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#preguntas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preguntas
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="guia-de-contribucion-srt2web">Guía de Contribución - SRT2Web</h1>
+<h2 id="bienvenido-a-srt2web">Bienvenido a SRT2Web</h2>
+<p>Gracias por tu interés en contribuir a SRT2Web. Este documento te guiará a través del proceso de configuración, desarrollo y envío de contribuciones.</p>
+<h2 id="tabla-de-contenidos">Tabla de Contenidos</h2>
+<ol>
+<li><a href="#configuración-del-entorno">Configuración del Entorno</a></li>
+<li><a href="#flujo-de-trabajo">Flujo de Trabajo</a></li>
+<li><a href="#estándares-de-código">Estándares de Código</a></li>
+<li><a href="#tests">Tests</a></li>
+<li><a href="#documentación">Documentación</a></li>
+<li><a href="#envío-de-cambios">Envío de Cambios</a></li>
+</ol>
+<hr />
+<h2 id="configuracion-del-entorno">Configuración del Entorno</h2>
+<h3 id="requisitos-previos">Requisitos Previos</h3>
+<ul>
+<li>Python 3.12+</li>
+<li>Node.js 18+</li>
+<li>Git</li>
+<li>FFmpeg</li>
+<li>NVIDIA CUDA (opcional, para GPU)</li>
+</ul>
+<h3 id="clonar-el-repositorio">Clonar el Repositorio</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/BrunoJimenez73/srt2web.git
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>srt2web
+</code></pre></div>
+<h3 id="instalar-dependencias-python">Instalar Dependencias Python</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Crear entorno virtual</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>venv
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nb">source</span><span class="w"> </span>venv/bin/activate<span class="w">  </span><span class="c1"># Linux/Mac</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>venv<span class="se">\S</span>cripts<span class="se">\a</span>ctivate<span class="w">     </span><span class="c1"># Windows</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c1"># Instalar dependencias</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>config/requirements.txt
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="c1"># Instalar pre-commit hooks</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>pre-commit<span class="w"> </span>install
+</code></pre></div>
+<h3 id="instalar-dependencias-frontend">Instalar Dependencias Frontend</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">cd</span><span class="w"> </span>frontend
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>npm<span class="w"> </span>install
+</code></pre></div>
+<h3 id="verificar-instalacion">Verificar Instalación</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Tests Python</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/unit/<span class="w"> </span>-v<span class="w"> </span>--tb<span class="o">=</span>short
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># TypeScript frontend</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="nb">cd</span><span class="w"> </span>frontend<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>npx<span class="w"> </span>tsc<span class="w"> </span>--noEmit
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="c1"># Frontend tests (Vitest)</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="nb">cd</span><span class="w"> </span>frontend<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>npm<span class="w"> </span><span class="nb">test</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="c1"># Mypy strict</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>mypy<span class="w"> </span>--strict<span class="w"> </span>core/<span class="w"> </span>modules/<span class="w"> </span>server/
+</code></pre></div>
+<h2 id="flujo-de-trabajo">Flujo de Trabajo</h2>
+<h3 id="1-crear-rama-de-caracteristicas">1. Crear Rama de Características</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Desde main</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>git<span class="w"> </span>checkout<span class="w"> </span>main
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>git<span class="w"> </span>pull<span class="w"> </span>origin<span class="w"> </span>main
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># Crear nueva rama</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>feat/nombre-descriptivo
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># o</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>fix/descripcion-del-bug
+</code></pre></div>
+<h3 id="2-desarrollo">2. Desarrollo</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Trabaja en tu código</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="c1"># Haz commits pequeños y frecuentes</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>git<span class="w"> </span>add<span class="w"> </span>archivo_modificado.py
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat: descripción clara del cambio&quot;</span>
+</code></pre></div>
+<h3 id="3-ejecutar-tests-locales">3. Ejecutar Tests Locales</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Todos los tests (740 tests)</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/<span class="w"> </span>-v
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Solo tests unitarios</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/unit/<span class="w"> </span>-v
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Archivo específico</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/unit/test_audio_mixer.py<span class="w"> </span>-v
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="c1"># Con coverage</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/<span class="w"> </span>--cov<span class="o">=</span>.<span class="w"> </span>--cov-report<span class="o">=</span>html
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="c1"># Frontend tests</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="nb">cd</span><span class="w"> </span>frontend<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>npm<span class="w"> </span><span class="nb">test</span>
+</code></pre></div>
+<h3 id="4-linting-y-type-checking">4. Linting y Type Checking</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Python (ruff + mypy)</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>ruff<span class="w"> </span>check<span class="w"> </span>.
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>mypy<span class="w"> </span>--strict<span class="w"> </span>.
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="c1"># Frontend (TypeScript)</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="nb">cd</span><span class="w"> </span>frontend<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>npx<span class="w"> </span>tsc<span class="w"> </span>--noEmit
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="c1"># Pre-commit hooks</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>pre-commit<span class="w"> </span>run<span class="w"> </span>--all-files
+</code></pre></div>
+<h3 id="5-actualizar-documentacion">5. Actualizar Documentación</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Generar MkDocs localmente</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nb">cd</span><span class="w"> </span>docs<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>mkdocs<span class="w"> </span>serve
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># Verificar en http://localhost:8000</span>
+</code></pre></div>
+<hr />
+<h2 id="estandares-de-codigo">Estándares de Código</h2>
+<h3 id="python">Python</h3>
+<h4 id="style-guide">Style Guide</h4>
+<ul>
+<li><strong>Línea máxima</strong>: 120 caracteres</li>
+<li><strong>Indentación</strong>: 4 espacios</li>
+<li><strong>Imports</strong>: Ordenados con ruff (isort)</li>
+<li><strong>Type hints</strong>: Obligatorios en funciones públicas</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># ✅ Correcto</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">process_chunk</span><span class="p">(</span><span class="n">chunk</span><span class="p">:</span> <span class="n">ChunkData</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PipelineResult</span><span class="p">:</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Procesa un chunk de video y retorna el resultado.&quot;&quot;&quot;</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="o">...</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="c1"># ❌ Incorrecto</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="k">def</span><span class="w"> </span><span class="nf">process_chunk</span><span class="p">(</span><span class="n">chunk</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>    <span class="o">...</span>
+</code></pre></div>
+<h4 id="docstrings">Docstrings</h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">transcribe_audio</span><span class="p">(</span><span class="n">audio_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">language</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;en&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Transcribe audio a texto usando Whisper.</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="sd">    Args:</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="sd">        audio_path: Ruta al archivo de audio.</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="sd">        language: Código de idioma ISO 639-1.</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="sd">    Returns:</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="sd">        Texto transcrito.</span>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="sd">    Raises:</span>
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="sd">        AudioExtractionError: Si el audio no puede ser extraído.</span>
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="sd">        TranscriptionError: Si Whisper falla.</span>
+<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a><span class="sd">    &quot;&quot;&quot;</span>
+</code></pre></div>
+<h4 id="naming-conventions">Naming Conventions</h4>
+<table>
+<thead>
+<tr>
+<th>Tipo</th>
+<th>Convention</th>
+<th>Ejemplo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Variables</td>
+<td>snake_case</td>
+<td><code>chunk_duration</code></td>
+</tr>
+<tr>
+<td>Funciones</td>
+<td>snake_case</td>
+<td><code>get_audio_path()</code></td>
+</tr>
+<tr>
+<td>Clases</td>
+<td>PascalCase</td>
+<td><code>AudioExtractor</code></td>
+</tr>
+<tr>
+<td>Constantes</td>
+<td>UPPER_SNAKE</td>
+<td><code>MAX_CHUNK_SIZE</code></td>
+</tr>
+<tr>
+<td>Módulos</td>
+<td>snake_case</td>
+<td><code>audio_mixer.py</code></td>
+</tr>
+<tr>
+<td>Tests</td>
+<td><code>test_*.py</code></td>
+<td><code>test_audio_mixer.py</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="typescript">TypeScript</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1">// ✅ Correcto</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="kd">interface</span><span class="w"> </span><span class="nx">ModuleStatus</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">  </span><span class="nx">enabled</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="p">;</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">  </span><span class="nx">state</span><span class="o">:</span><span class="w"> </span><span class="kt">ModuleState</span><span class="p">;</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">  </span><span class="nx">extra?</span><span class="o">:</span><span class="w"> </span><span class="kt">Record</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">unknown</span><span class="o">&gt;</span><span class="p">;</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="p">}</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">getStatus</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="nx">ModuleStatus</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="w">  </span><span class="c1">// ...</span>
+<a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="p">}</span>
+<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>
+<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="c1">// ❌ Incorrecto</span>
+<a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a><span class="kd">function</span><span class="w"> </span><span class="nx">getStatus</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a><span class="w">  </span><span class="c1">// ...</span>
+<a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="frontend-signals-effects">Frontend: Signals &amp; Effects</h3>
+<p>El frontend usa <strong>Preact Signals</strong> para estado reactivo. Cuando añadas nuevo estado UI:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1">// src/lib/store/signals.ts - Definir signal</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">signal</span><span class="p">,</span><span class="w"> </span><span class="nx">computed</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@preact/signals-core&quot;</span><span class="p">;</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">myNewState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">signal</span><span class="o">&lt;</span><span class="nx">MyType</span><span class="o">&gt;</span><span class="p">(</span><span class="nx">initialValue</span><span class="p">);</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">myComputed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">computed</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">myNewState</span><span class="p">.</span><span class="nx">value</span><span class="p">.</span><span class="nx">derived</span><span class="p">);</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1">// src/lib/store/effects.ts - Efecto DOM</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="kd">function</span><span class="w"> </span><span class="nx">setupMyEffect</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="nx">EffectCleanup</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">effect</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">myNewState</span><span class="p">.</span><span class="nx">value</span><span class="p">;</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">el</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">&quot;my-element&quot;</span><span class="p">);</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">el</span><span class="p">)</span><span class="w"> </span><span class="nx">el</span><span class="p">.</span><span class="nx">textContent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">value</span><span class="p">;</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="w">  </span><span class="p">});</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="git-commits">Git Commits</h3>
+<p>Formato: <code>&lt;type&gt;(&lt;scope&gt;): &lt;description&gt;</code></p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Descripción</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>feat</code></td>
+<td>Nueva funcionalidad</td>
+</tr>
+<tr>
+<td><code>fix</code></td>
+<td>Corrección de bug</td>
+</tr>
+<tr>
+<td><code>docs</code></td>
+<td>Cambios en documentación</td>
+</tr>
+<tr>
+<td><code>style</code></td>
+<td>Formateo, estilos (sin lógica)</td>
+</tr>
+<tr>
+<td><code>refactor</code></td>
+<td>Refactorización de código</td>
+</tr>
+<tr>
+<td><code>perf</code></td>
+<td>Mejoras de rendimiento</td>
+</tr>
+<tr>
+<td><code>test</code></td>
+<td>Tests nuevos o modificados</td>
+</tr>
+<tr>
+<td><code>chore</code></td>
+<td>Tareas de mantenimiento</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># Ejemplos</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(audio): add numpy-based mixing&quot;</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;fix(pipeline): correct chunk buffer handling&quot;</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;docs(readme): update installation steps&quot;</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(outputs): add WebRTC output support&quot;</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;test(signals): add unit tests for store signals&quot;</span>
+</code></pre></div>
+<hr />
+<h2 id="tests">Tests</h2>
+<h3 id="estructura-de-tests">Estructura de Tests</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>tests/
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>├── unit/              # Tests unitarios (740 tests)
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>│   ├── test_*.py      # Tests por módulo
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>│   └── pytest.ini     # Config pytest
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>└── integration/       # Tests de integración (futuro)
+</code></pre></div>
+<h3 id="ejecutar-tests">Ejecutar Tests</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># Todos los tests unitarios</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/unit/<span class="w"> </span>-v
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c1"># Tests específicos</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/unit/test_audio_mixer.py<span class="w"> </span>-v
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/unit/test_multioutput_api.py<span class="w"> </span>-v
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="c1"># Con verbose y coverage</span>
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/<span class="w"> </span>--cov<span class="o">=</span>.<span class="w"> </span>--cov-report<span class="o">=</span>term-missing
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>
+<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="c1"># Solo tests nuevos</span>
+<a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/unit/test_workspace_fixes.py<span class="w"> </span>-v
+</code></pre></div>
+<h3 id="escribir-tests">Escribir Tests</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># tests/unit/test_audio_mixer.py</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pytest</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">modules.audio_mixer</span><span class="w"> </span><span class="kn">import</span> <span class="n">AudioMixer</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">TestAudioMixerNumpy</span><span class="p">:</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Tests para implementación numpy del mixer.&quot;&quot;&quot;</span>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_mix_audio_with_ducking</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">temp_dir</span><span class="p">,</span> <span class="n">mock_audio_files</span><span class="p">):</span>
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Verifica que el ducking funciona correctamente.&quot;&quot;&quot;</span>
+<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>        <span class="n">mixer</span> <span class="o">=</span> <span class="n">AudioMixer</span><span class="p">(</span>
+<a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>            <span class="n">original_volume</span><span class="o">=</span><span class="mf">0.15</span><span class="p">,</span>
+<a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a>            <span class="n">tts_volume</span><span class="o">=</span><span class="mf">1.0</span>
+<a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a>        <span class="p">)</span>
+<a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a>        <span class="n">result</span> <span class="o">=</span> <span class="n">mixer</span><span class="o">.</span><span class="n">mix</span><span class="p">(</span>
+<a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a>            <span class="n">original</span><span class="o">=</span><span class="s2">&quot;original.wav&quot;</span><span class="p">,</span>
+<a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a>            <span class="n">tts</span><span class="o">=</span><span class="s2">&quot;tts.wav&quot;</span><span class="p">,</span>
+<a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a>            <span class="n">output_dir</span><span class="o">=</span><span class="n">temp_dir</span>
+<a id="__codelineno-17-18" name="__codelineno-17-18" href="#__codelineno-17-18"></a>        <span class="p">)</span>
+<a id="__codelineno-17-19" name="__codelineno-17-19" href="#__codelineno-17-19"></a>        <span class="k">assert</span> <span class="n">result</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.wav&quot;</span><span class="p">)</span>
+<a id="__codelineno-17-20" name="__codelineno-17-20" href="#__codelineno-17-20"></a>        <span class="k">assert</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="tests-frontend">Tests Frontend</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nb">cd</span><span class="w"> </span>frontend
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="c1"># Ejecutar tests Vitest (signals + effects)</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>npm<span class="w"> </span><span class="nb">test</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="c1"># TypeScript check</span>
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>npx<span class="w"> </span>tsc<span class="w"> </span>--noEmit
+<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>
+<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="c1"># Build</span>
+<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>npm<span class="w"> </span>run<span class="w"> </span>build:local
+</code></pre></div>
+<p>Los tests frontend usan <strong>Vitest + jsdom</strong> para testear:</p>
+<ul>
+<li><strong>Signals</strong>: <code>signals.test.ts</code> - Tests de señales reactivas</li>
+<li><strong>Effects</strong>: <code>effects.test.ts</code> - Tests de efectos DOM (requiren jsdom)</li>
+</ul>
+<hr />
+<h2 id="documentacion">Documentación</h2>
+<h3 id="docstrings_1">Docstrings</h3>
+<p>Todos los módulos deben tener docstrings:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="sd">&quot;&quot;&quot;Módulo de transcripción de audio.</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="sd">Utiliza OpenAI Whisper para convertir audio a texto.</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="sd">Soporta múltiples idiomas y modelos de diferentes tamaños.</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="sd">Ejemplo:</span>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="sd">    &gt;&gt;&gt; transcriber = Transcriber(model=&quot;base&quot;, device=&quot;cuda&quot;)</span>
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="sd">    &gt;&gt;&gt; text = transcriber.transcribe(&quot;audio.wav&quot;)</span>
+<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>
+<a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a><span class="k">class</span><span class="w"> </span><span class="nc">Transcriber</span><span class="p">:</span>
+<a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a>    <span class="o">...</span>
+</code></pre></div>
+<h3 id="docstrings-en-funciones">Docstrings en Funciones</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_status</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Obtiene el estado actual del módulo.</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="sd">    Returns:</span>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="sd">        Dictionary con:</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="sd">        - name: Nombre del módulo</span>
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="sd">        - enabled: Si está habilitado</span>
+<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="sd">        - state: Estado actual (idle/running/error)</span>
+<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="sd">        - extra: Metadatos adicionales (GPU, memoria, etc.)</span>
+<a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a><span class="sd">    &quot;&quot;&quot;</span>
+</code></pre></div>
+<h3 id="mkdocs">MkDocs</h3>
+<p>La documentación se genera con MkDocs Material:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># Servidor local</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="nb">cd</span><span class="w"> </span>docs<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>mkdocs<span class="w"> </span>serve
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="c1"># Build</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>mkdocs<span class="w"> </span>build
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="c1"># Deploy a GitHub Pages</span>
+<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>mkdocs<span class="w"> </span>gh-deploy<span class="w"> </span>--force
+</code></pre></div>
+<p>Archivos de docs:</p>
+<ul>
+<li><code>docs/index.md</code> - Página principal</li>
+<li><code>docs/architecture.md</code> - Arquitectura del sistema</li>
+<li><code>docs/deployment.md</code> - Guía de despliegue</li>
+<li><code>docs/contributing.md</code> - Esta guía</li>
+<li><code>docs/outputs.md</code> - Sistema multi-output</li>
+<li><code>docs/cli.md</code> - Herramienta CLI</li>
+</ul>
+<hr />
+<h2 id="areas-de-contribucion">Áreas de Contribución</h2>
+<h3 id="anadir-un-nuevo-input">Añadir un Nuevo Input</h3>
+<ol>
+<li>Crear clase en <code>modules/inputs/nuevo_input.py</code></li>
+<li>Heredar de <code>InputSource</code> y <code>BaseModule</code></li>
+<li>Registrar en <code>modules/inputs/__init__.py</code></li>
+<li>Añadir a <code>VALID_INPUT_TYPES</code> en <code>core/config_schema.py</code></li>
+<li>Crear UI en <code>frontend/src/components/InputCard.astro</code></li>
+<li>Tests en <code>tests/unit/test_nuevo_input.py</code></li>
+</ol>
+<h3 id="anadir-un-nuevo-output">Añadir un Nuevo Output</h3>
+<ol>
+<li>Crear clase en <code>modules/outputs/nuevo_output.py</code></li>
+<li>Heredar de <code>OutputSink</code> y <code>BaseModule</code></li>
+<li>Registrar en <code>modules/outputs/__init__.py</code></li>
+<li>Añadir a <code>VALID_OUTPUT_TYPES</code> en <code>core/config_schema.py</code></li>
+<li>Crear UI en <code>frontend/src/components/OutputConfigForm.astro</code></li>
+<li>Tests en <code>tests/unit/test_nuevo_output.py</code></li>
+</ol>
+<h3 id="anadir-un-nuevo-modulo-de-pipeline">Añadir un Nuevo Módulo de Pipeline</h3>
+<ol>
+<li>Crear clase heredando de <code>BaseModule</code></li>
+<li>Implementar: <code>initialize()</code>, <code>process()</code>, <code>get_status()</code>, <code>shutdown()</code></li>
+<li>Añadir a <code>core/pipeline.py</code> en el flujo</li>
+<li>Crear card UI en <code>frontend/src/components/</code></li>
+<li>Tests unitarios</li>
+</ol>
+<hr />
+<h2 id="envio-de-cambios">Envío de Cambios</h2>
+<h3 id="1-sync-con-main">1. Sync con Main</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>git<span class="w"> </span>fetch<span class="w"> </span>origin
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>git<span class="w"> </span>rebase<span class="w"> </span>origin/main
+</code></pre></div>
+<h3 id="2-push-de-rama">2. Push de Rama</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>feat/nombre-de-rama
+</code></pre></div>
+<h3 id="3-crear-pull-request">3. Crear Pull Request</h3>
+<ol>
+<li>Ve a GitHub → Pull requests → New pull request</li>
+<li>Selecciona tu rama → main</li>
+<li>Completa la plantilla:</li>
+<li><strong>Título</strong>: Descripción clara</li>
+<li><strong>Descripción</strong>: Qué, Por qué, Cómo</li>
+<li><strong>Link a issues</strong>: Si aplica</li>
+</ol>
+<h3 id="template-de-pr">Template de PR</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="gu">## Descripción</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>[Breve descripción del cambio]
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a>
+<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a><span class="gu">## Tipo de Cambio</span>
+<a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a>
+<a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a><span class="k">- [ ]</span> Bug fix
+<a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a><span class="k">- [ ]</span> Nueva funcionalidad
+<a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a><span class="k">- [ ]</span> Breaking change
+<a id="__codelineno-24-10" name="__codelineno-24-10" href="#__codelineno-24-10"></a><span class="k">- [ ]</span> Documentación
+<a id="__codelineno-24-11" name="__codelineno-24-11" href="#__codelineno-24-11"></a>
+<a id="__codelineno-24-12" name="__codelineno-24-12" href="#__codelineno-24-12"></a><span class="gu">## Testing</span>
+<a id="__codelineno-24-13" name="__codelineno-24-13" href="#__codelineno-24-13"></a>
+<a id="__codelineno-24-14" name="__codelineno-24-14" href="#__codelineno-24-14"></a><span class="k">- [ ]</span> Tests añadidos
+<a id="__codelineno-24-15" name="__codelineno-24-15" href="#__codelineno-24-15"></a><span class="k">- [ ]</span> Tests pasando
+<a id="__codelineno-24-16" name="__codelineno-24-16" href="#__codelineno-24-16"></a><span class="k">- [ ]</span> Verificado manualmente
+<a id="__codelineno-24-17" name="__codelineno-24-17" href="#__codelineno-24-17"></a>
+<a id="__codelineno-24-18" name="__codelineno-24-18" href="#__codelineno-24-18"></a><span class="gu">## Checklist</span>
+<a id="__codelineno-24-19" name="__codelineno-24-19" href="#__codelineno-24-19"></a>
+<a id="__codelineno-24-20" name="__codelineno-24-20" href="#__codelineno-24-20"></a><span class="k">- [ ]</span> Código sigue style guide
+<a id="__codelineno-24-21" name="__codelineno-24-21" href="#__codelineno-24-21"></a><span class="k">- [ ]</span> Type hints completos
+<a id="__codelineno-24-22" name="__codelineno-24-22" href="#__codelineno-24-22"></a><span class="k">- [ ]</span> Docstrings actualizados
+<a id="__codelineno-24-23" name="__codelineno-24-23" href="#__codelineno-24-23"></a><span class="k">- [ ]</span> Docs actualizadas
+<a id="__codelineno-24-24" name="__codelineno-24-24" href="#__codelineno-24-24"></a><span class="k">- [ ]</span> Commits semánticos
+</code></pre></div>
+<h3 id="revision-de-codigo">Revisión de Código</h3>
+<p>El PR será revisado por maintainers. Sé receptivo a feedback:</p>
+<ul>
+<li>Responde a comentarios</li>
+<li>Haz cambios solicitados</li>
+<li>Re-solicita revisión cuando esté listo</li>
+</ul>
+<hr />
+<h2 id="recursos-adicionales">Recursos Adicionales</h2>
+<ul>
+<li><a href="https://pep8.org/">Python Style Guide (PEP 8)</a></li>
+<li><a href="https://www.typescriptlang.org/docs/">TypeScript Handbook</a></li>
+<li><a href="https://preactjs.com/guide/v10/signals/">Preact Signals</a></li>
+<li><a href="https://www.mkdocs.org/user-guide/">MkDocs User Guide</a></li>
+<li><a href="https://docs.pytest.org/">Testing with pytest</a></li>
+<li><a href="https://docs.astro.build/">Astro Documentation</a></li>
+</ul>
+<h2 id="preguntas">Preguntas</h2>
+<p>Si tienes dudas, abre un issue o contacta a los maintainers.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/BrunoJimenez73/srt2web" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "toc.integrate", "search.suggest", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copiado al portapapeles", "clipboard.copy": "Copiar al portapapeles", "search.result.more.one": "1 m\u00e1s en esta p\u00e1gina", "search.result.more.other": "# m\u00e1s en esta p\u00e1gina", "search.result.none": "No se encontraron documentos", "search.result.one": "1 documento encontrado", "search.result.other": "# documentos encontrados", "search.result.placeholder": "Teclee para comenzar b\u00fasqueda", "search.result.term.missing": "Falta", "select.version": "Seleccionar versi\u00f3n"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

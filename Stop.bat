@@ -1,108 +1,90 @@
 @echo off
 setlocal enabledelayedexpansion
+chcp 65001 >nul
 
 echo ========================================
-echo  STOP COMPLETO DE SRT2WEB
+echo  PARADA TOTAL SRT2WEB
 echo ========================================
+echo.
 
-cd /d "%~dp0"
-
-:: 1. Parar SOLO python.exe que ejecuta srt2web (main.py)
-echo Deteniendo procesos srt2web...
-powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | Where-Object { $_.CommandLine -like '*main.py*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }" 2>nul
+:: 1. Kill ALL Python, Node, and FFmpeg processes by image name
+echo >Killing Python + Node + FFmpeg processes...
+taskkill /F /IM python.exe /T 2>nul
+taskkill /F /IM python3.exe /T 2>nul
+taskkill /F /IM node.exe /T 2>nul
 taskkill /F /IM ffmpeg.exe /T 2>nul
 taskkill /F /IM ffprobe.exe /T 2>nul
 timeout /t 2 >nul
 
-:: 2. Liberar puertos del sistema
-echo Liberando puertos...
-for %%p in (9999 9000 8000 1935) do (
-  for /f "tokens=5" %%a in ('netstat -ano ^| findstr "%%p" ^| findstr "LISTENING"') do (
-    taskkill /F /PID %%a
-  )
-)
+:: 2. Kill any remaining processes on known srt2web ports via PowerShell
+echo >Killing processes by port...
+powershell -NoProfile -Command ^
+  "$ports = @(9999, 9000, 9001, 9002, 8000, 1935, 4321, 5173, 4173);" ^
+  "$tcp = Get-NetTCPConnection -ErrorAction SilentlyContinue | Where-Object { $_.State -eq 'Listen' -and $_.LocalPort -in $ports };" ^
+  "foreach ($c in $tcp) { try { Stop-Process -Id $c.OwningProcess -Force -ErrorAction Stop; Write-Host '  Killed PID' $c.OwningProcess 'on port' $c.LocalPort } catch {} }"
 timeout /t 1 >nul
 
-:: 3. Limpiar __pycache__ (archivos compilados temporales)
-echo Limpiando caches Python...
-for /d /r . %%d in (__pycache__) do (
-  rd /S /Q "%%d" 2>nul
-)
-for /f "tokens=*" %%f in ('dir /s /b *.pyc 2^|findstr /v venv node_modules') do (
-  del /Q "%%f" 2>nul
-)
-for /f "tokens=*" %%f in ('dir /s /b *.pyo 2^|findstr /v venv node_modules') do (
-  del /Q "%%f" 2>nul
-)
-REM NOT deleting .pyd (compiled extension modules, not cache)
+:: 3. Second pass: kill any stray processes that might have survived
+taskkill /F /IM python.exe /T 2>nul
+taskkill /F /IM ffmpeg.exe /T 2>nul
+taskkill /F /IM node.exe /T 2>nul
 
-:: 4. Limpiar caches de herramientas (NO .cache que contiene modelos ML)
-echo Limpiando caches de herramientas...
-REM NOT deleting .cache (may contain ML models / piper voices)
+:: 4. Clean Python caches
+echo >Cleaning Python caches...
+for /d /r . %%d in (__pycache__) do if exist "%%d" rd /S /Q "%%d" 2>nul
+for /f "tokens=*" %%f in ('dir /s /b *.pyc 2^|findstr /v venv node_modules') do if exist "%%f" del /Q "%%f" 2>nul
+for /f "tokens=*" %%f in ('dir /s /b *.pyo 2^|findstr /v venv node_modules') do if exist "%%f" del /Q "%%f" 2>nul
+
+:: 5. Clean tool caches
 if exist ".ruff_cache" rd /S /Q ".ruff_cache" 2>nul
 if exist ".mypy_cache" rd /S /Q ".mypy_cache" 2>nul
 if exist ".pytest_cache" rd /S /Q ".pytest_cache" 2>nul
 if exist "pytest_tmp_manual" rd /S /Q "pytest_tmp_manual" 2>nul
 
-:: 5. Limpiar logs del proyecto
-echo Limpiando logs...
+:: 6. Clean logs dir (recreate empty)
 if exist "logs" rd /S /Q "logs" 2>nul
 if not exist "logs" mkdir "logs"
 
-:: 6. Limpiar directorios temporales (excepto temporales de grabación activa)
-echo Limpiando archivos temporales...
-:: Limpiar HLS (segmentos de transmisión temporal)
-if exist "output\hls" (
-  rd /S /Q "output\hls"
-  mkdir "output\hls"
+:: 7. Clean ALL temp output dirs
+echo >Cleaning output temp dirs...
+for %%d in (hls subtitles chunks temp_audio temp_mix temp_tts) do (
+  if exist "output\%%d" (
+    rd /S /Q "output\%%d" 2>nul
+    mkdir "output\%%d" 2>nul
+  )
 )
-:: Limpiar subtítulos (chunks temporales)
-if exist "output\subtitles" (
-  rd /S /Q "output\subtitles"
-  mkdir "output\subtitles"
-)
-:: Limpiar audio temporal
-if exist "output\audio" rd /S /Q "output\audio"
-:: Limpiar video temporal
-if exist "output\video" rd /S /Q "output\video"
-:: Limpiar chunks de grabación solo si no hay MP4 activo (grabación completada o detenida)
-if exist "output\recording.mp4" (
-  if exist "output\recording" rd /S /Q "output\recording"
-)
+if exist "output\video" rd /S /Q "output\video" 2>nul
+if exist "output\audio" rd /S /Q "output\audio" 2>nul
 
-:: 7. Segunda pasada de limpieza de procesos residuales
-echo Limpieza final de procesos...
-taskkill /F /IM ffmpeg.exe /T 2>nul
-taskkill /F /IM ffprobe.exe /T 2>nul
+:: 8. Kill third pass — catch respawns from Windows App execution aliases
 timeout /t 1 >nul
+taskkill /F /IM python.exe /T 2>nul
+taskkill /F /IM ffmpeg.exe /T 2>nul
 
-:: 8. Verificar estado final
+:: 9. Verify no processes remain
 echo.
-echo === ESTADO FINAL DE LIMPIEZA ===
-echo Procesos activos:
-tasklist 2>nul | findstr /I "python ffmpeg ffprobe" || echo   Ninguno
+echo === VERIFICATION ===
+set "REMAINING="
+for /f %%p in ('tasklist /NH /FI "IMAGENAME eq python.exe" 2^>nul ^| findstr /I "python"') do set REMAINING=1
+for /f %%p in ('tasklist /NH /FI "IMAGENAME eq ffmpeg.exe" 2^>nul ^| findstr /I "ffmpeg"') do set REMAINING=1
+for /f %%p in ('tasklist /NH /FI "IMAGENAME eq node.exe" 2^>nul ^| findstr /I "node"') do set REMAINING=1
+if defined REMAINING (
+  echo [WARNING] Some processes may still be running.
+  tasklist 2>nul | findstr /I "python ffmpeg node" || echo   (none detected)
+) else (
+  echo [OK] No Python/FFmpeg/Node processes remain.
+)
+
 echo.
-echo Grabacion final (save_video=True genera output\recording.mp4):
-if exist "output\recording.mp4" (dir /b "output\recording.mp4" 2>nul) else echo   No existe
-echo.
-echo Directorio recording (solo estructura, sin chunks temporales):
-if exist "output\recording" (dir /b "output\recording" 2>nul || echo   Vacio) else echo   No existe
-echo.
-echo Directorio hls:
-if exist "output\hls" (dir /b "output\hls" 2>nul || echo   Vacio) else echo   No existe
-echo.
-echo Directorio audio:
-if exist "output\audio" (dir /b "output\audio" 2>nul || echo   Vacio) else echo   No existe
-echo.
-echo Directorio subtitles:
-if exist "output\subtitles" (dir /b "output\subtitles" 2>nul || echo   Vacio) else echo   No existe
-echo.
-echo Directorio video:
-if exist "output\video" (dir /b "output\video" 2>nul || echo   Vacio) else echo   No existe
+echo === OUTPUT DIRS ===
+for %%d in (hls subtitles chunks temp_audio temp_mix temp_tts) do (
+  dir /b "output\%%d" 2>nul >nul && echo   output\%%d: has files || echo   output\%%d: empty
+)
+
 echo.
 echo ========================================
-echo LIMPIEZA TOTAL COMPLETADA
+echo  LIMPIEZA COMPLETA
 echo ========================================
 echo.
-echo Ahora puedes iniciar con: start.bat
+echo Para iniciar de nuevo: Start.bat
 pause

@@ -1,0 +1,1172 @@
+
+<!doctype html>
+<html lang="es" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Streaming en tiempo real con subtítulos y traducción automática">
+      
+      
+        <meta name="author" content="BrunoJimenez73">
+      
+      
+        <link rel="canonical" href="https://brunojimenez73.github.io/srt2web/cli/">
+      
+      
+        <link rel="prev" href="../outputs/">
+      
+      
+        <link rel="next" href="../new_module_guide/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>CLI - SRT2Web</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#herramienta-cli" class="md-skip">
+          Saltar a contenido
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Cabecera">
+    <a href=".." title="SRT2Web" class="md-header__button md-logo" aria-label="SRT2Web" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SRT2Web
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              CLI
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Búsqueda" placeholder="Búsqueda" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Buscar">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Limpiar" aria-label="Limpiar" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Inicializando búsqueda
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/BrunoJimenez73/srt2web" title="Ir al repositorio" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BrunoJimenez73/srt2web
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Pestañas" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Inicio
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../deployment/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Despliegue
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Arquitectura
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../outputs/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Sistema de Salidas
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  CLI
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../new_module_guide/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Nuevo Modulo
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../contributing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Contribuir
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navegación" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="SRT2Web" class="md-nav__button md-logo" aria-label="SRT2Web" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SRT2Web
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/BrunoJimenez73/srt2web" title="Ir al repositorio" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BrunoJimenez73/srt2web
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inicio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Despliegue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Arquitectura
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../outputs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sistema de Salidas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Tabla de contenidos">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Tabla de contenidos
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#instalacion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Instalación
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Instalación">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#windows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Windows
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#linuxmac" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linux/Mac
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comandos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comandos
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Comandos">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pipeline-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pipeline Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#estado-y-monitorizacion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estado y Monitorización
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuracion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuración
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modulos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Módulos
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#salidas-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Salidas (Outputs)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#otros" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Otros
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modo-interactivo-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modo Interactivo (Shell)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integracion-con-scripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integración con Scripts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#argumentos-de-linea-de-comandos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Argumentos de Línea de Comandos
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#formato-json" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formato JSON
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../new_module_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nuevo Modulo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contribuir
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="herramienta-cli">Herramienta CLI</h1>
+<p>SRT2Web incluye una <strong>herramienta de línea de comandos</strong> completa para controlar el servidor, configurar módulos, gestionar salidas y monitorizar el pipeline sin necesidad de usar el dashboard web.</p>
+<h2 id="instalacion">Instalación</h2>
+<h3 id="windows">Windows</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Usar el batch launcher</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>cli<span class="se">\s</span>rt2web.bat<span class="w"> </span>status
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># O directamente con Python</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>python<span class="w"> </span>cli/srt2web.py<span class="w"> </span>status
+</code></pre></div>
+<h3 id="linuxmac">Linux/Mac</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>python<span class="w"> </span>cli/srt2web.py<span class="w"> </span>status
+</code></pre></div>
+<h2 id="comandos">Comandos</h2>
+<h3 id="pipeline-control">Pipeline Control</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Iniciar pipeline</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>srt2web<span class="w"> </span>start
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Detener pipeline</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>srt2web<span class="w"> </span>stop
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="c1"># Reiniciar pipeline</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>srt2web<span class="w"> </span>restart
+</code></pre></div>
+<h3 id="estado-y-monitorizacion">Estado y Monitorización</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Estado actual (una vez)</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>srt2web<span class="w"> </span>status
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Modo observación continua (actualiza cada 2s)</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>srt2web<span class="w"> </span>status<span class="w"> </span>--watch
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="c1"># Health check</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>srt2web<span class="w"> </span>health
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="c1"># Mostrar métricas del sistema</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>srt2web<span class="w"> </span>metrics
+</code></pre></div>
+<p><strong>Ejemplo output</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>┌─────────────────────────────────────────┐
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>│  SRT2Web Pipeline Status                │
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>├─────────────────────────────────────────┤
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>│  State:    running                      │
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>│  Mode:     thread_parallel              │
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>│  Chunks:   42 processed                 │
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>│  Uptime:   00:07:23                     │
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>│                                         │
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>│  CPU:  45%    Memory: 2.1 GB           │
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>│  GPU:  78%    VRAM: 3.2 / 8.0 GB       │
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>│                                         │
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>│  Modules:                               │
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>│  ✓ SRT Input      running   42 chunks   │
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>│  ✓ Whisper        running   42 chunks   │
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>│  ✓ Translator     running   42 chunks   │
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>│  ✓ TTS Engine     running   42 chunks   │
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>│  ✓ Video Muxer    running   42 chunks   │
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>└─────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="configuracion">Configuración</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Mostrar configuración completa</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>srt2web<span class="w"> </span>config<span class="w"> </span>get
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Mostrar valor específico</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>srt2web<span class="w"> </span>config<span class="w"> </span>get<span class="w"> </span>input.type
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>srt2web<span class="w"> </span>config<span class="w"> </span>get<span class="w"> </span>modules.transcriber.model
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="c1"># Establecer valor</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>srt2web<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>input.type<span class="w"> </span>rtmp
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>srt2web<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>modules.transcriber.model<span class="w"> </span>small
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>srt2web<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>pipeline.mode<span class="w"> </span>sequential
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>srt2web<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>output.web.segment_duration<span class="w"> </span><span class="m">2</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="c1"># Guardar configuración a config.yaml</span>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>srt2web<span class="w"> </span>config<span class="w"> </span>save
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="c1"># Recargar configuración (hot-reload)</span>
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>srt2web<span class="w"> </span>config<span class="w"> </span>reload
+</code></pre></div>
+<h3 id="modulos">Módulos</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Listar módulos</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>srt2web<span class="w"> </span>modules<span class="w"> </span>list
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Toggle módulo</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>srt2web<span class="w"> </span>modules<span class="w"> </span>toggle<span class="w"> </span>transcriber
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>srt2web<span class="w"> </span>modules<span class="w"> </span>toggle<span class="w"> </span>translator<span class="w"> </span>--off
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>srt2web<span class="w"> </span>modules<span class="w"> </span>toggle<span class="w"> </span>tts_engine<span class="w"> </span>--on
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="c1"># Debug de módulo (información detallada)</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>srt2web<span class="w"> </span>modules<span class="w"> </span>debug<span class="w"> </span>whisper
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>srt2web<span class="w"> </span>modules<span class="w"> </span>debug<span class="w"> </span>tts_engine
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>srt2web<span class="w"> </span>modules<span class="w"> </span>debug<span class="w"> </span>video_muxer
+</code></pre></div>
+<p><strong>Ejemplo debug output</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>Module: transcriber
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>  Enabled:  true
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>  State:    running
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>  Device:   cuda
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>  Model:    tiny
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>  Language: en
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>  GPU:      NVIDIA GeForce RTX 3060
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>  Chunks:   42
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>  Latency:  ~120ms per chunk
+</code></pre></div>
+<h3 id="salidas-outputs">Salidas (Outputs)</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Listar salidas</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>srt2web<span class="w"> </span>outputs<span class="w"> </span>list
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># Añadir salida</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>srt2web<span class="w"> </span>outputs<span class="w"> </span>add<span class="w"> </span>--name<span class="w"> </span>rtmp_youtube<span class="w"> </span>--type<span class="w"> </span>rtmp<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">  </span>--url<span class="w"> </span><span class="s2">&quot;rtmp://a.rtmp.youtube.com/live2/xxx&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">  </span>--config<span class="w"> </span><span class="s1">&#39;{&quot;video_bitrate&quot;: &quot;4000k&quot;}&#39;</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="c1"># Eliminar salida</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>srt2web<span class="w"> </span>outputs<span class="w"> </span>remove<span class="w"> </span>rtmp_youtube
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="c1"># Toggle salida</span>
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>srt2web<span class="w"> </span>outputs<span class="w"> </span>toggle<span class="w"> </span>rtmp_youtube<span class="w"> </span>--on
+<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>srt2web<span class="w"> </span>outputs<span class="w"> </span>toggle<span class="w"> </span>rtmp_youtube<span class="w"> </span>--off
+<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a>
+<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a><span class="c1"># Ver estado de salidas</span>
+<a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a>srt2web<span class="w"> </span>outputs<span class="w"> </span>status
+</code></pre></div>
+<h3 id="logs">Logs</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Últimos 50 logs</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>srt2web<span class="w"> </span>logs<span class="w"> </span>--tail<span class="w"> </span><span class="m">50</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="c1"># Filtrar por nivel</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>srt2web<span class="w"> </span>logs<span class="w"> </span>--filter<span class="w"> </span>ERROR
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>srt2web<span class="w"> </span>logs<span class="w"> </span>--filter<span class="w"> </span>WARNING
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>srt2web<span class="w"> </span>logs<span class="w"> </span>--filter<span class="w"> </span>INFO
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="c1"># Seguir logs en tiempo real</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>srt2web<span class="w"> </span>logs<span class="w"> </span>--follow
+</code></pre></div>
+<h3 id="otros">Otros</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Abrir stream en navegador</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>srt2web<span class="w"> </span>stream
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># Mostrar tipos de input/output disponibles</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>srt2web<span class="w"> </span>available
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="c1"># Modo interactivo (shell REPL)</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>srt2web<span class="w"> </span>shell
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="c1"># Versión</span>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>srt2web<span class="w"> </span>--version
+</code></pre></div>
+<h2 id="modo-interactivo-shell">Modo Interactivo (Shell)</h2>
+<p>El modo shell proporciona un REPL interactivo para control completo:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>srt2web<span class="w"> </span>shell
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>SRT2Web Shell v0.6.8
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>Type &#39;help&#39; for commands, &#39;exit&#39; to quit.
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>srt2web&gt; status
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>Pipeline: running | Chunks: 42 | Uptime: 00:07:23
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>srt2web&gt; config get input.type
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>srt
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>srt2web&gt; config set input.type rtmp
+<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>✓ Input type set to: rtmp
+<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>
+<a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a>srt2web&gt; modules list
+<a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a>  transcriber   enabled   running
+<a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a>  translator    enabled   running
+<a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a>  tts_engine    enabled   running
+<a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a>  video_muxer   enabled   running
+<a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a>
+<a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a>srt2web&gt; outputs list
+<a id="__codelineno-12-20" name="__codelineno-12-20" href="#__codelineno-12-20"></a>  web_1       web       enabled   running
+<a id="__codelineno-12-21" name="__codelineno-12-21" href="#__codelineno-12-21"></a>  recording_1 recording enabled   running
+<a id="__codelineno-12-22" name="__codelineno-12-22" href="#__codelineno-12-22"></a>
+<a id="__codelineno-12-23" name="__codelineno-12-23" href="#__codelineno-12-23"></a>srt2web&gt; logs --tail 5 --filter WARNING
+<a id="__codelineno-12-24" name="__codelineno-12-24" href="#__codelineno-12-24"></a>  [WARN] Duration drift: 0.05s
+<a id="__codelineno-12-25" name="__codelineno-12-25" href="#__codelineno-12-25"></a>  [WARN] Audio padding applied
+<a id="__codelineno-12-26" name="__codelineno-12-26" href="#__codelineno-12-26"></a>
+<a id="__codelineno-12-27" name="__codelineno-12-27" href="#__codelineno-12-27"></a>srt2web&gt; exit
+</code></pre></div>
+<h2 id="integracion-con-scripts">Integración con Scripts</h2>
+<p>La CLI puede usarse en scripts bash/powershell:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="ch">#!/bin/bash</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="c1"># Auto-start pipeline con config específica</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>srt2web<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>pipeline.mode<span class="w"> </span>sequential
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>srt2web<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>modules.transcriber.model<span class="w"> </span>tiny
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>srt2web<span class="w"> </span>config<span class="w"> </span>save
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>srt2web<span class="w"> </span>start
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="c1"># Esperar a que esté corriendo</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>srt2web<span class="w"> </span>status<span class="w"> </span>--watch
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c"># PowerShell: Toggle outputs basado en hora</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="nv">$hour</span> <span class="p">=</span> <span class="p">(</span><span class="nb">Get-Date</span><span class="p">).</span><span class="n">Hour</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="k">if</span> <span class="p">(</span><span class="nv">$hour</span> <span class="o">-ge</span> <span class="n">9</span> <span class="o">-and</span> <span class="nv">$hour</span> <span class="o">-le</span> <span class="n">18</span><span class="p">)</span> <span class="p">{</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>    <span class="n">srt2web</span> <span class="n">outputs</span> <span class="n">toggle</span> <span class="n">rtmp_youtube</span> <span class="p">-</span><span class="n">-on</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>    <span class="n">srt2web</span> <span class="n">outputs</span> <span class="n">toggle</span> <span class="n">rtmp_youtube</span> <span class="p">-</span><span class="n">-off</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="p">}</span>
+</code></pre></div>
+<h2 id="argumentos-de-linea-de-comandos">Argumentos de Línea de Comandos</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>Usage: srt2web.py [command] [subcommand] [options]
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>Commands:
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>  status      Show pipeline status
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>  health      Health check
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>  start       Start pipeline
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>  stop        Stop pipeline
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>  restart     Restart pipeline
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>  config      Configuration management
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>  modules     Module management
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>  outputs     Output management
+<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a>  logs        Show logs
+<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a>  stream      Open stream in browser
+<a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a>  available   Show available input/output types
+<a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a>  shell       Interactive shell mode
+<a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a>  version     Show version
+<a id="__codelineno-15-17" name="__codelineno-15-17" href="#__codelineno-15-17"></a>
+<a id="__codelineno-15-18" name="__codelineno-15-18" href="#__codelineno-15-18"></a>Options:
+<a id="__codelineno-15-19" name="__codelineno-15-19" href="#__codelineno-15-19"></a>  --host HOST        Server host (default: 127.0.0.1)
+<a id="__codelineno-15-20" name="__codelineno-15-20" href="#__codelineno-15-20"></a>  --port PORT        Server port (default: 9999)
+<a id="__codelineno-15-21" name="__codelineno-15-21" href="#__codelineno-15-21"></a>  --token TOKEN      Auth token
+<a id="__codelineno-15-22" name="__codelineno-15-22" href="#__codelineno-15-22"></a>  --watch            Watch mode (for status)
+<a id="__codelineno-15-23" name="__codelineno-15-23" href="#__codelineno-15-23"></a>  --tail N           Number of log lines (for logs)
+<a id="__codelineno-15-24" name="__codelineno-15-24" href="#__codelineno-15-24"></a>  --filter LEVEL     Filter logs by level
+<a id="__codelineno-15-25" name="__codelineno-15-25" href="#__codelineno-15-25"></a>  --follow           Follow logs in real-time
+<a id="__codelineno-15-26" name="__codelineno-15-26" href="#__codelineno-15-26"></a>  --format FORMAT    Output format: text, json
+</code></pre></div>
+<h2 id="formato-json">Formato JSON</h2>
+<p>Para integración con otras herramientas:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>srt2web<span class="w"> </span>status<span class="w"> </span>--format<span class="w"> </span>json
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>srt2web<span class="w"> </span>config<span class="w"> </span>get<span class="w"> </span>--format<span class="w"> </span>json
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>srt2web<span class="w"> </span>modules<span class="w"> </span>list<span class="w"> </span>--format<span class="w"> </span>json
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>srt2web<span class="w"> </span>outputs<span class="w"> </span>list<span class="w"> </span>--format<span class="w"> </span>json
+</code></pre></div>
+<p><strong>Ejemplo JSON</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="p">{</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span><span class="nt">&quot;state&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;running&quot;</span><span class="p">,</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">  </span><span class="nt">&quot;mode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;thread_parallel&quot;</span><span class="p">,</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">  </span><span class="nt">&quot;processed_chunks&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">  </span><span class="nt">&quot;uptime&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;00:07:23&quot;</span><span class="p">,</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="w">  </span><span class="nt">&quot;system&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="w">    </span><span class="nt">&quot;cpu_percent&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">45.2</span><span class="p">,</span>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="w">    </span><span class="nt">&quot;memory_mb&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">2150.4</span><span class="p">,</span>
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="w">    </span><span class="nt">&quot;memory_percent&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">67.8</span><span class="p">,</span>
+<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="w">    </span><span class="nt">&quot;gpu_usage&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">78.0</span><span class="p">,</span>
+<a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="w">    </span><span class="nt">&quot;gpu_memory_mb&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3276</span>
+<a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a><span class="w">  </span><span class="p">},</span>
+<a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="w">  </span><span class="nt">&quot;modules&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a><span class="w">    </span><span class="nt">&quot;srt_input&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a><span class="w">      </span><span class="nt">&quot;enabled&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a><span class="w">      </span><span class="nt">&quot;state&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;running&quot;</span><span class="p">,</span>
+<a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a><span class="w">      </span><span class="nt">&quot;processed_chunks&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span>
+<a id="__codelineno-17-18" name="__codelineno-17-18" href="#__codelineno-17-18"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-17-19" name="__codelineno-17-19" href="#__codelineno-17-19"></a><span class="w">    </span><span class="nt">&quot;transcriber&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-17-20" name="__codelineno-17-20" href="#__codelineno-17-20"></a><span class="w">      </span><span class="nt">&quot;enabled&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<a id="__codelineno-17-21" name="__codelineno-17-21" href="#__codelineno-17-21"></a><span class="w">      </span><span class="nt">&quot;state&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;running&quot;</span><span class="p">,</span>
+<a id="__codelineno-17-22" name="__codelineno-17-22" href="#__codelineno-17-22"></a><span class="w">      </span><span class="nt">&quot;processed_chunks&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span>
+<a id="__codelineno-17-23" name="__codelineno-17-23" href="#__codelineno-17-23"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-17-24" name="__codelineno-17-24" href="#__codelineno-17-24"></a><span class="w">    </span><span class="nt">&quot;translator&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-17-25" name="__codelineno-17-25" href="#__codelineno-17-25"></a><span class="w">      </span><span class="nt">&quot;enabled&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<a id="__codelineno-17-26" name="__codelineno-17-26" href="#__codelineno-17-26"></a><span class="w">      </span><span class="nt">&quot;state&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;running&quot;</span><span class="p">,</span>
+<a id="__codelineno-17-27" name="__codelineno-17-27" href="#__codelineno-17-27"></a><span class="w">      </span><span class="nt">&quot;processed_chunks&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span>
+<a id="__codelineno-17-28" name="__codelineno-17-28" href="#__codelineno-17-28"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-17-29" name="__codelineno-17-29" href="#__codelineno-17-29"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-17-30" name="__codelineno-17-30" href="#__codelineno-17-30"></a><span class="p">}</span>
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/BrunoJimenez73/srt2web" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "toc.integrate", "search.suggest", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copiado al portapapeles", "clipboard.copy": "Copiar al portapapeles", "search.result.more.one": "1 m\u00e1s en esta p\u00e1gina", "search.result.more.other": "# m\u00e1s en esta p\u00e1gina", "search.result.none": "No se encontraron documentos", "search.result.one": "1 documento encontrado", "search.result.other": "# documentos encontrados", "search.result.placeholder": "Teclee para comenzar b\u00fasqueda", "search.result.term.missing": "Falta", "select.version": "Seleccionar versi\u00f3n"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
