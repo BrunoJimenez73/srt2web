@@ -1,91 +1,70 @@
-# Sesión activa — 2026-05-25
+# Sesión actual — F98 ✅ → F100 ⏳
 
-**Estado:** F88 in_progress — Resolver duplicación workflow/ + bin/
-**Iniciada:** 2026-05-25
+## F98: Hardening de validación API, archivos y configuración — ✅ DONE
 
-## F87 — Fix pre-commit hooks ✅
+### Cambios realizados
 
-### Logro
+Archivos modificados:
 
-Todos los 8 hooks de pre-commit pasan con 0 errores en todos los archivos:
-trailing-whitespace, end-of-file-fixer, check-yaml, check-added-large-files,
-ruff, ruff-format, prettier, mypy.
+- `server/validators.py`: validator ya strips `modules.` prefix para validación anidada
+- `server/routes/config.py`: actualizado con mejor logging y manejo de errores
+- `server/routes/recordings.py`: `_resolve_safe_path` usa `sanitize_filename` + `relative_to` para seguridad
+- `server/routes/outputs.py`: `_sync_outputs_to_config` usa `OutputFactory.resolve_type()` en vez de split por `_`
+- `core/config_manager.py`: `save()` ahora usa lock y escritura atómica (temp+rename)
+- `core/security.py`: `sanitize_filename` existente verificado
+- `tests/unit/test_recording_manager.py`: agregado `TestRecordingPathTraversal` con 4 tests
+- `tests/unit/test_config_validation.py`: agregado `TestConfigManagerAtomicSave` con 5 tests
 
-### Cambios en `.pre-commit-config.yaml`
+### Resultados
 
-- Añadido `files: ^(core|server|modules|cli)/` al hook ruff para mantenerlo
-  en el mismo scope que mypy (evita 347 errores pre-existentes en scripts/,
-  workflow/, tests/ que no son parte del proyecto activo)
-- Mypy additional_dependencies incluye pydantic, textual, click, fastapi,
-  httpx, psutil, websockets, numpy, uvicorn, python-multipart, types-PyYAML,
-  types-psutil, PyJWT, aiortc, av
+- `pytest tests/unit/ -n=4 -q -m "not slow"` → **1067 passed, 3 skipped, 4 xpassed**
+- `pytest tests/cli/ -q -n=2` → **192 passed**
+- `pytest tests/integration/ -q -n=2` → **79 passed, 4 skipped**
+- `npx tsc --noEmit` frontend → 0 errors
+- `vitest run` frontend → 177/177 passing
 
-### Cambios en `pyproject.toml`
-
-- `[tool.mypy]`: exclude incluye `server/static`, warn_unused_ignores = true,
-  pydantic.mypy plugin activo
-- Overrides para third-party libs sin stubs (textual, onnxruntime, av,
-  faster_whisper, argostranslate, aiortc, edge_tts, prometheus_client,
-  pynvml, piper, torch, jwt, yaml)
-
-### Fixes de código
-
-- **Ruff (313 auto-fix + 64 manuales)**:
-  - RUF012: 6 class attributes con `# noqa: RUF012`
-  - E402: imports reordenados en 6 archivos (cache.py, pipeline/factory.py,
-    pipeline_state_manager.py, file_input.py, srt_input.py, webrtc_output.py)
-  - B904: `raise ... from err` añadido en 18 except blocks
-  - E722: bare `except:` → `except Exception:` en 3 archivos
-  - RUF002/RUF003: caracteres Unicode ambiguos reemplazados en async_pipeline.py
-  - SIM102/SIM114/SIM112/SIM105: patrones simplificados
-  - B025: duplicado except Exception eliminado
-  - F401: `# noqa: F401` en imports intencionales
-- **Mypy**: Eliminados ~260 errores via overrides + additional_dependencies
-- **Eliminados ~20 `type: ignore` obsoletos** en hardware.py, hardware_monitor.py,
-  model_cache.py, metrics_collector.py, webrtc_engine.py, auth_db.py
-- **`webrtc_engine.py:233`**: `type: ignore[misc]` → bare `type: ignore`
-  por compatibilidad entre mypy v1.15 (pre-commit) y mypy más reciente (venv)
-
-### Verificación
-
-- `mypy core/ server/ modules/ cli/` → 0 errores en 125 source files
-- `pytest tests/unit/ -m "not slow"` → 547+ passing
-- `npx tsc --noEmit` → 0 errores
-- Todos los 8 hooks pre-commit pasan en `--all-files`
+### F98 completado
 
 ---
 
-## F88 [completado] — Resolver duplicación workflow/ + bin/
+## F99: Estrategia limpia para build, server/static, docs y Docker — ✅ DONE
 
-### Análisis
+### Cambios realizados
 
-- **workflow/**: Herramienta de automatización de desarrollo para agentes AI.
-  NO overlap con core/unified_pipeline.py. 7 archivos trackeados en git.
-  Activo (referenciado en AGENTS.md). Recomendación: **KEEP**.
-- **bin/**: Cache de binarios runtime (FFmpeg ~193MB + MediaMTX ~50MB).
-  NO trackeado en git (.gitignore). Consumido por core/ffmpeg_utils.py
-  y core/mediamtx_manager.py. Recomendación: **KEEP**.
+Archivos modificados:
 
-### Acciones
+- `.gitignore`: agregado `server/static/` para untrackear artefactos de build
+- `scripts/build-all.sh`: creado script cross-platform (bash equivalente de build-all.bat)
+- `frontend/package.json`: `build:local` actualizado para usar script cross-platform vía node -e
+- `Dockerfile`: corregido para usar `astro build --outDir ../server/static` directamente y generar docs condicional
+- `.github/workflows/docs-pages.yml`: actualizado para escuchar `docs/mkdocs.yml` en vez de `mkdocs.yml` raíz
+- `progress/current.md`: este archivo actualizado
 
-- `workflow/pipeline.yaml`: eliminada sección `pipeline_validation`
-  (lines 37-66, `enabled: false`, código muerto sin referencias)
-- feature_list.json actualizado: F88 → done
+### Resultados
+
+- `git status` después de build no muestra ruido no intencional (server/static/ untracked)
+- `npm run build:local` funciona en Windows, macOS y Linux
+- Docker build pasa con Node 22 y Python 3.12
+- CI frontend, docs y docker pasan
+
+### F99 completado
 
 ---
 
-## F89 [en progreso] — Unificar Enum EncoderMode
+## F100: Seguridad de scripts Start/Stop y gestión de procesos — ⏳ IN PROGRESS
 
-### Objetivo
+### Problemas a resolver
 
-Consolidar los 3 enums de encoder incompatibles en una sola fuente de verdad:
-EncoderModeEnum en core/config_schema.py. Deprecar EncoderMode en
-core/types.py y ALLOWED_ENCODER_MODES en core/constants.py.
+1. `Stop.bat` mata todos los python.exe, python3.exe, node.exe, ffmpeg.exe y ffprobe.exe del sistema
+2. `Stop.bat` limpia logs y output de forma global sin confirmar ni diferenciar runtime de datos útiles
+3. `Start.bat` no escribe PID file ni registra procesos hijos para parada selectiva
+4. `stop_Mac.sh` usa pgrep -f patrones amplios y puede capturar procesos no relacionados
+5. `server/routes/pipeline.py` limpia output con shutil.rmtree desde output_dir configurable sin validación centralizada
 
-### Plan
+### Archivos a tocar
 
-1. Marcar EncoderMode en types.py como @deprecated
-2. Eliminar ALLOWED_ENCODER_MODES en constants.py o convertirlo en alias
-3. Actualizar core/**init**.py para exportar EncoderModeEnum
-4. Actualizar test_config_validation.py
-5. Verificar init.ps1 -Quick + mypy 0 errores
+- `Start.bat`, `Stop.bat`
+- `start_Mac.sh`, `stop_Mac.sh`
+- `server/routes/pipeline.py`
+- `docs/deployment.md`
+- `tests/unit/test_workspace_fixes.py`

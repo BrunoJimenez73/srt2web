@@ -391,3 +391,63 @@ class TestRequiredDependencies:
             assert ffmpeg_path is not None, "FFmpeg not found"
         except Exception as e:
             pytest.skip(f"FFmpeg not available: {e}")
+
+
+class TestConfigManagerAtomicSave:
+    """Tests for ConfigManager atomic save behavior."""
+
+    def test_save_creates_file(self, tmp_path: Path) -> None:
+        """ConfigManager.save() creates the config file."""
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text("server:\n  port: 9999\n", encoding="utf-8")
+
+        from core.config_manager import ConfigManager
+
+        mgr = ConfigManager(str(config_path))
+        mgr.set("server.port", 8000)
+        mgr.save()
+
+        assert config_path.exists()
+        content = config_path.read_text(encoding="utf-8")
+        assert "8000" in content
+
+    def test_save_atomic_temp_file_cleaned(self, tmp_path: Path) -> None:
+        """Temp .tmp file is removed after successful save."""
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text("server:\n  port: 9999\n", encoding="utf-8")
+
+        from core.config_manager import ConfigManager
+
+        mgr = ConfigManager(str(config_path))
+        mgr.save()
+
+        assert not (tmp_path / "config.yaml.tmp").exists()
+
+    def test_save_with_lock_no_race(self, tmp_path: Path) -> None:
+        """ConfigManager uses a threading lock for save."""
+        import threading
+
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text("server:\n  port: 9999\n", encoding="utf-8")
+
+        from core.config_manager import ConfigManager
+
+        mgr = ConfigManager(str(config_path))
+        assert hasattr(mgr, "_lock")
+        assert isinstance(mgr._lock, threading.Lock)
+
+    def test_update_from_dict_validates_before_assign(self, tmp_path: Path) -> None:
+        """update_from_dict validates via Pydantic before mutating _config."""
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text("server:\n  port: 9999\n", encoding="utf-8")
+
+        from core.config_manager import ConfigManager
+
+        mgr = ConfigManager(str(config_path))
+        original = mgr.to_dict()
+
+        with pytest.raises(ValueError):
+            mgr.update_from_dict({"server": {"port": "not_a_number"}})
+
+        # Config should be unchanged after failed validation
+        assert mgr.to_dict() == original

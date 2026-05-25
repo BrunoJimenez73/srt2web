@@ -112,6 +112,56 @@ class TestRecordingDelete:
         assert response.status_code == 404
 
 
+class TestRecordingPathTraversal:
+    """Test path traversal prevention in recordings."""
+
+    def test_resolve_safe_path_normal(self) -> None:
+        """Normal filename resolves within recordings dir."""
+        from server.routes.recordings import _resolve_safe_path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            result = _resolve_safe_path(base, "normal.mp4")
+            assert str(result).startswith(str(base.resolve()))
+            assert result.name == "normal.mp4"
+
+    def test_resolve_safe_path_traversal_blocked(self) -> None:
+        """Path traversal attempts are sanitized by _resolve_safe_path."""
+        from server.routes.recordings import _resolve_safe_path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            # sanitize_filename strips path components via Path(name).name,
+            # so "../../etc/passwd" becomes "passwd" — not a traversal risk
+            result = _resolve_safe_path(base, "../../etc/passwd")
+            # Result should be inside recordings_dir, not outside
+            assert str(result).startswith(str(base.resolve()))
+            # Name should be the basename only (no path separators)
+            assert result.name == "passwd"
+
+    def test_resolve_safe_path_dangerous_chars_sanitized(self) -> None:
+        """Dangerous characters are sanitized from recording names."""
+        from server.routes.recordings import _resolve_safe_path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            result = _resolve_safe_path(base, 'file<>:".txt')
+            # sanitize_filename replaces [^\w\-.] with _
+            # '<', '>', ':', '"' are 4 dangerous chars → 4 underscores
+            assert result.name == "file____.txt"
+
+    def test_resolve_safe_path_dir_separator_sanitized(self) -> None:
+        """Directory separators in names are sanitized."""
+        from server.routes.recordings import _resolve_safe_path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            result = _resolve_safe_path(base, "subdir/evil.txt")
+            # The sanitized name shouldn't contain path separators
+            assert "/" not in result.name
+            assert "\\" not in result.name
+
+
 class TestSizeFormatting:
     def test_format_bytes(self) -> None:
         from server.routes.recordings import _format_size

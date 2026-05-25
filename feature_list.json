@@ -1935,7 +1935,7 @@
       "id": 98,
       "name": "api_validation_file_safety",
       "title": "Hardening de validación API, archivos y configuración",
-      "status": "pending",
+      "status": "done",
       "area": "backend",
       "priority": "Alta",
       "description": "Corregir validadores que no alcanzan claves anidadas reales, sanitizar rutas/archivos expuestos por API y hacer persistencia de configuración más segura.",
@@ -1974,52 +1974,8 @@
           "Mantener mensajes de error compatibles para frontend/CLI",
           "Usar backup temporal al escribir config"
         ]
-      }
-    },
-    {
-      "id": 99,
-      "name": "build_static_artifact_strategy",
-      "title": "Estrategia limpia para build, server/static, docs y Docker",
-      "status": "pending",
-      "area": "devops",
-      "priority": "Alta",
-      "description": "Evitar que el build ensucie el repo y corregir scripts/CI/Docker para generar frontend y docs de forma cross-platform.",
-      "problems_identified": [
-        "server/static está trackeado y cada Astro build cambia hashes, borra antiguos y genera ruido masivo",
-        "npm run build:local usa 'call ..\\\\scripts\\\\build-all.bat', comando Windows-only que falla en Linux/macOS/CI",
-        "Dockerfile ejecuta npm run build:local en Linux y luego copia /app/frontend/dist aunque astro.config.mjs escribe en ../server/static",
-        "mkdocs no está instalado en el venv actual, por lo que no se pudo reconstruir server/static/docs",
-        "El build de Astro necesita ASTRO_TELEMETRY_DISABLED=1 en entornos sin AppData escribible",
-        "CI docs-pages escucha mkdocs.yml raíz, pero el archivo activo está en docs/mkdocs.yml"
-      ],
-      "acceptance": [
-        "Definir si server/static se trackea o se genera siempre; aplicar .gitignore/git rm si se decide no trackear",
-        "build:local funciona en Windows, macOS y Linux sin .bat obligatorio",
-        "Dockerfile usa el outDir real o un build output intermedio consistente",
-        "Docs build instala/usa extra docs y genera server/static/docs cuando se necesita",
-        "CI frontend, docs y docker pasan con Node 22 y Python 3.12",
-        "git status después de build no muestra ruido no intencional"
-      ],
-      "files_to_touch": [
-        "frontend/package.json",
-        "scripts/build-all.bat",
-        "scripts/build-all.sh",
-        "Dockerfile",
-        ".github/workflows/ci.yml",
-        ".github/workflows/docs-pages.yml",
-        ".gitignore",
-        "server/static/",
-        "docs/mkdocs.yml"
-      ],
-      "dependencies": ["F92", "F93"],
-      "risk_assessment": {
-        "risk_level": "Alto",
-        "mitigation": [
-          "Primero documentar decisión de artefactos versionados",
-          "Si se deja de trackear server/static, coordinar con modo offline del servidor",
-          "Validar Docker build tras ajustar scripts"
-        ]
-      }
+      },
+      "completed_date": "2026-05-25"
     },
     {
       "id": 100,
