@@ -20,7 +20,7 @@ export function registerSW(): void {
     navigator.serviceWorker
       .register("/service-worker.js")
       .then(() => {
-        console.info("PWA: Service worker registered");
+        if (import.meta.env.DEV) console.info("PWA: Service worker registered");
       })
       .catch((err) => {
         console.warn("PWA: Service worker registration failed", err);

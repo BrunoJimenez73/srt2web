@@ -1804,7 +1804,7 @@
       "id": 95,
       "name": "frontend_api_xss_hardening",
       "title": "Hardening frontend: API autenticada, XSS y deuda TypeScript",
-      "status": "pending",
+      "status": "done",
       "area": "frontend",
       "priority": "Alta",
       "description": "Normalizar todas las llamadas HTTP mediante apiCall/fetchWithAuth, eliminar sinks HTML inseguros y cerrar huecos que ESLint no detecta dentro de scripts Astro.",

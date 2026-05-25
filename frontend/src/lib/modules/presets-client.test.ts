@@ -17,6 +17,11 @@ describe("presets-client", () => {
     vi.stubGlobal("window", {
       location: { protocol: "http:", host: "localhost:9999" },
     });
+    vi.stubGlobal("localStorage", {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    });
 
     const signals = await import("../store/signals");
     presetsSignal = signals.presets;
@@ -51,7 +56,7 @@ describe("presets-client", () => {
     const { loadPresets } = await import("./presets-client");
     await loadPresets();
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/presets");
+    expect(fetchMock).toHaveBeenCalledWith("/api/presets", expect.anything());
     expect(presetsSignal.value).toEqual([
       { name: "default", description: "Default preset" },
       { name: "low-latency", description: "Low latency" },
@@ -182,7 +187,11 @@ describe("presets-client", () => {
     const { savePreset } = await import("./presets-client");
     await savePreset("my-preset");
 
-    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/presets");
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/presets",
+      expect.anything(),
+    );
     expect(presetsSignal.value).toEqual([
       { name: "my-preset", description: "" },
     ]);

@@ -163,7 +163,8 @@ const pageTitle = "SRT2Web — WebRTC Player";
     }
 </style>
 
-<script is:inline>
+<script>
+import { fetchWithAuth } from "../lib/api";
 class WebRTCPlayer {
     constructor() {
         this.video = document.getElementById('video-player');
@@ -273,7 +274,7 @@ class WebRTCPlayer {
             await this.waitForIceGathering();
 
             // Send offer to server
-            const response = await fetch('/webrtc/offer', {
+            const response = await fetchWithAuth('/webrtc/offer', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -421,7 +422,7 @@ class WebRTCPlayer {
         this.stopStats();
 
         if (this.clientId) {
-            fetch('/webrtc/close', {
+            fetchWithAuth('/webrtc/close', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ client_id: this.clientId })

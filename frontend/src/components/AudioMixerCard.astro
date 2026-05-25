@@ -214,19 +214,20 @@
 </style>
 
 <script>
+  import { fetchWithAuth } from "../lib/api";
   let saveTimeout = null;
 
   async function saveAudioConfig(key, value) {
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(async () => {
       try {
-        await fetch('/api/config', {
+        await fetchWithAuth('/api/config', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ [key]: value })
         });
       } catch (e) {
-        console.error('Error saving audio config:', e);
+        // TODO: Error saving audio config (console removed for prod)
       }
     }, 500);
   }

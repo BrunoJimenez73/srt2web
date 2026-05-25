@@ -42,7 +42,7 @@ const { method, path, description, params, body, response } = Astro.props;
                 <h4 style="margin-top:16px;margin-bottom:8px">Request Body</h4>
                 <div class="code-block">
                     <div class="code-block-header"><span class="code-block-lang">JSON</span></div>
-                    <pre><code set:html={body}></code></pre>
+                    <pre><code>{body}</code></pre>
                 </div>
             </>
         )}
@@ -51,7 +51,7 @@ const { method, path, description, params, body, response } = Astro.props;
                 <h4 style="margin-top:16px;margin-bottom:8px">Response</h4>
                 <div class="code-block">
                     <div class="code-block-header"><span class="code-block-lang">JSON</span></div>
-                    <pre><code set:html={response}></code></pre>
+                    <pre><code>{response}</code></pre>
                 </div>
             </>
         )}

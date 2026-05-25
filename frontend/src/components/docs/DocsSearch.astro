@@ -35,45 +35,48 @@
 
     let pagefind: any = null;
     let pagefindLoading = false;
-    let pagefindLoadTimeout: NodeJS.Timeout | null = null;
+    let pagefindLoadTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    function showHint(msg: string) {
+        if (!results) return;
+        results.textContent = '';
+        const p = document.createElement('p');
+        p.className = 'search-hint';
+        p.textContent = msg;
+        results.appendChild(p);
+    }
 
     async function loadPagefind() {
         if (pagefind || pagefindLoading) return;
 
         pagefindLoading = true;
 
-        // Set a timeout to prevent the page from hanging
         pagefindLoadTimeout = setTimeout(() => {
             if (pagefindLoading && !pagefind) {
                 pagefindLoading = false;
-                if (results) {
-                    results.innerHTML = '<p class="search-hint">Search index loading timeout. Please try again.</p>';
-                }
+                showHint('Search index loading timeout. Please try again.');
             }
-        }, 5000); // 5 second timeout
+        }, 5000);
 
         try {
             const pf = '/docs/pagefind/pagefind.js';
             pagefind = await import(/* @vite-ignore */ pf);
             await pagefind.init();
 
-            // Clear timeout if successful
             if (pagefindLoadTimeout) {
                 clearTimeout(pagefindLoadTimeout);
                 pagefindLoadTimeout = null;
             }
             pagefindLoading = false;
-        } catch (e) {
-            // Clear timeout on error
+        } catch {
             if (pagefindLoadTimeout) {
                 clearTimeout(pagefindLoadTimeout);
                 pagefindLoadTimeout = null;
             }
             pagefindLoading = false;
 
-            console.warn('Failed to load pagefind:', e);
             if (results) {
-                results.innerHTML = '<p class="search-hint">Search index not available. Run npm run build first.</p>';
+                showHint('Search index not available. Run npm run build first.');
             }
         }
     }
@@ -87,7 +90,7 @@
     function closeModal() {
         modal?.classList.remove('open');
         if (input) input.value = '';
-        if (results) results.innerHTML = '<p class="search-hint">Start typing to search...</p>';
+        showHint('Start typing to search...');
     }
 
     trigger?.addEventListener('click', openModal);
@@ -101,42 +104,50 @@
         if (e.key === 'Escape') closeModal();
     });
 
+    function createResultItem(data: { url: string; meta?: { title?: string }; excerpt: string }): HTMLAnchorElement {
+        const a = document.createElement('a');
+        a.href = data.url;
+        a.className = 'search-result-item';
+        const title = document.createElement('span');
+        title.className = 'search-result-title';
+        title.textContent = data.meta?.title || 'Untitled';
+        const excerpt = document.createElement('span');
+        excerpt.className = 'search-result-excerpt';
+        excerpt.textContent = data.excerpt;
+        a.appendChild(title);
+        a.appendChild(excerpt);
+        return a;
+    }
+
     input?.addEventListener('input', async (e) => {
         const query = (e.target as HTMLInputElement).value.trim();
         if (!query || !pagefind) {
-            if (results) {
-                results.innerHTML = '<p class="search-hint">Start typing to search...</p>';
-            }
+            showHint('Start typing to search...');
             return;
         }
 
         try {
             const search = await pagefind.search(query);
             if (search.results.length === 0) {
-                if (results) {
-                    results.innerHTML = '<p class="search-hint">No results found.</p>';
-                }
+                showHint('No results found.');
                 return;
             }
 
-            const items = await Promise.all(search.results.slice(0, 10).map(async (r: any) => {
+            const items = await Promise.all(search.results.slice(0, 10).map(async (r: { data: () => Promise<{ url: string; meta?: { title?: string }; excerpt: string }> }) => {
                 const data = await r.data();
-                return `<a href="${data.url}" class="search-result-item">
-                    <span class="search-result-title">${data.meta?.title || 'Untitled'}</span>
-                    <span class="search-result-excerpt">${data.excerpt}</span>
-                </a>`;
+                return createResultItem(data);
             }));
 
             if (results) {
-                results.innerHTML = items.join('');
+                results.textContent = '';
+                for (const item of items) {
+                    results.appendChild(item);
+                    item.addEventListener('click', closeModal);
+                }
             }
-            results?.querySelectorAll('.search-result-item').forEach(item => {
-                item.addEventListener('click', closeModal);
-            });
-        } catch (error) {
-            console.warn('Search error:', error);
+        } catch {
             if (results) {
-                results.innerHTML = '<p class="search-hint">Search error. Please try again.</p>';
+                showHint('Search error. Please try again.');
             }
         }
     });

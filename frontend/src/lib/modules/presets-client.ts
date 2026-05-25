@@ -7,6 +7,7 @@ import { t } from "../i18n";
 import { pipelineConfig, presets, selectedPreset } from "../store/index";
 import { addLog } from "../store/index";
 import { applyConfigToUI } from "./config-collector";
+import { fetchWithAuth } from "../api";
 
 let _isLoading = false;
 
@@ -24,7 +25,7 @@ function isLoading(): boolean {
 
 export async function loadPresets(): Promise<void> {
   try {
-    const response = await fetch("/api/presets");
+    const response = await fetchWithAuth("/api/presets");
     if (!response.ok) return;
     const data = await response.json();
     presets.value = data.presets || [];
@@ -36,7 +37,7 @@ export async function loadPresets(): Promise<void> {
 export async function applyPreset(name: string): Promise<void> {
   try {
     setLoading(true, `${t("preset_applying")}: ${name}`);
-    const response = await fetch(
+    const response = await fetchWithAuth(
       `/api/presets/${encodeURIComponent(name)}/apply`,
       {
         method: "POST",
@@ -64,7 +65,7 @@ export async function applyPreset(name: string): Promise<void> {
 export async function savePreset(name: string): Promise<void> {
   try {
     setLoading(true, `${t("preset_saving")}: ${name}`);
-    const response = await fetch("/api/presets", {
+    const response = await fetchWithAuth("/api/presets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, description: "" }),

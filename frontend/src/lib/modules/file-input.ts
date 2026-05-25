@@ -8,7 +8,7 @@
  * - Actualización de URL RTMP
  */
 
-import { apiCall } from "../api";
+import { apiCall, fetchWithAuth } from "../api";
 import { showToast } from "../utils";
 import { formatTime } from "../utils/format";
 import { MESSAGES, INTERVALS } from "../constants";
@@ -104,7 +104,7 @@ async function fetchFileInfo(): Promise<{
   is_playing: boolean;
 } | null> {
   try {
-    const response = await fetch(`${window.location.origin}/api/input-info`, {
+    const response = await fetchWithAuth("/api/input-info", {
       headers: { Accept: "application/json" },
     });
     if (!response.ok) return null;

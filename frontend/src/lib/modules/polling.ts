@@ -2,7 +2,7 @@
  * Polling Manager - Handles adaptive HTTP polling for status and file info.
  */
 
-import { apiCall } from "../api";
+import { apiCall, fetchWithAuth } from "../api";
 import type { Status } from "../types";
 import { pipelineStatus } from "../store/index";
 import { updateStatus } from "../store/index";
@@ -90,7 +90,7 @@ async function fetchFileInfo(): Promise<{
   is_playing: boolean;
 } | null> {
   try {
-    const response = await fetch(`${window.location.origin}/api/input-info`, {
+    const response = await fetchWithAuth("/api/input-info", {
       headers: { Accept: "application/json" },
     });
     if (!response.ok) return null;

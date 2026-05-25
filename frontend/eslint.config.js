@@ -27,6 +27,7 @@ export default [
         { argsIgnorePattern: "^_" },
       ],
       "@typescript-eslint/explicit-function-return-type": "off",
+      "no-console": ["warn", { allow: ["warn", "error"] }],
     },
   },
   {
@@ -48,7 +49,7 @@ export default [
       astro: astroPlugin,
     },
     rules: {
-      "astro/no-set-html-directive": "warn",
+      "astro/no-set-html-directive": "error",
     },
   },
 ];

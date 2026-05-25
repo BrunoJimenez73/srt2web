@@ -31,6 +31,7 @@ export { collectConfigFromUI, applyConfigToUI } from "./config-collector";
 // Re-export from api and store for convenience
 export {
   apiCall,
+  fetchWithAuth,
   getConfig,
   getStatus,
   startPipeline,
@@ -41,6 +42,7 @@ export {
 
 import {
   apiCall,
+  fetchWithAuth,
   getConfig,
   getStatus,
   startPipeline,
@@ -207,7 +209,7 @@ export function setupFilePlayerControls(): void {
     const percent = parseInt(positionSlider.value);
 
     seekTimeout = setTimeout(() => {
-      fetch(`${window.location.origin}/api/input-info`, {
+      fetchWithAuth(`${window.location.origin}/api/input-info`, {
         headers: { Accept: "application/json" },
       })
         .then((r) => r.json())
@@ -306,7 +308,7 @@ export function setupEventListeners(): void {
     connectionMode.value = "remote";
     (async () => {
       try {
-        const res = await fetch("/api/network/info");
+        const res = await fetchWithAuth("/api/network/info");
         const info = await res.json();
         if (info.public_ip) {
           emitterAddress.value = info.public_ip;
@@ -340,7 +342,7 @@ export function setupEventListeners(): void {
 
 export async function refreshMetrics(): Promise<void> {
   try {
-    const res = await fetch("/api/status");
+    const res = await fetchWithAuth("/api/status");
     const status = await res.json();
     const s = status.system || {};
 

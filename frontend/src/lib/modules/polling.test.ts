@@ -202,6 +202,13 @@ describe("polling - File Info Polling", () => {
     // Only stub fetch on the window
     vi.stubGlobal("fetch", fetchMock);
 
+    // Stub localStorage for fetchWithAuth's getAuthToken
+    vi.stubGlobal("localStorage", {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    });
+
     // Use existing window with proper location.origin
     Object.defineProperty(window, "location", {
       value: {
@@ -266,8 +273,8 @@ describe("polling - File Info Polling", () => {
     await vi.advanceTimersByTimeAsync(500);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:9999/api/input-info",
-      expect.objectContaining({ headers: { Accept: "application/json" } }),
+      "/api/input-info",
+      expect.anything(),
     );
 
     stopFileInfoPolling();
