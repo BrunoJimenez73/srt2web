@@ -93,12 +93,26 @@ echo [4/6] Dependencias...
 %VENV_PYTHON% -m pip install --upgrade pip wheel setuptools --quiet 2>nul
 
 echo  [OK] Instalando dependencias del proyecto...
-REM Instalar sin onnxruntime para evitar conflicto con GPU
+REM Instalar dependencias del proyecto
 %VENV_PYTHON% -m pip install -r config/requirements.txt --quiet --ignore-installed 2>nul
 if %errorlevel% equ 0 (
-    echo  [OK] Dependencias instaladas.
+    echo  [OK] Dependencias base instaladas.
 ) else (
-    echo  [WARNING] Error instalando dependencias.
+    echo  [WARNING] Error instalando dependencias base.
+)
+
+REM Instalar extras CLI (textual, httpx, rich, click)
+%VENV_PYTHON% -m pip install -e ".[cli]" --quiet 2>nul
+if %errorlevel% equ 0 (
+    echo  [OK] Extras CLI instalados.
+) else (
+    echo  [WARNING] No se pudieron instalar extras CLI.
+)
+
+REM Instalar extras dev (testing, linting) - silencioso si falla
+%VENV_PYTHON% -m pip install -e ".[dev]" --quiet 2>nul
+if %errorlevel% equ 0 (
+    echo  [OK] Extras dev instalados.
 )
 
 REM IMPORTANTE: Reinstalar ONNX GPU después de requirements para evitar que CPU lo sobreescriba

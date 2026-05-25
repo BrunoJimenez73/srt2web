@@ -44,8 +44,12 @@ aiortc>=1.14.0
 # TTS Engines
 edge-tts>=6.1.0
 
-# CLI dependencies
+# CLI/TUI dependencies
 requests>=2.31.0
+httpx>=0.27.0
+click>=8.0.0
+rich>=13.0.0
+textual>=0.52.0
 colorama>=0.4.6
 
 # Tooling / harness

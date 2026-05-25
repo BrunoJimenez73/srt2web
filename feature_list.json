@@ -1711,7 +1711,7 @@
       "id": 93,
       "name": "dependency_packaging_unification",
       "title": "Unificar dependencias, extras y empaquetado Python",
-      "status": "pending",
+      "status": "done",
       "area": "maintenance",
       "priority": "Alta",
       "description": "Resolver la divergencia entre pyproject.toml, config/requirements.txt, instaladores y CI para que CLI/TUI, dev tools, docs y subpaquetes se instalen de forma consistente.",
