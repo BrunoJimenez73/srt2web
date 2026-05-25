@@ -1849,7 +1849,7 @@
       "id": 96,
       "name": "cli_tui_command_registration_auth",
       "title": "Corregir CLI/TUI: subcomandos reales, dependencias y auth WS",
-      "status": "pending",
+      "status": "done",
       "area": "cli-tui",
       "priority": "Alta",
       "description": "Arreglar comandos one-shot agregados en F56 que no están registrados como grupos Click, instalar Textual y alinear la autenticación WebSocket con el servidor.",

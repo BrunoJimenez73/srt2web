@@ -9,6 +9,12 @@ import colorama  # type: ignore[import-untyped]
 from rich.console import Console
 
 from cli.client.http_client import DEFAULT_SERVER, APIClient
+from cli.commands.input import input as input_cmd_group
+from cli.commands.module import module as module_group
+from cli.commands.network import network as network_group
+from cli.commands.output import output as output_group
+from cli.commands.preset import preset as preset_group
+from cli.commands.recording import recording as recording_group
 from core.version import get_version
 
 logger = logging.getLogger("srt2web.cli")
@@ -197,52 +203,13 @@ def health(ctx: click.Context) -> None:
     sys.exit(asyncio.run(_run()))
 
 
-@cli.command()
-def module() -> None:
-    """Module management commands."""
-    from cli.commands.module import module
-
-    module()
-
-
-@cli.command()
-def output() -> None:
-    """Output management commands."""
-    from cli.commands.output import output
-
-    output()
-
-
-@cli.command()
-def preset() -> None:
-    """Preset management commands."""
-    from cli.commands.preset import preset
-
-    preset()
-
-
-@cli.command()
-def recording() -> None:
-    """Recording management commands."""
-    from cli.commands.recording import recording
-
-    recording()
-
-
-@cli.command()
-def input() -> None:
-    """Input control commands."""
-    from cli.commands.input import input
-
-    input()
-
-
-@cli.command()
-def network() -> None:
-    """Network information commands."""
-    from cli.commands.network import network
-
-    network()
+# Register command groups as sub-groups
+cli.add_command(module_group)
+cli.add_command(output_group)
+cli.add_command(preset_group)
+cli.add_command(recording_group)
+cli.add_command(input_cmd_group)
+cli.add_command(network_group)
 
 
 def cli_entry() -> None:
