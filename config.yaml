@@ -14,31 +14,31 @@ input:
     mode: listener
     latency_ms: 200
     caller_address: ''
-    chunk_duration_sec: 5
+    chunk_duration_sec: 4
   rtmp:
     listen_port: 1935
     app: live
     stream_key: stream
     url: ''
     mode: listener
-    chunk_duration_sec: 5
+    chunk_duration_sec: 4
   file:
     path: ''
     loop: false
     speed: 1.0
-    chunk_duration_sec: 5
+    chunk_duration_sec: 4
 output:
   type: web
   web:
-    segment_duration: 5
-    list_size: 12
+    segment_duration: 4
+    list_size: 15
     audio_offset_ms: 0
-    encoder_mode: passthrough
+    encoder_mode: gpu_nvenc
   hls:
-    segment_duration: 5
-    list_size: 12
+    segment_duration: 4
+    list_size: 15
     audio_offset_ms: 0
-    encoder_mode: passthrough
+    encoder_mode: gpu_nvenc
   rtmp:
     url: rtmp://localhost/live/stream
     video_bitrate: 2500k
@@ -76,32 +76,22 @@ output:
     split_value: 600
     subtitles: vtt
     video_preset: fast
-  outputs:
-  - name: web_1
-    type: web
-    enabled: true
-    config:
-      encoder_mode: passthrough
-  - name: srt_1
-    type: srt
-    enabled: true
-    config:
-      port: 9002
+  outputs: []
 pipeline:
-  chunk_duration_sec: 5
+  chunk_duration_sec: 4
   mode: thread_parallel
   max_concurrent_chunks: 4
-  buffer_size: 10
-  retry_attempts: 3
+  buffer_size: 5
+  retry_attempts: 2
   retry_delay: 1.0
 modules:
   audio_extractor:
     enabled: true
   transcriber:
-    enabled: true
+    enabled: false
     model: tiny
-    language: en
-    device: cuda
+    language: auto
+    device: auto
     beam_size: 2
     timeout_sec: 120.0
   translator:
@@ -112,39 +102,39 @@ modules:
     enabled: true
     format: webvtt
     use_translated: true
-    chunk_duration: 5
+    chunk_duration: 4
     dual_track: false
   tts_engine:
-    enabled: true
-    engine: piper
-    device: cuda
-    voice: es_ES-davefx-medium
+    enabled: false
+    engine: edge-tts
+    device: auto
+    voice: es-ES-ElviraNeural
     speed: 1.0
   audio_mixer:
-    enabled: true
-    original_volume: 0.9
+    enabled: false
+    original_volume: 0.2
     tts_volume: 1.0
     dubbed_volume: 1.0
   video_muxer:
     enabled: true
     engine: hls
-    hls_segment_duration: 5
-    hls_list_size: 12
+    hls_segment_duration: 4
+    hls_list_size: 15
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
     video_quality: medium
-    video_crf: 24
+    video_crf: 23
     audio_codec: aac
-    audio_bitrate: 64k
-    video_bitrate: 1000k
-    video_fps: 30
-    video_width: 1920
-    video_height: 1080
+    audio_bitrate: 128k
+    video_bitrate: null
+    video_fps: null
+    video_width: null
+    video_height: null
     webrtc_audio_codec: null
     webrtc_audio_bitrate: null
-    audio_sample_rate: 24000
-    gpu_preset: p7
-    video_preset: medium
+    audio_sample_rate: null
+    gpu_preset: p4
+    video_preset: fast
 subtitle_sync:
   sync_correction_threshold: 500
   enable_drift_detection: false

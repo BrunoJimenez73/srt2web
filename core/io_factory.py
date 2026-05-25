@@ -141,6 +141,15 @@ class OutputFactory:
         return [t for t in cls._outputs if t not in cls._internal_types]
 
     @classmethod
+    def resolve_type(cls, class_name: str) -> str | None:
+        """Reverse-lookup the registered type name from a class name."""
+        cls._ensure_initialized()
+        for name, klass in cls._outputs.items():
+            if klass.__name__ == class_name:
+                return name
+        return None
+
+    @classmethod
     def _ensure_initialized(cls) -> None:
         if not cls._initialized:
             cls._auto_register()

@@ -56,6 +56,7 @@ class ConfigManager:
     def __init__(self, config_path: str | None = None):
         self._config_path = config_path or self._find_config()
         self._config: dict[str, Any] = {}
+        self._lock = __import__("threading").Lock()
         self._load()
 
     def _find_config(self) -> str:
@@ -100,25 +101,34 @@ class ConfigManager:
             self._config = update_config_with_optimal_device(copy.deepcopy(DEFAULT_CONFIG))
 
     def save(self) -> None:
-        """Persist current configuration to YAML file."""
-        try:
-            # Validar antes de guardar
-            validated_config = SRT2WebConfig.from_dict(self._config)
-            self._config = validated_config.to_dict()
+        """Persist current configuration to YAML file atomically."""
+        with self._lock:
+            try:
+                validated_config = SRT2WebConfig.from_dict(self._config)
+                self._config = validated_config.to_dict()
 
-            Path(self._config_path).parent.mkdir(parents=True, exist_ok=True)
-            with open(self._config_path, "w", encoding="utf-8") as f:
-                yaml.dump(
-                    self._config,
-                    f,
-                    default_flow_style=False,
-                    allow_unicode=True,
-                    sort_keys=False,
-                )
-            logger.info(f"Configuration validated and saved to {self._config_path}")
-        except Exception as e:
-            logger.error(f"Failed to save configuration: {e}")
-            raise
+                Path(self._config_path).parent.mkdir(parents=True, exist_ok=True)
+
+                # Write to temp file, then rename for atomicity
+                temp_path = f"{self._config_path}.tmp"
+                with open(temp_path, "w", encoding="utf-8") as f:
+                    yaml.dump(
+                        validated_config.to_dict(),
+                        f,
+                        default_flow_style=False,
+                        allow_unicode=True,
+                        sort_keys=False,
+                    )
+
+                if Path(temp_path).exists():
+                    if Path(self._config_path).exists():
+                        Path(self._config_path).unlink()
+                    Path(temp_path).rename(self._config_path)
+
+                logger.info(f"Configuration validated and saved to {self._config_path}")
+            except Exception as e:
+                logger.error(f"Failed to save configuration: {e}")
+                raise
 
     def get(self, dotted_key: str, default: Any = None) -> Any:
         """
@@ -207,12 +217,20 @@ class ConfigManager:
         return {}
 
     def _save_presets(self, presets: dict[str, Any]) -> None:
-        """Save presets to disk."""
+        """Save presets to disk atomically."""
         path = self._preset_path
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
-            with open(path, "w", encoding="utf-8") as f:
+
+            # Write to temp file, then rename for atomicity
+            temp_path = f"{path}.tmp"
+            with open(temp_path, "w", encoding="utf-8") as f:
                 json.dump(presets, f, indent=2, ensure_ascii=False)
+
+            if Path(temp_path).exists():
+                if path.exists():
+                    path.unlink()
+                Path(temp_path).rename(path)
         except Exception as e:
             logger.error(f"Failed to save presets: {e}")
             raise

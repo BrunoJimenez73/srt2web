@@ -184,10 +184,11 @@ class ConfigUpdate(BaseModel):
                     if isinstance(subvalue, dict):
                         for k, v_val in subvalue.items():
                             full_key = f"{key}.{subkey}.{k}"
-                            validate_config_value(full_key, v_val)
+                            # Strip modules. prefix so validate_config_value matches
+                            validate_config_value(full_key.removeprefix("modules."), v_val)
                     else:
                         full_key = f"{key}.{subkey}"
-                        validate_config_value(full_key, subvalue)
+                        validate_config_value(full_key.removeprefix("modules."), subvalue)
             else:
                 validate_config_value(key, value)
         return v
@@ -223,7 +224,7 @@ class AddOutputRequest(BaseModel):
 
     type: str
     name: str | None = None
-    config: dict[str, Any] | None = {}
+    config: dict[str, Any] | None = None
 
 
 class UpdateOutputRequest(BaseModel):

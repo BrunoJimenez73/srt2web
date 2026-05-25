@@ -158,10 +158,8 @@ async def update_config(request: Request, body: ConfigUpdate) -> dict[str, Any]:
         config.save()
         config.reload()
     except ValueError as e:
-        logger.warning(f"Invalid config but accepting anyway: {e}")
-        invalidate_cache("config")
-        invalidate_cache("status")
-        return {"status": "updated", "config": config.to_dict(), "warning": str(e)}
+        logger.warning(f"Config validation failed: {e}")
+        raise HTTPException(400, str(e)) from e
     except Exception as e:
         logger.error(f"Failed to save config: {e}")
         raise HTTPException(500, f"Failed to save configuration: {e}") from e
@@ -238,10 +236,8 @@ async def update_video_muxer_config(request: Request) -> dict[str, Any]:
         config.save()
         config.reload()
     except ValueError as e:
-        logger.warning(f"[VIDEO_MUXER] Validation warning: {e}")
-        invalidate_cache("config")
-        invalidate_cache("status")
-        return {"status": "updated", "config": config.to_dict(), "warning": str(e)}
+        logger.warning(f"[VIDEO_MUXER] Validation failed: {e}")
+        raise HTTPException(400, str(e)) from e
     except Exception as e:
         logger.error(f"[VIDEO_MUXER] Save failed: {e}")
         raise HTTPException(500, f"Failed to save configuration: {e}") from e

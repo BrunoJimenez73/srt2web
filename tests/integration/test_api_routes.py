@@ -237,9 +237,9 @@ class TestConfigEndpoints:
             json={
                 "encoder_mode": "gpu_nvenc",
                 "video_crf": 23,
-                "video_preset": "p5",
+                "video_preset": "fast",
                 "gpu_preset": "p4",
-                "audio_bitrate": 128,
+                "audio_bitrate": "128k",
             },
         )
         assert resp.status_code == 200

@@ -96,3 +96,19 @@ def mock_ws():
 @pytest.fixture
 def console():
     return Console(width=120, force_terminal=True, color_system=None, no_color=True)
+
+
+# ── Skip TUI tests if Textual is not installed ─────────────────────────────
+
+
+def pytest_ignore_collect(collection_path: object, path: object, config: object) -> bool | None:
+    """Skip TUI test files if textual is not installed."""
+    import os
+
+    p = str(collection_path) if hasattr(collection_path, "__str__") else str(path)
+    if os.path.basename(p).startswith("test_tui_") or ("tui" in p and p.endswith(".py")):
+        try:
+            import textual  # noqa: F401
+        except ImportError:
+            return True
+    return None

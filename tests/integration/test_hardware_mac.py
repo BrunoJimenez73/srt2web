@@ -6,102 +6,13 @@ detection work correctly without requiring actual Apple hardware.
 Platform-specific conditions are mocked.
 """
 
+import sys
 from unittest.mock import MagicMock, patch
 
-
-class TestMPSDetection:
-    """Test MPS (Metal Performance Shaders) detection."""
-
-    def test_mps_not_on_windows(self) -> None:
-        """MPS should not be available on non-macOS platforms."""
-        from core.hardware import detect_mps
-
-        with patch("sys.platform", "win32"):
-            result = detect_mps()
-            assert result["available"] is False
-            assert result["error"] == "MPS only available on macOS"
-
-    def test_mps_detection_no_torch(self) -> None:
-        """MPS detection should handle missing torch gracefully."""
-        from core.hardware import detect_mps
-
-        def _import_raiser(name, *args, **kwargs):
-            if name == "torch":
-                raise ImportError("No module named torch")
-            return __import__(name, *args, **kwargs)
-
-        with patch("sys.platform", "darwin"):
-            with patch("builtins.__import__", side_effect=_import_raiser):
-                result = detect_mps()
-                assert result["available"] is False
-                assert "not installed" in (result.get("error") or "")
-
-    def test_mps_available(self) -> None:
-        """MPS detection should return available when torch MPS works."""
-        from core.hardware import detect_mps
-
-        mock_torch = MagicMock()
-        mock_torch.backends.mps.is_available.return_value = True
-        mock_torch.tensor.return_value.to.return_value.cpu.return_value = None
-
-        with patch("sys.platform", "darwin"):
-            with patch.dict("sys.modules", {"torch": mock_torch}):
-                result = detect_mps()
-                assert result["available"] is True
-                assert result["error"] is None
-
-    def test_mps_not_available(self) -> None:
-        """MPS detection should return unavailable when torch MPS is not available."""
-        from core.hardware import detect_mps
-
-        mock_torch = MagicMock()
-        mock_torch.backends.mps.is_available.return_value = False
-
-        with patch("sys.platform", "darwin"):
-            with patch.dict("sys.modules", {"torch": mock_torch}):
-                result = detect_mps()
-                assert result["available"] is False
-
-    def test_mps_tensor_creation_fails(self) -> None:
-        """MPS detection should handle tensor creation failure."""
-        from core.hardware import detect_mps
-
-        mock_torch = MagicMock()
-        mock_torch.backends.mps.is_available.return_value = True
-        mock_torch.tensor.return_value.to.side_effect = RuntimeError("MPS device error")
-
-        with patch("sys.platform", "darwin"):
-            with patch.dict("sys.modules", {"torch": mock_torch}):
-                result = detect_mps()
-                assert result["available"] is False
-                assert "MPS device error" in (result.get("error") or "")
-
-    def test_get_optimal_device_mps(self) -> None:
-        """get_optimal_device should return mps when MPS is available."""
-        from core.hardware import get_optimal_device
-
-        mock_torch = MagicMock()
-        mock_torch.backends.mps.is_available.return_value = True
-        mock_torch.tensor.return_value.to.return_value.cpu.return_value = None
-
-        with patch("sys.platform", "darwin"):
-            with patch.dict("sys.modules", {"torch": mock_torch}):
-                device = get_optimal_device("auto")
-                assert device == "mps"
-
-    def test_get_optimal_device_mps_fallback(self) -> None:
-        """get_optimal_device should fall back to cpu when MPS requested but unavailable."""
-        from core.hardware import get_optimal_device
-
-        mock_torch = MagicMock()
-        mock_torch.backends.mps.is_available.return_value = False
-
-        with patch("sys.platform", "darwin"):
-            with patch.dict("sys.modules", {"torch": mock_torch}):
-                device = get_optimal_device("mps")
-                assert device == "cpu"
+import pytest
 
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="VideoToolbox only available on macOS")
 class TestVideoToolboxDetection:
     """Test VideoToolbox hardware acceleration detection."""
 

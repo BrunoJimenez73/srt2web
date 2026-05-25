@@ -163,13 +163,10 @@ class TestConfigUpdate:
 
     def test_invalid_nested_config_raises(self) -> None:
         """Test invalid nested config raises validation error."""
-        # The validation happens when the config is used, not when created
-        # Just verify the config is created correctly
-        update = ConfigUpdate(config={"modules": {"transcriber": {"model": "invalid"}}})
+        from pydantic import ValidationError
 
-        # The validation happens in api_routes.validate_config_value
-        # when the config is applied
-        assert update.config["modules"]["transcriber"]["model"] == "invalid"
+        with pytest.raises(ValidationError):
+            ConfigUpdate(config={"modules": {"transcriber": {"model": "invalid"}}})
 
 
 class TestChunkDurationSync:
@@ -456,7 +453,7 @@ class TestApiRouter:
         assert response.status_code == 422
 
     def test_update_config_invalid_model_accepted(self, mock_ctx) -> None:
-        """Test that invalid model is accepted (validation happens on apply)."""
+        """Test that invalid model is rejected with 422."""
         from fastapi.testclient import TestClient
 
         from server.app import create_app
@@ -469,10 +466,10 @@ class TestApiRouter:
             json={"config": {"modules": {"transcriber": {"model": "invalid_model"}}}},
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 422
 
     def test_update_config_invalid_model_returns_422(self, mock_ctx) -> None:
-        """Test that invalid model is accepted (validation happens on apply)."""
+        """Test that invalid model is rejected with 422."""
         from fastapi.testclient import TestClient
 
         from server.app import create_app
@@ -485,7 +482,7 @@ class TestApiRouter:
             json={"config": {"modules": {"transcriber": {"model": "invalid_model"}}}},
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 422
 
     def test_toggle_module_unknown_module_returns_400(self, mock_ctx) -> None:
         """Test toggling unknown module returns 400 due to sanitization."""

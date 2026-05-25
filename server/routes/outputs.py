@@ -23,20 +23,24 @@ def _sync_outputs_to_config(request: Request, composite: Any) -> None:
     ctx = _ctx(request)
     config = ctx["config"]
 
+    from core.io_factory import OutputFactory
+
     output_list = []
     for name in composite.get_output_names() if hasattr(composite, "get_output_names") else []:
         output = composite.get_output_by_name(name) if hasattr(composite, "get_output_by_name") else None
         if not output:
             continue
+        # Use actual output type from OutputFactory registry metadata
+        output_type = getattr(output, "output_type", None)
+        if not output_type:
+            # Fallback: reverse-lookup from factory registry
+            output_type = OutputFactory.resolve_type(type(output).__name__) or name
         entry = {
             "name": name,
-            "type": getattr(output, "name", name.rsplit("_", 1)[0] if "_" in name else name),
+            "type": output_type,
             "enabled": getattr(output, "enabled", True),
             "config": getattr(output, "config", {}),
         }
-        # Extraer el type real del output
-        type_attr = getattr(output, "name", "").rsplit("_", 1)
-        entry["type"] = type_attr[0] if len(type_attr) > 1 else name
         output_list.append(entry)
 
     config.set("output.outputs", output_list)

@@ -177,9 +177,13 @@ class TestConfigYAMLValidity:
 
         modules = config.get("modules", {})
         video_muxer = modules.get("video_muxer", {})
-        preset = video_muxer.get("video_preset", "medium")
+        video_preset = video_muxer.get("video_preset", "fast")
+        gpu_preset = video_muxer.get("gpu_preset", "p4")
 
-        assert preset in VALID_VIDEO_PRESETS, f"Invalid video preset: '{preset}'"
+        from core.config_schema import ALLOWED_GPU_PRESETS, ALLOWED_VIDEO_PRESETS
+
+        assert video_preset in ALLOWED_VIDEO_PRESETS, f"Invalid video preset: '{video_preset}'"
+        assert gpu_preset in ALLOWED_GPU_PRESETS, f"Invalid GPU preset: '{gpu_preset}'"
 
     def test_config_video_muxer_valid_encoder_mode(self) -> None:
         """Test that video muxer uses valid encoder mode."""

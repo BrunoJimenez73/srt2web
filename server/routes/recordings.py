@@ -12,6 +12,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 
+from core.security import sanitize_filename
+
 logger = logging.getLogger("srt2web.api.recordings")
 
 router = APIRouter(tags=["recordings"])
@@ -28,6 +30,17 @@ def _get_recordings_dir(request: Request) -> Path:
     recordings_dir = Path(output_dir) / "recordings"
     recordings_dir.mkdir(parents=True, exist_ok=True)
     return recordings_dir
+
+
+def _resolve_safe_path(recordings_dir: Path, name: str) -> Path:
+    """Resolve a safe file path within recordings_dir, preventing path traversal."""
+    safe_name = sanitize_filename(name)
+    file_path = (recordings_dir / safe_name).resolve()
+    try:
+        file_path.relative_to(recordings_dir.resolve())
+    except ValueError:
+        raise HTTPException(400, f"Invalid recording name: '{name}'") from None
+    return file_path
 
 
 def _scan_recordings(recordings_dir: Path) -> list[dict[str, Any]]:
@@ -88,14 +101,14 @@ async def list_recordings(request: Request) -> dict[str, Any]:
 async def download_recording(request: Request, name: str) -> FileResponse:
     """Download a recording file."""
     recordings_dir = _get_recordings_dir(request)
-    file_path = recordings_dir / name
+    file_path = _resolve_safe_path(recordings_dir, name)
 
     if not file_path.exists() or not file_path.is_file():
-        raise HTTPException(404, f"Recording '{name}' not found")
+        raise HTTPException(404, f"Recording '{file_path.name}' not found")
 
     return FileResponse(
         path=str(file_path),
-        filename=name,
+        filename=file_path.name,
         media_type="application/octet-stream",
     )
 
@@ -104,15 +117,15 @@ async def download_recording(request: Request, name: str) -> FileResponse:
 async def delete_recording(request: Request, name: str) -> dict[str, Any]:
     """Delete a recording file."""
     recordings_dir = _get_recordings_dir(request)
-    file_path = recordings_dir / name
+    file_path = _resolve_safe_path(recordings_dir, name)
 
     if not file_path.exists() or not file_path.is_file():
-        raise HTTPException(404, f"Recording '{name}' not found")
+        raise HTTPException(404, f"Recording '{file_path.name}' not found")
 
     try:
         os.remove(str(file_path))
-        logger.info(f"Recording deleted: {name}")
-        return {"status": "deleted", "name": name}
+        logger.info(f"Recording deleted: {file_path.name}")
+        return {"status": "deleted", "name": file_path.name}
     except OSError as e:
-        logger.error(f"Failed to delete recording {name}: {e}")
+        logger.error(f"Failed to delete recording {file_path.name}: {e}")
         raise HTTPException(500, f"Failed to delete recording: {e}") from e
