@@ -49,6 +49,7 @@ class SubtitleGenerator(BaseModule):
         self._vtt_entries: list[dict[str, Any]] = []
         self._max_vtt_entries = 2000  # Keep last 2000 subtitle entries (~200 chunks)
         self._vtt_max_age_seconds = 7200.0  # Remove entries older than 2 hours
+        self._in_configure = False  # Flag to prevent configure from overriding init defaults
 
         # Cache for timestamp formatting to avoid recomputation
         self.timestamp_format_cache = LRUCache(maxsize=500, ttl_seconds=60)
@@ -80,9 +81,13 @@ class SubtitleGenerator(BaseModule):
                 self._rewrite_vtt_file()
         self._chunk_duration = new_chunk_duration
         self._previous_chunk_duration = new_chunk_duration
-        # Rolling window settings
-        self._max_vtt_entries = config.get("max_vtt_entries", 200)
-        self._vtt_max_age_seconds = config.get("vtt_max_age_seconds", 300.0)
+        # Rolling window settings - use config values or sensible defaults
+        # Increased defaults to prevent subtitles from disappearing prematurely
+        self._max_vtt_entries = config.get("max_vtt_entries", 1000)
+        self._vtt_max_age_seconds = config.get("vtt_max_age_seconds", 1800.0)
+        logger.debug(
+            f"[SubtitleGen] Rolling window: max_entries={self._max_vtt_entries}, max_age={self._vtt_max_age_seconds}s"
+        )
 
     def start(self) -> None:
         """Initialize subtitle files."""

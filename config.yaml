@@ -14,29 +14,29 @@ input:
     mode: listener
     latency_ms: 200
     caller_address: ''
-    chunk_duration_sec: 4
+    chunk_duration_sec: 5
   rtmp:
     listen_port: 1935
     app: live
     stream_key: stream
     url: ''
     mode: listener
-    chunk_duration_sec: 4
+    chunk_duration_sec: 5
   file:
     path: ''
     loop: false
     speed: 1.0
-    chunk_duration_sec: 4
+    chunk_duration_sec: 5
 output:
   type: web
   web:
-    segment_duration: 4
-    list_size: 15
+    segment_duration: 5
+    list_size: 12
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
   hls:
-    segment_duration: 4
-    list_size: 15
+    segment_duration: 5
+    list_size: 12
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
   rtmp:
@@ -78,17 +78,17 @@ output:
     video_preset: fast
   outputs: []
 pipeline:
-  chunk_duration_sec: 4
+  chunk_duration_sec: 5
   mode: thread_parallel
   max_concurrent_chunks: 4
-  buffer_size: 5
-  retry_attempts: 2
+  buffer_size: 10
+  retry_attempts: 3
   retry_delay: 1.0
 modules:
   audio_extractor:
     enabled: true
   transcriber:
-    enabled: false
+    enabled: true
     model: tiny
     language: auto
     device: auto
@@ -102,37 +102,37 @@ modules:
     enabled: true
     format: webvtt
     use_translated: true
-    chunk_duration: 4
+    chunk_duration: 5
     dual_track: false
   tts_engine:
-    enabled: false
-    engine: edge-tts
+    enabled: true
+    engine: piper
     device: auto
-    voice: es-ES-ElviraNeural
+    voice: es_ES-sharvard-medium
     speed: 1.0
   audio_mixer:
-    enabled: false
-    original_volume: 0.2
+    enabled: true
+    original_volume: 0.7
     tts_volume: 1.0
     dubbed_volume: 1.0
   video_muxer:
     enabled: true
     engine: hls
-    hls_segment_duration: 4
-    hls_list_size: 15
+    hls_segment_duration: 5
+    hls_list_size: 12
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
     video_quality: medium
     video_crf: 23
     audio_codec: aac
     audio_bitrate: 128k
-    video_bitrate: null
-    video_fps: null
-    video_width: null
-    video_height: null
+    video_bitrate: 1000k
+    video_fps: 15
+    video_width: 320
+    video_height: 240
     webrtc_audio_codec: null
     webrtc_audio_bitrate: null
-    audio_sample_rate: null
+    audio_sample_rate: 24000
     gpu_preset: p4
     video_preset: fast
 subtitle_sync:

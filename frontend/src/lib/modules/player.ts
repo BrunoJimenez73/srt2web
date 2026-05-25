@@ -78,8 +78,10 @@ export function initHlsPlayer(): void {
     return;
   }
 
-  const streamUrl = `${window.location.origin}/hls/stream.m3u8`;
-  const subtitlesUrl = `${window.location.origin}/subtitles/subs.vtt`;
+  // Cache buster to prevent loading stale HLS segments from previous sessions
+  const _sessionTs = Date.now();
+  const streamUrl = `${window.location.origin}/hls/stream.m3u8?_=${_sessionTs}`;
+  const subtitlesUrl = `${window.location.origin}/subtitles/subs.vtt?_=${_sessionTs}`;
   let hls: HlsInstance | null = null;
   let subtitleInterval: ReturnType<typeof setInterval> | null = null;
   let lastSubtitleContent = "";
@@ -189,10 +191,14 @@ export function initHlsPlayer(): void {
   // Load and display subtitles
   async function loadSubtitles() {
     try {
-      const response = await fetch(subtitlesUrl, {
-        cache: "no-cache",
-        headers: { "Cache-Control": "no-cache" },
-      });
+      const ts = Date.now();
+      const response = await fetch(
+        `${window.location.origin}/subtitles/subs.vtt?_=${ts}`,
+        {
+          cache: "no-cache",
+          headers: { "Cache-Control": "no-cache" },
+        },
+      );
 
       if (!response.ok) {
         if (response.status !== 404) {
@@ -263,6 +269,12 @@ export function initHlsPlayer(): void {
     if (waitingEl) waitingEl.style.display = "block";
     isConnected = false;
     consecutiveErrors = 0;
+    lastSubtitleContent = "";
+
+    // Update cache buster for fresh session
+    const ts = Date.now();
+    const freshStreamUrl = `${window.location.origin}/hls/stream.m3u8?_=${ts}`;
+    const freshSubtitlesUrl = `${window.location.origin}/subtitles/subs.vtt?_=${ts}`;
 
     if (typeof Hls !== "undefined" && Hls.isSupported()) {
       if (hls) {
@@ -281,7 +293,7 @@ export function initHlsPlayer(): void {
         liveDurationInfinity: true,
       });
 
-      hls.loadSource(streamUrl);
+      hls.loadSource(freshStreamUrl);
       hls.attachMedia(video);
 
       hls.on(HlsEvents.MANIFEST_PARSED, () => {
@@ -318,7 +330,7 @@ export function initHlsPlayer(): void {
         startHealthCheck();
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = streamUrl;
+      video.src = freshStreamUrl;
       video.addEventListener("loadedmetadata", () => {
         if (waitingEl) waitingEl.style.display = "none";
         isConnected = true;

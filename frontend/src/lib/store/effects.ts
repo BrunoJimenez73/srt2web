@@ -191,23 +191,49 @@ function startThroughputEffect(): void {
 }
 
 // ── Effect: GPU Badges (per-module) ─────────────────────────────────────────
+// Shows "GPU" when module uses GPU acceleration, "CPU" when explicitly CPU,
+// and hides the badge when module state is unknown/not running.
 
 function startGpuBadgesEffect(): void {
   effect(() => {
     const status = pipelineStatus.value;
     const modules = status?.modules || [];
+    const running = status?.state === "running";
 
+    // First pass: update badges from module status
+    const updatedModules = new Set<string>();
     for (const mod of modules) {
       const badge = el<HTMLElement>(`gpu-badge-${mod.name}`);
       if (!badge) continue;
+      updatedModules.add(`gpu-badge-${mod.name}`);
 
       const usingGpu =
-        mod.extra?.using_gpu ||
+        mod.extra?.using_gpu === true ||
         mod.extra?.device === "cuda" ||
         mod.extra?.device === "mps";
 
-      badge.style.display = usingGpu ? "inline" : "none";
-      badge.classList.toggle("active", !!usingGpu);
+      if (!mod.enabled) {
+        badge.style.display = "none";
+      } else if (usingGpu) {
+        badge.style.display = "inline";
+        badge.textContent = "GPU";
+        badge.classList.add("active");
+      } else {
+        badge.style.display = "inline";
+        badge.textContent = "CPU";
+        badge.classList.remove("active");
+      }
+    }
+
+    // Second pass: show badges for known static cards not in module status
+    // (translator is CPU-only, always visible when pipeline is running)
+    if (running && !updatedModules.has("gpu-badge-translator")) {
+      const translatorBadge = el<HTMLElement>("gpu-badge-translator");
+      if (translatorBadge) {
+        translatorBadge.style.display = "inline";
+        translatorBadge.textContent = "CPU";
+        translatorBadge.classList.remove("active");
+      }
     }
   });
 }

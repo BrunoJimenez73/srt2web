@@ -26,12 +26,24 @@ let filterDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * Alterna el estado colapsado/expandido del panel de logs
+ * Usa style.display directamente para evitar problemas con Astro CSS scoping
  */
 export function toggleLogPanel(): void {
   if (!logPanel) return;
 
   isCollapsed = !isCollapsed;
   logPanel.classList.toggle("collapsed", isCollapsed);
+
+  // Direct style manipulation to bypass Astro CSS scoping issues
+  const content = document.getElementById("log-content");
+  const actions = document.querySelector(".log-actions") as HTMLElement | null;
+
+  if (content) {
+    content.style.display = isCollapsed ? "none" : "";
+  }
+  if (actions) {
+    actions.style.display = isCollapsed ? "none" : "";
+  }
 
   if (collapseIcon) {
     collapseIcon.textContent = isCollapsed ? "▶" : "▼";
@@ -72,7 +84,7 @@ export function addLog(
   const entry = document.createElement("div");
   entry.className = "log-entry";
   entry.setAttribute("role", "listitem");
-  entry.dataset.level = level;
+  entry.dataset.level = level.toLowerCase();
   entry.dataset.message = message.toLowerCase();
 
   const time = timestamp
