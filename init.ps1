@@ -39,7 +39,7 @@ try {
 Write-Host "`n--- 4. Tests Python (obligatorio) ---" -ForegroundColor Cyan
 $pytestArgs = @("-q", "--tb=short")
 if ($Quick) {
-    $pytestArgs += @("-m", "not slow", "-n", "auto")
+    $pytestArgs += @("-m", "not slow", "-n", "auto", "--basetemp", ".\tmpsrt2web-pytest")
     Warn "Modo quick: saltando tests marcados como slow (Whisper/TTS reales)"
 }
 $testResult = & $VENV_PYTHON -m pytest tests/unit/ @pytestArgs 2>&1
@@ -52,14 +52,24 @@ if ($LASTEXITCODE -eq 0) { Ok "mypy: 0 errores en core/, server/ y modules/" } e
 Write-Host "`n--- 6. TypeScript (obligatorio) ---" -ForegroundColor Cyan
 Push-Location frontend
 try {
-    $tscResult = & "npx" tsc --noEmit 2>&1
+    $env:ASTRO_TELEMETRY_DISABLED = '1'
+    if (Test-Path "node_modules/.bin/tsc") {
+        $tscResult = & "node_modules/.bin/tsc" --noEmit 2>&1
+    } else {
+        $tscResult = & "npx" tsc --noEmit 2>&1
+    }
     if ($LASTEXITCODE -eq 0) { Ok "TypeScript: 0 errores" } else { Fail "TypeScript tiene errores:"; Write-Host $tscResult -ForegroundColor Red }
 } finally { Pop-Location }
 
 Write-Host "`n--- 7. Tests frontend (obligatorio en Quick, informativo en full) ---" -ForegroundColor Cyan
 Push-Location frontend
 try {
-    $npmResult = & "npm" test 2>&1
+    $env:ASTRO_TELEMETRY_DISABLED = '1'
+    if (Test-Path "node_modules/.bin/vitest") {
+        $npmResult = & "node_modules/.bin/vitest" run 2>&1
+    } else {
+        $npmResult = & "npm" test 2>&1
+    }
     if ($LASTEXITCODE -eq 0) { Ok "Frontend tests: pasan" } else { Warn "Frontend tests fallan (no bloqueante en Quick)" }
 } finally { Pop-Location }
 
@@ -67,10 +77,17 @@ if (-not $Quick) {
     Write-Host "`n--- 8. Build frontend (informativo) ---" -ForegroundColor Cyan
     Push-Location frontend
     try {
+        $env:ASTRO_TELEMETRY_DISABLED = '1'
         $buildResult = & "npm" run build:local 2>&1
         if ($LASTEXITCODE -eq 0) { Ok "Frontend build: exitoso" } else { Warn "Frontend build falla (no bloqueante)" }
     } finally { Pop-Location }
 }
+
+Write-Host "`n--- 9. Herramientas dev ---" -ForegroundColor Cyan
+$ruffCheck = & $VENV_PYTHON -c "import ruff" 2>&1
+if ($LASTEXITCODE -eq 0) { Ok "ruff disponible" } else { Warn "ruff no instalado (pip install ruff)" }
+$mkdocsCheck = & $VENV_PYTHON -c "import mkdocs" 2>&1
+if ($LASTEXITCODE -eq 0) { Ok "mkdocs disponible" } else { Warn "mkdocs no instalado (pip install mkdocs)" }
 
 Write-Host "`n--- Resumen ---" -ForegroundColor Cyan
 if ($EXIT_CODE -eq 0) { Ok "Entorno listo." } else { Fail "Hay errores bloqueantes. Revisa arriba." }

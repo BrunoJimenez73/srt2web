@@ -4,8 +4,7 @@
 # Exit code 0 = entorno listo. Exit code 1 = bloqueante.
 # Usage: ./init_Mac.sh [--quick]
 
-set -e
-
+# Not using set -e: this is a verification script, failures are handled explicitly
 QUICK=false
 for arg in "$@"; do
     case "$arg" in
@@ -119,7 +118,7 @@ echo -e "\n${CYAN}--- 6. Python unit tests ---${NC}"
 
 PYTEST_ARGS=("-q" "--tb=short")
 if [ "$QUICK" = true ]; then
-    PYTEST_ARGS+=("-m" "not slow")
+    PYTEST_ARGS+=("-m" "not slow" "-n" "auto" "--basetemp" "./tmpsrt2web-pytest")
     warn "Quick mode: skipping slow tests (Whisper/TTS real models)"
 fi
 
@@ -129,18 +128,63 @@ else
     fail "Python unit tests: some tests failed"
 fi
 
-# ── 7. mypy type check (informational on Mac) ──────────────────────────
-if [ "$QUICK" = false ]; then
-    echo -e "\n${CYAN}--- 7. mypy type check ---${NC}"
-    if "$PYTHON_BIN" -m mypy core/ server/ --strict 2>/dev/null; then
-        ok "mypy: 0 errors in core/ and server/"
+# ── 7. mypy type check ─────────────────────────────────────────────────
+echo -e "\n${CYAN}--- 7. mypy type check ---${NC}"
+if "$PYTHON_BIN" -m mypy core/ server/ modules/ --config-file pyproject.toml 2>/dev/null; then
+    ok "mypy: 0 errors in core/, server/ and modules/"
+else
+    if [ "$QUICK" = true ]; then
+        warn "mypy found errors (informational in quick mode)"
     else
-        warn "mypy found errors (informational, not blocking)"
+        fail "mypy found errors"
     fi
 fi
 
-# ── 8. Terminal capabilities (Mac-specific) ────────────────────────────
-echo -e "\n${CYAN}--- 8. Terminal capabilities ---${NC}"
+# ── 8. TypeScript check (required) ─────────────────────────────────────
+echo -e "\n${CYAN}--- 8. TypeScript (required) ---${NC}"
+if [ -f "frontend/node_modules/.bin/tsc" ]; then
+    ASTRO_TELEMETRY_DISABLED=1 frontend/node_modules/.bin/tsc --noEmit 2>/dev/null && ok "TypeScript: 0 errors" || fail "TypeScript has errors"
+elif command -v npx &>/dev/null; then
+    (cd frontend && ASTRO_TELEMETRY_DISABLED=1 npx tsc --noEmit 2>/dev/null) && ok "TypeScript: 0 errors" || fail "TypeScript has errors"
+else
+    fail "TypeScript compiler not found (frontend/node_modules/.bin/tsc or npx)"
+fi
+
+# ── 9. Frontend tests (required in quick, informational in full) ───────
+echo -e "\n${CYAN}--- 9. Frontend tests ---${NC}"
+if [ -f "frontend/node_modules/.bin/vitest" ]; then
+    ASTRO_TELEMETRY_DISABLED=1 frontend/node_modules/.bin/vitest run 2>/dev/null && ok "Frontend tests: pass" || warn "Frontend tests: some failed (non-blocking in quick mode)"
+elif command -v npm &>/dev/null; then
+    (cd frontend && ASTRO_TELEMETRY_DISABLED=1 npm test 2>/dev/null) && ok "Frontend tests: pass" || warn "Frontend tests: some failed (non-blocking in quick mode)"
+else
+    warn "npm not available (cannot run frontend tests)"
+fi
+
+if [ "$QUICK" = false ]; then
+    # ── 9b. Build frontend (informational) ──────────────────────────────
+    echo -e "\n${CYAN}--- 9b. Build frontend (informational) ---${NC}"
+    if [ -f "frontend/node_modules/.bin/astro" ]; then
+        (cd frontend && ASTRO_TELEMETRY_DISABLED=1 npm run build:local 2>/dev/null) && ok "Frontend build: success" || warn "Frontend build: failed (non-blocking)"
+    else
+        warn "Astro not available (frontend/node_modules/.bin/astro)"
+    fi
+fi
+
+# ── 10. Tooling check ──────────────────────────────────────────────────
+echo -e "\n${CYAN}--- 10. Tooling check ---${NC}"
+if "$PYTHON_BIN" -c "import ruff" 2>/dev/null; then
+    ok "ruff available"
+else
+    warn "ruff not installed (run: pip install ruff)"
+fi
+if "$PYTHON_BIN" -c "import mkdocs" 2>/dev/null; then
+    ok "mkdocs available"
+else
+    warn "mkdocs not installed (run: pip install mkdocs)"
+fi
+
+# ── 11. Terminal capabilities (Mac-specific) ───────────────────────────
+echo -e "\n${CYAN}--- 11. Terminal capabilities ---${NC}"
 
 # Terminal detection
 if [ "$TERM_PROGRAM" = "Apple_Terminal" ]; then

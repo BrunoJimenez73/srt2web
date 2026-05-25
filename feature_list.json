@@ -1671,7 +1671,7 @@
       "id": 92,
       "name": "tooling_harness_baseline",
       "title": "Estabilizar arnés local y tooling de verificación",
-      "status": "pending",
+      "status": "done",
       "area": "maintenance",
       "priority": "Alta",
       "description": "Hacer que init.ps1/init_Mac.sh y los comandos de verificación funcionen de forma reproducible sin depender de temporales bloqueados, npm/npx global o telemetría que escribe fuera del workspace.",

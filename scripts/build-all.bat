@@ -2,6 +2,7 @@
 cd /d "%~dp0.."
 echo === Building frontend ===
 cd frontend
+set "ASTRO_TELEMETRY_DISABLED=1"
 call npx astro build
 if %errorlevel% neq 0 exit /b %errorlevel%
 cd ..
