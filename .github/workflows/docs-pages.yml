@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - "docs/**"
-      - "mkdocs.yml"
+      - "docs/mkdocs.yml"
 
 jobs:
   deploy:
@@ -30,7 +30,7 @@ jobs:
 
       - name: Build docs
         run: |
-          cd docs && mkdocs build
+          cd docs && mkdocs build --config-file mkdocs.yml
 
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4

@@ -37,7 +37,9 @@ COPY frontend/package*.json frontend/
 RUN cd frontend && npm ci
 
 COPY frontend/ frontend/
-RUN cd frontend && npm run build:local
+RUN cd frontend && ASTRO_TELEMETRY_DISABLED=1 npx astro build --outDir ../server/static
+
+RUN python -m mkdocs build -f docs/mkdocs.yml --site-dir /app/server/static/docs 2>/dev/null || echo "Docs build skipped (mkdocs not available)"
 
 # -----------------------------------------------------------------------------
 # Etapa 2: Runtime — imagen mínima de ejecución
@@ -92,9 +94,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder /usr/local/lib/python3.12/dist-packages /usr/local/lib/python3.12/dist-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
-COPY --from=builder /app/frontend/dist /app/server/static
+COPY --from=builder /app/server/static /app/server/static
 
 COPY . .
+RUN rm -rf /app/tests /app/frontend /app/.github
 
 EXPOSE 9000/udp
 EXPOSE 9999/tcp

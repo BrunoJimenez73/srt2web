@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build --outDir ../server/static",
-    "build:local": "call ..\\scripts\\build-all.bat",
+    "build:local": "node -e \"process.platform === 'win32' ? require('child_process').execSync('call ..\\\\scripts\\\\build-all.bat', {shell: 'cmd.exe', stdio: 'inherit'}) : require('child_process').execSync('bash ../scripts/build-all.sh', {stdio: 'inherit'})\"",
     "build:docs": "astro build --outDir ../server/static",
     "preview": "astro preview",
     "astro": "astro",
