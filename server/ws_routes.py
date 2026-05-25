@@ -78,8 +78,8 @@ class LogBroadcaster:
         self._loop = loop
 
     async def subscribe(self, ws: WebSocket) -> None:
-        """Add a WebSocket subscriber."""
-        await ws.accept()
+        """Add a WebSocket subscriber and send buffered messages.
+        The WebSocket must already be accepted via ws.accept()."""
         self._subscribers.add(ws)
         logger.info(f"WebSocket client connected. Total: {len(self._subscribers)}")
 
@@ -196,11 +196,11 @@ def create_ws_router() -> APIRouter:
         config = ctx.get("config")
         configured_token = config.get("server.auth_token", "") if config else ""
 
-        # If auth token is configured, require token in first message
-        auth_verified = False
-        if not configured_token:
-            # No auth configured - allow connection
-            auth_verified = True
+        # Accept the WebSocket (required before sending/receiving)
+        await websocket.accept()
+
+        # If auth token is configured, require token in first message before subscribing
+        auth_pending = bool(configured_token)
 
         # Set the event loop if not set
         try:
@@ -213,34 +213,35 @@ def create_ws_router() -> APIRouter:
         except Exception as e:
             logger.debug("Suppressed error: %s", e, exc_info=True)
 
-        await log_broadcaster.subscribe(websocket)
+        # Subscribe immediately if no auth required
+        if not auth_pending:
+            await log_broadcaster.subscribe(websocket)
 
         try:
             while True:
-                # Keep connection alive, also accept commands from client
                 data = await websocket.receive_text()
                 try:
                     msg = json.loads(data)
 
                     # Handle auth in first message if token is configured
-                    if not auth_verified and configured_token:
+                    if auth_pending:
                         if msg.get("type") == "auth":
                             client_token = msg.get("token", "")
                             if client_token == configured_token:
-                                auth_verified = True
+                                auth_pending = False
+                                await log_broadcaster.subscribe(websocket)
                                 await websocket.send_text(json.dumps({"type": "auth_ok"}))
                             else:
                                 await websocket.close(code=4001, reason="Invalid token")
                                 return
                         else:
-                            # Auth required but not provided
                             await websocket.close(
                                 code=4001, reason="Authentication required. Send {type: 'auth', token: '...'}"
                             )
                             return
                         continue
 
-                    # Handle client commands (e.g., request status)
+                    # Handle client commands
                     if msg.get("type") == "ping":
                         await websocket.send_text(json.dumps({"type": "pong"}))
                     elif msg.get("type") == "get_status":

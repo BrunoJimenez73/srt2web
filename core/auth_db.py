@@ -7,6 +7,7 @@ Los usuarios se persisten en config/users.json.
 
 import hashlib
 import json
+import logging
 import os
 import secrets
 import time
@@ -17,8 +18,19 @@ from typing import Any, cast
 
 import jwt
 
-JWT_SECRET_KEY = os.environ.get("SRT2WEB_JWT_SECRET", "change-me-in-production")
+logger = logging.getLogger(__name__)
+
+JWT_SECRET_KEY = os.environ.get("SRT2WEB_JWT_SECRET", "")
 JWT_ALGORITHM = "HS256"
+
+if not JWT_SECRET_KEY:
+    JWT_SECRET_KEY = "change-me-in-production"
+    logger.warning(
+        "SECURITY: SRT2WEB_JWT_SECRET not set. Using insecure default key. "
+        "Set environment variable SRT2WEB_JWT_SECRET to a secure random value."
+    )
+else:
+    logger.info("JWT secret configured from environment variable.")
 JWT_EXPIRY_HOURS = 24
 
 ROLES = {"admin": 100, "operator": 50, "viewer": 10}

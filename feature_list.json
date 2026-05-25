@@ -1754,7 +1754,7 @@
       "id": 94,
       "name": "security_auth_model_hardening",
       "title": "Hardening de autenticación, secretos y WebSocket",
-      "status": "pending",
+      "status": "done",
       "area": "security",
       "priority": "Alta",
       "description": "Corregir el modelo mixto de auth_token estático y JWT, eliminar secretos/defaults inseguros, y cerrar fugas de WebSocket antes de autenticación.",

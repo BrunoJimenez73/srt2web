@@ -38,7 +38,8 @@ class TestLogBroadcaster:
 
         await broadcaster.subscribe(mock_ws)
 
-        mock_ws.accept.assert_called_once()
+        # subscribe no longer calls accept() — accept is done before auth
+        mock_ws.accept.assert_not_called()
         assert mock_ws in broadcaster._subscribers
 
     def test_unsubscribe(self) -> None:
