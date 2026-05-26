@@ -1,43 +1,64 @@
-# Sesión actual — F101: Corrección de bugs frontend/backend ✅ DONE
+# Sesión actual — F100: Seguridad scripts Start/Stop y gestión de procesos ✅ DONE
 
-## Bugs corregidos
+## Cambios realizados
 
-### 1. ✅ Subtítulos se desajustan o desaparecen
+### 1. ✅ Start.bat — PID file
 
-**Causa raíz**: `subtitle_generator.py` en `configure()` sobreescribía defaults con valores muy agresivos:
+- Reemplazado `start` command por `PowerShell Start-Process -PassThru` para capturar PID
+- Escribe PID en `srt2web.pid` en la raíz del proyecto
+- Fallback al `start` tradicional si falla la captura
 
-- `_max_vtt_entries`: 2000 → 200 (5x menos)
-- `_vtt_max_age_seconds`: 7200s (2h) → 300s (5min)
-  Esto cortaba los subtítulos después de solo 5 minutos o 200 chunks.
+### 2. ✅ Stop.bat — Parada selectiva + --clean
 
-**Fix**: Aumentado a 1000 entradas y 1800s (30min) como defaults. Agregado logging de los valores actuales.
+- Lee PID de `srt2web.pid` y mata solo ese proceso con `taskkill /PID /T /F`
+- Si no hay PID file, busca por puertos conocidos (9999, 9000, etc.)
+- **Eliminado**: `taskkill /F /IM python.exe` global (mataba todos los python del sistema)
+- **Eliminado**: `taskkill /F /IM node.exe` global
+- **Eliminado**: `taskkill /F /IM ffmpeg.exe` global
+- Limpieza de logs/output/caches movida a flag `--clean` con confirmación
+- `Stop.bat` (sin args) solo mata procesos srt2web, no toca archivos
 
-### 2. ✅ Per-Module Latency sin formatear
+### 3. ✅ start_Mac.sh — Background + PID file + trap
 
-**Causa raíz**: `MetricsCard.astro` usaba `innerHTML` en el effect de latency breakdown. Astro scopes CSS con data-attributes, pero los elementos creados con `innerHTML` no heredan esos atributos → el CSS no se aplicaba.
+- Servidor ahora corre en background con `&`
+- Captura PID via `$!`, escribe `srt2web.pid`
+- `trap cleanup EXIT` elimina PID file al salir
 
-**Fix**: Reemplazado `innerHTML` con `createElement` + `className` (que sí respeta el scoping de Astro). También se añadió `:global()` a las reglas CSS de timing-stage como fallback.
+### 4. ✅ stop_Mac.sh — Parada selectiva + --clean
 
-### 3. ✅ Módulo traducir sin GPU
+- Prioridad: leer PID de `srt2web.pid`
+- Fallback: pgrep/lsof para TUI y servidor
+- `--clean` flag con confirmación para limpieza
 
-**Explicación**: El módulo Translator usa `argostranslate` que es CPU-only (traducción offline sin aceleración GPU). Esto es correcto y esperado.
+### 5. ✅ pipeline.py — Validación output_dir
 
-**Fix**: El badge GPU ahora muestra "CPU" para módulos que corren en CPU, "GPU" para los que usan aceleración, y se oculta solo cuando el módulo no está activo. Antes se ocultaba para todos los que no tenían `using_gpu: true`.
+- `stop_pipeline()` resuelve `output_dir` a path absoluto
+- Verifica que esté dentro del project root antes de `shutil.rmtree`
+- Si está fuera, loggea warning y retorna sin limpiar
 
-### 4. ✅ Desplegable logs no funciona
+### 6. ✅ Tests — 10 nuevos en TestProcessManagementSafety
 
-**Causa raíz**: Dos sistemas de renderizado competían:
+- `test_stop_bat_no_global_taskkill_python/node/ffmpeg`
+- `test_stop_bat_has_pid_file_logic`
+- `test_stop_bat_has_clean_flag`
+- `test_start_bat_writes_pid_file`
+- `test_start_mac_sh_writes_pid_file`
+- `test_stop_mac_sh_reads_pid_file`
+- `test_stop_mac_sh_has_clean_flag`
+- `test_pipeline_cleanup_validates_output_dir`
 
-- `logpanel.ts` (DOM appendChild + filtros propios)
-- Inline `<script>` en `LogPanel.astro` (virtual scroll + filtros propios)
-  Ambos se inicializaban y configuraban event listeners DUPLICADOS. Cambiar el filtro en el dropdown o hacer toggle activaba respuestas impredecibles.
+## Resultados
 
-**Fix**: Eliminado el inline script duplicado con virtual scroll. Unificado todo en `logpanel.ts` que es el sistema principal. El inline script ahora solo maneja el evento de toggle (click en header) y clear logs, delegando a las funciones exportadas de logpanel.ts.
+- `pytest tests/unit/ -n=4 -m "not slow"` → **1085 passed, 3 skipped, 4 xpassed** (+10 tests vs F98)
+- `pytest tests/cli/ -q -n=2` → 192 passed
+- feature_list.json: F99 añadido (build/static/docs/Docker), F100 marcado done
 
 ## Archivos modificados
 
-- `frontend/src/components/LogPanel.astro` — eliminado virtual scroll duplicado
-- `frontend/src/components/MetricsCard.astro` — innerHTML → createElement + :global() CSS
-- `frontend/src/lib/modules/logpanel.ts` — fix dataset.level lowercase
-- `frontend/src/lib/store/effects.ts` — GPU badges ahora muestran CPU/GPU correctamente
-- `modules/subtitle_generator.py` — defaults aumentados: 1000 entradas, 30min rolling window
+- `Start.bat` — PID capture via PowerShell
+- `Stop.bat` — reescrito: PID-based kill + --clean flag
+- `start_Mac.sh` — background, PID file, trap cleanup
+- `stop_Mac.sh` — reescrito: PID-based kill + --clean flag
+- `server/routes/pipeline.py` — output_dir validation before rmtree
+- `tests/unit/test_workspace_fixes.py` — 10 nuevos tests F100
+- `feature_list.json` — F99 añadido y F100 marcado done

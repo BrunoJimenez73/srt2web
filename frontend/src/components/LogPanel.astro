@@ -2,8 +2,6 @@
 import { t, initLanguage } from "../lib/i18n";
 initLanguage();
 ---
-<!-- TEST: entry.dataset.message -->
-<!-- TEST: entry.dataset.level -->
 
 <div class="log-panel collapsed" role="region" aria-label="Panel de registros del sistema">
   <div class="log-header" id="log-header" role="button" tabindex="0" aria-expanded="false" aria-controls="log-content">
@@ -12,12 +10,11 @@ initLanguage();
       <span class="log-title">📋 {t("log_title")}</span>
       <span class="log-count" id="log-count"></span>
     </div>
-    <div class="log-actions">
+    <div class="log-actions" id="log-actions">
       <select
         class="log-level-select"
         id="log-level-filter"
         aria-label={t("log_filter_all")}
-        onclick="event.stopPropagation()"
       >
         <option value="ALL">{t("log_filter_all")}</option>
         <option value="INFO">{t("log_filter_info")}</option>
@@ -30,7 +27,6 @@ initLanguage();
         id="log-search"
         placeholder={t("log_search_placeholder")}
         aria-label={t("search_logs")}
-        onclick="event.stopPropagation()"
       />
       <button class="btn-export" id="btn-export-json" aria-label={t("log_export_json")} title={t("log_export_json")}>📥</button>
       <button class="btn-export" id="btn-export-txt" aria-label={t("log_export_txt")} title={t("log_export_txt")}>📄</button>
@@ -46,12 +42,11 @@ initLanguage();
 </div>
 
 <style>
-  .log-panel.collapsed .log-content {
-    display: none !important;
-  }
-
-  .log-panel.collapsed .log-actions {
-    display: none !important;
+  .log-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-left: 12px;
   }
 
   .log-search {
@@ -151,37 +146,162 @@ initLanguage();
 </style>
 
 <script>
-  import { initLogPanel, toggleLogPanel, filterByLevel, filterLogs, clearLogs as clearLogsFn } from '../lib/modules/logpanel';
+  // ── State ───────────────────────────────────────────────────────────
+  let isCollapsed = true;
 
-  // Initialize on mount
-  initLogPanel();
+  const maxLogs = 1000;
+  let allEntries: Array<{level: string, message: string, timestamp: string}> = [];
+  let currentFilter = '';
+  let currentLevel = 'ALL';
 
+  // ── Helpers ─────────────────────────────────────────────────────────
+  function el(id: string): HTMLElement | null {
+    return document.getElementById(id);
+  }
+
+  function escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function getLogContent(): HTMLElement | null { return el('log-content'); }
+
+  // ── Toggle ──────────────────────────────────────────────────────────
+  function togglePanel(): void {
+    isCollapsed = !isCollapsed;
+    const content = getLogContent();
+    const actions = el('log-actions');
+    const icon = el('log-collapse-icon');
+    const header = el('log-header');
+
+    if (content) content.style.display = isCollapsed ? 'none' : '';
+    if (actions) actions.style.display = isCollapsed ? 'none' : '';
+    if (icon) icon.textContent = isCollapsed ? '▶' : '▼';
+    if (header) header.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+  }
+
+  // ── Filters ─────────────────────────────────────────────────────────
+  function applyFilters(): void {
+    const content = getLogContent();
+    if (!content) return;
+    const entries = content.querySelectorAll('.log-entry');
+    entries.forEach((entry) => {
+      const el2 = entry as HTMLElement;
+      const level = (el2.dataset.level || 'info').toUpperCase();
+      const message = el2.dataset.message || '';
+      const showLevel = currentLevel === 'ALL' || level === currentLevel;
+      const showText = !currentFilter || message.includes(currentFilter.toLowerCase());
+      el2.style.display = showLevel && showText ? '' : 'none';
+    });
+  }
+
+  function setLevelFilter(level: string): void {
+    currentLevel = level;
+    applyFilters();
+  }
+
+  function setSearchFilter(text: string): void {
+    currentFilter = text;
+    applyFilters();
+  }
+
+  // ── Add log entry ───────────────────────────────────────────────────
+  function addLog(level: string, message: string, timestamp?: string): void {
+    const content = getLogContent();
+    if (!content) return;
+
+    // Remove empty state
+    const empty = el('log-empty');
+    if (empty && empty.parentElement === content) empty.remove();
+
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.dataset.level = level.toLowerCase();
+    entry.dataset.message = message.toLowerCase();
+
+    const time = timestamp
+      ? new Date(timestamp).toLocaleTimeString('es-ES')
+      : new Date().toLocaleTimeString('es-ES');
+
+    entry.innerHTML = `<span class="log-timestamp">${time}</span> <span class="log-level">[${level}]</span> <span class="log-message">${escapeHtml(message)}</span>`;
+
+    // Apply current filters
+    const showLevel = currentLevel === 'ALL' || level.toUpperCase() === currentLevel;
+    const showText = !currentFilter || message.toLowerCase().includes(currentFilter.toLowerCase());
+    if (!showLevel || !showText) entry.style.display = 'none';
+
+    content.appendChild(entry);
+
+    // Limit
+    while (content.children.length > maxLogs) {
+      if (content.firstChild) content.removeChild(content.firstChild);
+    }
+
+    // Auto-scroll
+    content.scrollTop = content.scrollHeight;
+  }
+
+  // ── Clear ───────────────────────────────────────────────────────────
+  function clearAllLogs(): void {
+    const content = getLogContent();
+    if (!content) return;
+    content.innerHTML = `<div class="log-empty" id="log-empty" role="status"><span class="log-empty-icon">📝</span><span class="log-empty-text">Sin registros aún</span></div>`;
+    allEntries = [];
+    currentFilter = '';
+    currentLevel = 'ALL';
+    const sel = el('log-level-filter') as HTMLSelectElement;
+    if (sel) sel.value = 'ALL';
+    const inp = el('log-search') as HTMLInputElement;
+    if (inp) inp.value = '';
+  }
+
+  // ── Exports for effects.ts ──────────────────────────────────────────
+  (window as any).__logAdd = addLog;
+  (window as any).__logClear = clearAllLogs;
+
+  // ── Init ────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function() {
-    // Toggle log panel
-    const logHeader = document.getElementById('log-header');
-    if (logHeader) {
-      logHeader.addEventListener('click', function() {
-        toggleLogPanel();
-        const panel = document.querySelector('.log-panel');
-        logHeader.setAttribute('aria-expanded', panel?.classList.contains('collapsed') ? 'false' : 'true');
-      });
-      logHeader.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          toggleLogPanel();
-          const panel = document.querySelector('.log-panel');
-          logHeader.setAttribute('aria-expanded', panel?.classList.contains('collapsed') ? 'false' : 'true');
-        }
+    // Toggle: click header
+    const header = el('log-header');
+    if (header) {
+      header.addEventListener('click', (e) => { e.stopPropagation(); togglePanel(); });
+      header.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); togglePanel(); }
       });
     }
 
-    // Clear logs button
-    const btnClearLogs = document.getElementById('btn-clear-logs');
-    if (btnClearLogs) {
-      btnClearLogs.addEventListener('click', function(e) {
-        e.stopPropagation();
-        clearLogsFn();
+    // Level filter dropdown
+    const levelSel = el('log-level-filter') as HTMLSelectElement;
+    if (levelSel) {
+      levelSel.addEventListener('change', (e) => {
+        setLevelFilter((e.target as HTMLSelectElement).value);
       });
     }
+
+    // Search input debounce
+    const searchInp = el('log-search') as HTMLInputElement;
+    if (searchInp) {
+      let timer: number;
+      searchInp.addEventListener('input', (e) => {
+        clearTimeout(timer);
+        timer = window.setTimeout(() => setSearchFilter((e.target as HTMLInputElement).value), 200);
+      });
+    }
+
+    // Export JSON
+    const btnJson = el('btn-export-json');
+    if (btnJson) btnJson.addEventListener('click', (e) => { e.stopPropagation(); /* TODO */ });
+
+    // Export TXT
+    const btnTxt = el('btn-export-txt');
+    if (btnTxt) btnTxt.addEventListener('click', (e) => { e.stopPropagation(); /* TODO */ });
+
+    // Clear
+    const btnClear = el('btn-clear-logs');
+    if (btnClear) btnClear.addEventListener('click', (e) => { e.stopPropagation(); clearAllLogs(); });
+
+    // Start collapsed
+    togglePanel();
   });
 </script>

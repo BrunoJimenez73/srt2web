@@ -1978,10 +1978,52 @@
       "completed_date": "2026-05-25"
     },
     {
+      "id": 99,
+      "name": "build_static_artifact_strategy",
+      "title": "Estrategia build/static/docs/Docker cross-platform",
+      "status": "done",
+      "area": "operations",
+      "priority": "Alta",
+      "description": "Desvincular server/static/ de git, crear script build-all cross-platform, corregir Dockerfile y docs-pages CI para builds reproducible.",
+      "problems_identified": [
+        "server/static/ con hash de build trackeado en git → commits ruidosos en cada deploy",
+        "build:local asumia .bat en package.json (solo Windows)",
+        "Dockerfile usaba npm run build:local que falla en Linux (no hay .bat)",
+        "docs-pages.yml apuntaba a mkdocs.yml raiz que no existe"
+      ],
+      "acceptance": [
+        "server/static/ untracked de git + .gitignore entry",
+        "scripts/build-all.sh cross-platform (bash)",
+        "package.json build:local usa node -e para elegir .bat/.sh",
+        "Dockerfile corre astro build --outDir ../server/static con COPY ruta correcta",
+        "docs-pages.yml trigger docs/mkdocs.yml",
+        "ASTRO_TELEMETRY_DISABLED=1 en builder docker"
+      ],
+      "files_to_touch": [
+        "server/static/ (untrack de git)",
+        ".gitignore (server/static/)",
+        "scripts/build-all.sh (nuevo)",
+        "package.json (build:local cross-platform)",
+        "Dockerfile (astro build directo, COPY correcta)",
+        ".github/workflows/docs-pages.yml (trigger mkdocs.yml)"
+      ],
+      "dependencies": ["F97"],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "server/static/ .gitignore ya existe y build es pre-requisito de deploy",
+          "build-all.sh se prueba en CI antes de commit",
+          "Dockerfile corre en Linux (no afecta Windows/Mac)"
+        ]
+      },
+      "completed_date": "2026-05-26"
+    },
+    {
       "id": 100,
       "name": "process_management_safety",
       "title": "Seguridad de scripts Start/Stop y gestión de procesos",
-      "status": "pending",
+      "status": "done",
+      "completed_date": "2026-05-26",
       "area": "operations",
       "priority": "Alta",
       "description": "Reemplazar scripts de parada destructivos por gestión por PID/puerto/proceso propio, sin matar procesos Python/Node/FFmpeg ajenos al proyecto.",

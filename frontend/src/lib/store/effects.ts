@@ -16,7 +16,7 @@ import {
   syncCorrectionActive,
   throughputHistory,
 } from "./signals";
-import { addLog as addLogToPanel } from "../modules/logpanel";
+// Log panel integration via window globals (LogPanel.astro defines __logAdd)
 import { t } from "../i18n";
 
 // ── Element refs (lazy) ────────────────────────────────────────────────────────
@@ -313,7 +313,10 @@ function startLogsEffect(): void {
     const logs = pipelineLogs.value;
     const newLogs = logs.slice(_lastLogCount);
     for (const log of newLogs) {
-      addLogToPanel(log.level, log.message, log.timestamp);
+      const addLog = (window as any).__logAdd;
+      if (typeof addLog === "function") {
+        addLog(log.level, log.message, log.timestamp);
+      }
     }
     _lastLogCount = logs.length;
   });

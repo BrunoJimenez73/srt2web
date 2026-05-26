@@ -67,9 +67,16 @@ echo [INFO] API: http://localhost:!PORT!/api/docs
 echo.
 
 REM Launch server with visible console for logs (logs also saved to logs/srt2web.log)
-start "SRT2Web Server" "%SCRIPT_DIR%venv\Scripts\python.exe" -X utf8 main.py
-
-echo [OK] Servidor iniciado.
+REM Capture PID for selective stop via Stop.bat
+for /f "delims=" %%P in ('powershell -NoProfile -Command ^
+  "$p = Start-Process -FilePath '%SCRIPT_DIR%venv\Scripts\python.exe' -ArgumentList '-X utf8 main.py' -WindowStyle Normal -PassThru; Write-Output $p.Id"') do set "SRT_PID=%%P"
+if defined SRT_PID (
+    echo !SRT_PID! > "%SCRIPT_DIR%srt2web.pid"
+    echo [OK] Servidor iniciado (PID: !SRT_PID!).
+) else (
+    echo [WARNING] No se pudo capturar PID. Iniciando sin PID file...
+    start "SRT2Web Server" "%SCRIPT_DIR%venv\Scripts\python.exe" -X utf8 main.py
+)
 echo.
 echo ===============================================
 echo  El servidor se esta ejecutando en:

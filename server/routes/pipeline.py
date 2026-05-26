@@ -7,6 +7,7 @@ import contextlib
 import glob
 import logging
 import os
+from pathlib import Path
 from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, Request
@@ -198,6 +199,16 @@ async def stop_pipeline(request: Request) -> dict[str, Any]:
         pass
 
     # Clean up temporary files
+    # Safety: resolve output_dir and ensure it's within project root
+    _output_path = Path(output_dir).resolve()
+    _project_root = Path(__file__).parent.parent.parent.resolve()
+    if not str(_output_path).startswith(str(_project_root)):
+        logger.warning(
+            f"Output dir '{output_dir}' resolves outside project root, " "skipping cleanup to avoid accidental deletion"
+        )
+        invalidate_cache("status")
+        return {"status": "stopped", "warning": "output_dir outside project root"}
+
     cleanup_dirs = [
         os.path.join(output_dir, "chunks"),
         os.path.join(output_dir, "temp_audio"),

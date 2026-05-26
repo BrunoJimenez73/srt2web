@@ -141,8 +141,21 @@ echo -e "${GREEN}→ Servidor: http://127.0.0.1:9999${NC}"
 echo -e "${GREEN}→ Player:  http://127.0.0.1:9999/player${NC}"
 echo -e "${GREEN}→ Docs:    http://127.0.0.1:9999/docs${NC}"
 echo ""
-echo -e "${YELLOW}Para detener: Ctrl+C${NC}"
+echo -e "${YELLOW}Para detener: ./stop_Mac.sh${NC}"
 echo ""
 
-# Iniciar servidor
-python main.py --host 127.0.0.1 --port 9999
+# Cleanup PID file on exit
+cleanup() {
+    rm -f "$SCRIPT_DIR/srt2web.pid"
+}
+trap cleanup EXIT
+
+# Iniciar servidor en background y capturar PID
+python main.py --host 127.0.0.1 --port 9999 &
+SERVER_PID=$!
+echo $SERVER_PID > "$SCRIPT_DIR/srt2web.pid"
+echo -e "${GREEN}Servidor iniciado (PID: $SERVER_PID, registrado en srt2web.pid)${NC}"
+echo ""
+
+# Wait for server process
+wait $SERVER_PID

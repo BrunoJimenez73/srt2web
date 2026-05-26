@@ -7,6 +7,7 @@ Tests for:
 - Authentication token management (clearAuthToken, WebSocket token)
 - LogPanel search and filter functionality
 - Astro component type declarations
+- F100: Process management safety (no global taskkill, PID file, --clean flag)
 """
 
 from pathlib import Path
@@ -224,3 +225,77 @@ class TestFrontendTypes:
         content = types_path.read_text(encoding="utf-8")
 
         assert "ConfigUpdateTimeouts" in content or "config_update" in content.lower() or "Timeouts" in content
+
+
+class TestProcessManagementSafety:
+    """F100: Scripts no usan kill global, tienen PID file y --clean flag."""
+
+    def test_stop_bat_no_global_taskkill_python(self) -> None:
+        """Stop.bat no mata todos los python.exe del sistema."""
+        path = PROJECT_ROOT / "Stop.bat"
+        content = path.read_text(encoding="utf-8")
+        assert "taskkill /F /IM python.exe" not in content
+        assert "taskkill /F /IM python3.exe" not in content
+
+    def test_stop_bat_no_global_taskkill_node(self) -> None:
+        """Stop.bat no mata todos los node.exe del sistema."""
+        path = PROJECT_ROOT / "Stop.bat"
+        content = path.read_text(encoding="utf-8")
+        assert "taskkill /F /IM node.exe" not in content
+
+    def test_stop_bat_no_global_taskkill_ffmpeg(self) -> None:
+        """Stop.bat no mata todos los ffmpeg.exe del sistema."""
+        path = PROJECT_ROOT / "Stop.bat"
+        content = path.read_text(encoding="utf-8")
+        assert "taskkill /F /IM ffmpeg.exe" not in content
+        assert "taskkill /F /IM ffprobe.exe" not in content
+
+    def test_stop_bat_has_pid_file_logic(self) -> None:
+        """Stop.bat lee PID de srt2web.pid y mata por PID."""
+        path = PROJECT_ROOT / "Stop.bat"
+        content = path.read_text(encoding="utf-8")
+        assert "srt2web.pid" in content
+        assert "taskkill /PID" in content
+
+    def test_stop_bat_has_clean_flag(self) -> None:
+        """Stop.bat tiene --clean flag para limpieza opcional."""
+        path = PROJECT_ROOT / "Stop.bat"
+        content = path.read_text(encoding="utf-8")
+        assert "--clean" in content
+        assert "CLEAN_MODE" in content
+
+    def test_start_bat_writes_pid_file(self) -> None:
+        """Start.bat escribe srt2web.pid al iniciar."""
+        path = PROJECT_ROOT / "Start.bat"
+        content = path.read_text(encoding="utf-8")
+        assert "srt2web.pid" in content
+        assert "SRT_PID" in content
+
+    def test_start_mac_sh_writes_pid_file(self) -> None:
+        """start_Mac.sh escribe srt2web.pid al iniciar."""
+        path = PROJECT_ROOT / "start_Mac.sh"
+        content = path.read_text(encoding="utf-8")
+        assert "srt2web.pid" in content
+        assert "SERVER_PID" in content
+
+    def test_stop_mac_sh_reads_pid_file(self) -> None:
+        """stop_Mac.sh lee PID de srt2web.pid."""
+        path = PROJECT_ROOT / "stop_Mac.sh"
+        content = path.read_text(encoding="utf-8")
+        assert "srt2web.pid" in content
+        assert "PID_FILE" in content
+
+    def test_stop_mac_sh_has_clean_flag(self) -> None:
+        """stop_Mac.sh tiene --clean flag."""
+        path = PROJECT_ROOT / "stop_Mac.sh"
+        content = path.read_text(encoding="utf-8")
+        assert "--clean" in content
+        assert "CLEAN_MODE" in content
+
+    def test_pipeline_cleanup_validates_output_dir(self) -> None:
+        """pipeline.stop valida que output_dir esté dentro del project root antes de limpiar."""
+        path = PROJECT_ROOT / "server" / "routes" / "pipeline.py"
+        content = path.read_text(encoding="utf-8")
+        assert "resolves outside project root" in content
+        assert "skipping cleanup" in content
+        assert "_project_root" in content
