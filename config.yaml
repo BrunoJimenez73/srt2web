@@ -33,12 +33,12 @@ output:
     segment_duration: 5
     list_size: 12
     audio_offset_ms: 0
-    encoder_mode: gpu_nvenc
+    encoder_mode: passthrough
   hls:
     segment_duration: 5
     list_size: 12
     audio_offset_ms: 0
-    encoder_mode: gpu_nvenc
+    encoder_mode: passthrough
   rtmp:
     url: rtmp://localhost/live/stream
     video_bitrate: 2500k
@@ -121,7 +121,7 @@ modules:
     hls_segment_duration: 5
     hls_list_size: 12
     audio_offset_ms: 0
-    encoder_mode: gpu_nvenc
+    encoder_mode: passthrough
     video_quality: medium
     video_crf: 23
     audio_codec: aac
