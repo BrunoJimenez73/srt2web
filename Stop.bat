@@ -27,26 +27,27 @@ if exist "%PID_FILE%" (
     REM Verify PID belongs to a python process
     tasklist /FI "PID eq !SRT_PID!" 2>nul | findstr /I "python" >nul
     if !errorlevel! equ 0 (
-        echo [OK] Deteniendo servidor (PID: !SRT_PID!)...
-        taskkill /PID !SRT_PID! /T /F 2>nul
+        echo [OK] Deteniendo servidor (PID: !SRT_PID!)
+        taskkill /PID !SRT_PID! /F 2>nul
         if !errorlevel! equ 0 (
-            echo [OK] Servidor detenido.
+            echo [OK] Servidor detenido
         ) else (
-            echo [WARNING] No se pudo detener via PID.
+            echo [WARNING] No se pudo detener via PID
         )
     ) else (
-        echo [INFO] Proceso !SRT_PID! ya no existe (previamente detenido).
+        echo [INFO] Proceso !SRT_PID! ya no existe
     )
     del "%PID_FILE%" 2>nul
 )
 
 REM --- 2. Fallback: stop by port ---
 if not defined FOUND (
-    echo [INFO] PID file no encontrado. Buscando servidor por puerto...
+    echo [INFO] PID file no encontrado. Buscando servidor por puerto
 
     for %%P in (9999 9000 9001 9002 8000 1935) do (
-        powershell -NoProfile -Command ^
-          "$c = Get-NetTCPConnection -LocalPort %%P -State Listen -ErrorAction SilentlyContinue; if ($c) { try { Stop-Process -Id $c.OwningProcess -Force -ErrorAction Stop; Write-Host '  Detenido proceso en puerto' %%P } catch {} }"
+        for /f "skip=1 tokens=5" %%A in ('netstat -ano ^| findstr ":%%P "') do (
+            taskkill /PID %%A /F 2>nul
+        )
     )
 )
 
@@ -55,23 +56,23 @@ echo.
 echo === VERIFICACION ===
 set "REMAINING="
 for %%P in (9999 9000 9001 9002 8000 1935) do (
-    powershell -NoProfile -Command "if (Get-NetTCPConnection -LocalPort %%P -State Listen -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }" >nul 2>&1
+    netstat -ano | findstr ":%%P " >nul 2>&1
     if !errorlevel! equ 0 (
         set REMAINING=1
-        echo [WARNING] Puerto %%P sigue en uso.
+        echo [WARNING] Puerto %%P sigue en uso
     )
 )
 if defined REMAINING (
-    echo [WARNING] Algunos puertos pueden estar ocupados.
+    echo [WARNING] Algunos puertos pueden estar ocupados
     echo [INFO] Verifica con: netstat -ano ^| findstr :9999
 ) else (
-    echo [OK] Ningun puerto srt2web en uso.
+    echo [OK] Ningun puerto srt2web en uso
 )
 
 REM --- 4. Optional cleanup (--clean flag only) ---
 if not defined CLEAN_MODE (
     echo.
-    echo [INFO] Stop.bat --clean   para limpiar logs, output y caches.
+    echo [INFO] Stop.bat --clean   para limpiar logs, output y caches
     echo.
     goto :end
 )
@@ -86,7 +87,7 @@ echo.
 
 set /p "CONFIRM=Confirmar limpieza? (s/n): "
 if /I not "!CONFIRM!"=="s" (
-    echo Limpieza cancelada.
+    echo Limpieza cancelada
     goto :end
 )
 
@@ -122,7 +123,7 @@ if exist "output\hls" (
     if exist "output\hls\chunk_*.srt" del /Q "output\hls\chunk_*.srt" 2>nul
 )
 
-echo [OK] Limpieza completa.
+echo [OK] Limpieza completa
 
 :end
 echo.

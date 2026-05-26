@@ -67,15 +67,15 @@ echo [INFO] API: http://localhost:!PORT!/api/docs
 echo.
 
 REM Launch server with visible console for logs (logs also saved to logs/srt2web.log)
-REM Capture PID for selective stop via Stop.bat
-for /f "delims=" %%P in ('powershell -NoProfile -Command ^
-  "$p = Start-Process -FilePath '%SCRIPT_DIR%venv\Scripts\python.exe' -ArgumentList '-X utf8 main.py' -WindowStyle Normal -PassThru; Write-Output $p.Id"') do set "SRT_PID=%%P"
-if defined SRT_PID (
-    echo !SRT_PID! > "%SCRIPT_DIR%srt2web.pid"
+REM Using start (not Start-Process) to avoid Windows Defender DLL blocking
+start "SRT2Web Server" "%SCRIPT_DIR%venv\Scripts\python.exe" -X utf8 main.py
+
+REM Wait briefly then capture PID via WMI for selective stop
+powershell -NoProfile -Command ^
+  "Start-Sleep -Milliseconds 1500; $p = Get-CimInstance -ClassName Win32_Process -Filter \"Name='python.exe'\" | Where-Object { $_.CommandLine -like '*main.py*' } | Select-Object -First 1; if ($p) { $p.ProcessId | Out-File '%SCRIPT_DIR%srt2web.pid' -Encoding ascii }"
+if exist "%SCRIPT_DIR%srt2web.pid" (
+    set /p SRT_PID=<"%SCRIPT_DIR%srt2web.pid"
     echo [OK] Servidor iniciado (PID: !SRT_PID!).
-) else (
-    echo [WARNING] No se pudo capturar PID. Iniciando sin PID file...
-    start "SRT2Web Server" "%SCRIPT_DIR%venv\Scripts\python.exe" -X utf8 main.py
 )
 echo.
 echo ===============================================
