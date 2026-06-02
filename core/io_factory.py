@@ -92,6 +92,9 @@ class OutputFactory:
     _initialized: bool = False
     # Tipos internos que no se muestran al usuario en /api/outputs/available
     _internal_types = frozenset({"hls", "composite"})
+    # Tipos canónicos: aceptados por ``OutputTypeEnum`` y persistidos en config.
+    # Cualquier alias (``"webplayer"``, ``"hls"``) debe mapearse a uno de estos.
+    _canonical_types = frozenset({"web", "srt", "rtmp", "file", "recording", "webrtc"})
 
     @classmethod
     def register(cls, name: str, output_class: type[OutputSink]) -> None:
@@ -142,12 +145,23 @@ class OutputFactory:
 
     @classmethod
     def resolve_type(cls, class_name: str) -> str | None:
-        """Reverse-lookup the registered type name from a class name."""
+        """Reverse-lookup the registered type name from a class name.
+
+        Prefers canonical names (those listed in ``OutputTypeEnum``) over legacy
+        aliases like ``"webplayer"`` or ``"hls"`` so that downstream Pydantic
+        validation on ``PUT /api/config`` does not reject persisted state.
+        See F106.
+        """
         cls._ensure_initialized()
+        canonical: str | None = None
         for name, klass in cls._outputs.items():
-            if klass.__name__ == class_name:
+            if klass.__name__ != class_name:
+                continue
+            if name in cls._canonical_types:
                 return name
-        return None
+            if canonical is None:
+                canonical = name
+        return canonical
 
     @classmethod
     def _ensure_initialized(cls) -> None:

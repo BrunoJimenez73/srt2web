@@ -175,7 +175,7 @@ Por defecto `thread_parallel` con 2 workers concurrentes. Las estrategias viven 
 
 ## 7. Estado de features
 
-Ver `feature_list.json` para lista completa y estados.
+Ver `feature_list.json` para lista completa y estados. Total actual: 86 features.
 
 **Features 1–14**: todas DONE (ciclo Abril–Mayo 2026).
 
@@ -183,13 +183,33 @@ Ver `feature_list.json` para lista completa y estados.
 
 **Features 34–54**: features adicionales completadas.
 
-**Feature 55**: TUI Bug fixes (in_progress).
+**Features 55–58**: TUI/CLI bugfixes, commands, features y test coverage — todas DONE (sesión 14/05/2026).
 
-**Features 56–58**: TUI/CLI mejoras pendientes.
+**Features 59–65**: Compatibilidad macOS — todas DONE.
 
-**Features 59–65**: Compatibilidad macOS (7 features planificadas).
+**Features 66–102**: refactors, hardening y limpieza de fases 1–3 — todas DONE.
+
+**Feature 103**: Documentación y ADR drift — DONE (02/06/2026).
+
+**Feature 104**: Bugfixes de UI en dashboard (LogPanel, presets, shortcuts, docs, SRT URL, System Metrics) — DONE (02/06/2026).
+
+**Features 105–106**: bugs reportados en sesión 2026-06-02:
+- **F105** ✅ DONE: composite_output._schedule_reconnect Timer sobrevivía a stop(); cancelado ahora
+- **F106** ✅ DONE: "Piper TTS ignora la voz" — **2 bugs distintos** producían el mismo síntoma. Bug 1: PUT /api/config 400 por type='webplayer' (OutputTypeEnum solo acepta 'web'). Bug 2: race condition en PiperSubprocessManager._send_command entre synth+heartbeat. Fix: `_normalize_output_type` en outputs route + `_canonical_types` en OutputFactory + `_cmd_lock` serializando _send_command. 9 tests en `test_f106_piper_voice.py`.
+
+**Siguiente pendiente**: nada. Próxima feature a elegir de `feature_list.json`.
 
 ## 8. Historial compacto (post-Abril 2026)
+
+### 02/06 — Bugfixes UI dashboard (F104) + stop/reconnect (F105) + Piper voice (F106)
+
+- F104 cerrado: 6 bugs en dashboard corregidos — LogPanel, presets, shortcuts, docs, SRT URL, Metrics
+- F105 cerrado: `composite_output._schedule_reconnect` Timer sobrevivía a `stop()` → reanimaba outputs parados. Fix: tracking dict + `_stopped` flag + cancel en `stop()`
+- F106 cerrado: "Piper TTS ignora la voz" eran en realidad 2 bugs distintos:
+  - **Bug 1 (config 400)**: `OutputFactory.resolve_type('HLSOutput')` devolvía `"webplayer"` (primer alias registrado) y `_sync_outputs_to_config` lo guardaba tal cual. `OutputTypeEnum` solo acepta `"web"` → PUT /api/config fallaba 400 y la UI mostraba "voz no cambió". Fix: `_canonical_types` en `OutputFactory` + `_normalize_output_type` en outputs route (defensa en 2 capas).
+  - **Bug 2 (Piper crash)**: `PiperSubprocessManager._send_command` no serializaba concurrentes; synth + heartbeat (cada 30s) se peleaban por el mismo `proc.stdout.readline()` y producía "Invalid JSON response: Extra data: line 1 column 22652". Subprocess "murió" pero el código no recargaba → chunks subsiguientes sin audio. Fix: `_cmd_lock = threading.Lock()` envolviendo todo el ciclo send→read→parse.
+  - 9 tests en `tests/unit/test_f106_piper_voice.py`. Honrando F106 mitigation: NO se tocó `tts_engine.py` (la chain ya funcionaba).
+- Detalles completos en `progress/current.md`
 
 ### 14/05 — Plan de compatibilidad macOS
 

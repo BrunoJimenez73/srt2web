@@ -56,6 +56,12 @@ class PiperSubprocessManager:
         self._proc: subprocess.Popen[Any] | None = None
         self._script_path: str | None = None
         self._lock = threading.Lock()
+        # Serializes concurrent calls to ``_send_command`` (synth + heartbeat).
+        # Without this, two threads can race on ``proc.stdout.readline()`` and
+        # receive concatenated or split JSON lines, causing ``"Invalid JSON
+        # response: Extra data"`` parse errors that look like subprocess crashes.
+        # See F106.
+        self._cmd_lock = threading.Lock()
         self._using_cuda = False
         self._sample_rate = 22050
         self._model_loaded = False
@@ -270,62 +276,69 @@ class PiperSubprocessManager:
                     logger.error(f"[PiperManager] Restart failed: {e}")
 
     def _send_command(self, cmd: dict[str, Any], timeout: float = 30.0) -> dict[str, Any]:
-        """Send a command and wait for response."""
-        if not self._proc or not self._proc.stdin or not self._proc.stdout:
-            return {"status": "error", "error": "Subprocess not running"}
+        """Send a command and wait for response.
 
-        try:
-            # Send command
-            cmd_json = json.dumps(cmd) + "\n"
-            self._proc.stdin.write(cmd_json)
-            self._proc.stdin.flush()
+        All calls are serialized through ``self._cmd_lock`` so that concurrent
+        callers (e.g. a synth request and the heartbeat thread) cannot race
+        on ``proc.stdout.readline()`` and produce garbled JSON responses.
+        See F106.
+        """
+        with self._cmd_lock:
+            if not self._proc or not self._proc.stdin or not self._proc.stdout:
+                return {"status": "error", "error": "Subprocess not running"}
 
-            # Read response with timeout
-            import select
+            try:
+                # Send command
+                cmd_json = json.dumps(cmd) + "\n"
+                self._proc.stdin.write(cmd_json)
+                self._proc.stdin.flush()
 
-            if sys.platform == "win32":
-                # Windows: use threading timer
-                response_line: list[str | None] = [None]
-                read_error: list[Exception | None] = [None]
-                proc = self._proc
-                if proc is None or proc.stdout is None:
-                    return {"status": "error", "error": "Subprocess not running"}
+                # Read response with timeout
+                import select
 
-                def read_line() -> None:
-                    try:
-                        response_line[0] = proc.stdout.readline()  # type: ignore[union-attr]
-                    except Exception as e:
-                        read_error[0] = e
+                if sys.platform == "win32":
+                    # Windows: use threading timer
+                    response_line: list[str | None] = [None]
+                    read_error: list[Exception | None] = [None]
+                    proc = self._proc
+                    if proc is None or proc.stdout is None:
+                        return {"status": "error", "error": "Subprocess not running"}
 
-                t = threading.Thread(target=read_line)
-                t.start()
-                t.join(timeout=timeout)
+                    def read_line() -> None:
+                        try:
+                            response_line[0] = proc.stdout.readline()  # type: ignore[union-attr]
+                        except Exception as e:
+                            read_error[0] = e
 
-                if t.is_alive():
-                    logger.error(f"[PiperManager] Command timed out after {timeout}s")
-                    return {"status": "error", "error": f"Timeout after {timeout}s"}
+                    t = threading.Thread(target=read_line)
+                    t.start()
+                    t.join(timeout=timeout)
 
-                if read_error[0]:
-                    return {"status": "error", "error": str(read_error[0])}
+                    if t.is_alive():
+                        logger.error(f"[PiperManager] Command timed out after {timeout}s")
+                        return {"status": "error", "error": f"Timeout after {timeout}s"}
 
-                line = response_line[0]
-            else:
-                # Unix: use select
-                ready, _, _ = select.select([self._proc.stdout], [], [], timeout)
-                if not ready:
-                    return {"status": "error", "error": f"Timeout after {timeout}s"}
-                line = self._proc.stdout.readline()
+                    if read_error[0]:
+                        return {"status": "error", "error": str(read_error[0])}
 
-            if not line or not line.strip():
-                return {"status": "error", "error": "Empty response from subprocess"}
+                    line = response_line[0]
+                else:
+                    # Unix: use select
+                    ready, _, _ = select.select([self._proc.stdout], [], [], timeout)
+                    if not ready:
+                        return {"status": "error", "error": f"Timeout after {timeout}s"}
+                    line = self._proc.stdout.readline()
 
-            parsed: dict[str, Any] = json.loads(line.strip())
-            return parsed
+                if not line or not line.strip():
+                    return {"status": "error", "error": "Empty response from subprocess"}
 
-        except json.JSONDecodeError as e:
-            return {"status": "error", "error": f"Invalid JSON response: {e}"}
-        except Exception as e:
-            return {"status": "error", "error": str(e)}
+                parsed: dict[str, Any] = json.loads(line.strip())
+                return parsed
+
+            except json.JSONDecodeError as e:
+                return {"status": "error", "error": f"Invalid JSON response: {e}"}
+            except Exception as e:
+                return {"status": "error", "error": str(e)}
 
     def _read_stderr(self) -> None:
         """Read stderr in background thread to prevent deadlock."""

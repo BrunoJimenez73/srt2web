@@ -4,7 +4,12 @@
   "rules": {
     "one_feature_at_a_time": true,
     "require_tests_to_close": true,
-    "valid_status": ["pending", "in_progress", "done", "blocked"]
+    "valid_status": [
+      "pending",
+      "in_progress",
+      "done",
+      "blocked"
+    ]
   },
   "features": [
     {
@@ -408,7 +413,9 @@
         "tests/unit/test_cli_commands.py (expandir existente)",
         "tests/unit/test_cli_client.py (expandir existente)"
       ],
-      "dependencies": ["F55 (bugs corregidos para no testear bugs conocidos)"]
+      "dependencies": [
+        "F55 (bugs corregidos para no testear bugs conocidos)"
+      ]
     },
     {
       "id": 59,
@@ -750,7 +757,9 @@
         "mypy --strict 0 errores en core/pipeline/strategies.py",
         "init.ps1 pasa verde"
       ],
-      "files_to_touch": ["core/pipeline/strategies.py (refactor principal)"],
+      "files_to_touch": [
+        "core/pipeline/strategies.py (refactor principal)"
+      ],
       "risk_assessment": {
         "risk_level": "Bajo",
         "mitigation": [
@@ -1131,7 +1140,9 @@
         "modules/**/*.py (anotaciones y fixes de tipo)",
         "tests/unit/test_mypy_modules.py (smoke: mypy exit 0, opcional)"
       ],
-      "dependencies": ["F74"],
+      "dependencies": [
+        "F74"
+      ],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -1172,7 +1183,9 @@
         "cli/tui/**/*.py",
         "cli/main.py"
       ],
-      "dependencies": ["F74"],
+      "dependencies": [
+        "F74"
+      ],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1213,7 +1226,9 @@
         "frontend/src/lib/api.ts",
         "frontend/package.json (scripts lint si hace falta)"
       ],
-      "dependencies": ["F74"],
+      "dependencies": [
+        "F74"
+      ],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1254,7 +1269,9 @@
         "tests/unit/test_unified_pipeline.py",
         "tests/unit/test_pipeline_metrics.py (NUEVO)"
       ],
-      "dependencies": ["F75"],
+      "dependencies": [
+        "F75"
+      ],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -1293,7 +1310,9 @@
         "tests/unit/test_piper_loader.py (o equivalente)",
         "modules/tts_engine.py (imports si cambian)"
       ],
-      "dependencies": ["F75"],
+      "dependencies": [
+        "F75"
+      ],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1337,7 +1356,9 @@
         "frontend/src/**/*.astro (imports si cambian paths)",
         "AGENTS.md (sección frontend modules)"
       ],
-      "dependencies": ["F77"],
+      "dependencies": [
+        "F77"
+      ],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1385,7 +1406,9 @@
         "frontend/src/lib/modules/config-client.test.ts",
         "frontend/src/lib/modules/presets-client.test.ts"
       ],
-      "dependencies": ["F81"]
+      "dependencies": [
+        "F81"
+      ]
     },
     {
       "id": 83,
@@ -1589,7 +1612,9 @@
         "tests/unit/test_config_validation.py (usar ALLOWED_ENCODER_MODES de constants)",
         "feature_list.json (F89)"
       ],
-      "dependencies": ["F87"],
+      "dependencies": [
+        "F87"
+      ],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1697,7 +1722,9 @@
         "frontend/package.json",
         "docs/compatibility.md"
       ],
-      "dependencies": ["F87"],
+      "dependencies": [
+        "F87"
+      ],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1740,7 +1767,9 @@
         ".github/workflows/ci.yml",
         "docs/deployment.md"
       ],
-      "dependencies": ["F92"],
+      "dependencies": [
+        "F92"
+      ],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -1790,7 +1819,9 @@
         "tests/unit/test_security.py",
         "tests/unit/test_websocket_auth.py"
       ],
-      "dependencies": ["F93"],
+      "dependencies": [
+        "F93"
+      ],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -1835,7 +1866,9 @@
         "frontend/eslint.config.js",
         "frontend/src/**/*.test.ts"
       ],
-      "dependencies": ["F94"],
+      "dependencies": [
+        "F94"
+      ],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -1879,7 +1912,10 @@
         "pyproject.toml",
         "config/requirements.txt"
       ],
-      "dependencies": ["F93", "F94"],
+      "dependencies": [
+        "F93",
+        "F94"
+      ],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1921,7 +1957,11 @@
         ".github/workflows/ci.yml",
         ".github/workflows/playwright.yml"
       ],
-      "dependencies": ["F92", "F93", "F96"],
+      "dependencies": [
+        "F92",
+        "F93",
+        "F96"
+      ],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1966,7 +2006,9 @@
         "tests/unit/test_recording_manager.py",
         "tests/unit/test_multioutput_api.py"
       ],
-      "dependencies": ["F94"],
+      "dependencies": [
+        "F94"
+      ],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -2007,7 +2049,9 @@
         "Dockerfile (astro build directo, COPY correcta)",
         ".github/workflows/docs-pages.yml (trigger mkdocs.yml)"
       ],
-      "dependencies": ["F97"],
+      "dependencies": [
+        "F97"
+      ],
       "risk_assessment": {
         "risk_level": "Bajo",
         "mitigation": [
@@ -2050,7 +2094,9 @@
         "docs/deployment.md",
         "tests/unit/test_workspace_fixes.py"
       ],
-      "dependencies": ["F98"],
+      "dependencies": [
+        "F98"
+      ],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -2064,7 +2110,8 @@
       "id": 101,
       "name": "backend_scalability_cleanup",
       "title": "Cleanup backend para escalabilidad y mantenibilidad",
-      "status": "pending",
+      "status": "done",
+      "completed_date": "2026-05-27",
       "area": "backend",
       "priority": "Media",
       "description": "Reducir complejidad restante en backend: orquestación, estrategias legacy, paths, caches y concurrencia multi-pipeline.",
@@ -2095,7 +2142,10 @@
         "core/config_manager.py",
         "tests/unit/test_pipeline_manager.py"
       ],
-      "dependencies": ["F97", "F98"],
+      "dependencies": [
+        "F97",
+        "F98"
+      ],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -2109,7 +2159,8 @@
       "id": 102,
       "name": "observability_security_logging",
       "title": "Observabilidad, readiness y logging de seguridad",
-      "status": "pending",
+      "status": "done",
+      "completed_date": "2026-05-27",
       "area": "observability",
       "priority": "Media",
       "description": "Mejorar señales operativas: security logs auditables, readiness real, métricas útiles y errores frontend/backend sin ruido de consola.",
@@ -2138,7 +2189,10 @@
         "tests/unit/test_health_check.py",
         "tests/unit/test_security_middleware.py"
       ],
-      "dependencies": ["F94", "F95"],
+      "dependencies": [
+        "F94",
+        "F95"
+      ],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -2152,7 +2206,7 @@
       "id": 103,
       "name": "documentation_architecture_drift",
       "title": "Corregir deriva de documentación y ADRs",
-      "status": "pending",
+      "status": "done",
       "area": "docs",
       "priority": "Media",
       "description": "Actualizar documentación que describe APIs, CLI, WebSocket y arquitectura antigua para que coincida con el código real y el plan de features vigente.",
@@ -2179,7 +2233,11 @@
         "AGENTS.md",
         "server/static/docs/"
       ],
-      "dependencies": ["F94", "F96", "F99"],
+      "dependencies": [
+        "F94",
+        "F96",
+        "F99"
+      ],
       "risk_assessment": {
         "risk_level": "Bajo",
         "mitigation": [
@@ -2187,7 +2245,150 @@
           "Evitar editar artefactos generados a mano",
           "Añadir chequeo de links/docs build"
         ]
+      },
+      "completed_in_session": "2026-06-02"
+    },
+    {
+      "id": 104,
+      "name": "dashboard_ui_bugfixes",
+      "title": "Bugfixes de UI en dashboard (LogPanel, presets, shortcuts, docs, SRT URL, Metrics)",
+      "status": "done",
+      "area": "frontend",
+      "priority": "Alta",
+      "description": "Seis bugs de UI reportados por el usuario en la sesion 2026-06-02. Cada uno rompia un flujo principal del dashboard.",
+      "problems_identified": [
+        "LogPanel: colapso/expand + filtro dropdown no respondian; data-testid faltantes",
+        "Presets: la lista de presets guardados no se actualizaba tras POST /api/presets/",
+        "Shortcuts: el boton del header no abria el modal de atajos de teclado",
+        "Docs: /docs devolvia HTML pero /docs/<cualquier-subpath> devolvia 404 JSON",
+        "SRT URL en ConnectionCard: srt://host:port sin ?mode= ni ?latency= (no se podia pegar en OBS)",
+        "System Metrics: card sin triangulo de colapso/expand (el interno de timing si lo tenia)"
+      ],
+      "acceptance": [
+        "LogPanel colapsa/expande y filtra por nivel, con data-testid correctos",
+        "Guardar/eliminar preset actualiza la lista en el header",
+        "Boton shortcuts abre el modal via evento keydown sintetico",
+        "/docs/<path> devuelve HTML de seccion en construccion",
+        "SRT URL con srt://host:port?mode=<opuesto>&latency=<ms>; RTMP con /app/key",
+        "System Metrics colapsa/expande con persistencia en localStorage",
+        "180/180 vitest + tsc limpio + 166 tests Python pasan"
+      ],
+      "files_to_touch": [
+        "frontend/src/pages/index.astro",
+        "frontend/src/components/LogPanel.astro",
+        "frontend/src/components/layout/Header.astro",
+        "frontend/src/components/MetricsCard.astro",
+        "frontend/src/pages/docs/index.astro",
+        "frontend/src/lib/store/signals.ts",
+        "frontend/src/lib/store/signals.test.ts",
+        "frontend/src/lib/store/effects.ts",
+        "frontend/src/lib/modules/logpanel.ts",
+        "frontend/src/lib/types/api.ts",
+        "frontend/src/lib/locales/{en,es}.json",
+        "server/app.py",
+        "tests/unit/test_phase4_5_improvements.py",
+        "tests/unit/test_workspace_fixes.py"
+      ],
+      "dependencies": [],
+      "completed_in_session": "2026-06-02",
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "Tests cubren cada cambio; build + tsc + pytest verdes"
+        ]
       }
+    },
+    {
+      "id": 105,
+      "name": "pipeline_stop_reconnect_loop",
+      "title": "Stop pipeline no cierra del todo y WS/IO se reconecta en bucle",
+      "status": "done",
+      "area": "pipeline",
+      "priority": "Alta",
+      "description": "Al pulsar Stop, el pipeline aparentemente se detiene pero algo sigue intentando reconectar. Sintoma: noise constante en log panel y posiblemente el pipeline vuelve a estado running por su cuenta.",
+      "problems_identified": [
+        "Tras POST /api/stop, el WS recibe mensajes como si el pipeline siguiera vivo",
+        "Watchdog de SRT input (max_restarts=10) puede reactivar ffmpeg si la condicion race entre stop y restart no se respeta",
+        "Polling adaptativo (polling.ts) entra en modo POST_START si WS llega con state=running despues de stop",
+        "No se ha confirmado si el input realmente se queda cerrado o si reaparece tras unos segundos"
+      ],
+      "acceptance": [
+        "Stop deja el pipeline en state=idle, todos los ffmpeg muertos, puerto liberado, sin reintentos en logs",
+        "WS no emite nuevos mensajes post-stop salvo pings de keepalive",
+        "Polling no entra en modo POST_START tras stop",
+        "Si el usuario vuelve a pulsar Start desde cero, el pipeline arranca limpio",
+        "Tests que cubran el ciclo start-stop sin actividad residual"
+      ],
+      "files_to_touch": [
+        "server/routes/pipeline.py",
+        "core/unified_pipeline.py",
+        "core/watchdog.py",
+        "modules/inputs/srt_input.py",
+        "frontend/src/lib/modules/pipeline-control.ts",
+        "frontend/src/lib/modules/polling.ts",
+        "frontend/src/lib/modules/ws-manager.ts",
+        "tests/integration/test_pipeline_lifecycle.py"
+      ],
+      "dependencies": [],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Diagnosticar primero: leer logs con timestamps y contar reintentos reales antes de cambiar codigo",
+          "Una causa a la vez; no mezclar correcciones",
+          "No tocar el watchdog (es defensa) sin entender por que falla el stop"
+        ]
+      },
+      "started_in_session": "2026-06-02",
+      "completed_in_session": "2026-06-02"
+    },
+    {
+      "id": 106,
+      "name": "tts_voice_ignored",
+      "title": "Piper TTS ignora la voz seleccionada en el frontend (siempre suena la misma)",
+      "status": "done",
+      "area": "tts",
+      "priority": "Alta",
+      "description": "Piper TTS voice selection in the UI appeared ignored. Investigation revealed TWO distinct bugs producing the same symptom:\n  (1) Backend PUT /api/config returned 400 because _sync_outputs_to_config persisted type='webplayer' (OutputFactory.resolve_type returned the first registered alias for HLSOutput) which OutputTypeEnum rejects.\n  (2) Piper subprocess crashed ~30s after start: _send_command was not serialized, so synth threads and the heartbeat thread raced on the same stdout pipe, producing garbled JSON ('Invalid JSON response: Extra data: line 1 column 22652') that looked like a subprocess crash and silenced subsequent chunks.",
+      "problems_identified": [
+        "modules/outputs/__init__.py registers 'webplayer' as alias BEFORE 'web' for HLSOutput",
+        "core/io_factory.py resolve_type returned the first registered name (FIFO order)",
+        "server/routes/outputs.py _sync_outputs_to_config saved the raw resolve_type result without normalizing",
+        "modules/piper_loader.py PiperSubprocessManager._send_command did not serialize concurrent callers (synth + heartbeat)",
+        "PiperSubprocessManager._send_command spawned a fresh thread for each call, all calling readline() on the shared stdout pipe"
+      ],
+      "acceptance": [
+        "resolve_type('HLSOutput') returns 'web' (not 'webplayer') - verified by test",
+        "_normalize_output_type('webplayer' | 'hls' | None | 'bogus') returns 'web' - verified by tests",
+        "_sync_outputs_to_config persists type='web' for HLSOutput - verified by test",
+        "PiperSubprocessManager has _cmd_lock - verified by test",
+        "Concurrent _send_command calls from synth + heartbeat threads are serialized - verified by test",
+        "PUT /api/config with valid output.outputs[0].type='web' no longer returns 400",
+        "Heartbeat can no longer race with synth on stdout readline()"
+      ],
+      "files_to_touch": [
+        "core/io_factory.py",
+        "server/routes/outputs.py",
+        "modules/piper_loader.py",
+        "tests/unit/test_f106_piper_voice.py"
+      ],
+      "dependencies": [],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "F106 mitigation (verify voice chain works) was honored: tts_engine.py NOT touched - chain already worked correctly",
+          "F106 NEW finding: 'voice ignored' symptom was caused by 2 separate bugs, not 1",
+          "Defensive normalization in 2 places (io_factory + outputs route) to prevent regression from either path",
+          "_cmd_lock only adds serialization, never deadlocks: synth and heartbeat are independent threads with bounded timeouts"
+        ]
+      },
+      "started_in_session": "2026-06-02",
+      "completed_date": "2026-06-02",
+      "fix": [
+        "core/io_factory.py: Added _canonical_types class attribute; resolve_type prefers canonical names",
+        "server/routes/outputs.py: Added _normalize_output_type() and applied it in _sync_outputs_to_config (defense in depth)",
+        "modules/piper_loader.py: Added self._cmd_lock = threading.Lock(); wrapped _send_command body with cmd_lock to serialize concurrent synth+heartbeat calls",
+        "tests/unit/test_f106_piper_voice.py: 9 regression tests covering resolve_type, normalization, end-to-end sync, cmd_lock existence, and concurrent send_command"
+      ]
     }
   ]
 }

@@ -18,6 +18,27 @@ def _ctx(request: Request) -> dict[str, Any]:
     return request.app.state.ctx  # type: ignore[no-any-return]
 
 
+_CANONICAL_OUTPUT_TYPES = frozenset({"web", "srt", "rtmp", "file", "recording", "webrtc"})
+
+
+def _normalize_output_type(output_type: str | None) -> str:
+    """Normaliza un tipo de output a un valor canónico aceptado por ``OutputTypeEnum``.
+
+    Bug F106: ``OutputFactory.resolve_type`` devuelve el primer nombre registrado
+    para una clase (p.ej. ``"webplayer"`` en lugar de ``"web"``). Si este valor se
+    guarda tal cual en ``config.yaml``, la siguiente ``PUT /api/config`` falla con
+    un 400 de Pydantic porque ``OutputTypeEnum`` solo acepta los nombres canónicos.
+    Mapeamos explícitamente los alias a su forma canónica.
+    """
+    if not output_type:
+        return "web"
+    if output_type in _CANONICAL_OUTPUT_TYPES:
+        return output_type
+    if output_type in {"webplayer", "hls"}:
+        return "web"
+    return "web"
+
+
 def _sync_outputs_to_config(request: Request, composite: Any) -> None:
     """Actualiza la lista `outputs` en config.yaml desde el estado actual del composite."""
     ctx = _ctx(request)
@@ -35,6 +56,8 @@ def _sync_outputs_to_config(request: Request, composite: Any) -> None:
         if not output_type:
             # Fallback: reverse-lookup from factory registry
             output_type = OutputFactory.resolve_type(type(output).__name__) or name
+        # Normalize to canonical name (F106: avoid persisting alias like "webplayer")
+        output_type = _normalize_output_type(output_type)
         entry = {
             "name": name,
             "type": output_type,
