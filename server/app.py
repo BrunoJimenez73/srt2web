@@ -8,7 +8,6 @@ import asyncio
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
@@ -34,6 +33,7 @@ class NoCacheStaticFiles(StaticFiles):
         response.headers["Expires"] = "0"
         return response
 
+
 from server.api_routes import create_api_router
 from server.routes.auth import router as auth_router
 from server.routes.metrics import router as metrics_router
@@ -50,7 +50,7 @@ from server.ws_routes import create_ws_router
 
 logger = logging.getLogger("srt2web.server")
 
-from core.paths import get_project_root, get_output_dir, get_static_dir
+from core.paths import get_output_dir, get_project_root, get_static_dir
 
 PROJECT_ROOT = get_project_root()
 OUTPUT_DIR = get_output_dir()
@@ -283,9 +283,7 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
                 status_code=503,
                 content={"status": "not_ready", "reason": f"pipeline_state_{state}"},
             )
-        return JSONResponse(
-            content={"status": "ready", "state": state, "chunks_processed": pipeline.chunks_processed}
-        )
+        return JSONResponse(content={"status": "ready", "state": state, "chunks_processed": pipeline.chunks_processed})
 
     @app.get("/live")
     async def liveness() -> dict[str, Any]:

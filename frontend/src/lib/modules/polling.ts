@@ -44,7 +44,10 @@ function startPolling(): void {
       if (consecutiveErrors === 1) {
         logger.warn("polling", "Failed to fetch status", err);
       } else if (consecutiveErrors % 5 === 0) {
-        logger.error("polling", `Status fetch failed ${consecutiveErrors} times in a row`);
+        logger.error(
+          "polling",
+          `Status fetch failed ${consecutiveErrors} times in a row`,
+        );
       }
     }
   };

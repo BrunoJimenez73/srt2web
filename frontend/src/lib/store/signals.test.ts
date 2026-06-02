@@ -465,7 +465,9 @@ describe("signals - Connection URLs", () => {
     expect(urls.streamUrl).toBe("http://127.0.0.1:9999/hls/stream.m3u8");
     expect(urls.playerUrl).toBe("http://127.0.0.1:9999/player");
     expect(urls.primaryLabel).toBe("SRT:");
-    expect(urls.primaryUrl).toBe("srt://127.0.0.1:9000?mode=caller&latency=200");
+    expect(urls.primaryUrl).toBe(
+      "srt://127.0.0.1:9000?mode=caller&latency=200",
+    );
   });
 
   it("connectionUrls inverts mode: server caller → OBS listener URL", () => {
@@ -491,7 +493,9 @@ describe("signals - Connection URLs", () => {
     const urls = connectionUrls.value;
     expect(urls.srtServerMode).toBe("rendezvous");
     expect(urls.srtClientMode).toBe("rendezvous");
-    expect(urls.srtUrl).toBe("srt://127.0.0.1:9000?mode=rendezvous&latency=3000");
+    expect(urls.srtUrl).toBe(
+      "srt://127.0.0.1:9000?mode=rendezvous&latency=3000",
+    );
   });
 
   it("connectionUrls propagates the input latency into the OBS URL", () => {

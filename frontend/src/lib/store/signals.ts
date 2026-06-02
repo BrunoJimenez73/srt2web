@@ -127,7 +127,9 @@ export const systemMetrics = computed(() => {
  * The URL displayed in the dashboard is the URL the user pastes into OBS,
  * so its `?mode=` parameter is always the OBS-side role.
  */
-function srtClientMode(serverMode: string): "listener" | "caller" | "rendezvous" {
+function srtClientMode(
+  serverMode: string,
+): "listener" | "caller" | "rendezvous" {
   if (serverMode === "listener") return "caller";
   if (serverMode === "caller") return "listener";
   return "rendezvous";

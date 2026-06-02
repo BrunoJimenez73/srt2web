@@ -120,7 +120,12 @@ export function initHlsPlayer(): void {
           }
         } else {
           consecutiveErrors++;
-          logger.warn("player", "Stream not available", response.status, consecutiveErrors);
+          logger.warn(
+            "player",
+            "Stream not available",
+            response.status,
+            consecutiveErrors,
+          );
         }
       } catch {
         consecutiveErrors++;

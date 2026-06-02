@@ -331,8 +331,9 @@ export function setupEventListeners(): void {
   });
 
   // Expose for legacy inline onchange="window.handleTtsEngineChange(this.value)"
-  (window as unknown as { handleTtsEngineChange: (v: string) => void }).handleTtsEngineChange =
-    handleTtsEngineChange;
+  (
+    window as unknown as { handleTtsEngineChange: (v: string) => void }
+  ).handleTtsEngineChange = handleTtsEngineChange;
 }
 
 export function handleTtsEngineChange(engine: string): void {
