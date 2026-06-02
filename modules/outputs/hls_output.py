@@ -48,6 +48,7 @@ class HLSOutput(OutputSink):
 
         # Configuración de encoder
         self._encoder_config = EncoderConfig(config if config else {})
+        self._enabled = config.get("enabled", True)
 
         # Estado interno
         self._ffmpeg_path: str | None = None
@@ -65,6 +66,7 @@ class HLSOutput(OutputSink):
         self._segment_duration = config.get("segment_duration", self._segment_duration)
         self._list_size = config.get("list_size", self._list_size)
         self._audio_offset_ms = config.get("audio_offset_ms", self._audio_offset_ms)
+        self._enabled = config.get("enabled", self._enabled)
 
         # Actualizar configuración de encoder
         self._encoder_config = EncoderConfig(config)
@@ -86,6 +88,9 @@ class HLSOutput(OutputSink):
 
     def start(self) -> None:
         """Iniciar salida HLS."""
+        if not self._enabled:
+            self.logger.info("HLS output disabled, skipping start")
+            return
         self._ffmpeg_path = ensure_ffmpeg()
         self._total_duration_emitted = 0.0
         self._segment_durations = {}
@@ -145,6 +150,9 @@ class HLSOutput(OutputSink):
 
         start_time = time.perf_counter()
 
+        if not self._enabled:
+            return
+
         input_path = data.video_chunk_path
         if not input_path or not os.path.exists(input_path):
             self.logger.warning(f"No input video chunk for index {data.chunk_index}")
@@ -162,29 +170,41 @@ class HLSOutput(OutputSink):
 
         encoder_mode = self._encoder_config.encoder_mode
 
-        # ── Fast path: passthrough sin TTS → FFmpeg solo remux (copy + PTS offset) ──
-        # Necesitamos -output_ts_offset para que los PTS del segmento alineen con
-        # los timestamps absolutos del VTT de subtítulos.
-        # Usamos data.mixed_audio_path específicamente (no audio_input) porque
-        # dubbed_audio_path puede estar seteado por AudioExtractor incluso sin TTS.
-        if encoder_mode == "passthrough" and not data.mixed_audio_path:
+        # ── Fast path: passthrough → sin re-encoding de video ──
+        # Siempre hacemos -c:v copy (sin recodificar video).
+        # Si hay audio mezclado (TTS), lo recodificamos a AAC para MPEG-TS;
+        # si no, copiamos el audio original tal cual.
+        if encoder_mode == "passthrough":
             segment_name = f"seg_{self._segment_index:06d}.ts"
             segment_path = os.path.join(self._hls_dir, segment_name)
-            cmd = [
-                self._ffmpeg_path,
-                "-y",
-                "-i",
-                input_path,
-                "-c:v",
-                "copy",
-                "-c:a",
-                "copy",
-                "-output_ts_offset",
-                offset_sec,
-                "-f",
-                "mpegts",
-                segment_path,
-            ]
+
+            has_mixed_audio = data.mixed_audio_path and os.path.exists(data.mixed_audio_path)
+            if has_mixed_audio:
+                audio_delay_sec = self._audio_offset_ms / 1000.0
+                cmd = [
+                    self._ffmpeg_path, "-y",
+                    "-i", input_path,
+                    "-itsoffset", str(audio_delay_sec),
+                    "-i", data.mixed_audio_path,
+                    "-map", "0:v:0",
+                    "-map", "1:a:0",
+                    "-c:v", "copy",
+                    "-c:a", "aac",
+                    "-b:a", self._encoder_config.audio_bitrate,
+                    "-output_ts_offset", offset_sec,
+                    "-f", "mpegts",
+                    segment_path,
+                ]
+            else:
+                cmd = [
+                    self._ffmpeg_path, "-y",
+                    "-i", input_path,
+                    "-c:v", "copy",
+                    "-c:a", "copy",
+                    "-output_ts_offset", offset_sec,
+                    "-f", "mpegts",
+                    segment_path,
+                ]
             try:
                 result = subprocess.run(
                     filter_command(cmd),
@@ -215,8 +235,9 @@ class HLSOutput(OutputSink):
             seg_size = os.path.getsize(segment_path)
             self._update_write_stats(seg_size)
             self._clear_error()
+            mode = "remux" if not has_mixed_audio else "copy-video+encode-audio"
             self.logger.info(
-                f"HLS segment written (remux): {segment_name} (duration={chunk_duration:.3f}s, process_time={elapsed:.1f}ms)"
+                f"HLS segment written ({mode}): {segment_name} (duration={chunk_duration:.3f}s, process_time={elapsed:.1f}ms)"
             )
             self._segment_index += 1
             return
@@ -531,8 +552,8 @@ class HLSOutput(OutputSink):
 
         return ModuleStatus(
             name="video_muxer",
-            state=ModuleState.RUNNING if self._hls_dir else ModuleState.IDLE,
-            enabled=True,
+            state=ModuleState.RUNNING if (self._hls_dir and self._enabled) else ModuleState.IDLE,
+            enabled=self._enabled,
             processed_chunks=self._segment_index,
             last_process_time_ms=self._last_process_time_ms,
             extra={

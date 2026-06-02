@@ -39,8 +39,10 @@ class CompositeOutput(BaseOutput):
         self._outputs: dict[str, OutputSink] = {}
         self._errors: dict[str, str | None] = {}
         self._reconnect_attempts: dict[str, int] = {}
+        self._reconnect_timers: dict[str, threading.Timer] = {}
         self._max_reconnect_attempts = 3
         self._reconnect_delay = 5.0  # segundos
+        self._stopped = False
         self._lock = threading.Lock()
 
     def add_output(self, name: str, output: OutputSink) -> None:
@@ -78,6 +80,7 @@ class CompositeOutput(BaseOutput):
     def start(self) -> None:
         """Iniciar todas las salidas."""
         with self._lock:
+            self._stopped = False
             for name, output in self._outputs.items():
                 try:
                     output.start()
@@ -88,8 +91,17 @@ class CompositeOutput(BaseOutput):
                     logger.error(f"Failed to start output '{name}': {e}")
 
     def stop(self) -> None:
-        """Detener todas las salidas."""
+        """Detener todas las salidas y cancelar reconexiones pendientes."""
         with self._lock:
+            self._stopped = True
+            # Cancelar todos los timers de reconexión pendientes.
+            # Bug F105: si no se cancelan, disparan output.start() después
+            # de que el usuario paró el pipeline, generando ruido "reconnect"
+            # en el log panel y reanimando procesos que ya estaban muertos.
+            for name, timer in self._reconnect_timers.items():
+                timer.cancel()
+            self._reconnect_timers.clear()
+
             for name, output in self._outputs.items():
                 try:
                     output.stop()
@@ -113,22 +125,29 @@ class CompositeOutput(BaseOutput):
 
     def _schedule_reconnect(self, name: str) -> None:
         """Programar reconexión automática."""
+        if self._stopped:
+            return  # No reconectar si el composite está parado (F105)
         if self._reconnect_attempts[name] >= self._max_reconnect_attempts:
             return  # No intentar más
 
         self._reconnect_attempts[name] += 1
 
         def reconnect() -> None:
+            # Limpiar el timer del registro antes de ejecutar
+            self._reconnect_timers.pop(name, None)
             self._reconnect_output(name)
 
         # Programar reconexión después del delay
         timer = threading.Timer(self._reconnect_delay, reconnect)
         timer.daemon = True
+        self._reconnect_timers[name] = timer
         timer.start()
 
     def _reconnect_output(self, name: str) -> None:
         """Intentar reconectar una salida que falló."""
         with self._lock:
+            if self._stopped:
+                return  # F105: el pipeline ya se paró, no resucitar outputs
             if name not in self._outputs:
                 return
 

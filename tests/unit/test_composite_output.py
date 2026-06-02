@@ -22,12 +22,14 @@ class MockOutput(BaseOutput):
         self._enabled = True
         self._started = False
         self._stopped = False
+        self._started_count = 0
         self._write_calls = 0
         self._write_data = None
         self._error_on_write = None
 
     def start(self) -> None:
         self._started = True
+        self._started_count += 1
 
     def stop(self) -> None:
         self._stopped = True
@@ -366,3 +368,72 @@ class TestCompositeOutput:
         # Verificar que no se intentó más allá del límite
         time.sleep(0.2)
         assert composite_output._reconnect_attempts["test_output"] >= 0
+
+    def test_f105_reconnect_timer_cancelled_on_stop(self, composite_output, mock_output) -> None:
+        """F105: tras stop() los timers de reconexión deben cancelarse.
+
+        Bug: composite_output._schedule_reconnect creaba threading.Timer
+        que sobrevivían a stop(). El Timer disparaba output.start() después
+        de que el usuario paró el pipeline, generando ruido 'reconnect' en
+        el log panel y reanimando procesos muertos.
+        """
+        # Acelerar el timer para que el test sea rápido
+        composite_output._reconnect_delay = 0.05
+        composite_output._max_reconnect_attempts = 5
+
+        mock_output._error_on_write = "Test error"
+        composite_output.add_output("test_output", mock_output)
+        composite_output.start()
+
+        # Disparar la primera reconexión
+        composite_output.write(MagicMock())
+        assert "test_output" in composite_output._reconnect_timers
+        initial_start_count = mock_output._started_count
+
+        # Parar el composite
+        composite_output.stop()
+
+        # El timer debe estar cancelado y el registro vacío
+        assert composite_output._reconnect_timers == {}
+        assert composite_output._stopped is True
+
+        # Esperar más que el delay del timer. Si el Timer NO se hubiera
+        # cancelado, dispararía _reconnect_output → output.start().
+        time.sleep(0.2)
+
+        # El mock no debe haber sido reiniciado tras stop
+        assert mock_output._started_count == initial_start_count
+
+    def test_f105_reconnect_after_stop_is_noop(self, composite_output, mock_output) -> None:
+        """F105: aunque llegue un _schedule_reconnect tras stop, debe ser no-op."""
+        composite_output._reconnect_delay = 0.05
+
+        mock_output._error_on_write = "Test error"
+        composite_output.add_output("test_output", mock_output)
+        composite_output.start()
+        composite_output.stop()
+
+        attempts_before = composite_output._reconnect_attempts.get("test_output", 0)
+        composite_output._schedule_reconnect("test_output")
+        time.sleep(0.1)
+        assert composite_output._reconnect_attempts.get("test_output", 0) == attempts_before
+
+    def test_f105_start_resets_stopped_flag(self, composite_output, mock_output) -> None:
+        """F105: tras un nuevo start() el flag _stopped se resetea."""
+        composite_output._reconnect_delay = 0.05
+        mock_output._error_on_write = "Test error"
+        composite_output.add_output("test_output", mock_output)
+        composite_output.start()
+        composite_output.stop()
+        assert composite_output._stopped is True
+
+        composite_output.start()
+        assert composite_output._stopped is False
+
+        # Tras start, una nueva write con error debe re-disparar el timer
+        starts_before = mock_output._started_count
+        composite_output._reconnect_attempts["test_output"] = 0
+        composite_output.write(MagicMock())
+        time.sleep(0.15)
+        # El timer disparó _reconnect_output → mock_output.start()
+        assert mock_output._started_count > starts_before
