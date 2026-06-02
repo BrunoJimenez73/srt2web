@@ -27,6 +27,7 @@ export {
 export { handleSaveConfig, exportConfig } from "./config-client";
 export { loadPresets, applyPreset, savePreset } from "./presets-client";
 export { collectConfigFromUI, applyConfigToUI } from "./config-collector";
+import { logger } from "../utils/logger";
 
 // Re-export from api and store for convenience
 export {
@@ -326,16 +327,24 @@ export function setupEventListeners(): void {
   });
 
   document.getElementById("tts-engine")?.addEventListener("change", (e) => {
-    const isEdge = (e.target as HTMLSelectElement).value === "edge-tts";
-    const edgeGroup = document.getElementById(
-      "tts-voice-edge-group",
-    ) as HTMLDivElement;
-    const piperGroup = document.getElementById(
-      "tts-voice-piper-group",
-    ) as HTMLDivElement;
-    if (edgeGroup) edgeGroup.style.display = isEdge ? "block" : "none";
-    if (piperGroup) piperGroup.style.display = isEdge ? "none" : "block";
+    handleTtsEngineChange((e.target as HTMLSelectElement).value);
   });
+
+  // Expose for legacy inline onchange="window.handleTtsEngineChange(this.value)"
+  (window as unknown as { handleTtsEngineChange: (v: string) => void }).handleTtsEngineChange =
+    handleTtsEngineChange;
+}
+
+export function handleTtsEngineChange(engine: string): void {
+  const isEdge = engine === "edge-tts";
+  const edgeGroup = document.getElementById(
+    "tts-voice-edge-group",
+  ) as HTMLDivElement | null;
+  const piperGroup = document.getElementById(
+    "tts-voice-piper-group",
+  ) as HTMLDivElement | null;
+  if (edgeGroup) edgeGroup.style.display = isEdge ? "block" : "none";
+  if (piperGroup) piperGroup.style.display = isEdge ? "none" : "block";
 }
 
 // ── Metrics Refresh ───────────────────────────────────────────────────────────
@@ -364,7 +373,7 @@ export async function refreshMetrics(): Promise<void> {
     if (gpuEl) gpuEl.textContent = (s.gpu_usage || 0) + "%";
     if (gpuBar) gpuBar.style.width = (s.gpu_usage || 0) + "%";
   } catch (e) {
-    console.error("Metrics refresh failed:", e);
+    logger.error("pipeline-control", "Metrics refresh failed", e);
   }
 }
 

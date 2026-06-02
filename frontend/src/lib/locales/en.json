@@ -81,5 +81,16 @@
   "close": "Cerrar",
   "no_logs": "No hay logs para exportar",
   "confirm_delete": "¿Confirmar eliminación?",
-  "no_logs_yet": "Aún no hay logs"
+  "no_logs_yet": "Aún no hay logs",
+  "log_title": "Logs",
+  "log_filter_all": "Todos",
+  "log_filter_info": "Info",
+  "log_filter_warning": "Warnings",
+  "log_filter_error": "Errores",
+  "log_search_placeholder": "Buscar...",
+  "search_logs": "Buscar en logs",
+  "log_export_json": "Exportar JSON",
+  "log_export_txt": "Exportar TXT",
+  "clear_logs": "Limpiar logs",
+  "log_clear": "Limpiar"
 }

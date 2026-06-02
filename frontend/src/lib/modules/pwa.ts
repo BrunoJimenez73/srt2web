@@ -1,5 +1,7 @@
 let deferredPrompt: BeforeInstallPromptEvent | null = null;
 
+import { logger } from "../utils/logger";
+
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
   readonly userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
@@ -20,10 +22,10 @@ export function registerSW(): void {
     navigator.serviceWorker
       .register("/service-worker.js")
       .then(() => {
-        if (import.meta.env.DEV) console.info("PWA: Service worker registered");
+        logger.info("pwa", "Service worker registered");
       })
       .catch((err) => {
-        console.warn("PWA: Service worker registration failed", err);
+        logger.warn("pwa", "Service worker registration failed", err);
       });
   });
 }

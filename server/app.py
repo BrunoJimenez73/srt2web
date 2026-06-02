@@ -14,8 +14,25 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.types import Scope
+
+
+class NoCacheStaticFiles(StaticFiles):
+    """StaticFiles variant that disables every layer of HTTP caching.
+
+    Used for live HLS segments and subtitle files: their filenames are reused
+    across pipeline sessions (``seg_000000.ts``, ``subs.vtt``…), so any cached
+    response from a previous session would replay stale content in the player.
+    """
+
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
 
 from server.api_routes import create_api_router
 from server.routes.auth import router as auth_router
@@ -33,9 +50,11 @@ from server.ws_routes import create_ws_router
 
 logger = logging.getLogger("srt2web.server")
 
-PROJECT_ROOT = Path(__file__).parent.parent
-OUTPUT_DIR = PROJECT_ROOT / "output"
-FRONTEND_DIR = PROJECT_ROOT / "server" / "static"
+from core.paths import get_project_root, get_output_dir, get_static_dir
+
+PROJECT_ROOT = get_project_root()
+OUTPUT_DIR = get_output_dir()
+FRONTEND_DIR = get_static_dir()
 WEB_DIR = PROJECT_ROOT / "web"
 
 
@@ -47,6 +66,72 @@ def _get_version() -> str:
         return version("srt2web")
     except (PackageNotFoundError, ImportError):
         return "0.6.8"
+
+
+_DOCS_STUB_HTML = """<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sección en construcción | SRT2Web Docs</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: #0b0b10;
+    color: #e0e0e8;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    max-width: 480px;
+    background: #1a1a26;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 40px 32px;
+    text-align: center;
+  }
+  .icon { font-size: 56px; margin-bottom: 16px; }
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: #fff;
+  }
+  p {
+    color: #8888a0;
+    line-height: 1.6;
+    margin-bottom: 24px;
+    font-size: 14px;
+  }
+  .actions { display: flex; gap: 12px; justify-content: center; }
+  .btn {
+    display: inline-flex;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .btn-primary { background: #6366f1; color: #fff; }
+  .btn-primary:hover { background: #7c7ff7; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">📄</div>
+  <h1>Sección en construcción</h1>
+  <p>Esta página de la documentación aún no se ha publicado. Vuelve al inicio para explorar las secciones disponibles.</p>
+  <div class="actions">
+    <a href="/docs/" class="btn btn-primary">← Volver al inicio</a>
+  </div>
+</div>
+</body>
+</html>"""
 
 
 def create_app(app_context: dict[str, Any]) -> FastAPI:
@@ -173,15 +258,34 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
         return {"status": "ok"}
 
     @app.get("/ready")
-    async def readiness() -> dict[str, Any]:
-        """Readiness probe for deployments."""
+    async def readiness() -> Response:
+        """Readiness probe for deployments.
+        Returns 200 only when the pipeline is running and producing output.
+        """
+        from fastapi.responses import JSONResponse
+
         ctx = app.state.ctx
         pipeline = ctx.get("pipeline")
-        if pipeline and pipeline.is_running:
-            return {"status": "ready"}
-        # If pipeline not running, still return ready but maybe with warning?
-        # For simplicity, return ready anyway.
-        return {"status": "ready"}
+        if not pipeline:
+            return JSONResponse(
+                status_code=503,
+                content={"status": "not_ready", "reason": "no_pipeline"},
+            )
+        if not pipeline.is_running:
+            return JSONResponse(
+                status_code=503,
+                content={"status": "not_ready", "reason": "pipeline_not_running"},
+            )
+        status = pipeline.get_status()
+        state = status.get("state", "idle")
+        if state != "running":
+            return JSONResponse(
+                status_code=503,
+                content={"status": "not_ready", "reason": f"pipeline_state_{state}"},
+            )
+        return JSONResponse(
+            content={"status": "ready", "state": state, "chunks_processed": pipeline.chunks_processed}
+        )
 
     @app.get("/live")
     async def liveness() -> dict[str, Any]:
@@ -191,33 +295,19 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
     hls_dir = OUTPUT_DIR / "hls"
     hls_dir.mkdir(parents=True, exist_ok=True)
     logger.info(f"Mounting /hls at: {hls_dir}")
-    app.mount("/hls", StaticFiles(directory=str(hls_dir), html=False), name="hls")
+    app.mount("/hls", NoCacheStaticFiles(directory=str(hls_dir), html=False), name="hls")
 
     subtitles_dir = OUTPUT_DIR / "subtitles"
     subtitles_dir.mkdir(parents=True, exist_ok=True)
     logger.info(f"Mounting /subtitles at: {subtitles_dir}")
     app.mount(
         "/subtitles",
-        StaticFiles(directory=str(subtitles_dir), html=False),
+        NoCacheStaticFiles(directory=str(subtitles_dir), html=False),
         name="subtitles",
     )
 
-    if FRONTEND_DIR.exists():
-        static_files = StaticFiles(directory=str(FRONTEND_DIR), html=True)
-
-        async def frontend_scope_aware(scope: Any, receive: Any, send: Any) -> None:
-            if scope["type"] == "websocket":
-                # WebSocket connections should be handled by websocket routes
-                # Close the connection without accepting (let websocket routes handle it)
-                try:
-                    await send({"type": "websocket.close", "code": 1003})
-                except Exception as e:
-                    logger.debug("Suppressed error: %s", e, exc_info=True)
-                return
-            await static_files(scope, receive, send)
-
-        app.mount("/", frontend_scope_aware, name="frontend")
-
+    # ── Explicit page routes (registered BEFORE the static mount so they win
+    # the routing race against the catch-all `app.mount("/", ...)` below).
     @app.get("/")
     async def serve_index() -> Any:
         index_path = FRONTEND_DIR / "index.html"
@@ -249,5 +339,39 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
             return FileResponse(str(player_path), media_type="text/html")
 
         return {"error": "webrtc-player.html not found"}
+
+    @app.get("/docs/{path:path}")
+    async def serve_docs_fallback(path: str) -> Any:
+        """Serve a 'coming soon' page for any docs subpath that doesn't have
+        its own static HTML yet. The main /docs/ page is served by the
+        static mount; this only fires for /docs/anything-else."""
+        target = FRONTEND_DIR / "docs" / path / "index.html"
+        if target.exists():
+            return FileResponse(str(target), media_type="text/html")
+        target = FRONTEND_DIR / "docs" / f"{path}.html"
+        if target.exists():
+            return FileResponse(str(target), media_type="text/html")
+
+        return HTMLResponse(
+            content=_DOCS_STUB_HTML,
+            status_code=200,
+            headers={"Cache-Control": "no-store, no-cache, must-revalidate"},
+        )
+
+    if FRONTEND_DIR.exists():
+        static_files = StaticFiles(directory=str(FRONTEND_DIR), html=True)
+
+        async def frontend_scope_aware(scope: Any, receive: Any, send: Any) -> None:
+            if scope["type"] == "websocket":
+                # WebSocket connections should be handled by websocket routes
+                # Close the connection without accepting (let websocket routes handle it)
+                try:
+                    await send({"type": "websocket.close", "code": 1003})
+                except Exception as e:
+                    logger.debug("Suppressed error: %s", e, exc_info=True)
+                return
+            await static_files(scope, receive, send)
+
+        app.mount("/", frontend_scope_aware, name="frontend")
 
     return app

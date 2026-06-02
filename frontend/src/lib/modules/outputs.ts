@@ -1,5 +1,6 @@
 import { apiCall, type OutputStatus } from "../api";
 import { showToast } from "../utils";
+import { logger } from "../utils/logger";
 
 let outputs: OutputStatus[] = [];
 let outputListeners: ((outputs: OutputStatus[]) => void)[] = [];
@@ -14,7 +15,7 @@ export async function fetchOutputs(): Promise<OutputStatus[]> {
     notifyListeners();
     return outputs;
   } catch (e) {
-    console.error("Failed to fetch outputs:", e);
+    logger.error("outputs", "Failed to fetch outputs", e);
     return [];
   }
 }
@@ -27,7 +28,7 @@ export async function fetchAvailableTypes(): Promise<string[]> {
     );
     return response.available_types || [];
   } catch (e) {
-    console.error("Failed to fetch available output types:", e);
+    logger.warn("outputs", "Failed to fetch available output types", e);
     return ["web", "recording", "srt", "rtmp"];
   }
 }

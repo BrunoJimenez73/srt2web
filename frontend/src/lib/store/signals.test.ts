@@ -456,11 +456,53 @@ describe("signals - Connection URLs", () => {
     const urls = connectionUrls.value;
     expect(urls.host).toBe("127.0.0.1");
     expect(urls.inputType).toBe("srt");
-    expect(urls.srtUrl).toBe("srt://127.0.0.1:9000");
+    // With no config, code-level defaults kick in:
+    //   server mode = "listener" → OBS side = "caller"
+    //   latency_ms = 200 (code default, not the fixture's 3000)
+    expect(urls.srtUrl).toBe("srt://127.0.0.1:9000?mode=caller&latency=200");
+    expect(urls.srtServerMode).toBe("listener");
+    expect(urls.srtClientMode).toBe("caller");
     expect(urls.streamUrl).toBe("http://127.0.0.1:9999/hls/stream.m3u8");
     expect(urls.playerUrl).toBe("http://127.0.0.1:9999/player");
     expect(urls.primaryLabel).toBe("SRT:");
-    expect(urls.primaryUrl).toBe("srt://127.0.0.1:9000");
+    expect(urls.primaryUrl).toBe("srt://127.0.0.1:9000?mode=caller&latency=200");
+  });
+
+  it("connectionUrls inverts mode: server caller → OBS listener URL", () => {
+    pipelineConfig.value = makeConfig({
+      input: {
+        type: "srt",
+        srt: { ...makeConfig().input.srt!, mode: "caller" },
+      },
+    });
+    const urls = connectionUrls.value;
+    expect(urls.srtServerMode).toBe("caller");
+    expect(urls.srtClientMode).toBe("listener");
+    expect(urls.srtUrl).toBe("srt://127.0.0.1:9000?mode=listener&latency=3000");
+  });
+
+  it("connectionUrls keeps mode=rendezvous on the OBS URL", () => {
+    pipelineConfig.value = makeConfig({
+      input: {
+        type: "srt",
+        srt: { ...makeConfig().input.srt!, mode: "rendezvous" },
+      },
+    });
+    const urls = connectionUrls.value;
+    expect(urls.srtServerMode).toBe("rendezvous");
+    expect(urls.srtClientMode).toBe("rendezvous");
+    expect(urls.srtUrl).toBe("srt://127.0.0.1:9000?mode=rendezvous&latency=3000");
+  });
+
+  it("connectionUrls propagates the input latency into the OBS URL", () => {
+    pipelineConfig.value = makeConfig({
+      input: {
+        type: "srt",
+        srt: { ...makeConfig().input.srt!, latency_ms: 500 },
+      },
+    });
+    const urls = connectionUrls.value;
+    expect(urls.srtUrl).toBe("srt://127.0.0.1:9000?mode=caller&latency=500");
   });
 
   it("connectionUrls shows RTMP when input type is rtmp", () => {
@@ -480,7 +522,7 @@ describe("signals - Connection URLs", () => {
     const urls = connectionUrls.value;
     expect(urls.inputType).toBe("rtmp");
     expect(urls.primaryLabel).toBe("RTMP:");
-    expect(urls.primaryUrl).toBe("rtmp://127.0.0.1:1935");
+    expect(urls.primaryUrl).toBe("rtmp://127.0.0.1:1935/live/stream");
   });
 
   it("connectionUrls uses custom config values", () => {
@@ -492,7 +534,7 @@ describe("signals - Connection URLs", () => {
       },
     });
     const urls = connectionUrls.value;
-    expect(urls.srtUrl).toBe("srt://127.0.0.1:9500");
+    expect(urls.srtUrl).toBe("srt://127.0.0.1:9500?mode=caller&latency=3000");
     expect(urls.streamUrl).toBe("http://127.0.0.1:8080/hls/stream.m3u8");
   });
 

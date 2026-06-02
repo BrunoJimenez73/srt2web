@@ -6,6 +6,7 @@
  */
 
 import { SERVER_PORT, STORAGE_KEYS } from "./constants";
+import { logger } from "./utils/logger";
 
 // Import all types from the types module
 export type {
@@ -373,12 +374,12 @@ export class WSClient {
         const data = JSON.parse(e.data) as WebSocketMessage;
         this.onMessageHandler?.(data);
       } catch {
-        console.error("Failed to parse WebSocket message:", e.data);
+        logger.error("api", "Failed to parse WebSocket message", e.data);
       }
     };
 
     this.ws.onerror = (e: Event) => {
-      console.error("[WS] Error:", e);
+      logger.error("api", "WebSocket error", e);
       this.onErrorHandler?.(e);
     };
 
@@ -406,7 +407,7 @@ export class WSClient {
         this.connect();
       }, delay);
     } else {
-      console.warn("[WS] Max reconnection attempts reached");
+      logger.warn("api", "Max reconnection attempts reached");
     }
   }
 

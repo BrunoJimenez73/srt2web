@@ -2,6 +2,8 @@
  * Módulo para el reproductor HLS con subtítulos dinámicos
  */
 
+import { logger } from "../utils/logger";
+
 // HLS.js type declarations - must be before usage
 declare const Hls: HlsStatic | undefined;
 
@@ -74,7 +76,7 @@ export function initHlsPlayer(): void {
   const btnRetry = document.getElementById("btn-retry");
 
   if (!video) {
-    console.error("Video element not found");
+    logger.error("player", "Video element not found");
     return;
   }
 
@@ -118,19 +120,11 @@ export function initHlsPlayer(): void {
           }
         } else {
           consecutiveErrors++;
-          console.warn(
-            "[Health] Stream not available:",
-            response.status,
-            "Errors:",
-            consecutiveErrors,
-          );
+          logger.warn("player", "Stream not available", response.status, consecutiveErrors);
         }
       } catch {
         consecutiveErrors++;
-        console.warn(
-          "[Health] Stream check failed, Errors:",
-          consecutiveErrors,
-        );
+        logger.warn("player", "Stream check failed", consecutiveErrors);
       }
 
       // If too many consecutive errors, show reconnect option
@@ -202,7 +196,7 @@ export function initHlsPlayer(): void {
 
       if (!response.ok) {
         if (response.status !== 404) {
-          console.warn("Error loading subtitles:", response.status);
+          logger.warn("player", "Error loading subtitles", response.status);
         }
         return;
       }
@@ -238,7 +232,7 @@ export function initHlsPlayer(): void {
         }
       }
     } catch (error) {
-      console.warn("Error loading subtitles:", error);
+      logger.warn("player", "Error loading subtitles", error);
     }
   }
 
@@ -260,7 +254,7 @@ export function initHlsPlayer(): void {
         "Haz clic en el reproductor o presiona Reintentar para reproducir",
       );
     } else {
-      console.error("play() failed:", err);
+      logger.error("player", "play() failed", err);
     }
   }
 
@@ -275,6 +269,12 @@ export function initHlsPlayer(): void {
     const ts = Date.now();
     const freshStreamUrl = `${window.location.origin}/hls/stream.m3u8?_=${ts}`;
     const freshSubtitlesUrl = `${window.location.origin}/subtitles/subs.vtt?_=${ts}`;
+
+    // Best-effort: ask the service worker to drop any previously cached live content
+    // so a stale segment from a prior pipeline session cannot leak into the new one.
+    if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: "CLEAR_CACHES" });
+    }
 
     if (typeof Hls !== "undefined" && Hls.isSupported()) {
       if (hls) {
@@ -293,9 +293,11 @@ export function initHlsPlayer(): void {
         liveDurationInfinity: true,
       });
 
-      hls.loadSource(freshStreamUrl);
-      hls.attachMedia(video);
-
+      // IMPORTANT: register handlers BEFORE loadSource/attachMedia.
+      // HLS.js emits MANIFEST_PARSED synchronously after parsing the manifest
+      // (which can happen very fast for a small playlist). If the handler is
+      // registered after loadSource, the event is missed and the player stays
+      // stuck on the "waiting" overlay forever.
       hls.on(HlsEvents.MANIFEST_PARSED, () => {
         if (waitingEl) waitingEl.style.display = "none";
         isConnected = true;
@@ -307,7 +309,7 @@ export function initHlsPlayer(): void {
 
       hls.on(HlsEvents.ERROR, (_event, data: unknown) => {
         const err = data as HlsErrorData;
-        console.warn("[HLS Error]", err.type, err.fatal, err.details);
+        logger.warn("player", "HLS Error", err.type, err.fatal, err.details);
 
         if (err.fatal) {
           switch (err.type) {
@@ -329,6 +331,9 @@ export function initHlsPlayer(): void {
       hls.once(HlsEvents.FRAG_BUFFERED, () => {
         startHealthCheck();
       });
+
+      hls.loadSource(freshStreamUrl);
+      hls.attachMedia(video);
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = freshStreamUrl;
       video.addEventListener("loadedmetadata", () => {
@@ -377,12 +382,47 @@ export function initHlsPlayer(): void {
   });
 
   function waitForHlsAndConnect(): void {
-    if (typeof Hls === "undefined") {
-      setTimeout(waitForHlsAndConnect, 100);
-      return;
+    const HLS_LOAD_TIMEOUT_MS = 10000;
+    const startedAt = Date.now();
+
+    function tryConnect(): void {
+      if (typeof Hls !== "undefined") {
+        connect();
+        return;
+      }
+      if (Date.now() - startedAt > HLS_LOAD_TIMEOUT_MS) {
+        logger.error(
+          "player",
+          `HLS.js no se cargo despues de ${HLS_LOAD_TIMEOUT_MS}ms. Revisa la conexion a cdn.jsdelivr.net.`,
+        );
+        showError(
+          "No se pudo cargar la libreria HLS. Verifica la conexion a internet.",
+        );
+        return;
+      }
+      setTimeout(tryConnect, 100);
     }
-    connect();
+
+    tryConnect();
   }
 
-  waitForHlsAndConnect();
+  // Wait for the new service worker (if any) to take control before starting
+  // playback. Without this, the first page load after the SW is updated can
+  // race with the old SW and replay stale cached segments.
+  async function waitForServiceWorker(): Promise<void> {
+    if (!("serviceWorker" in navigator)) return;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      // Best-effort: ensure the active SW is the latest one we just registered.
+      // If the controller is still null after a short wait, proceed anyway —
+      // some browsers (e.g. in dev / no HTTPS) never expose a controller.
+      if (reg && reg.active) {
+        logger.debug("player", "Service worker ready");
+      }
+    } catch (err) {
+      logger.warn("player", "Service worker not ready, proceeding", err);
+    }
+  }
+
+  void waitForServiceWorker().finally(() => waitForHlsAndConnect());
 }

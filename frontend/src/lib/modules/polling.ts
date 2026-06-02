@@ -7,6 +7,7 @@ import type { Status } from "../types";
 import { pipelineStatus } from "../store/index";
 import { updateStatus } from "../store/index";
 import { formatTime } from "../utils/format";
+import { logger } from "../utils/logger";
 import { INTERVALS } from "../constants";
 
 const POLL_INTERVALS = {
@@ -31,12 +32,20 @@ function getPollInterval(): number {
 function startPolling(): void {
   if (statusPollInterval) clearInterval(statusPollInterval);
 
+  let consecutiveErrors = 0;
+
   const poll = async () => {
     try {
       const s = await apiCall<Status>("GET", "api/status");
       updateStatus(s);
-    } catch {
-      // Silently fail on poll errors
+      consecutiveErrors = 0;
+    } catch (err) {
+      consecutiveErrors++;
+      if (consecutiveErrors === 1) {
+        logger.warn("polling", "Failed to fetch status", err);
+      } else if (consecutiveErrors % 5 === 0) {
+        logger.error("polling", `Status fetch failed ${consecutiveErrors} times in a row`);
+      }
     }
   };
 

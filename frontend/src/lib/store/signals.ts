@@ -117,6 +117,22 @@ export const systemMetrics = computed(() => {
 
 // ── Computed: Connection URLs ────────────────────────────────────────────────
 
+/**
+ * Map the server's SRT mode to the OBS-facing client mode.
+ *
+ * - server=listener → OBS is the caller (pushes to our listening port)
+ * - server=caller   → OBS is the listener (server pushes to OBS)
+ * - server=rendezvous → both sides meet in the middle (same mode)
+ *
+ * The URL displayed in the dashboard is the URL the user pastes into OBS,
+ * so its `?mode=` parameter is always the OBS-side role.
+ */
+function srtClientMode(serverMode: string): "listener" | "caller" | "rendezvous" {
+  if (serverMode === "listener") return "caller";
+  if (serverMode === "caller") return "listener";
+  return "rendezvous";
+}
+
 export const connectionUrls = computed(() => {
   const cfg = pipelineConfig.value;
   const status = pipelineStatus.value;
@@ -126,20 +142,19 @@ export const connectionUrls = computed(() => {
     connectionMode.value === "remote" ? remAddr || "localhost" : "127.0.0.1";
 
   const inputTypeValue = pipelineConfig.value?.input?.type ?? "srt";
-  // Update reactive signal
-  inputType.value = inputTypeValue;
 
   const srtPort = cfg?.input?.srt?.port ?? 9000;
   const srtMode = cfg?.input?.srt?.mode ?? "listener";
   const srtLatency = cfg?.input?.srt?.latency_ms ?? 200;
   const rtmpPort = cfg?.input?.rtmp?.port ?? 1935;
+  const rtmpApp = cfg?.input?.rtmp?.app ?? "live";
+  const rtmpKey = cfg?.input?.rtmp?.stream_key ?? "stream";
   const serverPort = cfg?.server?.port ?? 9999;
 
-  // The URL is for the CLIENT to connect to us.
-  // If we listen, client must be caller. If we call, client must be listener.
-  const clientMode = srtMode === "listener" ? "caller" : "listener";
-  const srtUrl = `srt://${host}:${srtPort}`;
-  const rtmpUrl = `rtmp://${host}:${rtmpPort}`;
+  // SRT URL for OBS: always carries the OBS-side mode + the input latency.
+  const obsSrtMode = srtClientMode(srtMode);
+  const srtUrl = `srt://${host}:${srtPort}?mode=${obsSrtMode}&latency=${srtLatency}`;
+  const rtmpUrl = `rtmp://${host}:${rtmpPort}/${rtmpApp}/${rtmpKey}`;
   const streamUrl = `http://${host}:${serverPort}/hls/stream.m3u8`;
   const playerUrl = `http://${host}:${serverPort}/player`;
 
@@ -147,6 +162,8 @@ export const connectionUrls = computed(() => {
     host,
     inputType: inputTypeValue,
     srtUrl,
+    srtServerMode: srtMode,
+    srtClientMode: obsSrtMode,
     rtmpUrl,
     streamUrl,
     playerUrl,

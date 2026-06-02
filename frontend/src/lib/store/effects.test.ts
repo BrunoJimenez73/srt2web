@@ -606,7 +606,7 @@ describe("effects - Module Metrics", () => {
     expect(badge.classList.contains("active")).toBe(true);
   });
 
-  it("GPU badge is hidden when using_gpu is false", async () => {
+  it("GPU badge shows CPU when using_gpu is false", async () => {
     const { updateStatus } = await import("./signals");
     updateStatus({
       state: "running",
@@ -627,7 +627,12 @@ describe("effects - Module Metrics", () => {
     const badge = document.getElementById(
       "gpu-badge-transcriber",
     ) as HTMLSpanElement;
-    expect(badge.style.display).toBe("none");
+    // When the module is enabled and explicitly on CPU, the badge stays
+    // visible but shows "CPU" (no GPU class) so the user knows the module
+    // is running but not on the accelerator.
+    expect(badge.style.display).toBe("inline");
+    expect(badge.textContent).toBe("CPU");
+    expect(badge.classList.contains("active")).toBe(false);
   });
 });
 

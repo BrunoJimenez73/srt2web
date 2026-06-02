@@ -112,6 +112,7 @@ const { version = 'dev' }: HeaderProps = Astro.props;
   import { initSecurityPanel } from '../../lib/modules/header';
   import { loadPresets, applyPreset, savePreset, exportConfig } from '../../lib/modules/pipeline-control';
   import { presets, selectedPreset } from '../../lib/store/signals';
+  import { effect } from '@preact/signals-core';
 
   // Initialize security panel on component mount
   initSecurityPanel();
@@ -119,8 +120,80 @@ const { version = 'dev' }: HeaderProps = Astro.props;
   // Load presets on mount
   loadPresets();
 
-  // Handle preset selection
+  // ── Render saved presets list whenever the signal changes ──
+  function renderSavedPresets(): void {
+    const list = document.getElementById('saved-presets-list');
+    const header = document.getElementById('saved-presets-header');
+    const empty = document.getElementById('no-presets-msg');
+    if (!list || !header || !empty) return;
+
+    const saved = (presets.value || []).filter((p) => !p.built_in);
+
+    if (saved.length === 0) {
+      list.innerHTML = '';
+      list.classList.add('hidden');
+      header.classList.add('hidden');
+      empty.classList.remove('hidden');
+      return;
+    }
+
+    list.classList.remove('hidden');
+    header.classList.remove('hidden');
+    empty.classList.add('hidden');
+    list.innerHTML = saved
+      .map(
+        (p) => `
+        <button class="preset-item w-full text-left px-2 py-1.5 hover:bg-white/10 rounded text-surface-light text-xs" data-preset="${escapeAttr(p.name)}">
+          <span class="font-medium">${escapeHtml(p.name)}</span>
+          ${p.description ? `<div class="text-surface-dim text-[10px]">${escapeHtml(p.description)}</div>` : ''}
+          <button class="preset-delete text-error text-[10px] mt-1 hover:underline" data-delete-preset="${escapeAttr(p.name)}" aria-label="Eliminar preset">🗑 Eliminar</button>
+        </button>
+      `,
+      )
+      .join('');
+  }
+
+  function escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  function escapeAttr(text: string): string {
+    return text.replace(/"/g, '&quot;');
+  }
+
+  // Re-render on any change to the presets signal
+  effect(() => {
+    void presets.value;
+    renderSavedPresets();
+  });
+
+  // Initial render in case loadPresets() resolved before the effect attached
+  renderSavedPresets();
+
+  // Handle preset selection (built-in + saved) and delete (saved)
   document.getElementById('preset-list').addEventListener('click', async (e) => {
+    const del = (e.target as HTMLElement).closest('[data-delete-preset]') as HTMLElement | null;
+    if (del) {
+      e.stopPropagation();
+      const name = del.getAttribute('data-delete-preset');
+      if (!name) return;
+      if (!confirm(`¿Eliminar preset "${name}"?`)) return;
+      try {
+        const { fetchWithAuth } = await import('../../lib/api');
+        const res = await fetchWithAuth(`/api/presets/${encodeURIComponent(name)}`, { method: 'DELETE' });
+        if (res.ok) {
+          await loadPresets();
+        } else {
+          const { showToast } = await import('../../lib/utils');
+          showToast(`Error al eliminar preset: ${res.status}`, 'error');
+        }
+      } catch (err) {
+        const { showToast } = await import('../../lib/utils');
+        showToast(`Error: ${(err as Error).message}`, 'error');
+      }
+      return;
+    }
     const item = e.target.closest('.preset-item');
     if (!item) return;
     const name = item.dataset.preset;
@@ -132,16 +205,24 @@ const { version = 'dev' }: HeaderProps = Astro.props;
 
   // Handle save preset
   document.getElementById('btn-confirm-save').addEventListener('click', async () => {
-    const name = document.getElementById('preset-name-input').value.trim();
+    const name = (document.getElementById('preset-name-input') as HTMLInputElement).value.trim();
     if (name) {
       await savePreset(name);
-      document.getElementById('preset-name-input').value = '';
+      (document.getElementById('preset-name-input') as HTMLInputElement).value = '';
     }
   });
 
   // Handle export YAML
   document.getElementById('btn-export-config').addEventListener('click', () => {
     exportConfig();
+  });
+
+  // Handle shortcuts help button — open the same modal as the ? key
+  const shortcutsBtn = document.getElementById('btn-shortcuts-help');
+  shortcutsBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '?' }));
   });
 
   // Toggle preset panel

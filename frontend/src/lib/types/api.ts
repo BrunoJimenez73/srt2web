@@ -175,7 +175,7 @@ export type ConnectionMode = "local" | "remote" | "hybrid";
 export interface SrtInputConfig {
   listen_port: number;
   port?: number;
-  mode: "listener" | "caller";
+  mode: "listener" | "caller" | "rendezvous";
   latency_ms: number;
   caller_address: string;
   chunk_duration_sec: number;

@@ -7,6 +7,9 @@ const pageTitle = "SRT2Web — Live Player";
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>{pageTitle}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,6 +33,22 @@ const pageTitle = "SRT2Web — Live Player";
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js" integrity="sha384-1B+J55elPxu+trIhW7QThjZg3evX8C5P6zjB82Xnn46RKPAXpL+vkanRSjCidsJv" crossorigin="anonymous"></script>
+    <script>
+        // Always (re-)register the service worker on the player page too. Without this,
+        // a user opening /player first (before the dashboard) keeps the old SW
+        // (or no SW at all), so they can replay cached HLS segments from a previous
+        // session — the "stale images" bug. Registering here is idempotent and
+        // fast; the browser will skip the install step if the SW is up to date.
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker
+                    .register("/service-worker.js")
+                    .catch(() => {
+                        /* registration can fail in dev (no HTTPS) — non-fatal */
+                    });
+            });
+        }
+    </script>
     <script>
         import { initHlsPlayer } from '../lib/modules/player';
         initHlsPlayer();

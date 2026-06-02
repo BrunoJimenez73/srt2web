@@ -1,0 +1,140 @@
+---
+import DocsLayout from '../../components/docs/DocsLayout.astro';
+
+export function getStaticPaths() {
+  return [];
+}
+
+const { slug } = Astro.params;
+const path = Array.isArray(slug) ? slug.join('/') : slug ?? '';
+
+const titleMap: Record<string, string> = {
+  'getting-started': 'Getting Started',
+  'installation': 'Installation',
+  'configuration': 'Configuration',
+  'modules': 'Modules Overview',
+  'modules/transcriber': 'Transcriber (Whisper)',
+  'modules/translator': 'Translator (Argos)',
+  'modules/tts-engine': 'TTS Engine (Piper)',
+  'modules/subtitle-generator': 'Subtitle Generator',
+  'modules/audio-mixer': 'Audio Mixer',
+  'modules/video-muxer': 'Video Muxer',
+  'api': 'REST API',
+  'api/websocket': 'WebSocket API',
+  'guides/quick-start': 'Quick Start Guide',
+  'guides/obs-setup': 'OBS Setup',
+  'guides/troubleshooting': 'Troubleshooting',
+};
+
+const title = titleMap[path] ?? path;
+---
+
+<DocsLayout title={title}>
+  <article class="doc-page">
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a href="/docs/">Docs</a>
+      <span aria-hidden="true">›</span>
+      <span>{title}</span>
+    </nav>
+
+    <h1>{title}</h1>
+
+    <div class="placeholder-card">
+      <div class="placeholder-icon" aria-hidden="true">📄</div>
+      <h2>Sección en construcción</h2>
+      <p>
+        Esta página de la documentación aún no se ha migrado a la versión
+        renderizada con Astro. Mientras tanto puedes consultar el documento
+        fuente en Markdown o volver al inicio.
+      </p>
+      <div class="placeholder-actions">
+        <a href="/docs/" class="btn btn-primary">← Volver al inicio</a>
+      </div>
+    </div>
+  </article>
+</DocsLayout>
+
+<style>
+  .doc-page {
+    max-width: 720px;
+  }
+
+  .breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--docs-text-dim);
+    margin-bottom: 16px;
+  }
+
+  .breadcrumbs a {
+    color: var(--docs-text-sec);
+    text-decoration: none;
+  }
+
+  .breadcrumbs a:hover {
+    color: var(--docs-accent);
+  }
+
+  h1 {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--docs-text);
+    margin: 0 0 32px;
+    letter-spacing: -0.02em;
+  }
+
+  .placeholder-card {
+    padding: 40px 32px;
+    background: var(--docs-card);
+    border: 1px solid var(--docs-border);
+    border-radius: var(--docs-radius);
+    text-align: center;
+  }
+
+  .placeholder-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+
+  .placeholder-card h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--docs-text);
+    margin: 0 0 12px;
+  }
+
+  .placeholder-card p {
+    color: var(--docs-text-sec);
+    line-height: 1.6;
+    margin: 0 0 24px;
+  }
+
+  .placeholder-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+  }
+
+  .btn-primary {
+    background: var(--docs-accent);
+    color: #fff;
+  }
+
+  .btn-primary:hover {
+    background: var(--docs-accent-hover);
+  }
+</style>

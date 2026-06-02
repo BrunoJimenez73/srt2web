@@ -7,71 +7,91 @@ const { title = 'System Metrics' } = Astro.props;
 ---
 
 <div class="metrics-card" id="metrics-card" role="region" aria-label="Métricas del sistema">
-  <div class="metrics-header">
-    <span class="metrics-title">{title}</span>
+  <button
+    type="button"
+    class="metrics-header"
+    id="metrics-header-toggle"
+    aria-expanded="true"
+    aria-controls="metrics-body"
+  >
+    <span class="metrics-title">
+      <span class="metrics-chevron" id="metrics-chevron" aria-hidden="true">▾</span>
+      {title}
+    </span>
     <span class="latency-indicator" id="latency-indicator" title="Latencia estimada por etapa">
       <span class="latency-icon" aria-hidden="true">⏱</span>
       <span class="latency-value" id="latency-value">0s</span>
     </span>
-  </div>
-  <div class="metrics-grid">
-    <div class="metric-item" id="metric-cpu" role="meter" aria-label="Uso de CPU" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-      <div class="metric-info">
-        <span class="metric-icon" aria-hidden="true">⚡</span>
-        <span class="metric-label">CPU</span>
+  </button>
+  <div class="metrics-body" id="metrics-body">
+    <div class="metrics-grid">
+      <div class="metric-item" id="metric-cpu" role="meter" aria-label="Uso de CPU" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="metric-info">
+          <span class="metric-icon" aria-hidden="true">⚡</span>
+          <span class="metric-label">CPU</span>
+        </div>
+        <div class="metric-bar-container">
+          <div class="metric-bar" id="metric-cpu-bar" style="width: 0%"></div>
+        </div>
+        <div class="metric-values">
+          <span class="metric-value" id="metric-cpu-value">0%</span>
+        </div>
       </div>
-      <div class="metric-bar-container">
-        <div class="metric-bar" id="metric-cpu-bar" style="width: 0%"></div>
+      <div class="metric-item" id="metric-memory" role="meter" aria-label="Uso de memoria" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="metric-info">
+          <span class="metric-icon" aria-hidden="true">🧠</span>
+          <span class="metric-label">Memory</span>
+        </div>
+        <div class="metric-bar-container">
+          <div class="metric-bar" id="metric-memory-bar" style="width: 0%"></div>
+        </div>
+        <div class="metric-values">
+          <span class="metric-value" id="metric-memory-value">0 MB</span>
+          <span class="metric-percent" id="metric-memory-percent">0%</span>
+        </div>
       </div>
-      <div class="metric-values">
-        <span class="metric-value" id="metric-cpu-value">0%</span>
+      <div class="metric-item" id="metric-gpu" role="meter" aria-label="Uso de GPU" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="metric-info">
+          <span class="metric-icon" aria-hidden="true">🎮</span>
+          <span class="metric-label">GPU</span>
+        </div>
+        <div class="metric-bar-container">
+          <div class="metric-bar gpu-bar" id="metric-gpu-bar" style="width: 0%"></div>
+        </div>
+        <div class="metric-values">
+          <span class="metric-value" id="metric-gpu-value">0%</span>
+          <span class="metric-percent" id="metric-gpu-memory">N/A</span>
+        </div>
+      </div>
+      <div class="metric-item" id="metric-throughput" role="meter" aria-label="Rendimiento de procesamiento" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="metric-info">
+          <span class="metric-icon" aria-hidden="true">📊</span>
+          <span class="metric-label">Throughput</span>
+        </div>
+        <div class="metric-bar-container">
+          <div class="metric-bar throughput-bar" id="metric-throughput-bar" style="width: 0%"></div>
+        </div>
+        <div class="metric-values">
+          <span class="metric-value" id="metric-throughput-value">0/s</span>
+        </div>
       </div>
     </div>
-    <div class="metric-item" id="metric-memory" role="meter" aria-label="Uso de memoria" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-      <div class="metric-info">
-        <span class="metric-icon" aria-hidden="true">🧠</span>
-        <span class="metric-label">Memory</span>
-      </div>
-      <div class="metric-bar-container">
-        <div class="metric-bar" id="metric-memory-bar" style="width: 0%"></div>
-      </div>
-      <div class="metric-values">
-        <span class="metric-value" id="metric-memory-value">0 MB</span>
-        <span class="metric-percent" id="metric-memory-percent">0%</span>
-      </div>
+    <div class="module-timing-section" id="module-timing-section" style="display:none">
+      <button
+        type="button"
+        class="timing-header"
+        id="timing-header-toggle"
+        aria-expanded="true"
+        aria-controls="timing-stages"
+      >
+        <span class="timing-title">
+          <span class="timing-chevron" id="timing-chevron" aria-hidden="true">▾</span>
+          Per-Module Latency
+        </span>
+        <span class="timing-subtitle" id="timing-subtitle">0 stages</span>
+      </button>
+      <div class="timing-stages" id="timing-stages" role="region" aria-labelledby="timing-header-toggle"></div>
     </div>
-    <div class="metric-item" id="metric-gpu" role="meter" aria-label="Uso de GPU" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-      <div class="metric-info">
-        <span class="metric-icon" aria-hidden="true">🎮</span>
-        <span class="metric-label">GPU</span>
-      </div>
-      <div class="metric-bar-container">
-        <div class="metric-bar gpu-bar" id="metric-gpu-bar" style="width: 0%"></div>
-      </div>
-      <div class="metric-values">
-        <span class="metric-value" id="metric-gpu-value">0%</span>
-        <span class="metric-percent" id="metric-gpu-memory">N/A</span>
-      </div>
-    </div>
-    <div class="metric-item" id="metric-throughput" role="meter" aria-label="Rendimiento de procesamiento" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-      <div class="metric-info">
-        <span class="metric-icon" aria-hidden="true">📊</span>
-        <span class="metric-label">Throughput</span>
-      </div>
-      <div class="metric-bar-container">
-        <div class="metric-bar throughput-bar" id="metric-throughput-bar" style="width: 0%"></div>
-      </div>
-      <div class="metric-values">
-        <span class="metric-value" id="metric-throughput-value">0/s</span>
-      </div>
-    </div>
-  </div>
-  <div class="module-timing-section" id="module-timing-section" style="display:none">
-    <div class="timing-header">
-      <span class="timing-title">Per-Module Latency</span>
-      <span class="timing-subtitle" id="timing-subtitle">0 stages</span>
-    </div>
-    <div class="timing-stages" id="timing-stages"></div>
   </div>
 </div>
 
@@ -88,17 +108,54 @@ const { title = 'System Metrics' } = Astro.props;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
+    width: 100%;
+    margin: 0 0 12px;
+    padding: 4px 2px 8px;
+    background: transparent;
+    border: none;
     border-bottom: 1px solid var(--border-dim);
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    border-radius: var(--radius-sm, 4px);
+    transition: background 0.15s ease;
+  }
+
+  .metrics-header:hover {
+    background: var(--bg-surface, rgba(255, 255, 255, 0.04));
+  }
+
+  .metrics-header:focus-visible {
+    outline: 2px solid var(--accent, #6366f1);
+    outline-offset: 1px;
   }
 
   .metrics-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: 11px;
     font-weight: 600;
     color: var(--text-prime);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+  }
+
+  .metrics-chevron {
+    display: inline-block;
+    font-size: 11px;
+    line-height: 1;
+    color: var(--text-sec);
+    transition: transform 0.18s ease;
+    transform-origin: 50% 55%;
+  }
+
+  .metrics-header[aria-expanded="false"] .metrics-chevron {
+    transform: rotate(-90deg);
+  }
+
+  .metrics-header[aria-expanded="false"] + .metrics-body {
+    display: none;
   }
 
   .latency-indicator {
@@ -252,36 +309,74 @@ const { title = 'System Metrics' } = Astro.props;
   }
 
   .module-timing-section {
-  margin-top: 12px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border-dim);
-}
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-dim);
+  }
 
-.timing-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
+  .timing-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin: 0 0 6px 0;
+    padding: 4px 2px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    border-radius: var(--radius-sm, 4px);
+    transition: background 0.15s ease;
+  }
 
-.timing-title {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--text-prime);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
+  .timing-header:hover {
+    background: var(--bg-surface, rgba(255, 255, 255, 0.04));
+  }
 
-.timing-subtitle {
-  font-size: 9px;
-  color: var(--text-sec);
-}
+  .timing-header:focus-visible {
+    outline: 2px solid var(--accent, #6366f1);
+    outline-offset: 1px;
+  }
 
-.timing-stages {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
+  .timing-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-prime);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .timing-chevron {
+    display: inline-block;
+    font-size: 11px;
+    line-height: 1;
+    color: var(--text-sec);
+    transition: transform 0.18s ease;
+    transform-origin: 50% 55%;
+  }
+
+  .timing-header[aria-expanded="false"] .timing-chevron {
+    transform: rotate(-90deg);
+  }
+
+  .timing-subtitle {
+    font-size: 9px;
+    color: var(--text-sec);
+  }
+
+  .timing-stages {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 10px;
+  }
+
+  .timing-header[aria-expanded="false"] + .timing-stages {
+    display: none;
+  }
 
 :global(.timing-stage) {
   display: flex;
@@ -457,24 +552,26 @@ const { title = 'System Metrics' } = Astro.props;
     }
 
     section.style.display = "block";
-    subtitleEl.textContent = `${breakdown.length}`;
+    subtitleEl.textContent = `${breakdown.length} ${breakdown.length === 1 ? "stage" : "stages"}`;
 
     const maxMs = Math.max(...breakdown.map((m) => m.avgMs), 1);
 
-    // Compact: tiny padding, small fonts, thin bars
+    // Compact: tiny padding, small fonts, thin bars. Items live inside a
+    // 2-column grid so the section uses half the vertical space it used to.
     stagesEl.innerHTML = "";
     const fragment = document.createDocumentFragment();
 
     for (const m of breakdown) {
       const stage = document.createElement("div");
-      stage.style.cssText = "display:flex;align-items:center;gap:3px;padding:1px 2px;border-radius:2px;margin-bottom:0px;";
+      stage.style.cssText = "display:flex;align-items:center;gap:3px;padding:1px 2px;border-radius:2px;min-width:0;";
 
       const nameSpan = document.createElement("span");
-      nameSpan.style.cssText = "font-size:7.5px;font-weight:500;color:var(--text-sec, #94a3b8);width:58px;flex-shrink:0;text-transform:capitalize;";
+      nameSpan.style.cssText = "font-size:7.5px;font-weight:500;color:var(--text-sec, #94a3b8);width:46px;flex-shrink:0;text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
       nameSpan.textContent = m.name;
+      nameSpan.title = `${m.name}: ${m.avgMs >= 1000 ? (m.avgMs / 1000).toFixed(2) + "s" : m.avgMs.toFixed(0) + "ms"}`;
 
       const barContainer = document.createElement("div");
-      barContainer.style.cssText = "flex:1;height:2.5px;background:var(--bg-surface, #2d2d44);border-radius:2px;overflow:hidden;";
+      barContainer.style.cssText = "flex:1;height:2.5px;background:var(--bg-surface, #2d2d44);border-radius:2px;overflow:hidden;min-width:8px;";
 
       const bar = document.createElement("div");
       bar.style.cssText = `height:100%;border-radius:2px;width:${(m.avgMs / maxMs) * 100}%;background:${getTimingColor(m.avgMs)};`;
@@ -482,7 +579,7 @@ const { title = 'System Metrics' } = Astro.props;
       barContainer.appendChild(bar);
 
       const valueSpan = document.createElement("span");
-      valueSpan.style.cssText = "font-family:monospace;font-size:7.5px;font-weight:600;color:var(--text-prime, #e2e8f0);width:32px;text-align:right;flex-shrink:0;";
+      valueSpan.style.cssText = "font-family:monospace;font-size:7.5px;font-weight:600;color:var(--text-prime, #e2e8f0);width:30px;text-align:right;flex-shrink:0;";
       valueSpan.textContent = m.avgMs >= 1000 ? (m.avgMs / 1000).toFixed(1) + "s" : m.avgMs.toFixed(0) + "ms";
 
       stage.appendChild(nameSpan);
@@ -493,6 +590,59 @@ const { title = 'System Metrics' } = Astro.props;
 
     stagesEl.appendChild(fragment);
   });
+
+  // Collapse/expand toggle for the per-module latency section. The expanded
+  // state is persisted in localStorage so it survives page reloads.
+  const TIMING_EXPANDED_KEY = "srt2web:metrics:timing-expanded";
+  const headerToggle = el<HTMLButtonElement>("timing-header-toggle");
+  if (headerToggle) {
+    const stored = localStorage.getItem(TIMING_EXPANDED_KEY);
+    // Default to expanded if no preference has been recorded yet.
+    const initialExpanded = stored === null ? true : stored === "true";
+    headerToggle.setAttribute("aria-expanded", String(initialExpanded));
+
+    headerToggle.addEventListener("click", (e) => {
+      // Stop propagation so clicking the inner timing toggle doesn't also
+      // toggle the outer metrics card.
+      e.stopPropagation();
+      const isExpanded = headerToggle.getAttribute("aria-expanded") === "true";
+      const next = !isExpanded;
+      headerToggle.setAttribute("aria-expanded", String(next));
+      try {
+        localStorage.setItem(TIMING_EXPANDED_KEY, String(next));
+      } catch {
+        // localStorage may be disabled (private mode, etc.) — non-fatal.
+      }
+    });
+  }
+
+  // Collapse/expand toggle for the entire System Metrics card body. The
+  // expanded state is persisted in localStorage so it survives page reloads.
+  const METRICS_EXPANDED_KEY = "srt2web:metrics:system-expanded";
+  const metricsHeader = el<HTMLButtonElement>("metrics-header-toggle");
+  if (metricsHeader) {
+    const stored = localStorage.getItem(METRICS_EXPANDED_KEY);
+    const initialExpanded = stored === null ? true : stored === "true";
+    metricsHeader.setAttribute("aria-expanded", String(initialExpanded));
+
+    metricsHeader.addEventListener("click", (e) => {
+      // Don't toggle when the click is on the inner per-module timing button
+      // (it has its own stopPropagation above) — but the inner button lives
+      // inside .metrics-body which is hidden when collapsed, so this is just
+      // belt-and-suspenders.
+      if ((e.target as HTMLElement).closest(".timing-header")) {
+        return;
+      }
+      const isExpanded = metricsHeader.getAttribute("aria-expanded") === "true";
+      const next = !isExpanded;
+      metricsHeader.setAttribute("aria-expanded", String(next));
+      try {
+        localStorage.setItem(METRICS_EXPANDED_KEY, String(next));
+      } catch {
+        // localStorage may be disabled (private mode, etc.) — non-fatal.
+      }
+    });
+  }
 
   function getTimingColor(ms: number): string {
     if (ms < 100) return "#22c55e";

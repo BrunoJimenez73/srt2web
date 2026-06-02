@@ -15,8 +15,11 @@ import {
   syncState,
   syncCorrectionActive,
   throughputHistory,
+  pipelineConfig,
+  inputType,
 } from "./signals";
-// Log panel integration via window globals (LogPanel.astro defines __logAdd)
+// Log panel integration (LogPanel.astro provides the DOM; logpanel.ts provides addLog)
+import { addLog } from "../modules/logpanel";
 import { t } from "../i18n";
 
 // ── Element refs (lazy) ────────────────────────────────────────────────────────
@@ -198,14 +201,13 @@ function startGpuBadgesEffect(): void {
   effect(() => {
     const status = pipelineStatus.value;
     const modules = status?.modules || [];
-    const running = status?.state === "running";
 
-    // First pass: update badges from module status
-    const updatedModules = new Set<string>();
+    // Update badges from module status. Cards without a badge element
+    // (e.g. the translator, which is CPU-only and intentionally has no
+    // CPU/GPU badge) are simply skipped here.
     for (const mod of modules) {
       const badge = el<HTMLElement>(`gpu-badge-${mod.name}`);
       if (!badge) continue;
-      updatedModules.add(`gpu-badge-${mod.name}`);
 
       const usingGpu =
         mod.extra?.using_gpu === true ||
@@ -222,17 +224,6 @@ function startGpuBadgesEffect(): void {
         badge.style.display = "inline";
         badge.textContent = "CPU";
         badge.classList.remove("active");
-      }
-    }
-
-    // Second pass: show badges for known static cards not in module status
-    // (translator is CPU-only, always visible when pipeline is running)
-    if (running && !updatedModules.has("gpu-badge-translator")) {
-      const translatorBadge = el<HTMLElement>("gpu-badge-translator");
-      if (translatorBadge) {
-        translatorBadge.style.display = "inline";
-        translatorBadge.textContent = "CPU";
-        translatorBadge.classList.remove("active");
       }
     }
   });
@@ -313,12 +304,20 @@ function startLogsEffect(): void {
     const logs = pipelineLogs.value;
     const newLogs = logs.slice(_lastLogCount);
     for (const log of newLogs) {
-      const addLog = (window as any).__logAdd;
-      if (typeof addLog === "function") {
-        addLog(log.level, log.message, log.timestamp);
-      }
+      addLog(log.level, log.message, log.timestamp);
     }
     _lastLogCount = logs.length;
+  });
+}
+
+// ── Effect: Sync inputType from pipelineConfig ──────────────────────────
+
+function startInputTypeEffect(): void {
+  effect(() => {
+    const t = pipelineConfig.value?.input?.type;
+    if (t === "srt" || t === "rtmp" || t === "file") {
+      inputType.value = t;
+    }
   });
 }
 
@@ -347,6 +346,7 @@ export function startEffects(): void {
   startSyncEffect();
   startLogsEffect();
   startPipelineIndicatorEffect();
+  startInputTypeEffect();
 }
 
 export function stopEffects(): void {

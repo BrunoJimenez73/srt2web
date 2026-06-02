@@ -6,6 +6,7 @@ import Header from '../components/layout/Header.astro';
 import StatusCard from '../components/StatusCard.astro';
 import MetricsCard from '../components/MetricsCard.astro';
 import ProcessGrid from '../components/ProcessGrid.astro';
+import LogPanel from '../components/LogPanel.astro';
 import Toast from '../components/Toast.astro';
 
 // Walk up from cwd to find pyproject.toml (works in both dev and build)
@@ -27,43 +28,12 @@ const appVersion = versionMatch?.[1] ?? '0.0.0';
     <StatusCard />
     <MetricsCard />
     <ProcessGrid />
-    <!-- LogPanel placeholder: full component loads on expand via dynamic import -->
-    <div id="logpanel-placeholder" class="log-panel collapsed" role="region" aria-label="Panel de registros del sistema">
-      <div class="log-header" id="log-header" role="button" tabindex="0" aria-expanded="false" aria-controls="log-content">
-        <div class="log-header-left">
-          <span class="log-collapse-icon" id="log-collapse-icon" aria-hidden="true">▶</span>
-          <span class="log-title">📋 Logs</span>
-          <span class="log-count" id="log-count"></span>
-        </div>
-      </div>
-      <div class="log-content" id="log-content" role="log" aria-live="polite">
-        <div class="log-empty" id="log-empty" role="status">
-          <span class="log-empty-icon">📝</span>
-          <span class="log-empty-text">Loading logs...</span>
-        </div>
-      </div>
-    </div>
+    <LogPanel />
   </div>
   <Toast />
   <script>
     import '../lib/dashboard.ts';
     import '../lib/modules/outputs.ts';
-
-    // Lazy load LogPanel full component when user expands it
-    const logHeader = document.getElementById('log-header');
-    let logPanelLoaded = false;
-    if (logHeader) {
-      logHeader.addEventListener('click', async () => {
-        if (!logPanelLoaded) {
-          logPanelLoaded = true;
-          try {
-            await import('../components/LogPanel.astro');
-          } catch {
-            // Fallback: the panel works with base functionality
-          }
-        }
-      });
-    }
   </script>
 </BaseLayout>
 

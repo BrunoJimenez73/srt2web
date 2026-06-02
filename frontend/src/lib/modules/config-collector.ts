@@ -431,7 +431,7 @@ export function applyConfigToUI(cfg: Config): void {
   const fileSpeedInput = document.getElementById(
     "input-file-speed",
   ) as HTMLInputElement;
-  if (filePathInput && inputFileConfig?.path)
+  if (filePathInput && inputFileConfig?.path !== undefined && inputFileConfig?.path !== null)
     filePathInput.value = inputFileConfig.path;
   if (fileLoopSelect && inputFileConfig?.loop !== undefined)
     fileLoopSelect.value = inputFileConfig.loop ? "true" : "false";

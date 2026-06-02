@@ -84,6 +84,7 @@ export function addLog(
   const entry = document.createElement("div");
   entry.className = "log-entry";
   entry.setAttribute("role", "listitem");
+  entry.setAttribute("data-testid", "log-entry");
   entry.dataset.level = level.toLowerCase();
   entry.dataset.message = message.toLowerCase();
 
