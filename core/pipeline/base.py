@@ -34,6 +34,14 @@ class PipelineStrategy:
         retry_attempts: int = 2,
         retry_delay: float = 1.0,
     ):
+        import warnings
+
+        warnings.warn(
+            "PipelineStrategy and legacy pipeline strategies in core/pipeline/ "
+            "are deprecated. Use core/pipeline/strategies.py with UnifiedPipeline instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.max_concurrent_chunks = max_concurrent_chunks
         self.buffer_size = buffer_size
         self.retry_attempts = retry_attempts

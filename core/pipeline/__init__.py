@@ -1,12 +1,14 @@
 """
-Core Pipeline Module - Estrategias de pipeline refactorizadas.
+Core Pipeline Module - Estrategias de pipeline.
 
-Este módulo contiene las estrategias de procesamiento de pipeline:
-- base.py: Interfaz abstracta y métricas
-- sequential.py: Procesamiento secuencial
-- parallel.py: Procesamiento paralelo con threads
-- async_pipeline.py: Procesamiento con asyncio
-- factory.py: Factory para crear instancias
+ADVERTENCIA (F101): Las clases legacy SequentialPipeline, ParallelPipeline,
+AsyncPipeline y PipelineStrategy existen para compatibilidad hacia atrás.
+Emite DeprecationWarning al instanciarse.
+
+La implementación activa está en:
+  - core/pipeline/strategies.py  (PipelineStrategy ABC + 3 subclases concretas)
+  - core/unified_pipeline.py     (UnifiedPipeline — orquestador principal)
+  - core/pipeline/factory.py     (legacy, usar core/pipeline/strategies.create_strategy)
 """
 
 from core.pipeline.async_pipeline import AsyncPipeline
@@ -24,23 +26,22 @@ from core.pipeline.parallel import ParallelPipeline
 from core.pipeline.sequential import SequentialPipeline
 
 # Backwards compatibility - import from unified_pipeline
-# Los tests y código legacy pueden usar estos nombres
 from core.unified_pipeline import UnifiedPipeline as Pipeline
 
 __all__ = [
-    # Base
+    # Legacy base (deprecated — emite DeprecationWarning)
     "PipelineStrategy",
     "MetricsTracker",
     "create_pipeline_metrics",
-    # Factory
+    # Legacy factory
     "PipelineMode",
     "create_pipeline",
     "get_available_modes",
-    # Strategies
+    # Legacy strategies (deprecated)
     "SequentialPipeline",
     "ParallelPipeline",
     "AsyncPipeline",
-    # Legacy (backwards compatible)
-    "Pipeline",  # Alias para UnifiedPipeline
+    # Alias
+    "Pipeline",
     "UnifiedPipeline",
 ]

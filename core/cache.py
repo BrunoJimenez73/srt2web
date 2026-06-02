@@ -1,4 +1,6 @@
 # File: core/cache.py
+import copy
+import threading
 import time
 from collections import OrderedDict
 from collections.abc import Callable
@@ -7,35 +9,40 @@ from typing import Any, TypeVar
 
 
 class LRUCache:
-    """LRU cache con TTL (Time To Live)"""
+    """LRU cache con TTL (Time To Live), thread-safe y preventivo contra mutaciones."""
 
     def __init__(self, maxsize: int = 500, ttl_seconds: int = 60):
         self.maxsize = maxsize
         self.ttl_seconds = ttl_seconds
         self.cache: OrderedDict[Any, tuple[Any, float]] = OrderedDict()
+        self._lock = threading.Lock()
 
     def get(self, key: Any) -> Any | None:
-        if key in self.cache:
-            value, timestamp = self.cache[key]
-            if time.time() - timestamp < self.ttl_seconds:
-                self.cache.move_to_end(key)
-                return value
-            else:
-                del self.cache[key]
-        return None
+        with self._lock:
+            if key in self.cache:
+                value, timestamp = self.cache[key]
+                if time.time() - timestamp < self.ttl_seconds:
+                    self.cache.move_to_end(key)
+                    return copy.deepcopy(value)
+                else:
+                    del self.cache[key]
+            return None
 
     def set(self, key: Any, value: Any) -> None:
-        if key in self.cache:
-            del self.cache[key]
-        elif len(self.cache) >= self.maxsize:
-            self.cache.popitem(last=False)
-        self.cache[key] = (value, time.time())
+        with self._lock:
+            if key in self.cache:
+                del self.cache[key]
+            elif len(self.cache) >= self.maxsize:
+                self.cache.popitem(last=False)
+            self.cache[key] = (copy.deepcopy(value), time.time())
 
     def clear(self) -> None:
-        self.cache.clear()
+        with self._lock:
+            self.cache.clear()
 
     def invalidate(self, key: Any) -> None:
-        self.cache.pop(key, None)
+        with self._lock:
+            self.cache.pop(key, None)
 
 
 class APICache:
@@ -48,20 +55,24 @@ class APICache:
 
     def __init__(self) -> None:
         self._caches: dict[str, LRUCache] = {}
+        self._lock = threading.Lock()
 
     def _get_or_create(self, name: str, ttl_seconds: int, maxsize: int = 1) -> LRUCache:
-        if name not in self._caches:
-            self._caches[name] = LRUCache(maxsize=maxsize, ttl_seconds=ttl_seconds)
-        return self._caches[name]
+        with self._lock:
+            if name not in self._caches:
+                self._caches[name] = LRUCache(maxsize=maxsize, ttl_seconds=ttl_seconds)
+            return self._caches[name]
 
     def get(self, name: str, key: str = "default") -> Any | None:
-        cache = self._caches.get(name)
+        with self._lock:
+            cache = self._caches.get(name)
         if cache is None:
             return None
         return cache.get(key)
 
     def set(self, name: str, value: Any, key: str = "default") -> None:
-        cache = self._caches.get(name)
+        with self._lock:
+            cache = self._caches.get(name)
         if cache is not None:
             cache.set(key, value)
 
@@ -69,13 +80,15 @@ class APICache:
         self._get_or_create(name, ttl_seconds, maxsize)
 
     def invalidate(self, name: str) -> None:
-        cache = self._caches.get(name)
+        with self._lock:
+            cache = self._caches.get(name)
         if cache is not None:
             cache.clear()
 
     def invalidate_all(self) -> None:
-        for cache in self._caches.values():
-            cache.clear()
+        with self._lock:
+            for cache in self._caches.values():
+                cache.clear()
 
 
 api_cache = APICache()

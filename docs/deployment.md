@@ -292,39 +292,46 @@ modules:
 
 ```bash
 # Estado del pipeline
-srt2web status
-srt2web status --watch        # Modo observación continua
+srt2web-tui status
+srt2web-tui status --json     # Salida JSON
 
 # Control del pipeline
-srt2web start
-srt2web stop
-srt2web restart
+srt2web-tui pipeline start
+srt2web-tui pipeline stop
+srt2web-tui pipeline restart
 
 # Configuración
-srt2web config get
-srt2web config set input.type rtmp
-srt2web config save
+srt2web-tui config            # Mostrar configuración completa
+srt2web-tui config input.type rtmp  # Cambiar valor específico
 
 # Módulos
-srt2web modules list
-srt2web modules toggle transcriber
-srt2web modules debug whisper
+srt2web-tui module list
+srt2web-tui module toggle transcriber
+srt2web-tui module debug whisper
 
 # Salidas
-srt2web outputs list
-srt2web outputs add --name rtmp_1 --type rtmp --url "rtmp://..."
-srt2web outputs remove recording_1
-srt2web outputs toggle rtmp_1 --off
+srt2web-tui output list
+srt2web-tui output add rtmp --name rtmp_1 --config '{"url":"rtmp://..."}'
+srt2web-tui output remove recording_1
+srt2web-tui output toggle rtmp_1 --enable
+
+# Presets
+srt2web-tui preset list
+srt2web-tui preset save my-preset
+srt2web-tui preset apply my-preset
+srt2web-tui preset delete my-preset
+
+# Grabaciones
+srt2web-tui recording list
+srt2web-tui recording delete grabacion_01
 
 # Logs
-srt2web logs --tail 50
-srt2web logs --filter ERROR
+srt2web-tui logs --tail 50
+srt2web-tui logs --level ERROR
 
 # Otros
-srt2web health                # Health check
-srt2web stream                # Abrir stream en navegador
-srt2web available             # Mostrar tipos disponibles
-srt2web shell                 # Modo interactivo
+srt2web-tui health            # Health check detallado
+srt2web-tui tui               # Lanzar TUI interactiva
 ```
 
 ## App Desktop (Electron)
@@ -468,7 +475,10 @@ Formato: `[TIMESTAMP] [LEVEL] [MODULE] message`
 ### WebSocket
 
 ```javascript
-const ws = new WebSocket("ws://localhost:9999/ws/logs?token=TU_TOKEN");
+const ws = new WebSocket("ws://localhost:9999/ws/logs");
+ws.onopen = () => {
+  ws.send(JSON.stringify({ type: "auth", token: "TU_TOKEN" }));
+};
 ws.onmessage = (event) => {
   const log = JSON.parse(event.data);
   console.log(log.timestamp, log.level, log.message);
@@ -501,7 +511,7 @@ python -m pytest tests/ --cov=core --cov=modules --cov=server
 cd frontend && npm test
 ```
 
-**Estado actual**: 740 tests pasando, 0 fallando.
+**Estado actual**: 1129 tests pasando, 0 fallando.
 
 ## Checklist de Despliegue
 

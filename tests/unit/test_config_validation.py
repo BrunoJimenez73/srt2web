@@ -434,7 +434,7 @@ class TestConfigManagerAtomicSave:
 
         mgr = ConfigManager(str(config_path))
         assert hasattr(mgr, "_lock")
-        assert isinstance(mgr._lock, threading.Lock)
+        assert type(mgr._lock) == type(threading.Lock())
 
     def test_update_from_dict_validates_before_assign(self, tmp_path: Path) -> None:
         """update_from_dict validates via Pydantic before mutating _config."""

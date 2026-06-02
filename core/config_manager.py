@@ -15,6 +15,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
 
+from core.paths import get_config_path, get_project_root
+
 import yaml
 
 # Note: we catch Exception instead of ValidationError to avoid
@@ -61,16 +63,16 @@ class ConfigManager:
 
     def _find_config(self) -> str:
         """Find config.yaml relative to the project root."""
-        project_root = Path(__file__).parent.parent
+        project_root = get_project_root()
         candidates = [
-            project_root / "config.yaml",
+            get_config_path(),
             project_root / "config.yml",
             Path.cwd() / "config.yaml",
         ]
         for candidate in candidates:
             if candidate.exists():
                 return str(candidate)
-        return str(project_root / "config.yaml")
+        return str(get_config_path())
 
     def _load(self) -> None:
         """Load configuration from YAML file, merging with defaults."""

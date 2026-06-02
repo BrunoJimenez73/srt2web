@@ -1,324 +1,239 @@
 # Herramienta CLI
 
-SRT2Web incluye una **herramienta de línea de comandos** completa para controlar el servidor, configurar módulos, gestionar salidas y monitorizar el pipeline sin necesidad de usar el dashboard web.
+SRT2Web incluye una **herramienta de línea de comandos** completa para controlar el servidor, configurar módulos, gestionar salidas y monitorizar el pipeline.
 
 ## Instalación
 
-### Windows
+La CLI se instala como parte del paquete Python:
 
 ```bash
-# Usar el batch launcher
-cli\srt2web.bat status
-
-# O directamente con Python
-python cli/srt2web.py status
+pip install -r config/requirements.txt
+# El entry point srt2web-tui queda disponible
 ```
 
-### Linux/Mac
+### Entry Points
+
+| Comando        | Descripción                                                  |
+| -------------- | ------------------------------------------------------------ |
+| `srt2web-tui`  | CLI completa + TUI interactiva (Click, vía `cli.main:cli_entry`) |
+| `srt2web`      | (legacy) Entry point antiguo, no usar para nuevo desarrollo  |
+
+## Uso General
 
 ```bash
-python cli/srt2web.py status
+srt2web-tui [--server URL] [--token TOKEN] [--json] <comando> [subcomando] [opciones]
 ```
 
-## Comandos
+- `--server`, `-s`: URL base del servidor (default: `http://localhost:9999`)
+- `--token`, `-t`: Token de autenticación para servidores protegidos
+- `--json`: Salida en formato JSON
+- Sin subcomando: lanza la **TUI interactiva**
+
+## Comandos Disponibles
 
 ### Pipeline Control
 
 ```bash
-# Iniciar pipeline
-srt2web start
-
-# Detener pipeline
-srt2web stop
-
-# Reiniciar pipeline
-srt2web restart
+srt2web-tui pipeline start      # Iniciar pipeline
+srt2web-tui pipeline stop       # Detener pipeline
+srt2web-tui pipeline restart    # Reiniciar pipeline
 ```
 
 ### Estado y Monitorización
 
 ```bash
-# Estado actual (una vez)
-srt2web status
-
-# Modo observación continua (actualiza cada 2s)
-srt2web status --watch
-
-# Health check
-srt2web health
-
-# Mostrar métricas del sistema
-srt2web metrics
+srt2web-tui status              # Estado del pipeline + recursos
+srt2web-tui status --json       # Salida JSON estructurada
+srt2web-tui health              # Health check detallado (input, output, circuit breakers)
 ```
 
-**Ejemplo output**:
+**Ejemplo output `status`**:
 
 ```
-┌─────────────────────────────────────────┐
-│  SRT2Web Pipeline Status                │
-├─────────────────────────────────────────┤
-│  State:    running                      │
-│  Mode:     thread_parallel              │
-│  Chunks:   42 processed                 │
-│  Uptime:   00:07:23                     │
-│                                         │
-│  CPU:  45%    Memory: 2.1 GB           │
-│  GPU:  78%    VRAM: 3.2 / 8.0 GB       │
-│                                         │
-│  Modules:                               │
-│  ✓ SRT Input      running   42 chunks   │
-│  ✓ Whisper        running   42 chunks   │
-│  ✓ Translator     running   42 chunks   │
-│  ✓ TTS Engine     running   42 chunks   │
-│  ✓ Video Muxer    running   42 chunks   │
-└─────────────────────────────────────────┘
+Pipeline: running | Chunks: 42 | Mode: thread_parallel
+Modules:
+  audio_extractor: running ✓ (chunks: 42, last: 15ms)
+  transcriber: running ✓ (chunks: 42, last: 120ms)
+  translator: running ✓ (chunks: 42, last: 8ms)
+  tts_engine: running ✓ (chunks: 42, last: 350ms)
+  video_muxer: running ✓ (chunks: 42, last: 60ms)
+```
+
+**Ejemplo output `health`**:
+
+```
+Status: healthy
+Pipeline: running
+Uptime: 443s
+Memory: 2150 MB (67.8%)
+Chunks processed: 42
+Input: receiving=true (srt)
+Output: streaming=true (web)
+Modules:
+  audio_extractor: running
+  transcriber: running
 ```
 
 ### Configuración
 
 ```bash
-# Mostrar configuración completa
-srt2web config get
-
-# Mostrar valor específico
-srt2web config get input.type
-srt2web config get modules.transcriber.model
-
-# Establecer valor
-srt2web config set input.type rtmp
-srt2web config set modules.transcriber.model small
-srt2web config set pipeline.mode sequential
-srt2web config set output.web.segment_duration 2
-
-# Guardar configuración a config.yaml
-srt2web config save
-
-# Recargar configuración (hot-reload)
-srt2web config reload
+srt2web-tui config                      # Árbol completo de configuración
+srt2web-tui config server.port          # Valor específico (dotted key)
+srt2web-tui config input.type rtmp      # Establecer valor
 ```
+
+Soporta claves anidadas con notación dotted (`modules.transcriber.model`, `pipeline.mode`, etc.).
 
 ### Módulos
 
 ```bash
-# Listar módulos
-srt2web modules list
-
-# Toggle módulo
-srt2web modules toggle transcriber
-srt2web modules toggle translator --off
-srt2web modules toggle tts_engine --on
-
-# Debug de módulo (información detallada)
-srt2web modules debug whisper
-srt2web modules debug tts_engine
-srt2web modules debug video_muxer
-```
-
-**Ejemplo debug output**:
-
-```
-Module: transcriber
-  Enabled:  true
-  State:    running
-  Device:   cuda
-  Model:    tiny
-  Language: en
-  GPU:      NVIDIA GeForce RTX 3060
-  Chunks:   42
-  Latency:  ~120ms per chunk
+srt2web-tui module list                 # Listar todos los módulos con estado
+srt2web-tui module toggle transcriber    # Toggle (activar/desactivar)
+srt2web-tui module toggle transcriber --enable
+srt2web-tui module toggle translator --disable
+srt2web-tui module debug transcriber    # Información detallada del módulo
 ```
 
 ### Salidas (Outputs)
 
 ```bash
-# Listar salidas
-srt2web outputs list
+srt2web-tui output list                 # Listar salidas activas
+srt2web-tui output add rtmp --name rtmp_1 --config '{"url":"rtmp://..."}'
+srt2web-tui output remove rtmp_1        # Eliminar salida
+srt2web-tui output toggle rtmp_1 --enable
+srt2web-tui output toggle rtmp_1 --disable
+srt2web-tui output update rtmp_1 --config '{"video_bitrate":"4000k"}' --enable
+```
 
-# Añadir salida
-srt2web outputs add --name rtmp_youtube --type rtmp \
-  --url "rtmp://a.rtmp.youtube.com/live2/xxx" \
-  --config '{"video_bitrate": "4000k"}'
+### Presets
 
-# Eliminar salida
-srt2web outputs remove rtmp_youtube
+```bash
+srt2web-tui preset list                 # Listar presets disponibles
+srt2web-tui preset save mi-config       # Guardar configuración actual como preset
+srt2web-tui preset apply mi-config      # Aplicar preset
+srt2web-tui preset delete mi-config     # Eliminar preset
+```
 
-# Toggle salida
-srt2web outputs toggle rtmp_youtube --on
-srt2web outputs toggle rtmp_youtube --off
+### Grabaciones
 
-# Ver estado de salidas
-srt2web outputs status
+```bash
+srt2web-tui recording list              # Listar grabaciones
+srt2web-tui recording delete grabacion_01  # Eliminar grabación
+```
+
+### Input
+
+```bash
+srt2web-tui input info                  # Información del input actual
+```
+
+### Red
+
+```bash
+srt2web-tui network info                # Información de red
 ```
 
 ### Logs
 
 ```bash
-# Últimos 50 logs
-srt2web logs --tail 50
-
-# Filtrar por nivel
-srt2web logs --filter ERROR
-srt2web logs --filter WARNING
-srt2web logs --filter INFO
-
-# Seguir logs en tiempo real
-srt2web logs --follow
+srt2web-tui logs                        # Últimos 50 logs (default)
+srt2web-tui logs --tail 100             # Número de líneas
+srt2web-tui logs --level ERROR          # Filtrar por nivel
+srt2web-tui logs --no-follow            # Sin seguimiento en tiempo real
+srt2web-tui logs --follow --level WARNING  # Seguir logs filtrados
 ```
 
-### Otros
+### TUI Interactiva
 
 ```bash
-# Abrir stream en navegador
-srt2web stream
-
-# Mostrar tipos de input/output disponibles
-srt2web available
-
-# Modo interactivo (shell REPL)
-srt2web shell
-
-# Versión
-srt2web --version
+srt2web-tui tui                         # Lanzar TUI explícitamente
+srt2web-tui                             # Lo mismo (default sin subcomando)
 ```
 
-## Modo Interactivo (Shell)
+La TUI replica el dashboard web con:
 
-El modo shell proporciona un REPL interactivo para control completo:
+- **StatusBar**: Estado del pipeline, chunks procesados, modo, reloj
+- **MetricsPanel**: Barras CPU/RAM/GPU con sparklines
+- **ModuleGrid**: 8 cards (Input, Whisper, Translate, TTS, Subtitle, AudioMixer, HLS, Output)
+- **ConfigPanel**: Vista YAML de configuración
+- **LogPanel**: Logs en vivo con coloreado por nivel
+
+Atajos de teclado:
+
+| Tecla    | Acción                        |
+| -------- | ----------------------------- |
+| `Space`  | Iniciar/detener pipeline      |
+| `S`      | Guardar configuración         |
+| `L`      | Toggle panel de logs          |
+| `C`      | Toggle panel de configuración |
+| `O`      | Toggle panel de salidas       |
+| `?`      | Pantalla de ayuda             |
+| `Q`      | Salir                         |
+
+## Salida JSON
+
+Todos los comandos soportan `--json` para integración con scripts:
 
 ```bash
-srt2web shell
+srt2web-tui status --json
+srt2web-tui health --json
+srt2web-tui module list --json
+srt2web-tui output list --json
 ```
 
-```
-SRT2Web Shell v0.6.8
-Type 'help' for commands, 'exit' to quit.
-
-srt2web> status
-Pipeline: running | Chunks: 42 | Uptime: 00:07:23
-
-srt2web> config get input.type
-srt
-
-srt2web> config set input.type rtmp
-✓ Input type set to: rtmp
-
-srt2web> modules list
-  transcriber   enabled   running
-  translator    enabled   running
-  tts_engine    enabled   running
-  video_muxer   enabled   running
-
-srt2web> outputs list
-  web_1       web       enabled   running
-  recording_1 recording enabled   running
-
-srt2web> logs --tail 5 --filter WARNING
-  [WARN] Duration drift: 0.05s
-  [WARN] Audio padding applied
-
-srt2web> exit
-```
-
-## Integración con Scripts
-
-La CLI puede usarse en scripts bash/powershell:
-
-```bash
-#!/bin/bash
-# Auto-start pipeline con config específica
-
-srt2web config set pipeline.mode sequential
-srt2web config set modules.transcriber.model tiny
-srt2web config save
-srt2web start
-
-# Esperar a que esté corriendo
-srt2web status --watch
-```
-
-```powershell
-# PowerShell: Toggle outputs basado en hora
-$hour = (Get-Date).Hour
-if ($hour -ge 9 -and $hour -le 18) {
-    srt2web outputs toggle rtmp_youtube --on
-} else {
-    srt2web outputs toggle rtmp_youtube --off
-}
-```
-
-## Argumentos de Línea de Comandos
-
-```
-Usage: srt2web.py [command] [subcommand] [options]
-
-Commands:
-  status      Show pipeline status
-  health      Health check
-  start       Start pipeline
-  stop        Stop pipeline
-  restart     Restart pipeline
-  config      Configuration management
-  modules     Module management
-  outputs     Output management
-  logs        Show logs
-  stream      Open stream in browser
-  available   Show available input/output types
-  shell       Interactive shell mode
-  version     Show version
-
-Options:
-  --host HOST        Server host (default: 127.0.0.1)
-  --port PORT        Server port (default: 9999)
-  --token TOKEN      Auth token
-  --watch            Watch mode (for status)
-  --tail N           Number of log lines (for logs)
-  --filter LEVEL     Filter logs by level
-  --follow           Follow logs in real-time
-  --format FORMAT    Output format: text, json
-```
-
-## Formato JSON
-
-Para integración con otras herramientas:
-
-```bash
-srt2web status --format json
-srt2web config get --format json
-srt2web modules list --format json
-srt2web outputs list --format json
-```
-
-**Ejemplo JSON**:
+**Ejemplo**:
 
 ```json
 {
   "state": "running",
   "mode": "thread_parallel",
   "processed_chunks": 42,
-  "uptime": "00:07:23",
+  "uptime_seconds": 443,
   "system": {
     "cpu_percent": 45.2,
     "memory_mb": 2150.4,
-    "memory_percent": 67.8,
-    "gpu_usage": 78.0,
-    "gpu_memory_mb": 3276
+    "memory_percent": 67.8
   },
-  "modules": {
-    "srt_input": {
-      "enabled": true,
+  "modules": [
+    {
+      "name": "transcriber",
       "state": "running",
-      "processed_chunks": 42
-    },
-    "transcriber": {
       "enabled": true,
-      "state": "running",
-      "processed_chunks": 42
-    },
-    "translator": {
-      "enabled": true,
-      "state": "running",
-      "processed_chunks": 42
+      "processed_chunks": 42,
+      "last_process_time_ms": 120
     }
-  }
+  ]
 }
+```
+
+## Integración con Scripts
+
+**PowerShell**:
+
+```powershell
+# Iniciar pipeline con configuración específica
+srt2web-tui config set pipeline.mode sequential
+srt2web-tui config set modules.transcriber.model tiny
+srt2web-tui pipeline start
+
+# Toggle outputs basado en hora
+$hour = (Get-Date).Hour
+if ($hour -ge 9 -and $hour -le 18) {
+    srt2web-tui output toggle rtmp_youtube --enable
+} else {
+    srt2web-tui output toggle rtmp_youtube --disable
+}
+```
+
+**Bash**:
+
+```bash
+#!/bin/bash
+# Auto-start pipeline con health check
+srt2web-tui config set pipeline.mode sequential
+srt2web-tui config set modules.transcriber.model tiny
+srt2web-tui pipeline start
+
+# Verificar que esté corriendo
+srt2web-tui health --json | grep '"status": "healthy"'
 ```

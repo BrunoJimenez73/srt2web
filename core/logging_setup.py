@@ -1,5 +1,5 @@
 """
-Logging Setup
+Logging Setup - Centralized logging configuration with security audit channel.
 """
 
 import json
@@ -12,6 +12,32 @@ from typing import Any
 from core.paths import get_user_log_dir
 
 logger = logging.getLogger(__name__)
+
+# Security events use this logger name prefix
+SECURITY_LOGGER_PREFIX = "srt2web.security"
+
+
+class SecurityLogHandler(RotatingFileHandler):
+    """Dedicated handler for security-auditable events.
+    Writes to a separate security.log file (never filtered).
+    """
+
+    def __init__(self, log_dir: str | None = None) -> None:
+        if log_dir is None:
+            log_dir = str(get_user_log_dir())
+        super().__init__(
+            f"{log_dir}/security.log",
+            maxBytes=10 * 1024 * 1024,
+            backupCount=3,
+            encoding="utf-8",
+        )
+        self.setLevel(logging.WARNING)
+        self.setFormatter(
+            logging.Formatter(
+                "%(asctime)s %(levelname)-5s %(name)s %(message)s",
+                datefmt="%Y-%m-%dT%H:%M:%S",
+            )
+        )
 
 
 class BroadcastHandler(logging.Handler):
@@ -32,11 +58,14 @@ class BroadcastHandler(logging.Handler):
 
 
 class ConsoleFilter(logging.Filter):
-    SECURITY_PATTERNS = ("SECURITY:", "auth_token not configured")
+    """Filters repetitive security warnings from console output.
+    Security events are still logged to the security.log file.
+    """
+    NOISE_PATTERNS = ("SECURITY:", "auth_token not configured")
 
     def filter(self, record: logging.LogRecord) -> bool:
         msg = record.getMessage()
-        return all(pattern not in msg for pattern in self.SECURITY_PATTERNS)
+        return all(pattern not in msg for pattern in self.NOISE_PATTERNS)
 
 
 class JSONFormatter(logging.Formatter):
@@ -58,6 +87,9 @@ class JSONFormatter(logging.Formatter):
 
 
 def get_filter_patterns() -> list[str]:
+    """Noise suppression patterns for broadcast and file log handlers.
+    Security events are NOT filtered here — they go to security.log.
+    """
     return [
         "[FFmpeg]",
         "[FFmpeg RTMP]",
@@ -74,8 +106,6 @@ def get_filter_patterns() -> list[str]:
         "attempting reconnect",
         "srt_input",
         "rtmp_input",
-        "SECURITY:",
-        "auth_token not configured",
     ]
 
 
@@ -163,12 +193,15 @@ def setup_logging(
     filtered_file = FilteredFileHandler(file_handler)
     filtered_file.setLevel(log_level)
 
+    security_handler = SecurityLogHandler()
+
     root = logging.getLogger()
     root.handlers.clear()
     root.setLevel(log_level)
     root.addHandler(console)
     root.addHandler(broadcast)
     root.addHandler(filtered_file)
+    root.addHandler(security_handler)
 
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("uvicorn.error").setLevel(logging.WARNING)

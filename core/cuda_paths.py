@@ -27,7 +27,9 @@ def get_cuda_paths() -> list[str]:
         return []
 
     cuda_paths: list[str] = []
-    project_root = Path(__file__).resolve().parent.parent
+    from core.paths import get_project_root
+
+    project_root = get_project_root()
 
     # CRITICAL: Add local cuDNN 8.x FIRST (must be at front to avoid loading cuDNN 9.x)
     local_cudnn8 = project_root / "bin" / "cudnn8"

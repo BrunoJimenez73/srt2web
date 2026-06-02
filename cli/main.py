@@ -178,7 +178,7 @@ def tui(ctx: click.Context) -> None:
 @cli.command()
 @click.pass_context
 def health(ctx: click.Context) -> None:
-    """Show detailed system health."""
+    """Show detailed system health with output and auth status."""
 
     async def _run() -> int:
         api = APIClient(ctx.obj["server"], ctx.obj["token"])
@@ -190,12 +190,43 @@ def health(ctx: click.Context) -> None:
                 from dataclasses import asdict
 
                 console.print(json.dumps(asdict(health_info), indent=2))
-            else:
-                console.print(f"Status: [green]{health_info.status}[/]")
-                console.print(f"Pipeline: {health_info.pipeline_state}")
-                console.print(f"Uptime: {health_info.uptime_seconds:.0f}s")
-                console.print(f"Memory: {health_info.memory_mb:.0f} MB ({health_info.memory_percent:.1f}%)")
-                console.print(f"Chunks: {health_info.chunks_processed}")
+                return 0
+
+            status_color = {"healthy": "green", "degraded": "yellow", "unhealthy": "red"}.get(
+                health_info.status, "white"
+            )
+            console.print(f"Status: [{status_color}]{health_info.status}[/]")
+            console.print(f"Pipeline: {health_info.pipeline_state}")
+            console.print(f"Uptime: {health_info.uptime_seconds:.0f}s")
+            console.print(f"Memory: {health_info.memory_mb:.0f} MB ({health_info.memory_percent:.1f}%)")
+            console.print(f"Chunks processed: {health_info.chunks_processed}")
+
+            # Input health
+            inp = health_info.input
+            if inp:
+                receiving = inp.get("receiving", False)
+                inp_color = "green" if receiving else "yellow"
+                console.print(f"Input: [{inp_color}]receiving={receiving}[/] ({inp.get('type', 'unknown')})")
+
+            # Output health
+            out = health_info.output
+            if out:
+                streaming = out.get("streaming", False)
+                out_color = "green" if streaming else "yellow"
+                console.print(f"Output: [{out_color}]streaming={streaming}[/] ({out.get('type', 'unknown')})")
+
+            # Module status
+            modules = health_info.modules
+            if modules:
+                console.print("\nModules:")
+                for mod in modules:
+                    mod_state = mod.get("state", "unknown")
+                    mod_color = {"running": "green", "error": "red", "idle": "dim"}.get(mod_state, "white")
+                    mod_name = mod.get("name", mod.get("module", "?"))
+                    cb = mod.get("circuit_state", mod.get("circuit_breaker", "closed"))
+                    cb_note = f" [yellow](circuit {cb})[/]" if cb in ("open", "half_open") else ""
+                    console.print(f"  {mod_name}: [{mod_color}]{mod_state}[/]{cb_note}")
+
             return 0
         finally:
             await api.close()

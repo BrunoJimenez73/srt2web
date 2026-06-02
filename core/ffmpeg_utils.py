@@ -35,7 +35,9 @@ FFMPEG_URLS = {
 
 def get_project_bin_dir() -> Path:
     """Get the bin/ directory in the project root."""
-    return Path(__file__).parent.parent / "bin"
+    from core.paths import get_bin_dir
+
+    return get_bin_dir()
 
 
 def find_ffmpeg() -> str | None:

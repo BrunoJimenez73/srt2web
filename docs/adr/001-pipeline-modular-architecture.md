@@ -34,11 +34,11 @@ We decided to refactor the monolithic pipeline into a modular architecture with 
 
    - `SequentialStrategy` - Process chunks one after another
    - `ThreadParallelStrategy` - Process chunks in parallel using threads
-   - `AsyncPipelineStrategy` - Async/await based processing
+   - `AsyncIOStrategy` - Async/await based processing
 
 3. **Orchestration** (`core/pipeline_manager.py`):
 
-   - `PipelineOrchestrator` - Central orchestrator that coordinates modules
+   - `PipelineManager` - Central orchestrator that coordinates modules
    - Handles module lifecycle (start/stop)
    - Manages data flow between modules
 
@@ -93,7 +93,7 @@ class BaseModule:
 ```
 InputSource → [AudioExtractor] → [Transcriber] → [Translator] → [SubtitleGenerator]
                                               ↓
-                                    [TTSEngine] → [AudioMixer] → [VideoMuxer] → OutputSink
+                                    [TTSEngine] → [AudioMixer] → [VideoMuxer] → CompositeOutput
 ```
 
 ## Consequences
@@ -123,6 +123,8 @@ InputSource → [AudioExtractor] → [Transcriber] → [Translator] → [Subtitl
 
 - `docs/architecture.md` - Architecture overview with Mermaid diagrams
 - `core/pipeline/` - Modular pipeline implementation
+- `core/pipeline/strategies.py` - Active strategy implementations
+- `core/pipeline_manager.py` - Pipeline orchestrator
 - `core/module_base.py` - Base module class
 - `tests/unit/test_pipeline_*.py` - Pipeline tests
 

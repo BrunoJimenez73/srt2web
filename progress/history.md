@@ -484,3 +484,23 @@ All 65 features in feature_list.json have been completed:
 - **Tests:** `tests/unit/test_mypy_modules.py` (smoke mypy)
 - **mypy:** 0 errores en core/, server/, modules/
 - **init.ps1 -Quick:** OK
+
+## 2026-05-27 — F101 Backend Scalability Cleanup
+
+- **Fix `pipeline.stop()` sin await:** 4 ubicaciones corregidas (test_pipeline, benchmark_pipeline, profile_pipeline)
+- **Consolidación `__file__`:** version.py y routes/pipeline.py ahora usan `core.paths`
+- **PipelineManager tests:** 24 tests nuevos — 0% → 100% cobertura
+- **Legacy cleanup:** imports muertos de PipelineFactory eliminados; docstring de deprecación en `core/pipeline/__init__.py`
+- **Tests:** 24 passed (test_pipeline_manager), init.ps1 -Quick verde, mypy 0 errores
+- **feature_list.json:** F101 done, F102 pending
+
+## 2026-05-27 — F102 Observability, Security & Logging
+
+- **Security log channel:** SecurityLogHandler dedicado, SECURITY removido de filter patterns
+- **Readiness endpoint:** /ready ahora retorna 503 si pipeline no está running (con reason), 200 solo cuando running
+- **Frontend logger:** logger.ts centralizado, 17 console.* reemplazados en player/pwa/pipeline-control/outputs/api/polling
+- **Polling error visibility:** catch silencioso → logger con contador de errores consecutivos
+- **CLI health:** mejorado con input/output/module status coloreado y circuit breaker info
+- **Tests:** 9 nuevos (readiness + security logging), 76 F102-related tests pasan
+- **init.ps1 -Quick:** verde (1 fallo no relacionado: PermissionError en test_config_hot_reload)
+- **feature_list.json:** F102 done, F103 pending

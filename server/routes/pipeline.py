@@ -13,6 +13,7 @@ from typing import Any, cast
 from fastapi import APIRouter, HTTPException, Request
 
 from core.cache import cached, invalidate_cache
+from core.paths import get_project_root, is_within_project
 from server.validators import SeekPosition
 
 logger = logging.getLogger("srt2web.api.pipeline")
@@ -201,8 +202,7 @@ async def stop_pipeline(request: Request) -> dict[str, Any]:
     # Clean up temporary files
     # Safety: resolve output_dir and ensure it's within project root
     _output_path = Path(output_dir).resolve()
-    _project_root = Path(__file__).parent.parent.parent.resolve()
-    if not str(_output_path).startswith(str(_project_root)):
+    if not is_within_project(_output_path):
         logger.warning(
             f"Output dir '{output_dir}' resolves outside project root, " "skipping cleanup to avoid accidental deletion"
         )

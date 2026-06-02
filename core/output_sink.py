@@ -48,6 +48,7 @@ class OutputSink(ABC):
         self.config = config
         self.logger = logging.getLogger(f"srt2web.output.{name}")
         self._output_dir: str = ""
+        self._enabled: bool = config.get("enabled", True)
 
         # Health tracking
         self._uptime_start: float = time.time()

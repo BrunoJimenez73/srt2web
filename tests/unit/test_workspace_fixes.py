@@ -125,16 +125,16 @@ class TestLogPanelSearchFilter:
         assert ".log-search" in content
 
     def test_log_panel_has_filter_logic(self) -> None:
-        """Test that LogPanel has filter logic."""
-        logpanel_path = PROJECT_ROOT / "frontend" / "src" / "components" / "LogPanel.astro"
+        """Test that LogPanel has filter logic (now in logpanel.ts)."""
+        logpanel_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "logpanel.ts"
         content = logpanel_path.read_text(encoding="utf-8")
 
         assert "currentFilter" in content
         assert "entry.dataset.message" in content
 
     def test_log_entry_has_data_attributes(self) -> None:
-        """Test that log entries have data attributes for filtering."""
-        logpanel_path = PROJECT_ROOT / "frontend" / "src" / "components" / "LogPanel.astro"
+        """Test that log entries have data attributes for filtering (now in logpanel.ts)."""
+        logpanel_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "logpanel.ts"
         content = logpanel_path.read_text(encoding="utf-8")
 
         assert "entry.dataset.level" in content
@@ -290,7 +290,7 @@ class TestProcessManagementSafety:
         path = PROJECT_ROOT / "stop_Mac.sh"
         content = path.read_text(encoding="utf-8")
         assert "--clean" in content
-        assert "CLEAN_MODE" in content
+        assert "DO_CLEAN" in content
 
     def test_pipeline_cleanup_validates_output_dir(self) -> None:
         """pipeline.stop valida que output_dir esté dentro del project root antes de limpiar."""

@@ -1,7 +1,14 @@
 #!/bin/bash
 # SRT2Web - Script de parada para Mac Silicon
 # Funciona en Mac M1/M2/M3 con macOS 12+
-# Detiene servidor y TUI. Soporta --clean para limpieza adicional.
+# Detiene servidor y TUI.
+#
+# Flags:
+#   (no flag)     -> stop server + auto-clean temp/chunk files
+#   --no-clean    -> just stop, do not remove any output
+#   --clean / -c  -> ALSO wipe logs, pycache, tool caches
+#   --purge       -> alias of --clean
+# Recordings are NEVER removed; they are user data.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -12,10 +19,16 @@ RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-CLEAN_MODE=false
-if [ "$1" = "--clean" ] || [ "$1" = "-c" ]; then
-    CLEAN_MODE=true
-fi
+DO_CLEAN=1
+AGGRESSIVE_CLEAN=0
+for arg in "$@"; do
+    case "$arg" in
+        --no-clean)         DO_CLEAN=0 ;;
+        --clean|-c|--purge) AGGRESSIVE_CLEAN=1 ;;
+        --keep-recordings)  ;; # accepted, default behavior
+        *)                  echo -e "${YELLOW}[WARNING] Flag desconocido: $arg${NC}" ;;
+    esac
+done
 
 echo ""
 echo "==============================================="
@@ -32,7 +45,7 @@ FOUND=false
 if [ -f "$PID_FILE" ]; then
     SERVER_PID=$(cat "$PID_FILE" 2>/dev/null || echo "")
     if [ -n "$SERVER_PID" ]; then
-        echo -e "${BLUE}[1/3] PID file encontrado: $SERVER_PID${NC}"
+        echo -e "${BLUE}[1/4] PID file encontrado: $SERVER_PID${NC}"
         FOUND=true
 
         if ps -p $SERVER_PID > /dev/null 2>&1; then
@@ -55,7 +68,7 @@ fi
 # 2. Fallback: buscar TUI y servidor por patron
 # =============================================
 if [ "$FOUND" = false ]; then
-    echo -e "${BLUE}[1/3] PID file no encontrado. Buscando procesos...${NC}"
+    echo -e "${BLUE}[1/4] PID file no encontrado. Buscando procesos...${NC}"
 
     # TUI
     TUI_PIDS=$(pgrep -f "srt2web-tui" 2>/dev/null || echo "")
@@ -91,7 +104,7 @@ if [ "$FOUND" = false ]; then
 fi
 
 # =============================================
-# 3. Limpiar puertos (preguntar si ocupado)
+# 3. Limpiar puertos
 # =============================================
 echo ""
 if lsof -ti :9999 > /dev/null 2>&1; then
@@ -110,27 +123,84 @@ else
 fi
 
 # =============================================
-# 4. Clean mode (opcional)
+# 4. Limpieza de archivos de sesion anterior
 # =============================================
-if [ "$CLEAN_MODE" = true ]; then
+# SIEMPRE (a menos que --no-clean) eliminamos los temporales de la sesion
+# anterior: son regenerados al iniciar. Mantenerlos causa "imagenes viejas
+# de otra sesion" en el reproductor.
+if [ "$DO_CLEAN" = "1" ]; then
+    echo ""
+    echo -e "${BLUE}===============================================${NC}"
+    echo -e "${BLUE} LIMPIEZA DE ARCHIVOS DE SESION ANTERIOR${NC}"
+    echo -e "${BLUE}===============================================${NC}"
+    echo ""
+    echo "Se eliminaran temporales de la sesion anterior:"
+    echo "  - output/chunks/         (chunks de transcripcion)"
+    echo "  - output/temp_audio/     (wavs extraidos)"
+    echo "  - output/temp_mix/       (wavs mezclados)"
+    echo "  - output/temp_tts/       (wavs sintetizados)"
+    echo "  - output/hls/seg_*.ts    (segmentos HLS)"
+    echo "  - output/hls/*.m3u8      (manifiestos HLS)"
+    echo "  - output/subtitles/*.srt (chunks SRT intermedios)"
+    echo "  - output/subtitles/subs.vtt (WebVTT rolling)"
+    echo ""
+    echo "Se conservaran SIEMPRE:"
+    echo "  - output/recordings/     (grabaciones, son datos del usuario)"
+    echo "  - logs/                  (logs del sistema)"
+
+    # HLS
+    rm -f output/hls/seg_*.ts output/hls/chunk_*.srt 2>/dev/null
+    rm -f output/hls/stream.m3u8 output/hls/master.m3u8 2>/dev/null
+    find output/hls -maxdepth 1 -type f -name "*.m3u8" -delete 2>/dev/null
+
+    # Subtitles
+    rm -f output/subtitles/chunk_*.srt 2>/dev/null
+    rm -f output/subtitles/subs.vtt 2>/dev/null
+
+    # Chunks (transcription) - recreate empty
+    rm -rf output/chunks 2>/dev/null && mkdir -p output/chunks
+
+    # Temp wavs
+    for d in temp_audio temp_mix temp_tts; do
+        rm -rf "output/$d" 2>/dev/null && mkdir -p "output/$d"
+    done
+
+    # Optional legacy dirs
+    rm -rf output/video output/audio 2>/dev/null
+
+    echo ""
+    echo -e "${GREEN} Temporales de sesion anterior eliminados${NC}"
+    echo -e "${GREEN} output/recordings/ y logs/ conservados${NC}"
+else
+    echo ""
+    echo -e "${BLUE}[INFO]${NC} --no-clean especificado, no se borraran temporales"
+fi
+
+# =============================================
+# 5. Limpieza profunda (--clean / --purge)
+# =============================================
+if [ "$AGGRESSIVE_CLEAN" = "1" ]; then
     echo ""
     echo -e "${YELLOW}===============================================${NC}"
-    echo -e "${YELLOW} LIMPIEZA DE ARCHIVOS TEMPORALES${NC}"
+    echo -e "${YELLOW} LIMPIEZA PROFUNDA (--clean)${NC}"
     echo -e "${YELLOW}===============================================${NC}"
     echo ""
-    read -p "Confirmar limpieza? (s/n): " -n 1 -r
+    echo "Se eliminaran ADEMAS:"
+    echo "  - logs/                 (rotara al iniciar)"
+    echo "  - __pycache__/ *.pyc    (cache de Python)"
+    echo "  - .ruff_cache .mypy_cache .pytest_cache"
+    echo ""
+    read -p "Confirmar limpieza profunda? (s/n): " -n 1 -r
     echo ""
     if [[ $REPLY =~ ^[Ss]$ ]]; then
         echo "Limpiando..."
+        find . -type d -name __pycache__ -not -path "*/venv/*" -not -path "*/node_modules/*" -exec rm -rf {} + 2>/dev/null
+        find . -type f \( -name "*.pyc" -o -name "*.pyo" \) -not -path "*/venv/*" -not -path "*/node_modules/*" -delete 2>/dev/null
         rm -rf .ruff_cache .mypy_cache .pytest_cache pytest_tmp_manual 2>/dev/null
         rm -rf logs 2>/dev/null && mkdir logs
-        for d in chunks temp_audio temp_mix temp_tts; do
-            [ -d "output/$d" ] && rm -rf "output/$d" && mkdir "output/$d" 2>/dev/null
-        done
-        rm -f output/hls/seg_*.ts output/hls/chunk_*.srt 2>/dev/null
-        echo -e "${GREEN} Limpieza completa${NC}"
+        echo -e "${GREEN} Limpieza profunda completa${NC}"
     else
-        echo "Limpieza cancelada"
+        echo "Limpieza profunda cancelada"
     fi
 fi
 

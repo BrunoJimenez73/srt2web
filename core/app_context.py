@@ -60,6 +60,10 @@ def create_app_context(
                 logger.warning(f"Skipping invalid output entry: {entry}")
                 continue
             try:
+                # Merge with video_muxer module config so enabled/encoder settings propagate from init
+                video_muxer_cfg = config_manager.get_section("modules.video_muxer")
+                if video_muxer_cfg:
+                    out_cfg = {**out_cfg, **video_muxer_cfg}
                 output = OutputFactory.create(out_type, out_cfg)
                 output.name = out_name
                 output.set_output_dir(output_dir)
@@ -70,6 +74,10 @@ def create_app_context(
     else:
         output_type = output_config.get("type", "web")
         type_config = output_config.get(output_type, {})
+        # Merge with video_muxer module config so enabled/encoder settings propagate from init
+        video_muxer_cfg = config_manager.get_section("modules.video_muxer")
+        if video_muxer_cfg:
+            type_config = {**type_config, **video_muxer_cfg}
         default_output = OutputFactory.create(output_type, type_config)
         default_output.name = f"{output_type}_1"
         default_output.set_output_dir(output_dir)

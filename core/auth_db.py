@@ -35,7 +35,9 @@ JWT_EXPIRY_HOURS = 24
 
 ROLES = {"admin": 100, "operator": 50, "viewer": 10}
 
-USERS_FILE = Path(__file__).parent.parent / "config" / "users.json"
+from core.paths import get_user_config_dir
+
+USERS_FILE = get_user_config_dir() / "users.json"
 
 
 @dataclass

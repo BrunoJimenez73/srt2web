@@ -11,6 +11,7 @@ Uso:
 """
 
 import argparse
+import asyncio
 import json
 import logging
 import sys
@@ -131,10 +132,7 @@ def run_benchmark(
     pipeline.set_output_sink(hls_output)
 
     # Registrar módulos y inicializar
-    from core.pipeline import PipelineFactory
-
-    factory = PipelineFactory()
-    factory.create_default_pipeline(pipeline, config)
+    pipeline.register_module(file_input)
 
     # Métricas de seguimiento
     results = {
@@ -159,7 +157,7 @@ def run_benchmark(
 
     def limit_chunks(*args, **kwargs):
         if chunks_processed[0] >= num_chunks:
-            pipeline.stop()
+            asyncio.run(pipeline.stop())
             return None
         chunks_processed[0] += 1
         if original_process:
@@ -175,7 +173,7 @@ def run_benchmark(
             time.sleep(0.5)
             if chunks_processed[0] >= num_chunks:
                 break
-        pipeline.stop()
+        asyncio.run(pipeline.stop())
     except Exception as e:
         results["errors"].append(str(e))
         logger.error(f"Error en benchmark: {e}")

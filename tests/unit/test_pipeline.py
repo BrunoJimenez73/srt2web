@@ -87,7 +87,8 @@ class TestPipeline:
 
         assert module.enabled is False
 
-    def test_start_pipeline(self) -> None:
+    @pytest.mark.asyncio
+    async def test_start_pipeline(self) -> None:
         """Test starting the pipeline."""
         pipeline = Pipeline()
         module = DummyModule("test")
@@ -97,7 +98,7 @@ class TestPipeline:
 
         assert pipeline.state in (PipelineState.STARTING, PipelineState.RUNNING)
 
-        pipeline.stop()
+        await pipeline.stop()
 
     @pytest.mark.asyncio
     async def test_stop_pipeline(self):
@@ -184,7 +185,8 @@ class TestPipeline:
 
         assert pipeline.state == PipelineState.RUNNING
 
-    def test_start_already_running(self) -> None:
+    @pytest.mark.asyncio
+    async def test_start_already_running(self) -> None:
         """Test starting an already running pipeline."""
         pipeline = Pipeline()
 
@@ -195,7 +197,7 @@ class TestPipeline:
 
         assert pipeline.state == PipelineState.RUNNING
 
-        pipeline.stop()
+        await pipeline.stop()
 
     def test_process_data_through_modules(self) -> None:
         """Test that data flows through modules."""

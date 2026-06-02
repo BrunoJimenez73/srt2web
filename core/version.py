@@ -6,8 +6,9 @@ import tomllib
 from functools import lru_cache
 from pathlib import Path
 
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent
-_PYPROJECT = _PROJECT_ROOT / "pyproject.toml"
+from core.paths import get_project_root
+
+_PYPROJECT = get_project_root() / "pyproject.toml"
 
 
 @lru_cache(maxsize=1)

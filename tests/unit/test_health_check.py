@@ -1,6 +1,78 @@
 """
-Tests for Pipeline Status API endpoint (replaces health check).
+Tests for Pipeline Status API endpoint and readiness/security probes.
 """
+
+import logging
+
+import pytest
+
+
+class TestReadinessEndpoint:
+    """Test suite for /ready endpoint (F102)."""
+
+    def test_ready_endpoint_exists(self, client) -> None:
+        response = client.get("/ready")
+        assert response.status_code in (200, 503)
+
+    def test_ready_returns_status_field(self, client) -> None:
+        response = client.get("/ready")
+        data = response.json()
+        assert "status" in data
+
+    def test_ready_returns_reason_when_not_ready(self, client) -> None:
+        response = client.get("/ready")
+        data = response.json()
+        if response.status_code == 503:
+            assert "reason" in data
+
+    def test_live_endpoint_exists(self, client) -> None:
+        response = client.get("/live")
+        assert response.status_code == 200
+        assert response.json()["status"] == "alive"
+
+    def test_health_endpoint_exists(self, client) -> None:
+        response = client.get("/health")
+        assert response.status_code == 200
+        assert response.json()["status"] == "ok"
+
+    def test_api_health_returns_input_output(self, client) -> None:
+        response = client.get("/api/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert "status" in data
+        assert "input" in data
+        assert "output" in data
+
+
+class TestSecurityLogging:
+    """Test suite for security logging channel (F102)."""
+
+    def test_security_handler_added(self) -> None:
+        from core.logging_setup import setup_logging, SecurityLogHandler
+
+        setup_logging()
+        root = logging.getLogger()
+        found = any(isinstance(h, SecurityLogHandler) for h in root.handlers)
+        assert found, "SecurityLogHandler should be registered on root logger"
+
+    def test_security_events_not_filtered_from_file(self) -> None:
+        from core.logging_setup import setup_logging, get_filter_patterns
+
+        patterns = get_filter_patterns()
+        # SECURITY events should NOT be in the filter patterns (F102 fix)
+        assert "SECURITY:" not in patterns
+        assert "auth_token not configured" not in patterns
+
+    def test_console_still_filters_security(self) -> None:
+        from core.logging_setup import ConsoleFilter
+
+        filt = ConsoleFilter()
+
+        class FakeRecord:
+            def getMessage(self):
+                return "SECURITY: auth_token not configured - API is unprotected!"
+
+        assert not filt.filter(FakeRecord()), "ConsoleFilter should suppress SECURITY messages"
 
 
 class TestStatusEndpoint:

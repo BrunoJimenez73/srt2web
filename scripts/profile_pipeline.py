@@ -12,6 +12,7 @@ Usage:
 """
 
 import argparse
+import asyncio
 import json
 import logging
 import subprocess
@@ -105,10 +106,7 @@ def run_profile(
     )
     pipeline.set_output_sink(hls_output)
 
-    from core.pipeline import PipelineFactory
-
-    factory = PipelineFactory()
-    factory.create_default_pipeline(pipeline, config)
+    pipeline.register_module(file_input)
 
     chunks_processed = [0]
     has_sync = hasattr(pipeline, "_process_chunk_sync")
@@ -117,7 +115,7 @@ def run_profile(
 
         def limit_chunks(*a, **kw):
             if chunks_processed[0] >= num_chunks:
-                pipeline.stop()
+                asyncio.run(pipeline.stop())
                 return None
             chunks_processed[0] += 1
             return original(*a, **kw)
@@ -132,7 +130,7 @@ def run_profile(
             time.sleep(0.5)
             if chunks_processed[0] >= num_chunks:
                 break
-        pipeline.stop()
+        asyncio.run(pipeline.stop())
     except Exception as e:
         errors.append(str(e))
         logger.error(f"Profile error: {e}")

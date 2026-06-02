@@ -204,16 +204,16 @@ class TestLogSearchFilter:
         assert ".log-search" in content
 
     def test_log_panel_has_filter_logic(self) -> None:
-        """Test that LogPanel has filter logic."""
-        with open("frontend/src/components/LogPanel.astro", encoding="utf-8") as f:
+        """Test that LogPanel has filter logic (now in logpanel.ts)."""
+        with open("frontend/src/lib/modules/logpanel.ts", encoding="utf-8") as f:
             content = f.read()
 
         assert "currentFilter" in content
         assert "entry.dataset.message" in content
 
     def test_log_entry_has_data_attributes(self) -> None:
-        """Test that log entries have data attributes for filtering."""
-        with open("frontend/src/components/LogPanel.astro", encoding="utf-8") as f:
+        """Test that log entries have data attributes for filtering (now in logpanel.ts)."""
+        with open("frontend/src/lib/modules/logpanel.ts", encoding="utf-8") as f:
             content = f.read()
 
         assert "entry.dataset.level" in content

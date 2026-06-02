@@ -16,8 +16,10 @@ from typing import Any
 
 logger = logging.getLogger("srt2web.mtx")
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-MEDIAMTX_DIR = PROJECT_ROOT / "bin"
+from core.paths import get_project_root, get_bin_dir
+
+PROJECT_ROOT = get_project_root()
+MEDIAMTX_DIR = get_bin_dir()
 MEDIAMTX_BIN = MEDIAMTX_DIR / "mediamtx.exe"
 MEDIAMTX_CONFIG = MEDIAMTX_DIR / "mediamtx.yml"
 

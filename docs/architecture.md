@@ -485,16 +485,20 @@ El frontend usa **Preact Signals** para gestión de estado reactivo:
 
 ## Pipeline Modes
 
-| Mode              | Clase                    | Descripción                                  |
-| ----------------- | ------------------------ | -------------------------------------------- |
-| `sequential`      | `SequentialPipeline`     | Procesamiento chunk a chunk (menor latencia) |
-| `thread_parallel` | `ThreadParallelPipeline` | Módulos en paralelo con ThreadPoolExecutor   |
-| `async`           | `AsyncPipeline`          | Pipeline completamente asíncrono             |
+| Mode              | Clase (estrategia activa)         | Descripción                                  |
+| ----------------- | --------------------------------- | -------------------------------------------- |
+| `sequential`      | `SequentialStrategy`              | Procesamiento chunk a chunk (menor latencia) |
+| `thread_parallel` | `ThreadParallelStrategy`          | Módulos en paralelo con ThreadPoolExecutor   |
+| `async`           | `AsyncIOStrategy`                 | Pipeline completamente asíncrono             |
+
+Actualmente las estrategias viven en `core/pipeline/strategies.py`. Las clases legacy
+(`SequentialPipeline`, `ParallelPipeline`, `AsyncPipeline`) existen como wrappers
+deprecados y emiten `DeprecationWarning`.
 
 ```yaml
 pipeline:
   mode: thread_parallel # sequential | thread_parallel | async
-  max_concurrent_chunks: 4 # Chunks procesados simultáneamente
+  max_concurrent_chunks: 2 # Chunks procesados simultáneamente
   chunk_duration_sec: 15 # Duración de cada chunk
   buffer_size: 2 # Buffer de chunks en memoria
 ```
@@ -558,14 +562,15 @@ graph BT
 ```
 srt2web/
 ├── core/                    # Núcleo del sistema
-│   ├── pipeline/            # Pipeline modes
-│   │   ├── sequential.py    # Procesamiento secuencial
-│   │   ├── parallel.py      # ThreadPoolExecutor
-│   │   ├── async_pipeline.py # Async pipeline
-│   │   ├── factory.py       # Pipeline factory
-│   │   └── base.py          # Base classes
-│   ├── pipeline.py          # Pipeline orchestrator
-│   ├── pipeline_manager.py  # Gestión de lifecycle
+│   ├── pipeline/            # Pipeline strategies
+│   │   ├── base.py          # PipelineStrategy ABC + MetricsTracker
+│   │   ├── strategies.py    # Estrategias activas (Sequential, ThreadParallel, AsyncIO)
+│   │   ├── sequential.py    # Legacy wrapper (deprecado)
+│   │   ├── parallel.py      # Legacy wrapper (deprecado)
+│   │   ├── async_pipeline.py # Legacy wrapper (deprecado)
+│   │   └── factory.py       # Legacy factory (deprecado)
+│   ├── pipeline.py          # Alias: Pipeline = UnifiedPipeline
+│   ├── pipeline_manager.py  # PipelineManager — orquestador principal
 │   ├── config_manager.py    # Configuración con hot-reload
 │   ├── config_schema.py     # Validación de schemas
 │   ├── module_base.py       # Clase base módulos
@@ -621,10 +626,27 @@ srt2web/
 │   ├── ws_routes.py         # WebSocket endpoints
 │   └── security.py          # Security middleware
 │
-├── cli/                     # Herramienta CLI
-│   ├── srt2web.py           # CLI completa (540 líneas)
-│   ├── srt2web.bat          # Windows launcher
-│   └── README.md            # Documentación CLI
+├── cli/                     # CLI y TUI
+│   ├── main.py              # Entry point Click (srt2web-tui)
+│   ├── client/              # HTTP + WebSocket clients
+│   │   ├── http_client.py   # APIClient REST
+│   │   └── ws_client.py     # WSClient logs en vivo
+│   ├── commands/            # Comandos one-shot
+│   │   ├── status.py        # Estado del pipeline
+│   │   ├── start.py         # Iniciar pipeline
+│   │   ├── stop.py          # Detener pipeline
+│   │   ├── config.py        # Gestión de configuración
+│   │   ├── module.py        # Gestión de módulos
+│   │   ├── output.py        # Gestión de salidas
+│   │   ├── logs.py          # Logs en vivo
+│   │   ├── preset.py        # Presets de configuración
+│   │   ├── recording.py     # Gestión de grabaciones
+│   │   ├── input.py         # Control de input
+│   │   └── network.py       # Información de red
+│   └── tui/                 # TUI interactiva (Textual)
+│       ├── app.py           # App principal + screens
+│       ├── screens/         # Pantallas (dashboard, login, help…)
+│       └── widgets/         # Widgets (status_bar, metrics, logs…)
 │
 ├── frontend/                # Interfaz web
 │   ├── src/

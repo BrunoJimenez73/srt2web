@@ -77,7 +77,7 @@ class PipelineManager:
         """Obtener un pipeline por su ID."""
         return self._pipelines.get(pipeline_id)
 
-    def stop_pipeline(self, pipeline_id: str) -> bool:
+    async def stop_pipeline(self, pipeline_id: str) -> bool:
         """
         Detener y remover un pipeline.
 
@@ -92,7 +92,7 @@ class PipelineManager:
 
         if pipeline:
             try:
-                pipeline.stop()  # type: ignore[unused-coroutine]
+                await pipeline.stop()
                 logger.info(f"Pipeline stopped (id={pipeline_id})")
             except Exception as e:
                 logger.error(f"Error stopping pipeline (id={pipeline_id}): {e}")
