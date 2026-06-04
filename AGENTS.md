@@ -193,13 +193,27 @@ Ver `feature_list.json` para lista completa y estados. Total actual: 86 features
 
 **Feature 104**: Bugfixes de UI en dashboard (LogPanel, presets, shortcuts, docs, SRT URL, System Metrics) — DONE (02/06/2026).
 
-**Features 105–106**: bugs reportados en sesión 2026-06-02:
-- **F105** ✅ DONE: composite_output._schedule_reconnect Timer sobrevivía a stop(); cancelado ahora
-- **F106** ✅ DONE: "Piper TTS ignora la voz" — **2 bugs distintos** producían el mismo síntoma. Bug 1: PUT /api/config 400 por type='webplayer' (OutputTypeEnum solo acepta 'web'). Bug 2: race condition en PiperSubprocessManager._send_command entre synth+heartbeat. Fix: `_normalize_output_type` en outputs route + `_canonical_types` en OutputFactory + `_cmd_lock` serializando _send_command. 9 tests en `test_f106_piper_voice.py`.
+**Features 105–107**: bugs reportados en sesiones 2026-06-02 y 2026-06-03:
+
+- **F105** ✅ DONE: composite_output.\_schedule_reconnect Timer sobrevivía a stop(); cancelado ahora
+- **F106** ✅ DONE: "Piper TTS ignora la voz" — **2 bugs distintos** producían el mismo síntoma. Bug 1: PUT /api/config 400 por type='webplayer' (OutputTypeEnum solo acepta 'web'). Bug 2: race condition en PiperSubprocessManager.\_send_command entre synth+heartbeat. Fix: `_normalize_output_type` en outputs route + `_canonical_types` en OutputFactory + `_cmd_lock` serializando \_send_command. 9 tests en `test_f106_piper_voice.py`.
+- **F107** ✅ DONE: "Cannot start pipeline in state: starting" — **3 bugs distintos** en `UnifiedPipeline.start()` producían el mismo síntoma. Bug 1: mensaje mentiroso ("60 seconds" mientras el join era 120s). Bug 2: state huérfano en STARTING tras timeout/excepción; `reset_error_state()` solo maneja ERROR, así que ningún retry funcionaba hasta reiniciar el server. Bug 3: excepciones dentro del init thread se tragaban silenciosamente — usuario siempre veía "timed out" aunque el init hubiera crash instantáneamente. Fix: `_DEFAULT_INIT_TIMEOUT_S=300` (configurable via `SRT2WEB_PIPELINE_INIT_TIMEOUT`); `__init__` trackea `_init_thread` y `_init_error`; `start()` rechaza concurrente con "already in progress", setea ERROR en timeout/excepción, reraisea `PipelineError(__cause__=init_error)` para que el error real llegue al usuario. 11 tests en `test_f107_pipeline_init_timeout.py`.
 
 **Siguiente pendiente**: nada. Próxima feature a elegir de `feature_list.json`.
 
 ## 8. Historial compacto (post-Abril 2026)
+
+### 03/06 — Pipeline init timeout (F107)
+
+- F107 cerrado: "Cannot start pipeline in state: starting" eran **3 bugs distintos** en `UnifiedPipeline.start()`:
+  - **Bug 1 (mensaje mentiroso)**: el `init_thread.join(timeout=120)` esperaba 120s pero el `PipelineError` decía "60 seconds". Copy-paste viejo.
+  - **Bug 2 (state huérfano)**: cuando el init thread tardaba más que el timeout, `start()` lanzaba `PipelineError` pero `_state` quedaba en `STARTING` para siempre. `reset_error_state()` solo maneja `ERROR`, no `STARTING` → ningún retry funcionaba sin reiniciar el server.
+  - **Bug 3 (excepciones tragadas)**: `run_init()` envolvía `loop.run_until_complete(self.initialize())` con un try/except que descartaba la variable de captura. Si init crash instantáneo, usuario siempre veía "timed out" — el error real nunca llegaba.
+- **Fix**: `_DEFAULT_INIT_TIMEOUT_S=300` (antes 120s, configurable via `SRT2WEB_PIPELINE_INIT_TIMEOUT`); `__init__` trackea `_init_thread` y `_init_error`; `start()` rechaza start concurrente con "already in progress", setea ERROR en timeout/excepción, reraisea `PipelineError(__cause__=init_error)` para que el error real llegue al usuario.
+- **Log real que confirmó el bug**: `21:59:13 Starting` → `22:01:14 Pipeline initialization timed out after 60 seconds` → `22:01:23 Cannot start pipeline in state: starting`.
+- **Tests**: 11 nuevos en `tests/unit/test_f107_pipeline_init_timeout.py` — env-var override, timeout→ERROR, exception surfacing, retry-after-error, concurrent rejection, happy path, already-initialized skip.
+- **Verificación**: 11/11 pasan en 3.3s; mypy --strict 0 errores; ruff clean; sin regresiones. 4 fallos pre-existentes en main confirmados via git stash (no introducidos por F107).
+- Detalles completos en `progress/current.md`
 
 ### 02/06 — Bugfixes UI dashboard (F104) + stop/reconnect (F105) + Piper voice (F106)
 

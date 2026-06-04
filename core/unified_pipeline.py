@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import queue
 import threading
 import time
@@ -39,6 +40,25 @@ from core.schemas import PipelineMode as PipelineMode
 from core.schemas import PipelineState as PipelineState
 from core.schemas import SystemMetrics
 from core.webhook_manager import webhook_manager
+
+_DEFAULT_INIT_TIMEOUT_S = 300.0
+
+
+def _get_init_timeout() -> float:
+    """Read pipeline init timeout from env (SRT2WEB_PIPELINE_INIT_TIMEOUT).
+
+    Default 300s accommodates first-time downloads of large Whisper models
+    (medium ~1.5GB) on residential connections. Override per environment.
+    """
+    raw = os.environ.get("SRT2WEB_PIPELINE_INIT_TIMEOUT")
+    if raw is None:
+        return _DEFAULT_INIT_TIMEOUT_S
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return _DEFAULT_INIT_TIMEOUT_S
+    return value if value > 0 else _DEFAULT_INIT_TIMEOUT_S
+
 
 if TYPE_CHECKING:
     from modules.outputs.composite_output import CompositeOutput
@@ -151,6 +171,11 @@ class UnifiedPipeline:
         self._lock = threading.Lock()
         self._hardware_monitor = HardwareMonitor()
         self._initialized = False  # Initialize to False BEFORE thread starts
+
+        # F107: track init thread + capture init exception so start() can
+        # surface the real error and reset state on timeout/crash.
+        self._init_thread: threading.Thread | None = None
+        self._init_error: BaseException | None = None
 
         # Chunk duration default (used in reconfigure)
         self._chunk_duration = 10.0
@@ -355,19 +380,56 @@ class UnifiedPipeline:
 
         # Inicializar automáticamente si no se ha hecho antes
         if not getattr(self, "_initialized", False):
-            # No podemos usar el event loop principal de FastAPI, ejecutamos en thread separado
+            # F107: reject if a previous init thread is still running
+            existing = self._init_thread
+            if existing is not None and existing.is_alive():
+                self._set_state(PipelineState.ERROR)
+                raise PipelineError(
+                    "Pipeline initialization already in progress; wait for it to finish or restart the server"
+                )
+
+            self._init_error = None
+            timeout_s = _get_init_timeout()
+
             def run_init() -> None:
                 loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(self.initialize())
-                self._initialized = True
+                try:
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(self.initialize())
+                    self._initialized = True
+                except BaseException as exc:
+                    self._init_error = exc
+                finally:
+                    try:
+                        loop.close()
+                    except Exception as close_err:
+                        logger.debug("Init loop close failed: %s", close_err)
 
             init_thread = threading.Thread(target=run_init, daemon=True, name="pipeline-init")
+            self._init_thread = init_thread
             init_thread.start()
-            init_thread.join(timeout=120)
+            init_thread.join(timeout=timeout_s)
+
+            if init_thread.is_alive():
+                # F107: timeout — reset state so user can retry (route resets ERROR -> IDLE).
+                self._set_state(PipelineState.ERROR)
+                raise PipelineError(
+                    f"Pipeline initialization timed out after {timeout_s:.0f}s "
+                    "(model download may still be running in background). "
+                    "Set SRT2WEB_PIPELINE_INIT_TIMEOUT to a higher value if needed."
+                )
+
+            captured = self._init_error
+            if captured is not None:
+                # F107: real exception inside init thread — surface it (don't lie about timeout).
+                self._init_error = None
+                self._set_state(PipelineState.ERROR)
+                raise PipelineError(f"Pipeline initialization failed: {captured}") from captured
 
             if not self._initialized:
-                raise PipelineError("Pipeline initialization timed out after 60 seconds")
+                # Defensive: thread finished cleanly but flag never flipped.
+                self._set_state(PipelineState.ERROR)
+                raise PipelineError("Pipeline initialization did not complete")
 
         self._stop_event.clear()
 

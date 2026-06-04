@@ -4,12 +4,7 @@
   "rules": {
     "one_feature_at_a_time": true,
     "require_tests_to_close": true,
-    "valid_status": [
-      "pending",
-      "in_progress",
-      "done",
-      "blocked"
-    ]
+    "valid_status": ["pending", "in_progress", "done", "blocked"]
   },
   "features": [
     {
@@ -413,9 +408,7 @@
         "tests/unit/test_cli_commands.py (expandir existente)",
         "tests/unit/test_cli_client.py (expandir existente)"
       ],
-      "dependencies": [
-        "F55 (bugs corregidos para no testear bugs conocidos)"
-      ]
+      "dependencies": ["F55 (bugs corregidos para no testear bugs conocidos)"]
     },
     {
       "id": 59,
@@ -757,9 +750,7 @@
         "mypy --strict 0 errores en core/pipeline/strategies.py",
         "init.ps1 pasa verde"
       ],
-      "files_to_touch": [
-        "core/pipeline/strategies.py (refactor principal)"
-      ],
+      "files_to_touch": ["core/pipeline/strategies.py (refactor principal)"],
       "risk_assessment": {
         "risk_level": "Bajo",
         "mitigation": [
@@ -1140,9 +1131,7 @@
         "modules/**/*.py (anotaciones y fixes de tipo)",
         "tests/unit/test_mypy_modules.py (smoke: mypy exit 0, opcional)"
       ],
-      "dependencies": [
-        "F74"
-      ],
+      "dependencies": ["F74"],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -1183,9 +1172,7 @@
         "cli/tui/**/*.py",
         "cli/main.py"
       ],
-      "dependencies": [
-        "F74"
-      ],
+      "dependencies": ["F74"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1226,9 +1213,7 @@
         "frontend/src/lib/api.ts",
         "frontend/package.json (scripts lint si hace falta)"
       ],
-      "dependencies": [
-        "F74"
-      ],
+      "dependencies": ["F74"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1269,9 +1254,7 @@
         "tests/unit/test_unified_pipeline.py",
         "tests/unit/test_pipeline_metrics.py (NUEVO)"
       ],
-      "dependencies": [
-        "F75"
-      ],
+      "dependencies": ["F75"],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -1310,9 +1293,7 @@
         "tests/unit/test_piper_loader.py (o equivalente)",
         "modules/tts_engine.py (imports si cambian)"
       ],
-      "dependencies": [
-        "F75"
-      ],
+      "dependencies": ["F75"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1356,9 +1337,7 @@
         "frontend/src/**/*.astro (imports si cambian paths)",
         "AGENTS.md (sección frontend modules)"
       ],
-      "dependencies": [
-        "F77"
-      ],
+      "dependencies": ["F77"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1406,9 +1385,7 @@
         "frontend/src/lib/modules/config-client.test.ts",
         "frontend/src/lib/modules/presets-client.test.ts"
       ],
-      "dependencies": [
-        "F81"
-      ]
+      "dependencies": ["F81"]
     },
     {
       "id": 83,
@@ -1612,9 +1589,7 @@
         "tests/unit/test_config_validation.py (usar ALLOWED_ENCODER_MODES de constants)",
         "feature_list.json (F89)"
       ],
-      "dependencies": [
-        "F87"
-      ],
+      "dependencies": ["F87"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1722,9 +1697,7 @@
         "frontend/package.json",
         "docs/compatibility.md"
       ],
-      "dependencies": [
-        "F87"
-      ],
+      "dependencies": ["F87"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1767,9 +1740,7 @@
         ".github/workflows/ci.yml",
         "docs/deployment.md"
       ],
-      "dependencies": [
-        "F92"
-      ],
+      "dependencies": ["F92"],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -1819,9 +1790,7 @@
         "tests/unit/test_security.py",
         "tests/unit/test_websocket_auth.py"
       ],
-      "dependencies": [
-        "F93"
-      ],
+      "dependencies": ["F93"],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -1866,9 +1835,7 @@
         "frontend/eslint.config.js",
         "frontend/src/**/*.test.ts"
       ],
-      "dependencies": [
-        "F94"
-      ],
+      "dependencies": ["F94"],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -1912,10 +1879,7 @@
         "pyproject.toml",
         "config/requirements.txt"
       ],
-      "dependencies": [
-        "F93",
-        "F94"
-      ],
+      "dependencies": ["F93", "F94"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1957,11 +1921,7 @@
         ".github/workflows/ci.yml",
         ".github/workflows/playwright.yml"
       ],
-      "dependencies": [
-        "F92",
-        "F93",
-        "F96"
-      ],
+      "dependencies": ["F92", "F93", "F96"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -2006,9 +1966,7 @@
         "tests/unit/test_recording_manager.py",
         "tests/unit/test_multioutput_api.py"
       ],
-      "dependencies": [
-        "F94"
-      ],
+      "dependencies": ["F94"],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -2049,9 +2007,7 @@
         "Dockerfile (astro build directo, COPY correcta)",
         ".github/workflows/docs-pages.yml (trigger mkdocs.yml)"
       ],
-      "dependencies": [
-        "F97"
-      ],
+      "dependencies": ["F97"],
       "risk_assessment": {
         "risk_level": "Bajo",
         "mitigation": [
@@ -2094,9 +2050,7 @@
         "docs/deployment.md",
         "tests/unit/test_workspace_fixes.py"
       ],
-      "dependencies": [
-        "F98"
-      ],
+      "dependencies": ["F98"],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -2142,10 +2096,7 @@
         "core/config_manager.py",
         "tests/unit/test_pipeline_manager.py"
       ],
-      "dependencies": [
-        "F97",
-        "F98"
-      ],
+      "dependencies": ["F97", "F98"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -2189,10 +2140,7 @@
         "tests/unit/test_health_check.py",
         "tests/unit/test_security_middleware.py"
       ],
-      "dependencies": [
-        "F94",
-        "F95"
-      ],
+      "dependencies": ["F94", "F95"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -2233,11 +2181,7 @@
         "AGENTS.md",
         "server/static/docs/"
       ],
-      "dependencies": [
-        "F94",
-        "F96",
-        "F99"
-      ],
+      "dependencies": ["F94", "F96", "F99"],
       "risk_assessment": {
         "risk_level": "Bajo",
         "mitigation": [
@@ -2293,9 +2237,7 @@
       "completed_in_session": "2026-06-02",
       "risk_assessment": {
         "risk_level": "Bajo",
-        "mitigation": [
-          "Tests cubren cada cambio; build + tsc + pytest verdes"
-        ]
+        "mitigation": ["Tests cubren cada cambio; build + tsc + pytest verdes"]
       }
     },
     {
@@ -2388,6 +2330,57 @@
         "server/routes/outputs.py: Added _normalize_output_type() and applied it in _sync_outputs_to_config (defense in depth)",
         "modules/piper_loader.py: Added self._cmd_lock = threading.Lock(); wrapped _send_command body with cmd_lock to serialize concurrent synth+heartbeat calls",
         "tests/unit/test_f106_piper_voice.py: 9 regression tests covering resolve_type, normalization, end-to-end sync, cmd_lock existence, and concurrent send_command"
+      ]
+    },
+    {
+      "id": 107,
+      "name": "pipeline_init_timeout_stuck_starting",
+      "title": "Pipeline init timeout deja state colgado en 'starting'; no se puede recuperar sin reiniciar el server",
+      "status": "done",
+      "area": "pipeline",
+      "priority": "Alta",
+      "description": "UnifiedPipeline.start() spawns an init thread that loads heavy models (Whisper medium ~1.5GB download). When init_thread.join(timeout=120) expires, the wrapper raises PipelineError but NEVER resets _state from STARTING. All subsequent start() attempts fail at line 348 with ERR_PIPELINE_STATE 'Cannot start pipeline in state: starting' until the server is restarted. The error message also lied ('timed out after 60 seconds' while the actual timeout was 120s). Additionally, exceptions inside the init thread were swallowed silently: the user always saw 'timed out' even when the real error was different.",
+      "problems_identified": [
+        "core/unified_pipeline.py:354 sets state to STARTING but the timeout/exception paths never restore it",
+        "core/unified_pipeline.py:370 hardcodes '60 seconds' in the error message while line 367 actually waits 120s",
+        "core/unified_pipeline.py:359-363 run_init() swallows any exception from loop.run_until_complete(self.initialize()); _initialized stays False and caller sees 'timed out' even when init crashed instantly",
+        "Default 120s is too short for first-time downloads of Whisper medium (1.5GB) on residential connections",
+        "No way to retry: pipeline.reset_error_state() only handles ERROR state, not STARTING",
+        "Background init thread keeps running after timeout (daemon=True) so it can eventually flip _initialized=True with state still STARTING - orphan state"
+      ],
+      "acceptance": [
+        "When init exceeds timeout, pipeline state transitions STARTING -> ERROR (not stuck in STARTING)",
+        "When init raises an exception inside the thread, the real exception is re-raised as PipelineError(__cause__=original)",
+        "When timeout fires, error message includes the actual timeout value (not hardcoded 60)",
+        "Timeout is configurable via SRT2WEB_PIPELINE_INIT_TIMEOUT env var (default 300s, was 120s)",
+        "After timeout sets ERROR, the existing server/routes/pipeline.py:117 reset_error_state() path allows the user to retry without restarting the server",
+        "Concurrent start() while an init thread is still alive returns a clear error ('initialization already in progress') instead of spawning a second one",
+        "Existing tests test_initialized_reset_after_stop and test_restart_after_stop continue passing"
+      ],
+      "files_to_touch": [
+        "core/unified_pipeline.py",
+        "tests/unit/test_f107_pipeline_init_timeout.py"
+      ],
+      "dependencies": [],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Change is local to start() method; no public API change",
+          "Default timeout raised from 120s to 300s for better UX on slow networks; configurable via env var if 300s is still not enough",
+          "Tests use SRT2WEB_PIPELINE_INIT_TIMEOUT=0.5 to run in sub-second time (no real model load)",
+          "Existing test test_initialized_reset_after_stop verifies the happy-path post-stop reset still works"
+        ]
+      },
+      "started_in_session": "2026-06-03",
+      "completed_date": "2026-06-03",
+      "fix": [
+        "core/unified_pipeline.py: Added module-level _get_init_timeout() reading SRT2WEB_PIPELINE_INIT_TIMEOUT (default 300s)",
+        "core/unified_pipeline.py: __init__ tracks self._init_thread and self._init_error",
+        "core/unified_pipeline.py: run_init() now captures exceptions into self._init_error instead of swallowing them",
+        "core/unified_pipeline.py: start() rejects when a previous init thread is still alive ('initialization already in progress')",
+        "core/unified_pipeline.py: On timeout (thread.is_alive() after join), state set to ERROR and message includes real timeout value + env-var hint",
+        "core/unified_pipeline.py: On init exception (captured in self._init_error), state set to ERROR and original error re-raised as PipelineError cause",
+        "tests/unit/test_f107_pipeline_init_timeout.py: 11 regression tests covering timeout->ERROR, exception propagation, _init_error clearing, retry-after-error, env-var override, concurrent start rejection, message correctness, happy path, and already-initialized skip"
       ]
     }
   ]
