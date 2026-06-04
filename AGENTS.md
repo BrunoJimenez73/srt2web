@@ -144,6 +144,7 @@ Por defecto `thread_parallel` con 2 workers concurrentes. Las estrategias viven 
 - `ProcessGrid` = 8 cards: Input, Whisper, Translate, TTS, Subtitle, AudioMixer, HLS, Output
 - Tema único (dark) — soporte light/dark en F17
 - Logs: panel virtual con export JSON/TXT en F16
+- **Subtítulos nativos HLS.js (F108)**: `player.ts` activa la primera subtitle track del master playlist vía `player-subtitles.ts` helper. HLS.js carga `subs.m3u8` nativamente, renderiza cues en el mismo `currentTime` que el video — **cero polling, cero lag, cero flicker**. Antes (pre-F108) había un `setInterval` cada 2s que hacía fetch+parse+wipe de todos los cues.
 
 ### CLI / TUI (F34)
 
@@ -199,9 +200,26 @@ Ver `feature_list.json` para lista completa y estados. Total actual: 86 features
 - **F106** ✅ DONE: "Piper TTS ignora la voz" — **2 bugs distintos** producían el mismo síntoma. Bug 1: PUT /api/config 400 por type='webplayer' (OutputTypeEnum solo acepta 'web'). Bug 2: race condition en PiperSubprocessManager.\_send_command entre synth+heartbeat. Fix: `_normalize_output_type` en outputs route + `_canonical_types` en OutputFactory + `_cmd_lock` serializando \_send_command. 9 tests en `test_f106_piper_voice.py`.
 - **F107** ✅ DONE: "Cannot start pipeline in state: starting" — **3 bugs distintos** en `UnifiedPipeline.start()` producían el mismo síntoma. Bug 1: mensaje mentiroso ("60 seconds" mientras el join era 120s). Bug 2: state huérfano en STARTING tras timeout/excepción; `reset_error_state()` solo maneja ERROR, así que ningún retry funcionaba hasta reiniciar el server. Bug 3: excepciones dentro del init thread se tragaban silenciosamente — usuario siempre veía "timed out" aunque el init hubiera crash instantáneamente. Fix: `_DEFAULT_INIT_TIMEOUT_S=300` (configurable via `SRT2WEB_PIPELINE_INIT_TIMEOUT`); `__init__` trackea `_init_thread` y `_init_error`; `start()` rechaza concurrente con "already in progress", setea ERROR en timeout/excepción, reraisea `PipelineError(__cause__=init_error)` para que el error real llegue al usuario. 11 tests en `test_f107_pipeline_init_timeout.py`.
 
+**Feature 108**: Subtítulos desincronizados del video en sesiones largas / webplayer pausado (2026-06-04):
+
+- "Subtítulos se desincronizan del video" reportado tras varios minutos de stream. 3 capas de causas raíz identificadas:
+  - **Capa 1 (principal)**: `player.ts` hacía `setInterval(loadSubtitles, 2000)` que fetch+parse+wipe-and-replace TODAS las cues cada 2s. Produjo lag 0-2s oscilante (cue del chunk N+1 llega al HLS player instantáneo, el cliente tarda hasta 2s), flicker visible (cue activa desaparece/vuelve), y costo creciente (rolling window de 2000 cues re-creadas cada poll).
+  - **Capa 2 (código muerto)**: `SubtitleSyncMonitor.check_sync()` se creaba en `app_context.py` pero nunca se llamaba en el path runtime. El flag `enable_drift_detection` se ignoraba.
+  - **Capa 3 (drift por mtime)**: `srt_input.py:586-591` ajusta `cumulative_duration` con deltas de mtime acotados a `[0.5, 2*chunk_duration]`. Pequeño sesgo sistemático se acumula: 180 chunks × 0.05s = 9s en 30 min.
+- **Fix**: Reemplazar polling con HLS.js native subtitle track.
+  - **Backend**: per-chunk VTT fragments con timestamps **media-relative** (`subs_seg_NNNNNN.vtt`), `subs.m3u8` HLS media playlist (`EXT-X-VERSION:3`, atomic rewrite, rolling window), master playlist URI switched to `/subtitles/subs.m3u8`, `HLSOutput.start()` pre-crea `subs.m3u8` vacío. `SubtitleSyncMonitor` ahora se invoca por chunk con `check_sync(audio_wall_clock_ms, first_cue_media_ms)` y aplica blend suavizado `0.7*old + 0.3*new` con clamp en `|deviation|>=0.5`. Legacy `subs.vtt` rolling sigue produciéndose para `webrtc_engine.py` y `recording_output.py`.
+  - **Frontend**: eliminado polling (`parseVTT`, `loadSubtitles`, `startSubtitlePolling`); `player-subtitles.ts` helper con `activateFirstSubtitleTrack(hls, {preferredLang: "es"})` en MANIFEST_PARSED, `onSubtitleTrackListChange` re-activates on every manifest re-parse, `disableSubtitles` on disconnect. HLS.js carga `subs.m3u8` nativamente, renderiza cues en el mismo `currentTime` que el video.
+- **Tests**: 42 backend en `test_f108_subtitle_hls_sync.py` (fragment media-relative, playlist target_duration/media_sequence, rolling window, drift monitor blend+clamp, master playlist URI selection, legacy subs.vtt compat) + 18 frontend en `player-subtitles.test.ts` (preferred lang exact/prefix/fallback, closed-captions filter, disable, unsubscribe). Verificación: 42+18 pass, 1183 unit tests pass (xdist), mypy --strict 0 errores, tsc 0 errores, ruff clean.
+- **2 e2e test failures pre-existentes** (`test_links_to_hls_stream`, `test_subtitle_refresh_interval`): confirmado con `git stash` que fallan ANTES de F108 — references "master.m3u8"/"setInterval" en `server/static/player.html` que ya no está bundled.
+
 **Siguiente pendiente**: nada. Próxima feature a elegir de `feature_list.json`.
 
 ## 8. Historial compacto (post-Abril 2026)
+
+### 04/06 — Subtítulos desincronizados F108
+
+- F108 cerrado: 3 capas de causas (polling+wipe, monitor muerto, drift mtime) sustituidas por HLS.js native subtitle track.
+- Detalles completos en `progress/current.md`
 
 ### 03/06 — Pipeline init timeout (F107)
 

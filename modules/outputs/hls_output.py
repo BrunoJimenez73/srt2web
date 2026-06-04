@@ -16,6 +16,7 @@ import os
 import subprocess
 import sys
 import threading
+from pathlib import Path
 from typing import Any
 
 from core.encoder_config import EncoderConfig
@@ -119,8 +120,32 @@ class HLSOutput(OutputSink):
             with open(master_path, "w", encoding="utf-8") as master_file:
                 master_file.write("#EXTM3U\n")
                 master_file.write("#EXT-X-VERSION:4\n")
+                # F108: point at the HLS subtitle media playlist (subs.m3u8)
+                # so HLS.js can load subtitles natively — no polling, no flicker.
+                # Falls back to the legacy single-file subs.vtt if it pre-exists
+                # in the subtitles dir (recorded sessions, manual deploys).
+                subs_dir = os.path.join(self._output_dir or "./output", "subtitles")
+                media_playlist = os.path.join(subs_dir, "subs.m3u8")
+                legacy_single = os.path.join(subs_dir, "subs.vtt")
+                if os.path.exists(media_playlist):
+                    subs_uri = "/subtitles/subs.m3u8"
+                elif os.path.exists(legacy_single):
+                    subs_uri = "/subtitles/subs.vtt"
+                else:
+                    # Pre-create the HLS playlist so the URI is always valid once
+                    # the subtitle generator writes its first fragment.
+                    try:
+                        Path(media_playlist).parent.mkdir(parents=True, exist_ok=True)
+                        with open(media_playlist, "w", encoding="utf-8") as pf:
+                            pf.write("#EXTM3U\n")
+                            pf.write("#EXT-X-VERSION:3\n")
+                            pf.write("#EXT-X-TARGETDURATION:10\n")
+                            pf.write("#EXT-X-MEDIA-SEQUENCE:0\n")
+                    except OSError as exc:
+                        self.logger.warning(f"Could not pre-create subtitle playlist: {exc}")
+                    subs_uri = "/subtitles/subs.m3u8"
                 master_file.write(
-                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="/subtitles/subs.vtt"\n'
+                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="{subs_uri}"\n'
                 )
                 master_file.write(
                     '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"\n'
@@ -182,27 +207,44 @@ class HLSOutput(OutputSink):
             if has_mixed_audio:
                 audio_delay_sec = self._audio_offset_ms / 1000.0
                 cmd = [
-                    self._ffmpeg_path, "-y",
-                    "-i", input_path,
-                    "-itsoffset", str(audio_delay_sec),
-                    "-i", data.mixed_audio_path,
-                    "-map", "0:v:0",
-                    "-map", "1:a:0",
-                    "-c:v", "copy",
-                    "-c:a", "aac",
-                    "-b:a", self._encoder_config.audio_bitrate,
-                    "-output_ts_offset", offset_sec,
-                    "-f", "mpegts",
+                    self._ffmpeg_path,
+                    "-y",
+                    "-i",
+                    input_path,
+                    "-itsoffset",
+                    str(audio_delay_sec),
+                    "-i",
+                    data.mixed_audio_path,
+                    "-map",
+                    "0:v:0",
+                    "-map",
+                    "1:a:0",
+                    "-c:v",
+                    "copy",
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    self._encoder_config.audio_bitrate,
+                    "-output_ts_offset",
+                    offset_sec,
+                    "-f",
+                    "mpegts",
                     segment_path,
                 ]
             else:
                 cmd = [
-                    self._ffmpeg_path, "-y",
-                    "-i", input_path,
-                    "-c:v", "copy",
-                    "-c:a", "copy",
-                    "-output_ts_offset", offset_sec,
-                    "-f", "mpegts",
+                    self._ffmpeg_path,
+                    "-y",
+                    "-i",
+                    input_path,
+                    "-c:v",
+                    "copy",
+                    "-c:a",
+                    "copy",
+                    "-output_ts_offset",
+                    offset_sec,
+                    "-f",
+                    "mpegts",
                     segment_path,
                 ]
             try:
@@ -455,7 +497,10 @@ class HLSOutput(OutputSink):
             subs_dir = os.path.join(self._output_dir or "./output", "subtitles")
             subs_path_local = os.path.join(subs_dir, "subs.vtt")
             subs_path_hls = os.path.join(self._hls_dir, "subs.vtt")
-            has_subs = os.path.exists(subs_path_local) or os.path.exists(subs_path_hls)
+            subs_media_playlist = os.path.join(subs_dir, "subs.m3u8")
+            has_subs = (
+                os.path.exists(subs_media_playlist) or os.path.exists(subs_path_local) or os.path.exists(subs_path_hls)
+            )
 
             # Check for dual track (alternative language)
             alt_subs_path = os.path.join(subs_dir, "subs_original.vtt")
@@ -467,9 +512,14 @@ class HLSOutput(OutputSink):
             ]
 
             if has_subs:
+                # F108: prefer the HLS subtitle media playlist (subs.m3u8)
+                # so HLS.js loads subtitles natively. Fall back to the legacy
+                # single-file subs.vtt if the media playlist doesn't exist yet
+                # (e.g. legacy recording playback).
+                subs_uri = "/subtitles/subs.m3u8" if os.path.exists(subs_media_playlist) else "/subtitles/subs.vtt"
                 # Primary subtitle track
                 master_lines.append(
-                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="/subtitles/subs.vtt"'
+                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="{subs_uri}"'
                 )
                 # Secondary track (original language) if dual track is active
                 if has_alt_subs:

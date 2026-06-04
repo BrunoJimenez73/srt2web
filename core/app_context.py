@@ -149,3 +149,10 @@ def _register_modules(
     )
     # Store reference in pipeline for access
     pipeline.subtitle_sync_monitor = sync_monitor  # type: ignore[attr-defined]
+
+    # F108 — wire the drift monitor INTO the subtitle generator so the previously
+    # dead `enable_drift_detection` flag actually applies a correction factor
+    # on every chunk. This is the only place the two objects can meet.
+    subtitle_module = pipeline.get_module("subtitle_generator")
+    if subtitle_module is not None and hasattr(subtitle_module, "set_drift_monitor"):
+        subtitle_module.set_drift_monitor(sync_monitor)

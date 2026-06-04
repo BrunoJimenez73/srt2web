@@ -2382,6 +2382,67 @@
         "core/unified_pipeline.py: On init exception (captured in self._init_error), state set to ERROR and original error re-raised as PipelineError cause",
         "tests/unit/test_f107_pipeline_init_timeout.py: 11 regression tests covering timeout->ERROR, exception propagation, _init_error clearing, retry-after-error, env-var override, concurrent start rejection, message correctness, happy path, and already-initialized skip"
       ]
+    },
+    {
+      "id": 108,
+      "name": "subtitle_hls_native_sync",
+      "title": "Subtítulos sincronizados con HLS.js native track (sin polling, sin deriva)",
+      "status": "done",
+      "area": "frontend/backend",
+      "priority": "Alta",
+      "description": "El usuario reporta que los subtitulos salen desincronizados del video, el problema se agrava con sesiones largas, y al mover/pausar el webplayer la sincronia se rompe. La causa raiz es la implementacion actual: el frontend hace polling cada 2s contra output/subtitles/subs.vtt y en cada poll hace wipe-and-replace de TODOS los VTTCues del TextTrack. Esto produce (a) un desajuste de 0-2s que se auto-corrige cada poll (el usuario ve oscilacion), (b) parpadeo visible porque la cue activa desaparece y vuelve cada 2s, y (c) carga de trabajo creciente conforme la ventana rolling crece (hasta 2000 cues). Ademas SubtitleSyncMonitor es codigo muerto: se inicializa con enable_drift_detection=false y nadie llama a check_sync() en produccion, por lo que la 'deteccion de deriva' configurada por el usuario no hace nada. La solucion correcta es dejar que HLS.js maneje los subtitulos de forma nativa, tal como el propio HLS spec define, eliminando el polling y haciendo que los cues se rendericen en el mismo time-base que el video.\n\nCambios:\n1) SubtitleGenerator escribe PER-CHUNK fragments VTT con timestamps media-relative (subs_seg_NNNNNN.vtt), no absolutos. Mantiene subs.vtt rolling para WebRTC engine y recording_output (consumidores legacy).\n2) SubtitleGenerator escribe una HLS subtitle MEDIA PLAYLIST (subs.m3u8) que lista los fragments con EXTINF = chunk_duration.\n3) HLSOutput master playlist apunta a /subtitles/subs.m3u8 en vez de /subtitles/subs.vtt. HLS.js trata subs.m3u8 como media playlist, descarga fragments segun avanza el video, agrega los VTTCues al <track> del <video>, y el browser los renderiza con currentTime en el mismo time-base. Cero polling, cero lag, cero flicker.\n4) Se elimina el polling y el parser manual de player.ts. Despues de MANIFEST_PARSED se hace hls.subtitleTrack = 0 para activar la primera pista disponible.\n5) Se conecta SubtitleSyncMonitor a la cadena real: despues de cada chunk se llama check_sync(audio_wall_clock_ms, subtitle_first_cue_ms) y se aplica sync_correction_factor al SubtitleGenerator. Asi la correccion configurada por el usuario funciona de verdad.\n6) Tests backend: per-chunk fragment se crea con timestamps media-relative; subs.m3u8 lista los fragments en orden; el rolling subs.vtt sigue funcionando para los consumidores legacy.\n7) Tests frontend: con hls.js mockeado, tras MANIFEST_PARSED se llama subtitleTrack = 0 y el polling se elimina del bundle.",
+      "problems_identified": [
+        "Player hace setInterval(loadSubtitles, 2000) y en cada poll hace wipe de TODOS los cues + re-add de TODOS los cues del rolling subs.vtt. Esto produce 0-2s de lag oscilante y flicker visible.",
+        "Cues absolutos en subs.vtt + wipe-and-replace + browser que solo renderiza la cue activa si currentTime in [start, end]: el usuario ve parpadeo y desfase constante.",
+        "Rolling window crece hasta 2000 cues (~200 chunks × 10 cues) = el re-add completo se vuelve costoso en CPU y memoria del browser.",
+        "SubtitleSyncMonitor.check_sync() nunca se llama en produccion. Configurar enable_drift_detection=true y sync_correction_threshold=500 no hace nada. La 'drift detection' configurada por el usuario es decorativa.",
+        "Cuando el usuario mueve/pausa el webplayer, el polling sigue haciendo wipe-and-replace de la ventana completa (incluyendo cues lejanas que el browser ya no necesita). En una sesion larga, el browser termina con miles de VTTCue objects sin liberarlos.",
+        "HLS master playlist ya declara EXT-X-MEDIA TYPE=SUBTITLES apuntando a /subtitles/subs.vtt, pero subs.vtt es un rolling growing file, no un media playlist valido. HLS.js ignoraria los cues si los cargara nativamente.",
+        "tests/unit/test_player_robustness.py:TestPlayerSubtitles valida que el interval sea literalmente 2000 (regression test contra la solucion). Se actualizara para validar la nueva estrategia."
+      ],
+      "acceptance": [
+        "modules/subtitle_generator.py escribe subs_seg_NNNNNN.vtt con cues en media-relative time (verificado por test)",
+        "modules/subtitle_generator.py escribe subs.m3u8 valido (HLS subtitle media playlist) con EXT-X-MEDIA-SEQUENCE correcto y EXTINF = chunk_duration (verificado por test)",
+        "modules/outputs/hls_output.py master playlist URI=/subtitles/subs.m3u8 (verificado por test)",
+        "subs.vtt rolling sigue escribiendose para los consumidores legacy webrtc_engine.py y recording_output.py: no se rompe backward compat",
+        "modules/subtitle_generator.py sincroniza SubtitleSyncMonitor con el wall-clock real: check_sync() se llama al menos una vez por chunk y sync_correction_factor se actualiza (verificado por test)",
+        "frontend player.ts elimina parseVTT, loadSubtitles, startSubtitlePolling, stopSubtitlePolling. En MANIFEST_PARSED se llama hls.subtitleTrack = 0 si hay pistas disponibles",
+        "tests/frontend/ cubre que tras MANIFEST_PARSED se active la primera pista de subtitulos",
+        "tests/frontend/ cubre que se elimina el setInterval(2000)",
+        "init.ps1 -Quick verde: pytest + tsc + ruff sin errores",
+        "mypy --strict core/ server/ modules/ sin errores"
+      ],
+      "files_to_touch": [
+        "modules/subtitle_generator.py",
+        "modules/outputs/hls_output.py",
+        "core/subtitle_sync_monitor.py",
+        "core/app_context.py",
+        "core/unified_pipeline.py",
+        "server/routes/pipeline.py",
+        "frontend/src/lib/modules/player.ts",
+        "frontend/src/lib/modules/player-subtitles.ts (nuevo helper)",
+        "tests/unit/test_f108_subtitle_hls_sync.py (nuevo)",
+        "tests/unit/test_subtitle_generator.py (actualizar)",
+        "tests/unit/test_hls_output.py (actualizar)",
+        "tests/unit/test_subtitle_sync_monitor.py (actualizar)",
+        "frontend/src/lib/modules/player-subtitles.test.ts (nuevo)",
+        "feature_list.json (esta entrada)",
+        "AGENTS.md (seccion 7 y 8)",
+        "progress/current.md (esta entrada)"
+      ],
+      "dependencies": [],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "subs.vtt rolling se mantiene para no romper webrtc_engine ni recording_output; solo se ANADE la nueva ruta HLS-native",
+          "Cambio en master playlist (de subs.vtt a subs.m3u8) es atomico: el primer chunk escribe el fragment y luego el playlist; si el browser no entiende el nuevo formato, fallback explicito a comportamiento anterior",
+          "HLS.js lleva anos soportando subtitle tracks nativas; el API hls.subtitleTrack es estable desde hls.js 0.7 (2018). El CDN ya sirve hls.js@1.5.7",
+          "Tests cubren: per-chunk fragment con timestamps correctos, media playlist valido, master playlist actualizado, monitor realmente conectado, frontend activa track en MANIFEST_PARSED"
+        ]
+      },
+      "started_in_session": "2026-06-04",
+      "completed_date": "2026-06-04",
+      "fix": "Replaced polling+cue-wipe strategy with HLS.js native subtitle track: per-chunk VTT fragments with media-relative timestamps (output/subtitles/subs_seg_NNNNNN.vtt), subs.m3u8 HLS media playlist (EXT-X-VERSION:3, atomic rewrite, rolling window), master playlist URI switched to /subtitles/subs.m3u8, HLSOutput.start() pre-creates an empty subs.m3u8 so the URI is always valid. Wired the previously-dead SubtitleSyncMonitor: app_context calls SubtitleGenerator.set_drift_monitor(sync_monitor) and _do_process invokes check_sync(audio_wall_clock_ms, first_cue_media_ms) per chunk, applying a smoothed blend (0.7*old + 0.3*new, clamp on |deviation|>=0.5). Replaced player.ts polling code (parseVTT, loadSubtitles, startSubtitlePolling) with player-subtitles.ts helper: activateFirstSubtitleTrack on MANIFEST_PARSED with preferredLang=es, onSubtitleTrackListChange re-activates on each manifest re-parse, disableSubtitles on disconnect. Legacy subs.vtt is still produced for webrtc_engine.py and recording_output.py backward compat. 42 backend tests + 18 frontend tests added."
     }
   ]
 }

@@ -1,8 +1,22 @@
 /**
- * Módulo para el reproductor HLS con subtítulos dinámicos
+ * Módulo para el reproductor HLS con subtítulos nativos.
+ *
+ * F108: Subtitles are loaded natively by HLS.js via the subtitle media
+ * playlist declared in the video master playlist
+ * (`EXT-X-MEDIA:TYPE=SUBTITLES,URI="/subtitles/subs.m3u8"`). The
+ * `player-subtitles.ts` helper activates the first track after
+ * MANIFEST_PARSED. There is no polling and no manual VTTCue management
+ * here anymore — hls.js handles the per-chunk fragment download, the
+ * VTTCue parsing, and the timing relative to `currentTime`.
  */
 
 import { logger } from "../utils/logger";
+import {
+  activateFirstSubtitleTrack,
+  disableSubtitles,
+  onSubtitleTrackListChange,
+} from "./player-subtitles";
+import type { HlsLike } from "./player-subtitles";
 
 // HLS.js type declarations - must be before usage
 declare const Hls: HlsStatic | undefined;
@@ -23,6 +37,14 @@ interface HlsInstance {
   destroy(): void;
   on(event: string, callback: (...args: unknown[]) => void): void;
   once(event: string, callback: (...args: unknown[]) => void): void;
+  subtitleTrack: number;
+  subtitleDisplay: boolean;
+  subtitleTracks: ReadonlyArray<{
+    id: number;
+    name?: string;
+    lang?: string;
+    type?: string;
+  }>;
 }
 
 interface HlsConfig {
@@ -43,6 +65,7 @@ const HlsEvents = {
   ERROR: "hlsError",
   FRAG_BUFFERED: "hlsFragBuffered",
   LEVEL_SWITCH: "hlsLevelSwitch",
+  SUBTITLE_TRACKS_UPDATED: "hlsSubtitleTracksUpdated",
 };
 
 // HLS Error Types enum
@@ -50,12 +73,6 @@ const HlsErrorTypes = {
   NETWORK_ERROR: "networkError",
   MEDIA_ERROR: "mediaError",
 };
-
-interface SubtitleCue {
-  start: number;
-  end: number;
-  text: string;
-}
 
 interface HlsErrorData {
   type: string;
@@ -83,10 +100,8 @@ export function initHlsPlayer(): void {
   // Cache buster to prevent loading stale HLS segments from previous sessions
   const _sessionTs = Date.now();
   const streamUrl = `${window.location.origin}/hls/stream.m3u8?_=${_sessionTs}`;
-  const subtitlesUrl = `${window.location.origin}/subtitles/subs.vtt?_=${_sessionTs}`;
   let hls: HlsInstance | null = null;
-  let subtitleInterval: ReturnType<typeof setInterval> | null = null;
-  let lastSubtitleContent = "";
+  let unsubscribeSubtitleUpdates: (() => void) | null = null;
   let isConnected = false;
   let lastManifestTime = 0;
 
@@ -149,110 +164,6 @@ export function initHlsPlayer(): void {
     }
   }
 
-  // Parse VTT content to extract cues
-  function parseVTT(vttContent: string): SubtitleCue[] {
-    const cues: SubtitleCue[] = [];
-    const lines = vttContent.split("\n");
-    // Support both VTT (dot) and SRT (comma) timestamps
-    const timeRegex =
-      /(\d{2}):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[,.](\d{3})/;
-
-    for (let i = 0; i < lines.length; i++) {
-      const match = lines[i].match(timeRegex);
-      if (match) {
-        const start =
-          parseInt(match[1]) * 3600 +
-          parseInt(match[2]) * 60 +
-          parseInt(match[3]) +
-          parseInt(match[4]) / 1000;
-        const end =
-          parseInt(match[5]) * 3600 +
-          parseInt(match[6]) * 60 +
-          parseInt(match[7]) +
-          parseInt(match[8]) / 1000;
-
-        let text = "";
-        let j = i + 1;
-        while (j < lines.length && lines[j].trim() !== "") {
-          text += (text ? "\n" : "") + lines[j].trim();
-          j++;
-        }
-
-        if (text) {
-          cues.push({ start, end, text });
-        }
-      }
-    }
-
-    return cues;
-  }
-
-  // Load and display subtitles
-  async function loadSubtitles() {
-    try {
-      const ts = Date.now();
-      const response = await fetch(
-        `${window.location.origin}/subtitles/subs.vtt?_=${ts}`,
-        {
-          cache: "no-cache",
-          headers: { "Cache-Control": "no-cache" },
-        },
-      );
-
-      if (!response.ok) {
-        if (response.status !== 404) {
-          logger.warn("player", "Error loading subtitles", response.status);
-        }
-        return;
-      }
-
-      const content = await response.text();
-
-      if (content === lastSubtitleContent) return;
-      lastSubtitleContent = content;
-
-      const cues = parseVTT(content);
-
-      if (!cues || cues.length === 0) return;
-
-      let track: TextTrack | null = null;
-      if (video.textTracks.length > 0) {
-        track = video.textTracks[0];
-      } else {
-        track = video.addTextTrack("subtitles", "Español", "es");
-      }
-      if (track) track.mode = "showing";
-
-      if (track && track.cues) {
-        const cuesToRemove = Array.from(track.cues);
-        for (const cue of cuesToRemove) {
-          track.removeCue(cue);
-        }
-      }
-
-      if (track) {
-        for (const cue of cues) {
-          const vttCue = new VTTCue(cue.start, cue.end, cue.text);
-          track.addCue(vttCue);
-        }
-      }
-    } catch (error) {
-      logger.warn("player", "Error loading subtitles", error);
-    }
-  }
-
-  function startSubtitlePolling() {
-    loadSubtitles();
-    subtitleInterval = setInterval(loadSubtitles, 2000);
-  }
-
-  function stopSubtitlePolling() {
-    if (subtitleInterval) {
-      clearInterval(subtitleInterval);
-      subtitleInterval = null;
-    }
-  }
-
   function handlePlayError(err: unknown) {
     if (err instanceof DOMException && err.name === "NotAllowedError") {
       showError(
@@ -268,12 +179,10 @@ export function initHlsPlayer(): void {
     if (waitingEl) waitingEl.style.display = "block";
     isConnected = false;
     consecutiveErrors = 0;
-    lastSubtitleContent = "";
 
     // Update cache buster for fresh session
     const ts = Date.now();
     const freshStreamUrl = `${window.location.origin}/hls/stream.m3u8?_=${ts}`;
-    const freshSubtitlesUrl = `${window.location.origin}/subtitles/subs.vtt?_=${ts}`;
 
     // Best-effort: ask the service worker to drop any previously cached live content
     // so a stale segment from a prior pipeline session cannot leak into the new one.
@@ -298,6 +207,28 @@ export function initHlsPlayer(): void {
         liveDurationInfinity: true,
       });
 
+      // Subscribe to subtitle track updates so we re-activate when the
+      // manifest is re-parsed (e.g. after a reconnect). The unsubscribe
+      // function is stored and called on disconnect so we don't leak.
+      unsubscribeSubtitleUpdates = onSubtitleTrackListChange(
+        hls as unknown as HlsLike,
+        (tracks) => {
+          logger.debug(
+            "player",
+            "Subtitle tracks updated",
+            tracks.length,
+            tracks.map((t) => t.lang ?? "?").join(","),
+          );
+          // Re-activate the first track after each list refresh so the
+          // user doesn't end up with no subtitles if the manifest is
+          // re-parsed mid-session.
+          activateFirstSubtitleTrack(hls as unknown as HlsLike, {
+            preferredLang: "es",
+            showSubtitles: true,
+          });
+        },
+      );
+
       // IMPORTANT: register handlers BEFORE loadSource/attachMedia.
       // HLS.js emits MANIFEST_PARSED synchronously after parsing the manifest
       // (which can happen very fast for a small playlist). If the handler is
@@ -308,7 +239,16 @@ export function initHlsPlayer(): void {
         isConnected = true;
         lastManifestTime = Date.now();
         video.play().catch(handlePlayError);
-        startSubtitlePolling();
+
+        // F108: activate the first subtitle track declared in the
+        // master playlist. HLS.js will load subs.m3u8 natively, parse
+        // per-chunk fragments, and render cues at the right currentTime.
+        const trackId = activateFirstSubtitleTrack(hls as unknown as HlsLike, {
+          preferredLang: "es",
+          showSubtitles: true,
+        });
+        logger.info("player", "Subtitle track activation result", trackId);
+
         startHealthCheck();
       });
 
@@ -345,7 +285,11 @@ export function initHlsPlayer(): void {
         if (waitingEl) waitingEl.style.display = "none";
         isConnected = true;
         video.play().catch(handlePlayError);
-        startSubtitlePolling();
+        // Native HLS path: the browser handles <track> elements
+        // attached to the <video>, but our hls.js path is the supported
+        // one. For Safari we still want subtitles; rely on the
+        // master.m3u8 SUBTITLES attribute being picked up by the
+        // browser's native HLS implementation.
         startHealthCheck();
       });
       video.addEventListener("error", () => {
@@ -354,7 +298,6 @@ export function initHlsPlayer(): void {
           setTimeout(connect, 3000);
         } else {
           showError("Error cargando el stream");
-          stopSubtitlePolling();
           stopHealthCheck();
         }
       });
@@ -364,9 +307,13 @@ export function initHlsPlayer(): void {
   }
 
   function disconnect() {
-    stopSubtitlePolling();
     stopHealthCheck();
+    if (unsubscribeSubtitleUpdates) {
+      unsubscribeSubtitleUpdates();
+      unsubscribeSubtitleUpdates = null;
+    }
     if (hls) {
+      disableSubtitles(hls as unknown as HlsLike);
       hls.stopLoad();
       hls.destroy();
       hls = null;
@@ -377,7 +324,6 @@ export function initHlsPlayer(): void {
   if (btnRetry) {
     btnRetry.addEventListener("click", () => {
       disconnect();
-      lastSubtitleContent = "";
       connect();
     });
   }
@@ -418,9 +364,6 @@ export function initHlsPlayer(): void {
     if (!("serviceWorker" in navigator)) return;
     try {
       const reg = await navigator.serviceWorker.ready;
-      // Best-effort: ensure the active SW is the latest one we just registered.
-      // If the controller is still null after a short wait, proceed anyway —
-      // some browsers (e.g. in dev / no HTTPS) never expose a controller.
       if (reg && reg.active) {
         logger.debug("player", "Service worker ready");
       }
