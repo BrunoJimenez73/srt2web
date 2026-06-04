@@ -19,14 +19,28 @@ def get_astro_source_content(file_path):  # type: ignore
 
 
 def get_built_html_content(file_path="player/index.html"):  # type: ignore
-    """Load built HTML file for testing."""
+    """Load built HTML + bundled JS as a single string.
+
+    F108 moved the subtitle logic from the HTML into the Astro-bundled JS
+    (server/static/_astro/player.*.js), so several assertions need to look
+    in the bundle, not the HTML shell. Combining the two keeps tests
+    resilient to that split.
+    """
     base_path = Path(__file__).parent.parent.parent / "server" / "static"
     html_file = base_path / file_path
 
-    if html_file.exists():
-        with open(html_file, encoding="utf-8") as f:
-            return f.read()
-    return None
+    if not html_file.exists():
+        return None
+
+    with open(html_file, encoding="utf-8") as f:
+        html = f.read()
+
+    astro_dir = base_path / "_astro"
+    for js_file in sorted(astro_dir.glob("player*.js")) if astro_dir.exists() else []:
+        with open(js_file, encoding="utf-8") as f:
+            html += "\n" + f.read()
+
+    return html
 
 
 class TestPlayerAstroStructure:
@@ -236,11 +250,11 @@ class TestPlayerSubtitles:
         assert "subtitle" in player_astro_content.lower() or "track" in player_astro_content.lower()
 
     def test_player_loads_vtt_files(self, player_built_content) -> None:
-        """Test that player loads VTT files."""
+        """Test that player loads subtitle tracks (F108: HLS native subs.m3u8)."""
         if player_built_content is None:
             pytest.skip("Built player/index.html not found")
 
-        assert "vtt" in player_built_content.lower() or "/hls/subs.vtt" in player_built_content
+        assert "subs.m3u8" in player_built_content or "subtitleTrack" in player_built_content
 
     def test_player_has_cc_toggle(self, player_built_content) -> None:
         """Test that player has CC toggle button."""

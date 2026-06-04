@@ -27,6 +27,26 @@ def _get_player_html():  # type: ignore
     return None
 
 
+def _get_player_js_bundle() -> str | None:
+    """Load the Astro-bundled player JS (where F108 subtitle logic lives)."""
+    bundle_dir = PROJECT_ROOT / "server" / "static" / "_astro"
+    if not bundle_dir.exists():
+        return None
+    for js_file in sorted(bundle_dir.glob("player*.js")):
+        with open(js_file, encoding="utf-8") as f:
+            return f.read()
+    return None
+
+
+def _get_player_combined() -> str | None:
+    """Load HTML + Astro JS bundle as a single string (HTML first, then JS)."""
+    html = _get_player_html()
+    if html is None:
+        return None
+    js = _get_player_js_bundle() or ""
+    return html + "\n" + js
+
+
 class TestPlayerPageStructure:
     """Tests for player page structure."""
 
@@ -67,11 +87,12 @@ class TestPlayerPageStructure:
         assert "::cue" in player_html_content or "text-shadow" in player_html_content
 
     def test_links_to_hls_stream(self, player_html_content) -> None:
-        """Test that player links to HLS stream."""
+        """Test that player links to HLS stream (URL built in JS bundle, F108)."""
         if player_html_content is None:
             pytest.skip("player.html not found")
 
-        assert "master.m3u8" in player_html_content or "/hls/" in player_html_content
+        combined = _get_player_combined() or player_html_content
+        assert "master.m3u8" in combined or "/hls/" in combined or "stream.m3u8" in combined
 
 
 class TestPlayerSubtitleHandling:
@@ -105,11 +126,15 @@ class TestPlayerSubtitleHandling:
             or "SUBTITLE_TRACKS_UPDATED" in player_html_content
         )
 
-    def test_subtitle_refresh_interval(self, player_html_content) -> None:
-        """Test that subtitle refresh interval exists."""
+    def test_subtitle_native_hls_handling(self, player_html_content) -> None:
+        """Test that subtitle updates use HLS.js native events (F108, no polling)."""
         if player_html_content is None:
             pytest.skip("player.html not found")
-        assert "setInterval" in player_html_content
+        combined = _get_player_combined() or player_html_content
+        assert "hlsSubtitleTracksUpdated" in combined
+        assert "hlsManifestParsed" in combined
+        assert "preferredLang" in combined
+        assert "subtitleTrack" in combined
 
     def test_track_appended_to_video(self, player_html_content) -> None:
         """Test that manual track is appended to video element."""
