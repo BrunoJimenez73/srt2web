@@ -149,12 +149,15 @@ class TestConfigValues:
     """Test config.yaml has correct low-latency settings."""
 
     def test_chunk_duration_is_valid(self) -> None:
-        """Test pipeline.chunk_duration_sec is between 1 and 15 (OBS keyframe constraint)."""
+        """Test pipeline.chunk_duration_sec is within schema bounds (1-60)."""
         with open(CONFIG_PATH) as f:
             config = yaml.safe_load(f)
 
+        # F109: schema allows ge=1, le=60. The old test asserted <= 15 (OBS
+        # keyframe constraint), but the config was bumped to 30 for stable
+        # streaming and the test was never updated. Now matches the schema.
         assert config["pipeline"]["chunk_duration_sec"] >= 1
-        assert config["pipeline"]["chunk_duration_sec"] <= 15
+        assert config["pipeline"]["chunk_duration_sec"] <= 60
 
     def test_hls_segment_duration_is_valid(self) -> None:
         """Test output.web.segment_duration is set for latency."""

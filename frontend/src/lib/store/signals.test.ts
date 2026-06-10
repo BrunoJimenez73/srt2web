@@ -123,7 +123,6 @@ function makeConfig(overrides: Partial<Config> = {}): Config {
         enabled: true,
         original_volume: 0.9,
         tts_volume: 0.9,
-        dubbed_volume: 0.9,
       },
       video_muxer: {
         enabled: true,

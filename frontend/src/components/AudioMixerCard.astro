@@ -13,8 +13,8 @@
     <div class="form-group">
       <label class="form-label" id="audio-mixer-original-label">Volumen Original</label>
       <input type="range" class="form-range" id="audio-mixer-original-volume"
-             min="0" max="2" step="0.1" value="0.3" aria-labelledby="audio-mixer-original-label" aria-valuetext="0.3">
-      <span id="audio-mixer-original-value" aria-hidden="true">0.3</span>
+             min="0" max="2" step="0.1" value="0.7" aria-labelledby="audio-mixer-original-label" aria-valuetext="0.7">
+      <span id="audio-mixer-original-value" aria-hidden="true">0.7</span>
     </div>
     <div class="form-group">
       <label class="form-label" id="audio-mixer-dubbed-label">Volumen Doblado</label>
@@ -217,19 +217,63 @@
   import { fetchWithAuth } from "../lib/api";
   let saveTimeout = null;
 
+  function dottedToNested(dottedKey, value) {
+    const parts = dottedKey.split('.');
+    let result = {};
+    let current = result;
+    for (let i = 0; i < parts.length - 1; i++) {
+      current[parts[i]] = {};
+      current = current[parts[i]];
+    }
+    current[parts[parts.length - 1]] = value;
+    return result;
+  }
+
   async function saveAudioConfig(key, value) {
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(async () => {
       try {
-        await fetchWithAuth('/api/config', {
-          method: 'PATCH',
+        const nested = dottedToNested(key, value);
+        const res = await fetchWithAuth('/api/config', {
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ [key]: value })
+          body: JSON.stringify({ config: nested })
         });
+        if (!res.ok) {
+          const text = await res.text().catch(() => 'unknown error');
+          console.error('[AudioMixer] Error saving config:', res.status, text);
+        }
       } catch (e) {
-        // TODO: Error saving audio config (console removed for prod)
+        console.error('[AudioMixer] Failed to save audio config:', e);
       }
     }, 500);
+  }
+
+  async function loadAudioConfig() {
+    try {
+      const res = await fetchWithAuth('/api/config');
+      if (!res.ok) return;
+      const data = await res.json();
+      const mixer = data?.config?.modules?.audio_mixer;
+      if (!mixer) return;
+      const origSlider = document.getElementById('audio-mixer-original-volume');
+      const origVal = document.getElementById('audio-mixer-original-value');
+      const dubSlider = document.getElementById('audio-mixer-dubbed-volume');
+      const dubVal = document.getElementById('audio-mixer-dubbed-value');
+
+      if (origSlider && origVal && mixer.original_volume !== undefined) {
+        const v = String(mixer.original_volume);
+        origSlider.value = v;
+        origVal.textContent = v;
+      }
+      if (dubSlider && dubVal && mixer.tts_volume !== undefined) {
+        const v = String(mixer.tts_volume);
+        dubSlider.value = v;
+        dubVal.textContent = v;
+      }
+    } catch (e) {
+      console.error('[AudioMixer] Failed to load config:', e);
+    }
   }
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -238,12 +282,13 @@
     const dubbedVol = document.getElementById('audio-mixer-dubbed-volume');
     const dubbedVal = document.getElementById('audio-mixer-dubbed-value');
 
+    void loadAudioConfig();
+
     if (originalVol && originalVal) {
       originalVol.addEventListener('input', () => {
         originalVal.textContent = originalVol.value;
         saveAudioConfig('modules.audio_mixer.original_volume', parseFloat(originalVol.value));
       });
-      originalVal.textContent = originalVol.value;
     }
 
     if (dubbedVol && dubbedVal) {
@@ -251,7 +296,6 @@
         dubbedVal.textContent = dubbedVol.value;
         saveAudioConfig('modules.audio_mixer.tts_volume', parseFloat(dubbedVol.value));
       });
-      dubbedVal.textContent = dubbedVol.value;
     }
   });
 

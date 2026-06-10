@@ -7,23 +7,23 @@
 
 ## 1. Mapa del repositorio
 
-| Archivo / carpeta     | Qué contiene                                            | Cuándo leerlo          |
-| --------------------- | ------------------------------------------------------- | ---------------------- |
-| `feature_list.json`   | Features con status (pending/in_progress/done/blocked)  | Siempre, al empezar    |
-| `progress/current.md` | Estado de la sesión activa                              | Siempre, al empezar    |
-| `progress/history.md` | Bitácora append-only de sesiones                        | Si necesitas contexto  |
-| `CHECKPOINTS.md`      | Criterios de "estado final correcto"                    | Antes de declarar done |
-| `init.ps1`            | Script de verificación (Windows)                        | Al empezar y al cerrar |
-| `init_Mac.sh`         | Script de verificación (macOS)                          | En Mac, al empezar     |
-| `install_Mac.sh`      | Instalador para Mac Silicon                             | En Mac, para setup     |
-| `core/`               | Pipeline, módulos base, config, factories               | Para implementar       |
-| `modules/`            | Procesamiento (audio, TTS, transcripción) + I/O plugins | Para implementar       |
-| `server/`             | FastAPI, WebSocket, seguridad                           | Para implementar       |
+| Archivo / carpeta     | Qué contiene                                                                                                                                                                                                                                                                 | Cuándo leerlo          |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| `feature_list.json`   | Features con status (pending/in_progress/done/blocked)                                                                                                                                                                                                                       | Siempre, al empezar    |
+| `progress/current.md` | Estado de la sesión activa                                                                                                                                                                                                                                                   | Siempre, al empezar    |
+| `progress/history.md` | Bitácora append-only de sesiones                                                                                                                                                                                                                                             | Si necesitas contexto  |
+| `CHECKPOINTS.md`      | Criterios de "estado final correcto"                                                                                                                                                                                                                                         | Antes de declarar done |
+| `init.ps1`            | Script de verificación (Windows)                                                                                                                                                                                                                                             | Al empezar y al cerrar |
+| `init_Mac.sh`         | Script de verificación (macOS)                                                                                                                                                                                                                                               | En Mac, al empezar     |
+| `install_Mac.sh`      | Instalador para Mac Silicon                                                                                                                                                                                                                                                  | En Mac, para setup     |
+| `core/`               | Pipeline, módulos base, config, factories                                                                                                                                                                                                                                    | Para implementar       |
+| `modules/`            | Procesamiento (audio, TTS, transcripción) + I/O plugins                                                                                                                                                                                                                      | Para implementar       |
+| `server/`             | FastAPI, WebSocket, seguridad                                                                                                                                                                                                                                                | Para implementar       |
 | `frontend/`           | Dashboard Astro + TypeScript + Tailwind. **F116**: editor visual en `/graph` con React Flow — `lib/graph/` (catálogo, validador, serializador, live status) + `components/graph/` (PipelineCanvas, ModuleNode, InspectorPanel, Toolbar, PipelineGraph) + `pages/graph.astro` | Para implementar       |
-| `cli/`                | CLI + TUI (Textual) — cliente HTTP/WS + comandos        | Para implementar       |
-| `tests/`              | Tests pytest + vitest                                   | Para verificar         |
-| `config.yaml`         | Configuración runtime del pipeline                      | Para entender defaults |
-| `docs/`               | MkDocs, ADRs, guías de arquitectura                     | Para contexto técnico  |
+| `cli/`                | CLI + TUI (Textual) — cliente HTTP/WS + comandos                                                                                                                                                                                                                             | Para implementar       |
+| `tests/`              | Tests pytest + vitest                                                                                                                                                                                                                                                        | Para verificar         |
+| `config.yaml`         | Configuración runtime del pipeline                                                                                                                                                                                                                                           | Para entender defaults |
+| `docs/`               | MkDocs, ADRs, guías de arquitectura                                                                                                                                                                                                                                          | Para contexto técnico  |
 
 ## 2. Antes de empezar
 

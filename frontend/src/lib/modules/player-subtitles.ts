@@ -195,7 +195,8 @@ export function onSubtitleTrackListChange(
 function collectUsableSubtitleTracks(hls: HlsLike): SubtitleTrackDescriptor[] {
   const allSubs = hls.allSubtitleTracks;
   const basicSubs = hls.subtitleTracks;
-  const source = (Array.isArray(allSubs) && allSubs.length > 0) ? allSubs : basicSubs;
+  const source =
+    Array.isArray(allSubs) && allSubs.length > 0 ? allSubs : basicSubs;
   if (!Array.isArray(source)) {
     return [];
   }

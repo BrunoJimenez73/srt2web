@@ -183,8 +183,13 @@ class CompositeOutput(BaseOutput):
                 processed_chunks = first_status.processed_chunks
                 last_process_time_ms = first_status.last_process_time_ms
                 extra = first_status.extra.copy() if first_status.extra else {}
-            except Exception:
-                # Fallback to idle state if output status query fails
+            except Exception as e:
+                # F109: era silencioso (F74 lo pasó). Ahora loggeamos para diagnóstico
+                # porque si un output falla get_status(), el operador no se entera.
+                logger.warning(
+                    f"Output '{first_name}' get_status() failed, falling back to idle: {e}",
+                    exc_info=True,
+                )
                 state = ModuleState.IDLE
                 enabled = True
                 processed_chunks = 0
@@ -385,8 +390,11 @@ def _register() -> None:
         from core.io_factory import OutputFactory
 
         OutputFactory.register("composite", CompositeOutput)
-    except ImportError:
-        pass
+    except ImportError as e:
+        # F109: era silencioso. ImportError aquí indica carga parcial de core
+        # (típicamente cuando composite se importa antes de que core.io_factory
+        # esté disponible durante algún test o carga lazy). No es un error real.
+        logger.debug(f"Composite output auto-register deferred: {e}")
 
 
 _register()

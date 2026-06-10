@@ -6,6 +6,7 @@ Provides authentication, rate limiting, and security headers.
 
 import logging
 import time
+import warnings
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from threading import Lock
@@ -270,7 +271,20 @@ def validate_ws_auth(request: Request, get_auth_token: Callable[[], str]) -> boo
     """
     Validate authentication for WebSocket connections.
     Returns True if authenticated or no token required.
+
+    .. deprecated::
+        F109: Esta función NO se usa en producción. El flujo canónico de auth
+        WebSocket está implementado inline en ``server/ws_routes.py`` (función
+        ``websocket_endpoint``, validación de ``?token=`` al aceptar conexión).
+        Esta función se conserva porque hay 8 tests que la cubren y documentan
+        el contrato de auth WS. Si necesitas cambiar la lógica, hazlo en
+        ``ws_routes.py`` y actualiza los tests para reflejar el inline check.
     """
+    warnings.warn(
+        "validate_ws_auth is legacy; production uses inline auth in server/ws_routes.py",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     auth_token = get_auth_token()
 
     if not auth_token:

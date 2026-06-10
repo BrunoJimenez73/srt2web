@@ -1,12 +1,24 @@
 """
 Logging Setup - Centralized logging configuration with security audit channel.
+
+Three log channels, all with rotation:
+  - logs/srt2web.log   — main app log (RotatingFileHandler, 10MB, 3 backups)
+  - logs/security.log  — security events only (srt2web.security logger, 10MB, 3 backups)
+  - logs/crash.log     — unhandled exceptions via sys.excepthook (5MB, 2 backups)
+
+F114 ensures the three channels are predictable, separated by concern, and
+testable. main.py calls install_crash_handler() to capture unhandled exceptions.
 """
 
 import json
 import logging
 import re
+import sys
+from collections.abc import Callable
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 from re import Pattern
+from types import TracebackType
 from typing import Any
 
 from core.paths import get_user_log_dir
@@ -15,6 +27,12 @@ logger = logging.getLogger(__name__)
 
 # Security events use this logger name prefix
 SECURITY_LOGGER_PREFIX = "srt2web.security"
+
+# Crash log: written via sys.excepthook, only on unhandled exceptions
+CRASH_LOGGER_NAME = "srt2web.crash"
+CRASH_LOG_FILENAME = "crash.log"
+CRASH_MAX_BYTES = 5 * 1024 * 1024  # 5MB
+CRASH_BACKUP_COUNT = 2
 
 
 class SecurityLogHandler(RotatingFileHandler):
@@ -181,6 +199,11 @@ def setup_logging(
         logs_dir = get_user_log_dir()
         log_file = str(logs_dir / "srt2web.log")
 
+    # F114: derive the log dir from the chosen log_file so security.log and
+    # any future channels live alongside srt2web.log. This makes setup_logging
+    # predictable when called with a custom log_file (tests, embedded use).
+    log_dir = str(Path(log_file).parent)
+
     file_handler = RotatingFileHandler(
         log_file,
         maxBytes=10 * 1024 * 1024,
@@ -193,7 +216,7 @@ def setup_logging(
     filtered_file = FilteredFileHandler(file_handler)
     filtered_file.setLevel(log_level)
 
-    security_handler = SecurityLogHandler()
+    security_handler = SecurityLogHandler(log_dir=log_dir)
 
     root = logging.getLogger()
     root.handlers.clear()
@@ -212,9 +235,103 @@ def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(f"srt2web.{name}")
 
 
+def install_crash_handler(log_dir: str | Path | None = None) -> logging.Logger | None:
+    """
+    F114: Install a sys.excepthook that writes unhandled exceptions to crash.log.
+
+    The crash logger:
+      - Writes to ``{log_dir}/crash.log`` (RotatingFileHandler, 5MB, 2 backups)
+      - Uses a dedicated logger (``srt2web.crash``) with ``propagate=False``
+        so the crash entry does NOT also appear in srt2web.log
+      - Replaces ``sys.excepthook`` while preserving the original hook so
+        the user still sees the traceback on stderr
+
+    Returns the crash logger, or None if the file could not be opened.
+
+    Safe to call multiple times: each call replaces the prior hook and
+    reopens the file handler. Call this early in main.py (after basic
+    imports) so crashes during startup are captured.
+    """
+    if log_dir is None:
+        # Resolve at call time (not import time) so tests can monkeypatch
+        # core.paths.get_user_log_dir. This mirrors the pattern used elsewhere
+        # in the codebase and keeps install_crash_handler testable.
+        import core.paths
+
+        log_dir = core.paths.get_user_log_dir()
+    log_path = Path(log_dir)
+    try:
+        log_path.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        sys.stderr.write(f"F114: cannot create log dir {log_path}: {e}\n")
+        return None
+    crash_path = log_path / CRASH_LOG_FILENAME
+    try:
+        crash_handler = RotatingFileHandler(
+            crash_path,
+            maxBytes=CRASH_MAX_BYTES,
+            backupCount=CRASH_BACKUP_COUNT,
+            encoding="utf-8",
+        )
+    except OSError as e:
+        sys.stderr.write(f"F114: cannot open crash log {crash_path}: {e}\n")
+        return None
+
+    crash_handler.setLevel(logging.CRITICAL)
+    crash_handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s %(levelname)s %(name)s\n%(message)s\n---\n",
+            datefmt="%Y-%m-%dT%H:%M:%S",
+        )
+    )
+
+    crash_logger = logging.getLogger(CRASH_LOGGER_NAME)
+    crash_logger.setLevel(logging.CRITICAL)
+    # Replace handlers on every call so re-installation is idempotent
+    crash_logger.handlers.clear()
+    crash_logger.addHandler(crash_handler)
+    crash_logger.propagate = False  # do NOT also write to srt2web.log
+
+    _original_excepthook: Callable[
+        [type[BaseException], BaseException, TracebackType | None], Any
+    ] = sys.excepthook
+
+    def _excepthook(
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        exc_traceback: TracebackType | None,
+    ) -> None:
+        # SystemExit/KeyboardInterrupt are normal control flow — don't pollute crash log
+        if issubclass(exc_type, (SystemExit, KeyboardInterrupt)):
+            _original_excepthook(exc_type, exc_value, exc_traceback)
+            return
+        try:
+            crash_logger.critical(
+                "Unhandled exception: %s",
+                exc_value,
+                exc_info=(exc_type, exc_value, exc_traceback),
+            )
+        except Exception:
+            # Never let the crash handler itself crash — that would hide the
+            # original exception. Best-effort: write minimal info to stderr.
+            sys.stderr.write(
+                f"F114 crash handler failed for {exc_type.__name__}: {exc_value}\n"
+            )
+        # Always show the user the traceback via the original excepthook
+        _original_excepthook(exc_type, exc_value, exc_traceback)
+
+    sys.excepthook = _excepthook
+    return crash_logger
+
+
 __all__ = [
-    "setup_logging",
-    "get_logger",
-    "get_filter_patterns",
+    "CRASH_LOGGER_NAME",
+    "CRASH_LOG_FILENAME",
+    "SECURITY_LOGGER_PREFIX",
     "JSONFormatter",
+    "SecurityLogHandler",
+    "get_filter_patterns",
+    "get_logger",
+    "install_crash_handler",
+    "setup_logging",
 ]

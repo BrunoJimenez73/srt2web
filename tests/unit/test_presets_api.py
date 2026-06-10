@@ -56,7 +56,7 @@ def client_with_presets():
                     "voice": "es_ES-davefx-medium",
                     "speed": 1.2,
                 },
-                "audio_mixer": {"enabled": True, "original_volume": 0.6, "tts_volume": 1.0, "dubbed_volume": 1.0},
+                "audio_mixer": {"enabled": True, "original_volume": 0.6, "tts_volume": 1.0},
                 "video_muxer": {"enabled": True, "engine": "hls"},
             },
         }

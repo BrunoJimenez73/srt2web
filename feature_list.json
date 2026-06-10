@@ -2678,9 +2678,7 @@
         "tests/e2e/test_links_to_hls_stream: refactorizado para usar la app corriendo o skip si no hay bundle",
         "pytest tests/e2e/ -m 'not slow' -q → 0 failures, 0 errores, skips con razón documentada"
       ],
-      "files_to_touch": [
-        "tests/e2e/test_player_robustness.py"
-      ],
+      "files_to_touch": ["tests/e2e/test_player_robustness.py"],
       "risk_assessment": {
         "risk_level": "Bajo",
         "mitigation": [

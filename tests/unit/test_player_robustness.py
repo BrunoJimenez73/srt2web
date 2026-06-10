@@ -190,7 +190,17 @@ Esto es una prueba
         assert cues[0]["text"] == "Hola mundo"
         assert cues[1]["text"] == "Esto es una prueba"
 
+    @pytest.mark.skip(
+        reason="Obsolete after F108: subtitle polling was eliminated in favor of "
+        "HLS.js native subtitle tracks. See tests/e2e/test_player_page.py::"
+        "TestPlayerSubtitleHandling::test_subtitle_native_hls_handling for the "
+        "current subtitle integration test. The 2000ms polling interval no longer "
+        "exists in the codebase (frontend/src/lib/modules/player-subtitles.ts)."
+    )
     def test_subtitle_polling_interval(self) -> None:
-        """Test subtitle polling runs every 2 seconds."""
-        polling_interval = 2000
-        assert polling_interval == 2000
+        """Deprecated placeholder — kept as a skip marker for traceability."""
+        # Original (pre-F108) test asserted a 2000ms setInterval polling interval.
+        # F108 removed polling entirely and replaced it with HLS.js native events
+        # (MANIFEST_PARSED + SUBTITLE_TRACKS_UPDATED). The polling_interval=2000
+        # constant has no consumer. See progress/current.md F108 section.
+        pytest.skip("Obsolete after F108 — polling eliminated, HLS.js native used instead.")

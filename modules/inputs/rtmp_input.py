@@ -17,6 +17,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from core.chunk_clock import ChunkClock
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.input_source import InputSource
 from core.module_base import ModuleState, ModuleStatus
@@ -46,15 +47,19 @@ class RTMPInput(InputSource):
         self._output_dir: str = "./output"
         self._chunks_dir: str = ""
         self._last_chunk_index = -1
-        self._last_chunk_mtime: float | None = None
-        self._cumulative_duration: float = 0.0  # Track cumulative duration for sync
+        self._chunk_duration: int = 10
 
         super().__init__("rtmp", config or {})
         self._url: str = ""
         self._mode: str = "pull"
-        self._chunk_duration: int = 10
         self._receiving: bool = False
         self._watchdog: Any | None = None
+
+        # F115: mtime/drift/cumulative state moved to ChunkClock.
+        # Owns _last_chunk_mtime and _cumulative_duration behind a
+        # tested API; see core/chunk_clock.py for details. Must come
+        # AFTER self._chunk_duration is set above.
+        self._clock = ChunkClock(chunk_duration=self._chunk_duration)
 
         # GPU info for hwaccel
         self._gpu_info = {"nvenc": False, "qsv": False, "amf": False, "vaapi": False}
@@ -71,11 +76,10 @@ class RTMPInput(InputSource):
         self._url = config.get("url", "rtmp://localhost/live/stream")
         self._mode = config.get("mode", "pull")
         new_chunk_duration = config.get("chunk_duration_sec", self._chunk_duration)
-        if new_chunk_duration != self._chunk_duration:
+        if self._clock.update_chunk_duration(new_chunk_duration):
             logger.info(
                 f"RTMP chunk_duration changed: {self._chunk_duration}s → {new_chunk_duration}s, resetting cumulative"
             )
-            self._cumulative_duration = 0.0
         self._chunk_duration = new_chunk_duration
         self._output_dir = config.get("output_dir", self._output_dir)
 
@@ -123,8 +127,8 @@ class RTMPInput(InputSource):
             with contextlib.suppress(OSError):
                 f.unlink()
 
-        # Reset cumulative duration tracking
-        self._cumulative_duration = 0.0
+        # Reset cumulative duration tracking (F115: delegated to ChunkClock)
+        self._clock.reset()
 
         chunk_pattern = str(Path(self._chunks_dir) / "chunk_%06d.ts")
 
@@ -329,17 +333,10 @@ class RTMPInput(InputSource):
 
         from core.module_base import PipelineData
 
-        # Medir duración real vía mtime entre chunks consecutivos.
-        # Corregimos cumulative_duration retroactivamente para eliminar deriva.
-        current_mtime = chunk_path.stat().st_mtime
-        if self._last_chunk_mtime is not None:
-            prev_duration = current_mtime - self._last_chunk_mtime
-            prev_duration = max(0.5, min(prev_duration, self._chunk_duration * 2))
-            self._cumulative_duration += prev_duration - self._chunk_duration
-        self._last_chunk_mtime = current_mtime
-
-        chunk_cumulative = self._cumulative_duration
-        self._cumulative_duration += self._chunk_duration
+        # F115: mtime drift correction is now in ChunkClock.
+        # Returns the cumulative_duration for THIS chunk, after applying
+        # wall-clock drift correction vs the previous chunk's mtime.
+        chunk_cumulative = self._clock.record_mtime(chunk_path.stat().st_mtime)
 
         logger.info(f"New RTMP chunk: {chunk_path} (cumulative: {chunk_cumulative:.3f}s)")
 

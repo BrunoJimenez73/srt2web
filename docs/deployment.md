@@ -125,14 +125,55 @@ En **Configuración → Salida**:
 
 ## Variables de Entorno
 
-| Variable                           | Descripción               | Default                 |
-| ---------------------------------- | ------------------------- | ----------------------- |
-| `SRT2WEB_HOST`                     | Host del servidor         | `127.0.0.1`             |
-| `SRT2WEB_PORT`                     | Puerto del servidor       | `9999`                  |
-| `SRT2WEB_AUTH_TOKEN`               | Token de autenticación    | (ninguno)               |
-| `CUDA_VISIBLE_DEVICES`             | GPUs a usar               | `0`                     |
-| `PYTORCH_CUDA_ALLOC_CONF`          | Configuración memoria GPU | `max_split_size_mb:512` |
-| `PYTORCH_MPS_HIGH_WATERMARK_RATIO` | Memory ratio MPS (Mac)    | `0.0`                   |
+| Variable                           | Descripción                    | Default                       |
+| ---------------------------------- | ------------------------------ | ----------------------------- |
+| `SRT2WEB_JWT_SECRET`               | Signing key para tokens JWT    | auto-generado en install      |
+| `SRT2WEB_ALLOW_INSECURE_DEFAULTS`  | Salta validación de secrets    | `0` (producción)              |
+| `SRT2WEB_PIPELINE_INIT_TIMEOUT`    | Timeout init pipeline (seg)    | `300`                         |
+| `SRT2WEB_CACHE_DIR`                | Override del directorio cache  | platformdirs                  |
+| `CUDA_VISIBLE_DEVICES`             | GPUs a usar                    | `0`                           |
+| `PYTORCH_CUDA_ALLOC_CONF`          | Configuración memoria GPU      | `max_split_size_mb:512`       |
+| `PYTORCH_MPS_HIGH_WATERMARK_RATIO` | Memory ratio MPS (Mac)         | `0.0`                         |
+| `LOG_DIR`                          | Override directorio de logs    | platformdirs                  |
+
+## First-time Setup (F112)
+
+Desde F112, `.env` se genera automáticamente durante la instalación con un secret criptográficamente seguro. El proceso es:
+
+1. **Install.bat** (Windows) o **install_Mac.sh** (Mac):
+   - Crea `venv/` (entorno virtual aislado)
+   - Instala dependencias desde `config/requirements.txt`
+   - Si `.env` no existe, lo copia desde `.env.example`
+   - Para cada variable declarada en `MANAGED_KEYS` (actualmente `SRT2WEB_JWT_SECRET`), si está vacía o contiene un placeholder, la reemplaza con `secrets.token_urlsafe(32)` (~43 chars base64-url)
+   - Imprime `GENERATED: KEY` o `KEPT: KEY` para confirmar
+
+2. **Validación al arranque** (`core/config_manager.validate_secrets`):
+   - Si `SRT2WEB_JWT_SECRET` está vacía, contiene el fallback inseguro `change-me-in-production`, o un placeholder legacy → **bloquea el arranque con mensaje accionable**
+   - Si tiene menos de 32 chars → **warning, no bloqueante**
+   - Si el secret es válido → log informativo y arranque normal
+
+3. **Dev override** (solo para desarrollo local, NUNCA en producción):
+   ```bash
+   # Windows PowerShell
+   $env:SRT2WEB_ALLOW_INSECURE_DEFAULTS = "1"
+
+   # macOS/Linux bash
+   export SRT2WEB_ALLOW_INSECURE_DEFAULTS=1
+   ```
+
+4. **Rotación de secret**:
+   - Borrar la línea `SRT2WEB_JWT_SECRET=` en `.env` y volver a correr el instalador
+   - O ejecutar manualmente: `python scripts/generate_env_secrets.py`
+   - O generador one-shot: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+
+### Archivos relacionados
+
+- `.env.example` — template público, no contiene secrets
+- `.env` — generado por install, contiene el secret real (en `.gitignore`)
+- `scripts/generate_env_secrets.py` — script de bootstrap, idempotente
+- `core/config_manager.validate_secrets()` — runtime check
+- `tests/unit/test_config_validation.py::TestSecretValidation` — 8 tests
+- `tests/unit/test_generate_env_secrets.py` — 7 tests del script
 
 ## Configuración Completa de config.yaml
 
@@ -451,15 +492,71 @@ curl http://localhost:9999/
 
 ## Estructura de Logs
 
+> **F114**: tres canales separados por concern, todos con rotación automática.
+
 ```
 logs/
-├── srt2web.log      # Log principal (rotación 10MB, 3 backups)
+├── srt2web.log      # Log principal de la app (rotación 10MB, 3 backups)
 ├── srt2web.log.1    # Backup 1
 ├── srt2web.log.2    # Backup 2
-└── srt2web.log.3    # Backup 3
+├── srt2web.log.3    # Backup 3
+├── security.log     # Eventos de seguridad (auth, rate-limit, etc.) — 10MB, 3 backups
+├── security.log.1   # Backup 1
+└── crash.log        # Excepciones no capturadas (sys.excepthook) — 5MB, 2 backups
 ```
 
-Formato: `[TIMESTAMP] [LEVEL] [MODULE] message`
+| Archivo         | Origen                                           | Cuándo se escribe                         | Quién lo lee                           |
+| --------------- | ------------------------------------------------ | ----------------------------------------- | -------------------------------------- |
+| `srt2web.log`   | `setup_logging()` (F108)                         | Cada `logger.info()`/`warning()`/etc.     | Debugging general, post-mortem routine |
+| `security.log`  | `SecurityLogHandler` (F102)                      | Eventos `srt2web.security` (WARNING+)     | Auditoría de seguridad, rate-limit     |
+| `crash.log`     | `install_crash_handler()` (F114)                 | Excepciones no capturadas vía `sys.excepthook` | Post-mortem de crashes, soporte        |
+
+### ¿Cuándo revisar cada uno?
+
+- **`srt2web.log`** es el primer lugar donde mirar cuando algo no funciona.
+- **`security.log`** se usa para investigar accesos no autorizados, tokens
+  inválidos, rate-limit triggers. **No** contiene los tokens en sí, solo el
+  evento y metadatos.
+- **`crash.log`** solo se escribe cuando el proceso va a morir con un
+  traceback no manejado. Es la **fuente primaria** para reportar bugs al
+  equipo (`core/`, `server/`, `modules/`).
+- Los backups (`*.log.1`, `*.log.2`, `*.log.3`) los rota `RotatingFileHandler`
+  automáticamente — no los borres a mano, deja que la rotación los recicle.
+
+### Formato
+
+Todos los logs usan el mismo formato base:
+
+```
+[TIMESTAMP] [LEVEL] [MODULE] message
+```
+
+Ejemplo (`srt2web.log`):
+
+```
+2026-06-05T20:42:13 INFO  srt2web.main Starting pipeline...
+2026-06-05T20:42:14 WARNING srt2web.config SRT2WEB_JWT_SECRET not set. Using insecure default.
+```
+
+`crash.log` añade separadores `---` entre entradas para que sea fácil de
+parsear manualmente:
+
+```
+2026-06-05T20:42:14 CRITICAL srt2web.crash
+Unhandled exception: division by zero
+Traceback (most recent call last):
+  File ".../main.py", line 73, in main
+    1 / 0
+  ...
+---
+```
+
+### Cambiar la ubicación de los logs
+
+Por defecto, los tres archivos se crean en el directorio user-level
+(Windows: `%LOCALAPPDATA%\srt2web\srt2web\Logs`, Mac: `~/Library/Logs/srt2web/`).
+Para forzar otra ubicación, llama `setup_logging(log_file=...)` y
+`install_crash_handler(log_dir=...)` desde tu punto de entrada.
 
 ## Monitoreo
 

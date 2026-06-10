@@ -1,5 +1,20 @@
 # Historial de sesiones
 
+## 2026-06-07 — F116 graph_ui_react_flow (96/96 features done)
+
+### F116 — Editor visual de pipeline en /graph con React Flow
+
+- **Frontend nuevo**: ruta `/graph` con editor node-based. 8 módulos del pipeline como nodos: input, audio_extractor, transcriber (Whisper), translator (Argos), subtitle_generator, tts_engine, audio_mixer, output
+- **Stack añadido**: `@astrojs/react@^4.4.2`, `react@^18.3.1`, `react-dom@^18.3.1`, `@xyflow/react@^12.11.0`, `@types/react`, `@types/react-dom`, `@testing-library/react`, `@testing-library/jest-dom` (dev). Preact convive para el resto del frontend; React Flow requiere React 18+
+- **lib/graph/**: `nodeCatalog.ts` (catálogo de 8 NodeDef con handles tipados, configFields, colores), `typedEdge.ts` (isValidConnection con detección de ciclos y tipo mismatch), `serialize.ts` (validateTopology, graphToConfig, configToGraph), `liveStatus.ts` (useLiveModuleStatus con polling 2s + WS)
+- **components/graph/**: `ModuleNode` (nodo custom con badge de estado y pulse), `InspectorPanel` (form auto-generado), `Toolbar` (Start/Stop/Apply/Reset/Save/Load preset), `PipelineCanvas` (ReactFlowProvider + MiniMap + Background), `PipelineGraph` (orquestador con toast y dirty detection)
+- **Topología permitida**: DAG lineal o con un branch convergente en audio_mixer (2 entrantes: orig + dub). output admite 3 entrantes (video + audio + subtitles)
+- **Astro**: `pages/graph.astro` + `client:only="react"` (React Flow mide DOM refs, no SSR). `astro.config.mjs` con manualChunks separados (`vendor-xyflow`, `vendor-react`, `graphui`)
+- **Tests**: 5 archivos nuevos — `nodeCatalog.test.ts` (10), `typedEdge.test.ts` (15), `serialize.test.ts` (17), `ModuleNode.test.tsx` (6), `InspectorPanel.test.tsx` (7). Total: 249/249 pass
+- **Verificación**: tsc 0 errores, build 6 páginas OK (`/graph/index.html` generado), vitest 249/249, mypy --strict 0 errores, ruff clean, npm run lint sin warnings nuevos
+- **No tocado**: `index.astro`, `index_new.astro`, `core/`, `modules/`, `server/` (cero impacto en backend)
+- **Limitación conocida**: no testeado E2E con Playwright (sesión fue puramente frontend; el smoke test de UX en navegador real sería el siguiente paso)
+
 ## 2026-05-19 — F84 Performance profiling + F85 Accessibility + F86 Docker/CI — Proyecto completo (66/66)
 
 ### F84 — Performance profiling and pipeline optimization

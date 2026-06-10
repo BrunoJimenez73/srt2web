@@ -7,8 +7,8 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
-from server.validators import AddOutputRequest, UpdateOutputRequest
 from core.io_factory import OutputFactory
+from server.validators import AddOutputRequest, UpdateOutputRequest
 
 logger = logging.getLogger("srt2web.api.outputs")
 

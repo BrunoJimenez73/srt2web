@@ -514,16 +514,12 @@ export function applyConfigToUI(cfg: Config): void {
     "audio-mixer-dubbed-volume",
   ) as HTMLInputElement;
   if (ttsVolume)
-    ttsVolume.value = String(
-      cfg.modules.audio_mixer?.tts_volume ?? 1.0,
-    );
+    ttsVolume.value = String(cfg.modules.audio_mixer?.tts_volume ?? 1.0);
   const ttsValue = document.getElementById(
     "audio-mixer-dubbed-value",
   ) as HTMLSpanElement;
   if (ttsValue)
-    ttsValue.textContent = String(
-      cfg.modules.audio_mixer?.tts_volume ?? 1.0,
-    );
+    ttsValue.textContent = String(cfg.modules.audio_mixer?.tts_volume ?? 1.0);
 
   if (hlsSegment)
     hlsSegment.value = String(cfg.modules.video_muxer.hls_segment_duration);

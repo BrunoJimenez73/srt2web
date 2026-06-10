@@ -17,13 +17,21 @@
     "lint": "eslint \"src/**/*.{ts,astro}\""
   },
   "dependencies": {
+    "@astrojs/react": "^4.4.2",
     "@preact/signals-core": "^1.14.1",
-    "astro": "^6.0.6"
+    "@xyflow/react": "^12.11.0",
+    "astro": "^6.0.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.0.0",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
     "@typescript-eslint/eslint-plugin": "^8.59.1",
     "@typescript-eslint/parser": "^8.59.1",
     "autoprefixer": "^10.4.0",

@@ -431,9 +431,8 @@ class AudioMixerConfig(BaseModel):
     """Configuración de mezclador de audio."""
 
     enabled: bool = Field(default=False, description="Módulo habilitado")
-    original_volume: float = Field(default=0.2, ge=0.0, le=2.0, description="Volumen audio original")
+    original_volume: float = Field(default=0.7, ge=0.0, le=2.0, description="Volumen audio original")
     tts_volume: float = Field(default=1.0, ge=0.0, le=2.0, description="Volumen audio TTS")
-    dubbed_volume: float = Field(default=1.0, ge=0.0, le=2.0, description="Alias para tts_volume")
 
 
 class VideoMuxerConfig(BaseModel):
@@ -590,6 +589,9 @@ class SRT2WebConfig(BaseModel):
         # Migrar whisper model names
         data = cls._migrate_whisper_models(data)
 
+        # Migrar dubbed_volume → tts_volume (F116)
+        data = cls._migrate_dubbed_volume(data)
+
         return data
 
     @classmethod
@@ -640,6 +642,17 @@ class SRT2WebConfig(BaseModel):
                 if "device" in current and current["device"] in device_migration:
                     current["device"] = device_migration[current["device"]]
 
+        return data
+
+    @classmethod
+    def _migrate_dubbed_volume(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """Migrar dubbed_volume → tts_volume. dubbed_volume fue eliminado del schema."""
+        if "modules" in data and "audio_mixer" in data["modules"]:
+            mixer = data["modules"]["audio_mixer"]
+            if "dubbed_volume" in mixer and "tts_volume" not in mixer:
+                mixer["tts_volume"] = mixer["dubbed_volume"]
+            # Remove dubbed_volume so it doesn't linger as extra field
+            mixer.pop("dubbed_volume", None)
         return data
 
     @classmethod

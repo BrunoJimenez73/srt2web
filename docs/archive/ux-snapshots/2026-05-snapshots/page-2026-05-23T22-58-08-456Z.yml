@@ -1,0 +1,4 @@
+- generic [ref=e5]:
+  - generic [ref=e6]: ⚠️
+  - generic [ref=e7]: Haz clic en el reproductor o presiona Reintentar para reproducir
+  - button "Reintentar" [ref=e8] [cursor=pointer]

@@ -4,6 +4,7 @@ Extends test_server.py coverage with auth, presets, config validation,
 health detail, and error paths not covered in the basic tests.
 """
 
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -15,15 +16,40 @@ from core.pipeline import Pipeline
 from server.app import create_app
 
 
-def _make_client() -> TestClient:
-    app = create_app(
-        {
-            "config": ConfigManager(),
-            "pipeline": Pipeline(),
-            "srt_ingest": None,
-            "log_broadcast": Mock(),
-        }
-    )
+def _make_client(
+    *,
+    pipeline_running: bool = False,
+    pipeline_chunks: int = 0,
+    output_dir: str | None = None,
+) -> TestClient:
+    """Create a TestClient with optional pipeline state.
+
+    F109: Added ``pipeline_running``, ``pipeline_chunks`` and ``output_dir`` so
+    tests can assert readiness probe behavior and use isolated filesystem
+    paths (e.g. ``tmp_path``) instead of touching the real ``./output/``.
+
+    When ``pipeline_running=True`` we swap the real ``Pipeline`` for a ``Mock``
+    because ``is_running`` and ``chunks_processed`` are read-only properties on
+    ``UnifiedPipeline``. Tests that exercise the live pipeline can still pass
+    ``pipeline_running=False`` (default) and use a real ``Pipeline()``.
+    """
+    if pipeline_running:
+        pipeline = Mock(spec=Pipeline)
+        pipeline.is_running = True
+        pipeline.state = "running"
+        pipeline.get_status.return_value = {"state": "running"}
+        pipeline.chunks_processed = pipeline_chunks
+    else:
+        pipeline = Pipeline()
+    ctx: dict[str, Any] = {
+        "config": ConfigManager(),
+        "pipeline": pipeline,
+        "srt_ingest": None,
+        "log_broadcast": Mock(),
+    }
+    if output_dir is not None:
+        ctx["output_dir"] = output_dir
+    app = create_app(ctx)
     return TestClient(app)
 
 
@@ -170,10 +196,21 @@ class TestHealthEndpoints:
         assert resp.json()["status"] == "ok"
 
     def test_ready_endpoint(self):
-        client = _make_client()
+        # F109: /ready returns 200 only when pipeline is running with state=running.
+        # F102 diseñó el endpoint como readiness probe real (503 si no está listo).
+        client = _make_client(pipeline_running=True, pipeline_chunks=5)
         resp = client.get("/ready")
         assert resp.status_code == 200
-        assert resp.json()["status"] == "ready"
+        body = resp.json()
+        assert body["status"] == "ready"
+        assert body["chunks_processed"] == 5
+
+    def test_ready_endpoint_not_running_returns_503(self):
+        # F109: verify el comportamiento 503 cuando pipeline está idle (added en F102).
+        client = _make_client()
+        resp = client.get("/ready")
+        assert resp.status_code == 503
+        assert resp.json()["status"] == "not_ready"
 
     def test_live_endpoint(self):
         client = _make_client()
@@ -420,8 +457,11 @@ class TestErrorPaths:
         resp = client.get("/api/outputs")
         assert resp.status_code == 500
 
-    def test_recording_list_empty(self):
-        client = _make_client()
+    def test_recording_list_empty(self, tmp_path):
+        # F109: usa tmp_path para no contaminar el output/ real. Antes
+        # dependía de que output/recordings/ estuviera vacío, pero debris
+        # de tests anteriores (test_recording.mp4) lo dejaba no vacío.
+        client = _make_client(output_dir=str(tmp_path))
         resp = client.get("/api/recordings")
         assert resp.status_code == 200
         data = resp.json()

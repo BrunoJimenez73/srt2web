@@ -21,6 +21,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from core.chunk_clock import ChunkClock
 from core.ffmpeg_utils import ensure_ffmpeg
 from core.input_source import InputSource
 from core.io_factory import InputFactory
@@ -60,8 +61,10 @@ class SRTInput(InputSource):
         self._chunks_dir: str = ""
         self._last_chunk_index: int = -1
         self._last_process_time: float = 0.0
-        self._last_chunk_mtime: float | None = None
-        self._cumulative_duration: float = 0.0  # Track cumulative duration for sync
+        # F115: mtime/drift/cumulative state moved to ChunkClock.
+        # Owns _last_chunk_mtime and _cumulative_duration behind a
+        # tested API; see core/chunk_clock.py for details.
+        self._clock = ChunkClock(chunk_duration=self._chunk_duration)
 
         # Watchdog para detección de crashes/hangs
         self._watchdog: FFmpegWatchdog | None = None
@@ -84,11 +87,10 @@ class SRTInput(InputSource):
         self._srt_latency_ms = config.get("latency_ms", self._srt_latency_ms)
         self._srt_caller_address = config.get("caller_address", self._srt_caller_address)
         new_chunk_duration = config.get("chunk_duration_sec", self._chunk_duration)
-        if new_chunk_duration != self._chunk_duration:
+        if self._clock.update_chunk_duration(new_chunk_duration):
             self.logger.info(
                 f"SRT chunk_duration changed: {self._chunk_duration}s → {new_chunk_duration}s, resetting cumulative"
             )
-            self._cumulative_duration = 0.0
         self._chunk_duration = new_chunk_duration
 
         # Watchdog config
@@ -204,8 +206,8 @@ class SRTInput(InputSource):
                 with contextlib.suppress(OSError):
                     f.unlink()
 
-            # Reset cumulative duration tracking
-            self._cumulative_duration = 0.0
+            # Reset cumulative duration tracking (F115: delegated to ChunkClock)
+            self._clock.reset()
 
             # Construir URL SRT
             latency_us = self._srt_latency_ms * 1000
@@ -581,17 +583,10 @@ class SRTInput(InputSource):
 
         self.logger.debug(f"SRT input: returning chunk {idx}: {chunk_path}")
 
-        # Medir duración real vía mtime entre chunks consecutivos.
-        # Corregimos cumulative_duration retroactivamente para eliminar deriva.
-        current_mtime = chunk_path.stat().st_mtime
-        if self._last_chunk_mtime is not None:
-            prev_duration = current_mtime - self._last_chunk_mtime
-            prev_duration = max(0.5, min(prev_duration, self._chunk_duration * 2))
-            self._cumulative_duration += prev_duration - self._chunk_duration
-        self._last_chunk_mtime = current_mtime
-
-        chunk_cumulative = self._cumulative_duration
-        self._cumulative_duration += self._chunk_duration
+        # F115: mtime drift correction is now in ChunkClock.
+        # Returns the cumulative_duration for THIS chunk, after applying
+        # wall-clock drift correction vs the previous chunk's mtime.
+        chunk_cumulative = self._clock.record_mtime(chunk_path.stat().st_mtime)
 
         self.logger.info(f"New chunk: {chunk_path} (cumulative: {chunk_cumulative:.3f}s)")
 

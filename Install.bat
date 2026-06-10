@@ -115,6 +115,36 @@ if %errorlevel% equ 0 (
     echo  [OK] Extras dev instalados.
 )
 
+REM F111: Validar que numpy se puede importar (detecta DLL load failed en Windows).
+echo.
+echo [INFO] Validando import numpy (F111)...
+%VENV_PYTHON% -c "import numpy; print('OK')" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo.
+    echo  [ERROR] numpy no se puede importar!
+    echo.
+    echo  Esto suele indicar el problema documentado en docs\troubleshooting-windows.md
+    echo  seccion "numpy DLL load failed":
+    echo    "ImportError: DLL load failed while importing _multiarray_umath:
+    echo     Una directiva de Control de aplicaciones bloqueo este archivo."
+    echo.
+    echo  Causas: SmartScreen, AppLocker corporativo, o antivirus / EDR.
+    echo.
+    echo  Soluciones (de menor a mayor invasion):
+    echo    1. Reinstalar numpy: venv\Scripts\python.exe -m pip install numpy --force-reinstall --only-binary=:all:
+    echo    2. Anadir venv\ a exclusiones de Windows Defender Controlled Folder Access
+    echo    3. Desbloquear DLLs: Get-ChildItem venv\Lib\site-packages\ -Recurse -Filter *.pyd ^| Unblock-File
+    echo    4. Mover proyecto fuera de carpetas sincronizadas (OneDrive, Documents)
+    echo    5. Pedir exclusion al equipo de IT (entornos corporativos)
+    echo.
+    echo  Consulta docs\troubleshooting-windows.md para la guia completa.
+    echo.
+    pause
+    exit /b 1
+) else (
+    echo  [OK] numpy import OK.
+)
+
 REM IMPORTANTE: Reinstalar ONNX GPU después de requirements para evitar que CPU lo sobreescriba
 echo  [INFO] Asegurando ONNX Runtime GPU...
 %VENV_PYTHON% -m pip install onnxruntime-gpu==1.19.0 --force-reinstall --quiet 2>nul
@@ -326,6 +356,23 @@ if %errorlevel% equ 0 (
     echo  [OK] Voces Piper verificadas/descargadas.
 ) else (
     echo  [WARNING] Error al descargar voces Piper.
+)
+
+REM =============================================
+REM F112: Generar .env desde .env.example + secrets
+REM =============================================
+echo.
+echo [INFO] F112: Configurando .env y SRT2WEB_JWT_SECRET...
+
+%VENV_PYTHON% scripts\generate_env_secrets.py
+if %errorlevel% equ 0 (
+    echo  [OK] .env configurado.
+    echo  [INFO] Para rotar el secret ejecuta de nuevo Install.bat
+    echo          o usa: venv\Scripts\python.exe -c "import secrets; print(secrets.token_urlsafe(32))"
+) else (
+    echo  [WARNING] No se pudo configurar .env automaticamente.
+    echo             Copia .env.example a .env manualmente y define SRT2WEB_JWT_SECRET.
+    echo             (El server arrancara con un secret inseguro hasta que lo corrijas.)
 )
 
 REM =============================================

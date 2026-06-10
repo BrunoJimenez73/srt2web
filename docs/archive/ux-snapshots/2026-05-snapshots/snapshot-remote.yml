@@ -1,0 +1,422 @@
+- generic [active] [ref=e1]:
+  - link "Saltar al contenido principal" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - main [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e7]
+          - generic [ref=e10]: SRT2Web
+          - generic "Versión" [ref=e11]: 0.6.7
+        - generic [ref=e12]:
+          - button "Guardar preset" [ref=e14] [cursor=pointer]:
+            - generic [ref=e15]: 💾
+            - generic [ref=e16]: Guardar
+            - generic [ref=e17]: ▾
+          - button "Exportar configuración YAML" [ref=e18]: 📤 Export YAML
+          - button "Keyboard shortcuts" [ref=e19]: ⌨️ Shortcuts
+          - link "📚 Docs" [ref=e20] [cursor=pointer]:
+            - /url: /docs/
+          - status "Estado WebSocket" [ref=e21]:
+            - generic [ref=e23]: WS OFF
+          - button "Secure OFF" [ref=e25] [cursor=pointer]:
+            - generic [ref=e26]: 🔐
+            - generic [ref=e27]: Secure OFF
+            - generic [ref=e28]: ▾
+          - timer "Hora actual" [ref=e29]: 20:16:04
+          - button "Guardar configuración actual" [ref=e30] [cursor=pointer]:
+            - generic [ref=e31]: 💾 Guardar Config
+      - region "Estado del pipeline" [ref=e32]:
+        - generic [ref=e33]:
+          - generic [ref=e34]:
+            - status [ref=e35]
+            - generic [ref=e36]: APAGADO
+          - generic [ref=e37]:
+            - button "Modo local" [ref=e38] [cursor=pointer]: 🏠 LOCAL
+            - button "Modo remoto" [ref=e39] [cursor=pointer]: 🌐 REMOTE
+          - generic [ref=e40]:
+            - button "Detener el pipeline de procesamiento" [disabled] [ref=e41]: ⏹ Detener
+            - button "Iniciar el pipeline de procesamiento" [ref=e42] [cursor=pointer]: ▶ Iniciar
+        - generic [ref=e43]:
+          - generic [ref=e44]:
+            - generic [ref=e45]: "SRT:"
+            - code [ref=e46]: srt://127.0.0.1:9000
+            - button "Copiar URL de emisión" [ref=e47] [cursor=pointer]: 📋
+          - generic [ref=e48]:
+            - generic [ref=e49]: "Stream:"
+            - code [ref=e50]: http://127.0.0.1:9999/hls/stream.m3u8
+            - button "Copiar URL del stream" [ref=e51] [cursor=pointer]: 📋
+          - generic [ref=e52]:
+            - generic [ref=e53]: "Player:"
+            - link "http://127.0.0.1:9999/player" [ref=e341] [cursor=pointer]:
+              - /url: http://127.0.0.1:9999/player
+            - button "Copiar URL del player" [ref=e55] [cursor=pointer]: 📋
+      - region "Métricas del sistema" [ref=e56]:
+        - generic [ref=e57]:
+          - generic [ref=e58]: System Metrics
+          - generic "Latencia estimada" [ref=e59]:
+            - generic [ref=e60]: ⏱
+            - generic [ref=e61]: 0s
+        - generic [ref=e62]:
+          - meter "Uso de CPU" [ref=e63]:
+            - generic [ref=e64]:
+              - generic [ref=e65]: ⚡
+              - generic [ref=e66]: CPU
+            - generic [ref=e70]: 43%
+          - meter "Uso de memoria" [ref=e71]:
+            - generic [ref=e72]:
+              - generic [ref=e73]: 🧠
+              - generic [ref=e74]: Memory
+            - generic [ref=e77]:
+              - generic [ref=e78]: 21801 MB
+              - generic [ref=e79]: 68%
+          - meter "Uso de GPU" [ref=e80]:
+            - generic [ref=e81]:
+              - generic [ref=e82]: 🎮
+              - generic [ref=e83]: GPU
+            - generic [ref=e86]:
+              - generic [ref=e87]: 25%
+              - generic [ref=e88]: 824 MB
+          - meter "Rendimiento de procesamiento" [ref=e89]:
+            - generic [ref=e90]:
+              - generic [ref=e91]: 📊
+              - generic [ref=e92]: Throughput
+            - generic [ref=e96]: 0.00/s
+      - region "Módulos de procesamiento" [ref=e97]:
+        - generic [ref=e98]:
+          - generic [ref=e101]: 📥 INPUT (SRT)
+          - generic [ref=e102]:
+            - generic [ref=e103]:
+              - generic [ref=e104]: Tipo
+              - combobox "Tipo" [ref=e105] [cursor=pointer]:
+                - option "SRT" [selected]
+                - option "RTMP"
+                - option "File (Video local)"
+            - generic [ref=e106]:
+              - generic [ref=e107]:
+                - generic [ref=e108]: Puerto SRT
+                - spinbutton "Puerto SRT" [ref=e109]: "9000"
+              - generic [ref=e110]:
+                - generic [ref=e111]:
+                  - generic [ref=e112]: Modo
+                  - combobox "Modo" [ref=e113] [cursor=pointer]:
+                    - option "Listener" [selected]
+                    - option "Caller"
+                    - option "Rendezvous"
+                - generic [ref=e114]:
+                  - generic [ref=e115]: Chunk (s)
+                  - spinbutton "Chunk (s)" [ref=e116]: "6"
+              - generic [ref=e117]:
+                - generic [ref=e118]: Latencia (ms)
+                - spinbutton "Latencia (ms)" [ref=e119]: "200"
+            - generic [ref=e120]:
+              - generic [ref=e121]: Métricas
+              - generic [ref=e122]:
+                - generic [ref=e123]:
+                  - generic [ref=e124]: Tiempo
+                  - text: IDLE
+                - generic [ref=e125]:
+                  - generic [ref=e126]: Chunks
+                  - text: "0"
+                - generic [ref=e127]:
+                  - generic [ref=e128]: Encoder
+                  - text: CPU
+        - generic [ref=e129]:
+          - generic [ref=e130]:
+            - generic [ref=e132]: 🎙 WHISPER
+            - generic "Activar/desactivar transcripción" [ref=e133]:
+              - checkbox "Activar/desactivar transcripción" [checked]
+          - generic [ref=e135]:
+            - generic [ref=e136]:
+              - generic [ref=e137]: Modelo
+              - combobox [ref=e138] [cursor=pointer]:
+                - option "tiny"
+                - option "small" [selected]
+                - option "medium"
+                - option "large-v2"
+            - generic [ref=e139]:
+              - generic [ref=e140]: Idioma
+              - combobox [ref=e141] [cursor=pointer]:
+                - option "Auto (Detectar)" [selected]
+                - option "Español"
+                - option "Inglés"
+                - option "Francés"
+                - option "Alemán"
+                - option "Italiano"
+                - option "Portugués"
+            - generic [ref=e142]:
+              - generic [ref=e143]: Device
+              - combobox [ref=e144] [cursor=pointer]:
+                - option "Auto" [selected]
+                - option "GPU"
+                - option "CPU"
+            - generic [ref=e145]:
+              - generic [ref=e146]: Métricas
+              - generic [ref=e147]:
+                - generic [ref=e148]:
+                  - generic [ref=e149]: Tiempo
+                  - text: "--"
+                - generic [ref=e150]:
+                  - generic [ref=e151]: Memoria
+                  - text: 530 MB
+                - generic [ref=e152]:
+                  - generic [ref=e153]: Chunks
+                  - text: "0"
+                - generic [ref=e154]:
+                  - generic [ref=e155]: Device
+                  - text: "--"
+        - generic [ref=e156]:
+          - generic [ref=e157]:
+            - generic [ref=e159]: 🌐 TRADUCIR
+            - generic "Activar/desactivar traducción" [ref=e161]:
+              - checkbox "Activar/desactivar traducción" [checked]
+          - generic [ref=e163]:
+            - generic [ref=e164]:
+              - generic [ref=e165]: Idioma Origen
+              - combobox [ref=e166] [cursor=pointer]:
+                - option "Auto (Detectar)"
+                - option "Español"
+                - option "Inglés" [selected]
+                - option "Francés"
+                - option "Alemán"
+                - option "Italiano"
+                - option "Portugués"
+            - generic [ref=e167]:
+              - generic [ref=e168]: Idioma Destino
+              - combobox [ref=e169] [cursor=pointer]:
+                - option "Español" [selected]
+                - option "Inglés"
+                - option "Francés"
+                - option "Alemán"
+                - option "Italiano"
+                - option "Portugués"
+            - generic [ref=e170]:
+              - generic [ref=e171]: Métricas
+              - generic [ref=e172]:
+                - generic [ref=e173]:
+                  - generic [ref=e174]: Tiempo
+                  - text: "--"
+                - generic [ref=e175]:
+                  - generic [ref=e176]: Memoria
+                  - text: 530 MB
+                - generic [ref=e177]:
+                  - generic [ref=e178]: Chunks
+                  - text: "0"
+        - generic [ref=e179]:
+          - generic [ref=e180]:
+            - generic [ref=e182]: 🎤 DOBLAR
+            - generic "Activar/desactivar doblaje de audio" [ref=e183]:
+              - checkbox "Activar/desactivar doblaje de audio" [checked]
+          - generic [ref=e185]:
+            - generic [ref=e186]:
+              - generic [ref=e187]: Motor
+              - combobox [ref=e188] [cursor=pointer]:
+                - option "Edge-TTS (Cloud)"
+                - option "Piper (Local)" [selected]
+            - generic [ref=e342]:
+              - generic [ref=e343]: Device
+              - combobox [ref=e344] [cursor=pointer]:
+                - option "Auto" [selected]
+                - option "GPU"
+                - option "CPU"
+            - generic [ref=e345]:
+              - generic [ref=e346]: Voz (Piper)
+              - combobox [ref=e347] [cursor=pointer]:
+                - option "Amy (EN, Female)"
+                - option "Ryan (EN, Male)"
+                - option "Sharvard (ES, Female, Medium)"
+                - option "Davefx (ES, Male, Medium)"
+                - option "Claude (MX, Female, High)" [selected]
+                - option "Ald (MX, Male, Medium)"
+                - option "Daniela (AR, Female, High)"
+                - option "Siwis (FR, Female)"
+                - option "Gilles (FR, Male)"
+                - option "Eva K (DE, Female)"
+                - option "Thorsten (DE, Male)"
+                - option "Paola (IT, Female)"
+                - option "Riccardo (IT, Male)"
+                - option "Cadu (PT-BR, Female)"
+                - option "Tugão (PT-PT, Male)"
+            - generic [ref=e192]:
+              - generic [ref=e193]: "Velocidad: 1.0x"
+              - 'slider "Velocidad: 1.0x" [ref=e194]': "1"
+            - generic [ref=e195]:
+              - generic [ref=e196]: Métricas
+              - generic [ref=e197]:
+                - generic [ref=e198]:
+                  - generic [ref=e199]: Tiempo
+                  - text: "--"
+                - generic [ref=e200]:
+                  - generic [ref=e201]: Memoria
+                  - text: 530 MB
+                - generic [ref=e202]:
+                  - generic [ref=e203]: Chunks
+                  - text: "0"
+                - generic [ref=e204]:
+                  - generic [ref=e205]: Device
+                  - text: "--"
+        - generic [ref=e206]:
+          - generic [ref=e207]:
+            - generic [ref=e209]: 📝 SUBTITULAR
+            - generic "Activar/desactivar subtítulos" [ref=e210]:
+              - checkbox "Activar/desactivar subtítulos" [checked]
+            - 'generic "Drift: 0ms" [ref=e212]': IN SYNC
+          - generic [ref=e213]:
+            - generic [ref=e214]:
+              - generic [ref=e215]: Formato
+              - combobox [ref=e216] [cursor=pointer]:
+                - option "VTT (Web)" [selected]
+                - option "SRT"
+            - generic [ref=e217]:
+              - generic [ref=e218]: Usar traducción
+              - combobox [ref=e219] [cursor=pointer]:
+                - option "Sí" [selected]
+                - option "No (original)"
+            - generic [ref=e220]:
+              - generic [ref=e221]: Métricas
+              - generic [ref=e222]:
+                - generic [ref=e223]:
+                  - generic [ref=e224]: Tiempo
+                  - text: "--"
+                - generic [ref=e225]:
+                  - generic [ref=e226]: Chunks
+                  - text: "0"
+        - generic [ref=e227]:
+          - generic [ref=e228]:
+            - generic [ref=e230]: 🔊 MEZCLA DE AUDIO
+            - generic "Activar/desactivar mezcla de audio" [ref=e231]:
+              - checkbox "Activar/desactivar mezcla de audio" [checked]
+          - generic [ref=e233]:
+            - generic [ref=e234]:
+              - generic [ref=e235]: Volumen Original
+              - slider "Volumen Original" [ref=e236]: "0.6"
+              - generic [ref=e237]: "0.6"
+            - generic [ref=e238]:
+              - generic [ref=e239]: Volumen Doblado
+              - slider "Volumen Doblado" [ref=e240]: "1"
+              - generic [ref=e241]: "1"
+            - generic [ref=e242]:
+              - generic [ref=e243]: Métricas
+              - generic [ref=e244]:
+                - generic [ref=e245]:
+                  - generic [ref=e246]: Tiempo
+                  - text: "--"
+                - generic [ref=e247]:
+                  - generic [ref=e248]: Chunks
+                  - text: "0"
+        - generic [ref=e249]:
+          - generic [ref=e250]:
+            - generic [ref=e252]: 📦 VIDEO MUXER
+            - status "Aceleración GPU" [ref=e348]: CPU
+            - generic "Activar/desactivar video muxer" [ref=e253]:
+              - checkbox "Activar/desactivar video muxer" [checked]
+          - generic [ref=e255]:
+            - generic [ref=e256]:
+              - generic [ref=e257]: Motor
+              - combobox [ref=e258] [cursor=pointer]:
+                - option "HLS (Compatible)" [selected]
+                - option "WebRTC (Baja latencia)"
+            - generic [ref=e259]:
+              - generic [ref=e260]:
+                - generic [ref=e261]: Encoder
+                - combobox [ref=e262] [cursor=pointer]:
+                  - option "Auto (GPU/CPU)"
+                  - option "CPU (libx264)"
+                  - option "NVIDIA NVENC"
+                  - option "AMD AMF"
+                  - option "Intel QSV"
+              - generic [ref=e263]:
+                - generic [ref=e264]: "CRF: 18"
+                - 'slider "CRF: 18" [ref=e265]': "23"
+              - generic [ref=e266]:
+                - generic [ref=e267]: Offset audio (ms)
+                - spinbutton [ref=e268]: "0"
+              - generic [ref=e269]:
+                - generic [ref=e270]: Audio Codec
+                - combobox [ref=e271] [cursor=pointer]:
+                  - option "AAC" [selected]
+                  - option "Opus"
+              - generic [ref=e272]:
+                - generic [ref=e273]: Bitrate
+                - combobox [ref=e274] [cursor=pointer]:
+                  - option "64 kbps"
+                  - option "96 kbps"
+                  - option "128 kbps" [selected]
+                  - option "192 kbps"
+                  - option "256 kbps"
+                  - option "320 kbps"
+            - generic [ref=e275]:
+              - generic [ref=e276]: Métricas
+              - generic [ref=e277]:
+                - generic [ref=e278]:
+                  - generic [ref=e279]: Tiempo
+                  - text: "--"
+                - generic [ref=e280]:
+                  - generic [ref=e281]: Memoria
+                  - text: 0 MB
+                - generic [ref=e282]:
+                  - generic [ref=e283]: Chunks
+                  - text: "0"
+                - generic [ref=e284]:
+                  - generic [ref=e285]: Encoder
+                  - text: H.264 CPU
+        - generic [ref=e286]:
+          - generic [ref=e287]:
+            - generic [ref=e289]: 📤 OUTPUT
+            - status "Encoder" [ref=e290]: CPU
+          - generic [ref=e291]:
+            - generic [ref=e349]:
+              - generic [ref=e350]:
+                - text: ▶ 📤 web_1 WEB_1
+                - generic [ref=e351]:
+                  - checkbox [checked]
+              - generic [ref=e353]:
+                - generic [ref=e354]:
+                  - generic [ref=e355]: Chunks 0
+                  - generic [ref=e356]: Estado idle
+                - generic [ref=e357]:
+                  - generic [ref=e358]: type web
+                  - generic [ref=e359]: hls_dir
+                  - generic [ref=e360]: master_url /hls/master.m3u8
+                  - generic [ref=e361]: stream_url /hls/stream.m3u8
+                  - generic [ref=e362]: segment_duration 6
+                - button "🗑️ Eliminar" [ref=e364]
+            - button "▶ + Añadir salida" [ref=e310] [cursor=pointer]:
+              - generic [ref=e311]: ▶
+              - generic [ref=e312]: + Añadir salida
+            - generic [ref=e313]:
+              - generic [ref=e314]: Métricas
+              - generic [ref=e315]:
+                - generic [ref=e316]:
+                  - generic [ref=e317]: Tiempo
+                  - text: "--"
+                - generic [ref=e318]:
+                  - generic [ref=e319]: Memoria
+                  - text: 0 MB
+                - generic [ref=e320]:
+                  - generic [ref=e321]: Chunks
+                  - text: "0"
+                - generic [ref=e322]:
+                  - generic [ref=e323]: Encoder
+                  - text: H.264 CPU
+      - region "Panel de registros del sistema" [ref=e324]:
+        - button "📋 Logs Todos Exportar JSON Exportar TXT Limpiar todos los registros" [ref=e325] [cursor=pointer]:
+          - generic [ref=e326]:
+            - generic [ref=e327]: ▶
+            - generic [ref=e328]: 📋 Logs
+          - generic [ref=e329]:
+            - combobox "Filtrar por nivel" [ref=e330]:
+              - option "Todos" [selected]
+              - option "INFO"
+              - option "WARNING"
+              - option "ERROR"
+            - textbox "Buscar en registros" [ref=e331]:
+              - /placeholder: Buscar...
+            - button "Exportar JSON" [ref=e332]: 📥
+            - button "Exportar TXT" [ref=e333]: 📄
+            - button "Limpiar todos los registros" [ref=e334]: Limpiar
+        - log
+    - alert
+  - contentinfo [ref=e338]:
+    - paragraph [ref=e339]: SRT2Web - Sistema de traducción y doblaje en tiempo real
+    - paragraph [ref=e340]: Accesible vía protocolo SRT para transmisión de video con subtítulos y audio traducido

@@ -90,7 +90,9 @@ export class SubtitleRenderer {
 
   private schedulePoll(): void {
     if (this.destroyed) return;
-    this.pollTimer = window.setTimeout(() => { void this.pollPlaylist(); }, 2500);
+    this.pollTimer = window.setTimeout(() => {
+      void this.pollPlaylist();
+    }, 2500);
   }
 
   private async pollPlaylist(): Promise<void> {
@@ -132,8 +134,8 @@ export class SubtitleRenderer {
 
     // Parse segment filenames in order
     const segmentFilenames = lines
-      .map(l => l.trim())
-      .filter(l => l && !l.startsWith("#"));
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith("#"));
 
     this.targetDuration = targetDuration;
     this.mediaSequence = mediaSequence;
@@ -149,7 +151,8 @@ export class SubtitleRenderer {
 
     for (let i = 0; i < segmentFilenames.length; i++) {
       const name = segmentFilenames[i];
-      const actualDuration = i < durations.length ? durations[i] : targetDuration;
+      const actualDuration =
+        i < durations.length ? durations[i] : targetDuration;
       const isNew = !this.knownSegments.has(name);
 
       if (isNew) {
@@ -173,7 +176,11 @@ export class SubtitleRenderer {
     }
   }
 
-  private async loadSegment(filename: string, _seqNum: number, segmentStartTime: number): Promise<void> {
+  private async loadSegment(
+    filename: string,
+    _seqNum: number,
+    segmentStartTime: number,
+  ): Promise<void> {
     if (this.destroyed) return;
     try {
       const res = await fetch(`${this.subsBaseUrl}${filename}`, {

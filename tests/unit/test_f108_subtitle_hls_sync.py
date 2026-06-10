@@ -590,9 +590,7 @@ class TestHLSOutputNoSubsPreCreation:
         output.start()
 
         subs_m3u8 = tmp_path / "output" / "subtitles" / "subs.m3u8"
-        assert not subs_m3u8.exists(), (
-            "HLSOutput.start() should NOT pre-create subs.m3u8; SubtitleGenerator handles it"
-        )
+        assert not subs_m3u8.exists(), "HLSOutput.start() should NOT pre-create subs.m3u8; SubtitleGenerator handles it"
 
 
 # ---------------------------------------------------------------------------

@@ -87,7 +87,14 @@ class TestPlayerPageStructure:
         assert "::cue" in player_html_content or "text-shadow" in player_html_content
 
     def test_links_to_hls_stream(self, player_html_content) -> None:
-        """Test that player links to HLS stream (URL built in JS bundle, F108)."""
+        """Test that player links to HLS stream (F108-aware: URL built in Astro JS bundle).
+
+        F108 changed the player architecture: the legacy `web/player.html` is gone and
+        the Astro build emits `server/static/player/index.html` + `server/static/_astro/*.js`.
+        The HLS stream URL is now assembled inside the JS bundle (player-subtitles.ts),
+        so this test reads both the HTML and the Astro JS bundle before checking for
+        the stream URL. Skips cleanly if no bundle is present (development setup).
+        """
         if player_html_content is None:
             pytest.skip("player.html not found")
 

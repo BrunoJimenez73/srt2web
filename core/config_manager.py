@@ -11,6 +11,7 @@ Todos los defaults vienen de SRT2WebConfig().to_dict()
 import copy
 import json
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
@@ -25,6 +26,24 @@ from core.config_schema import SRT2WebConfig
 from core.hardware import update_config_with_optimal_device
 
 logger = logging.getLogger("srt2web.config")
+
+# F112: Secrets validation
+# SRT2WEB_JWT_SECRET is the signing key for JWT auth tokens (core/auth_db.py).
+# The insecure fallback "change-me-in-production" is a marker for "user didn't set it".
+# We refuse to start with that default in non-dev environments.
+_INSECURE_JWT_FALLBACK = "change-me-in-production"
+# Legacy placeholders that used to live in .env.example. If a user copies
+# .env.example → .env without running the install script, these would land
+# in the running server's secret — same risk as the insecure default.
+# Keep this list in sync with PLACEHOLDER_VALUES in scripts/generate_env_secrets.py.
+_LEGACY_JWT_PLACEHOLDERS = frozenset(
+    {
+        "your-secret-token-here",
+        "your-secret-key-here",
+    }
+)
+_JWT_SECRET_VAR = "SRT2WEB_JWT_SECRET"
+_MIN_SECRET_LENGTH = 32  # secrets.token_urlsafe(32) → 43 chars base64; warn if shorter
 
 # Única fuente de defaults — generada desde el schema Pydantic
 DEFAULT_CONFIG = SRT2WebConfig().to_dict()
@@ -42,6 +61,78 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
         else:
             result[key] = copy.deepcopy(value)
     return result
+
+
+def generate_jwt_secret() -> str:
+    """
+    F112: Generate a cryptographically secure random secret for JWT signing.
+
+    Uses `secrets.token_urlsafe(32)` → ~43 base64 chars, suitable for HS256.
+    Called by Install.bat / install_Mac.sh when the user has no SRT2WEB_JWT_SECRET set.
+    """
+    import secrets as _secrets  # local import to avoid pulling secrets at module load
+
+    return _secrets.token_urlsafe(32)
+
+
+def validate_secrets(strict: bool = True) -> tuple[bool, str]:
+    """
+    F112: Validate SRT2WEB_JWT_SECRET (and any future secrets) at startup.
+
+    Returns (ok, message):
+        - ok=True, message=summary if all secrets are valid
+        - ok=False, message=reason if a hard failure was detected
+
+    Behavior:
+        - empty/missing secret → error (blocking in strict mode)
+        - insecure default "change-me-in-production" → error (blocking)
+        - len < _MIN_SECRET_LENGTH → warning, still valid
+        - any other value → valid
+
+    `strict=True` is the production default. Set `strict=False` only for
+    dev/test runs that don't need real auth.
+    """
+    secret = os.environ.get(_JWT_SECRET_VAR, "")
+
+    if not secret:
+        msg = (
+            f"{_JWT_SECRET_VAR} is empty or unset. "
+            "Run Install.bat / install_Mac.sh to auto-generate a secure value, "
+            "or set the env var manually. See .env.example for details."
+        )
+        logger.error("[F112] %s", msg)
+        return (False, msg)
+
+    if secret == _INSECURE_JWT_FALLBACK:
+        msg = (
+            f"{_JWT_SECRET_VAR} is set to the insecure fallback "
+            f"'{_INSECURE_JWT_FALLBACK}'. Replace with a real secret "
+            "(e.g. `python -c \"import secrets; print(secrets.token_urlsafe(32))\"`)."
+        )
+        logger.error("[F112] %s", msg)
+        return (False, msg)
+
+    if secret in _LEGACY_JWT_PLACEHOLDERS:
+        msg = (
+            f"{_JWT_SECRET_VAR} is set to a public placeholder "
+            f"({secret!r}). These used to be in .env.example and must be replaced. "
+            "Run Install.bat / install_Mac.sh to auto-generate a real secret, or set it manually."
+        )
+        logger.error("[F112] %s", msg)
+        return (False, msg)
+
+    if len(secret) < _MIN_SECRET_LENGTH:
+        logger.warning(
+            "[F112] %s is shorter than %d chars (%d). Consider regenerating with "
+            "`python -c \"import secrets; print(secrets.token_urlsafe(32))\"`.",
+            _JWT_SECRET_VAR,
+            _MIN_SECRET_LENGTH,
+            len(secret),
+        )
+        return (True, f"warning: {len(secret)} chars (< {_MIN_SECRET_LENGTH} recommended)")
+
+    logger.info("[F112] %s configured (%d chars).", _JWT_SECRET_VAR, len(secret))
+    return (True, "ok")
 
 
 class ConfigManager:

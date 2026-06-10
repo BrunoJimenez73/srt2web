@@ -1,0 +1,20 @@
+---
+/**
+ * Ruta /graph — Editor visual del pipeline.
+ *
+ * Segunda versión del dashboard (F116) basada en React Flow. Permite:
+ * - Visualizar los 8 módulos del pipeline como nodos tipados
+ * - Conectarlos con aristas tipadas (video / audio / transcript / subtitles)
+ * - Editar la configuración de cada nodo desde un panel lateral
+ * - Aplicar los cambios al backend (`PUT /api/config`) y guardar como preset
+ *
+ * Convive con `/` (dashboard clásico) y `/index_new` (demo legacy).
+ * Ninguna de las otras rutas se ve afectada.
+ */
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PipelineGraph from "../components/graph/PipelineGraph.astro";
+---
+
+<BaseLayout title="SRT2Web · Pipeline Graph">
+  <PipelineGraph />
+</BaseLayout>

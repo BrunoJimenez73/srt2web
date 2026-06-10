@@ -283,7 +283,10 @@ export function initHlsPlayer(): void {
       let nativeShowing = false;
       for (let i = 0; i < tracks.length; i++) {
         const t = tracks[i];
-        if ((t.kind === "subtitles" || t.kind === "captions") && t.mode === "showing") {
+        if (
+          (t.kind === "subtitles" || t.kind === "captions") &&
+          t.mode === "showing"
+        ) {
           nativeShowing = true;
           break;
         }
@@ -334,7 +337,11 @@ export function initHlsPlayer(): void {
     subtitlesEnabled = !subtitlesEnabled;
     renderer.setEnabled(subtitlesEnabled);
     if (btnCC) btnCC.classList.toggle("active", subtitlesEnabled);
-    logger.info("player", "Subtitles", subtitlesEnabled ? "enabled" : "disabled");
+    logger.info(
+      "player",
+      "Subtitles",
+      subtitlesEnabled ? "enabled" : "disabled",
+    );
   }
 
   if (btnCC) {

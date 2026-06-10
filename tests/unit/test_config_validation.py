@@ -451,3 +451,101 @@ class TestConfigManagerAtomicSave:
 
         # Config should be unchanged after failed validation
         assert mgr.to_dict() == original
+
+
+class TestSecretValidation:
+    """F112: Validate SRT2WEB_JWT_SECRET (and future secrets) at startup.
+
+    Tests cover:
+    - empty/missing secret → blocking error
+    - insecure default 'change-me-in-production' → blocking error
+    - placeholder 'your-secret-token-here' (legacy) → blocking error
+    - short secret (< 32 chars) → warning but still valid
+    - valid secret → ok
+    - generate_jwt_secret() returns a non-empty urlsafe token
+    """
+
+    def _set(self, monkeypatch: pytest.MonkeyPatch, value: str) -> None:
+        monkeypatch.setenv("SRT2WEB_JWT_SECRET", value)
+
+    def _clear(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("SRT2WEB_JWT_SECRET", raising=False)
+
+    def test_validate_secrets_empty_blocks(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Empty SRT2WEB_JWT_SECRET is a hard error in strict mode."""
+        from core.config_manager import validate_secrets
+
+        self._clear(monkeypatch)
+        ok, msg = validate_secrets(strict=True)
+        assert ok is False
+        assert "empty or unset" in msg.lower()
+
+    def test_validate_secrets_insecure_default_blocks(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The fallback 'change-me-in-production' is rejected."""
+        from core.config_manager import validate_secrets
+
+        self._set(monkeypatch, "change-me-in-production")
+        ok, msg = validate_secrets(strict=True)
+        assert ok is False
+        assert "insecure fallback" in msg.lower()
+
+    def test_validate_secrets_placeholder_legacy_blocks(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Legacy 'your-secret-token-here' placeholder (was in .env.example) is rejected."""
+        from core.config_manager import validate_secrets
+
+        self._set(monkeypatch, "your-secret-token-here")
+        ok, _ = validate_secrets(strict=True)
+        assert ok is False
+
+    def test_validate_secrets_short_warns_but_valid(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Short secrets (< 32 chars) are warnings, not blocking errors."""
+        from core.config_manager import validate_secrets
+
+        self._set(monkeypatch, "short-but-not-default")
+        ok, msg = validate_secrets(strict=True)
+        assert ok is True
+        assert "warning" in msg.lower() or "shorter" in msg.lower()
+
+    def test_validate_secrets_valid(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A real 32+ char secret is accepted."""
+        from core.config_manager import generate_jwt_secret, validate_secrets
+
+        self._set(monkeypatch, generate_jwt_secret())
+        ok, msg = validate_secrets(strict=True)
+        assert ok is True
+        assert msg == "ok"
+
+    def test_generate_jwt_secret_returns_urlsafe_token(self) -> None:
+        """generate_jwt_secret() returns a 43-char urlsafe token from token_urlsafe(32)."""
+        from core.config_manager import generate_jwt_secret
+
+        secret = generate_jwt_secret()
+        # secrets.token_urlsafe(32) → 43 chars of base64-url alphabet
+        assert len(secret) >= 43
+        assert all(c.isalnum() or c in "-_" for c in secret)
+        # Two calls produce different values
+        assert generate_jwt_secret() != generate_jwt_secret()
+
+    def test_env_example_has_no_legacy_placeholders(self) -> None:
+        """F112: .env.example no longer contains the public 'your-secret-token-here'."""
+        from pathlib import Path
+
+        repo_root = Path(__file__).parent.parent.parent
+        example = (repo_root / ".env.example").read_text(encoding="utf-8")
+        assert "your-secret-token-here" not in example
+        assert "your-secret-key-here" not in example
+        # And the real secret is the only one declared
+        assert "SRT2WEB_JWT_SECRET=" in example
+
+    def test_env_example_secret_is_empty(self) -> None:
+        """F112: SRT2WEB_JWT_SECRET is empty in .env.example (installer fills it)."""
+        from pathlib import Path
+
+        repo_root = Path(__file__).parent.parent.parent
+        example = (repo_root / ".env.example").read_text(encoding="utf-8")
+        for line in example.splitlines():
+            if line.startswith("SRT2WEB_JWT_SECRET="):
+                value = line.split("=", 1)[1].strip()
+                assert value == "", f"Expected empty SRT2WEB_JWT_SECRET, got: {value!r}"
+                return
+        pytest.fail("SRT2WEB_JWT_SECRET not declared in .env.example")

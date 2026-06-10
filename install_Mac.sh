@@ -229,6 +229,49 @@ mkdir -p models/piper
 python scripts/download_piper_voices.py 2>/dev/null || \
     echo -e "${YELLOW} ⚠️  Se descargarán al usar Piper${NC}"
 
+# F111: Validar que numpy se puede importar (en Mac es raro que falle, pero
+# si pip instaló una build incompatible con la arquitectura, la detectamos aquí
+# en vez de al arrancar el server).
+echo ""
+echo -e "${BLUE}Validando import numpy (F111)...${NC}"
+if python -c "import numpy; print('OK')" >/dev/null 2>&1; then
+    echo -e "${GREEN} ✓ numpy import OK${NC}"
+else
+    echo ""
+    echo -e "${RED} ✗ numpy no se puede importar!${NC}"
+    echo ""
+    echo "  Esto indica que pip instaló una build incompatible con tu"
+    echo "  arquitectura. Comunes en Mac:"
+    echo ""
+    echo "  Soluciones:"
+    echo "    1. Reinstalar numpy:"
+    echo "       python -m pip install --upgrade --force-reinstall numpy"
+    echo ""
+    echo "    2. Si usas Apple Silicon (M1/M2/M3) y tu python es x86_64:"
+    echo "       brew install python@3.12"
+    echo "       rm -rf venv"
+    echo "       python3.12 -m venv venv"
+    echo "       source venv/bin/activate"
+    echo "       ./install_Mac.sh"
+    echo ""
+    echo "  Consulta docs/troubleshooting-mac.md sección 'numpy import fails'."
+    echo ""
+    exit 1
+fi
+
+# F112: Generar .env desde .env.example + secret con token_urlsafe(32)
+echo ""
+echo -e "${BLUE}Configurando .env y SRT2WEB_JWT_SECRET (F112)...${NC}"
+if python scripts/generate_env_secrets.py; then
+    echo -e "${GREEN} ✓ .env configurado${NC}"
+    echo "   Para rotar el secret ejecuta de nuevo install_Mac.sh o usa:"
+    echo "   python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+else
+    echo -e "${YELLOW} ⚠️  No se pudo configurar .env automáticamente.${NC}"
+    echo "   Copia .env.example a .env manualmente y define SRT2WEB_JWT_SECRET."
+    echo "   (El server arrancará con un secret inseguro hasta que lo corrijas.)"
+fi
+
 # =============================================
 # Resumen final
 # =============================================

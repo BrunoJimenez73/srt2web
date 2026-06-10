@@ -156,8 +156,11 @@ class TestPiperCmdLock:
 
         manager = PiperSubprocessManager()
         assert hasattr(manager, "_cmd_lock")
-        from threading import Lock
-        assert isinstance(manager._cmd_lock, Lock)
+        # F109: `from threading import Lock` importa la factory function, no la clase
+        # tipo. El tipo real de una instancia Lock es `_thread.lock`, accesible vía
+        # `type(threading.Lock())`.
+        import threading
+        assert isinstance(manager._cmd_lock, type(threading.Lock()))
 
     def test_concurrent_send_command_serialized(self) -> None:
         """Two threads calling _send_command concurrently must not interleave

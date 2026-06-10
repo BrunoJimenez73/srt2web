@@ -120,7 +120,7 @@ class TestDefaultConfigSnapshot:
     def test_default_audio_mixer_config(self):
         """Audio mixer defaults should be sensible."""
         mixer = DEFAULT_CONFIG["modules"]["audio_mixer"]
-        assert mixer["original_volume"] == 0.2
+        assert mixer["original_volume"] == 0.7
         assert mixer["tts_volume"] == 1.0
 
     def test_default_output_dir(self):

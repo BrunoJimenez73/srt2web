@@ -37,7 +37,7 @@ class AudioMixer(BaseModule):
         self._ffmpeg_path: str | None = None
         self._output_dir = Path(output_dir)
         self._mixer_dir = Path()
-        self._original_volume = 0.15  # 15% original volume (ducking)
+        self._original_volume = 0.7  # 70% original volume
         self._tts_volume = 1.0  # 100% TTS volume
         self._last_measured_duration = 0.0
         # Duration cache to avoid repeated ffprobe calls
@@ -100,12 +100,30 @@ class AudioMixer(BaseModule):
         if not orig_audio or not Path(orig_audio).exists():
             return data
 
-        # If no TTS audio, use original as-is
+        # If no TTS audio, apply original_volume and use as-is
         if not tts_audio or not Path(tts_audio).exists():
             logger.debug(f"[AudioMixer] No TTS audio for chunk {data.chunk_index}")
-            data.mixed_audio_path = orig_audio
-            if not getattr(data, "duration", None):
+            if self._original_volume != 1.0:
+                mix_wav = self._mixer_dir / f"mix_{data.chunk_index:06d}.wav"
                 with wave.open(str(orig_audio), "rb") as wf:
+                    sr = wf.getframerate()
+                    nframes = wf.getnframes()
+                    raw = wf.readframes(nframes)
+                    channels = wf.getnchannels()
+                samples = np.frombuffer(raw, dtype=np.int16).astype(np.float64)
+                if channels > 1:
+                    samples = samples.reshape(-1, channels).mean(axis=1)
+                samples = np.clip(samples * self._original_volume, -32768, 32767).astype(np.int16)
+                with wave.open(str(mix_wav), "wb") as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2)
+                    wf.setframerate(sr)
+                    wf.writeframes(samples.tobytes())
+                data.mixed_audio_path = str(mix_wav)
+            else:
+                data.mixed_audio_path = orig_audio
+            if not getattr(data, "duration", None):
+                with wave.open(str(data.mixed_audio_path), "rb") as wf:
                     data.duration = wf.getnframes() / wf.getframerate()
             return data
 
@@ -166,9 +184,9 @@ class AudioMixer(BaseModule):
                     # Fade in current chunk's start
                     fade_in = np.linspace(0.0, 1.0, crossfade_samples)
 
-                    # Apply crossfade
-                    mixed[-crossfade_samples:] = (
-                        mixed[-crossfade_samples:] * fade_in + self._prev_end_sample[-crossfade_samples:] * fade_out
+                    # Apply crossfade at chunk START (blend with previous chunk's END)
+                    mixed[:crossfade_samples] = (
+                        mixed[:crossfade_samples] * fade_in + self._prev_end_sample * fade_out
                     )
 
             # Save end of current chunk for next crossfade

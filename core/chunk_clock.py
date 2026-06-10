@@ -101,9 +101,7 @@ class ChunkClock:
         if min_delta_s < 0:
             raise ValueError(f"min_delta_s must be >= 0, got {min_delta_s}")
         if max_delta_multiplier < 1.0:
-            raise ValueError(
-                f"max_delta_multiplier must be >= 1.0, got {max_delta_multiplier}"
-            )
+            raise ValueError(f"max_delta_multiplier must be >= 1.0, got {max_delta_multiplier}")
 
         self._chunk_duration = float(chunk_duration)
         self._min_delta_s = float(min_delta_s)

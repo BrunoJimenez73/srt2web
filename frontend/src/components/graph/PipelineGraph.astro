@@ -1,0 +1,21 @@
+---
+/**
+ * Wrapper Astro para el componente React `PipelineGraph`.
+ *
+ * Se monta con `client:only="react"` porque React Flow usa APIs DOM
+ * (refs, medidas de bounding box) que no se pueden ejecutar en SSR.
+ */
+import { PipelineGraph as PipelineGraphReact } from "./PipelineGraph.tsx";
+---
+
+<div class="graph-host">
+  <PipelineGraphReact client:only="react" />
+</div>
+
+<style>
+  .graph-host {
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+  }
+</style>

@@ -61,7 +61,10 @@ class TestAudioMixer:
         create_wav(orig_path, duration_s=4.0)
         data = PipelineData(audio_chunk_path=orig_path, dubbed_audio_path=None)
         result = mixer._do_process(data)
-        assert result.mixed_audio_path == orig_path
+        # Without TTS and original_volume != 1.0, mixer creates a new file with adjusted volume
+        expected_mix = mixer._mixer_dir / "mix_000000.wav"
+        assert result.mixed_audio_path == str(expected_mix)
+        assert expected_mix.exists()
         assert result.duration == pytest.approx(4.0, abs=0.1)
 
     def test_do_process_both_available(self, temp_dir) -> None:

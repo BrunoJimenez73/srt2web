@@ -30,16 +30,20 @@ describe("SubtitleRenderer", () => {
     container = makeContainer();
     mockFetch.mockResolvedValue({
       ok: true,
-      text: vi.fn().mockResolvedValue(
-        "#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXTINF:10.000,\nsubs_seg_000000.vtt"
-      ),
+      text: vi
+        .fn()
+        .mockResolvedValue(
+          "#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXTINF:10.000,\nsubs_seg_000000.vtt",
+        ),
     });
   });
 
   describe("start / stop lifecycle", () => {
     it("creates cue element and attaches event listeners", () => {
       renderer.start(video, container);
-      const cueEl = container.querySelector("#subtitle-renderer-cue") as HTMLElement | null;
+      const cueEl = container.querySelector(
+        "#subtitle-renderer-cue",
+      ) as HTMLElement | null;
       expect(cueEl).not.toBeNull();
       expect(cueEl!.style.display).toBe("none");
     });
@@ -169,7 +173,7 @@ describe("SubtitleRenderer", () => {
       // accumulatedTime bootstraps from mediaSequence * targetDuration (5*10=50)
       // segment 5 starts at 50, segment 6 at 50+9.880=59.880
       expect(loadSpy).toHaveBeenCalledWith("subs_seg_000005.vtt", 5, 50);
-      expect(loadSpy).toHaveBeenCalledWith("subs_seg_000006.vtt", 6, 59.880);
+      expect(loadSpy).toHaveBeenCalledWith("subs_seg_000006.vtt", 6, 59.88);
     });
 
     it("skips already-known segments without advancing accumulatedTime", () => {
@@ -191,7 +195,9 @@ describe("SubtitleRenderer", () => {
 
     it("trims old knownSegments when > 60", () => {
       for (let i = 0; i < 65; i++) {
-        (renderer as any).knownSegments.add(`seg_${String(i).padStart(6, "0")}.vtt`);
+        (renderer as any).knownSegments.add(
+          `seg_${String(i).padStart(6, "0")}.vtt`,
+        );
       }
       expect((renderer as any).knownSegments.size).toBe(65);
       const playlist = [
@@ -232,7 +238,9 @@ describe("SubtitleRenderer", () => {
       video.currentTime = 7;
       video.dispatchEvent(new Event("timeupdate"));
 
-      const cueEl = container.querySelector("#subtitle-renderer-cue") as HTMLElement;
+      const cueEl = container.querySelector(
+        "#subtitle-renderer-cue",
+      ) as HTMLElement;
       expect(cueEl.textContent).toBe("First block");
       expect(cueEl.style.display).toBe("block");
     });
@@ -245,7 +253,9 @@ describe("SubtitleRenderer", () => {
       video.currentTime = 2;
       video.dispatchEvent(new Event("timeupdate"));
 
-      const cueEl = container.querySelector("#subtitle-renderer-cue") as HTMLElement;
+      const cueEl = container.querySelector(
+        "#subtitle-renderer-cue",
+      ) as HTMLElement;
       expect(cueEl.style.display).toBe("none");
     });
 
@@ -258,7 +268,9 @@ describe("SubtitleRenderer", () => {
       video.currentTime = 10;
       video.dispatchEvent(new Event("timeupdate"));
 
-      const cueEl = container.querySelector("#subtitle-renderer-cue") as HTMLElement;
+      const cueEl = container.querySelector(
+        "#subtitle-renderer-cue",
+      ) as HTMLElement;
       expect(cueEl.style.display).toBe("none");
     });
 
@@ -271,7 +283,9 @@ describe("SubtitleRenderer", () => {
       video.currentTime = 9.5;
       video.dispatchEvent(new Event("timeupdate"));
 
-      const cueEl = container.querySelector("#subtitle-renderer-cue") as HTMLElement;
+      const cueEl = container.querySelector(
+        "#subtitle-renderer-cue",
+      ) as HTMLElement;
       expect(cueEl.textContent).toBe("First");
 
       video.currentTime = 10;
@@ -288,7 +302,9 @@ describe("SubtitleRenderer", () => {
       video.currentTime = 5;
       video.dispatchEvent(new Event("timeupdate"));
 
-      const cueEl = container.querySelector("#subtitle-renderer-cue") as HTMLElement;
+      const cueEl = container.querySelector(
+        "#subtitle-renderer-cue",
+      ) as HTMLElement;
       expect(cueEl.textContent).toBe("Visible");
 
       renderer.setEnabled(false);
@@ -303,11 +319,16 @@ describe("SubtitleRenderer", () => {
       video.currentTime = 3;
       video.dispatchEvent(new Event("timeupdate"));
 
-      const cueEl = container.querySelector("#subtitle-renderer-cue") as HTMLElement;
+      const cueEl = container.querySelector(
+        "#subtitle-renderer-cue",
+      ) as HTMLElement;
 
       // spy after the first render so lastActiveText is set
       const setter = vi.fn();
-      Object.defineProperty(cueEl, "textContent", { configurable: true, set: setter });
+      Object.defineProperty(cueEl, "textContent", {
+        configurable: true,
+        set: setter,
+      });
 
       video.currentTime = 5;
       video.dispatchEvent(new Event("timeupdate"));

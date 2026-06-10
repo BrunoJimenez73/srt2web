@@ -2,17 +2,17 @@
 
 ## Estado del entorno verificado con `init.ps1 -Quick` — **VERDE**
 
-| Check | Estado | Notas |
-|---|---|---|
-| Python 3.12.13 | OK | venv ok |
-| Archivos base del arnés | OK | AGENTS, CHECKPOINTS, feature_list, current, history |
-| feature_list.json | OK | 96 features (96 done, 0 in_progress, 0 pending) |
-| pytest tests/unit/ (subset) | OK | 53/53 pass (logging_setup, chunk_clock, f107) — full suite timeout por Windows file lock pre-existente en `PARA BORRAR/temp/pytest-of-bruno/` (documentado en F110) |
-| mypy --strict core/ server/ modules/ | OK | 0 errores en 92 source files |
-| tsc --noEmit | OK | 0 errores |
-| vitest | OK | **249/249 pass** (+48 nuevos de F116) |
-| ruff | OK | disponible |
-| mkdocs | OK | disponible |
+| Check                                | Estado | Notas                                                                                                                                                               |
+| ------------------------------------ | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Python 3.12.13                       | OK     | venv ok                                                                                                                                                             |
+| Archivos base del arnés              | OK     | AGENTS, CHECKPOINTS, feature_list, current, history                                                                                                                 |
+| feature_list.json                    | OK     | 96 features (96 done, 0 in_progress, 0 pending)                                                                                                                     |
+| pytest tests/unit/ (subset)          | OK     | 53/53 pass (logging_setup, chunk_clock, f107) — full suite timeout por Windows file lock pre-existente en `PARA BORRAR/temp/pytest-of-bruno/` (documentado en F110) |
+| mypy --strict core/ server/ modules/ | OK     | 0 errores en 92 source files                                                                                                                                        |
+| tsc --noEmit                         | OK     | 0 errores                                                                                                                                                           |
+| vitest                               | OK     | **249/249 pass** (+48 nuevos de F116)                                                                                                                               |
+| ruff                                 | OK     | disponible                                                                                                                                                          |
+| mkdocs                               | OK     | disponible                                                                                                                                                          |
 
 ---
 
@@ -22,31 +22,31 @@
 
 ### Archivos creados (15) + 5 modificados
 
-| Archivo | Cambio |
-|---|---|
-| `frontend/src/lib/graph/nodeCatalog.ts` (NUEVO, 250 líneas) | Catálogo de 8 nodos: input, audio_extractor, transcriber, translator, subtitle_generator, tts_engine, audio_mixer, output. Cada nodo con `inputs/outputs` (HandleSpec), `configFields` (FieldDef para InspectorPanel), `configLocation` (modules/input/output). `HANDLE_TYPE_COLOR` con colores por tipo de dato. Helpers: `getNodeDef`, `isNodeKind`, `nodeKindToModuleKey`, `getInputTypes`, `getOutputTypes` |
-| `frontend/src/lib/graph/typedEdge.ts` (NUEVO, 200 líneas) | Validador tipado: `findHandleSpec`, `getHandleDataType`, `validateConnection`. Reglas: source/target válidos, no self-loop, no input→target/output→source, tipo de dato coincide, no ciclos (BFS con `getOutgoers`), límite de entrantes (1 por defecto, 2 en audio_mixer, 3 en output). `makeIsValidConnection` factory que cierra `nodes`/`edges` por closure para usar como callback en `<ReactFlow>` |
-| `frontend/src/lib/graph/serialize.ts` (NUEVO, 320 líneas) | `validateTopology` (DAG, 1 input, ≥1 output, topología permitida, nodos aislados detectados). `graphToConfig` (grafos válidos → `Partial<Config>` con `modules.*.enabled` + `moduleConfig` por nodo). `configToGraph` (round-trip desde `Config` actual). `GraphNodeData` type para `node.data` |
-| `frontend/src/lib/graph/liveStatus.ts` (NUEVO, 180 líneas) | `useLiveModuleStatus` hook React: combina polling `GET /api/modules` (cada 2s) + WS `WS /ws/logs` (filtrado por `module`). `MODULE_NAME_TO_KIND` mapea nombres del backend (`whisper`→`transcriber`, `muxer`→`output`, etc.). `LiveNodeStatus` interface: state, processedChunks, lastActiveMs, pulse, enabled, extra, error. Pulse dura 1.5s tras log |
-| `frontend/src/components/graph/ModuleNode.tsx` (NUEVO, 130 líneas) | Nodo custom de React Flow. Card con badge de estado (idle/running/error/disabled), borde pulsante verde cuando `pulse=true`, `Handle` por spec con `data-handletype` y color por tipo. Memoizado con `React.memo` |
-| `frontend/src/components/graph/InspectorPanel.tsx` (NUEVO, 230 líneas) | Panel inspector auto-generado desde `configFields` del `NodeDef`. Boolean→checkbox, enum→select, number→input numérico, string→text. Para `input` y `output` muestra "Configurar fuera del grafo" |
-| `frontend/src/components/graph/Toolbar.tsx` (NUEVO, 200 líneas) | Toolbar con Start/Stop/Apply/Reset/Save preset/Load preset. Dropdown de presets via `GET /api/presets`. Save/Apply muestra toast contextually. Aplicar deshabilitado si `!isDirty` o `isApplying` |
-| `frontend/src/components/graph/PipelineCanvas.tsx` (NUEVO, 175 líneas) | Wrapper de `<ReactFlow>`. Provider pattern: `ReactFlowProvider` + `PipelineCanvasInner` con `useNodesState`/`useEdgesState`. Inyecta `liveStatus` en cada nodo via `useMemo`. MiniMap con colores por kind, Background con grid, Controls, validación tipada via `makeIsValidConnection`. SSR-safe con `mounted` state |
-| `frontend/src/components/graph/PipelineGraph.tsx` (NUEVO, 320 líneas) | Orquestador: carga `GET /api/config` + `GET /api/status` en mount, `configToGraph` para initialNodes, `useCallback` para handlers de Start/Stop/Apply/Reset/Save/Load. Toast hook (4s timeout). Dirty detection via `JSON.stringify` compare. Topología error mostrada en banner fijo bottom-left |
-| `frontend/src/components/graph/PipelineGraph.astro` (NUEVO, 20 líneas) | Wrapper Astro que monta `<PipelineGraph client:only="react" />`. React-only porque React Flow usa refs/medidas DOM que no se pueden en SSR |
-| `frontend/src/pages/graph.astro` (NUEVO, 20 líneas) | Página `/graph` que envuelve `PipelineGraph` en `BaseLayout` |
-| `frontend/src/lib/graph/nodeCatalog.test.ts` (NUEVO) | 10 tests: 8 nodos, ids únicos, getNodeDef, isNodeKind, nodeKindToModuleKey, getInputTypes/getOutputTypes, HANDLE_TYPE_COLOR |
-| `frontend/src/lib/graph/typedEdge.test.ts` (NUEVO) | 15 tests: findHandleSpec, getHandleDataType, validateConnection (success/type-mismatch/no-input/no-output/self-loop/cycle/limit-entrantes/audio_mixer-2-entradas/3ª-rechazada/handle-inválido/nodos-inexistentes), makeIsValidConnection |
-| `frontend/src/lib/graph/serialize.test.ts` (NUEVO) | 17 tests: validateTopology (vacío/falta-input/doble-input/falta-output/output-salientes/lineal-mínimo/grafo-completo/aislados/ciclos), graphToConfig (grafos válidos/drop-missing/topología-inválida/campos-custom), configToGraph (8-nodos+edges/round-trip) |
-| `frontend/src/components/graph/ModuleNode.test.tsx` (NUEVO) | 6 tests: render de los 8 kinds, label del catálogo, badge de estado, data-handletype, handles por spec |
-| `frontend/src/components/graph/InspectorPanel.test.tsx` (NUEVO) | 7 tests: empty state, input/output con mensaje de "fuera del grafo", campos de transcriber, audio_mixer numéricos, onChange en checkbox enabled, onChange en select enum |
-| `frontend/package.json` | +5 deps: `@astrojs/react@^4.4.2`, `react@^18.3.1`, `react-dom@^18.3.1`, `@types/react@^18.3.31`, `@types/react-dom@^18.3.7` (dev). +2 devDeps: `@xyflow/react@^12.11.0` movido a deps, `@testing-library/react@^16`, `@testing-library/jest-dom@^6` |
-| `frontend/astro.config.mjs` | +`import react from "@astrojs/react"`, `integrations: [react()]`. Ampliado `manualChunks` con `vendor-xyflow` y `vendor-react` (separa React de Preact). `components/graph/` mapea a chunk `graphui` |
-| `frontend/tsconfig.json` | +`"jsx": "react-jsx"`, `"jsxImportSource": "react"` para que el tsserver resuelva JSX correctamente |
-| `frontend/src/lib/types/api.ts` | +`module?: ModuleName` opcional a `WebSocketMessage` para que `useLiveModuleStatus` pueda filtrar por módulo |
-| `AGENTS.md` | Frontend row expandida con stack F116. Sección 8 historial añade entry 07/06 F116 |
-| `feature_list.json` | F116 con `status: done`, archivos tocados, acceptance criteria, risk assessment |
-| `progress/current.md` | Este documento |
+| Archivo                                                                | Cambio                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `frontend/src/lib/graph/nodeCatalog.ts` (NUEVO, 250 líneas)            | Catálogo de 8 nodos: input, audio_extractor, transcriber, translator, subtitle_generator, tts_engine, audio_mixer, output. Cada nodo con `inputs/outputs` (HandleSpec), `configFields` (FieldDef para InspectorPanel), `configLocation` (modules/input/output). `HANDLE_TYPE_COLOR` con colores por tipo de dato. Helpers: `getNodeDef`, `isNodeKind`, `nodeKindToModuleKey`, `getInputTypes`, `getOutputTypes` |
+| `frontend/src/lib/graph/typedEdge.ts` (NUEVO, 200 líneas)              | Validador tipado: `findHandleSpec`, `getHandleDataType`, `validateConnection`. Reglas: source/target válidos, no self-loop, no input→target/output→source, tipo de dato coincide, no ciclos (BFS con `getOutgoers`), límite de entrantes (1 por defecto, 2 en audio_mixer, 3 en output). `makeIsValidConnection` factory que cierra `nodes`/`edges` por closure para usar como callback en `<ReactFlow>`        |
+| `frontend/src/lib/graph/serialize.ts` (NUEVO, 320 líneas)              | `validateTopology` (DAG, 1 input, ≥1 output, topología permitida, nodos aislados detectados). `graphToConfig` (grafos válidos → `Partial<Config>` con `modules.*.enabled` + `moduleConfig` por nodo). `configToGraph` (round-trip desde `Config` actual). `GraphNodeData` type para `node.data`                                                                                                                 |
+| `frontend/src/lib/graph/liveStatus.ts` (NUEVO, 180 líneas)             | `useLiveModuleStatus` hook React: combina polling `GET /api/modules` (cada 2s) + WS `WS /ws/logs` (filtrado por `module`). `MODULE_NAME_TO_KIND` mapea nombres del backend (`whisper`→`transcriber`, `muxer`→`output`, etc.). `LiveNodeStatus` interface: state, processedChunks, lastActiveMs, pulse, enabled, extra, error. Pulse dura 1.5s tras log                                                          |
+| `frontend/src/components/graph/ModuleNode.tsx` (NUEVO, 130 líneas)     | Nodo custom de React Flow. Card con badge de estado (idle/running/error/disabled), borde pulsante verde cuando `pulse=true`, `Handle` por spec con `data-handletype` y color por tipo. Memoizado con `React.memo`                                                                                                                                                                                               |
+| `frontend/src/components/graph/InspectorPanel.tsx` (NUEVO, 230 líneas) | Panel inspector auto-generado desde `configFields` del `NodeDef`. Boolean→checkbox, enum→select, number→input numérico, string→text. Para `input` y `output` muestra "Configurar fuera del grafo"                                                                                                                                                                                                               |
+| `frontend/src/components/graph/Toolbar.tsx` (NUEVO, 200 líneas)        | Toolbar con Start/Stop/Apply/Reset/Save preset/Load preset. Dropdown de presets via `GET /api/presets`. Save/Apply muestra toast contextually. Aplicar deshabilitado si `!isDirty` o `isApplying`                                                                                                                                                                                                               |
+| `frontend/src/components/graph/PipelineCanvas.tsx` (NUEVO, 175 líneas) | Wrapper de `<ReactFlow>`. Provider pattern: `ReactFlowProvider` + `PipelineCanvasInner` con `useNodesState`/`useEdgesState`. Inyecta `liveStatus` en cada nodo via `useMemo`. MiniMap con colores por kind, Background con grid, Controls, validación tipada via `makeIsValidConnection`. SSR-safe con `mounted` state                                                                                          |
+| `frontend/src/components/graph/PipelineGraph.tsx` (NUEVO, 320 líneas)  | Orquestador: carga `GET /api/config` + `GET /api/status` en mount, `configToGraph` para initialNodes, `useCallback` para handlers de Start/Stop/Apply/Reset/Save/Load. Toast hook (4s timeout). Dirty detection via `JSON.stringify` compare. Topología error mostrada en banner fijo bottom-left                                                                                                               |
+| `frontend/src/components/graph/PipelineGraph.astro` (NUEVO, 20 líneas) | Wrapper Astro que monta `<PipelineGraph client:only="react" />`. React-only porque React Flow usa refs/medidas DOM que no se pueden en SSR                                                                                                                                                                                                                                                                      |
+| `frontend/src/pages/graph.astro` (NUEVO, 20 líneas)                    | Página `/graph` que envuelve `PipelineGraph` en `BaseLayout`                                                                                                                                                                                                                                                                                                                                                    |
+| `frontend/src/lib/graph/nodeCatalog.test.ts` (NUEVO)                   | 10 tests: 8 nodos, ids únicos, getNodeDef, isNodeKind, nodeKindToModuleKey, getInputTypes/getOutputTypes, HANDLE_TYPE_COLOR                                                                                                                                                                                                                                                                                     |
+| `frontend/src/lib/graph/typedEdge.test.ts` (NUEVO)                     | 15 tests: findHandleSpec, getHandleDataType, validateConnection (success/type-mismatch/no-input/no-output/self-loop/cycle/limit-entrantes/audio_mixer-2-entradas/3ª-rechazada/handle-inválido/nodos-inexistentes), makeIsValidConnection                                                                                                                                                                        |
+| `frontend/src/lib/graph/serialize.test.ts` (NUEVO)                     | 17 tests: validateTopology (vacío/falta-input/doble-input/falta-output/output-salientes/lineal-mínimo/grafo-completo/aislados/ciclos), graphToConfig (grafos válidos/drop-missing/topología-inválida/campos-custom), configToGraph (8-nodos+edges/round-trip)                                                                                                                                                   |
+| `frontend/src/components/graph/ModuleNode.test.tsx` (NUEVO)            | 6 tests: render de los 8 kinds, label del catálogo, badge de estado, data-handletype, handles por spec                                                                                                                                                                                                                                                                                                          |
+| `frontend/src/components/graph/InspectorPanel.test.tsx` (NUEVO)        | 7 tests: empty state, input/output con mensaje de "fuera del grafo", campos de transcriber, audio_mixer numéricos, onChange en checkbox enabled, onChange en select enum                                                                                                                                                                                                                                        |
+| `frontend/package.json`                                                | +5 deps: `@astrojs/react@^4.4.2`, `react@^18.3.1`, `react-dom@^18.3.1`, `@types/react@^18.3.31`, `@types/react-dom@^18.3.7` (dev). +2 devDeps: `@xyflow/react@^12.11.0` movido a deps, `@testing-library/react@^16`, `@testing-library/jest-dom@^6`                                                                                                                                                             |
+| `frontend/astro.config.mjs`                                            | +`import react from "@astrojs/react"`, `integrations: [react()]`. Ampliado `manualChunks` con `vendor-xyflow` y `vendor-react` (separa React de Preact). `components/graph/` mapea a chunk `graphui`                                                                                                                                                                                                            |
+| `frontend/tsconfig.json`                                               | +`"jsx": "react-jsx"`, `"jsxImportSource": "react"` para que el tsserver resuelva JSX correctamente                                                                                                                                                                                                                                                                                                             |
+| `frontend/src/lib/types/api.ts`                                        | +`module?: ModuleName` opcional a `WebSocketMessage` para que `useLiveModuleStatus` pueda filtrar por módulo                                                                                                                                                                                                                                                                                                    |
+| `AGENTS.md`                                                            | Frontend row expandida con stack F116. Sección 8 historial añade entry 07/06 F116                                                                                                                                                                                                                                                                                                                               |
+| `feature_list.json`                                                    | F116 con `status: done`, archivos tocados, acceptance criteria, risk assessment                                                                                                                                                                                                                                                                                                                                 |
+| `progress/current.md`                                                  | Este documento                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 ### Decisiones técnicas
 
@@ -143,17 +143,17 @@ M  progress/current.md
 
 ## Estado del entorno verificado con `init.ps1 -Quick` — **VERDE**
 
-| Check | Estado | Notas |
-|---|---|---|
-| Python 3.12.13 | OK | venv ok |
-| Archivos base del arnés | OK | AGENTS, CHECKPOINTS, feature_list, current, history |
-| feature_list.json | OK | 95 features (95 done, 0 in_progress, 0 pending) |
-| pytest tests/unit/ | **OK** | **0 failures** (1246 pass + 4 skip + 4 xpass) |
-| mypy --strict core/ server/ modules/ | OK | 0 errores |
-| tsc --noEmit | OK | 0 errores |
-| vitest | OK | 201/201 pass |
-| ruff | OK | disponible |
-| mkdocs | OK | disponible |
+| Check                                | Estado | Notas                                               |
+| ------------------------------------ | ------ | --------------------------------------------------- |
+| Python 3.12.13                       | OK     | venv ok                                             |
+| Archivos base del arnés              | OK     | AGENTS, CHECKPOINTS, feature_list, current, history |
+| feature_list.json                    | OK     | 95 features (95 done, 0 in_progress, 0 pending)     |
+| pytest tests/unit/                   | **OK** | **0 failures** (1246 pass + 4 skip + 4 xpass)       |
+| mypy --strict core/ server/ modules/ | OK     | 0 errores                                           |
+| tsc --noEmit                         | OK     | 0 errores                                           |
+| vitest                               | OK     | 201/201 pass                                        |
+| ruff                                 | OK     | disponible                                          |
+| mkdocs                               | OK     | disponible                                          |
 
 ---
 
@@ -163,12 +163,12 @@ M  progress/current.md
 
 ### Archivos tocados (3) + 1 nuevo
 
-| Archivo | Cambio |
-|---|---|
-| `core/chunk_clock.py` (NUEVO, 186 líneas) | Clase `ChunkClock` con API: `record_mtime(mtime) -> float`, `update_chunk_duration(new) -> bool`, `reset()`, properties `chunk_duration`/`cumulative`/`has_previous_mtime`. Constantes: `DEFAULT_MIN_DELTA_S=0.5`, `DEFAULT_MAX_DELTA_MULTIPLIER=2.0`. Validación en constructor (chunk_duration > 0, min_delta >= 0, max_delta_multiplier >= 1.0). Type hints completos |
-| `modules/inputs/srt_input.py` | `+1 import` (ChunkClock). `_last_chunk_mtime` + `_cumulative_duration` reemplazados por `self._clock = ChunkClock(chunk_duration=self._chunk_duration)`. Las 7 líneas de mtime correction (586-591) reemplazadas por 1 línea + comentario. `configure()` simplificado: `if self._clock.update_chunk_duration(new): log`. `start()`: `self._cumulative_duration = 0.0` → `self._clock.reset()`. **735 → 624 líneas (-15%)** |
-| `modules/inputs/rtmp_input.py` | Mismo refactor que srt_input. `__init__` reordenado: `_chunk_duration` ahora se asigna ANTES de `self._clock` (encontré este bug cuando los 3 tests de rtmp fallaron con `AttributeError: '_chunk_duration'`). `configure()` simplificado. `start()`: reset delegado. **402 → 330 líneas (-18%)** |
-| `tests/unit/test_chunk_clock.py` (NUEVO) | 28 tests en 7 clases: `TestChunkClockConstructor` (5), `TestChunkClockFirstChunk` (2), `TestChunkClockSequentialChunks` (2), `TestChunkClockClamping` (5), `TestChunkClockReset` (3), `TestUpdateChunkDuration` (4), `TestPropertyAccessors` (2), `TestChunkClockWithRealFiles` (3), `TestChunkClockDriftScenario` (2) |
+| Archivo                                   | Cambio                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core/chunk_clock.py` (NUEVO, 186 líneas) | Clase `ChunkClock` con API: `record_mtime(mtime) -> float`, `update_chunk_duration(new) -> bool`, `reset()`, properties `chunk_duration`/`cumulative`/`has_previous_mtime`. Constantes: `DEFAULT_MIN_DELTA_S=0.5`, `DEFAULT_MAX_DELTA_MULTIPLIER=2.0`. Validación en constructor (chunk_duration > 0, min_delta >= 0, max_delta_multiplier >= 1.0). Type hints completos                                                   |
+| `modules/inputs/srt_input.py`             | `+1 import` (ChunkClock). `_last_chunk_mtime` + `_cumulative_duration` reemplazados por `self._clock = ChunkClock(chunk_duration=self._chunk_duration)`. Las 7 líneas de mtime correction (586-591) reemplazadas por 1 línea + comentario. `configure()` simplificado: `if self._clock.update_chunk_duration(new): log`. `start()`: `self._cumulative_duration = 0.0` → `self._clock.reset()`. **735 → 624 líneas (-15%)** |
+| `modules/inputs/rtmp_input.py`            | Mismo refactor que srt_input. `__init__` reordenado: `_chunk_duration` ahora se asigna ANTES de `self._clock` (encontré este bug cuando los 3 tests de rtmp fallaron con `AttributeError: '_chunk_duration'`). `configure()` simplificado. `start()`: reset delegado. **402 → 330 líneas (-18%)**                                                                                                                          |
+| `tests/unit/test_chunk_clock.py` (NUEVO)  | 28 tests en 7 clases: `TestChunkClockConstructor` (5), `TestChunkClockFirstChunk` (2), `TestChunkClockSequentialChunks` (2), `TestChunkClockClamping` (5), `TestChunkClockReset` (3), `TestUpdateChunkDuration` (4), `TestPropertyAccessors` (2), `TestChunkClockWithRealFiles` (3), `TestChunkClockDriftScenario` (2)                                                                                                     |
 
 ### Decisiones técnicas
 
@@ -227,12 +227,12 @@ M  progress/current.md
 
 ### Archivos tocados (4) + 1 nuevo
 
-| Archivo | Cambio |
-|---|---|
-| `core/logging_setup.py` | + `install_crash_handler(log_dir=None) -> Logger \| None`: `RotatingFileHandler` a `crash.log` (5MB, 2 backups), logger `srt2web.crash` con `propagate=False`, reemplaza `sys.excepthook` preservando el original. Constantes exportadas: `CRASH_LOGGER_NAME`, `CRASH_LOG_FILENAME`, `CRASH_MAX_BYTES`, `CRASH_BACKUP_COUNT`. Reordenado imports (`collections.abc.Callable`, `types.TracebackType`). `setup_logging()` ahora deriva `log_dir` del `log_file` y lo pasa a `SecurityLogHandler(log_dir=...)` |
-| `main.py` | + `install_crash_handler` import (línea 23, dentro del F111 try/except). Llamada a `install_crash_handler()` justo después del F111 try/except (línea 70) y ANTES de `get_project_root()`. `__main__` envuelto en try/except BaseException: imprime `FATAL: ...` a stderr y exit code 1 (preserva `SystemExit`) |
-| `tests/unit/test_logging_setup.py` (NUEVO) | 14 tests en 2 clases: `TestSetupLogging` (4 tests del srt2web/security channels) + `TestInstallCrashHandler` (10 tests: file creation, propagation, idempotency, SystemExit/KeyboardInterrupt skip, original hook preservation, broken-stream resilience, dir uncreatable, default dir) |
-| `docs/deployment.md` | Sección "Estructura de Logs" extendida: 3 archivos documentados (`srt2web.log` / `security.log` / `crash.log`), tabla de origen/cuando/quien, formato, cómo cambiar ubicación, referencia F108/F102/F114 en cada uno |
+| Archivo                                    | Cambio                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core/logging_setup.py`                    | + `install_crash_handler(log_dir=None) -> Logger \| None`: `RotatingFileHandler` a `crash.log` (5MB, 2 backups), logger `srt2web.crash` con `propagate=False`, reemplaza `sys.excepthook` preservando el original. Constantes exportadas: `CRASH_LOGGER_NAME`, `CRASH_LOG_FILENAME`, `CRASH_MAX_BYTES`, `CRASH_BACKUP_COUNT`. Reordenado imports (`collections.abc.Callable`, `types.TracebackType`). `setup_logging()` ahora deriva `log_dir` del `log_file` y lo pasa a `SecurityLogHandler(log_dir=...)` |
+| `main.py`                                  | + `install_crash_handler` import (línea 23, dentro del F111 try/except). Llamada a `install_crash_handler()` justo después del F111 try/except (línea 70) y ANTES de `get_project_root()`. `__main__` envuelto en try/except BaseException: imprime `FATAL: ...` a stderr y exit code 1 (preserva `SystemExit`)                                                                                                                                                                                             |
+| `tests/unit/test_logging_setup.py` (NUEVO) | 14 tests en 2 clases: `TestSetupLogging` (4 tests del srt2web/security channels) + `TestInstallCrashHandler` (10 tests: file creation, propagation, idempotency, SystemExit/KeyboardInterrupt skip, original hook preservation, broken-stream resilience, dir uncreatable, default dir)                                                                                                                                                                                                                     |
+| `docs/deployment.md`                       | Sección "Estructura de Logs" extendida: 3 archivos documentados (`srt2web.log` / `security.log` / `crash.log`), tabla de origen/cuando/quien, formato, cómo cambiar ubicación, referencia F108/F102/F114 en cada uno                                                                                                                                                                                                                                                                                        |
 
 ### Decisiones técnicas
 
@@ -295,10 +295,10 @@ pytest tests/e2e/ -m "not slow" -q --tb=line
 
 ### Archivos tocados (2)
 
-| Archivo | Cambio |
-|---|---|
+| Archivo                                        | Cambio                                                                                                                                                                                                                                                                                                                |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tests/unit/test_player_robustness.py:193-205` | `test_subtitle_polling_interval` ahora tiene `@pytest.mark.skip(reason="Obsolete after F108: subtitle polling was eliminated in favor of HLS.js native subtitle tracks...")` con docstring explicando el cambio y referencia al test que SÍ valida la integración actual (`test_subtitle_native_hls_handling` en e2e) |
-| `tests/e2e/test_player_page.py:89-101` | `test_links_to_hls_stream` docstring expandido: documenta que el URL del stream HLS se construye en el JS bundle Astro (`player-subtitles.ts`), no en el HTML. El fixture `_get_player_combined()` lee tanto `server/static/player/index.html` como `server/static/_astro/player*.js` para encontrar el URL |
+| `tests/e2e/test_player_page.py:89-101`         | `test_links_to_hls_stream` docstring expandido: documenta que el URL del stream HLS se construye en el JS bundle Astro (`player-subtitles.ts`), no en el HTML. El fixture `_get_player_combined()` lee tanto `server/static/player/index.html` como `server/static/_astro/player*.js` para encontrar el URL           |
 
 ### Lecciones / notas
 
@@ -333,18 +333,18 @@ M  progress/current.md
 
 ### Archivos tocados (8)
 
-| Archivo | Cambio |
-|---|---|
-| `.env.example` | Eliminados `AUTH_TOKEN`/`SECRET_KEY` legacy. Añadido `SRT2WEB_JWT_SECRET=` vacío con comentario explicativo + docs de rotación |
-| `config/requirements.txt` | Añadido `python-dotenv>=1.0.0` (para que `main.py` cargue `.env` antes de `core.auth_db`) |
-| `main.py` | `from dotenv import load_dotenv; load_dotenv()` en el F111 try/except, antes de los imports de `core` (para que `os.environ` ya tenga el secret cuando `auth_db.py` lo lea). Llamada a `validate_secrets(strict=...)` con bypass de dev `SRT2WEB_ALLOW_INSECURE_DEFAULTS=1` |
-| `Install.bat` | Nueva sección F112 post-install: `python scripts\generate_env_secrets.py` con mensaje accionable Windows-specific si falla |
-| `install_Mac.sh` | Misma generación con mensaje Mac-specific |
-| `core/config_manager.py` | 2 funciones nuevas: `generate_jwt_secret()` y `validate_secrets(strict=True) -> tuple[bool, str]`. Detecta: empty, default inseguro, placeholders legacy, y warning si < 32 chars |
-| `scripts/generate_env_secrets.py` (NUEVO) | Script idempotente: si `.env` falta lo copia de `.env.example`; para cada `MANAGED_KEYS` reemplaza placeholder/vacío con `secrets.token_urlsafe(32)`. Output `GENERATED:` / `KEPT:` machine-parseable |
-| `tests/unit/test_config_validation.py` | +8 tests en `TestSecretValidation`: empty/default/legacy/short/valid + `generate_jwt_secret()` + 2 tests de `.env.example` |
-| `tests/unit/test_generate_env_secrets.py` (NUEVO) | 7 tests del script: create/replace/keep/preserva-comments/falla-si-falta-example/output-format |
-| `docs/deployment.md` | Sección "First-time Setup (F112)" detallada + tabla de env vars actualizada (antes tenía `SRT2WEB_AUTH_TOKEN` que no existía) |
+| Archivo                                           | Cambio                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.env.example`                                    | Eliminados `AUTH_TOKEN`/`SECRET_KEY` legacy. Añadido `SRT2WEB_JWT_SECRET=` vacío con comentario explicativo + docs de rotación                                                                                                                                              |
+| `config/requirements.txt`                         | Añadido `python-dotenv>=1.0.0` (para que `main.py` cargue `.env` antes de `core.auth_db`)                                                                                                                                                                                   |
+| `main.py`                                         | `from dotenv import load_dotenv; load_dotenv()` en el F111 try/except, antes de los imports de `core` (para que `os.environ` ya tenga el secret cuando `auth_db.py` lo lea). Llamada a `validate_secrets(strict=...)` con bypass de dev `SRT2WEB_ALLOW_INSECURE_DEFAULTS=1` |
+| `Install.bat`                                     | Nueva sección F112 post-install: `python scripts\generate_env_secrets.py` con mensaje accionable Windows-specific si falla                                                                                                                                                  |
+| `install_Mac.sh`                                  | Misma generación con mensaje Mac-specific                                                                                                                                                                                                                                   |
+| `core/config_manager.py`                          | 2 funciones nuevas: `generate_jwt_secret()` y `validate_secrets(strict=True) -> tuple[bool, str]`. Detecta: empty, default inseguro, placeholders legacy, y warning si < 32 chars                                                                                           |
+| `scripts/generate_env_secrets.py` (NUEVO)         | Script idempotente: si `.env` falta lo copia de `.env.example`; para cada `MANAGED_KEYS` reemplaza placeholder/vacío con `secrets.token_urlsafe(32)`. Output `GENERATED:` / `KEPT:` machine-parseable                                                                       |
+| `tests/unit/test_config_validation.py`            | +8 tests en `TestSecretValidation`: empty/default/legacy/short/valid + `generate_jwt_secret()` + 2 tests de `.env.example`                                                                                                                                                  |
+| `tests/unit/test_generate_env_secrets.py` (NUEVO) | 7 tests del script: create/replace/keep/preserva-comments/falla-si-falta-example/output-format                                                                                                                                                                              |
+| `docs/deployment.md`                              | Sección "First-time Setup (F112)" detallada + tabla de env vars actualizada (antes tenía `SRT2WEB_AUTH_TOKEN` que no existía)                                                                                                                                               |
 
 ### Lecciones / notas
 
@@ -389,13 +389,13 @@ M  progress/current.md
 
 ### Archivos tocados (5)
 
-| Archivo | Cambio |
-|---|---|
-| `docs/troubleshooting-windows.md` (NUEVO) | 12 secciones, prominente sección numpy DLL load failed con 6 soluciones escalonadas (reinstall → unblock → exclusions → IT) |
-| `main.py:13-58` | try/except alrededor del bloque `from core import ...` que carga numpy. Detecta el patrón `_multiarray_umath` / `DLL load failed` / `Control de aplicaciones` y muestra mensaje accionable con link a docs + `sys.exit(1)` |
-| `Install.bat` | Nueva sección post-install: `%VENV_PYTHON% -c "import numpy; print('OK')"` con 5 soluciones Windows-specific si falla |
-| `install_Mac.sh` | Misma verificación post-install con 2 soluciones Mac-specific (build incompatible, Apple Silicon x86_64 mismatch) |
-| `tests/unit/test_numpy_import.py` (NUEVO) | 3 tests: `test_numpy_importable`, `test_numpy_array_creation`, `test_numpy_multiarray_umath_loadable` (este último es el detector específico de F111) |
+| Archivo                                   | Cambio                                                                                                                                                                                                                     |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/troubleshooting-windows.md` (NUEVO) | 12 secciones, prominente sección numpy DLL load failed con 6 soluciones escalonadas (reinstall → unblock → exclusions → IT)                                                                                                |
+| `main.py:13-58`                           | try/except alrededor del bloque `from core import ...` que carga numpy. Detecta el patrón `_multiarray_umath` / `DLL load failed` / `Control de aplicaciones` y muestra mensaje accionable con link a docs + `sys.exit(1)` |
+| `Install.bat`                             | Nueva sección post-install: `%VENV_PYTHON% -c "import numpy; print('OK')"` con 5 soluciones Windows-specific si falla                                                                                                      |
+| `install_Mac.sh`                          | Misma verificación post-install con 2 soluciones Mac-specific (build incompatible, Apple Silicon x86_64 mismatch)                                                                                                          |
+| `tests/unit/test_numpy_import.py` (NUEVO) | 3 tests: `test_numpy_importable`, `test_numpy_array_creation`, `test_numpy_multiarray_umath_loadable` (este último es el detector específico de F111)                                                                      |
 
 ### Lección / nota
 
@@ -419,18 +419,18 @@ M  progress/current.md
 
 ### Fixes aplicados
 
-| # | Archivo | Tipo | Cambio |
-|---|---|---|---|
-| 1 | `tests/unit/test_f106_piper_voice.py:160` | test bug | `isinstance(..., Lock)` → `isinstance(..., type(threading.Lock()))` |
-| 2 | `modules/outputs/composite_output.py:186` | logger | `except Exception: pass` → `logger.warning(..., exc_info=True)` |
-| 3 | `modules/outputs/composite_output.py:386` | logger | `except ImportError: pass` → `logger.debug(...)` (mantiene el flujo, ahora visible) |
-| 4 | `server/security.py:269-289` | deprecation | `validate_ws_auth` marcado `@deprecated` con docstring apuntando a `ws_routes.py` inline auth (8 tests siguen verdes) |
-| 5 | `tests/integration/test_api_routes.py:_make_client` | helper | Nuevos params `pipeline_running=` y `output_dir=` con `Mock(spec=Pipeline)` cuando running |
-| 6 | `tests/integration/test_api_routes.py:172-186` | test | `test_ready_endpoint` actualizado para mockear pipeline running; nuevo `test_ready_endpoint_not_running_returns_503` (cubre F102 readiness probe) |
-| 7 | `tests/integration/test_api_routes.py:430-441` | test | `test_recording_list_empty` usa `tmp_path` via `_make_client(output_dir=...)` (test isolation) |
-| 8 | `tests/integration/conftest.py` (NUEVO) | fixture | Autouse session-scope cleanup de debris en `output/recordings/*` y `output/subtitles/subs.{m3u8,vtt}` |
-| 9 | `tests/unit/test_latest_features.py:151-159` | test | `test_chunk_duration_is_valid` ahora `<= 60` (schema) en lugar de `<= 15` (OBS constraint obsoleto) |
-| 10 | `git stash drop` | cleanup | 1 stash pre-F108 obsoleto eliminado (player.ts + docs HTML) |
+| #   | Archivo                                             | Tipo        | Cambio                                                                                                                                            |
+| --- | --------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `tests/unit/test_f106_piper_voice.py:160`           | test bug    | `isinstance(..., Lock)` → `isinstance(..., type(threading.Lock()))`                                                                               |
+| 2   | `modules/outputs/composite_output.py:186`           | logger      | `except Exception: pass` → `logger.warning(..., exc_info=True)`                                                                                   |
+| 3   | `modules/outputs/composite_output.py:386`           | logger      | `except ImportError: pass` → `logger.debug(...)` (mantiene el flujo, ahora visible)                                                               |
+| 4   | `server/security.py:269-289`                        | deprecation | `validate_ws_auth` marcado `@deprecated` con docstring apuntando a `ws_routes.py` inline auth (8 tests siguen verdes)                             |
+| 5   | `tests/integration/test_api_routes.py:_make_client` | helper      | Nuevos params `pipeline_running=` y `output_dir=` con `Mock(spec=Pipeline)` cuando running                                                        |
+| 6   | `tests/integration/test_api_routes.py:172-186`      | test        | `test_ready_endpoint` actualizado para mockear pipeline running; nuevo `test_ready_endpoint_not_running_returns_503` (cubre F102 readiness probe) |
+| 7   | `tests/integration/test_api_routes.py:430-441`      | test        | `test_recording_list_empty` usa `tmp_path` via `_make_client(output_dir=...)` (test isolation)                                                    |
+| 8   | `tests/integration/conftest.py` (NUEVO)             | fixture     | Autouse session-scope cleanup de debris en `output/recordings/*` y `output/subtitles/subs.{m3u8,vtt}`                                             |
+| 9   | `tests/unit/test_latest_features.py:151-159`        | test        | `test_chunk_duration_is_valid` ahora `<= 60` (schema) en lugar de `<= 15` (OBS constraint obsoleto)                                               |
+| 10  | `git stash drop`                                    | cleanup     | 1 stash pre-F108 obsoleto eliminado (player.ts + docs HTML)                                                                                       |
 
 ---
 
@@ -440,33 +440,35 @@ M  progress/current.md
 
 ### Inventario original (15 entries)
 
-| Path | Tipo | Tamaño | Acción |
-|---|---|---|---|
-| `.openclaude/settings.local.json` | AI tool config (user) | 174 B | **MANTENER** (config local preservada) |
-| `.playwright-mcp/` | UX snapshots manuales | 33 files, ~700 KB | → `docs/archive/ux-snapshots/2026-05-snapshots/` |
-| `player_snapshot.md` | Snapshot puntual player | 185 B | → `docs/archive/ux-snapshots/2026-05-24-player-retry-snapshot.md` |
-| `deploy/helm/srt2web/` | Helm chart completo | Chart + 8 templates, ~10 KB | → `docs/archive/helm-srt2web/chart/` |
-| `120/`, `chunks/` | Carpetas vacías | 0 B | **ELIMINAR** |
-| `output/` (8 subdirs) | Runtime debris | varies | **ELIMINAR** |
-| `logs/` (2 files) | Runtime logs | ~115 KB | **ELIMINAR** |
-| `temp/pytest-of-bruno/` | Pytest tmp data | locked | **BLOQUEADO** (Access Denied Windows, documentado) |
-| `.coverage` | Coverage data | 68 KB | **ELIMINAR** |
-| `Cleaning`, `Killing` (0 B) | Marcadores vacíos | 0 B | **ELIMINAR** |
-| `package.json`, `package-lock.json` | Node huérfano | 683 B | **ELIMINAR** |
-| `presets.json` (`{}`) | Preset vacío | 3 B | **ELIMINAR** |
+| Path                                | Tipo                    | Tamaño                      | Acción                                                            |
+| ----------------------------------- | ----------------------- | --------------------------- | ----------------------------------------------------------------- |
+| `.openclaude/settings.local.json`   | AI tool config (user)   | 174 B                       | **MANTENER** (config local preservada)                            |
+| `.playwright-mcp/`                  | UX snapshots manuales   | 33 files, ~700 KB           | → `docs/archive/ux-snapshots/2026-05-snapshots/`                  |
+| `player_snapshot.md`                | Snapshot puntual player | 185 B                       | → `docs/archive/ux-snapshots/2026-05-24-player-retry-snapshot.md` |
+| `deploy/helm/srt2web/`              | Helm chart completo     | Chart + 8 templates, ~10 KB | → `docs/archive/helm-srt2web/chart/`                              |
+| `120/`, `chunks/`                   | Carpetas vacías         | 0 B                         | **ELIMINAR**                                                      |
+| `output/` (8 subdirs)               | Runtime debris          | varies                      | **ELIMINAR**                                                      |
+| `logs/` (2 files)                   | Runtime logs            | ~115 KB                     | **ELIMINAR**                                                      |
+| `temp/pytest-of-bruno/`             | Pytest tmp data         | locked                      | **BLOQUEADO** (Access Denied Windows, documentado)                |
+| `.coverage`                         | Coverage data           | 68 KB                       | **ELIMINAR**                                                      |
+| `Cleaning`, `Killing` (0 B)         | Marcadores vacíos       | 0 B                         | **ELIMINAR**                                                      |
+| `package.json`, `package-lock.json` | Node huérfano           | 683 B                       | **ELIMINAR**                                                      |
+| `presets.json` (`{}`)               | Preset vacío            | 3 B                         | **ELIMINAR**                                                      |
 
 ### Estado final
 
 **`PARA BORRAR/`** (3 entries):
+
 - `.openclaude/` — config local preservada
 - `temp/pytest-of-bruno/` — bloqueado a nivel Windows, documentado en `PARA BORRAR/README.md` (instrucciones de limpieza con admin shell / reboot)
 - `README.md` — NUEVO índice de qué hubo y qué se hizo
 
 **`docs/archive/`** (NUEVO, 3 subdirs):
+
 - `README.md` — índice y política de archivo
 - `ux-snapshots/` (35 files + 1 dir):
   - `README.md` — describe los snapshots y por qué están archivados
-  - `2026-05-snapshots/` (33 files movidos: 16 page-*.yml, 14 console-*.log, 1 png, 1 snapshot-remote.yml, 1 placeholder)
+  - `2026-05-snapshots/` (33 files movidos: 16 page-_.yml, 14 console-_.log, 1 png, 1 snapshot-remote.yml, 1 placeholder)
   - `2026-05-24-player-retry-snapshot.md` (movido)
 - `helm-srt2web/` (12 files + 1 dir):
   - `README.md` — explica F51 quedó pending, razones del archivo, cómo reactivar
@@ -529,30 +531,30 @@ M progress/current.md
 
 ### Estado del entorno verificado con `init.ps1 -Quick`
 
-| Check | Estado | Notas |
-|---|---|---|
-| Python 3.12.13 | OK | venv ok |
-| Archivos base del arnés | OK | AGENTS, CHECKPOINTS, feature_list, current, history |
-| feature_list.json | OK | 88 features (todas `done`) |
-| pytest tests/unit/ | **FAIL** | **1 test fallido** (test_f106_piper_voice.py:160) + 1182 pass + 3 skip + 4 xpass |
-| mypy --strict core/ server/ modules/ | OK | 0 errores |
-| tsc --noEmit | OK | 0 errores |
-| vitest | OK | 201/201 pass |
-| ruff | OK | disponible |
-| mkdocs | OK | disponible |
+| Check                                | Estado   | Notas                                                                            |
+| ------------------------------------ | -------- | -------------------------------------------------------------------------------- |
+| Python 3.12.13                       | OK       | venv ok                                                                          |
+| Archivos base del arnés              | OK       | AGENTS, CHECKPOINTS, feature_list, current, history                              |
+| feature_list.json                    | OK       | 88 features (todas `done`)                                                       |
+| pytest tests/unit/                   | **FAIL** | **1 test fallido** (test_f106_piper_voice.py:160) + 1182 pass + 3 skip + 4 xpass |
+| mypy --strict core/ server/ modules/ | OK       | 0 errores                                                                        |
+| tsc --noEmit                         | OK       | 0 errores                                                                        |
+| vitest                               | OK       | 201/201 pass                                                                     |
+| ruff                                 | OK       | disponible                                                                       |
+| mkdocs                               | OK       | disponible                                                                       |
 
 > ⚠️ **init.ps1 considera el entorno "no listo"** por el único test fallido de F106 (F55 el bug crítico real está arreglado; F106 la cadena Piper está OK; el test solo tiene un bug trivial de uso de `Lock` como tipo).
 
 ## Tests integration/e2e (no se ejecutan en init.ps1, descubiertos en auditoría)
 
-| Test | Estado | Tipo |
-|---|---|---|
-| `tests/integration/test_api_routes.py::TestHealthEndpoints::test_ready_endpoint` | **FAIL** | Test bug — F102 diseñó `/ready` para devolver 503 cuando el pipeline no está corriendo; el test no arranca pipeline antes de chequear |
-| `tests/integration/test_api_routes.py::TestErrorPaths::test_recording_list_empty` | **FAIL** | Test no aislado — `output/recordings/test_recording.mp4` (0 bytes) queda de runs anteriores |
-| `tests/cli/` | OK | 192/192 pass |
-| `tests/integration/test_pipeline_integration.py` | OK | 10/10 pass |
-| `tests/integration/test_hardware_mac.py` | OK | 4 skip (sin Mac) + pass |
-| `tests/integration/test_server.py` | OK | 15/15 pass |
+| Test                                                                              | Estado   | Tipo                                                                                                                                  |
+| --------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/integration/test_api_routes.py::TestHealthEndpoints::test_ready_endpoint`  | **FAIL** | Test bug — F102 diseñó `/ready` para devolver 503 cuando el pipeline no está corriendo; el test no arranca pipeline antes de chequear |
+| `tests/integration/test_api_routes.py::TestErrorPaths::test_recording_list_empty` | **FAIL** | Test no aislado — `output/recordings/test_recording.mp4` (0 bytes) queda de runs anteriores                                           |
+| `tests/cli/`                                                                      | OK       | 192/192 pass                                                                                                                          |
+| `tests/integration/test_pipeline_integration.py`                                  | OK       | 10/10 pass                                                                                                                            |
+| `tests/integration/test_hardware_mac.py`                                          | OK       | 4 skip (sin Mac) + pass                                                                                                               |
+| `tests/integration/test_server.py`                                                | OK       | 15/15 pass                                                                                                                            |
 
 ## Auditoría completa: hallazgos
 
@@ -694,23 +696,23 @@ def _register() -> None:
 
 ## Resumen de severidades
 
-| Hallazgo | Severidad | Bloquea init.ps1 | Afecta prod |
-|---|---|---|---|
-| H1 — numpy DLL bloqueado | Crítico | No | Sí |
-| H2 — test_f106 Lock | Bajo | Sí | No |
-| H3 — 2 tests integration fallan | Medio | No (no en init) | No |
-| H4 — subs.m3u8 debris | Bajo | No | No |
-| H5 — except silencioso composite | Medio | No | Sí (debug) |
-| H6 — except silencioso _register | Bajo | No | No |
-| H7 — recordings debris | Bajo | No | No |
-| H8 — archivos grandes | Bajo | No | No |
-| H9 — validate_ws_auth dead | Bajo | No | No |
-| H10 — PARA BORRAR lleno | Bajo | No | No |
-| H11 — stash huérfano | Bajo | No | No |
-| H12 — logs mezclados | Bajo | No | No |
-| H13 — e2e pre-rotos | Bajo | No | No |
-| H14 — frontend OK | — | — | — |
-| H15 — .env.example inseguro | Medio | No | Sí (config) |
+| Hallazgo                          | Severidad | Bloquea init.ps1 | Afecta prod |
+| --------------------------------- | --------- | ---------------- | ----------- |
+| H1 — numpy DLL bloqueado          | Crítico   | No               | Sí          |
+| H2 — test_f106 Lock               | Bajo      | Sí               | No          |
+| H3 — 2 tests integration fallan   | Medio     | No (no en init)  | No          |
+| H4 — subs.m3u8 debris             | Bajo      | No               | No          |
+| H5 — except silencioso composite  | Medio     | No               | Sí (debug)  |
+| H6 — except silencioso \_register | Bajo      | No               | No          |
+| H7 — recordings debris            | Bajo      | No               | No          |
+| H8 — archivos grandes             | Bajo      | No               | No          |
+| H9 — validate_ws_auth dead        | Bajo      | No               | No          |
+| H10 — PARA BORRAR lleno           | Bajo      | No               | No          |
+| H11 — stash huérfano              | Bajo      | No               | No          |
+| H12 — logs mezclados              | Bajo      | No               | No          |
+| H13 — e2e pre-rotos               | Bajo      | No               | No          |
+| H14 — frontend OK                 | —         | —                | —           |
+| H15 — .env.example inseguro       | Medio     | No               | Sí (config) |
 
 ## Plan de implementación (siguiendo normas del arnés)
 
@@ -723,38 +725,47 @@ def _register() -> None:
 **Cambios**:
 
 1. `tests/unit/test_f106_piper_voice.py:160`:
+
    - Cambiar `isinstance(manager._cmd_lock, Lock)` → `isinstance(manager._cmd_lock, type(threading.Lock()))`
    - El import `from threading import Lock` ya no es necesario
 
 2. `tests/integration/test_api_routes.py::TestHealthEndpoints::test_ready_endpoint`:
+
    - Opción A: Iniciar pipeline mock antes de chequear (más correcto)
    - Opción B: Renombrar a `test_ready_endpoint_returns_503_when_not_running` y actualizar assert
    - Elegir A para verificar también que devuelve 200 cuando SÍ está corriendo
 
 3. `tests/integration/test_api_routes.py::TestErrorPaths::test_recording_list_empty`:
+
    - Setup que limpia/crea tmp dir antes del test, no usar el `output/recordings/` real
    - O usar `tmp_path` fixture de pytest
 
 4. `output/recordings/test_recording.mp4` y `output/subtitles/subs.m3u8`:
+
    - Añadir a `tests/integration/conftest.py` autouse fixture que limpia `output/recordings/`, `output/subtitles/`, `output/hls/`, `output/chunks/`, `output/temp_audio/`, `output/temp_mix/`, `output/temp_tts/` antes de cada test
 
 5. `modules/outputs/composite_output.py:186`:
+
    - Reemplazar `except Exception: pass` con `except Exception as e: logger.warning(f"Output {first_name} status query failed: {e}", exc_info=True)`
 
 6. `modules/outputs/composite_output.py:386-389`:
+
    - Mantener `except ImportError: pass` (es intencional) pero añadir `logger.debug("CompositeOutput: factory import deferred")` para diagnóstico
 
 7. `server/security.py:269-289` `validate_ws_auth`:
+
    - Verificar que no se usa; eliminar o marcar como deprecated con test
    - Si se elimina, eliminar también docstring reference
 
 8. `git stash drop stash@{0}`:
+
    - El stash es código obsoleto pre-F108
 
 9. `PARA BORRAR/`:
    - No tocar en esta sesión (riesgo de borrar algo útil). Crear F110.
 
 **Aceptación**:
+
 - `init.ps1 -Quick` → 0 failures
 - `pytest tests/integration/ -m "not slow" -q` → 0 failures
 - `mypy --strict` → 0 errores
@@ -771,12 +782,14 @@ def _register() -> None:
 **Cambios**:
 
 1. Inventariar `PARA BORRAR/` (90+ archivos):
+
    - `.playwright-mcp/` (snapshots de pruebas manuales de UI)
    - `deploy/helm/` (chart de Kubernetes abandonado, ver F51)
    - `output/`, `logs/`, `chunks/`, `temp/` (runtime debris)
    - `package.json`, `package-lock.json`, `Cleaning`, `Killing`, `player_snapshot.md`, `presets.json`, `.coverage`
 
 2. **Migrar a `docs/archive/`** lo documentalmente útil:
+
    - helm chart → `docs/archive/helm-srt2web/`
    - playwright snapshots importantes → `docs/archive/ux-snapshots/`
    - Cualquier script con valor histórico
@@ -786,6 +799,7 @@ def _register() -> None:
 4. Mover `output/`, `logs/`, `chunks/`, `temp/`, `*.log` entries a `.gitignore` si no están.
 
 **Aceptación**:
+
 - `PARA BORRAR/` solo contiene README.md explicando qué se movió a dónde
 - `docs/archive/` tiene el contenido preservado
 - `git status` no muestra debris
@@ -801,6 +815,7 @@ def _register() -> None:
 **Cambios**:
 
 1. `docs/troubleshooting-windows.md` (NUEVO):
+
    - Síntoma: `ImportError: DLL load failed while importing _multiarray_umath: Una directiva de Control de aplicaciones bloqueó este archivo`
    - Causa: AppLocker / Windows Defender SmartScreen / EDR corporativo bloquea DLLs no firmadas
    - Diagnóstico: Verificar `%LOCALAPPDATA%\..\Local\Temp`, `Get-EventLog -LogName Application`, `Get-AppLockerPolicy -Effective | Format-List`
@@ -811,10 +826,12 @@ def _register() -> None:
      - Desactivar temporalmente: `Set-MpPreference -SubmitSamplesConsent 2` (no recomendado en producción)
 
 2. `Install.bat` / `install_Mac.sh`:
+
    - Después de `pip install`, verificar `python -c "import numpy"` y mostrar mensaje accionable si falla
    - Pre-check: `python -c "import platform; print(platform.platform())"` y advertir sobre Python 3.12 + numpy 2.4 combo
 
 3. `main.py`:
+
    - Añadir try/except alrededor de `from core import ...` que muestra un mensaje claro si numpy/u otra dep crítica falla al importar
 
 4. `tests/unit/test_numpy_import.py` (NUEVO):
@@ -822,6 +839,7 @@ def _register() -> None:
    - Marcar `@pytest.mark.windows` para skip en Mac/Linux
 
 **Aceptación**:
+
 - `docs/troubleshooting-windows.md` con sección dedicada
 - `Install.bat` muestra mensaje accionable si numpy falla
 - Smoke test detecta el crash
@@ -837,20 +855,24 @@ def _register() -> None:
 **Cambios**:
 
 1. `.env.example`:
+
    - `AUTH_TOKEN=` (vacío) con comentario `# Generado automáticamente por Install.bat — ver .env`
    - `SECRET_KEY=` (vacío) con comentario similar
    - `SRT2WEB_GENERATE_SECRETS=1` (instrucción para Install.bat)
 
 2. `Install.bat` / `install_Mac.sh`:
+
    - Si `.env` no existe, copiar de `.env.example`
    - Generar `AUTH_TOKEN` y `SECRET_KEY` con `python -c "import secrets; print(secrets.token_urlsafe(32))"` si están vacíos
    - Reemplazar en `.env` antes de continuar con pip install
    - Mostrar resumen: "AUTH_TOKEN=xxxxxxxxx (almacenado en .env)"
 
 3. `core/config_manager.py`:
+
    - Validar al arranque: si `auth_token == "your-secret-token-here"` o `len < 16` → warning bloqueante
 
 4. `tests/unit/test_config_validation.py` (extender):
+
    - Test que verifica que auth_token placeholder es rechazado
    - Test que verifica que secret_key < 32 chars es rechazado
 
@@ -858,6 +880,7 @@ def _register() -> None:
    - Sección "First-time setup" explicando el flujo de secrets
 
 **Aceptación**:
+
 - `.env` generado en install con secrets reales
 - Cargar config con placeholder falla con error claro
 - Cargar config con secret corto falla con warning
@@ -873,16 +896,19 @@ def _register() -> None:
 **Cambios**:
 
 1. `tests/e2e/test_player_robustness.py::TestPlayerSubtitles`:
+
    - Verificar qué lee. Si lee `server/static/player.html`, refactorizar para leer el bundle Astro actual (`server/dist/`) o skip si no existe
    - Marcar como `@pytest.mark.skipif(not Path("server/static/index.html").exists(), reason="player.html not bundled")`
 
 2. `tests/e2e/test_player_robustness.py::test_subtitle_refresh_interval`:
+
    - El test valida que el polling de subs es 2000ms. F108 eliminó el polling. Actualizar para validar la nueva estrategia (HLS.js native) o eliminar.
 
 3. `tests/e2e/test_links_to_hls_stream`:
    - Si valida links en HTML estático, refactorizar para usar la app corriendo o skip.
 
 **Aceptación**:
+
 - `pytest tests/e2e/ -m "not slow" -q` → 0 failures, 0 errores, skip con razón
 - O eliminar los tests obsoletos
 
@@ -897,16 +923,19 @@ def _register() -> None:
 **Cambios**:
 
 1. `core/logging_setup.py`:
+
    - Verificar que `setup_logging()` siempre añade un `RotatingFileHandler` a `logs/srt2web.log`
    - Crear `logs/` automáticamente
    - Nivel por defecto INFO; capturar DEBUG solo si `SRT2WEB_DEBUG=1`
    - Separar handler para `srt2web.security` que escribe a `logs/security.log` (auditoría)
 
 2. `main.py`:
+
    - Llamar a `setup_logging()` antes de cualquier import que pueda loggear
    - Capturar excepciones no manejadas y escribir a `logs/crash.log` con traceback
 
 3. `tests/unit/test_logging_setup.py` (NUEVO o extender):
+
    - Verificar que `logs/srt2web.log` se crea al primer log
    - Verificar que `logs/security.log` se crea en eventos SECURITY
    - Verificar rotación a 10MB
@@ -915,6 +944,7 @@ def _register() -> None:
    - Documentar dónde están los logs y cómo verlos
 
 **Aceptación**:
+
 - Iniciar server produce `logs/srt2web.log` con primer INFO
 - Eventos de seguridad van a `logs/security.log` separados
 - Crash no manejado produce `logs/crash.log`
@@ -930,21 +960,26 @@ def _register() -> None:
 **Cambios**:
 
 1. `core/chunk_clock.py` (NUEVO):
+
    - `ChunkClock` class con `record_mtime(mtime)`, `get_cumulative_duration()`, `reset()`
    - Encapsula la lógica de `srt_input.py:586-591` y `rtmp_input.py` (similar)
 
 2. `modules/inputs/srt_input.py`:
+
    - Reemplazar bloque mtime con `self._clock = ChunkClock(chunk_duration=...)` + `self._clock.record_mtime(chunk_path.stat().st_mtime)`
 
 3. `modules/inputs/rtmp_input.py`:
+
    - Mismo refactor
 
 4. `tests/unit/test_chunk_clock.py` (NUEVO):
+
    - Drift acumulado, clamping, reset
 
 5. Aplicar F108 acceptance criterio: `srt_input.py < 500 líneas` (ahora 735)
 
 **Aceptación**:
+
 - `srt_input.py < 500 líneas`
 - Lógica de clock en módulo dedicado y testeable
 - Sin regresión de comportamiento
@@ -955,17 +990,18 @@ def _register() -> None:
 
 ## Resumen del plan
 
-| ID | Nombre | Severidad | Esfuerzo | Dependencias |
-|---|---|---|---|---|
-| F109 | Fix test failures + dead code + cleanups | Alta | 1 sesión | — |
-| F110 | Limpieza PARA BORRAR y debris | Media | 1 sesión | F109 |
-| F111 | Diagnóstico numpy DLL load failed | Alta | 1 sesión | — |
-| F112 | Hardening .env.example y secrets | Media | 1 sesión | — |
-| F113 | Frontend e2e tests obsoletos | Baja | 1 sesión | — |
-| F114 | Logging consistente y archivo | Media | 1 sesión | — |
-| F115 | Refactor: extraer mtime a core/chunk_clock | Baja | 1 sesión | — |
+| ID   | Nombre                                     | Severidad | Esfuerzo | Dependencias |
+| ---- | ------------------------------------------ | --------- | -------- | ------------ |
+| F109 | Fix test failures + dead code + cleanups   | Alta      | 1 sesión | —            |
+| F110 | Limpieza PARA BORRAR y debris              | Media     | 1 sesión | F109         |
+| F111 | Diagnóstico numpy DLL load failed          | Alta      | 1 sesión | —            |
+| F112 | Hardening .env.example y secrets           | Media     | 1 sesión | —            |
+| F113 | Frontend e2e tests obsoletos               | Baja      | 1 sesión | —            |
+| F114 | Logging consistente y archivo              | Media     | 1 sesión | —            |
+| F115 | Refactor: extraer mtime a core/chunk_clock | Baja      | 1 sesión | —            |
 
 **Orden recomendado**:
+
 ```
 F109 (verdes tests) → F111 (numpy blocker) → F110 (cleanup) → F112 (secrets) → F114 (logging) → F113 (e2e) → F115 (refactor)
 ```
