@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from server.validators import AddOutputRequest, UpdateOutputRequest
+from core.io_factory import OutputFactory
 
 logger = logging.getLogger("srt2web.api.outputs")
 
@@ -103,7 +104,7 @@ async def list_outputs(request: Request) -> dict[str, Any]:
         "outputs": [
             {
                 "name": getattr(composite, "name", "output"),
-                "type": getattr(composite, "name", "web"),
+                "type": OutputFactory.resolve_type(type(composite).__name__) or "unknown",
                 "state": status.get("state", "idle"),
                 "enabled": True,
                 "processed_chunks": status.get("processed_chunks", 0),

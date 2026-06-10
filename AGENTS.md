@@ -19,7 +19,7 @@
 | `core/`               | Pipeline, módulos base, config, factories               | Para implementar       |
 | `modules/`            | Procesamiento (audio, TTS, transcripción) + I/O plugins | Para implementar       |
 | `server/`             | FastAPI, WebSocket, seguridad                           | Para implementar       |
-| `frontend/`           | Dashboard Astro + TypeScript + Tailwind                 | Para implementar       |
+| `frontend/`           | Dashboard Astro + TypeScript + Tailwind. **F116**: editor visual en `/graph` con React Flow — `lib/graph/` (catálogo, validador, serializador, live status) + `components/graph/` (PipelineCanvas, ModuleNode, InspectorPanel, Toolbar, PipelineGraph) + `pages/graph.astro` | Para implementar       |
 | `cli/`                | CLI + TUI (Textual) — cliente HTTP/WS + comandos        | Para implementar       |
 | `tests/`              | Tests pytest + vitest                                   | Para verificar         |
 | `config.yaml`         | Configuración runtime del pipeline                      | Para entender defaults |
@@ -215,6 +215,22 @@ Ver `feature_list.json` para lista completa y estados. Total actual: 86 features
 **Siguiente pendiente**: nada. Próxima feature a elegir de `feature_list.json`.
 
 ## 8. Historial compacto (post-Abril 2026)
+
+### 07/06 — Editor visual de pipeline en /graph (F116)
+
+- **F116 cerrado**: segunda versión del dashboard en `/graph` basada en React Flow. Cada módulo se ve como un nodo con handles tipados (video / audio / transcript / subtitles) en colores. Conectando nodos el usuario define el pipeline; la topología se valida y se aplica como preset al backend.
+- **Stack añadido**: `@astrojs/react@^4`, `react@^18`, `react-dom@^18`, `@xyflow/react@^12`, `@testing-library/react`. Astro config: integración `react()` + `manualChunks` para `vendor-xyflow` y `vendor-react` (convive con Preact signals del resto del frontend).
+- **Catálogo de 8 nodos**: input, audio_extractor, transcriber (Whisper), translator (Argos), subtitle_generator, tts_engine (Piper/Edge), audio_mixer (admite 2 entrantes audio-orig + audio-dub), output (admite 3: video + audio + subtitles).
+- **Validador `isValidConnection`**: rechaza tipo mismatch, ciclos (`getOutgoers`), exceso de entrantes por nodo, source sin salidas / sink sin entradas.
+- **Topología**: DAG lineal o con un único branch convergente en `audio_mixer`. `validateTopology` valida + `graphToConfig` genera `Partial<Config>` listo para `PUT /api/config`.
+- **Toolbar**: Start, Stop, Apply, Reset, Save preset, Load preset (sobre `POST /api/presets` existente).
+- **Inspector**: auto-genera form desde `configFields` (boolean / select / number / text). Para `input` y `output` muestra "configurar fuera del grafo".
+- **Live status**: `useLiveModuleStatus` hook con polling `GET /api/modules` cada 2s + WebSocket `WS /ws/logs` para detectar el nodo activo y pintar un pulse verde de 1.5s.
+- **Astro page**: `frontend/src/pages/graph.astro` con `<PipelineGraph client:only="react" />` dentro de `BaseLayout`. Build estático → `server/static/graph/index.html`.
+- **Tests**: 5 archivos nuevos — `nodeCatalog.test.ts` (10), `typedEdge.test.ts` (15), `serialize.test.ts` (17), `ModuleNode.test.tsx` (6), `InspectorPanel.test.tsx` (7). Total: 249/249 pass.
+- **Verificación**: `tsc --noEmit` 0 errores, `npm run build` 6 páginas OK (`/graph/index.html` generado), `mypy --strict core/ server/ modules/` 0 errores, `npm run lint` sin warnings nuevos.
+- **No se toca**: `index.astro`, `index_new.astro`, `core/`, `modules/`, `server/` (salvo `tests/unit/test_logging_setup.py` que se ejecutó para verificar subset del backend).
+- Detalles completos en `progress/current.md`.
 
 ### 04/06 — Subtítulos desincronizados F108
 

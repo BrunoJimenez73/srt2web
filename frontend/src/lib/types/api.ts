@@ -323,7 +323,6 @@ export interface TtsEngineConfig extends ModuleConfig {
 export interface AudioMixerConfig extends ModuleConfig {
   original_volume: number;
   tts_volume: number;
-  dubbed_volume: number;
 }
 
 export interface VideoMuxerConfig extends ModuleConfig {
@@ -459,6 +458,8 @@ export interface WebSocketMessage {
   message?: string;
   status?: Status;
   timestamp?: number;
+  /** Nombre del módulo emisor (campo opcional enviado por el servidor en mensajes de log). */
+  module?: ModuleName;
 }
 
 // ── Tipos de Outputs ───────────────────────────────────────────────────────────

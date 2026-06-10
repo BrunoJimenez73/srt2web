@@ -500,64 +500,19 @@ class TestDoProcessHLSIntegration:
 
 
 class TestHLSOutputMasterPlaylist:
-    """HLSOutput master playlist prefers subs.m3u8, falls back to subs.vtt."""
+    """
+    HLSOutput master playlist includes SUBTITLES EXT-X-MEDIA with DEFAULT=NO.
+    The track is listed in the native "..." menu with the correct language but
+    NOT auto-activated — no CC button appears. SubtitleRenderer renders via
+    custom div; enableCEA708Captions:false blocks embedded CEA-608/708 tracks.
+    """
 
-    def test_master_points_at_subs_m3u8_when_present(self, tmp_path: Path) -> None:
+    def test_master_playlist_has_subtitles_with_default_no(self, tmp_path: Path) -> None:
+        """Master must have SUBTITLES tag with DEFAULT=NO and correct language."""
         from modules.outputs.hls_output import HLSOutput
 
-        # Pre-create subs.m3u8 — HLSOutput should prefer it
-        subs_dir = tmp_path / "subtitles"
-        subs_dir.mkdir(parents=True)
-        (subs_dir / "subs.m3u8").write_text("#EXTM3U\n", encoding="utf-8")
-
         output = HLSOutput(
-            {"output_dir": str(tmp_path), "subtitle_language": "es", "subtitle_language_name": "Spanish"}
-        )
-        # Manually trigger master playlist creation (normally happens in write())
-        # but for the unit test, just check the path the URI logic chooses
-        from modules.outputs.hls_output import HLSOutput as _H  # noqa: F401
-
-        output._output_dir = str(tmp_path)
-
-        # Call the same logic the write() path uses: rebuild master manually
-        # by invoking _update_manifest indirectly. Instead, verify the URI
-        # selection logic by reading master.m3u8 after a write.
-        output._hls_dir = str(tmp_path / "hls")
-        os.makedirs(output._hls_dir, exist_ok=True)
-        output._segment_index = 0
-        output._total_duration_emitted = 0.0
-        output._first_segment_written = True
-
-        # Trigger the master playlist write by setting the flag path
-        # and then calling _update_manifest via a small write
-        with patch("modules.outputs.hls_output.subprocess.run") as mock_run:
-            mock_run.return_value.returncode = 0
-            mock_run.return_value.stderr = ""
-            seg_path = tmp_path / "hls" / "seg_000000.ts"
-            seg_path.parent.mkdir(parents=True, exist_ok=True)
-            seg_path.write_text("fake", encoding="utf-8")
-            output.write(
-                PipelineData(
-                    chunk_index=0,
-                    video_chunk_path=str(seg_path),
-                    duration=6.0,
-                )
-            )
-
-        master = (tmp_path / "hls" / "master.m3u8").read_text(encoding="utf-8")
-        assert "/subtitles/subs.m3u8" in master, "F108: master must point at subs.m3u8 when present"
-        assert "TYPE=SUBTITLES" in master
-
-    def test_master_falls_back_to_subs_vtt_when_m3u8_missing(self, tmp_path: Path) -> None:
-        from modules.outputs.hls_output import HLSOutput
-
-        # Legacy mode: only subs.vtt, no subs.m3u8
-        subs_dir = tmp_path / "subtitles"
-        subs_dir.mkdir(parents=True)
-        (subs_dir / "subs.vtt").write_text("WEBVTT\n", encoding="utf-8")
-
-        output = HLSOutput(
-            {"output_dir": str(tmp_path), "subtitle_language": "es", "subtitle_language_name": "Spanish"}
+            {"output_dir": str(tmp_path), "subtitle_language": "en", "subtitle_language_name": "English"}
         )
         output._output_dir = str(tmp_path)
         output._hls_dir = str(tmp_path / "hls")
@@ -581,8 +536,42 @@ class TestHLSOutputMasterPlaylist:
             )
 
         master = (tmp_path / "hls" / "master.m3u8").read_text(encoding="utf-8")
-        assert "/subtitles/subs.vtt" in master, "F108: must fall back to subs.vtt when subs.m3u8 missing"
-        assert "/subtitles/subs.m3u8" not in master
+        assert "TYPE=SUBTITLES" in master, "Master must have SUBTITLES tag"
+        assert "DEFAULT=NO" in master, "Track must be DEFAULT=NO"
+        assert 'LANGUAGE="en"' in master, "Language must match config"
+        assert 'NAME="English"' in master, "Name must match config"
+        assert 'SUBTITLES="subs"' in master, "STREAM-INF must reference subs group"
+
+    def test_master_playlist_contains_stream_inf(self, tmp_path: Path) -> None:
+        """Master playlist must contain EXT-X-STREAM-INF with stream.m3u8."""
+        from modules.outputs.hls_output import HLSOutput
+
+        output = HLSOutput({"output_dir": str(tmp_path)})
+        output._output_dir = str(tmp_path)
+        output._hls_dir = str(tmp_path / "hls")
+        os.makedirs(output._hls_dir, exist_ok=True)
+        output._segment_index = 0
+        output._total_duration_emitted = 0.0
+        output._first_segment_written = True
+
+        with patch("modules.outputs.hls_output.subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stderr = ""
+            seg_path = tmp_path / "hls" / "seg_000000.ts"
+            seg_path.parent.mkdir(parents=True, exist_ok=True)
+            seg_path.write_text("fake", encoding="utf-8")
+            output.write(
+                PipelineData(
+                    chunk_index=0,
+                    video_chunk_path=str(seg_path),
+                    duration=6.0,
+                )
+            )
+
+        master = (tmp_path / "hls" / "master.m3u8").read_text(encoding="utf-8")
+        assert "EXT-X-STREAM-INF" in master
+        assert "stream.m3u8" in master
+        assert "DEFAULT=NO" in master
 
 
 # ---------------------------------------------------------------------------
@@ -590,26 +579,20 @@ class TestHLSOutputMasterPlaylist:
 # ---------------------------------------------------------------------------
 
 
-class TestHLSOutputPreCreatesSubsM3U8:
-    """HLSOutput writes an empty subs.m3u8 on first chunk so URI is always valid."""
+class TestHLSOutputNoSubsPreCreation:
+    """HLSOutput start() no longer pre-creates subs.m3u8 (SubtitleGenerator handles it)."""
 
-    def test_subs_m3u8_exists_after_first_write(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_subs_m3u8_not_created_by_start(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from modules.outputs.hls_output import HLSOutput
 
-        # HLSOutput pre-creates subs.m3u8 relative to cwd (./output/subtitles).
-        # Run start() in a chdir so we can assert the file in isolation.
         monkeypatch.chdir(tmp_path)
-
-        output = HLSOutput({"subtitle_language": "es", "subtitle_language_name": "Spanish"})
-        # F108: HLSOutput.start() pre-creates an empty subs.m3u8 so the master
-        # playlist URI is always valid before the first fragment lands.
+        output = HLSOutput({})
         output.start()
 
         subs_m3u8 = tmp_path / "output" / "subtitles" / "subs.m3u8"
-        assert subs_m3u8.exists(), "F108: HLSOutput.start() should pre-create subs.m3u8"
-        content = subs_m3u8.read_text(encoding="utf-8")
-        assert content.startswith("#EXTM3U")
-        assert "#EXT-X-VERSION:3" in content
+        assert not subs_m3u8.exists(), (
+            "HLSOutput.start() should NOT pre-create subs.m3u8; SubtitleGenerator handles it"
+        )
 
 
 # ---------------------------------------------------------------------------

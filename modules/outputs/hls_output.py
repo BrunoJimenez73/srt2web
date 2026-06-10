@@ -16,7 +16,6 @@ import os
 import subprocess
 import sys
 import threading
-from pathlib import Path
 from typing import Any
 
 from core.encoder_config import EncoderConfig
@@ -72,6 +71,12 @@ class HLSOutput(OutputSink):
         # Actualizar configuración de encoder
         self._encoder_config = EncoderConfig(config)
 
+        # Actualizar idioma de subtítulos
+        if "subtitle_language" in config:
+            self._subtitle_language = config["subtitle_language"]
+        if "subtitle_language_name" in config:
+            self._subtitle_language_name = config["subtitle_language_name"]
+
         self.logger.info(
             f"HLS output reconfigured: segment={self._segment_duration}s, list_size={self._list_size}, "
             f"encoder_mode={self._encoder_config.encoder_mode}, video_preset={self._encoder_config.video_preset}"
@@ -114,44 +119,23 @@ class HLSOutput(OutputSink):
 
         self._segment_index = 0
 
-        # Create initial master playlist with correct language
+        # Create initial master playlist
+        # Subtitle track declared with DEFAULT=NO (not auto-activated, no CC button).
+        # enableCEA708Captions:false in the frontend blocks embedded CC tracks.
+        # SubtitleRenderer renders via custom div; native track from "..." menu
+        # also works and disables SubtitleRenderer to avoid double-rendering.
         master_path = os.path.join(self._hls_dir, "master.m3u8")
         try:
             with open(master_path, "w", encoding="utf-8") as master_file:
                 master_file.write("#EXTM3U\n")
                 master_file.write("#EXT-X-VERSION:4\n")
-                # F108: point at the HLS subtitle media playlist (subs.m3u8)
-                # so HLS.js can load subtitles natively — no polling, no flicker.
-                # Falls back to the legacy single-file subs.vtt if it pre-exists
-                # in the subtitles dir (recorded sessions, manual deploys).
-                subs_dir = os.path.join(self._output_dir or "./output", "subtitles")
-                media_playlist = os.path.join(subs_dir, "subs.m3u8")
-                legacy_single = os.path.join(subs_dir, "subs.vtt")
-                if os.path.exists(media_playlist):
-                    subs_uri = "/subtitles/subs.m3u8"
-                elif os.path.exists(legacy_single):
-                    subs_uri = "/subtitles/subs.vtt"
-                else:
-                    # Pre-create the HLS playlist so the URI is always valid once
-                    # the subtitle generator writes its first fragment.
-                    try:
-                        Path(media_playlist).parent.mkdir(parents=True, exist_ok=True)
-                        with open(media_playlist, "w", encoding="utf-8") as pf:
-                            pf.write("#EXTM3U\n")
-                            pf.write("#EXT-X-VERSION:3\n")
-                            pf.write("#EXT-X-TARGETDURATION:10\n")
-                            pf.write("#EXT-X-MEDIA-SEQUENCE:0\n")
-                    except OSError as exc:
-                        self.logger.warning(f"Could not pre-create subtitle playlist: {exc}")
-                    subs_uri = "/subtitles/subs.m3u8"
                 master_file.write(
-                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="{subs_uri}"\n'
+                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=NO,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="/subtitles/subs.m3u8"\n'
                 )
                 master_file.write(
                     '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"\n'
                 )
                 master_file.write("stream.m3u8\n")
-            self.logger.info(f"Created initial master playlist with language: {self._subtitle_language_name}")
         except Exception as e:
             self.logger.error(f"Failed to create initial master playlist: {e}")
 
@@ -183,8 +167,9 @@ class HLSOutput(OutputSink):
             self.logger.warning(f"No input video chunk for index {data.chunk_index}")
             return
 
-        # Determinar audio a usar
-        audio_input = data.mixed_audio_path or data.dubbed_audio_path
+        # Solo usar audio mezclado (original + TTS); nunca TTS solo.
+        # Si el mixer no está activo o falló, conservar el audio original del video.
+        audio_input = data.mixed_audio_path if data.mixed_audio_path and os.path.exists(data.mixed_audio_path) else None
 
         # Calcular offset de tiempo - usar cumulative_duration para sincronizar con subtitles
         offset_sec = f"{getattr(data, 'cumulative_duration', self._total_duration_emitted):.3f}"
@@ -259,14 +244,17 @@ class HLSOutput(OutputSink):
                 if result.returncode != 0:
                     self.logger.error(f"FFmpeg mux error: {result.stderr[-500:]}")
                     self._set_error(f"FFmpeg exit code {result.returncode}")
+                    self._segment_index += 1
                     return
             except subprocess.TimeoutExpired:
                 self.logger.error("FFmpeg mux timed out")
                 self._set_error("FFmpeg mux timed out")
+                self._segment_index += 1
                 return
             except Exception as e:
                 self.logger.error(f"FFmpeg mux exception: {e}")
                 self._set_error(str(e))
+                self._segment_index += 1
                 return
 
             self._total_duration_emitted += chunk_duration
@@ -338,16 +326,40 @@ class HLSOutput(OutputSink):
                 creationflags=get_creation_flags(),
             )
             if result.returncode != 0:
-                self.logger.error(f"FFmpeg mux error: {result.stderr[-500:]}")
-                self._set_error(f"FFmpeg exit code {result.returncode}")
-                return
+                # Fallback: retry with CPU encoder if GPU encoder failed
+                self.logger.warning(f"FFmpeg mux error (will retry with CPU): {result.stderr[-200:]}")
+                # Replace encoder command to use libx264
+                fallback_cmd = cmd.copy()
+                try:
+                    enc_idx = fallback_cmd.index("-c:v") + 1
+                    fallback_cmd[enc_idx] = "libx264"
+                except (ValueError, IndexError):
+                    pass
+                fallback_cmd.extend(["-preset", "fast"])
+                self.logger.info("Retrying segment with libx264 CPU encoder")
+                result = subprocess.run(
+                    filter_command(fallback_cmd),
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    timeout=120,
+                    creationflags=get_creation_flags(),
+                )
+                if result.returncode != 0:
+                    self.logger.error(f"FFmpeg CPU fallback also failed: {result.stderr[-500:]}")
+                    self._set_error(f"FFmpeg exit code {result.returncode}")
+                    self._segment_index += 1
+                    return
+                self.logger.info("CPU fallback succeeded")
         except subprocess.TimeoutExpired:
             self.logger.error("FFmpeg mux timed out")
             self._set_error("FFmpeg mux timed out")
+            self._segment_index += 1
             return
         except Exception as e:
             self.logger.error(f"FFmpeg mux exception: {e}")
             self._set_error(str(e))
+            self._segment_index += 1
             return
 
         self._total_duration_emitted += chunk_duration
@@ -493,48 +505,15 @@ class HLSOutput(OutputSink):
                 self.logger.error(f"Failed to write media playlist: {e}")
 
             # Escribir master playlist
-            # Check subtitles directory (where SubtitleGenerator writes) first, then hls dir
-            subs_dir = os.path.join(self._output_dir or "./output", "subtitles")
-            subs_path_local = os.path.join(subs_dir, "subs.vtt")
-            subs_path_hls = os.path.join(self._hls_dir, "subs.vtt")
-            subs_media_playlist = os.path.join(subs_dir, "subs.m3u8")
-            has_subs = (
-                os.path.exists(subs_media_playlist) or os.path.exists(subs_path_local) or os.path.exists(subs_path_hls)
-            )
-
-            # Check for dual track (alternative language)
-            alt_subs_path = os.path.join(subs_dir, "subs_original.vtt")
-            has_alt_subs = os.path.exists(alt_subs_path)
-
+            # Subtitle track with DEFAULT=NO — in the "..." menu but no CC button.
+            # enableCEA708Captions:false blocks embedded CEA-608/708 tracks.
             master_lines = [
                 "#EXTM3U",
                 "#EXT-X-VERSION:4",
+                f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=NO,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="/subtitles/subs.m3u8"',
+                '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"',
+                "stream.m3u8",
             ]
-
-            if has_subs:
-                # F108: prefer the HLS subtitle media playlist (subs.m3u8)
-                # so HLS.js loads subtitles natively. Fall back to the legacy
-                # single-file subs.vtt if the media playlist doesn't exist yet
-                # (e.g. legacy recording playback).
-                subs_uri = "/subtitles/subs.m3u8" if os.path.exists(subs_media_playlist) else "/subtitles/subs.vtt"
-                # Primary subtitle track
-                master_lines.append(
-                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="{subs_uri}"'
-                )
-                # Secondary track (original language) if dual track is active
-                if has_alt_subs:
-                    alt_lang = "en" if self._subtitle_language != "en" else "es"
-                    alt_name = "Original" if self._subtitle_language_name != "English" else "Translated"
-                    master_lines.append(
-                        f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{alt_name}",DEFAULT=NO,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{alt_lang}",URI="/subtitles/subs_original.vtt"'
-                    )
-                master_lines.append(
-                    '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"'
-                )
-            else:
-                master_lines.append('#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2"')
-
-            master_lines.append("stream.m3u8")
 
             try:
                 master_tmp = master_path + ".tmp"

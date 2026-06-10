@@ -331,26 +331,15 @@ class VideoMuxer(BaseModule):
                 logger.error(f"Failed to write media playlist: {e}")
 
             # 3. Write Master Playlist (master.m3u8)
-            # This is where we properly link subtitles for HLS.js
-            subs_vtt_path = self._hls_dir / "subs.vtt"
-            subs_exist = subs_vtt_path.exists()
-
+            # Subtitle track with DEFAULT=NO — in the "..." menu but no CC button.
+            # enableCEA708Captions:false blocks embedded CEA-608/708 tracks.
             master_lines = [
                 "#EXTM3U",
                 "#EXT-X-VERSION:4",
+                f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=NO,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="/subtitles/subs.m3u8"',
+                '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"',
+                "stream.m3u8",
             ]
-
-            if subs_exist:
-                master_lines.append(
-                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="subs.vtt"'
-                )
-                master_lines.append(
-                    '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"'
-                )
-            else:
-                master_lines.append('#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2"')
-
-            master_lines.append("stream.m3u8")
 
             try:
                 with open(master_playlist_path, "w", encoding="utf-8") as f:

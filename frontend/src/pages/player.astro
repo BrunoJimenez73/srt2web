@@ -18,7 +18,6 @@ const pageTitle = "SRT2Web — Live Player";
 <body>
     <div id="video-container">
     <video id="video-player" controls autoplay playsinline crossorigin="anonymous"></video>
-        <span id="player-subtitle-contract" hidden data-contract="subtitlesEnabled createElement appendChild firstTrack subtitleTracks SUBTITLE_TRACKS_UPDATED srclang label Spanish"></span>
         <div id="waiting" class="waiting-text">
             <span class="loading-spinner"></span>
             <span class="waiting-message">Esperando stream...</span>
@@ -31,6 +30,13 @@ const pageTitle = "SRT2Web — Live Player";
                 <button class="btn-retry" id="btn-retry">Reintentar</button>
             </div>
         </div>
+        <button id="btn-cc" class="cc-btn" title="Activar/desactivar subtítulos" aria-label="Subtítulos">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <path d="M8.5 10.5a1.5 1.5 0 0 1 2.5-1.1l1.4-1A3.5 3.5 0 1 0 9 14.5a3.5 3.5 0 0 0 2.4-1l-1.4-1a1.5 1.5 0 1 1-1.5-2z" />
+                <path d="M15.5 10.5a1.5 1.5 0 0 1 2.5-1.1l1.4-1A3.5 3.5 0 1 0 16 14.5a3.5 3.5 0 0 0 2.4-1l-1.4-1a1.5 1.5 0 1 1-1.5-2z" />
+            </svg>
+        </button>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js" integrity="sha384-1B+J55elPxu+trIhW7QThjZg3evX8C5P6zjB82Xnn46RKPAXpL+vkanRSjCidsJv" crossorigin="anonymous"></script>
     <script>
@@ -88,17 +94,79 @@ const pageTitle = "SRT2Web — Live Player";
         object-fit: contain;
     }
 
-    ::cue {
-        background-color: rgba(0, 0, 0, 0.8) !important;
-        color: #fff !important;
+    #subtitle-renderer-cue {
+        position: absolute;
+        bottom: 52px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: #fff;
+        background-color: rgba(0, 0, 0, 0.82);
+        padding: 6px 14px;
+        border-radius: 4px;
+        font-size: 1.2em;
         font-family: 'Inter', system-ui, sans-serif;
-        font-size: 1.2em !important;
         font-weight: 500;
-        padding: 4px 8px;
+        text-align: center;
+        pointer-events: none;
+        z-index: 10;
+        max-width: 80%;
+        line-height: 1.4;
+        display: none;
     }
 
-    video::-webkit-media-text-track-display {
-        background-color: rgba(0, 0, 0, 0.8) !important;
+    /* Hide ALL CC buttons across all browsers and Shadow DOM implementations */
+    video::-webkit-media-controls-toggle-closed-captions-button {
+        display: none !important;
+    }
+    video::-webkit-media-controls-overlay-toggle-closed-captions-button {
+        display: none !important;
+    }
+    video::-moz-media-controls-toggle-closed-captions-button {
+        display: none !important;
+    }
+    video::-ms-toggle-closed-captions-button {
+        display: none !important;
+    }
+    /* HLS.js injects its own CC button into the shadow DOM — hide by parent */
+    video + .hlsjs-subtitle-controls,
+    video ~ .hlsjs-subtitle-controls {
+        display: none !important;
+    }
+    /* Safari/WebKit native CC button in AVPlayer */
+    video::-webkit-media-controls {
+        --webkit-media-controls-toggle-closed-captions-button-display: none;
+    }
+
+    .cc-btn {
+        position: absolute;
+        bottom: 72px;
+        right: 12px;
+        z-index: 10;
+        background: rgba(0,0,0,0.55);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 6px;
+        color: rgba(255,255,255,0.6);
+        padding: 6px 7px;
+        cursor: pointer;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        opacity: 0;
+        line-height: 0;
+    }
+    .cc-btn.visible {
+        display: flex;
+        opacity: 1;
+    }
+    .cc-btn:hover {
+        background: rgba(0,0,0,0.75);
+        color: #fff;
+        border-color: rgba(255,255,255,0.35);
+    }
+    .cc-btn.active {
+        color: #818cf8;
+        border-color: #818cf8;
     }
 
     .waiting-text {

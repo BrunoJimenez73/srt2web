@@ -170,13 +170,6 @@ export function collectConfigFromUI(): Partial<Config> {
           ) as HTMLInputElement
         )?.value || String(DEFAULTS.TTS_VOLUME),
       ),
-      dubbed_volume: parseFloat(
-        (
-          document.getElementById(
-            "audio-mixer-dubbed-volume",
-          ) as HTMLInputElement
-        )?.value || String(DEFAULTS.TTS_VOLUME),
-      ),
     },
     video_muxer: {
       enabled:
@@ -507,14 +500,14 @@ export function applyConfigToUI(cfg: Config): void {
   ) as HTMLInputElement;
   if (originalVolume)
     originalVolume.value = String(
-      cfg.modules.audio_mixer?.original_volume ?? 0.3,
+      cfg.modules.audio_mixer?.original_volume ?? 0.7,
     );
   const originalValue = document.getElementById(
     "audio-mixer-original-value",
   ) as HTMLSpanElement;
   if (originalValue)
     originalValue.textContent = String(
-      cfg.modules.audio_mixer?.original_volume ?? 0.3,
+      cfg.modules.audio_mixer?.original_volume ?? 0.7,
     );
 
   const ttsVolume = document.getElementById(
@@ -522,18 +515,14 @@ export function applyConfigToUI(cfg: Config): void {
   ) as HTMLInputElement;
   if (ttsVolume)
     ttsVolume.value = String(
-      cfg.modules.audio_mixer?.tts_volume ??
-        cfg.modules.audio_mixer?.dubbed_volume ??
-        1.0,
+      cfg.modules.audio_mixer?.tts_volume ?? 1.0,
     );
   const ttsValue = document.getElementById(
     "audio-mixer-dubbed-value",
   ) as HTMLSpanElement;
   if (ttsValue)
     ttsValue.textContent = String(
-      cfg.modules.audio_mixer?.tts_volume ??
-        cfg.modules.audio_mixer?.dubbed_volume ??
-        1.0,
+      cfg.modules.audio_mixer?.tts_volume ?? 1.0,
     );
 
   if (hlsSegment)

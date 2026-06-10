@@ -1,22 +1,13 @@
 /**
- * Módulo para el reproductor HLS con subtítulos nativos.
+ * Módulo para el reproductor HLS.
  *
- * F108: Subtitles are loaded natively by HLS.js via the subtitle media
- * playlist declared in the video master playlist
- * (`EXT-X-MEDIA:TYPE=SUBTITLES,URI="/subtitles/subs.m3u8"`). The
- * `player-subtitles.ts` helper activates the first track after
- * MANIFEST_PARSED. There is no polling and no manual VTTCue management
- * here anymore — hls.js handles the per-chunk fragment download, the
- * VTTCue parsing, and the timing relative to `currentTime`.
+ * Subtitles are rendered by SubtitleRenderer (custom VTT polling +
+ * positioned div) instead of relying on HLS.js native track support,
+ * which is unreliable with live rolling-window playlists.
  */
 
 import { logger } from "../utils/logger";
-import {
-  activateFirstSubtitleTrack,
-  disableSubtitles,
-  onSubtitleTrackListChange,
-} from "./player-subtitles";
-import type { HlsLike } from "./player-subtitles";
+import { SubtitleRenderer } from "./subtitle-renderer";
 
 // HLS.js type declarations - must be before usage
 declare const Hls: HlsStatic | undefined;
@@ -37,14 +28,6 @@ interface HlsInstance {
   destroy(): void;
   on(event: string, callback: (...args: unknown[]) => void): void;
   once(event: string, callback: (...args: unknown[]) => void): void;
-  subtitleTrack: number;
-  subtitleDisplay: boolean;
-  subtitleTracks: ReadonlyArray<{
-    id: number;
-    name?: string;
-    lang?: string;
-    type?: string;
-  }>;
 }
 
 interface HlsConfig {
@@ -57,6 +40,7 @@ interface HlsConfig {
   maxMaxBufferLength: number;
   liveSyncMaxLatency: number;
   liveDurationInfinity: boolean;
+  enableCEA708Captions: boolean;
 }
 
 // HLS Events enum
@@ -65,7 +49,6 @@ const HlsEvents = {
   ERROR: "hlsError",
   FRAG_BUFFERED: "hlsFragBuffered",
   LEVEL_SWITCH: "hlsLevelSwitch",
-  SUBTITLE_TRACKS_UPDATED: "hlsSubtitleTracksUpdated",
 };
 
 // HLS Error Types enum
@@ -87,10 +70,12 @@ const MAX_CONSECUTIVE_ERRORS = 5;
 
 export function initHlsPlayer(): void {
   const video = document.getElementById("video-player") as HTMLVideoElement;
+  const container = document.getElementById("video-container") as HTMLElement;
   const waitingEl = document.getElementById("waiting");
   const errorOverlay = document.getElementById("error-overlay");
   const errorMessage = document.getElementById("error-message");
   const btnRetry = document.getElementById("btn-retry");
+  const btnCC = document.getElementById("btn-cc") as HTMLButtonElement;
 
   if (!video) {
     logger.error("player", "Video element not found");
@@ -99,11 +84,12 @@ export function initHlsPlayer(): void {
 
   // Cache buster to prevent loading stale HLS segments from previous sessions
   const _sessionTs = Date.now();
-  const streamUrl = `${window.location.origin}/hls/stream.m3u8?_=${_sessionTs}`;
+  const streamUrl = `${window.location.origin}/hls/master.m3u8?_=${_sessionTs}`;
   let hls: HlsInstance | null = null;
-  let unsubscribeSubtitleUpdates: (() => void) | null = null;
+  let renderer: SubtitleRenderer | null = null;
   let isConnected = false;
-  let lastManifestTime = 0;
+  let subtitlesEnabled = true;
+  let nativeTrackCheck: ReturnType<typeof setInterval> | null = null;
 
   function showError(message: string) {
     if (errorOverlay) errorOverlay.style.display = "flex";
@@ -182,7 +168,7 @@ export function initHlsPlayer(): void {
 
     // Update cache buster for fresh session
     const ts = Date.now();
-    const freshStreamUrl = `${window.location.origin}/hls/stream.m3u8?_=${ts}`;
+    const freshStreamUrl = `${window.location.origin}/hls/master.m3u8?_=${ts}`;
 
     // Best-effort: ask the service worker to drop any previously cached live content
     // so a stale segment from a prior pipeline session cannot leak into the new one.
@@ -205,29 +191,17 @@ export function initHlsPlayer(): void {
         maxMaxBufferLength: 60,
         liveSyncMaxLatency: 10,
         liveDurationInfinity: true,
+        // Disable CEA-708 caption parsing so embedded closed captions from the
+        // MPEG-TS stream don't create native subtitle tracks. These would show
+        // a CC button/label and "Spanish" in the player menu regardless of the
+        // actual language. Our custom SubtitleRenderer handles subtitles instead.
+        enableCEA708Captions: false,
       });
 
-      // Subscribe to subtitle track updates so we re-activate when the
-      // manifest is re-parsed (e.g. after a reconnect). The unsubscribe
-      // function is stored and called on disconnect so we don't leak.
-      unsubscribeSubtitleUpdates = onSubtitleTrackListChange(
-        hls as unknown as HlsLike,
-        (tracks) => {
-          logger.debug(
-            "player",
-            "Subtitle tracks updated",
-            tracks.length,
-            tracks.map((t) => t.lang ?? "?").join(","),
-          );
-          // Re-activate the first track after each list refresh so the
-          // user doesn't end up with no subtitles if the manifest is
-          // re-parsed mid-session.
-          activateFirstSubtitleTrack(hls as unknown as HlsLike, {
-            preferredLang: "es",
-            showSubtitles: true,
-          });
-        },
-      );
+      // Subtitle renderer polls /subtitles/subs.m3u8 independently of
+      // HLS.js — no native track management required.
+      renderer = new SubtitleRenderer();
+      renderer.start(video, container);
 
       // IMPORTANT: register handlers BEFORE loadSource/attachMedia.
       // HLS.js emits MANIFEST_PARSED synchronously after parsing the manifest
@@ -237,18 +211,9 @@ export function initHlsPlayer(): void {
       hls.on(HlsEvents.MANIFEST_PARSED, () => {
         if (waitingEl) waitingEl.style.display = "none";
         isConnected = true;
-        lastManifestTime = Date.now();
         video.play().catch(handlePlayError);
 
-        // F108: activate the first subtitle track declared in the
-        // master playlist. HLS.js will load subs.m3u8 natively, parse
-        // per-chunk fragments, and render cues at the right currentTime.
-        const trackId = activateFirstSubtitleTrack(hls as unknown as HlsLike, {
-          preferredLang: "es",
-          showSubtitles: true,
-        });
-        logger.info("player", "Subtitle track activation result", trackId);
-
+        updateSubtitleUI(0);
         startHealthCheck();
       });
 
@@ -275,6 +240,7 @@ export function initHlsPlayer(): void {
 
       hls.once(HlsEvents.FRAG_BUFFERED, () => {
         startHealthCheck();
+        startNativeTrackSync();
       });
 
       hls.loadSource(freshStreamUrl);
@@ -306,14 +272,49 @@ export function initHlsPlayer(): void {
     }
   }
 
+  /** Monitor native text track mode changes from the "..." menu.
+   *  When the user activates the native subtitle track, disable our
+   *  SubtitleRenderer to avoid double-rendering. When deactivated, re-enable it. */
+  function startNativeTrackSync(): void {
+    stopNativeTrackSync();
+    nativeTrackCheck = setInterval(() => {
+      if (!video || !renderer) return;
+      const tracks = video.textTracks;
+      let nativeShowing = false;
+      for (let i = 0; i < tracks.length; i++) {
+        const t = tracks[i];
+        if ((t.kind === "subtitles" || t.kind === "captions") && t.mode === "showing") {
+          nativeShowing = true;
+          break;
+        }
+      }
+      if (nativeShowing && subtitlesEnabled) {
+        subtitlesEnabled = false;
+        renderer.setEnabled(false);
+        if (btnCC) btnCC.classList.remove("active");
+      } else if (!nativeShowing && !subtitlesEnabled) {
+        subtitlesEnabled = true;
+        renderer.setEnabled(true);
+        if (btnCC) btnCC.classList.add("active");
+      }
+    }, 1000);
+  }
+
+  function stopNativeTrackSync(): void {
+    if (nativeTrackCheck) {
+      clearInterval(nativeTrackCheck);
+      nativeTrackCheck = null;
+    }
+  }
+
   function disconnect() {
     stopHealthCheck();
-    if (unsubscribeSubtitleUpdates) {
-      unsubscribeSubtitleUpdates();
-      unsubscribeSubtitleUpdates = null;
+    stopNativeTrackSync();
+    if (renderer) {
+      renderer.stop();
+      renderer = null;
     }
     if (hls) {
-      disableSubtitles(hls as unknown as HlsLike);
       hls.stopLoad();
       hls.destroy();
       hls = null;
@@ -326,6 +327,29 @@ export function initHlsPlayer(): void {
       disconnect();
       connect();
     });
+  }
+
+  function toggleSubtitles() {
+    if (!renderer) return;
+    subtitlesEnabled = !subtitlesEnabled;
+    renderer.setEnabled(subtitlesEnabled);
+    if (btnCC) btnCC.classList.toggle("active", subtitlesEnabled);
+    logger.info("player", "Subtitles", subtitlesEnabled ? "enabled" : "disabled");
+  }
+
+  if (btnCC) {
+    btnCC.addEventListener("click", toggleSubtitles);
+  }
+
+  function updateSubtitleUI(tracksCount: number) {
+    if (!btnCC) return;
+    if (tracksCount > 0) {
+      btnCC.classList.add("visible");
+      if (subtitlesEnabled) btnCC.classList.add("active");
+      else btnCC.classList.remove("active");
+    } else {
+      btnCC.classList.remove("visible", "active");
+    }
   }
 
   window.addEventListener("beforeunload", () => {

@@ -9,11 +9,32 @@ import logging
 from typing import Any
 
 from core.config_manager import ConfigManager
+from core.constants import LANGUAGE_NAMES
 from core.io_factory import InputFactory, OutputFactory, auto_discover
 from core.unified_pipeline import PipelineMode, UnifiedPipeline
 from server.ws_routes import log_broadcaster
 
 logger = logging.getLogger("srt2web.app_context")
+
+
+def _get_subtitle_language(config_manager: ConfigManager) -> tuple[str, str]:
+    """Determine subtitle language from translator/subtitle_generator config."""
+    translator_cfg = config_manager.get_section("modules.translator") or {}
+    sub_gen_cfg = config_manager.get_section("modules.subtitle_generator") or {}
+    use_translated = sub_gen_cfg.get("use_translated", True)
+    lang = translator_cfg.get("target_lang", "en") if use_translated else translator_cfg.get("source_lang", "es")
+    name = LANGUAGE_NAMES.get(lang, lang.capitalize())
+    return lang, name
+
+
+def _inject_subtitle_language(out_cfg: dict[str, Any], config_manager: ConfigManager) -> None:
+    """Inject subtitle_language and subtitle_language_name into output config
+    if not already set."""
+    if "subtitle_language" in out_cfg and "subtitle_language_name" in out_cfg:
+        return
+    lang, name = _get_subtitle_language(config_manager)
+    out_cfg.setdefault("subtitle_language", lang)
+    out_cfg.setdefault("subtitle_language_name", name)
 
 
 def create_app_context(
@@ -59,6 +80,8 @@ def create_app_context(
             if not out_name or not out_type:
                 logger.warning(f"Skipping invalid output entry: {entry}")
                 continue
+            # Propagate subtitle language from translator/subtitle_generator config
+            _inject_subtitle_language(out_cfg, config_manager)
             try:
                 # Merge with video_muxer module config so enabled/encoder settings propagate from init
                 video_muxer_cfg = config_manager.get_section("modules.video_muxer")
@@ -74,6 +97,8 @@ def create_app_context(
     else:
         output_type = output_config.get("type", "web")
         type_config = output_config.get(output_type, {})
+        # Propagate subtitle language from translator/subtitle_generator config
+        _inject_subtitle_language(type_config, config_manager)
         # Merge with video_muxer module config so enabled/encoder settings propagate from init
         video_muxer_cfg = config_manager.get_section("modules.video_muxer")
         if video_muxer_cfg:
