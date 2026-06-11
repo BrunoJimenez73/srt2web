@@ -289,7 +289,7 @@ class APIClient:
 
     async def login(self, username: str, password: str) -> str:
         data: dict[str, Any] = await self._post("/api/auth/login", {"username": username, "password": password})
-        self.token = cast(str, data.get("token", ""))
+        self.token = cast(str, data.get("access_token", ""))
         self._client.headers.update(self._headers())
         return self.token
 

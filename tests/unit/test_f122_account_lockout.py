@@ -284,8 +284,8 @@ class TestLoginRoute:
         import asyncio
 
         result = asyncio.run(login(LoginRequest(username="admin", password="MyStr0ng!Pass")))
-        assert "token" in result
-        assert result["token"] is not None
+        assert "access_token" in result
+        assert result["access_token"] is not None
 
 
 class TestUnlockRoute:

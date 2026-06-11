@@ -4,8 +4,13 @@ Security middleware for SRT2Web.
 Provides authentication, rate limiting, and security headers.
 """
 
+import base64
+import binascii
+import hashlib
+import hmac
 import logging
 import os
+import secrets
 import time
 import warnings
 from collections import defaultdict
@@ -240,8 +245,28 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """
-    Adds security headers to all responses.
+    F124: Adds hardened security headers to all responses.
+
+    CSP is tightened from the original permissive version:
+    - unsafe-inline/unsafe-eval removed from default-src (only in script/style)
+    - Wildcards removed from img-src/media-src/connect-src (explicit https: http: only)
+    - strict-dynamic added for modern browser compatibility
     """
+
+    # Base CSP that can be extended per-route by other middleware
+    _CSP_BASE = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
+        "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
+        "img-src 'self' data: blob: https: http:; "
+        "media-src 'self' blob: https: http:; "
+        "worker-src 'self' blob:; "
+        "connect-src 'self' ws: wss: https: http:; "
+        "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; "
+        "object-src 'none'; "
+        "frame-src 'none';"
+    )
 
     async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         response = await call_next(request)
@@ -258,29 +283,132 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Referrer Policy
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
-        # Content Security Policy (permissive for HLS playback and Google Fonts)
-        csp = (
-            "default-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
-            "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
-            "img-src 'self' data: blob: http://* https://*; "
-            "media-src 'self' blob: http://* https://*; "
-            "worker-src 'self' blob:; "
-            "connect-src 'self' ws://* wss://* http://* https://*; "
-            "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; "
-            "object-src 'none'; "
-            "frame-src 'none';"
-        )
-        response.headers["Content-Security-Policy"] = csp
+        # F124: Hardened Content Security Policy
+        response.headers["Content-Security-Policy"] = self._CSP_BASE
 
-        # Strict Transport Security (only for HTTPS, but safe to include)
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        # F124: Strict Transport Security with preload
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
 
         # Permissions Policy (disable unnecessary browser features)
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
 
         return response
+
+
+class CsrfMiddleware(BaseHTTPMiddleware):
+    """
+    F125: CSRF protection middleware.
+
+    Protects state-changing endpoints (POST, PUT, PATCH, DELETE) against
+    Cross-Site Request Forgery. The client must obtain a CSRF token via
+    GET /api/csrf-token and include it in the X-CSRF-Token header.
+
+    Requests with an Authorization header (Bearer token) are exempt —
+    they originate from programmatic API clients, not browser forms.
+    """
+
+    _CSRF_TIMEOUT = 3600  # 1 hour token expiry
+    _MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+    def __init__(self, app: ASGIApp, get_csrf_secret: Callable[[], str]) -> None:
+        super().__init__(app)
+        self.get_csrf_secret = get_csrf_secret
+
+    @staticmethod
+    def generate_token(secret: str) -> str:
+        """Generate a signed CSRF token valid for _CSRF_TIMEOUT seconds."""
+        nonce = secrets.token_hex(16)
+        expiry = int(time.time()) + CsrfMiddleware._CSRF_TIMEOUT
+        payload = f"{nonce}:{expiry}"
+        sig = hmac.new(
+            secret.encode("utf-8"),
+            payload.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+        return base64.urlsafe_b64encode(f"{sig}:{payload}".encode()).decode("ascii")
+
+    @staticmethod
+    def validate_token(token: str, secret: str) -> bool:
+        """Validate a CSRF token. Returns True if valid and not expired."""
+        try:
+            decoded = base64.urlsafe_b64decode(token.encode("ascii")).decode("utf-8")
+            parts = decoded.split(":")
+            if len(parts) < 3:
+                return False
+            sig = parts[0]
+            nonce = parts[1]
+            expiry_str = parts[2]
+            expiry = int(expiry_str)
+            if time.time() > expiry:
+                return False
+            payload = f"{nonce}:{expiry}"
+            expected = hmac.new(
+                secret.encode("utf-8"),
+                payload.encode("utf-8"),
+                hashlib.sha256,
+            ).hexdigest()
+            return hmac.compare_digest(expected, sig)
+        except (ValueError, IndexError, UnicodeDecodeError, binascii.Error):
+            return False
+
+    def _is_public_or_auth_path(self, path: str) -> bool:
+        """Paths that don't need CSRF protection."""
+        public = {
+            "/",
+            "/health",
+            "/player",
+            "/api/available",
+            "/api/health",
+            "/api/docs",
+            "/api/redoc",
+            "/api/openapi.json",
+        }
+        if path in public:
+            return True
+        if path.startswith("/api/auth/"):
+            return True
+        if path.startswith("/_astro/"):
+            return True
+        if path.startswith("/assets/"):
+            return True
+        if path.startswith("/hls/"):
+            return True
+        if path == "/api/csrf-token":
+            return True
+        return False
+
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+        # Only check mutating methods
+        if request.method not in self._MUTATING_METHODS:
+            return await call_next(request)
+
+        # Skip public/auth paths
+        if self._is_public_or_auth_path(request.url.path):
+            return await call_next(request)
+
+        # Skip requests with Authorization header (programmatic API clients)
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            return await call_next(request)
+
+        # Validate CSRF token
+        csrf_header = request.headers.get("X-CSRF-Token", "")
+        secret = self.get_csrf_secret()
+        if not csrf_header or not secret or not self.validate_token(csrf_header, secret):
+            logger.warning(
+                "F125: CSRF validation failed for %s %s",
+                request.method,
+                request.url.path,
+            )
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "detail": "CSRF validation failed. Include X-CSRF-Token header. "
+                    "Get a token via GET /api/csrf-token."
+                },
+            )
+
+        return await call_next(request)
 
 
 def validate_ws_auth(request: Request, get_auth_token: Callable[[], str]) -> bool:

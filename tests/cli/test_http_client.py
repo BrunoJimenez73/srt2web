@@ -291,7 +291,7 @@ class TestAPIClientHTTP:
 
     @pytest.mark.asyncio
     async def test_login(self, mock_httpx):
-        mock_httpx.post.return_value = _mock_response({"token": "jwt123", "user": {"username": "admin"}})
+        mock_httpx.post.return_value = _mock_response({"access_token": "jwt123", "user": {"username": "admin"}})
         api = APIClient()
         token = await api.login("admin", "secret")
         assert token == "jwt123"

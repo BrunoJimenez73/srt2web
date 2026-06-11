@@ -22,6 +22,9 @@ import jwt
 
 logger = logging.getLogger(__name__)
 
+# F124: Security audit logger — always goes to security.log
+_security_logger = logging.getLogger("srt2web.security")
+
 # F118: No hardcoded fallback. validate_secrets() in main.py blocks startup
 # if SRT2WEB_JWT_SECRET is empty. The empty string here is intentional — it
 # means "no secret configured" and will fail jwt.encode/decode.
@@ -355,6 +358,11 @@ class AuthDB:
             locked_until = user.get("locked_until", 0.0)
             if locked_until > now:
                 logger.debug(f"F122: Login rejected for locked account '{username}'")
+                _security_logger.warning(
+                    "Rejected login for locked account '%s' (locked %ds remaining)",
+                    username,
+                    int(locked_until - now),
+                )
                 return None
 
             # F122: Auto-expire lock if time passed
@@ -382,11 +390,24 @@ class AuthDB:
                 # F122: Track failed attempt
                 attempts = user.get("failed_attempts", 0) + 1
                 user["failed_attempts"] = attempts
+                # F124: Log security event
+                _security_logger.warning(
+                    "Failed login attempt for '%s' (attempt %d/%d)",
+                    username,
+                    attempts,
+                    _MAX_FAILED_ATTEMPTS,
+                )
                 if attempts >= _MAX_FAILED_ATTEMPTS:
                     user["locked_until"] = now + _LOCKOUT_DURATION_SECONDS
                     logger.warning(
                         f"F122: Account '{username}' locked for {_LOCKOUT_DURATION_SECONDS}s"
                         f" after {attempts} failed attempts"
+                    )
+                    _security_logger.warning(
+                        "Account locked: '%s' for %ds after %d failed attempts",
+                        username,
+                        _LOCKOUT_DURATION_SECONDS,
+                        attempts,
                     )
                 _save_users(self._users)
                 return None
@@ -440,6 +461,7 @@ class AuthDB:
             user["locked_until"] = 0.0
             _save_users(self._users)
             logger.info(f"F122: Account '{username}' manually unlocked")
+            _security_logger.info("Account manually unlocked: '%s'", username)
             return True
 
     def list_users(self) -> list[dict[str, Any]]:

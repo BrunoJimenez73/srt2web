@@ -8,9 +8,10 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 import core.auth_db
+from core.security import sanitize_string, sanitize_username
 
 logger = logging.getLogger("srt2web.api.auth")
 
@@ -25,27 +26,57 @@ def _get_auth_db() -> core.auth_db.AuthDB:
 
 
 class LoginRequest(BaseModel):
-    username: str = Field(min_length=1)
-    password: str = Field(min_length=1)
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=128)
+
+    @field_validator("username")
+    @classmethod
+    def _sanitize_username(cls, v: str) -> str:
+        return sanitize_username(v)
+
+    @field_validator("password")
+    @classmethod
+    def _sanitize_password(cls, v: str) -> str:
+        return sanitize_string(v, max_length=128, strip_html=False)
 
 
 class RegisterRequest(BaseModel):
-    username: str = Field(min_length=3, max_length=32)
+    username: str = Field(min_length=3, max_length=64)
     password: str = Field(min_length=1, max_length=128)
-    role: str = Field(default="viewer")
+    role: str = Field(default="viewer", pattern=r"^(viewer|operator|admin)$")
+
+    @field_validator("username")
+    @classmethod
+    def _sanitize_username(cls, v: str) -> str:
+        return sanitize_username(v)
+
+    @field_validator("password")
+    @classmethod
+    def _sanitize_password(cls, v: str) -> str:
+        return sanitize_string(v, max_length=128, strip_html=False)
 
 
 class RoleUpdateRequest(BaseModel):
-    role: str
+    role: str = Field(pattern=r"^(viewer|operator|admin)$")
 
 
 class ChangePasswordRequest(BaseModel):
-    old_password: str = Field(min_length=1)
+    old_password: str = Field(min_length=1, max_length=128)
     new_password: str = Field(min_length=1, max_length=128)
+
+    @field_validator("old_password", "new_password")
+    @classmethod
+    def _sanitize_password(cls, v: str) -> str:
+        return sanitize_string(v, max_length=128, strip_html=False)
 
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(min_length=1)
+
+    @field_validator("refresh_token")
+    @classmethod
+    def _sanitize_token(cls, v: str) -> str:
+        return sanitize_string(v, max_length=2048, strip_html=False, strip_control=True)
 
 
 def _get_current_user(request: Request) -> dict[str, Any]:
@@ -137,6 +168,23 @@ async def refresh_token(body: RefreshTokenRequest) -> dict[str, Any]:
     return tokens
 
 
+@router.get("/auth/csrf-token")
+async def csrf_token(request: Request) -> dict[str, Any]:
+    """Return a CSRF token for use in X-CSRF-Token header.
+
+    F125: Requires authentication. The token is signed with the JWT secret
+    and expires after 1 hour.
+    """
+    from core.auth_db import JWT_SECRET_KEY
+    from server.security import CsrfMiddleware
+
+    _get_current_user(request)
+    if not JWT_SECRET_KEY:
+        raise HTTPException(503, "JWT secret not configured")
+    token = CsrfMiddleware.generate_token(JWT_SECRET_KEY)
+    return {"csrf_token": token, "token_type": "csrf", "expires_in": 3600}
+
+
 @router.get("/auth/me")
 async def get_me(request: Request) -> dict[str, Any]:
     """Get current user info from token."""
@@ -149,8 +197,7 @@ async def get_me(request: Request) -> dict[str, Any]:
 
 @router.post("/auth/register")
 async def register(body: RegisterRequest, request: Request) -> dict[str, Any]:
-    """Register a new user (admin only)."""
-    _get_current_user(request)  # Verify auth
+    """Register a new user (admin only). F126: inputs sanitized via model validators."""
     admin = _get_current_user(request)
     if not _get_auth_db().has_permission(admin["role"], "admin"):
         raise HTTPException(403, "Only admins can register new users")
@@ -172,7 +219,8 @@ async def list_users(request: Request) -> dict[str, Any]:
 
 @router.delete("/auth/users/{username}")
 async def delete_user(username: str, request: Request) -> dict[str, Any]:
-    """Delete a user (admin only)."""
+    """Delete a user (admin only). F126: path param sanitized."""
+    username = sanitize_username(username, max_length=64)
     admin = _get_current_user(request)
     if not _get_auth_db().has_permission(admin["role"], "admin"):
         raise HTTPException(403, "Only admins can delete users")
@@ -183,7 +231,8 @@ async def delete_user(username: str, request: Request) -> dict[str, Any]:
 
 @router.put("/auth/users/{username}/role")
 async def update_role(username: str, body: RoleUpdateRequest, request: Request) -> dict[str, Any]:
-    """Update a user's role (admin only)."""
+    """Update a user's role (admin only). F126: inputs sanitized."""
+    username = sanitize_username(username, max_length=64)
     admin = _get_current_user(request)
     if not _get_auth_db().has_permission(admin["role"], "admin"):
         raise HTTPException(403, "Only admins can change roles")
@@ -204,7 +253,8 @@ async def change_password(body: ChangePasswordRequest, request: Request) -> dict
 
 @router.post("/auth/users/{username}/unlock")
 async def unlock_user(username: str, request: Request) -> dict[str, Any]:
-    """Unlock a user account (admin only). F122."""
+    """Unlock a user account (admin only). F122. F126: path param sanitized."""
+    username = sanitize_username(username, max_length=64)
     admin = _get_current_user(request)
     if not _get_auth_db().has_permission(admin["role"], "admin"):
         raise HTTPException(403, "Only admins can unlock accounts")

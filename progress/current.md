@@ -1,31 +1,36 @@
-# Sesión actual — F121+F122 cerrados: password_policy + account_lockout (2026-06-11)
+# Sesión actual — F121+F122+F123 cerrados: password_policy + account_lockout + session_security (2026-06-11)
 
 ## Estado
 
-| Check                                               | Estado | Notas                                                       |
-| --------------------------------------------------- | ------ | ----------------------------------------------------------- |
-| Python 3.14.3                                       | OK     |                                                             |
-| feature_list.json                                   | OK     | 106 features (121 done, 122 done, 123-126 pending)          |
-| pytest tests/unit/ (auth subset)                    | OK     | 69/69 pass (24 multi_user + 9 security + 18 F121 + 18 F122) |
-| mypy --strict core/auth_db.py server/routes/auth.py | OK     | 0 errores                                                   |
+| Check                                                                         | Estado | Notas                                                                 |
+| ----------------------------------------------------------------------------- | ------ | --------------------------------------------------------------------- |
+| Python 3.14.3                                                                 | OK     |                                                                       |
+| feature_list.json                                                             | OK     | 103/106 done (121-123 done, 124-126 pending)                          |
+| pytest tests/unit/ (auth subset)                                              | OK     | 99/99 pass (24 multi_user + 9 security + 18 F121 + 18 F122 + 30 F123) |
+| pytest tests/cli/test_http_client.py                                          | OK     | 37/37 pass                                                            |
+| mypy --strict core/auth_db.py server/routes/auth.py cli/client/http_client.py | OK     | 0 errores                                                             |
 
 ---
 
-## F122 cerrado ✅ — `account_lockout`
+## F123 cerrado ✅ — `session_security`
 
-**Resumen**: Bloqueo de cuentas tras 5 intentos fallidos en 15 min. Lockout dura 30 min, auto-expira. Login exitoso resetea contador. Endpoint `POST /auth/users/{username}/unlock` para admin.
+JWT short-lived access tokens (15 min) + long-lived refresh tokens (7 días con rotation) + blacklist server-side.
 
 ### Cambios
 
-| Archivo                                   | Cambio                                                                                                                                                       |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `core/auth_db.py`                         | `authenticate()` trackea `failed_attempts`, bloquea tras 5 fallos (`locked_until`). `is_locked()` check. `unlock_user()` admin. Auto-expire en authenticate. |
-| `server/routes/auth.py`                   | Login retorna 423 si cuenta bloqueada. Nuevo `POST /auth/users/{username}/unlock` (admin only).                                                              |
-| `tests/unit/test_f122_account_lockout.py` | 18 tests: lockout, auto-expiry, unlock, route 423, lockout fields.                                                                                           |
+| Archivo                                    | Cambio                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core/auth_db.py`                          | `authenticate()` retorna access token de 15 min con `jti`+`type="access"`. Nueva `authenticate_full()` retorna token pair. `_generate_access_token()`/`_generate_refresh_token()`. `refresh_token()` con rotation (revoca old, emite nuevo par). `decode_token()` chequea blacklist via `jti`. `revoke_token()` añade jti a la blacklist. |
+| `server/routes/auth.py`                    | Login retorna `{"access_token", "refresh_token", "token_type", "user"}`. Logout revoca el token bearer. Nuevo `POST /auth/refresh` con rotation.                                                                                                                                                                                          |
+| `cli/client/http_client.py`                | `login()` lee `access_token` en vez de `token`.                                                                                                                                                                                                                                                                                           |
+| `tests/unit/test_f123_session_security.py` | 30 tests: access token type/jti/exp/unicidad, refresh token pair/rotation/type-check/expiry/disabled-user/deleted-user, blacklist revoke/decode/invalid/expired + logout/refresh route integration.                                                                                                                                       |
 
 ### Verificación
 
-- 69 auth tests pass, mypy 0 errores
+- `pytest tests/unit/test_f123_session_security.py -v`: 30/30 pass
+- 99 auth tests pass (sin regresiones)
+- 37 CLI HTTP client tests pass
+- `mypy --strict`: 0 errores
 
 ---
 

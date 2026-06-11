@@ -61,7 +61,7 @@ def _ensure_admin() -> tuple[str, str]:
 def _login(client: TestClient, username: str = "admin", password: str = "admin") -> str:
     resp = client.post("/api/auth/login", json={"username": username, "password": password})
     assert resp.status_code == 200
-    return resp.json()["token"]
+    return resp.json()["access_token"]
 
 
 class TestAuthRoutes:

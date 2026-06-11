@@ -13,6 +13,7 @@ import pytest
 
 def _clean_db():
     from core.auth_db import USERS_FILE
+
     if USERS_FILE.exists():
         USERS_FILE.unlink()
 
@@ -20,6 +21,7 @@ def _clean_db():
 def _create_expired_token(sub: str = "admin", role: str = "admin") -> str:
     """Create a token that expired 1 hour ago for testing."""
     from core.auth_db import JWT_SECRET_KEY, JWT_ALGORITHM
+
     now = int(time.time())
     payload = {
         "sub": sub,
@@ -43,6 +45,7 @@ class TestAccessToken:
 
     def test_access_token_has_correct_type(self):
         from core.auth_db import AuthDB
+
         db = AuthDB()
         db.setup_first_admin("MyStr0ng!Pass")
         token = db.authenticate("admin", "MyStr0ng!Pass")
@@ -55,6 +58,7 @@ class TestAccessToken:
 
     def test_access_token_has_jti(self):
         from core.auth_db import AuthDB
+
         db = AuthDB()
         db.setup_first_admin("MyStr0ng!Pass")
         token = db.authenticate("admin", "MyStr0ng!Pass")
@@ -65,6 +69,7 @@ class TestAccessToken:
 
     def test_access_token_has_exp_claim(self):
         from core.auth_db import AuthDB, _ACCESS_TOKEN_MINUTES
+
         db = AuthDB()
         db.setup_first_admin("MyStr0ng!Pass")
         token = db.authenticate("admin", "MyStr0ng!Pass")
@@ -74,6 +79,7 @@ class TestAccessToken:
 
     def test_expired_token_rejected(self):
         from core.auth_db import AuthDB
+
         db = AuthDB()
         db.setup_first_admin("MyStr0ng!Pass")
         expired = _create_expired_token()
@@ -81,6 +87,7 @@ class TestAccessToken:
 
     def test_each_login_gets_different_jti(self):
         from core.auth_db import AuthDB
+
         db = AuthDB()
         db.setup_first_admin("MyStr0ng!Pass")
         t1 = db.authenticate("admin", "MyStr0ng!Pass")
@@ -101,6 +108,7 @@ class TestRefreshToken:
 
     def _setup(self):
         from core.auth_db import AuthDB
+
         db = AuthDB()
         db.setup_first_admin("MyStr0ng!Pass")
         return db
@@ -124,6 +132,7 @@ class TestRefreshToken:
 
     def test_refresh_token_has_long_expiry(self):
         from core.auth_db import _REFRESH_TOKEN_DAYS
+
         db = self._setup()
         result = db.authenticate_full("admin", "MyStr0ng!Pass")
         payload = pyjwt.decode(result["refresh_token"], options={"verify_signature": False})
@@ -197,6 +206,7 @@ class TestTokenBlacklist:
 
     def test_revoke_token_returns_true(self):
         from core.auth_db import AuthDB
+
         db = AuthDB()
         db.setup_first_admin("MyStr0ng!Pass")
         token = db.authenticate("admin", "MyStr0ng!Pass")
@@ -204,6 +214,7 @@ class TestTokenBlacklist:
 
     def test_revoked_token_decode_returns_none(self):
         from core.auth_db import AuthDB
+
         db = AuthDB()
         db.setup_first_admin("MyStr0ng!Pass")
         token = db.authenticate("admin", "MyStr0ng!Pass")
@@ -213,11 +224,13 @@ class TestTokenBlacklist:
 
     def test_revoke_invalid_token_returns_false(self):
         from core.auth_db import AuthDB
+
         db = AuthDB()
         assert db.revoke_token("invalid-token") is False
 
     def test_revoke_expired_token_returns_false(self):
         from core.auth_db import AuthDB
+
         db = AuthDB()
         db.setup_first_admin("MyStr0ng!Pass")
         expired = _create_expired_token()
@@ -225,6 +238,7 @@ class TestTokenBlacklist:
 
     def test_revoke_then_refresh_still_works(self):
         from core.auth_db import AuthDB
+
         db = AuthDB()
         db.setup_first_admin("MyStr0ng!Pass")
         result = db.authenticate_full("admin", "MyStr0ng!Pass")
@@ -234,6 +248,7 @@ class TestTokenBlacklist:
 
     def test_multiple_revoked_tokens(self):
         from core.auth_db import AuthDB
+
         db = AuthDB()
         db.setup_first_admin("MyStr0ng!Pass")
 
@@ -245,6 +260,7 @@ class TestTokenBlacklist:
 
     def test_unaffected_tokens_still_work(self):
         from core.auth_db import AuthDB
+
         db = AuthDB()
         db.setup_first_admin("MyStr0ng!Pass")
 
@@ -257,6 +273,7 @@ class TestTokenBlacklist:
 
     def test_revoke_returns_false_for_malformed_token(self):
         from core.auth_db import AuthDB
+
         db = AuthDB()
         assert db.revoke_token("") is False
         assert db.revoke_token("abc.def") is False
@@ -275,6 +292,7 @@ class TestLogoutRoute:
     @pytest.fixture(autouse=True)
     def _setup_db(self):
         from core.auth_db import auth_db
+
         auth_db._users.clear()
         auth_db._blacklist.clear()
         auth_db.setup_first_admin("MyStr0ng!Pass")
@@ -285,6 +303,7 @@ class TestLogoutRoute:
         from server.routes.auth import logout
 
         from unittest.mock import MagicMock
+
         request = MagicMock()
         token = auth_db.authenticate("admin", "MyStr0ng!Pass")
         request.headers = {"Authorization": f"Bearer {token}"}
@@ -292,6 +311,7 @@ class TestLogoutRoute:
         assert auth_db.decode_token(token) is not None
 
         import asyncio
+
         asyncio.run(logout(request))
 
         assert auth_db.decode_token(token) is None
@@ -300,10 +320,12 @@ class TestLogoutRoute:
         from server.routes.auth import logout
 
         from unittest.mock import MagicMock
+
         request = MagicMock()
         request.headers = {}
 
         import asyncio
+
         result = asyncio.run(logout(request))
         assert result["status"] == "logged_out"
 
@@ -320,6 +342,7 @@ class TestRefreshRoute:
     @pytest.fixture(autouse=True)
     def _setup_db(self):
         from core.auth_db import auth_db
+
         auth_db._users.clear()
         auth_db._blacklist.clear()
         auth_db.setup_first_admin("MyStr0ng!Pass")
@@ -331,9 +354,8 @@ class TestRefreshRoute:
 
         result = auth_db.authenticate_full("admin", "MyStr0ng!Pass")
         import asyncio
-        response = asyncio.run(
-            refresh_token(RefreshTokenRequest(refresh_token=result["refresh_token"]))
-        )
+
+        response = asyncio.run(refresh_token(RefreshTokenRequest(refresh_token=result["refresh_token"])))
         assert "access_token" in response
         assert "refresh_token" in response
         assert response["token_type"] == "bearer"
@@ -343,6 +365,7 @@ class TestRefreshRoute:
         from server.routes.auth import refresh_token, RefreshTokenRequest
 
         import asyncio
+
         with pytest.raises(HTTPException) as exc:
             asyncio.run(refresh_token(RefreshTokenRequest(refresh_token="invalid")))
         assert exc.value.status_code == 401
@@ -355,9 +378,7 @@ class TestRefreshRoute:
         result = auth_db.authenticate_full("admin", "MyStr0ng!Pass")
         import asyncio
 
-        resp1 = asyncio.run(
-            refresh_token(RefreshTokenRequest(refresh_token=result["refresh_token"]))
-        )
+        resp1 = asyncio.run(refresh_token(RefreshTokenRequest(refresh_token=result["refresh_token"])))
         assert "access_token" in resp1
 
         with pytest.raises(HTTPException) as exc:
@@ -377,6 +398,7 @@ class TestLoginRouteTokens:
     @pytest.fixture(autouse=True)
     def _setup_db(self):
         from core.auth_db import auth_db
+
         auth_db._users.clear()
         auth_db._blacklist.clear()
         auth_db.setup_first_admin("MyStr0ng!Pass")
@@ -385,6 +407,7 @@ class TestLoginRouteTokens:
     def test_login_returns_access_and_refresh(self):
         from server.routes.auth import login, LoginRequest
         import asyncio
+
         result = asyncio.run(login(LoginRequest(username="admin", password="MyStr0ng!Pass")))
         assert "access_token" in result
         assert "refresh_token" in result
@@ -393,14 +416,14 @@ class TestLoginRouteTokens:
 
     def test_setup_returns_both_tokens(self):
         from core.auth_db import auth_db
+
         auth_db._users.clear()
         auth_db._blacklist.clear()
-        auth_db.setup_first_admin("MyStr0ng!Pass")
 
         from server.routes.auth import setup_first_admin, LoginRequest
         import asyncio
-        result = asyncio.run(setup_first_admin(
-            LoginRequest(username="admin", password="MyStr0ng!Pass")
-        ))
+
+        result = asyncio.run(setup_first_admin(LoginRequest(username="admin", password="MyStr0ng!Pass")))
         assert "access_token" in result
         assert "refresh_token" in result
+        assert result["token_type"] == "bearer"

@@ -6,11 +6,12 @@ Serves the web GUI, HLS segments, and API endpoints.
 
 import asyncio
 import logging
+import re
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response
@@ -195,22 +196,35 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
 
         cors_origins = ServerConfig().cors_origins
 
-    allowed_origins = []
+    allowed_origins: list[str] = []
+    origin_regex_parts: list[str] = []
     for origin in cors_origins:
         if "*" in origin:
-            base = origin.replace(":*", "")
-            for port in [3000, 5173, 8080, 8089, 8000, 9999]:
-                allowed_origins.append(f"{base}:{port}")
+            escaped = re.escape(origin).replace(r"\*", "\\d+")
+            origin_regex_parts.append(escaped)
         else:
             allowed_origins.append(origin)
 
+    origin_regex = "|".join(origin_regex_parts) if origin_regex_parts else None
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=allowed_origins,
+        allow_origins=allowed_origins if allowed_origins else [],
+        allow_origin_regex=origin_regex,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+        allow_headers=["Content-Type", "Authorization", "X-Requested-With", "X-CSRF-Token"],
         allow_credentials=True,
+        max_age=3600,
     )
+
+    @app.middleware("http")
+    async def add_vary_origin(request: Request, call_next: Any) -> Response:
+        response: Response = await call_next(request)
+        if "origin" in request.headers:
+            vary = response.headers.get("vary", "")
+            if "origin" not in vary.lower():
+                response.headers["Vary"] = ", ".join(filter(None, [vary, "Origin"]))
+        return response
 
     # GZip compression for responses (min_size=1000 to compress responses > 1KB)
     app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -236,6 +250,14 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
     app.add_middleware(
         AuthMiddleware,
         get_auth_token=lambda: config.get("server.auth_token", "") if config else "",
+    )
+
+    # F125: CSRF protection (innermost, runs after auth)
+    from server.security import CsrfMiddleware
+
+    app.add_middleware(
+        CsrfMiddleware,
+        get_csrf_secret=lambda: config.get("server.auth_token", "") if config else "",
     )
 
     app.state.ctx = app_context

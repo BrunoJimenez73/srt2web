@@ -209,7 +209,7 @@ class TestAuthAPI:
         resp = client.post("/api/auth/setup", json={"username": "admin", "password": "Adm1n!Str0ng"})
         assert resp.status_code == 200
         data = resp.json()
-        assert "token" in data
+        assert "access_token" in data
 
     def test_login_invalid(self, client: TestClient) -> None:
         """Invalid login returns 401 even without seed (no admin exists)."""
@@ -243,7 +243,7 @@ class TestAuthSetup:
         resp = client.post("/api/auth/setup", json={"username": "admin", "password": "Adm1n!Str0ng"})
         assert resp.status_code == 200
         data = resp.json()
-        assert "token" in data
+        assert "access_token" in data
         assert data["user"]["role"] == "admin"
         # After setup, POST /api/auth/setup should be rejected
         resp2 = client.post("/api/auth/setup", json={"username": "admin", "password": "Other!Str0ng"})

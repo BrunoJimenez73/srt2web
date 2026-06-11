@@ -105,8 +105,11 @@ from core.schemas import (
 
 # Seguridad y utilidades
 from core.security import (
+    sanitize_display_name,
     sanitize_filename,
     sanitize_path,
+    sanitize_string,
+    sanitize_username,
     validate_latency,
     validate_port,
 )
@@ -181,6 +184,9 @@ __all__ = [
     # Utilidades
     "sanitize_path",
     "sanitize_filename",
+    "sanitize_string",
+    "sanitize_username",
+    "sanitize_display_name",
     "validate_port",
     "validate_latency",
     # Constantes

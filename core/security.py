@@ -230,3 +230,99 @@ def validate_directory_access(directory: str, create_if_missing: bool = True) ->
         logger = logging.getLogger("srt2web.security")
         logger.error(f"Directory validation failed for {directory}: {e}")
         return False
+
+
+# ── Input sanitization for user-supplied strings (F126) ──
+
+import unicodedata
+
+_HTML_TAG_RE = re.compile(r"<[^>]*>", re.UNICODE)
+_CONTROL_CHARS_RE = re.compile(
+    "["
+    "\x00-\x08"  # Null, etc.
+    "\x0b\x0c"  # VT, FF
+    "\x0e-\x1f"  # More controls
+    "\x7f"  # DEL
+    "]",
+    re.UNICODE,
+)
+
+
+def sanitize_string(
+    value: str,
+    *,
+    max_length: int = 1024,
+    strip_html: bool = True,
+    strip_control: bool = True,
+    normalize_unicode: bool = True,
+) -> str:
+    """Sanitize a user-supplied string for safe storage/display.
+
+    Args:
+        value: Input string to sanitize.
+        max_length: Maximum allowed length (truncated). Default 1024.
+        strip_html: Remove HTML/XML tags. Default True.
+        strip_control: Remove ASCII control characters (except \\n, \\r, \\t). Default True.
+        normalize_unicode: NFC-normalize unicode. Default True.
+
+    Returns:
+        Sanitized string.
+    """
+    if not isinstance(value, str):
+        raise TypeError(f"Expected str, got {type(value).__name__}")
+
+    if normalize_unicode:
+        value = unicodedata.normalize("NFC", value)
+
+    if strip_html:
+        value = _HTML_TAG_RE.sub("", value)
+
+    if strip_control:
+        value = _CONTROL_CHARS_RE.sub("", value)
+        # Remove null bytes explicitly
+        value = value.replace("\x00", "")
+
+    if max_length and len(value) > max_length:
+        value = value[:max_length]
+
+    return value
+
+
+def sanitize_username(
+    value: str,
+    *,
+    max_length: int = 64,
+) -> str:
+    """Sanitize a username with stricter rules.
+
+    - Must be at least 1 character after sanitization.
+    - Only alphanumeric, underscore, hyphen, dot allowed.
+    - No whitespace, no control chars, no HTML.
+    - Lowercased.
+    - Truncated to max_length.
+
+    Raises ValueError if the result is empty.
+    """
+    value = sanitize_string(value, max_length=max_length)
+    # Remove chars that are not alphanumeric, underscore, hyphen, dot
+    value = re.sub(r"[^a-zA-Z0-9_.\-]", "", value)
+    # No leading/trailing dots or hyphens
+    value = value.strip(".-")
+    # Lowercase
+    value = value.lower()
+    if not value:
+        raise ValueError("Username is empty after sanitization")
+    return value[:max_length]
+
+
+def sanitize_display_name(
+    value: str,
+    *,
+    max_length: int = 128,
+) -> str:
+    """Sanitize a display name / comment field.
+
+    Allows broader characters than username but strips HTML
+    and control chars. Truncated to max_length.
+    """
+    return sanitize_string(value, max_length=max_length)
