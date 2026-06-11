@@ -5,6 +5,7 @@ Gestiona una colección de pipelines UnifiedPipeline aislados con límites
 configurables de recursos y control de ciclo de vida.
 """
 
+import copy
 import logging
 import threading
 import uuid
@@ -65,6 +66,7 @@ class PipelineManager:
                 buffer_size=merged_config.get("pipeline", {}).get("buffer_size", 5),
                 retry_attempts=merged_config.get("pipeline", {}).get("retry_attempts", 2),
                 retry_delay=merged_config.get("pipeline", {}).get("retry_delay", 1.0),
+                lost_chunk_timeout_sec=merged_config.get("pipeline", {}).get("lost_chunk_timeout_sec", 30.0),
             )
 
             self._pipelines[pipeline_id] = pipeline
@@ -140,13 +142,19 @@ class PipelineManager:
             return False
 
     def _merge_config(self, custom_config: dict[str, Any]) -> dict[str, Any]:
-        """Fusionar configuración personalizada con defaults."""
-        default = {
+        """Fusionar configuración personalizada con defaults (deep merge recursivo).
+
+        F128: Reemplaza el antiguo dict.update() de un solo nivel que perdía
+        sub-dicts completos (ej: custom {"output": {"web": {"segment_duration": 5}}}
+        borraba list_size del default).
+        """
+        default: dict[str, Any] = {
             "pipeline": {
                 "chunk_duration_sec": 10,
                 "buffer_size": 5,
                 "retry_attempts": 2,
                 "retry_delay": 1.0,
+                "lost_chunk_timeout_sec": 30.0,
             },
             "input": {"type": "srt", "srt": {"chunk_duration_sec": 10}},
             "output": {
@@ -161,12 +169,22 @@ class PipelineManager:
             },
         }
 
-        # Deep merge simple (priorizando custom)
-        merged = default.copy()
+        result = copy.deepcopy(default)
         for key, value in custom_config.items():
-            if key in merged and isinstance(merged[key], dict):
-                merged[key].update(value)  # type: ignore[attr-defined]
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                result[key] = self._deep_merge(result[key], value)
             else:
-                merged[key] = value
+                result[key] = copy.deepcopy(value)
 
-        return merged
+        return result
+
+    @staticmethod
+    def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+        """Recursively merge override into base. Override values take precedence."""
+        result = copy.deepcopy(base)
+        for key, value in override.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                result[key] = PipelineManager._deep_merge(result[key], value)
+            else:
+                result[key] = copy.deepcopy(value)
+        return result

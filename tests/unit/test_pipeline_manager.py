@@ -177,3 +177,78 @@ class TestPipelineManager:
         pid = mgr.create_pipeline({"pipeline": {"buffer_size": 10}}, "/tmp/output")
         pipeline = mgr.get_pipeline(pid)
         assert pipeline is not None
+
+    # ── F128: deep merge preserves sub-keys not specified in custom ──
+
+    def test_merge_preserves_other_pipeline_keys(self) -> None:
+        """Custom overrides one pipeline field, others survive."""
+        mgr = PipelineManager(max_pipelines=10)
+        merged = mgr._merge_config({"pipeline": {"retry_delay": 2.0}})
+        assert merged["pipeline"]["retry_delay"] == 2.0
+        assert merged["pipeline"]["chunk_duration_sec"] == 10
+        assert merged["pipeline"]["buffer_size"] == 5
+        assert merged["pipeline"]["retry_attempts"] == 2
+
+    def test_merge_preserves_output_subkeys(self) -> None:
+        """Custom overrides output.web.segment_duration, list_size survives."""
+        mgr = PipelineManager(max_pipelines=10)
+        merged = mgr._merge_config({"output": {"web": {"segment_duration": 5}}})
+        assert merged["output"]["web"]["segment_duration"] == 5
+        assert merged["output"]["web"]["list_size"] == 2
+        assert merged["output"]["type"] == "web"
+
+    def test_merge_preserves_module_subkeys(self) -> None:
+        """Custom overrides one module key, other modules survive."""
+        mgr = PipelineManager(max_pipelines=10)
+        merged = mgr._merge_config({"modules": {"transcriber": {"beam_size": 4}}})
+        assert merged["modules"]["transcriber"]["beam_size"] == 4
+        assert merged["modules"]["audio_mixer"]["original_volume"] == 0.15
+        assert merged["modules"]["tts_engine"]["device"] == "cpu"
+
+    def test_merge_adds_new_section(self) -> None:
+        """Custom adds a section not in defaults."""
+        mgr = PipelineManager(max_pipelines=10)
+        merged = mgr._merge_config({"custom_section": {"key": "val"}})
+        assert merged["custom_section"]["key"] == "val"
+        # Existing sections unchanged
+        assert merged["pipeline"]["chunk_duration_sec"] == 10
+
+    def test_deep_merge_static(self) -> None:
+        """_deep_merge static method works independently."""
+        base = {"a": 1, "b": {"c": 2, "d": 3}}
+        override = {"b": {"c": 99}}
+        result = PipelineManager._deep_merge(base, override)
+        assert result == {"a": 1, "b": {"c": 99, "d": 3}}
+        # Original unchanged
+        assert base["b"]["c"] == 2
+
+    # ── F129: lost_chunk_timeout_sec en defaults y creación ──
+
+    def test_merge_default_has_lost_chunk_timeout(self) -> None:
+        """Default merge includes lost_chunk_timeout_sec."""
+        mgr = PipelineManager(max_pipelines=10)
+        merged = mgr._merge_config({})
+        assert merged["pipeline"]["lost_chunk_timeout_sec"] == 30.0
+
+    def test_merge_custom_lost_chunk_timeout(self) -> None:
+        """Custom lost_chunk_timeout_sec overrides default."""
+        mgr = PipelineManager(max_pipelines=10)
+        merged = mgr._merge_config({"pipeline": {"lost_chunk_timeout_sec": 60.0}})
+        assert merged["pipeline"]["lost_chunk_timeout_sec"] == 60.0
+        assert merged["pipeline"]["chunk_duration_sec"] == 10
+
+    def test_create_pipeline_passes_lost_chunk_timeout(self) -> None:
+        """Pipeline is created with lost_chunk_timeout from config."""
+        mgr = PipelineManager(max_pipelines=10)
+        pid = mgr.create_pipeline({"pipeline": {"lost_chunk_timeout_sec": 45.0}}, "/tmp/output")
+        pipeline = mgr.get_pipeline(pid)
+        assert pipeline is not None
+        assert pipeline.lost_chunk_timeout == 45.0
+
+    def test_create_pipeline_default_timeout(self) -> None:
+        """Pipeline created without config uses default 30s."""
+        mgr = PipelineManager(max_pipelines=10)
+        pid = mgr.create_pipeline({}, "/tmp/output")
+        pipeline = mgr.get_pipeline(pid)
+        assert pipeline is not None
+        assert pipeline.lost_chunk_timeout == 30.0

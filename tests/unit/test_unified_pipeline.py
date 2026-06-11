@@ -2,6 +2,9 @@
 Unit tests for UnifiedPipeline — register, get_status, reconfigure.
 """
 
+import inspect
+import textwrap
+from unittest.mock import MagicMock
 
 from core.module_base import BaseModule, ModuleState, PipelineData
 from core.unified_pipeline import UnifiedPipeline as Pipeline
@@ -156,4 +159,29 @@ class TestPipelineData:
         assert data.metadata["source"] == "test"
 
 
-from unittest.mock import MagicMock
+class TestF127InitializedSingleAssignment:
+    """F127 — _initialized debe asignarse exactamente una vez en __init__.
+
+    La primera asignación (al inicio de __init__, antes de cualquier otro
+    atributo) es la que protege contra race conditions. Una segunda
+    asignación más tarde en __init__ anularía esa protección reabriendo
+    una ventana donde el flag es False de nuevo.
+    """
+
+    def test_initialized_is_false_after_construction(self):
+        """_initialized es False justo después de __init__, nunca True."""
+        pipeline = Pipeline()
+        assert pipeline._initialized is False
+
+    def test_initialized_not_reassigned_in_init(self):
+        """__init__ debe contener exactamente una asignación a _initialized."""
+        src = inspect.getsource(Pipeline.__init__)
+        lines = textwrap.dedent(src).splitlines()
+        assignments = [
+            ln for ln in lines
+            if "self._initialized =" in ln and not ln.lstrip().startswith("#")
+        ]
+        assert len(assignments) == 1, (
+            f"Se esperaba exactamente 1 asignación a self._initialized en __init__, "
+            f"se encontraron {len(assignments)}: {assignments}"
+        )

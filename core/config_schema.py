@@ -373,6 +373,12 @@ class PipelineConfig(BaseModel):
     buffer_size: int = Field(default=5, ge=1, le=20, description="Tamaño del buffer de entrada")
     retry_attempts: int = Field(default=2, ge=0, le=10, description="Número de reintentos por módulo")
     retry_delay: float = Field(default=1.0, ge=0.1, le=10.0, description="Retraso entre reintentos en segundos")
+    lost_chunk_timeout_sec: float = Field(
+        default=30.0,
+        ge=1.0,
+        le=300.0,
+        description="Segundos antes de declarar un chunk como perdido y saltarlo en output",
+    )
 
 
 class AudioExtractorConfig(BaseModel):

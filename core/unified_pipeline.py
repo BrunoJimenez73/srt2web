@@ -120,6 +120,7 @@ class UnifiedPipeline:
         buffer_size: int = 5,
         retry_attempts: int = 2,
         retry_delay: float = 1.0,
+        lost_chunk_timeout_sec: float = 30.0,
     ):
         """
         Initialize unified pipeline.
@@ -130,6 +131,7 @@ class UnifiedPipeline:
             buffer_size: Size of input buffer
             retry_attempts: Number of retry attempts per module
             retry_delay: Delay between retries (seconds)
+            lost_chunk_timeout_sec: Seconds before a chunk is considered lost (F129)
         """
         # Initialize _initialized FIRST to avoid race conditions
         self._initialized = False
@@ -139,6 +141,7 @@ class UnifiedPipeline:
         self.buffer_size = buffer_size
         self.retry_attempts = retry_attempts
         self.retry_delay = retry_delay
+        self.lost_chunk_timeout = lost_chunk_timeout_sec
 
         # Internal state
         self._state = PipelineState.IDLE
@@ -170,7 +173,8 @@ class UnifiedPipeline:
         # Lock para operaciones thread-safe
         self._lock = threading.Lock()
         self._hardware_monitor = HardwareMonitor()
-        self._initialized = False  # Initialize to False BEFORE thread starts
+        # NOTE: _initialized was already set to False at the top of __init__
+        # (before any attribute that could trigger a race). Do NOT re-assign here.
 
         # F107: track init thread + capture init exception so start() can
         # surface the real error and reset state on timeout/crash.
@@ -633,9 +637,8 @@ class UnifiedPipeline:
         logger.info("Output thread started")
         pending = {}
         next_expected = 0
-        # Cuándo llegó el último chunk al pending dict (para detectar chunks perdidos)
         _last_pending_time: float = 0.0
-        _LOST_CHUNK_TIMEOUT = 30.0  # segundos antes de descartar un chunk perdido
+        lost_timeout = self.lost_chunk_timeout
 
         try:
             while not self._stop_event.is_set():
@@ -676,10 +679,10 @@ class UnifiedPipeline:
 
                 # Detectar chunk perdido: hay items en pending pero el siguiente
                 # esperado nunca llegó y pasó demasiado tiempo
-                if pending and _last_pending_time > 0 and (time.time() - _last_pending_time) > _LOST_CHUNK_TIMEOUT:
+                if pending and _last_pending_time > 0 and (time.time() - _last_pending_time) > lost_timeout:
                     self._log(
                         "warning",
-                        f"Chunk {next_expected} appears lost after {_LOST_CHUNK_TIMEOUT}s — skipping to unblock output.",
+                        f"Chunk {next_expected} appears lost after {lost_timeout}s — skipping to unblock output.",
                     )
                     with self._lock:
                         self._results.pop(next_expected, None)
