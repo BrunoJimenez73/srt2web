@@ -59,7 +59,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
-COPY --from=builder /app/frontend/dist /app/server/static
+# F117 fix: Astro builds to --outDir ../server/static (relative to frontend/)
+COPY --from=builder /app/server/static /app/server/static
 
 COPY . .
 
@@ -92,7 +93,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/local/lib/python3.12/dist-packages /usr/local/lib/python3.12/dist-packages
+# F117 fix: builder is python:3.12-slim which uses site-packages, not dist-packages
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app/server/static /app/server/static
 

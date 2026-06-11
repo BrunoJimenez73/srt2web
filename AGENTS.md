@@ -176,7 +176,7 @@ Por defecto `thread_parallel` con 2 workers concurrentes. Las estrategias viven 
 
 ## 7. Estado de features
 
-Ver `feature_list.json` para lista completa y estados. Total actual: 86 features.
+Ver `feature_list.json` para lista completa y estados. Total actual: 98 features.
 
 **Features 1–14**: todas DONE (ciclo Abril–Mayo 2026).
 
@@ -212,7 +212,15 @@ Ver `feature_list.json` para lista completa y estados. Total actual: 86 features
 - **Tests**: 42 backend en `test_f108_subtitle_hls_sync.py` (fragment media-relative, playlist target_duration/media_sequence, rolling window, drift monitor blend+clamp, master playlist URI selection, legacy subs.vtt compat) + 18 frontend en `player-subtitles.test.ts` (preferred lang exact/prefix/fallback, closed-captions filter, disable, unsubscribe). Verificación: 42+18 pass, 1183 unit tests pass (xdist), mypy --strict 0 errores, tsc 0 errores, ruff clean.
 - **2 e2e test failures pre-existentes** (`test_links_to_hls_stream`, `test_subtitle_refresh_interval`): confirmado con `git stash` que fallan ANTES de F108 — references "master.m3u8"/"setInterval" en `server/static/player.html` que ya no está bundled.
 
-**Siguiente pendiente**: nada. Próxima feature a elegir de `feature_list.json`.
+**Feature 117**: Fix critical bugs — DONE (11/06/2026). hardware.py GPU auto-detect no-op, Dockerfile COPY path wrong, config_manager non-atomic save.
+
+**Feature 118**: Security hardening — DONE (11/06/2026). PBKDF2-HMAC-SHA256 (600K iter), removed hardcoded JWT fallback, timing-safe compare, AuthMiddleware 503.
+
+**Feature 121**: Password policy — DONE (11/06/2026). validate_password_strength(), create_user/setup_first_admin return tuple, change_password(), PUT /api/auth/password.
+
+**Feature 122**: Account lockout — DONE (11/06/2026). 5 failed attempts → 30 min lockout, auto-expiry, unlock endpoint.
+
+**Siguiente pendiente**: F123 — session security (JWT expiry, refresh tokens, token blacklist).
 
 ## 8. Historial compacto (post-Abril 2026)
 
@@ -231,6 +239,13 @@ Ver `feature_list.json` para lista completa y estados. Total actual: 86 features
 - **Verificación**: `tsc --noEmit` 0 errores, `npm run build` 6 páginas OK (`/graph/index.html` generado), `mypy --strict core/ server/ modules/` 0 errores, `npm run lint` sin warnings nuevos.
 - **No se toca**: `index.astro`, `index_new.astro`, `core/`, `modules/`, `server/` (salvo `tests/unit/test_logging_setup.py` que se ejecutó para verificar subset del backend).
 - Detalles completos en `progress/current.md`.
+
+### 11/06 — Fix critical bugs (F117) + Security hardening (F118)
+
+- **F117 cerrado**: 3 bugs críticos — hardware.py GPU auto-detect no-op (wrong key lookup), Dockerfile runtime COPY path wrong, config_manager.py non-atomic save on Windows
+- **F118 cerrado**: Security hardening — PBKDF2-HMAC-SHA256 (600K iter) for passwords, removed hardcoded JWT fallback, `secrets.compare_digest` for timing-safe compare, AuthMiddleware returns 503 when unconfigured. Auto-migration from legacy SHA-256 hashes. `SRT2WEB_TESTING` env var bypass for test suite.
+- **Tests**: 1271 unit tests pass, 0 failures; mypy --strict 0 errors
+- Detalles completos en `progress/current.md`
 
 ### 04/06 — Subtítulos desincronizados F108
 

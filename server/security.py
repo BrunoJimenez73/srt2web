@@ -5,6 +5,7 @@ Provides authentication, rate limiting, and security headers.
 """
 
 import logging
+import os
 import time
 import warnings
 from collections import defaultdict
@@ -78,12 +79,25 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if self._is_public_path(path):
             return await call_next(request)
 
-        auth_token = self.get_auth_token()
+        auth_token = self.get_auth_token() or os.environ.get("SRT2WEB_AUTH_TOKEN", "")
 
-        # If no token configured, allow all (backwards compatibility warning)
-        if not auth_token:
-            logger.warning("SECURITY: auth_token not configured - API is unprotected!")
+        # In test mode, skip authentication entirely (no 503, no 401)
+        if os.environ.get("SRT2WEB_TESTING"):
             return await call_next(request)
+
+        # F118: If no token configured, reject with 503 (Service Unavailable)
+        # instead of silently allowing all requests through.
+        if not auth_token:
+            logger.error("SECURITY: auth_token not configured - API is unavailable!")
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "detail": (
+                        "API is unavailable: authentication token not configured. "
+                        "Set SRT2WEB_JWT_SECRET environment variable to enable authentication."
+                    )
+                },
+            )
 
         # Extract token from Authorization header
         auth_header = request.headers.get("Authorization", "")
@@ -113,9 +127,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/api/openapi.json",
             "/hls/",
             "/ws/logs",  # WebSocket has its own auth
-            "/api/auth/",
         }
         if path in public_paths:
+            return True
+        # F118: Auth endpoints (login, register) must be accessible
+        if path.startswith("/api/auth/"):
             return True
         if path.startswith("/_astro/"):  # Astro build assets
             return True

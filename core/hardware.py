@@ -240,21 +240,24 @@ def update_config_with_optimal_device(config: dict[str, Any]) -> dict[str, Any]:
     # Actualizar configuración de módulos que usan dispositivos
     modules_to_update = ["transcriber", "tts_engine"]
 
+    # F117 fix: config dict has modules nested under "modules" key
+    modules_section = config.get("modules", config)
+
     for module_name in modules_to_update:
-        if module_name in config:
-            current_device = config[module_name].get("device", "auto")
+        if module_name in modules_section:
+            current_device = modules_section[module_name].get("device", "auto")
 
             # Solo actualizar si está en "auto" o si el dispositivo actual no está disponible
             if current_device == "auto":
-                config[module_name]["device"] = optimal_device
+                modules_section[module_name]["device"] = optimal_device
                 logger.info(f"Auto-set {module_name} device to: {optimal_device}")
             elif current_device != optimal_device:
                 # Verificar si el dispositivo actual está disponible
                 if current_device == "cuda" and not hardware["cuda"]["available"]:
-                    config[module_name]["device"] = optimal_device
+                    modules_section[module_name]["device"] = optimal_device
                     logger.warning(f"CUDA not available for {module_name}, switching to: {optimal_device}")
                 elif current_device == "mps" and not hardware["mps"]["available"]:
-                    config[module_name]["device"] = optimal_device
+                    modules_section[module_name]["device"] = optimal_device
                     logger.warning(f"MPS not available for {module_name}, switching to: {optimal_device}")
 
     return config

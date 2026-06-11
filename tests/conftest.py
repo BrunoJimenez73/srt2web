@@ -71,6 +71,10 @@ except Exception:
     pass
 
 
+# F118: Signal to AuthMiddleware that we're in test mode — skip auth checks entirely
+os.environ.setdefault("SRT2WEB_TESTING", "1")
+
+
 @pytest.fixture
 def temp_dir() -> Generator[str, None, None]:
     """Create a temporary directory for test outputs."""

@@ -95,3 +95,58 @@ class TestConfigManager:
 
         for module in expected_modules:
             assert module in modules
+
+
+class TestConfigManagerAtomicSave:
+    """F117: Tests for atomic config save using os.replace()."""
+
+    def test_save_creates_file(self, tmp_path):
+        """Config save should create the file."""
+        config_path = tmp_path / "config.yaml"
+        config = ConfigManager(str(config_path))
+        config.set("server.port", 8888)
+        config.save()
+        assert config_path.exists()
+
+    def test_save_is_atomic(self, tmp_path):
+        """F117: Save should use os.replace() — no intermediate state without file."""
+        import os
+
+        config_path = tmp_path / "config.yaml"
+        config = ConfigManager(str(config_path))
+        config.set("server.port", 8888)
+        config.save()
+
+        # Verify file content
+        import yaml
+
+        with open(config_path, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        assert data["server"]["port"] == 8888
+
+        # Overwrite — should not leave temp file behind
+        config.set("server.port", 9999)
+        config.save()
+
+        # .tmp file should NOT exist after save
+        temp_file = tmp_path / "config.yaml.tmp"
+        assert not temp_file.exists(), ".tmp file should be cleaned up by os.replace()"
+
+        # Verify updated content
+        with open(config_path, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        assert data["server"]["port"] == 9999
+
+    def test_save_preserves_valid_yaml(self, tmp_path):
+        """Config save should produce valid YAML."""
+        import yaml
+
+        config_path = tmp_path / "config.yaml"
+        config = ConfigManager(str(config_path))
+        config.set("server.port", 8888)
+        config.save()
+
+        with open(config_path, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        assert isinstance(data, dict)
+        assert "server" in data

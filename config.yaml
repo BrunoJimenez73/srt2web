@@ -91,7 +91,7 @@ modules:
     enabled: true
     model: tiny
     language: en
-    device: cuda
+    device: cpu
     beam_size: 2
     timeout_sec: 120.0
   translator:
@@ -107,7 +107,7 @@ modules:
   tts_engine:
     enabled: true
     engine: piper
-    device: cuda
+    device: cpu
     voice: es_MX-claude-high
     speed: 1.2
   audio_mixer:

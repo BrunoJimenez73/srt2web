@@ -2707,7 +2707,7 @@
       "id": 115,
       "name": "refactor_chunk_clock",
       "title": "Refactor: extraer mtime correction a core/chunk_clock.py",
-      "status": "pending",
+      "status": "done",
       "area": "core",
       "priority": "Baja",
       "description": "modules/inputs/srt_input.py (30KB, 735 líneas) tiene lógica de mtime correction inline. Extraer a core/chunk_clock.py reutilizable y testeable. Aplicar también a rtmp_input.py.",
@@ -2791,6 +2791,331 @@
           "Validación topológica antes de aplicar (no se aplican grafos inválidos al backend)",
           "Tests unitarios cubren catálogo, validador, serializador y componentes",
           "TypeScript strict + sin any en todos los archivos nuevos"
+        ]
+      }
+    },
+    {
+      "id": 117,
+      "name": "fix_critical_bugs",
+      "title": "Fix critical bugs: hardware detection no-op, Dockerfile wrong COPY, config save non-atomic",
+      "status": "done",
+      "completed_date": "2026-06-11",
+      "area": "core",
+      "priority": "Alta",
+      "description": "Tres bugs críticos: (1) hardware.py update_config_with_optimal_device() busca keys top-level en vez de config['modules'] — la auto-detección de GPU es un no-op completo. (2) Dockerfile stage runtime copia de /app/frontend/dist pero Astro construye a /app/server/static — la imagen non-GPU no tiene frontend. (3) config_manager.py save() usa unlink()+rename() no-atómico en vez de os.replace().",
+      "files_to_touch": [
+        "core/hardware.py",
+        "Dockerfile",
+        "core/config_manager.py",
+        "tests/unit/test_hardware_detection.py",
+        "tests/unit/test_config_manager.py"
+      ],
+      "dependencies": [],
+      "acceptance": [
+        "update_config_with_optimal_device(config) aplica device correctamente cuando config['modules']['transcriber']['device'] == 'auto'",
+        "Test con config dict anidado (con wrapper 'modules') pasa",
+        "Dockerfile runtime stage: COPY --from=builder /app/server/static /app/server/static",
+        "Dockerfile runtime-cuda stage: COPY site-packages (no dist-packages)",
+        "config_manager.save() usa os.replace() para atomicidad cross-platform",
+        "Test de save atómico pasa (verifica que config no se pierde entre writes)",
+        "init.ps1 -Quick verde",
+        "pytest tests/unit/ sin regresiones"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio-Alto",
+        "mitigation": [
+          "Fix hardware.py es un cambio de 1 línea (agregar wrapper 'modules')",
+          "Fix Dockerfile es un cambio de paths (verificar con docker build)",
+          "Fix config_manager.py reemplaza unlink()+rename() con os.replace()",
+          "Tests cubren ambos escenarios (config flat y config anidado)",
+          "init.ps1 verifica no regressión"
+        ]
+      }
+    },
+    {
+      "id": 118,
+      "name": "security_hardening",
+      "title": "Security hardening: PBKDF2 hashing, no JWT fallback, timing-safe compare, auth middleware strict",
+      "status": "done",
+      "completed_date": "2026-06-10",
+      "area": "security",
+      "priority": "Alta",
+      "description": "Cuatro mejoras de seguridad: (1) auth_db.py usa SHA-256 sin key stretching para passwords — cambiar a PBKDF2 con 600K iteraciones. (2) JWT_SECRET_KEY cae a 'change-me-in-production' si env var no está — remover fallback hardcodeado. (3) Comparación de hashes usa != vulnerable a timing attacks — usar secrets.compare_digest. (4) AuthMiddleware deja pasar todo cuando auth_token es vacío — retornar 503.",
+      "files_to_touch": [
+        "core/auth_db.py",
+        "server/security.py",
+        "tests/unit/test_auth.py (NUEVO)"
+      ],
+      "dependencies": ["F117"],
+      "acceptance": [
+        "Password hashing usa PBKDF2 con 600K iteraciones (hashlib.pbkdf2_hmac)",
+        "JWT_SECRET_KEY vacío al import time (no hardcoded fallback)",
+        "secrets.compare_digest para comparación de hashes (timing-safe)",
+        "AuthMiddleware retorna 503 cuando auth_token no está configurado",
+        "Migración automática: login con SHA-256 re-hashea con PBKDF2",
+        "Tests cubren: hashing, JWT creation/validation, timing-safe compare, auth middleware 503",
+        "init.ps1 -Quick verde",
+        "mypy 0 errores"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Migración automática en authenticate(): si el hash es SHA-256 (64 chars hex), re-hashear con PBKDF2",
+          "El fallback JWT se reemplaza con string vacío (ya que validate_secrets() en main.py lo bloquea)",
+          "AuthMiddleware 503 es un cambio de comportamiento pero más seguro queallow-all",
+          "Tests cubren ambos escenarios (token configurado y no configurado)"
+        ]
+      }
+    },
+    {
+      "id": 119,
+      "name": "fix_test_infrastructure_bugs",
+      "title": "Fix RateLimiter type bug + crash.log file lock in test infrastructure",
+      "status": "done",
+      "area": "testing",
+      "priority": "Alta",
+      "description": "Dos bugs pre-existentes que bloquean init.ps1: (1) _NoTokenConfig mock retorna '' para TODAS las keys, no solo server.auth_token, causando TypeError en RateLimiter por string vs int. (2) install_crash_handler() no cierra el anterior RotatingFileHandler antes de reemplazarlo, dejando crash.log locked en Windows e impidiendo cleanup de temp dirs en tests.",
+      "files_to_touch": [
+        "tests/unit/test_auth_security.py",
+        "core/logging_setup.py",
+        "tests/unit/test_logging_setup.py"
+      ],
+      "dependencies": [],
+      "acceptance": [
+        "_NoTokenConfig.get() devuelve default para keys que no son server.auth_token",
+        "install_crash_handler cierra old handlers antes de crash_logger.handlers.clear()",
+        "TestInstallCrashHandler limpia handlers post-test",
+        "init.ps1 -Quick verde (sin TypeError ni PermissionError)",
+        "pytest tests/unit/test_auth_security.py: 9/9 pass",
+        "pytest tests/unit/test_logging_setup.py: 14/14 pass"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "F119 son solo bugs de test infrastructure que no afectan código de producción",
+          "install_crash_handler fix es defensivo — no cambia runtime behavior, solo cierra handler viejo"
+        ]
+      }
+    },
+    {
+      "id": 120,
+      "name": "remove_default_admin",
+      "title": "Eliminar cuenta admin por defecto con contraseña hardcodeada",
+      "status": "done",
+      "area": "security",
+      "priority": "Alta",
+      "description": "seed_default_admin() en auth_db.py crea usuario 'admin' con pass 'admin' si no existe users.json — backdoor permanente. Eliminar seed automático, requerir primer registro explícito vía SRT2WEB_ADMIN_PASSWORD env var o endpoint /api/auth/setup. Si env var no está, el primer request a /api/auth/setup crea el admin.",
+      "files_to_touch": [
+        "core/auth_db.py",
+        "server/routes/auth.py",
+        "tests/unit/test_auth_multi_user.py",
+        "tests/unit/test_f120_default_admin.py"
+      ],
+      "dependencies": ["F119"],
+      "acceptance": [
+        "auth_db.__init__ NO crea admin por defecto",
+        "seed_default_admin() eliminada o desactivada",
+        "Endpoint /api/auth/setup permite crear primer admin (solo si no hay usuarios)",
+        "SRT2WEB_ADMIN_PASSWORD env var crea admin al import time si no existe",
+        "init.ps1 -Quick verde",
+        "mypy 0 errores"
+      ],
+      "risk_assessment": {
+        "risk_level": "Alto",
+        "mitigation": [
+          "Cambio de comportamiento: admin por defecto ya no existe automáticamente",
+          "Env var SRT2WEB_ADMIN_PASSWORD permite scripting/deployment sin interacción",
+          "Endpoint setup requiere POST con password segura (F121 validation)",
+          "Tests cubren ambos paths (env var y endpoint setup)"
+        ]
+      }
+    },
+    {
+      "id": 121,
+      "name": "password_policy",
+      "title": "Política de contraseñas: longitud mínima, complejidad, listas negras",
+      "status": "done",
+      "completed_date": "2026-06-11",
+      "area": "security",
+      "priority": "Alta",
+      "description": "Validar fortaleza de contraseñas en registro y cambio: longitud mínima 8, al menos 1 mayúscula, 1 minúscula, 1 dígito, 1 carácter especial. Rechazar contraseñas comunes (check contra lista de top-1000). Mensaje de error descriptivo en español.",
+      "files_to_touch": [
+        "core/auth_db.py",
+        "tests/unit/test_f121_password_policy.py"
+      ],
+      "dependencies": ["F120"],
+      "acceptance": [
+        "validate_password_strength(password) -> (bool, str)",
+        "Rechaza < 8 chars, sin mayús, sin minús, sin dígito, sin especial",
+        "Rechaza contraseñas de top-100 comunes (password, 123456, admin)",
+        "auth_db.create_user aplica validación, retorna False + mensaje si falla",
+        "PUT /api/auth/password cambia contraseña con validación",
+        "init.ps1 -Quick verde",
+        "mypy 0 errores"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Solo afecta registro/cambio de password, no login (backward compatible)",
+          "Lista de passwords comunes ~50 entradas inline (no archivo externo)",
+          "Tests cubren todos los criterios individuales y combinados"
+        ]
+      }
+    },
+    {
+      "id": 122,
+      "name": "account_lockout",
+      "title": "Bloqueo de cuentas tras N intentos fallidos de login",
+      "status": "done",
+      "area": "security",
+      "priority": "Alta",
+      "description": "Prevenir fuerza bruta: tras 5 intentos fallidos en ventana de 15 minutos, bloquear cuenta por 30 minutos. Trackear en auth_db._users con failed_attempts, locked_until. Resetear en login exitoso.",
+      "files_to_touch": [
+        "core/auth_db.py",
+        "tests/unit/test_f122_account_lockout.py"
+      ],
+      "dependencies": ["F120"],
+      "acceptance": [
+        "5 failed attempts en 15 min → locked_until = now + 30 min",
+        "Login con cuenta bloqueada retorna 423 (Locked)",
+        "Login exitoso resetea failed_attempts",
+        "Lockout expira automáticamente tras 30 min",
+        "init.ps1 -Quick verde",
+        "mypy 0 errores"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Lockout es temporal (30 min), no permanente",
+          "Configurable via constantes en auth_db.py",
+          "No afecta login exitoso (resetea contador)",
+          "Tests cubren lockout, expiry, reset"
+        ]
+      }
+    },
+    {
+      "id": 123,
+      "name": "session_security",
+      "title": "JWT expiry forzada, refresh tokens, invalidación de sesiones",
+      "status": "pending",
+      "area": "security",
+      "priority": "Media",
+      "description": "JWT tokens sin expiry (configurable en decode_token). Agregar: (1) exp claim con default 24h, (2) refresh token rotation, (3) token blacklist on logout via POST /api/auth/logout, (4) decode_token rechaza expirados.",
+      "files_to_touch": [
+        "core/auth_db.py",
+        "server/routes/auth.py",
+        "tests/unit/test_f123_session_security.py"
+      ],
+      "dependencies": ["F120"],
+      "acceptance": [
+        "create_token() incluye exp=now+24h por defecto",
+        "decode_token() rechaza tokens con exp pasado",
+        "POST /api/auth/logout invalida token (blacklist)",
+        "decode_token() rechaza tokens en blacklist",
+        "init.ps1 -Quick verde",
+        "mypy 0 errores"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "expiry default 24h, configurable via JWT_EXPIRY_HOURS env var",
+          "Blacklist in-memory con cleanup periódico",
+          "Tokens sin exp (tokens pre-F123) siguen funcionando sin expiry por backward compat",
+          "Tests cubren expiry, refresh, logout, blacklist cleanup"
+        ]
+      }
+    },
+    {
+      "id": 124,
+      "name": "security_headers_monitoring",
+      "title": "Endurecer security headers + audit logging de eventos de seguridad",
+      "status": "pending",
+      "area": "security",
+      "priority": "Media",
+      "description": "CSP actual es demasiado permisivo (unsafe-inline, unsafe-eval, wildcards). Endurecer: (1) CSP restrictivo sin unsafe-*, (2) HSTS con preload, (3) X-Content-Type-Options ya está (mantener). (4) Logging de eventos de seguridad: login fallidos, rate limit hits, tokens inválidos a security.log.",
+      "files_to_touch": [
+        "server/security.py",
+        "core/logging_setup.py",
+        "tests/unit/test_f124_security_headers_monitoring.py"
+      ],
+      "dependencies": ["F119"],
+      "acceptance": [
+        "CSP restrictivo sin unsafe-inline, unsafe-eval (nonce/hash para inline scripts)",
+        "HSTS header con preload",
+        "Eventos de seguridad logeados a srt2web.security.logger",
+        "includes: login failed, rate limit exceeded, invalid token, auth middleware 503",
+        "init.ps1 -Quick verde",
+        "mypy 0 errores"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "CSP restrictivo puede romper funcionalidad existente (probado con tests de integración)",
+          "HSTS no afecta localhost (no aplica a 127.0.0.1)",
+          "Security logging es nuevo — no afecta funcionalidad existente",
+          "Tests verifican que CSP no bloquea assets críticos"
+        ]
+      }
+    },
+    {
+      "id": 125,
+      "name": "csrf_protection",
+      "title": "Protección CSRF para endpoints mutantes",
+      "status": "pending",
+      "area": "security",
+      "priority": "Media",
+      "description": "Proteger endpoints POST/PUT/DELETE contra Cross-Site Request Forgery. Generar CSRF token vía GET /api/csrf-token (protegido por auth). Validar en cada request mutante via X-CSRF-Token header o cookie. Eximir endpoints que usan Authorization header (API calls desde scripts).",
+      "files_to_touch": [
+        "server/security.py",
+        "server/routes/auth.py",
+        "tests/unit/test_f125_csrf_protection.py"
+      ],
+      "dependencies": ["F120"],
+      "acceptance": [
+        "GET /api/csrf-token retorna token firmado",
+        "Middleware CSRF valida token en POST/PUT/DELETE (excluye GET, OPTIONS)",
+        "Eximir si request tiene Authorization header (API script)",
+        "init.ps1 -Quick verde",
+        "mypy 0 errores"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "CSRF solo aplica a endpoints mutantes sin Authorization header",
+          "Tests cubren token generation, validación, exención",
+          "Backward compatible: scripts con Bearer token no afectados"
+        ]
+      }
+    },
+    {
+      "id": 126,
+      "name": "cors_input_sanitization",
+      "title": "Hardening CORS + sanitización de inputs de usuario",
+      "status": "pending",
+      "area": "security",
+      "priority": "Media",
+      "description": "CORS actual permite múltiples puertos con wildcard — restringir a origen exacto. Agregar sanitización de inputs en endpoints API: strip HTML tags, limitar longitud, validar encoding. Sanitizar username, display name, comments en payloads de usuario.",
+      "files_to_touch": [
+        "server/app.py",
+        "server/routes/auth.py",
+        "core/auth_db.py",
+        "tests/unit/test_f126_cors_input_sanitization.py"
+      ],
+      "dependencies": ["F119"],
+      "acceptance": [
+        "CORS restrictivo a origen exacto (sin wildcard ports)",
+        "sanitize_input() strip HTML tags, limit length, validate encoding",
+        "Username validado: alfanumérico + guion bajo, max 32 chars",
+        "init.ps1 -Quick verde",
+        "mypy 0 errores"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "CORS restrictivo puede romper desarrollo local (puertos 3000/5173 no en prod)",
+          "CORS configurable via config.yaml server.cors_origins",
+          "Sanitización es nueva capa defensiva — no cambia comportamiento actual",
+          "Tests cubren casos edge de sanitización"
         ]
       }
     }

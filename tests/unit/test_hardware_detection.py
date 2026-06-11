@@ -168,6 +168,38 @@ class TestUpdateConfigWithOptimalDevice:
         except Exception as e:
             pytest.fail(f"update_config_with_optimal_device failed: {e}")
 
+    def test_update_config_nested_modules_dict(self):
+        """F117: Config with modules nested under 'modules' key (real structure)."""
+        config = {
+            "server": {"port": 9999},
+            "modules": {
+                "transcriber": {"device": "auto", "model": "small"},
+                "tts_engine": {"device": "auto", "engine": "piper"},
+            },
+        }
+        updated = update_config_with_optimal_device(config)
+        # Device should be updated from "auto" to actual device
+        assert updated["modules"]["transcriber"]["device"] != "auto"
+        assert updated["modules"]["tts_engine"]["device"] != "auto"
+        # Other settings preserved
+        assert updated["server"]["port"] == 9999
+        assert updated["modules"]["transcriber"]["model"] == "small"
+
+    def test_update_config_nested_preserves_non_device_fields(self):
+        """F117: Nested config preserves fields that aren't 'device'."""
+        config = {
+            "modules": {
+                "transcriber": {"device": "auto", "model": "large", "beam_size": 5},
+                "tts_engine": {"device": "cpu", "voice": "es_ES-sharvard-medium"},
+            },
+        }
+        updated = update_config_with_optimal_device(config)
+        assert updated["modules"]["transcriber"]["model"] == "large"
+        assert updated["modules"]["transcriber"]["beam_size"] == 5
+        assert updated["modules"]["tts_engine"]["voice"] == "es_ES-sharvard-medium"
+        # CPU explicit → should stay CPU
+        assert updated["modules"]["tts_engine"]["device"] == "cpu"
+
 
 class TestIntegration:
     """Integration tests for hardware detection."""

@@ -108,9 +108,15 @@ class TestSecurityMiddleware:
 
     def test_auth_middleware_blocks_without_auth_header(self, app_with_auth) -> None:
         """Test that requests without auth header are blocked."""
-        client = TestClient(app_with_auth, raise_server_exceptions=False)
-        response = client.get("/protected")
-        assert response.status_code == 401
+        import os
+
+        os.environ.pop("SRT2WEB_TESTING", None)
+        try:
+            client = TestClient(app_with_auth, raise_server_exceptions=False)
+            response = client.get("/protected")
+            assert response.status_code == 401
+        finally:
+            os.environ["SRT2WEB_TESTING"] = "1"
 
     def test_auth_middleware_allows_with_valid_token(self, app_with_auth) -> None:
         """Test that requests with valid token are allowed."""
@@ -120,9 +126,15 @@ class TestSecurityMiddleware:
 
     def test_auth_middleware_blocks_with_invalid_token(self, app_with_auth) -> None:
         """Test that requests with invalid token are blocked."""
-        client = TestClient(app_with_auth, raise_server_exceptions=False)
-        response = client.get("/protected", headers={"Authorization": "Bearer wrong-token"})
-        assert response.status_code == 401
+        import os
+
+        os.environ.pop("SRT2WEB_TESTING", None)
+        try:
+            client = TestClient(app_with_auth, raise_server_exceptions=False)
+            response = client.get("/protected", headers={"Authorization": "Bearer wrong-token"})
+            assert response.status_code == 401
+        finally:
+            os.environ["SRT2WEB_TESTING"] = "1"
 
     def test_auth_middleware_allows_public_paths(self, app_with_auth) -> None:
         """Test that public paths don't require authentication."""

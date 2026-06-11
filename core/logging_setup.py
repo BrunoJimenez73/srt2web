@@ -79,6 +79,7 @@ class ConsoleFilter(logging.Filter):
     """Filters repetitive security warnings from console output.
     Security events are still logged to the security.log file.
     """
+
     NOISE_PATTERNS = ("SECURITY:", "auth_token not configured")
 
     def filter(self, record: logging.LogRecord) -> bool:
@@ -171,6 +172,10 @@ def setup_logging(
             super().__init__()
             self._file_handler = file_handler
 
+        def close(self) -> None:
+            self._file_handler.close()
+            super().close()
+
         def emit(self, record: logging.LogRecord) -> None:
             try:
                 msg = self.format(record)
@@ -219,6 +224,12 @@ def setup_logging(
     security_handler = SecurityLogHandler(log_dir=log_dir)
 
     root = logging.getLogger()
+    # Close old handlers before clearing (Windows file lock release)
+    for h in root.handlers:
+        try:
+            h.close()
+        except Exception:
+            pass
     root.handlers.clear()
     root.setLevel(log_level)
     root.addHandler(console)
@@ -288,13 +299,17 @@ def install_crash_handler(log_dir: str | Path | None = None) -> logging.Logger |
     crash_logger = logging.getLogger(CRASH_LOGGER_NAME)
     crash_logger.setLevel(logging.CRITICAL)
     # Replace handlers on every call so re-installation is idempotent
+    # Must close old handlers first so the file lock is released (Windows).
+    for h in crash_logger.handlers:
+        try:
+            h.close()
+        except Exception:
+            pass
     crash_logger.handlers.clear()
     crash_logger.addHandler(crash_handler)
     crash_logger.propagate = False  # do NOT also write to srt2web.log
 
-    _original_excepthook: Callable[
-        [type[BaseException], BaseException, TracebackType | None], Any
-    ] = sys.excepthook
+    _original_excepthook: Callable[[type[BaseException], BaseException, TracebackType | None], Any] = sys.excepthook
 
     def _excepthook(
         exc_type: type[BaseException],
@@ -314,9 +329,7 @@ def install_crash_handler(log_dir: str | Path | None = None) -> logging.Logger |
         except Exception:
             # Never let the crash handler itself crash — that would hide the
             # original exception. Best-effort: write minimal info to stderr.
-            sys.stderr.write(
-                f"F114 crash handler failed for {exc_type.__name__}: {exc_value}\n"
-            )
+            sys.stderr.write(f"F114 crash handler failed for {exc_type.__name__}: {exc_value}\n")
         # Always show the user the traceback via the original excepthook
         _original_excepthook(exc_type, exc_value, exc_traceback)
 

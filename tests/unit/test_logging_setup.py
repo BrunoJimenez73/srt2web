@@ -47,6 +47,18 @@ def restore_excepthook() -> None:
 class TestSetupLogging:
     """setup_logging() should create srt2web.log and route records there."""
 
+    @pytest.fixture(autouse=True)
+    def _cleanup_root_handlers(self) -> None:
+        """Close and clear root logger handlers so tmp_path cleanup doesn't fail on Windows file lock."""
+        yield
+        root = logging.getLogger()
+        for h in root.handlers[:]:
+            try:
+                h.close()
+            except Exception:
+                pass
+        root.handlers.clear()
+
     def test_creates_srt2web_log_file(self, log_dir: Path) -> None:
         log_file = str(log_dir / "srt2web.log")
         setup_logging(log_file=log_file, log_level=logging.DEBUG)
@@ -118,6 +130,18 @@ class TestSetupLogging:
 class TestInstallCrashHandler:
     """install_crash_handler() should install sys.excepthook + crash.log file."""
 
+    @pytest.fixture(autouse=True)
+    def _cleanup_crash_handlers(self) -> None:
+        """Close and clear crash logger handlers so tmp_path cleanup doesn't fail on Windows file lock."""
+        yield
+        crash_logger = logging.getLogger(CRASH_LOGGER_NAME)
+        for h in crash_logger.handlers[:]:
+            try:
+                h.close()
+            except Exception:
+                pass
+        crash_logger.handlers.clear()
+
     def test_creates_crash_log_file(self, log_dir: Path, restore_excepthook: None) -> None:
         logger = install_crash_handler(log_dir=log_dir)
         assert logger is not None
@@ -137,9 +161,7 @@ class TestInstallCrashHandler:
         logger = install_crash_handler(log_dir=log_dir)
         assert len(logger.handlers) == 1
 
-    def test_crash_handler_writes_unhandled_exception(
-        self, log_dir: Path, restore_excepthook: None
-    ) -> None:
+    def test_crash_handler_writes_unhandled_exception(self, log_dir: Path, restore_excepthook: None) -> None:
         """Triggering sys.excepthook should write to crash.log."""
         install_crash_handler(log_dir=log_dir)
 
@@ -158,9 +180,7 @@ class TestInstallCrashHandler:
         assert "F114 test crash" in content
         assert "ValueError" in content
 
-    def test_systemexit_does_not_write_to_crash_log(
-        self, log_dir: Path, restore_excepthook: None
-    ) -> None:
+    def test_systemexit_does_not_write_to_crash_log(self, log_dir: Path, restore_excepthook: None) -> None:
         """SystemExit is normal control flow, not a crash."""
         # Install a sentinel excepthook to confirm SystemExit reaches it
         sentinel_calls: list[tuple] = []
@@ -185,9 +205,7 @@ class TestInstallCrashHandler:
         # Sentinel was called
         assert len(sentinel_calls) == 1
 
-    def test_keyboardinterrupt_does_not_write_to_crash_log(
-        self, log_dir: Path, restore_excepthook: None
-    ) -> None:
+    def test_keyboardinterrupt_does_not_write_to_crash_log(self, log_dir: Path, restore_excepthook: None) -> None:
         """KeyboardInterrupt is normal control flow (Ctrl+C)."""
         install_crash_handler(log_dir=log_dir)
 
@@ -200,9 +218,7 @@ class TestInstallCrashHandler:
         content = crash_path.read_text(encoding="utf-8")
         assert "KeyboardInterrupt" not in content
 
-    def test_preserves_original_excepthook(
-        self, log_dir: Path, restore_excepthook: None
-    ) -> None:
+    def test_preserves_original_excepthook(self, log_dir: Path, restore_excepthook: None) -> None:
         """After install_crash_handler, calling sys.excepthook should also
         invoke the original hook (so users still see traceback on stderr)."""
         sentinel_called = []
@@ -221,9 +237,7 @@ class TestInstallCrashHandler:
         assert len(sentinel_called) == 1
         assert str(sentinel_called[0]) == "original hook should fire"
 
-    def test_crash_handler_failure_does_not_hide_exception(
-        self, log_dir: Path, restore_excepthook: None
-    ) -> None:
+    def test_crash_handler_failure_does_not_hide_exception(self, log_dir: Path, restore_excepthook: None) -> None:
         """If the crash handler itself fails, the original exception must still surface."""
         original_calls = []
 

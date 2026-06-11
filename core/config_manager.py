@@ -16,14 +16,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
 
-from core.paths import get_config_path, get_project_root
-
 import yaml
 
 # Note: we catch Exception instead of ValidationError to avoid
 # import compatibility issues between Pydantic v1/v2
 from core.config_schema import SRT2WebConfig
 from core.hardware import update_config_with_optimal_device
+from core.paths import get_config_path, get_project_root
 
 logger = logging.getLogger("srt2web.config")
 
@@ -107,7 +106,7 @@ def validate_secrets(strict: bool = True) -> tuple[bool, str]:
         msg = (
             f"{_JWT_SECRET_VAR} is set to the insecure fallback "
             f"'{_INSECURE_JWT_FALLBACK}'. Replace with a real secret "
-            "(e.g. `python -c \"import secrets; print(secrets.token_urlsafe(32))\"`)."
+            '(e.g. `python -c "import secrets; print(secrets.token_urlsafe(32))"`).'
         )
         logger.error("[F112] %s", msg)
         return (False, msg)
@@ -124,7 +123,7 @@ def validate_secrets(strict: bool = True) -> tuple[bool, str]:
     if len(secret) < _MIN_SECRET_LENGTH:
         logger.warning(
             "[F112] %s is shorter than %d chars (%d). Consider regenerating with "
-            "`python -c \"import secrets; print(secrets.token_urlsafe(32))\"`.",
+            '`python -c "import secrets; print(secrets.token_urlsafe(32))"`.',
             _JWT_SECRET_VAR,
             _MIN_SECRET_LENGTH,
             len(secret),
@@ -213,10 +212,10 @@ class ConfigManager:
                         sort_keys=False,
                     )
 
+                # F117 fix: use os.replace() for truly atomic save on all platforms
+                # (unlink+rename is non-atomic on Windows; os.replace uses MOVEFILE_REPLACE_EXISTING)
                 if Path(temp_path).exists():
-                    if Path(self._config_path).exists():
-                        Path(self._config_path).unlink()
-                    Path(temp_path).rename(self._config_path)
+                    os.replace(str(temp_path), str(self._config_path))
 
                 logger.info(f"Configuration validated and saved to {self._config_path}")
             except Exception as e:

@@ -1,4 +1,230 @@
-# Sesión actual — F116 cerrado: graph_ui_react_flow (2026-06-07)
+# Sesión actual — F121+F122 cerrados: password_policy + account_lockout (2026-06-11)
+
+## Estado
+
+| Check                                               | Estado | Notas                                                       |
+| --------------------------------------------------- | ------ | ----------------------------------------------------------- |
+| Python 3.14.3                                       | OK     |                                                             |
+| feature_list.json                                   | OK     | 106 features (121 done, 122 done, 123-126 pending)          |
+| pytest tests/unit/ (auth subset)                    | OK     | 69/69 pass (24 multi_user + 9 security + 18 F121 + 18 F122) |
+| mypy --strict core/auth_db.py server/routes/auth.py | OK     | 0 errores                                                   |
+
+---
+
+## F122 cerrado ✅ — `account_lockout`
+
+**Resumen**: Bloqueo de cuentas tras 5 intentos fallidos en 15 min. Lockout dura 30 min, auto-expira. Login exitoso resetea contador. Endpoint `POST /auth/users/{username}/unlock` para admin.
+
+### Cambios
+
+| Archivo                                   | Cambio                                                                                                                                                       |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `core/auth_db.py`                         | `authenticate()` trackea `failed_attempts`, bloquea tras 5 fallos (`locked_until`). `is_locked()` check. `unlock_user()` admin. Auto-expire en authenticate. |
+| `server/routes/auth.py`                   | Login retorna 423 si cuenta bloqueada. Nuevo `POST /auth/users/{username}/unlock` (admin only).                                                              |
+| `tests/unit/test_f122_account_lockout.py` | 18 tests: lockout, auto-expiry, unlock, route 423, lockout fields.                                                                                           |
+
+### Verificación
+
+- 69 auth tests pass, mypy 0 errores
+
+---
+
+## F121 cerrado ✅ — `password_policy`
+
+**Resumen**: Validación de fortaleza de contraseñas en registro, setup y cambio de password.
+
+### Cambios
+
+| Archivo                                   | Cambio                                                                                                                                                                                                        |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core/auth_db.py`                         | `validate_password_strength()` — ≥8 chars, 1 upper, 1 lower, 1 digit, 1 special, not in top-100 common. `create_user()` y `setup_first_admin()` ahora retornan `tuple[bool, str]`. Nuevo `change_password()`. |
+| `server/routes/auth.py`                   | Nuevo `PUT /auth/password` endpoint. `ChangePasswordRequest` model. Calls actualizados para tuple return.                                                                                                     |
+| `tests/unit/test_f121_password_policy.py` | 18 tests nuevos (11 unit + 7 integration)                                                                                                                                                                     |
+| `tests/unit/test_auth_multi_user.py`      | Passwords débiles → fuertes. Tests actualizados para tuple return.                                                                                                                                            |
+
+### Verificación
+
+- 51 auth tests pass, 120 additional pass, mypy 0 errores
+
+## F122 cerrado ✅ — `account_lockout`
+
+Bloqueo de cuentas tras 5 intentos fallidos de login.
+
+### Cambios
+
+| Archivo                                   | Cambio                                                                                                                                                                                                                      |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core/auth_db.py`                         | `authenticate()` trackea `failed_attempts`, bloquea a los 5 fallos. Añadidos `is_locked()`, `unlock_user()`. Reset en login exitoso y `change_password()`. Campos `failed_attempts`/`locked_until` en todos los user dicts. |
+| `server/routes/auth.py`                   | Login retorna **423** si `is_locked()`. Nuevo `POST /auth/users/{username}/unlock` (admin-only).                                                                                                                            |
+| `tests/unit/test_f122_account_lockout.py` | 18 tests: is_locked, lockout tras N fallos, mutex entre usuarios, unlock, auto-expiración (mocked time), change_password resets, rutas 423/401/200, lockout fields en user nuevo.                                           |
+
+### Verificación
+
+- `pytest tests/unit/test_f122_account_lockout.py -v`: 18/18 pass
+- `pytest tests/unit/test_auth_multi_user.py tests/unit/test_auth_security.py tests/unit/test_f121_password_policy.py`: 51/51 pass (sin regresiones)
+- `mypy --strict core/auth_db.py server/routes/auth.py`: 0 errores
+
+---
+
+## F119 done ✅ — `fix_test_infrastructure_bugs`
+
+**Resumen**: Dos bugs pre-existentes que bloqueaban init.ps1 y la suite de tests.
+
+**Bug 1 — RateLimiter type error**: `_NoTokenConfig.get()` en `test_auth_security.py` retornaba `""` para TODAS las keys, no solo `server.auth_token`. Cuando `create_app()` pedía `config.get("server.rate_limit_rpm", 60)`, obtenía `""` en vez de `60`. `RateLimiter.__init__` recibía `requests_per_minute=""` y `is_allowed()` fallaba con `TypeError: '>=' int vs str`.
+
+Fix: `_NoTokenConfig.get()` retorna `default` para keys que no son `server.auth_token`.
+
+**Bug 2 — crash.log y security.log file locks**: `install_crash_handler()` y `setup_logging()` no cerraban los handlers previos antes de reemplazarlos. En Windows, `RotatingFileHandler` mantiene file lock que impedía cleanup de temp dirs. Fixes:
+
+- `install_crash_handler()`: cierra old handlers antes de `crash_logger.handlers.clear()`
+- `setup_logging()`: cierra old handlers antes de `root.handlers.clear()`
+- `FilteredFileHandler`: añadido `close()` que cierra el handler interno
+- `test_logging_setup.py`: fixtures autouse `_cleanup_root_handlers` y `_cleanup_crash_handlers`
+
+**Verificación**: 183/183 pass, 0 errores de PermissionError en temp dirs (con basetemp limpio).
+
+---
+
+## F120 done ✅ — `remove_default_admin`
+
+**Resumen**: Eliminada cuenta `admin` con contraseña hardcodeada `admin` que se creaba automáticamente si no existía `users.json`.
+
+### Cambios
+
+| Archivo                              | Cambio                                                                                                                                                                                                                                                                                              |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core/auth_db.py`                    | `_seed_default_admin()` eliminado. `_load()` ya no crea admin. Nuevo: `setup_first_admin(password)` crea admin solo si no hay usuarios. `_try_create_admin_from_env()` lee `SRT2WEB_ADMIN_PASSWORD` env var. `delete_user()` permite borrar admin si hay otro admin. Nuevos métodos: `has_users()`. |
+| `server/routes/auth.py`              | `GET /api/auth/setup` — retorna `{"needs_setup": bool}`. `POST /api/auth/setup` — crea primer admin (alias admin-only). Import cambiado a `import core.auth_db` con `_get_auth_db()` helper para testability.                                                                                       |
+| `tests/unit/test_auth_multi_user.py` | Tests actualizados: `seeded_admin` fixture, `test_cannot_delete_last_admin`, `test_can_delete_admin_if_other_admin_exists`, `test_env_var_creates_admin`, `TestAuthSetup` class, `TestAuthAPI` simplificado.                                                                                        |
+
+### Seguridad
+
+- Sin admin por defecto = sin backdoor conocido
+- `SRT2WEB_ADMIN_PASSWORD=strong-pass` en CI/deployment
+- `POST /api/auth/setup` solo funciona UNA vez (cuando no hay usuarios)
+- No se puede borrar el último admin
+
+---
+
+## Features pendientes (F121-F126)
+
+| ID  | Nombre                      | Prioridad | Estado  |
+| --- | --------------------------- | --------- | ------- |
+| 121 | password_policy             | Alta      | pending |
+| 122 | account_lockout             | Alta      | pending |
+| 123 | session_security            | Media     | pending |
+| 124 | security_headers_monitoring | Media     | pending |
+| 125 | csrf_protection             | Media     | pending |
+| 126 | cors_input_sanitization     | Media     | pending |
+
+---
+
+**Resumen**: Tres bugs críticos identificados en auditoría de código: (1) hardware.py auto-detección GPU es un no-op por wrong key lookup, (2) Dockerfile stage runtime copia path inexistente (sin frontend en imagen non-GPU), (3) config_manager.py save() no-atómico en Windows.
+
+### Bugs a corregir
+
+| Bug         | Archivo                  | Líneas  | Severidad | Descripción                                                                                                                                                                |
+| ----------- | ------------------------ | ------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B7          | `core/hardware.py`       | 243-245 | HIGH      | `update_config_with_optimal_device()` busca `"transcriber"` en keys top-level, pero la estructura real es `config["modules"]["transcriber"]`. Auto-detección GPU es no-op. |
+| Dockerfile  | `Dockerfile`             | 62      | HIGH      | Stage `runtime` hace `COPY --from=builder /app/frontend/dist` pero Astro construye a `/app/server/static`. Imagen non-GPU sin frontend.                                    |
+| config_save | `core/config_manager.py` | 216-219 | MEDIUM    | `save()` usa `unlink()+rename()` no-atómico. En Windows, `rename()` falla si target existe. Ventana sin archivo = config perdida.                                          |
+
+### Plan de implementación
+
+1. **Fix hardware.py** (1 línea): `if module_name in config` → `if "modules" in config and module_name in config["modules"]` + updates a `config["modules"][module_name]`
+2. **Fix Dockerfile** (2 líneas): stage runtime `COPY /app/frontend/dist` → `COPY /app/server/static`; stage runtime-cuda `COPY dist-packages` → `COPY site-packages`
+3. **Fix config_manager.py** (3 líneas): reemplazar `unlink()+rename()` con `os.replace()`
+4. **Tests**: agregar test con config dict anidado en test_hardware_detection.py, agregar test de save atómico en test_config_manager.py
+
+### Decisiones técnicas
+
+- **hardware.py fix es mínimo**: solo cambia el path de lookup. La lógica de detección no cambia.
+- **Dockerfile fix**: verificar que el path `/app/server/static` existe después del build en builder stage.
+- **os.replace()**: atómico en todas las plataformas incluyendo Windows (usa MoveFileEx con MOVEFILE_REPLACE_EXISTING).
+
+### Métricas (al inicio)
+
+- `init.ps1 -Quick`: GREEN
+- `pytest tests/unit/`: 53/53 pass (subset)
+- `mypy --strict`: 0 errores
+
+### Fixes implementados
+
+**1. `core/hardware.py` — auto-detección GPU (líneas 243-258)**
+
+Bug: `update_config_with_optimal_device()` buscaba `"transcriber"` en keys top-level del config dict. La estructura real es `config["modules"]["transcriber"]`. Resultado: la función era un **no-op completo** — la auto-detección de GPU nunca aplicaba.
+
+Fix: `modules_section = config.get("modules", config)` — busca en `config["modules"]` primero, fallback a config plano para compatibilidad.
+
+Tests nuevos: `test_update_config_nested_modules_dict`, `test_update_config_nested_preserves_non_device_fields` (22/22 pass).
+
+**2. `Dockerfile` — COPY path stage runtime (líneas 60-62, 95)**
+
+Bug 1: Stage `runtime` hacía `COPY --from=builder /app/frontend/dist` pero Astro construye con `--outDir ../server/static` (relativo a `frontend/`), o sea que el output está en `/app/server/static`. Resultado: la imagen Docker non-GPU no tenía frontend (sin dashboard, player, ni graph editor).
+
+Bug 2: Stage `runtime-cuda` copiaba `dist-packages` pero el builder (`python:3.12-slim`) usa `site-packages`.
+
+Fix 1: `COPY --from=builder /app/server/static /app/server/static`
+Fix 2: `COPY --from=builder /usr/local/lib/python3.12/site-packages ...`
+
+**3. `core/config_manager.py` — save atómico (líneas 216-219)**
+
+Bug: `save()` usaba `unlink()` + `rename()` en vez de `os.replace()`. En Windows, `rename()` falla si el target existe (por eso hacía `unlink()` primero), pero esto creaba una ventana no-atómica donde el archivo de config no existía. Un crash durante esa ventana = config perdida.
+
+Fix: `os.replace(str(temp_path), str(self._config_path))` — atómico en todas las plataformas (usa `MoveFileEx` con `MOVEFILE_REPLACE_EXISTING` en Windows).
+
+Tests nuevos: `test_save_creates_file`, `test_save_is_atomic`, `test_save_preserves_valid_yaml` (12/12 pass).
+
+### Métricas (al cierre)
+
+- `init.ps1 -Quick`: GREEN (9/9 secciones OK)
+- `pytest tests/unit/test_hardware_detection.py`: 22/22 pass
+- `pytest tests/unit/test_config_manager.py`: 12/12 pass
+- `mypy --strict core/hardware.py core/config_manager.py`: 0 errores
+- `feature_list.json`: 97 features (97 done, 0 in_progress, 0 pending) — **todas las features cerradas**
+
+### Archivos tocados (resumen git)
+
+```
+M  core/hardware.py
+M  Dockerfile
+M  core/config_manager.py
+M  tests/unit/test_hardware_detection.py
+M  tests/unit/test_config_manager.py
+M  feature_list.json
+M  progress/current.md
+```
+
+---
+
+## F118 done ✅ — `security_hardening`
+
+**Resumen**: 4 mejoras implementadas en sesiones anteriores: (1) PBKDF2 hashing con 600K iteraciones, (2) JWT fallback vacío (no hardcoded), (3) secrets.compare_digest timing-safe, (4) AuthMiddleware retorna 503 cuando auth_token no está configurado. Tests en `tests/unit/test_auth_security.py` (9 tests, todos pasan).
+
+## F119 in_progress 🔧 — `fix_test_infrastructure_bugs`
+
+**Resumen**: Dos bugs pre-existentes bloqueaban init.ps1 -Quick. Ambos corregidos.
+
+### Bug 1: RateLimiter type error (TypeError: '>=' int vs str)
+
+`tests/unit/test_auth_security.py:147-149` — `_NoTokenConfig.get()` retornaba `""` para TODAS las keys, no solo `server.auth_token`. Cuando `create_app()` llamaba `config.get("server.rate_limit_rpm", 60)`, obtenía `""` en vez de `60`, y `RateLimiter.__init__` recibía `requests_per_minute=""`. Luego `is_allowed()` fallaba con `TypeError: '>=' not supported between instances of 'int' and 'str'`.
+
+Fix: `_NoTokenConfig.get()` retorna `default` para keys que no son `server.auth_token`.
+
+### Bug 2: crash.log file lock impide cleanup de temp dirs
+
+`install_crash_handler()` en `core/logging_setup.py:291` hacía `crash_logger.handlers.clear()` sin cerrar el handler anterior. En Windows, el `RotatingFileHandler` mantiene un file lock en `crash.log`. Cuando el test terminaba y `tmp_path` intentaba cleanup con `shutil.rmtree`, fallaba con `PermissionError`.
+
+Fix: cerrar old handlers antes de `handlers.clear()`. Agregada fixture `_cleanup_crash_handlers` autouse en `TestInstallCrashHandler`.
+
+### Verificación
+
+- `pytest tests/unit/test_auth_security.py -v`: 9/9 pass
+- `pytest tests/unit/test_logging_setup.py -v`: 14/14 pass
+
+---
+
+# Sesión anterior — F116 cerrado: graph_ui_react_flow (2026-06-07)
 
 ## Estado del entorno verificado con `init.ps1 -Quick` — **VERDE**
 
