@@ -10,6 +10,7 @@ from typing import Any
 
 from core.config_manager import ConfigManager
 from core.constants import LANGUAGE_NAMES
+from core.ffmpeg_pool import FFmpegPool
 from core.io_factory import InputFactory, OutputFactory, auto_discover
 from core.unified_pipeline import PipelineMode, UnifiedPipeline
 from server.ws_routes import log_broadcaster
@@ -108,6 +109,9 @@ def create_app_context(
         default_output.set_output_dir(output_dir)
         composite_sink.add_output(default_output.name, default_output)
 
+    # FFmpeg pool (F131: created here, injected into modules)
+    ffmpeg_pool = FFmpegPool(max_size=4, idle_timeout=30.0)
+
     # Pipeline
     pipeline = UnifiedPipeline(
         mode=PipelineMode.THREAD_PARALLEL,
@@ -119,8 +123,8 @@ def create_app_context(
     pipeline.set_input_source(input_source)
     pipeline.set_output_sink(composite_sink)
 
-    # Register modules
-    _register_modules(pipeline, config_manager, output_dir, chunk_duration)
+    # Register modules (pool injected where modules accept it)
+    _register_modules(pipeline, config_manager, output_dir, chunk_duration, ffmpeg_pool)
 
     return {
         "pipeline": pipeline,
@@ -136,6 +140,7 @@ def _register_modules(
     config_manager: ConfigManager,
     output_dir: str,
     chunk_duration: int,
+    ffmpeg_pool: FFmpegPool | None = None,
 ) -> None:
     """Register all processing modules with the pipeline."""
     from core.subtitle_sync_monitor import SubtitleSyncMonitor
@@ -163,6 +168,8 @@ def _register_modules(
         kwargs: dict[str, Any] = {"config": mod_config}
         if needs_output_dir:
             kwargs["output_dir"] = output_dir
+        if ffmpeg_pool is not None:
+            kwargs["pool"] = ffmpeg_pool
 
         module = module_class(**kwargs)
         pipeline.register_module(module)

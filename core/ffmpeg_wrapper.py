@@ -14,6 +14,7 @@ from collections.abc import Callable
 from typing import Any
 
 from core.ffmpeg_utils import find_ffmpeg, find_ffprobe
+from core.ffmpeg_pool import FFmpegPool, get_pool
 from core.module_base import BaseModule
 
 logger = logging.getLogger("srt2web.ffmpeg_wrapper")
@@ -39,6 +40,9 @@ class FFmpegProcess:
         self._process: subprocess.Popen[str] | None = None
         self._stop_event = threading.Event()
         self._stderr_thread: threading.Thread | None = None
+        # F131: pool reference for slot release on stop
+        self._pool_job_id: str | None = None
+        self._pool_ref: FFmpegPool | None = None
 
     def start(self) -> None:
         """Starts the FFmpeg process."""
@@ -80,10 +84,11 @@ class FFmpegProcess:
             logger.debug(f"Stderr reading stopped for [{self.name}]: {e}")
 
     def stop(self, timeout: float = 5.0) -> None:
-        """Stops the FFmpeg process gracefully then forcefully."""
+        """Stops the FFmpeg process gracefully then forcefully. Releases pool slot."""
         self._stop_event.set()
 
         if not self._process:
+            self._release_pool()
             return
 
         try:
@@ -108,6 +113,13 @@ class FFmpegProcess:
             if self._stderr_thread:
                 self._stderr_thread.join(timeout=1.0)
             self._process = None
+            self._release_pool()
+
+    def _release_pool(self) -> None:
+        """Release the pool slot if one was acquired."""
+        if self._pool_ref is not None and self._pool_job_id is not None:
+            self._pool_ref.release(self._pool_job_id)
+            self._pool_job_id = None
 
     @property
     def is_alive(self) -> bool:
@@ -124,11 +136,12 @@ class FFmpegWrapper:
     High-level wrapper for FFmpeg and FFprobe operations.
     """
 
-    def __init__(self, name: str = "ffmpeg_wrapper"):
+    def __init__(self, name: str = "ffmpeg_wrapper", pool: FFmpegPool | None = None):
         self.name = name
         self.ffmpeg_path = str(find_ffmpeg())
         self.ffprobe_path = str(find_ffprobe())
         self._creation_flags = self._get_default_creation_flags()
+        self._pool = pool or get_pool()
 
     def _get_default_creation_flags(self) -> int | None:
         """Returns Windows-specific flags to hide console windows."""
@@ -142,12 +155,16 @@ class FFmpegWrapper:
     ) -> subprocess.CompletedProcess[str]:
         """
         Runs a short-lived FFmpeg command.
+        F131: acquires a pool slot before running.
         """
-        full_args = [self.ffmpeg_path, *args]
-        logger.debug(f"Running FFmpeg command: {' '.join(full_args)}")
-
+        job_id = f"{self.name}_{int(time.time() * 1000)}"
+        if not self._pool.acquire(self.ffmpeg_path, job_id, timeout=30.0):
+            raise RuntimeError(f"FFmpegPool: timeout waiting for slot (job={job_id})")
         try:
-            return subprocess.run(
+            full_args = [self.ffmpeg_path, *args]
+            logger.debug(f"Running FFmpeg command: {' '.join(full_args)}")
+
+            result = subprocess.run(
                 full_args,
                 capture_output=capture_output,
                 text=True,
@@ -156,12 +173,15 @@ class FFmpegWrapper:
                 creationflags=self._creation_flags or 0,
                 check=True,
             )
+            return result
         except subprocess.CalledProcessError as e:
             logger.error(f"FFmpeg command failed: {e.stderr}")
             raise
         except Exception as e:
             logger.error(f"Unexpected error running FFmpeg: {e}")
             raise
+        finally:
+            self._pool.release(job_id)
 
     def run_probe(self, args: list[str], capture_output: bool = True) -> subprocess.CompletedProcess[str]:
         """
@@ -188,11 +208,18 @@ class FFmpegWrapper:
     ) -> FFmpegProcess:
         """
         Creates and returns a managed FFmpeg process.
+        F131: acquires a pool slot before creating.
         """
+        job_id = f"{process_name}_{int(time.time() * 1000)}"
+        if not self._pool.acquire(self.ffmpeg_path, job_id, timeout=30.0):
+            raise RuntimeError(f"FFmpegPool: timeout waiting for slot (job={job_id})")
         full_args = [self.ffmpeg_path, *args]
-        return FFmpegProcess(
+        process = FFmpegProcess(
             args=full_args, name=process_name, on_stderr=on_stderr, creation_flags=self._creation_flags
         )
+        process._pool_job_id = job_id
+        process._pool_ref = self._pool
+        return process
 
 
 class FFmpegModule(BaseModule):
@@ -201,9 +228,9 @@ class FFmpegModule(BaseModule):
     Provides common FFmpeg functionality and wrapper instance.
     """
 
-    def __init__(self, module_name: str, config: dict[str, Any] | None = None):
+    def __init__(self, module_name: str, config: dict[str, Any] | None = None, pool: FFmpegPool | None = None):
         super().__init__(module_name, config)
-        self.ffmpeg = FFmpegWrapper(name=module_name)
+        self.ffmpeg = FFmpegWrapper(name=module_name, pool=pool)
         self.logger = logging.getLogger(f"srt2web.module.{module_name}")
 
     def start(self) -> None:

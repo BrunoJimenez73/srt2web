@@ -70,13 +70,12 @@ class TestHLSOutputStop:
         output.stop()
         assert output._hls_dir == ""
 
-    def test_stop_calls_shutdown_pool(self):
+    def test_stop_does_not_crash(self):
         from modules.outputs.hls_output import HLSOutput
 
         output = HLSOutput({})
-        with patch("modules.outputs.hls_output.shutdown_pool") as mock_shutdown:
-            output.stop()
-            mock_shutdown.assert_called_once()
+        # Should not raise — pool slot release is graceful even without acquisition
+        output.stop()
 
 
 class TestHLSOutputGetStatus:

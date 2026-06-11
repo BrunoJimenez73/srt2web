@@ -36,6 +36,10 @@ config.yaml
 !config.yaml.example
 config/users.json
 
+# Environment variables (F130 — never commit real secrets)
+.env
+.env.*
+
 # Trash / temp
 PARA BORRAR/
 

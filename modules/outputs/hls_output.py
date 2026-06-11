@@ -19,7 +19,7 @@ import threading
 from typing import Any
 
 from core.encoder_config import EncoderConfig
-from core.ffmpeg_pool import shutdown_pool
+from core.ffmpeg_pool import FFmpegPool, get_pool
 from core.ffmpeg_utils import check_gpu_support, ensure_ffmpeg
 from core.module_base import ModuleState, ModuleStatus, PipelineData
 from core.output_sink import OutputSink
@@ -34,8 +34,10 @@ class HLSOutput(OutputSink):
     aceleración por hardware (NVENC, QSV, AMF).
     """
 
-    def __init__(self, config: dict[str, Any]):
+    def __init__(self, config: dict[str, Any], pool: FFmpegPool | None = None):
         super().__init__("web", config)
+
+        self._pool = pool or get_pool()
 
         # Configuración HLS
         self._segment_duration = config.get("segment_duration", 15)
@@ -144,8 +146,6 @@ class HLSOutput(OutputSink):
     def stop(self) -> None:
         """Detener salida HLS."""
         self._hls_dir = ""
-        # Shutdown FFmpeg pool on stop
-        shutdown_pool()
         self.logger.info("HLS output stopped")
 
     def write(self, data: PipelineData) -> None:
