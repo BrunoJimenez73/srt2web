@@ -68,6 +68,11 @@ let healthCheckInterval: ReturnType<typeof setInterval> | null = null;
 let consecutiveErrors = 0;
 const MAX_CONSECUTIVE_ERRORS = 5;
 
+// Retry backoff state
+let retryCount = 0;
+const MAX_RETRY_DELAY_MS = 30000;
+const BASE_RETRY_DELAY_MS = 2000;
+
 export function initHlsPlayer(): void {
   const video = document.getElementById("video-player") as HTMLVideoElement;
   const container = document.getElementById("video-container") as HTMLElement;
@@ -133,12 +138,12 @@ export function initHlsPlayer(): void {
         logger.warn("player", "Stream check failed", consecutiveErrors);
       }
 
-      // If too many consecutive errors, show reconnect option
+      // If too many consecutive errors, stop checking and show reconnect
       if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS && hls) {
+        stopHealthCheck();
         showError(
           "Stream no disponible. Haz clic en Reintentar para conectar.",
         );
-        consecutiveErrors = 0;
       }
     }, 10000); // Check every 10 seconds
   }
@@ -165,6 +170,7 @@ export function initHlsPlayer(): void {
     if (waitingEl) waitingEl.style.display = "block";
     isConnected = false;
     consecutiveErrors = 0;
+    retryCount = 0;
 
     // Update cache buster for fresh session
     const ts = Date.now();
@@ -210,7 +216,9 @@ export function initHlsPlayer(): void {
       // stuck on the "waiting" overlay forever.
       hls.on(HlsEvents.MANIFEST_PARSED, () => {
         if (waitingEl) waitingEl.style.display = "none";
+        hideError();
         isConnected = true;
+        retryCount = 0;
         video.play().catch(handlePlayError);
 
         updateSubtitleUI(0);
@@ -223,10 +231,23 @@ export function initHlsPlayer(): void {
 
         if (err.fatal) {
           switch (err.type) {
-            case HlsErrorTypes.NETWORK_ERROR:
-              showError("Error de red - intentando reconectar...");
-              hls?.startLoad();
+            case HlsErrorTypes.NETWORK_ERROR: {
+              // Exponential backoff: 2s, 4s, 8s, 16s, 30s max
+              const delay = Math.min(
+                BASE_RETRY_DELAY_MS * Math.pow(2, retryCount),
+                MAX_RETRY_DELAY_MS,
+              );
+              retryCount++;
+              showError(
+                `Error de red - reconectando en ${Math.round(
+                  delay / 1000,
+                )}s...`,
+              );
+              setTimeout(() => {
+                if (hls) hls.startLoad();
+              }, delay);
               break;
+            }
             case HlsErrorTypes.MEDIA_ERROR:
               hls?.recoverMediaError();
               break;

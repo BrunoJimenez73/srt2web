@@ -52,12 +52,12 @@ class EncoderConfig:
         self.video_tune = config.get("video_tune", "zerolatency")
 
         # Configuración de GPU
-        self.gpu_preset = config.get("gpu_preset", "p7")
+        self.gpu_preset = config.get("gpu_preset") or "p4"
 
         # Configuración de audio
-        self.audio_codec = config.get("audio_codec", "aac")
-        self.audio_bitrate = config.get("audio_bitrate", "192k")
-        self.audio_sample_rate = config.get("audio_sample_rate", 48000)
+        self.audio_codec = config.get("audio_codec") or "aac"
+        self.audio_bitrate = config.get("audio_bitrate") or "192k"
+        self.audio_sample_rate = config.get("audio_sample_rate") or 48000
 
     def get_cpu_args(self) -> list[str]:
         """Obtener argumentos FFmpeg para codificación CPU."""

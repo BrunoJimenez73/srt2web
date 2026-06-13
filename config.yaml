@@ -11,7 +11,7 @@ input:
   type: srt
   srt:
     listen_port: 9000
-    mode: caller
+    mode: listener
     latency_ms: 200
     caller_address: ''
     chunk_duration_sec: 5
@@ -33,12 +33,12 @@ output:
     segment_duration: 5
     list_size: 12
     audio_offset_ms: 0
-    encoder_mode: gpu_nvenc
+    encoder_mode: auto
   hls:
     segment_duration: 5
     list_size: 12
     audio_offset_ms: 0
-    encoder_mode: gpu_nvenc
+    encoder_mode: auto
   rtmp:
     url: rtmp://localhost/live/stream
     video_bitrate: 2500k
@@ -81,16 +81,17 @@ pipeline:
   chunk_duration_sec: 5
   mode: thread_parallel
   max_concurrent_chunks: 4
-  buffer_size: 10
-  retry_attempts: 3
+  buffer_size: 5
+  retry_attempts: 2
   retry_delay: 1.0
+  lost_chunk_timeout_sec: 30.0
 modules:
   audio_extractor:
     enabled: true
   transcriber:
     enabled: true
     model: tiny
-    language: en
+    language: auto
     device: cpu
     beam_size: 2
     timeout_sec: 120.0
@@ -100,40 +101,40 @@ modules:
     target_lang: es
   subtitle_generator:
     enabled: true
-    format: srt
+    format: webvtt
     use_translated: true
     chunk_duration: 5
     dual_track: false
   tts_engine:
-    enabled: true
-    engine: piper
+    enabled: false
+    engine: edge-tts
     device: cpu
-    voice: es_MX-claude-high
-    speed: 1.2
+    voice: es-ES-ElviraNeural
+    speed: 1.0
   audio_mixer:
-    enabled: true
-    original_volume: 1.0
-    tts_volume: 0.5
+    enabled: false
+    original_volume: 0.7
+    tts_volume: 1.0
   video_muxer:
     enabled: true
     engine: hls
     hls_segment_duration: 5
     hls_list_size: 12
     audio_offset_ms: 0
-    encoder_mode: gpu_nvenc
+    encoder_mode: auto
     video_quality: medium
     video_crf: 23
     audio_codec: aac
     audio_bitrate: 128k
-    video_bitrate: 1000k
-    video_fps: 15
-    video_width: 320
-    video_height: 240
+    video_bitrate: null
+    video_fps: null
+    video_width: null
+    video_height: null
     webrtc_audio_codec: null
     webrtc_audio_bitrate: null
-    audio_sample_rate: 24000
+    audio_sample_rate: null
     gpu_preset: p4
-    video_preset: fast
+    video_preset: medium
 subtitle_sync:
   sync_correction_threshold: 500
   enable_drift_detection: false

@@ -163,7 +163,7 @@ class TestEncoderConfig:
         assert config.encoder_mode == "auto"
         assert config.video_preset == "medium"
         assert config.video_crf == 18
-        assert config.gpu_preset == "p7"
+        assert config.gpu_preset == "p4"
         assert config.audio_codec == "aac"
         assert config.audio_bitrate == "192k"
 

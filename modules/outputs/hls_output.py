@@ -141,12 +141,51 @@ class HLSOutput(OutputSink):
         except Exception as e:
             self.logger.error(f"Failed to create initial master playlist: {e}")
 
+        # Create empty stream.m3u8 so the player doesn't hit a fatal 404
+        # while waiting for the first chunk. HLSOutput.write() replaces this
+        # with the real media playlist on the first processed chunk.
+        stream_path = os.path.join(self._hls_dir, "stream.m3u8")
+        try:
+            with open(stream_path, "w", encoding="utf-8") as f:
+                f.write("#EXTM3U\n")
+                f.write("#EXT-X-VERSION:3\n")
+                f.write("#EXT-X-TARGETDURATION:10\n")
+                f.write("#EXT-X-MEDIA-SEQUENCE:0\n")
+                f.write("#EXT-X-DISCONTINUITY\n")
+        except Exception as e:
+            self.logger.error(f"Failed to create empty stream playlist: {e}")
+
         self.logger.info(f"HLS output ready: {self._hls_dir}")
 
     def stop(self) -> None:
         """Detener salida HLS."""
         self._hls_dir = ""
         self.logger.info("HLS output stopped")
+
+    @staticmethod
+    def _is_h264(input_path: str) -> bool:
+        """Check if input video is already H.264 (can be remuxed without re-encode)."""
+        try:
+            result = subprocess.run(
+                [
+                    "ffprobe",
+                    "-v",
+                    "error",
+                    "-select_streams",
+                    "v:0",
+                    "-show_entries",
+                    "stream=codec_name",
+                    "-of",
+                    "csv=p=0",
+                    input_path,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            return "h264" in (result.stdout or "").lower()
+        except Exception:
+            return False
 
     def write(self, data: PipelineData) -> None:
         """
@@ -172,19 +211,21 @@ class HLSOutput(OutputSink):
         audio_input = data.mixed_audio_path if data.mixed_audio_path and os.path.exists(data.mixed_audio_path) else None
 
         # Calcular offset de tiempo - usar cumulative_duration para sincronizar con subtitles
-        offset_sec = f"{getattr(data, 'cumulative_duration', self._total_duration_emitted):.3f}"
+        # Always use cumulative_duration from PipelineData (set by input source).
+        # Never fall back to _total_duration_emitted — it diverges from subtitle timeline.
+        offset_sec = f"{getattr(data, 'cumulative_duration', 0.0):.3f}"
         chunk_duration = data.duration or self._segment_duration
 
         # Guardar duración para el manifest
         self._segment_durations[self._segment_index] = chunk_duration
 
+        # ── Fast path: remux when input is already H.264 ──
+        # Avoid re-encoding when the input codec is already H.264.
+        # Only re-encode when encoder_mode forces it AND input is not H.264.
         encoder_mode = self._encoder_config.encoder_mode
+        can_remux = encoder_mode == "passthrough" or (encoder_mode == "auto" and self._is_h264(input_path))
 
-        # ── Fast path: passthrough → sin re-encoding de video ──
-        # Siempre hacemos -c:v copy (sin recodificar video).
-        # Si hay audio mezclado (TTS), lo recodificamos a AAC para MPEG-TS;
-        # si no, copiamos el audio original tal cual.
-        if encoder_mode == "passthrough":
+        if can_remux:
             segment_name = f"seg_{self._segment_index:06d}.ts"
             segment_path = os.path.join(self._hls_dir, segment_name)
 
@@ -327,15 +368,40 @@ class HLSOutput(OutputSink):
             )
             if result.returncode != 0:
                 # Fallback: retry with CPU encoder if GPU encoder failed
+                # Build clean command — strip all GPU-specific args
                 self.logger.warning(f"FFmpeg mux error (will retry with CPU): {result.stderr[-200:]}")
-                # Replace encoder command to use libx264
-                fallback_cmd = cmd.copy()
-                try:
-                    enc_idx = fallback_cmd.index("-c:v") + 1
-                    fallback_cmd[enc_idx] = "libx264"
-                except (ValueError, IndexError):
-                    pass
-                fallback_cmd.extend(["-preset", "fast"])
+                fallback_cmd = [self._ffmpeg_path, "-y", "-i", input_path]
+                if audio_input and os.path.exists(audio_input):
+                    audio_delay_sec = self._audio_offset_ms / 1000.0
+                    fallback_cmd.extend(["-itsoffset", str(audio_delay_sec), "-i", audio_input])
+                fallback_cmd.extend(
+                    [
+                        "-map",
+                        "0:v:0",
+                        "-map",
+                        "1:a:0" if audio_input else "0:a:0",
+                    ]
+                )
+                fallback_cmd.extend(audio_args)
+                fallback_cmd.extend(
+                    [
+                        "-c:v",
+                        "libx264",
+                        "-preset",
+                        "fast",
+                        "-crf",
+                        "23",
+                        "-profile:v",
+                        "high",
+                        "-tune",
+                        "zerolatency",
+                        "-output_ts_offset",
+                        offset_sec,
+                        "-f",
+                        "mpegts",
+                        os.path.join(self._hls_dir, f"seg_{self._segment_index:06d}.ts"),
+                    ]
+                )
                 self.logger.info("Retrying segment with libx264 CPU encoder")
                 result = subprocess.run(
                     filter_command(fallback_cmd),

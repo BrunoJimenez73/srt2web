@@ -461,7 +461,7 @@ class VideoMuxerConfig(BaseModel):
     webrtc_audio_codec: AudioCodecEnum | None = Field(default=None, description="Códec audio WebRTC")
     webrtc_audio_bitrate: str | None = Field(default=None, description="Bitrate audio WebRTC")
     audio_sample_rate: int | None = Field(default=None, ge=8000, le=96000, description="Sample rate de audio")
-    gpu_preset: str = Field(default="p7", description="Preset de encoder GPU")
+    gpu_preset: str = Field(default="p4", description="Preset de encoder GPU (p1=fastest, p7=slowest)")
     video_preset: str = Field(default="medium", description="Preset de calidad CPU")
 
 
