@@ -2,6 +2,8 @@
 Centralized path utilities for SRT2Web.
 All path operations should use functions from this module.
 """
+import os
+import time
 from pathlib import Path
 
 # Cache for project root (computed once)
@@ -208,3 +210,25 @@ def get_user_log_dir() -> Path:
         log = get_project_root() / "logs"
         log.mkdir(parents=True, exist_ok=True)
         return log
+
+
+def atomic_replace(src: str | Path, dst: str | Path, retries: int = 5, delay: float = 0.05) -> None:
+    """Atomic file replacement with retry for Windows file-locking (WinError 32).
+
+    On Windows, os.replace() calls MoveFileExW which requires exclusive access
+    to the destination file. When parallel processes (e.g. pytest-xdist workers)
+    hold the file open, the replace fails with PermissionError. This helper
+    retries with exponential backoff.
+    """
+    src_str = str(src)
+    dst_str = str(dst)
+    last_err: OSError | None = None
+    for attempt in range(retries):
+        try:
+            os.replace(src_str, dst_str)
+            return
+        except PermissionError as exc:
+            last_err = exc
+            if attempt < retries - 1:
+                time.sleep(delay * (2**attempt))
+    raise last_err  # type: ignore[misc]

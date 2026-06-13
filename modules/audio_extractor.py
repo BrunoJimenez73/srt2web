@@ -26,11 +26,11 @@ class AudioExtractor(FFmpegModule):
     (16kHz, mono, PCM WAV).
     """
 
-    def __init__(self, config: dict[str, Any] | None = None, output_dir: str = "./output") -> None:
+    def __init__(self, config: dict[str, Any] | None = None, output_dir: str = "./output", pool: Any = None) -> None:
         self._output_dir = Path(output_dir)
         self._audio_dir = Path()
         self._gpu_info = {"nvenc": False, "nvdec": False}
-        super().__init__("audio_extractor", config)
+        super().__init__("audio_extractor", config, pool=pool)
 
     def configure(self, config: dict[str, Any]) -> None:
         super().configure(config)

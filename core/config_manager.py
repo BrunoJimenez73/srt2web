@@ -22,7 +22,7 @@ import yaml
 # import compatibility issues between Pydantic v1/v2
 from core.config_schema import SRT2WebConfig
 from core.hardware import update_config_with_optimal_device
-from core.paths import get_config_path, get_project_root
+from core.paths import atomic_replace, get_config_path, get_project_root
 
 logger = logging.getLogger("srt2web.config")
 
@@ -201,21 +201,26 @@ class ConfigManager:
 
                 Path(self._config_path).parent.mkdir(parents=True, exist_ok=True)
 
-                # Write to temp file, then rename for atomicity
-                temp_path = f"{self._config_path}.tmp"
-                with open(temp_path, "w", encoding="utf-8") as f:
-                    yaml.dump(
-                        validated_config.to_dict(),
-                        f,
-                        default_flow_style=False,
-                        allow_unicode=True,
-                        sort_keys=False,
-                    )
+                # Write to unique temp file, then atomic_replace
+                import tempfile
 
-                # F117 fix: use os.replace() for truly atomic save on all platforms
-                # (unlink+rename is non-atomic on Windows; os.replace uses MOVEFILE_REPLACE_EXISTING)
-                if Path(temp_path).exists():
-                    os.replace(str(temp_path), str(self._config_path))
+                fd, temp_path = tempfile.mkstemp(dir=str(Path(self._config_path).parent), suffix=".tmp")
+                try:
+                    with os.fdopen(fd, "w", encoding="utf-8") as f:
+                        yaml.dump(
+                            validated_config.to_dict(),
+                            f,
+                            default_flow_style=False,
+                            allow_unicode=True,
+                            sort_keys=False,
+                        )
+                    atomic_replace(temp_path, str(self._config_path))
+                except Exception:
+                    try:
+                        os.unlink(temp_path)
+                    except OSError:
+                        pass
+                    raise
 
                 logger.info(f"Configuration validated and saved to {self._config_path}")
             except Exception as e:
@@ -314,15 +319,20 @@ class ConfigManager:
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Write to temp file, then rename for atomicity
-            temp_path = f"{path}.tmp"
-            with open(temp_path, "w", encoding="utf-8") as f:
-                json.dump(presets, f, indent=2, ensure_ascii=False)
+            # Write to unique temp file, then atomic_replace
+            import tempfile
 
-            if Path(temp_path).exists():
-                if path.exists():
-                    path.unlink()
-                Path(temp_path).rename(path)
+            fd, temp_path = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    json.dump(presets, f, indent=2, ensure_ascii=False)
+                atomic_replace(temp_path, path)
+            except Exception:
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
+                raise
         except Exception as e:
             logger.error(f"Failed to save presets: {e}")
             raise

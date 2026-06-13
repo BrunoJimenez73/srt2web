@@ -84,11 +84,22 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if self._is_public_path(path):
             return await call_next(request)
 
-        auth_token = self.get_auth_token() or os.environ.get("SRT2WEB_AUTH_TOKEN", "")
+        auth_token = (
+            self.get_auth_token() or os.environ.get("SRT2WEB_AUTH_TOKEN", "") or os.environ.get("AUTH_TOKEN", "")
+        )
 
         # In test mode, skip authentication entirely (no 503, no 401)
         if os.environ.get("SRT2WEB_TESTING"):
             return await call_next(request)
+
+        # Allow insecure dev mode: skip auth when SRT2WEB_ALLOW_INSECURE_DEFAULTS=1
+        # and request comes from localhost. This lets the frontend work without
+        # manually entering a token during local development, while still enforcing
+        # auth in production/staging where this env var is not set.
+        if os.environ.get("SRT2WEB_ALLOW_INSECURE_DEFAULTS", "").lower() in ("1", "true", "yes"):
+            host = request.headers.get("host", "")
+            if host.startswith("localhost") or host.startswith("127.0.0.1"):
+                return await call_next(request)
 
         # F118: If no token configured, reject with 503 (Service Unavailable)
         # instead of silently allowing all requests through.
@@ -386,14 +397,18 @@ class CsrfMiddleware(BaseHTTPMiddleware):
         if self._is_public_or_auth_path(request.url.path):
             return await call_next(request)
 
+        # In test mode, skip CSRF validation entirely (matches AuthMiddleware)
+        if os.environ.get("SRT2WEB_TESTING"):
+            return await call_next(request)
+
         # Skip requests with Authorization header (programmatic API clients)
         auth_header = request.headers.get("Authorization", "")
         if auth_header.startswith("Bearer "):
             return await call_next(request)
 
-        # Validate CSRF token
+        # Validate CSRF token — resolve secret with same fallback chain as AuthMiddleware
         csrf_header = request.headers.get("X-CSRF-Token", "")
-        secret = self.get_csrf_secret()
+        secret = self.get_csrf_secret() or os.environ.get("SRT2WEB_AUTH_TOKEN", "") or os.environ.get("AUTH_TOKEN", "")
         if not csrf_header or not secret or not self.validate_token(csrf_header, secret):
             logger.warning(
                 "F125: CSRF validation failed for %s %s",
@@ -429,7 +444,7 @@ def validate_ws_auth(request: Request, get_auth_token: Callable[[], str]) -> boo
         DeprecationWarning,
         stacklevel=2,
     )
-    auth_token = get_auth_token()
+    auth_token = get_auth_token() or os.environ.get("SRT2WEB_AUTH_TOKEN", "") or os.environ.get("AUTH_TOKEN", "")
 
     if not auth_token:
         logger.warning("SECURITY: WebSocket accessed without auth_token configured")

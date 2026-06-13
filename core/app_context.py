@@ -5,6 +5,7 @@ Creates the processing pipeline with all modules, input sources,
 and output sinks based on configuration.
 """
 
+import inspect
 import logging
 from typing import Any
 
@@ -169,7 +170,9 @@ def _register_modules(
         if needs_output_dir:
             kwargs["output_dir"] = output_dir
         if ffmpeg_pool is not None:
-            kwargs["pool"] = ffmpeg_pool
+            sig = inspect.signature(module_class)
+            if "pool" in sig.parameters:
+                kwargs["pool"] = ffmpeg_pool
 
         module = module_class(**kwargs)
         pipeline.register_module(module)

@@ -20,6 +20,8 @@ from typing import Any, cast
 
 import jwt
 
+from core.paths import atomic_replace
+
 logger = logging.getLogger(__name__)
 
 # F124: Security audit logger — always goes to security.log
@@ -238,12 +240,21 @@ def _load_users() -> dict[str, Any]:
 
 
 def _save_users(users: dict[str, dict[str, Any]]) -> None:
-    """F118: Atomic save using temp file + os.replace()."""
+    """F118: Atomic save using temp file + atomic_replace()."""
+    import tempfile
+
     USERS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    temp_path = str(USERS_FILE) + ".tmp"
-    with open(temp_path, "w", encoding="utf-8") as f:
-        json.dump(users, f, indent=2)
-    os.replace(temp_path, str(USERS_FILE))
+    fd, temp_path = tempfile.mkstemp(dir=str(USERS_FILE.parent), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(users, f, indent=2)
+        atomic_replace(temp_path, str(USERS_FILE))
+    except Exception:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+        raise
 
 
 class AuthDB:

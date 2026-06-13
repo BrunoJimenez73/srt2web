@@ -81,6 +81,11 @@ class TestCsrfTokenGeneration:
 class TestCsrfMiddleware:
     """Test the CsrfMiddleware integration."""
 
+    @pytest.fixture(autouse=True)
+    def _disable_testing_bypass(self, monkeypatch):
+        """Unset SRT2WEB_TESTING so CSRF middleware actually validates."""
+        monkeypatch.delenv("SRT2WEB_TESTING", raising=False)
+
     def _make_app(self):
         from server.security import CsrfMiddleware
 
