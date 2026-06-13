@@ -4,12 +4,7 @@
   "rules": {
     "one_feature_at_a_time": true,
     "require_tests_to_close": true,
-    "valid_status": [
-      "pending",
-      "in_progress",
-      "done",
-      "blocked"
-    ]
+    "valid_status": ["pending", "in_progress", "done", "blocked"]
   },
   "features": [
     {
@@ -413,9 +408,7 @@
         "tests/unit/test_cli_commands.py (expandir existente)",
         "tests/unit/test_cli_client.py (expandir existente)"
       ],
-      "dependencies": [
-        "F55 (bugs corregidos para no testear bugs conocidos)"
-      ]
+      "dependencies": ["F55 (bugs corregidos para no testear bugs conocidos)"]
     },
     {
       "id": 59,
@@ -757,9 +750,7 @@
         "mypy --strict 0 errores en core/pipeline/strategies.py",
         "init.ps1 pasa verde"
       ],
-      "files_to_touch": [
-        "core/pipeline/strategies.py (refactor principal)"
-      ],
+      "files_to_touch": ["core/pipeline/strategies.py (refactor principal)"],
       "risk_assessment": {
         "risk_level": "Bajo",
         "mitigation": [
@@ -1140,9 +1131,7 @@
         "modules/**/*.py (anotaciones y fixes de tipo)",
         "tests/unit/test_mypy_modules.py (smoke: mypy exit 0, opcional)"
       ],
-      "dependencies": [
-        "F74"
-      ],
+      "dependencies": ["F74"],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -1183,9 +1172,7 @@
         "cli/tui/**/*.py",
         "cli/main.py"
       ],
-      "dependencies": [
-        "F74"
-      ],
+      "dependencies": ["F74"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1226,9 +1213,7 @@
         "frontend/src/lib/api.ts",
         "frontend/package.json (scripts lint si hace falta)"
       ],
-      "dependencies": [
-        "F74"
-      ],
+      "dependencies": ["F74"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1269,9 +1254,7 @@
         "tests/unit/test_unified_pipeline.py",
         "tests/unit/test_pipeline_metrics.py (NUEVO)"
       ],
-      "dependencies": [
-        "F75"
-      ],
+      "dependencies": ["F75"],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -1310,9 +1293,7 @@
         "tests/unit/test_piper_loader.py (o equivalente)",
         "modules/tts_engine.py (imports si cambian)"
       ],
-      "dependencies": [
-        "F75"
-      ],
+      "dependencies": ["F75"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1356,9 +1337,7 @@
         "frontend/src/**/*.astro (imports si cambian paths)",
         "AGENTS.md (sección frontend modules)"
       ],
-      "dependencies": [
-        "F77"
-      ],
+      "dependencies": ["F77"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1406,9 +1385,7 @@
         "frontend/src/lib/modules/config-client.test.ts",
         "frontend/src/lib/modules/presets-client.test.ts"
       ],
-      "dependencies": [
-        "F81"
-      ]
+      "dependencies": ["F81"]
     },
     {
       "id": 83,
@@ -1612,9 +1589,7 @@
         "tests/unit/test_config_validation.py (usar ALLOWED_ENCODER_MODES de constants)",
         "feature_list.json (F89)"
       ],
-      "dependencies": [
-        "F87"
-      ],
+      "dependencies": ["F87"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1722,9 +1697,7 @@
         "frontend/package.json",
         "docs/compatibility.md"
       ],
-      "dependencies": [
-        "F87"
-      ],
+      "dependencies": ["F87"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1767,9 +1740,7 @@
         ".github/workflows/ci.yml",
         "docs/deployment.md"
       ],
-      "dependencies": [
-        "F92"
-      ],
+      "dependencies": ["F92"],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -1819,9 +1790,7 @@
         "tests/unit/test_security.py",
         "tests/unit/test_websocket_auth.py"
       ],
-      "dependencies": [
-        "F93"
-      ],
+      "dependencies": ["F93"],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -1866,9 +1835,7 @@
         "frontend/eslint.config.js",
         "frontend/src/**/*.test.ts"
       ],
-      "dependencies": [
-        "F94"
-      ],
+      "dependencies": ["F94"],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -1912,10 +1879,7 @@
         "pyproject.toml",
         "config/requirements.txt"
       ],
-      "dependencies": [
-        "F93",
-        "F94"
-      ],
+      "dependencies": ["F93", "F94"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -1957,11 +1921,7 @@
         ".github/workflows/ci.yml",
         ".github/workflows/playwright.yml"
       ],
-      "dependencies": [
-        "F92",
-        "F93",
-        "F96"
-      ],
+      "dependencies": ["F92", "F93", "F96"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -2006,9 +1966,7 @@
         "tests/unit/test_recording_manager.py",
         "tests/unit/test_multioutput_api.py"
       ],
-      "dependencies": [
-        "F94"
-      ],
+      "dependencies": ["F94"],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -2049,9 +2007,7 @@
         "Dockerfile (astro build directo, COPY correcta)",
         ".github/workflows/docs-pages.yml (trigger mkdocs.yml)"
       ],
-      "dependencies": [
-        "F97"
-      ],
+      "dependencies": ["F97"],
       "risk_assessment": {
         "risk_level": "Bajo",
         "mitigation": [
@@ -2094,9 +2050,7 @@
         "docs/deployment.md",
         "tests/unit/test_workspace_fixes.py"
       ],
-      "dependencies": [
-        "F98"
-      ],
+      "dependencies": ["F98"],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -2142,10 +2096,7 @@
         "core/config_manager.py",
         "tests/unit/test_pipeline_manager.py"
       ],
-      "dependencies": [
-        "F97",
-        "F98"
-      ],
+      "dependencies": ["F97", "F98"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -2189,10 +2140,7 @@
         "tests/unit/test_health_check.py",
         "tests/unit/test_security_middleware.py"
       ],
-      "dependencies": [
-        "F94",
-        "F95"
-      ],
+      "dependencies": ["F94", "F95"],
       "risk_assessment": {
         "risk_level": "Medio",
         "mitigation": [
@@ -2233,11 +2181,7 @@
         "AGENTS.md",
         "server/static/docs/"
       ],
-      "dependencies": [
-        "F94",
-        "F96",
-        "F99"
-      ],
+      "dependencies": ["F94", "F96", "F99"],
       "risk_assessment": {
         "risk_level": "Bajo",
         "mitigation": [
@@ -2293,9 +2237,7 @@
       "completed_in_session": "2026-06-02",
       "risk_assessment": {
         "risk_level": "Bajo",
-        "mitigation": [
-          "Tests cubren cada cambio; build + tsc + pytest verdes"
-        ]
+        "mitigation": ["Tests cubren cada cambio; build + tsc + pytest verdes"]
       }
     },
     {
@@ -2633,9 +2575,7 @@
           "docs/archive/ es solo metadata, recuperable si se borra algo por error"
         ]
       },
-      "dependencies": [
-        "F109"
-      ]
+      "dependencies": ["F109"]
     },
     {
       "id": 111,
@@ -2738,9 +2678,7 @@
         "tests/e2e/test_links_to_hls_stream: refactorizado para usar la app corriendo o skip si no hay bundle",
         "pytest tests/e2e/ -m 'not slow' -q → 0 failures, 0 errores, skips con razón documentada"
       ],
-      "files_to_touch": [
-        "tests/e2e/test_player_robustness.py"
-      ],
+      "files_to_touch": ["tests/e2e/test_player_robustness.py"],
       "risk_assessment": {
         "risk_level": "Bajo",
         "mitigation": [
@@ -2908,9 +2846,7 @@
         "server/security.py",
         "tests/unit/test_auth.py (NUEVO)"
       ],
-      "dependencies": [
-        "F117"
-      ],
+      "dependencies": ["F117"],
       "acceptance": [
         "Password hashing usa PBKDF2 con 600K iteraciones (hashlib.pbkdf2_hmac)",
         "JWT_SECRET_KEY vacío al import time (no hardcoded fallback)",
@@ -2975,9 +2911,7 @@
         "tests/unit/test_auth_multi_user.py",
         "tests/unit/test_f120_default_admin.py"
       ],
-      "dependencies": [
-        "F119"
-      ],
+      "dependencies": ["F119"],
       "acceptance": [
         "auth_db.__init__ NO crea admin por defecto",
         "seed_default_admin() eliminada o desactivada",
@@ -3009,9 +2943,7 @@
         "core/auth_db.py",
         "tests/unit/test_f121_password_policy.py"
       ],
-      "dependencies": [
-        "F120"
-      ],
+      "dependencies": ["F120"],
       "acceptance": [
         "validate_password_strength(password) -> (bool, str)",
         "Rechaza < 8 chars, sin mayús, sin minús, sin dígito, sin especial",
@@ -3042,9 +2974,7 @@
         "core/auth_db.py",
         "tests/unit/test_f122_account_lockout.py"
       ],
-      "dependencies": [
-        "F120"
-      ],
+      "dependencies": ["F120"],
       "acceptance": [
         "5 failed attempts en 15 min → locked_until = now + 30 min",
         "Login con cuenta bloqueada retorna 423 (Locked)",
@@ -3076,9 +3006,7 @@
         "server/routes/auth.py",
         "tests/unit/test_f123_session_security.py"
       ],
-      "dependencies": [
-        "F120"
-      ],
+      "dependencies": ["F120"],
       "acceptance": [
         "create_token() incluye exp=now+24h por defecto",
         "decode_token() rechaza tokens con exp pasado",
@@ -3110,9 +3038,7 @@
         "core/logging_setup.py",
         "tests/unit/test_f124_security_headers_monitoring.py"
       ],
-      "dependencies": [
-        "F119"
-      ],
+      "dependencies": ["F119"],
       "acceptance": [
         "CSP restrictivo sin unsafe-inline, unsafe-eval (nonce/hash para inline scripts)",
         "HSTS header con preload",
@@ -3144,9 +3070,7 @@
         "server/routes/auth.py",
         "tests/unit/test_f125_csrf_protection.py"
       ],
-      "dependencies": [
-        "F120"
-      ],
+      "dependencies": ["F120"],
       "acceptance": [
         "GET /api/csrf-token retorna token firmado",
         "Middleware CSRF valida token en POST/PUT/DELETE (excluye GET, OPTIONS)",
@@ -3177,9 +3101,7 @@
         "core/auth_db.py",
         "tests/unit/test_f126_cors_input_sanitization.py"
       ],
-      "dependencies": [
-        "F119"
-      ],
+      "dependencies": ["F119"],
       "acceptance": [
         "CORS restrictivo a origen exacto (sin wildcard ports)",
         "sanitize_input() strip HTML tags, limit length, validate encoding",
@@ -3344,7 +3266,7 @@
       "id": 132,
       "name": "unified_pipeline_extract_loops_to_strategies",
       "title": "Refactor: extraer loops de ejecución de unified_pipeline.py a estrategias",
-      "status": "in_progress",
+      "status": "done",
       "area": "core",
       "priority": "Media",
       "description": "core/unified_pipeline.py tiene 1103 líneas. Los 5 métodos de loop (_run_sequential_loop, _input_thread_loop, _worker_thread_loop, _output_thread_loop, _run_async_loop) pertenecen conceptualmente a core/pipeline/strategies.py (F66) pero nunca se movieron allí.",
@@ -3361,10 +3283,7 @@
         "tests/unit/test_unified_pipeline.py",
         "tests/unit/test_pipeline_strategies.py"
       ],
-      "dependencies": [
-        "F127",
-        "F128"
-      ],
+      "dependencies": ["F127", "F128"],
       "risk_assessment": {
         "risk_level": "Alto",
         "mitigation": [
@@ -3379,7 +3298,8 @@
       "id": 133,
       "name": "cleanup_para_borrar_folder",
       "title": "Limpieza final de carpeta PARA BORRAR",
-      "status": "pending",
+      "status": "done",
+      "completed_date": "2026-06-12",
       "area": "maintenance",
       "priority": "Baja",
       "description": "PARA BORRAR/ sigue en el árbol de trabajo (gitignored). Contiene .openclaude/ (config local) y temp/pytest-of-bruno/ (bloqueado por Windows según F110). Presencia confunde a nuevos colaboradores.",
@@ -3389,11 +3309,7 @@
         "AGENTS.md actualizado si la carpeta desaparece",
         "init.ps1 -Quick verde"
       ],
-      "files_to_touch": [
-        "PARA BORRAR/",
-        "AGENTS.md",
-        ".gitignore"
-      ],
+      "files_to_touch": ["PARA BORRAR/", "AGENTS.md", ".gitignore"],
       "risk_assessment": {
         "risk_level": "Bajo",
         "mitigation": [
@@ -3407,7 +3323,8 @@
       "id": 134,
       "name": "integration_tests_pipeline_hls",
       "title": "Tests de integración: flujo completo pipeline → HLS",
-      "status": "pending",
+      "status": "done",
+      "completed_date": "2026-06-12",
       "area": "testing",
       "priority": "Media",
       "description": "tests/integration/ existe pero está prácticamente vacío. Los 90+ tests son todos unitarios. Un fallo en la interacción UnifiedPipeline + HLSOutput + WebSocket no quedaría detectado.",
@@ -3436,7 +3353,8 @@
       "id": 135,
       "name": "prometheus_metrics_endpoint",
       "title": "Endpoint /metrics en formato Prometheus",
-      "status": "pending",
+      "status": "done",
+      "completed_date": "2026-06-12",
       "area": "observability",
       "priority": "Baja",
       "description": "GET /health devuelve JSON útil pero no es consumible por Prometheus/Grafana. Añadir GET /api/metrics con formato text/plain Prometheus para integración con alerting estándar.",

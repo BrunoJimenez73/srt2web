@@ -1,19 +1,6 @@
 """
-Unified Pipeline - Implementación unificada con soporte multi-modo.
-
-Combina las mejores características de:
-- Pipeline (secuencial)
-- AsyncPipeline (paralelo con threads)
-- AsyncPipelineV2 (asyncio nativo)
-
-Características:
-✅ Modo de operación configurable (secuencial / thread-parallel / asyncio)
-✅ Compatibilidad API 100% hacia atrás
-✅ Circuit Breaker y reintentos por módulo
-✅ Semáforo de concurrencia configurable
-✅ Métricas detalladas de rendimiento
-✅ Shutdown graceful y cancelación
-✅ Manejo de errores unificado
+Unified Pipeline — init, registration, state management, delegation.
+Loop execution in core/pipeline/strategies.py (F132).
 """
 
 from __future__ import annotations
@@ -25,9 +12,7 @@ import queue
 import threading
 import time
 import typing
-import uuid
 from collections.abc import Callable
-from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import psutil
@@ -45,11 +30,7 @@ _DEFAULT_INIT_TIMEOUT_S = 300.0
 
 
 def _get_init_timeout() -> float:
-    """Read pipeline init timeout from env (SRT2WEB_PIPELINE_INIT_TIMEOUT).
-
-    Default 300s accommodates first-time downloads of large Whisper models
-    (medium ~1.5GB) on residential connections. Override per environment.
-    """
+    """Read pipeline init timeout from env. Default 300s."""
     raw = os.environ.get("SRT2WEB_PIPELINE_INIT_TIMEOUT")
     if raw is None:
         return _DEFAULT_INIT_TIMEOUT_S
@@ -68,16 +49,38 @@ try:
 except ImportError:
     _CompositeOutput = None  # type: ignore[misc, assignment]
 
-try:
-    from core.pipeline.strategies import (
-        PipelineStrategy,
-        StrategyConfig,
-        create_strategy,
+# Lazy imports to avoid circular dependency (strategies → module_base → core.__init__ → unified_pipeline)
+# These are imported on first use in __init__ or start().
+_strategy_module = None
+_helpers_module = None
+
+
+def _ensure_strategy_imports() -> None:
+    """Lazily import strategy module to break circular dependency."""
+    global _strategy_module, _helpers_module
+    if _strategy_module is None:
+        try:
+            import importlib
+
+            _strategy_module = importlib.import_module("core.pipeline.strategies")
+            _helpers_module = importlib.import_module("core.pipeline.pipeline_helpers")
+        except ImportError as e:
+            logger.warning("Could not import strategy modules: %s", e)
+
+
+def _get_strategy_attrs() -> tuple[Any, Any, Any, Any, Any]:
+    """Get strategy attributes from lazily-imported module."""
+    _ensure_strategy_imports()
+    if _strategy_module is None:
+        return None, None, None, None, None
+    return (
+        getattr(_strategy_module, "ChunkProcessor", None),
+        getattr(_strategy_module, "PipelineContext", None),
+        getattr(_strategy_module, "PipelineStrategy", None),
+        getattr(_strategy_module, "StrategyConfig", None),
+        getattr(_strategy_module, "create_strategy", None),
     )
-except ImportError:
-    create_strategy = None  # type: ignore[assignment]
-    StrategyConfig = None  # type: ignore[assignment,misc]
-    PipelineStrategy = None  # type: ignore[assignment,misc]
+
 
 logger = logging.getLogger("srt2web.unified_pipeline")
 
@@ -91,27 +94,8 @@ class _CompletedAwaitable:
         return None
 
 
-@dataclass
-class ChunkProcessor:
-    """Trackea el estado de procesamiento de un chunk."""
-
-    chunk_index: int
-    timestamp: float
-    data: PipelineData | None = None
-    stages_completed: dict[str, float] = field(default_factory=dict)
-    error: str | None = None
-    task: threading.Thread | asyncio.Task[None] | None = None
-
-
 class UnifiedPipeline:
-    """
-    Pipeline unificado multi-modo.
-
-    Modos disponibles:
-    - SEQUENTIAL: Procesa un chunk a la vez, orden estricto
-    - THREAD_PARALLEL: Múltiples workers en threads (default)
-    - ASYNCIO: Paralelismo nativo con asyncio (para módulos async)
-    """
+    """Pipeline unificado multi-modo (sequential / thread_parallel / asyncio)."""
 
     def __init__(
         self,
@@ -122,18 +106,6 @@ class UnifiedPipeline:
         retry_delay: float = 1.0,
         lost_chunk_timeout_sec: float = 30.0,
     ):
-        """
-        Initialize unified pipeline.
-
-        Args:
-            mode: Mode of operation
-            max_concurrent_chunks: Maximum chunks processing simultaneously
-            buffer_size: Size of input buffer
-            retry_attempts: Number of retry attempts per module
-            retry_delay: Delay between retries (seconds)
-            lost_chunk_timeout_sec: Seconds before a chunk is considered lost (F129)
-        """
-        # Initialize _initialized FIRST to avoid race conditions
         self._initialized = False
 
         self.mode = mode
@@ -142,92 +114,69 @@ class UnifiedPipeline:
         self.retry_attempts = retry_attempts
         self.retry_delay = retry_delay
         self.lost_chunk_timeout = lost_chunk_timeout_sec
-
-        # Internal state
         self._state = PipelineState.IDLE
-        # Metrics initialized via _metrics (Pydantic)
         self._modules: list[BaseModule] = []
         self._module_map: dict[str, BaseModule] = {}
         self._input_source = None
         self._output_sink: Any = None
-
-        # Execution control - INITIALIZED EARLY TO AVOID RACE
         self._stop_event = threading.Event()
         self._semaphore = threading.Semaphore(max_concurrent_chunks)
         self._tasks: list[Any] = []
-        self._chunk_queue: queue.Queue[ChunkProcessor] = queue.Queue(maxsize=buffer_size)
-        self._output_queue: queue.Queue[ChunkProcessor] = queue.Queue(maxsize=buffer_size)
-        self._results: dict[int, ChunkProcessor] = {}
+        self._chunk_queue: queue.Queue[Any] = queue.Queue(maxsize=buffer_size)
+        self._output_queue: queue.Queue[Any] = queue.Queue(maxsize=buffer_size)
+        self._results: dict[int, Any] = {}
         self._input_thread: threading.Thread | None = None
         self._output_thread: threading.Thread | None = None
-
-        # Metrics
         self._pipeline_metrics = PipelineMetrics()
         self._system_metrics = SystemMetrics(cpu_percent=0, memory_mb=0, memory_percent=0)
-
-        # Callbacks
         self._on_log: Callable[[str, str], None] | None = None
         self._on_state_change: Callable[[str], None] | None = None
         self._on_chunk_complete: Callable[[int, PipelineData], None] | None = None
-
-        # Lock para operaciones thread-safe
         self._lock = threading.Lock()
         self._hardware_monitor = HardwareMonitor()
-        # NOTE: _initialized was already set to False at the top of __init__
-        # (before any attribute that could trigger a race). Do NOT re-assign here.
-
-        # F107: track init thread + capture init exception so start() can
-        # surface the real error and reset state on timeout/crash.
         self._init_thread: threading.Thread | None = None
         self._init_error: BaseException | None = None
-
-        # Chunk duration default (used in reconfigure)
         self._chunk_duration = 10.0
 
-        # Initialize processing strategy (if available)
-        self._strategy: PipelineStrategy | None = None
+        # Initialize processing strategy (lazy import)
+        self._strategy: Any = None
         self._active_chunks = 0
-        if create_strategy and StrategyConfig:  # type: ignore[truthy-function]
-            try:
-                strategy_config = StrategyConfig(max_concurrent_chunks=max_concurrent_chunks)
-                self._strategy = create_strategy(mode.value, strategy_config)
-                logger.info(f"Pipeline strategy initialized: {type(self._strategy).__name__}")
-            except Exception as e:
-                logger.warning(f"Could not initialize strategy: {e}")
+        _ensure_strategy_imports()
+        if _strategy_module:
+            create_fn = getattr(_strategy_module, "create_strategy", None)
+            cfg_cls = getattr(_strategy_module, "StrategyConfig", None)
+            if create_fn and cfg_cls:
+                try:
+                    strategy_config = cfg_cls(max_concurrent_chunks=max_concurrent_chunks)
+                    self._strategy = create_fn(mode.value, strategy_config)
+                    logger.info(f"Pipeline strategy initialized: {type(self._strategy).__name__}")
+                except Exception as e:
+                    logger.warning(f"Could not initialize strategy: {e}")
 
         logger.info(f"UnifiedPipeline initialized mode={mode.value} concurrent={max_concurrent_chunks}")
 
     @property
     def metrics(self) -> PipelineMetrics:
-        """Alias for _pipeline_metrics for backward compatibility."""
         return self._pipeline_metrics
 
     @property
     def state(self) -> PipelineState:
-        """Obtener estado actual del pipeline."""
         return self._state
 
     @property
     def is_running(self) -> bool:
-        """Verificar si el pipeline está en ejecución."""
         return self._state in (PipelineState.RUNNING, PipelineState.STARTING)
 
     def set_input_source(self, source: Any) -> None:
-        """Establecer fuente de entrada."""
         self._input_source = source
 
     def get_input_source(self) -> Any | None:
-        """Obtener fuente de entrada."""
         return self._input_source
 
     def set_output_sinks(self, output_configs: list[dict[str, Any]]) -> None:
-        """Establecer múltiples destinos de salida."""
         from core.io_factory import OutputFactory
 
-        # Crear múltiples salidas
         outputs = OutputFactory.create_multiple(output_configs)
-
-        # Crear composite output
         if _CompositeOutput is None:
             raise ImportError("CompositeOutput is not available")
         self._output_sink = _CompositeOutput({})
@@ -235,38 +184,29 @@ class UnifiedPipeline:
             self._output_sink.add_output(output.name, output)
 
     def set_output_sink(self, sink: Any) -> None:
-        """Establecer destino de salida (para compatibilidad)."""
         self._output_sink = sink
 
     def get_output_sink(self) -> Any | None:
-        """Obtener destino de salida (para compatibilidad)."""
         return self._output_sink
 
     def get_output_sinks(self) -> CompositeOutput | None:
-        """Obtener el CompositeOutput si el sink actual es uno."""
         if _CompositeOutput is not None and isinstance(self._output_sink, _CompositeOutput):
             return self._output_sink
         return None
 
     def register_module(self, module: BaseModule, config: dict[str, Any] | None = None) -> None:
-        """Registrar un módulo en orden de ejecución."""
         self._modules.append(module)
         self._module_map[module.name] = module
         logger.info(f"Registered module: {module.name} enabled={module.enabled}")
-
         if config:
             module.configure(config)
-
-        # Update strategy with modules if available
         if self._strategy:
             self._strategy.set_modules(self._modules)
 
     def get_module(self, name: str) -> BaseModule | None:
-        """Obtener un módulo por nombre."""
         return self._module_map.get(name)
 
     def get_modules(self) -> list[BaseModule]:
-        """Obtener lista de todos los módulos registrados."""
         return list(self._modules)
 
     def _set_state(self, new_state: PipelineState) -> None:
@@ -277,8 +217,6 @@ class UnifiedPipeline:
             self.metrics.start_time = time.time()
         if self._on_state_change:
             self._on_state_change(new_state.value)
-
-        # Webhook notifications
         try:
             if new_state == PipelineState.RUNNING:
                 webhook_manager.emit("pipeline.start", {"state": "running", "mode": self.mode.value})
@@ -301,18 +239,13 @@ class UnifiedPipeline:
                 logger.exception("Log callback failed: %s", e)
 
     def process_with_strategy(self, data: PipelineData) -> PipelineData:
-        """
-        Procesar un chunk usando la estrategia configurada.
-
-        Si no hay estrategia configurada, retorna los datos sin procesar.
-        Útil para testing o procesamiento manual de chunks.
-        """
+        """Procesar un chunk usando la estrategia configurada."""
         if not self._strategy:
             logger.warning("No strategy configured, skipping processing")
             return data
-
         try:
-            return self._strategy.process_chunk(data)
+            result: PipelineData = self._strategy.process_chunk(data)
+            return result
         except Exception as e:
             logger.error(f"Strategy processing failed: {e}")
             raise
@@ -320,7 +253,8 @@ class UnifiedPipeline:
     def get_strategy_metrics(self) -> dict[str, Any]:
         """Obtener métricas de la estrategia."""
         if self._strategy:
-            return self._strategy.get_metrics()
+            result: dict[str, Any] = self._strategy.get_metrics()
+            return result
         return {"strategy": "none"}
 
     async def initialize(self) -> None:
@@ -359,7 +293,6 @@ class UnifiedPipeline:
                 if start_method:
                     start_method()
 
-            # Start time is now tracked via system metrics timestamp
             self._set_state(PipelineState.IDLE)
             logger.info("UnifiedPipeline initialized successfully")
 
@@ -367,6 +300,31 @@ class UnifiedPipeline:
             self._set_state(PipelineState.ERROR)
             logger.error(f"Pipeline initialization failed: {e}")
             raise
+
+    def _make_context(self) -> Any:
+        """Create a PipelineContext from current state for the strategy."""
+        _ensure_strategy_imports()
+        ctx_cls = getattr(_strategy_module, "PipelineContext", None) if _strategy_module else None
+        if ctx_cls is None:
+            raise RuntimeError("PipelineContext not available")
+        return ctx_cls(
+            stop_event=self._stop_event,
+            semaphore=self._semaphore,
+            chunk_queue=self._chunk_queue,
+            output_queue=self._output_queue,
+            results=self._results,
+            lock=self._lock,
+            modules=list(self._modules),
+            input_source=self._input_source,
+            output_sink=self._output_sink,
+            on_log=self._on_log,
+            on_state_change=self._on_state_change,
+            on_chunk_complete=self._on_chunk_complete,
+            set_state=self._set_state,
+            metrics=self._pipeline_metrics,
+            lost_chunk_timeout=self.lost_chunk_timeout,
+            buffer_size=self.buffer_size,
+        )
 
     def start(
         self,
@@ -415,7 +373,6 @@ class UnifiedPipeline:
             init_thread.join(timeout=timeout_s)
 
             if init_thread.is_alive():
-                # F107: timeout — reset state so user can retry (route resets ERROR -> IDLE).
                 self._set_state(PipelineState.ERROR)
                 raise PipelineError(
                     f"Pipeline initialization timed out after {timeout_s:.0f}s "
@@ -425,372 +382,29 @@ class UnifiedPipeline:
 
             captured = self._init_error
             if captured is not None:
-                # F107: real exception inside init thread — surface it (don't lie about timeout).
                 self._init_error = None
                 self._set_state(PipelineState.ERROR)
                 raise PipelineError(f"Pipeline initialization failed: {captured}") from captured
 
             if not self._initialized:
-                # Defensive: thread finished cleanly but flag never flipped.
                 self._set_state(PipelineState.ERROR)
                 raise PipelineError("Pipeline initialization did not complete")
 
         self._stop_event.clear()
 
-        if self.mode == PipelineMode.SEQUENTIAL:
-            # Ejecución en thread principal
-            thread = threading.Thread(
-                target=self._run_sequential_loop,
-                daemon=True,
-                name="pipeline-sequential",
-            )
-            thread.start()
-            self._tasks.append(thread)
-
-        elif self.mode == PipelineMode.THREAD_PARALLEL:
-            # Workers en threads
-            self._input_thread = threading.Thread(
-                target=self._input_thread_loop,
-                daemon=True,
-                name="pipeline-input",
-            )
-            self._input_thread.start()
-
-            for i in range(self.max_concurrent_chunks):
-                worker = threading.Thread(
-                    target=self._worker_thread_loop,
-                    daemon=True,
-                    name=f"pipeline-worker-{i}",
-                )
-                worker.start()
-                self._tasks.append(worker)
-
-            self._output_thread = threading.Thread(
-                target=self._output_thread_loop,
-                daemon=True,
-                name="pipeline-output",
-            )
-            self._output_thread.start()
-
-        elif self.mode == PipelineMode.ASYNCIO:
-            task = asyncio.create_task(self._run_async_loop())
-            self._tasks.append(task)
+        # Delegate loop execution to strategy (F132)
+        if self._strategy:
+            ctx = self._make_context()
+            self._strategy.set_context(ctx)
+            self._strategy.start()
+            self._strategy.start_threads(ctx)
+        else:
+            # Fallback: no strategy, just set state
+            logger.warning("No strategy configured, pipeline will be idle")
 
         self._set_state(PipelineState.RUNNING)
         self._log("info", "UnifiedPipeline started successfully")
         return _CompletedAwaitable()
-
-    def _run_sequential_loop(self) -> None:
-        """Bucle de procesamiento secuencial."""
-        logger.info("Sequential processing loop started")
-        chunk_index = 0
-
-        try:
-            while not self._stop_event.is_set():
-                if not self._input_source:
-                    time.sleep(0.1)
-                    continue
-
-                data = self._input_source.get_next_chunk()
-                if data is None:
-                    time.sleep(0.01)
-                    continue
-
-                data.chunk_index = chunk_index
-                data.correlation_id = str(uuid.uuid4())
-                data.timestamp = time.time()
-
-                # Procesar secuencialmente
-                start_time = time.perf_counter()
-                for module in self._modules:
-                    if not module.enabled or self._stop_event.is_set():
-                        continue
-                    try:
-                        data = module.process(data)
-                        if module.state.value == "degraded" and not getattr(module, "is_critical", True):
-                            self._log("warning", f"Non-critical module {module.name} degraded, continuing pipeline")
-                    except Exception as e:
-                        self._log("error", f"Module {module.name} error: {e}")
-                        if not getattr(module, "is_critical", True):
-                            self._log(
-                                "warning", f"Non-critical module {module.name} failed, continuing in degraded mode"
-                            )
-                            continue
-                        break
-
-                # Escribir salida
-                if self._output_sink and data:
-                    try:
-                        self._output_sink.write(data)
-                    except Exception as e:
-                        self._log("error", f"Output sink error: {e}")
-
-                elapsed = time.perf_counter() - start_time
-                self.metrics.chunks_processed += 1
-                self.metrics.total_processing_time += elapsed
-
-                chunk_index += 1
-
-        except Exception as e:
-            self._log("error", f"Sequential loop error: {e}")
-            self._set_state(PipelineState.ERROR)
-
-    def _input_thread_loop(self) -> None:
-        """Thread de lectura de entrada."""
-        logger.info("Input thread started")
-        chunk_index = 0
-
-        try:
-            while not self._stop_event.is_set():
-                if not self._input_source:
-                    time.sleep(0.1)
-                    continue
-
-                data = self._input_source.get_next_chunk()
-                if data is None:
-                    time.sleep(0.01)
-                    continue
-
-                data.chunk_index = chunk_index
-                data.timestamp = time.time()
-
-                processor = ChunkProcessor(
-                    chunk_index=chunk_index,
-                    timestamp=time.time(),
-                    data=data,
-                )
-
-                with self._lock:
-                    self._results[chunk_index] = processor
-
-                try:
-                    self._chunk_queue.put(processor, timeout=1.0)
-                except queue.Full:
-                    self._log("warning", f"Queue full, dropping chunk {chunk_index}")
-
-                chunk_index += 1
-
-        except Exception as e:
-            self._log("error", f"Input thread error: {e}")
-
-    def _worker_thread_loop(self) -> None:
-        """Thread worker para procesamiento paralelo."""
-        logger.info("Worker thread started")
-
-        try:
-            while not self._stop_event.is_set():
-                try:
-                    processor = self._chunk_queue.get(timeout=1.0)
-                except queue.Empty:
-                    continue
-
-                data = processor.data
-                if data is None:
-                    continue
-
-                start_time = time.perf_counter()
-
-                try:
-                    # Use strategy for concurrent chunk processing if available
-                    if self._strategy:
-                        data = self._strategy.process_chunk(data)
-                    else:
-                        for module in self._modules:
-                            if not module.enabled or self._stop_event.is_set():
-                                continue
-                            try:
-                                module_start = time.perf_counter()
-                                data = module.process(data)
-                                processor.stages_completed[module.name] = (time.perf_counter() - module_start) * 1000
-                                if module.state.value == "degraded" and not getattr(module, "is_critical", True):
-                                    self._log(
-                                        "warning", f"Non-critical module {module.name} degraded, continuing pipeline"
-                                    )
-                            except Exception as e:
-                                self._log("error", f"Module {module.name} error: {e}")
-                                processor.error = str(e)
-                                if not getattr(module, "is_critical", True):
-                                    self._log(
-                                        "warning",
-                                        f"Non-critical module {module.name} failed, continuing in degraded mode",
-                                    )
-                                    continue
-                                break
-
-                    processor.data = data
-                    elapsed = time.perf_counter() - start_time
-                    processor.stages_completed["total"] = elapsed
-
-                    self._output_queue.put(processor)
-
-                except Exception as e:
-                    processor.error = str(e)
-                    self._log("error", f"Worker error processing chunk {processor.chunk_index}: {e}")
-                finally:
-                    self._chunk_queue.task_done()
-
-        except Exception as e:
-            self._log("error", f"Worker thread error: {e}")
-
-    def _output_thread_loop(self) -> None:
-        """Thread de escritura de salida ordenada con timeout para chunks perdidos."""
-        logger.info("Output thread started")
-        pending = {}
-        next_expected = 0
-        _last_pending_time: float = 0.0
-        lost_timeout = self.lost_chunk_timeout
-
-        try:
-            while not self._stop_event.is_set():
-                try:
-                    processor = self._output_queue.get(timeout=0.1)
-                    pending[processor.chunk_index] = processor
-                    _last_pending_time = time.time()
-                except queue.Empty:
-                    pass
-
-                # Escribir en orden
-                while next_expected in pending:
-                    processor = pending.pop(next_expected)
-
-                    if self._output_sink and processor.data and not processor.error:
-                        try:
-                            self._output_sink.write(processor.data)
-                        except Exception as e:
-                            self._log("error", f"Output error chunk {next_expected}: {e}")
-
-                    with self._lock:
-                        self._results.pop(next_expected, None)
-
-                    self.metrics.chunks_processed += 1
-                    self.metrics.total_processing_time += processor.stages_completed.get("total", 0)
-
-                    # Accumulate per-module timing from this chunk
-                    for mod_name, mod_time_ms in processor.stages_completed.items():
-                        if mod_name != "total":
-                            self.metrics.record_module_timing(mod_name, mod_time_ms)
-
-                    if self._on_chunk_complete and processor.data:
-                        self._on_chunk_complete(next_expected, processor.data)
-
-                    self._output_queue.task_done()
-                    next_expected += 1
-                    _last_pending_time = time.time()
-
-                # Detectar chunk perdido: hay items en pending pero el siguiente
-                # esperado nunca llegó y pasó demasiado tiempo
-                if pending and _last_pending_time > 0 and (time.time() - _last_pending_time) > lost_timeout:
-                    self._log(
-                        "warning",
-                        f"Chunk {next_expected} appears lost after {lost_timeout}s — skipping to unblock output.",
-                    )
-                    with self._lock:
-                        self._results.pop(next_expected, None)
-                    self.metrics.chunks_failed += 1
-                    next_expected += 1
-                    _last_pending_time = time.time()
-
-        except Exception as e:
-            self._log("error", f"Output thread error: {e}")
-
-    async def _run_async_loop(self) -> None:
-        """Bucle principal asyncio."""
-        logger.info("Asyncio processing loop started")
-        chunk_index = 0
-
-        try:
-            while not self._stop_event.is_set():
-                if not self._input_source:
-                    await asyncio.sleep(0.1)
-                    continue
-
-                data = (
-                    await self._input_source.get_next_chunk()
-                    if asyncio.iscoroutinefunction(self._input_source.get_next_chunk)
-                    else self._input_source.get_next_chunk()
-                )
-                if data is None:
-                    await asyncio.sleep(0.01)
-                    continue
-
-                data.chunk_index = chunk_index
-                data.timestamp = time.time()
-
-                # Lanzar tarea async
-                task = asyncio.create_task(self._process_chunk_async(data))
-                self._tasks.append(task)
-
-                chunk_index += 1
-
-        except asyncio.CancelledError:
-            logger.info("Async loop cancelled")
-        except Exception as e:
-            self._log("error", f"Async loop error: {e}")
-            self._set_state(PipelineState.ERROR)
-
-    async def _process_chunk_async(self, data: PipelineData) -> PipelineData:
-        """Procesar un chunk en modo asyncio."""
-        if hasattr(self._semaphore, "__aenter__"):
-            async with self._semaphore:  # type: ignore[attr-defined]
-                return await self._process_chunk_async_unlocked(data)
-
-        await asyncio.to_thread(self._semaphore.acquire)
-        try:
-            return await self._process_chunk_async_unlocked(data)
-        finally:
-            self._semaphore.release()
-
-    async def _process_chunk(self, data: PipelineData) -> PipelineData:
-        """Backward-compatible async chunk processing alias."""
-        return await self._process_chunk_async(data)
-
-    async def _process_chunk_async_unlocked(self, data: PipelineData) -> PipelineData:
-        """Procesar un chunk asumiendo que el límite de concurrencia ya se tomó."""
-        chunk_start = time.perf_counter()
-        chunk_index = data.chunk_index
-
-        try:
-            for module in self._modules:
-                if self._stop_event.is_set():
-                    break
-
-                if not module.enabled:
-                    continue
-
-                # Soporte para módulos sync y async
-                try:
-                    if asyncio.iscoroutinefunction(module.process):
-                        data = await module.process(data)
-                    else:
-                        data = module.process(data)
-                    if module.state.value == "degraded" and not getattr(module, "is_critical", True):
-                        self._log("warning", f"Non-critical module {module.name} degraded, continuing pipeline")
-                except Exception as e:
-                    if not getattr(module, "is_critical", True):
-                        self._log("warning", f"Non-critical module {module.name} failed, continuing in degraded mode")
-                        continue
-                    raise
-
-            # Enviar a output
-            if self._output_sink and data:
-                if asyncio.iscoroutinefunction(self._output_sink.write):
-                    await self._output_sink.write(data)
-                else:
-                    self._output_sink.write(data)
-
-            elapsed = time.perf_counter() - chunk_start
-            self.metrics.chunks_processed += 1
-            self.metrics.total_processing_time += elapsed
-
-            if self._on_chunk_complete:
-                self._on_chunk_complete(chunk_index, data)
-
-            return data
-
-        except Exception as e:
-            self.metrics.chunks_failed += 1
-            self._log("error", f"Error processing chunk {chunk_index}: {e}")
-            raise
 
     def get_metrics(self) -> dict[str, Any]:
         """Return pipeline metrics as a plain dictionary."""
@@ -811,23 +425,13 @@ class UnifiedPipeline:
         self._set_state(PipelineState.STOPPING)
         self._stop_event.set()
 
-        # Detener tareas
-        if self.mode == PipelineMode.ASYNCIO:
-            if self._tasks:
-                for task in self._tasks:
-                    task.cancel()
-                await asyncio.gather(*self._tasks, return_exceptions=True)
-        else:
-            # Esperar threads (en thread executor para no bloquear event loop)
-            if self._input_thread and self._input_thread.is_alive():
-                await asyncio.to_thread(self._input_thread.join, timeout=5.0)
-
-            for worker in self._tasks:
-                if worker.is_alive():
-                    await asyncio.to_thread(worker.join, timeout=5.0)
-
-            if self._output_thread and self._output_thread.is_alive():
-                await asyncio.to_thread(self._output_thread.join, timeout=5.0)
+        # Delegate thread stopping to strategy (F132)
+        if self._strategy:
+            try:
+                self._strategy.stop_threads()
+            except Exception as e:
+                self._log("error", f"Error stopping strategy threads: {e}")
+            self._strategy.stop()
 
         # Detener módulos
         for module in self._modules:
@@ -880,7 +484,6 @@ class UnifiedPipeline:
 
     def get_status(self) -> dict[str, Any]:
         """Obtener estado completo del pipeline."""
-        # Leer memoria del proceso UNA SOLA VEZ para todos los módulos
         process_memory_mb: float | None = None
         try:
             process_memory_mb = round(psutil.Process().memory_info().rss / 1024 / 1024, 1)
@@ -892,7 +495,6 @@ class UnifiedPipeline:
             try:
                 status = module.get_status()
                 status_dict = status.to_dict() if getattr(status, "to_dict", None) else status
-                # Inyectar memoria centralizada en cada módulo
                 if isinstance(status_dict, dict) and process_memory_mb is not None:
                     status_dict["memory_mb"] = process_memory_mb
                 modules_status.append(status_dict)
@@ -908,8 +510,6 @@ class UnifiedPipeline:
                     }
                 )
 
-        # Agregar status del output sink al final de la lista when it is not
-        # already registered as a normal processing module.
         try:
             has_video_muxer_module = any(status.get("name") == "video_muxer" for status in modules_status)  # type: ignore[union-attr]
             if not has_video_muxer_module:
@@ -920,29 +520,22 @@ class UnifiedPipeline:
         except Exception as e:
             logger.warning("Failed to get output module status: %s", e)
 
-        # Agregar status del input source al inicio de la lista
         try:
             if self._input_source:
                 get_status_method = getattr(self._input_source, "get_status", None)
                 if get_status_method:
                     input_status = get_status_method()
-                    # Handle both dict and ModuleStatus (Pydantic model)
                     status_dict = getattr(input_status, "to_dict", lambda: input_status)()
                     if isinstance(status_dict, dict):
-                        # Ensure it has the right name for the frontend
                         if "name" not in status_dict:
                             status_dict["name"] = "input"
                         modules_status.insert(0, status_dict)
         except Exception as e:
             logger.warning("Failed to get input source status: %s", e)
 
-        # Métricas del pipeline
         avg_time = self._pipeline_metrics.avg_processing_time
-
-        # Métricas del sistema
         system_metrics = self._hardware_monitor.get_system_metrics()
 
-        # Obtener métricas de concurrencia desde la estrategia
         strategy_metrics = {}
         if self._strategy:
             try:
@@ -950,7 +543,6 @@ class UnifiedPipeline:
             except Exception as e:
                 logger.debug("Suppressed error: %s", e, exc_info=True)
 
-        # Round float fields in all module statuses
         round_keys = {"last_process_time_ms", "total_processing_time", "average_processing_time"}
         for mod in modules_status:
             if isinstance(mod, dict):
@@ -979,50 +571,12 @@ class UnifiedPipeline:
 
     def reconfigure(self, config_manager: Any) -> None:
         """Actualizar configuración en ejecución (compatibilidad API)."""
-        # First, update pipeline's chunk_duration from config
-        try:
-            new_chunk_duration = config_manager.get("pipeline.chunk_duration_sec", 10)
-            self._chunk_duration = new_chunk_duration
-            self._log("info", f"Reconfigured pipeline chunk_duration: {new_chunk_duration}s")
-        except Exception as e:
-            self._log("warning", f"Could not update chunk_duration: {e}")
-
-        for module in self._modules:
-            try:
-                mod_config = config_manager.get_module_config(module.name)
-                module.configure(mod_config)
-                self._log("info", f"Reconfigured module: {module.name}")
-            except Exception as e:
-                self._log("error", f"Failed to reconfigure {module.name}: {e}")
-
-        # Reconfigure output sinks (HLSOutput, WebRTCOutput, etc.)
-        if self._output_sink:
-            try:
-                configure_outputs = getattr(self._output_sink, "configure_outputs", None)
-                if configure_outputs:
-                    configure_outputs(config_manager)
-                else:
-                    # Direct OutputSink that has configure()
-                    configure_method = getattr(self._output_sink, "configure", None)
-                    if configure_method:
-                        output_config = config_manager.get_section("output")
-                        configure_method(output_config)
-                self._log("info", "Reconfigured output sinks")
-            except Exception as e:
-                self._log("warning", f"Could not reconfigure output sinks: {e}")
-
-        # Also update input source config if it has chunk_duration
-        if self._input_source:
-            try:
-                input_type = config_manager.get("input.type", "srt")
-                input_config = config_manager.get_section("input").get(input_type, {})
-                input_config["chunk_duration_sec"] = self._chunk_duration
-                configure_method = getattr(self._input_source, "configure", None)
-                if configure_method:
-                    configure_method(input_config)
-                self._log("info", f"Reconfigured input source: {input_type}")
-            except Exception as e:
-                self._log("warning", f"Could not reconfigure input source: {e}")
+        _ensure_strategy_imports()
+        reconfigure_fn = getattr(_helpers_module, "reconfigure_pipeline", None) if _helpers_module else None
+        if reconfigure_fn:
+            reconfigure_fn(self, config_manager, self._log)
+        else:
+            self._log("warning", "reconfigure_pipeline helper not available")
 
     def reset_error_state(self) -> None:
         """Reset pipeline state from error to idle (public API)."""
@@ -1039,68 +593,22 @@ class UnifiedPipeline:
         return self._pipeline_metrics.chunks_processed
 
     def _get_output_module_status(self) -> tuple[dict[str, Any], dict[str, Any] | None]:
-        """Return (output_status, video_muxer_status) tuple.
-
-        output_status: aggregate output module status for the OUTPUT card.
-        video_muxer_status: encoder-specific status for the VIDEO MUXER card, or None.
-        """
-        state = "running" if self.is_running else "idle"
-
-        sink = self._output_sink if self._output_sink else self._module_map.get("video_muxer")
-        extra = {}
-        processed_chunks = self.metrics.chunks_processed
-        last_process_time_ms = 0
-        muxer_status = None
-
-        if sink:
-            try:
-                status = sink.get_status()
-                status_dict = status.to_dict() if getattr(status, "to_dict", None) else status
-                if isinstance(status_dict, dict):
-                    processed_chunks = status_dict.get("processed_chunks", processed_chunks)
-                    last_process_time_ms = status_dict.get("last_process_time_ms", last_process_time_ms)
-                    extra = status_dict.get("extra", {})
-
-                    # Find the web/HLS output for video_muxer status
-                    outputs = extra.get("outputs", {})
-                    muxer_source = None
-                    # Prefer outputs named "web" or "hls" or with GPU/encoder info in extra
-                    for _out_name, out_data in outputs.items():
-                        out_extra = out_data.get("extra", {})
-                        if out_extra.get("using_gpu") is not None or out_extra.get("encoder_mode") is not None:
-                            muxer_source = out_data
-                            break
-                    # Fallback to first output if no specific web/hls found
-                    if muxer_source is None and outputs:
-                        first_name = next(iter(outputs.keys()))
-                        muxer_source = outputs[first_name]
-
-                    if muxer_source:
-                        muxer_extra = muxer_source.get("extra", {})
-                        muxer_status = {
-                            "name": "video_muxer",
-                            "state": muxer_source.get("state", state),
-                            "enabled": muxer_source.get("enabled", True),
-                            "error_message": None,
-                            "processed_chunks": muxer_source.get("processed_chunks", processed_chunks),
-                            "last_process_time_ms": muxer_source.get("last_process_time_ms", last_process_time_ms),
-                            "extra": muxer_extra,
-                            "circuit_state": "closed",
-                            "memory_mb": None,
-                        }
-            except Exception as e:
-                logger.warning("Failed to get video muxer status: %s", e)
-
-        output_status = {
+        """Return (output_status, video_muxer_status) tuple."""
+        _ensure_strategy_imports()
+        get_status_fn = getattr(_helpers_module, "get_output_module_status", None) if _helpers_module else None
+        if get_status_fn:
+            result: tuple[dict[str, Any], dict[str, Any] | None] = get_status_fn(
+                self.is_running, self._output_sink, self._module_map, self.metrics.chunks_processed
+            )
+            return result
+        return {
             "name": "output",
-            "state": state,
+            "state": "idle",
             "enabled": True,
             "error_message": None,
-            "processed_chunks": processed_chunks,
-            "last_process_time_ms": last_process_time_ms,
-            "extra": extra,
+            "processed_chunks": 0,
+            "last_process_time_ms": 0,
+            "extra": {},
             "circuit_state": "closed",
             "memory_mb": None,
-        }
-
-        return output_status, muxer_status
+        }, None

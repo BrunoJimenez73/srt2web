@@ -176,7 +176,7 @@ Por defecto `thread_parallel` con 2 workers concurrentes. Las estrategias viven 
 
 ## 7. Estado de features
 
-Ver `feature_list.json` para lista completa y estados. Total actual: 98 features.
+Ver `feature_list.json` para lista completa y estados. Total actual: 115 features.
 
 **Features 1–14**: todas DONE (ciclo Abril–Mayo 2026).
 
@@ -223,6 +223,11 @@ Ver `feature_list.json` para lista completa y estados. Total actual: 98 features
 **Siguiente pendiente**: F123 — session security (JWT expiry, refresh tokens, token blacklist).
 
 ## 8. Historial compacto (post-Abril 2026)
+
+### 13/06 — Refactor: extraer loops a strategies (F132)
+
+- **F132 cerrado**: `unified_pipeline.py` reducido de 1106 → 599 líneas (-46%). Los 5 métodos de loop (sequential, input/worker/output threads, async) movidos a `core/pipeline/strategies.py` con `PipelineContext` dataclass para compartir estado. `pipeline_helpers.py` nuevo con output status y reconfigure. Lazy imports vía `importlib` para romper dependencia circular. 48 tests pipeline pasan, mypy --strict 0 errores en 3 archivos.
+- Detalles en `progress/current.md`.
 
 ### 07/06 — Editor visual de pipeline en /graph (F116)
 
