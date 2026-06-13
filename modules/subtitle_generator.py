@@ -361,20 +361,11 @@ class SubtitleGenerator(BaseModule):
             data.subtitles_path = str(self._vtt_path)
             return data
 
-        # Use canonical chunk_duration as primary. data.duration may differ if
-        # a module (e.g. AudioMixer) overrides it; warn when drift exceeds 10%.
+        # Use actual chunk duration for EXTINF — this must match the video segment's
+        # real duration to prevent cumulative drift. data.duration comes from the input
+        # source and reflects the actual chunk length (not the nominal config value).
         data_duration = getattr(data, "duration", None)
-        duration = self._chunk_duration
-        if data_duration and data_duration > 0:
-            ratio = abs(data_duration - self._chunk_duration) / self._chunk_duration
-            if ratio < 0.10:
-                duration = data_duration
-            else:
-                logger.warning(
-                    f"[SubtitleGen] Duration drift: data.duration={data_duration:.3f}s "
-                    f"vs chunk_duration={self._chunk_duration:.3f}s (ratio={ratio:.2f}), "
-                    f"using chunk_duration"
-                )
+        duration = data_duration if data_duration and data_duration > 0 else self._chunk_duration
 
         # CRITICAL FIX: Use cumulative_duration from PipelineData for sync
         # This comes from InputSource and is validated there

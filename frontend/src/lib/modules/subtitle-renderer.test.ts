@@ -170,8 +170,9 @@ describe("SubtitleRenderer", () => {
       const loadSpy = vi.spyOn(renderer as any, "loadSegment");
       (renderer as any).parsePlaylist(playlist);
       expect(loadSpy).toHaveBeenCalledTimes(2);
-      // accumulatedTime bootstraps from mediaSequence * targetDuration (5*10=50)
-      // segment 5 starts at 50, segment 6 at 50+9.880=59.880
+      // accumulatedTime bootstraps from mediaSequence * avgExtinf
+      // avgExtinf = (9.880 + 10.120) / 2 = 10.0 → bootstrap = 5 * 10.0 = 50
+      // segment 5 starts at 50, advances by 9.880 → segment 6 starts at 59.88
       expect(loadSpy).toHaveBeenCalledWith("subs_seg_000005.vtt", 5, 50);
       expect(loadSpy).toHaveBeenCalledWith("subs_seg_000006.vtt", 6, 59.88);
     });
@@ -189,8 +190,8 @@ describe("SubtitleRenderer", () => {
       expect(loadSpy).not.toHaveBeenCalled();
       // bootstrap fires (firstParse, mediaSequence=5, accumulatedTime=0)
       // but no advancement since no new segments
-      // targetDuration default is 10 → bootstrap sets 5*10=50
-      expect((renderer as any).accumulatedTime).toBe(50);
+      // bootstrap uses avgExtinf from playlist (9.880) → 5 * 9.880 = 49.4
+      expect((renderer as any).accumulatedTime).toBeCloseTo(49.4);
     });
 
     it("trims old knownSegments when > 60", () => {
