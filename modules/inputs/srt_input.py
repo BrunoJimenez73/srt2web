@@ -181,30 +181,17 @@ class SRTInput(InputSource):
             self.logger.info(f"Chunks directory: {self._chunks_dir}")
 
             # Detectar soporte GPU para hwaccel
-            from core.ffmpeg_utils import check_gpu_support
+            from core.ffmpeg_process import detect_gpu, resolve_hwaccel
 
-            self._gpu_info = check_gpu_support(self._ffmpeg_path)
-            self.logger.info(f"Input GPU support: {self._gpu_info}")
+            self._gpu_info = detect_gpu(self._ffmpeg_path, "Input")
 
             # Habilitar hwaccel si hay GPU disponible
-            if self._gpu_info.get("nvenc"):
-                self._hwaccel_enabled = True
-                self.logger.info("Input: Using NVDEC hardware acceleration")
-            elif self._gpu_info.get("qsv"):
-                self._hwaccel_enabled = True
-                self._hwaccel_device = "0"
-                self.logger.info("Input: Using QSV hardware acceleration")
-            elif self._gpu_info.get("vaapi"):
-                self._hwaccel_enabled = True
-                self.logger.info("Input: Using VAAPI hardware acceleration")
-            else:
-                self._hwaccel_enabled = False
-                self.logger.info("Input: No GPU acceleration available, using CPU")
+            self._hwaccel_enabled, self._hwaccel_device = resolve_hwaccel(self._gpu_info, "Input")
 
             # Limpiar chunks antiguos
-            for f in Path(self._chunks_dir).glob("chunk_*.ts"):
-                with contextlib.suppress(OSError):
-                    f.unlink()
+            from core.ffmpeg_process import cleanup_old_chunks
+
+            cleanup_old_chunks(self._chunks_dir)
 
             # Reset cumulative duration tracking (F115: delegated to ChunkClock)
             self._clock.reset()
@@ -224,13 +211,9 @@ class SRTInput(InputSource):
             cmd = [self._ffmpeg_path, "-y"]
 
             # Añadir hwaccel si hay GPU disponible
-            if self._hwaccel_enabled:
-                if self._gpu_info.get("nvenc"):
-                    cmd.extend(["-hwaccel", "cuda", "-hwaccel_device", self._hwaccel_device])
-                elif self._gpu_info.get("qsv"):
-                    cmd.extend(["-hwaccel", "qsv", "-hwaccel_device", self._hwaccel_device])
-                elif self._gpu_info.get("vaapi"):
-                    cmd.extend(["-hwaccel", "vaapi"])
+            from core.ffmpeg_process import build_hwaccel_args
+
+            cmd.extend(build_hwaccel_args(self._hwaccel_enabled, self._gpu_info, self._hwaccel_device))
 
             # Comando FFmpeg para recepción segmentada
             cmd.extend(
@@ -503,7 +486,8 @@ class SRTInput(InputSource):
                         if result.returncode != 0:
                             break  # No process found
                         time.sleep(0.5)
-                    except Exception:
+                    except Exception as e:
+                        self.logger.debug(f"Failed to kill SRT process {proc_name}: {e}")
                         pass
 
             # Quick port check — don't block stop for more than ~3s total
@@ -641,24 +625,15 @@ class SRTInput(InputSource):
 
     def get_status(self) -> ModuleStatus:
         """Get status including GPU acceleration info."""
+        from core.ffmpeg_process import get_input_status_extra
+
         return ModuleStatus(
             name="input",
             state=ModuleState.RUNNING if self.is_receiving() else ModuleState.IDLE,
             enabled=True,
             processed_chunks=self._last_chunk_index + 1 if self._last_chunk_index >= 0 else 0,
             last_process_time_ms=self._last_process_time,
-            extra={
-                "using_gpu": self._hwaccel_enabled,
-                "gpu_info": self._gpu_info,
-                "encoder_label": "NVDEC"
-                if self._gpu_info.get("nvenc")
-                else "QSV"
-                if self._gpu_info.get("qsv")
-                else "VAAPI"
-                if self._gpu_info.get("vaapi")
-                else "CPU",
-                "hwaccel": self._hwaccel_enabled,
-            },
+            extra=get_input_status_extra(self._gpu_info, self._hwaccel_enabled),
         )
 
     def _monitor_ffmpeg(self) -> None:

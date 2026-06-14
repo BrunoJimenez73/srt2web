@@ -31,7 +31,7 @@ def main() -> None:
         use_cuda = False
         voice = None
 
-        if device == "cuda" or (device == "auto" and cuda_available) and cuda_available:
+        if device == "cuda" or (device == "auto" and cuda_available):
             try:
                 print("[PIPER_DEBUG] Attempting to load with CUDA...", file=sys.stderr)
                 with warnings.catch_warnings():

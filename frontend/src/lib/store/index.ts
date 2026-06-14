@@ -1,7 +1,7 @@
 /**
  * Store - Centralized reactive state.
  *
- * Re-exports signals, effects, and the legacy DashboardStore for backwards compat.
+ * Re-exports signals and effects.
  */
 
 // Signals (reactive state atoms)
@@ -39,6 +39,3 @@ export {
 
 // Effects (DOM update subscriptions)
 export { startEffects, stopEffects } from "./effects";
-
-// Legacy store (for backwards compat — prefer signals for new code)
-export { dashboardStore } from "../store.ts";

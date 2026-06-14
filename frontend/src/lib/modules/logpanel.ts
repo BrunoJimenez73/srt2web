@@ -5,6 +5,8 @@
 
 import type { LogMessage } from "../types";
 import { formatTimestamp } from "../utils";
+import { showToast } from "./toast";
+import { showConfirm } from "./confirm-modal";
 import { t } from "../i18n";
 
 // DOM Elements
@@ -220,7 +222,7 @@ export function exportLogsJson(): void {
     ".log-entry:not([style*='display: none'])",
   );
   if (!entries || entries.length === 0) {
-    alert(t("no_logs"));
+    showToast(t("no_logs"), "info");
     return;
   }
 
@@ -253,7 +255,7 @@ export function exportLogsTxt(): void {
     ".log-entry:not([style*='display: none'])",
   );
   if (!entries || entries.length === 0) {
-    alert(t("no_logs"));
+    showToast(t("no_logs"), "info");
     return;
   }
 
@@ -287,12 +289,12 @@ function downloadBlob(blob: Blob, filename: string): void {
 /**
  * Limpia todos los logs (con confirmación)
  */
-export function clearLogs(): void {
+export async function clearLogs(): Promise<void> {
   const entryCount = logContent?.querySelectorAll(".log-entry").length || 0;
 
   // Confirm before clearing if there are many logs
   if (entryCount > 50) {
-    if (!confirm(`${t("confirm_delete")} (${entryCount})`)) {
+    if (!(await showConfirm(`${t("confirm_delete")} (${entryCount})`))) {
       return;
     }
   }

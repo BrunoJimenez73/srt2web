@@ -7,7 +7,6 @@
 
 // ── Puertos y URLs ─────────────────────────────────────────────────────────────
 export const SERVER_PORT = 9999;
-export const DEFAULT_SERVER_HOST = "127.0.0.1";
 
 // ── Storage Keys ──────────────────────────────────────────────────────────────
 export const STORAGE_KEYS = {
@@ -17,58 +16,6 @@ export const STORAGE_KEYS = {
   LAST_CONFIG: "srt2web_last_config",
   SHOW_LOGS: "srt2web_show_logs",
   LANGUAGE: "srt2web_language",
-} as const;
-
-// ── Mensajes de UI ────────────────────────────────────────────────────────────
-// @deprecated Use t('key') from i18n.ts instead. Kept for backward compatibility.
-export const MESSAGES = {
-  // Pipeline
-  PIPELINE_STARTING: "Iniciando pipeline...",
-  PIPELINE_STARTED: "Pipeline iniciado correctamente",
-  PIPELINE_STOPPING: "Deteniendo pipeline...",
-  PIPELINE_STOPPED: "Pipeline detenido",
-  PIPELINE_CONFIRM_STOP: "¿Está seguro que desea detener el pipeline?",
-
-  // Configuración
-  CONFIG_SAVED: "Configuración guardada correctamente",
-  CONFIG_SAVE_ERROR: "Error al guardar configuración",
-  CONFIG_LOAD_ERROR: "Error al cargar configuración",
-
-  // Inputs
-  INPUT_FILE_SELECTED:
-    "Archivo seleccionado. Ingrese la ruta completa manualmente.",
-  INPUT_FILE_PLAY: "Reproducción reanudada",
-  INPUT_FILE_PAUSE: "Reproducción pausada",
-  INPUT_FILE_SEEK_ERROR: "Error al buscar posición",
-
-  // Copiar URL
-  URL_COPIED: "URL copiada al portapapeles",
-  URL_COPY_ERROR: "Error al copiar URL",
-
-  // WebSocket
-  WS_CONNECTED: "Conectado al servidor",
-  WS_DISCONNECTED: "WebSocket desconectado",
-  WS_ERROR: "Error de conexión WebSocket",
-
-  // General
-  LOADING: "Cargando...",
-  ERROR: "Ha ocurrido un error",
-  SUCCESS: "Operación completada correctamente",
-  WARNING: "Advertencia",
-  INFO: "Información",
-
-  // Notificaciones
-  TOAST_DURATION: 3000,
-
-  // Logs
-  LOG_PANEL_PLACEHOLDER: "Esperando logs...",
-  LOG_SEARCH_PLACEHOLDER: "Buscar en logs...",
-  LOG_CLEAR: "Limpiar logs",
-
-  // Outputs
-  OUTPUT_CREATED: "Salida creada correctamente",
-  OUTPUT_REMOVED: "Salida eliminada",
-  OUTPUT_TOGGLED: "Estado de salida actualizado",
 } as const;
 
 // ── Valores por defecto ───────────────────────────────────────────────────────
@@ -146,7 +93,6 @@ export const METRIC_LABELS = {
 export default {
   SERVER_PORT,
   STORAGE_KEYS,
-  MESSAGES,
   DEFAULTS,
   MODULE_STATES,
   INPUT_TYPES,

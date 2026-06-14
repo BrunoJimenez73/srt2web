@@ -45,9 +45,10 @@ class AudioExtractor(FFmpegModule):
         try:
             result = self.ffmpeg.run_command(["-decoders"], timeout=5)
             self._gpu_info["nvdec"] = "h264_cuvid" in result.stdout.lower()
-        except Exception:
+        except Exception as e:
             # Non-critical: NVDEC check is best-effort
             self._gpu_info["nvdec"] = False
+            logger.debug(f"Failed to check NVDEC support: {e}")
 
         # Create temporary audio directory
         self._audio_dir = Path(self._output_dir) / "temp_audio"

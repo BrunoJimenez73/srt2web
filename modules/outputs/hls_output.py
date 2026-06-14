@@ -12,6 +12,7 @@ Configuración (output.web o output.hls):
 
 import contextlib
 import glob
+import logging
 import os
 import subprocess
 import sys
@@ -24,6 +25,8 @@ from core.ffmpeg_utils import check_gpu_support, ensure_ffmpeg
 from core.module_base import ModuleState, ModuleStatus, PipelineData
 from core.output_sink import OutputSink
 from core.subprocess_utils import filter_command, get_creation_flags
+
+logger = logging.getLogger(__name__)
 
 
 class HLSOutput(OutputSink):
@@ -184,7 +187,8 @@ class HLSOutput(OutputSink):
                 timeout=5,
             )
             return "h264" in (result.stdout or "").lower()
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Failed to check if FFmpeg supports h264: {e}")
             return False
 
     def write(self, data: PipelineData) -> None:
@@ -448,67 +452,8 @@ class HLSOutput(OutputSink):
 
     def _get_encoder_config(self) -> tuple[str, str, list[str]]:
         """Determinar configuración del encoder (CPU/GPU) basado en preferencias."""
-        encoder = "libx264"
-        preset = self._encoder_config.video_preset
-        extra_args: list[str] = []
-
-        # Determinar encoder basado en modo configurado y disponibilidad de hardware
-        encoder_mode = self._encoder_config.encoder_mode
-
-        if encoder_mode == "auto":
-            # Auto-detectar mejor hardware disponible
-            if self._gpu_info["nvenc"]:
-                encoder_mode = "gpu_nvenc"
-            elif self._gpu_info["amf"]:
-                encoder_mode = "gpu_amf"
-            elif self._gpu_info["qsv"]:
-                encoder_mode = "gpu_qsv"
-            else:
-                encoder_mode = "cpu"
-
-        # Configurar encoder según modo seleccionado
-        if encoder_mode == "passthrough":
-            encoder = "copy"
-            preset = ""
-            extra_args = []
-            self.logger.info("Using passthrough mode (no re-encoding)")
-        elif encoder_mode == "gpu_nvenc" and self._gpu_info["nvenc"]:
-            encoder = "h264_nvenc"
-            preset = self._encoder_config.gpu_preset
-            extra_args = self._encoder_config.get_gpu_nvenc_args()
-            self.logger.info(f"Using GPU NVENC encoder (preset: {preset})")
-
-        elif encoder_mode == "gpu_amf" and self._gpu_info["amf"]:
-            encoder = "h264_amf"
-            preset = self._encoder_config.video_preset
-            extra_args = self._encoder_config.get_gpu_amf_args()
-            self.logger.info(f"Using GPU AMF encoder (preset: {preset})")
-
-        elif encoder_mode == "gpu_qsv" and self._gpu_info["qsv"]:
-            encoder = "h264_qsv"
-            preset = self._encoder_config.video_preset
-            extra_args = self._encoder_config.get_gpu_qsv_args()
-            self.logger.info(f"Using GPU QSV encoder (preset: {preset})")
-
-        elif encoder_mode == "gpu_videotoolbox" and self._gpu_info["videotoolbox"]:
-            encoder = "h264_videotoolbox"
-            preset = self._encoder_config.gpu_preset
-            extra_args = self._encoder_config.get_gpu_videotoolbox_args()
-            self.logger.info(f"Using GPU VideoToolbox encoder (preset: {preset})")
-
-        elif encoder_mode == "gpu_vaapi" and self._gpu_info["vaapi"]:
-            encoder = "h264_vaapi"
-            preset = self._encoder_config.video_preset
-            extra_args = self._encoder_config.get_gpu_vaapi_args()
-            self.logger.info(f"Using GPU VAAPI encoder (preset: {preset})")
-
-        else:
-            # CPU encoder con configuración CRF
-            encoder = "libx264"
-            preset = self._encoder_config.video_preset
-            extra_args = self._encoder_config.get_cpu_args()
-            self.logger.info(f"Using CPU encoder libx264 (preset: {preset}, crf: {self._encoder_config.video_crf})")
-
+        encoder, preset, extra_args = self._encoder_config.resolve_encoder(self._gpu_info)
+        self.logger.info(f"Using encoder: {encoder} (preset: {preset or 'default'})")
         return encoder, preset, extra_args
 
     def _update_manifest(self) -> None:
@@ -596,67 +541,13 @@ class HLSOutput(OutputSink):
 
     def get_status(self) -> ModuleStatus:
         """Get status including GPU encoder info."""
-        using_gpu = False
-        actual_encoder = "libx264"
-        encoder_label = "CPU"
-
-        encoder_mode = self._encoder_config.encoder_mode
-
-        if encoder_mode == "passthrough":
-            actual_encoder = "copy"
-            encoder_label = "Passthrough"
-        elif self._ffmpeg_path and encoder_mode in [
-            "auto",
-            "gpu_nvenc",
-            "gpu_amf",
-            "gpu_qsv",
-            "gpu_vaapi",
-            "gpu_videotoolbox",
-        ]:
-            if encoder_mode == "gpu_nvenc" and self._gpu_info["nvenc"]:
-                using_gpu = True
-                actual_encoder = "h264_nvenc"
-                encoder_label = "H.264 NVENC"
-            elif encoder_mode == "gpu_nvenc" and not self._gpu_info["nvenc"]:
-                using_gpu = True
-                actual_encoder = "h264_nvenc"
-                encoder_label = "H.264 NVENC (ASSUMED)"
-            elif self._gpu_info["nvenc"]:
-                using_gpu = True
-                actual_encoder = "h264_nvenc"
-                encoder_label = "H.264 NVENC"
-            elif self._gpu_info["amf"]:
-                using_gpu = True
-                actual_encoder = "h264_amf"
-                encoder_label = "H.264 AMF"
-            elif self._gpu_info["qsv"]:
-                using_gpu = True
-                actual_encoder = "h264_qsv"
-                encoder_label = "H.264 QSV"
-            elif self._gpu_info["vaapi"]:
-                using_gpu = True
-                actual_encoder = "h264_vaapi"
-                encoder_label = "H.264 VAAPI"
-            elif self._gpu_info["videotoolbox"]:
-                using_gpu = True
-                actual_encoder = "h264_videotoolbox"
-                encoder_label = "H.264 VideoToolbox"
-
-        if not using_gpu and encoder_mode != "passthrough":
-            encoder_label = "H.264 CPU"
+        encoder_extra = self._encoder_config.get_encoder_status(self._gpu_info, self._ffmpeg_path)
 
         return ModuleStatus(
-            name="video_muxer",
+            name="web",
             state=ModuleState.RUNNING if (self._hls_dir and self._enabled) else ModuleState.IDLE,
             enabled=self._enabled,
             processed_chunks=self._segment_index,
             last_process_time_ms=self._last_process_time_ms,
-            extra={
-                "encoder_mode": encoder_mode,
-                "actual_encoder": actual_encoder,
-                "using_gpu": using_gpu,
-                "gpu_available": self._gpu_info,
-                "gpu_preset": self._encoder_config.gpu_preset,
-                "encoder_label": encoder_label,
-            },
+            extra=encoder_extra,
         )

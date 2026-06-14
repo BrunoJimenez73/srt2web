@@ -285,13 +285,6 @@ class TestBackendStatusAPI:
             content = tts_path.read_text(encoding="utf-8")
             assert 'status.extra["device"]' in content, "TTS should set device in extra"
 
-    def test_hls_output_returns_encoder_in_status(self) -> None:
-        """Test that HLS output returns encoder_mode in status."""
-        hls_path = PROJECT_ROOT / "modules" / "outputs" / "hls_output.py"
-        if hls_path.exists():
-            content = hls_path.read_text(encoding="utf-8")
-            assert '"encoder_mode"' in content, "HLS output should include encoder_mode in status"
-
 
 class TestOutputMultiOutput:
     """Test that OUTPUT module supports multiple outputs."""

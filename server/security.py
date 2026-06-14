@@ -124,7 +124,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             )
 
         token = auth_header[7:]  # Remove "Bearer " prefix
-        if token != auth_token:
+        if not hmac.compare_digest(token, auth_token):
             logger.warning(f"SECURITY: Invalid auth token attempt from {request.client.host}")  # type: ignore[union-attr]
             return JSONResponse(status_code=401, content={"detail": "Invalid authentication token"})
 
@@ -132,32 +132,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
     def _is_public_path(self, path: str) -> bool:
         """Paths that don't require authentication."""
-        public_paths = {
-            "/",
-            "/health",
-            "/player",
-            "/api/available",
-            "/api/health",
-            "/api/docs",
-            "/api/redoc",
-            "/api/openapi.json",
-            "/hls/",
-            "/ws/logs",  # WebSocket has its own auth
-        }
-        if path in public_paths:
-            return True
-        # F118: Auth endpoints (login, register) must be accessible
-        if path.startswith("/api/auth/"):
-            return True
-        if path.startswith("/_astro/"):  # Astro build assets
-            return True
-        if path.startswith("/assets/"):
-            return True
-        if path.startswith("/hls/"):
-            return True
-        if path.startswith("/api/docs"):  # Swagger UI static assets
-            return True
-        return False
+        from server.ctx import is_public_path
+
+        return is_public_path(path)
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -211,16 +188,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return response
 
     def _is_public_path(self, path: str) -> bool:
-        public_paths = {"/", "/health", "/player", "/api/available", "/api/health"}
-        if path in public_paths:
-            return True
-        if path.startswith("/_astro/"):
-            return True
-        if path.startswith("/assets/"):
-            return True
-        if path.startswith("/hls/"):
-            return True
-        return False
+        from server.ctx import is_public_path
+
+        return is_public_path(path)
 
     def _get_client_ip(self, request: Request) -> str:
         """Get real client IP, considering proxies."""
@@ -243,14 +213,20 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         content_length = request.headers.get("content-length")
-        if content_length and int(content_length) > self.max_size_bytes:
-            logger.warning(
-                f"Request too large: {content_length} bytes from {request.client.host}"  # type: ignore[union-attr]
-            )
-            return JSONResponse(
-                status_code=413,
-                content={"detail": f"Request body too large. Maximum size: {self.max_size_bytes / 1024 / 1024:.1f}MB"},
-            )
+        if content_length:
+            try:
+                if int(content_length) > self.max_size_bytes:
+                    logger.warning(
+                        f"Request too large: {content_length} bytes from {request.client.host}"  # type: ignore[union-attr]
+                    )
+                    return JSONResponse(
+                        status_code=413,
+                        content={
+                            "detail": f"Request body too large. Maximum size: {self.max_size_bytes / 1024 / 1024:.1f}MB"
+                        },
+                    )
+            except ValueError:
+                pass  # Non-numeric Content-Length; let it through
         return await call_next(request)
 
 
@@ -456,7 +432,7 @@ def validate_ws_auth(request: Request, get_auth_token: Callable[[], str]) -> boo
         logger.warning("SECURITY: WebSocket connection without token parameter")
         return False
 
-    if token != auth_token:
+    if not hmac.compare_digest(token, auth_token):
         logger.warning(f"SECURITY: WebSocket invalid token from {request.client.host}")  # type: ignore[union-attr]
         return False
 

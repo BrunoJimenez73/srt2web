@@ -49,16 +49,19 @@ class TestConfigReload:
 class TestConfigHotReloadOnUpdate:
     """Test hot reload is called on config update."""
 
-    def test_update_config_reload_behavior(self) -> None:
+    def test_update_config_reload_behavior(self, tmp_path) -> None:
         """Test that config reloads after update."""
-        config_path = CONFIG_PATH
-
-        if not os.path.exists(config_path):
-            pytest.skip("config.yaml not found")
+        import shutil
 
         from core.config_manager import ConfigManager
 
-        manager = ConfigManager(config_path)
+        if not os.path.exists(CONFIG_PATH):
+            pytest.skip("config.yaml not found")
+
+        temp_config = tmp_path / "config.yaml"
+        shutil.copy2(CONFIG_PATH, temp_config)
+
+        manager = ConfigManager(str(temp_config))
 
         original_value = manager.get("pipeline.chunk_duration_sec")
         assert original_value is not None, "Original chunk_duration should not be None"
@@ -71,10 +74,6 @@ class TestConfigHotReloadOnUpdate:
         reloaded_value = manager.get("pipeline.chunk_duration_sec")
 
         assert reloaded_value == new_value, f"Expected {new_value}, got {reloaded_value}"
-
-        # Restore original value to avoid side effects on other tests
-        manager.set("pipeline.chunk_duration_sec", original_value)
-        manager.save()
 
 
 class TestConfigCachePrevention:
@@ -173,7 +172,7 @@ class TestAPIConfigUpdate:
 
         is_valid = config["pipeline"]["chunk_duration_sec"] >= 1 and config["pipeline"]["chunk_duration_sec"] <= 10
 
-        assert is_valid == True
+        assert is_valid
 
 
 class TestConfigValidation:

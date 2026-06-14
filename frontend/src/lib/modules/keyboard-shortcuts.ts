@@ -10,7 +10,7 @@
  */
 
 import { handleSaveConfig, handleStart, handleStop } from "../dashboard";
-import { showToast } from "../utils";
+import { showToast } from "./toast";
 import { t } from "../i18n";
 
 // ── Types ────────────────────────────────────────────────────────────────

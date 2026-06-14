@@ -14,9 +14,7 @@ logger = logging.getLogger("srt2web.api.modules")
 
 router = APIRouter(tags=["modules"])
 
-
-def _ctx(request: Request) -> dict[str, Any]:
-    return request.app.state.ctx  # type: ignore[no-any-return]
+from server.ctx import get_ctx as _ctx
 
 
 @router.get("/modules")

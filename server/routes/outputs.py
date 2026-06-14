@@ -3,6 +3,7 @@ Output management routes for SRT2Web API.
 """
 
 import logging
+import time
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -14,10 +15,7 @@ logger = logging.getLogger("srt2web.api.outputs")
 
 router = APIRouter(tags=["outputs"])
 
-
-def _ctx(request: Request) -> dict[str, Any]:
-    return request.app.state.ctx  # type: ignore[no-any-return]
-
+from server.ctx import get_ctx as _ctx
 
 _CANONICAL_OUTPUT_TYPES = frozenset({"web", "srt", "rtmp", "file", "recording", "webrtc"})
 
@@ -131,7 +129,7 @@ async def add_output(request: Request, body: AddOutputRequest) -> dict[str, Any]
 
     output_type = body.type
     output_config = body.config or {}
-    output_name = body.name or f"{output_type}_{int(__import__('time').time())}"
+    output_name = body.name or f"{output_type}_{int(time.time())}"
 
     from core.io_factory import OutputFactory
 

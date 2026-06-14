@@ -83,8 +83,9 @@ class TestSetupLogging:
         logger = logging.getLogger("srt2web.f50test")
         logger.info("JSON test message")
         logger.debug("Debug with %s", "params")
-        handler = logger.handlers[0] if logger.handlers else None
-        assert handler is not None or True  # root has handlers
+        # setup_logging adds handlers to the root logger; child loggers propagate
+        root_handler = logging.root.handlers[0] if logging.root.handlers else None
+        assert root_handler is not None, "Root logger should have at least one handler after setup_logging"
 
     def test_json_formatter_is_valid(self):
         fmt = JSONFormatter()

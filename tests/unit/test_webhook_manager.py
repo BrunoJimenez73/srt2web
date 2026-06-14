@@ -29,12 +29,13 @@ async def test_emit_adds_to_queue() -> None:
 async def test_dispatch_to_relevant_targets() -> None:
     """Test that events are only sent to targets subscribed to that event type."""
     mgr = WebhookManager()
-    target_mock = AsyncMock()
-    target_mock.is_success = True
+
+    mock_response = Mock()
+    mock_response.is_success = True
 
     mock_target = WebhookTarget(url="http://example.com/hook", events=["pipeline.start"])
 
-    with patch("httpx.AsyncClient.post", return_value=target_mock):
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_response) as post_mock:
         mgr.add_target(mock_target)
         mgr.emit("pipeline.start", {"state": "running"})
         mgr.emit("pipeline.stop", {"state": "stopped"})  # not subscribed
@@ -44,7 +45,7 @@ async def test_dispatch_to_relevant_targets() -> None:
         await mgr.stop()
 
     # Only pipeline.start should have triggered a request
-    assert target_mock.call_count >= 1 or True  # at least one attempt made
+    assert post_mock.call_count >= 1, "Webhook target should have been called at least once"
 
 
 @pytest.mark.asyncio

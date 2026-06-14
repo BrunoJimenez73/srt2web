@@ -395,13 +395,15 @@ class PiperSubprocessManager:
                                     t = threading.Thread(target=_read)
                                     t.start()
                                     t.join(3)
-                            except Exception:
+                            except Exception as e:
                                 # If reading fails we still attempt to wait for termination.
+                                logger.debug(f"Failed to read from subprocess stdout: {e}")
                                 pass
                         # Wait for the process to exit gracefully.
                         self._proc.wait(timeout=3)
-                    except Exception:
+                    except Exception as e:
                         # If anything goes wrong we fall back to force-kill.
+                        logger.debug(f"Failed to wait for subprocess graceful termination: {e}")
                         pass
 
                 # Force kill if still running after graceful attempt.

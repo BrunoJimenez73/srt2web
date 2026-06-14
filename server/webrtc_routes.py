@@ -98,7 +98,7 @@ def create_webrtc_router() -> APIRouter:
             import traceback
 
             logger.error(f"Traceback: {traceback.format_exc()}")
-            raise HTTPException(status_code=500, detail=f"WebRTC error: {e!s}") from e
+            raise HTTPException(status_code=500, detail="Internal WebRTC error") from e
 
     @router.post("/webrtc/close")
     async def handle_webrtc_close(request: Request) -> JSONResponse:

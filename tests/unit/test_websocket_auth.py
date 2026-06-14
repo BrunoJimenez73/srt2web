@@ -29,7 +29,7 @@ class TestWebSocketAuth:
 
     def test_websocket_auth_accepts_no_token_when_not_required(self):
         """Test auth validation allows request when no token is configured."""
-        from unittest.mock import Mock
+        from unittest.mock import Mock, patch
 
         validate_ws_auth = self._get_auth_validator()
 
@@ -40,7 +40,8 @@ class TestWebSocketAuth:
 
         get_auth_token = lambda: None
 
-        result = validate_ws_auth(mock_request, get_auth_token)
+        with patch.dict("os.environ", {}, clear=True):
+            result = validate_ws_auth(mock_request, get_auth_token)
         assert result is True
 
     def test_websocket_auth_rejects_missing_token_param(self):

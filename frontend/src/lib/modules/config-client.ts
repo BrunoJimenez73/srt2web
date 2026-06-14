@@ -3,7 +3,7 @@
  */
 
 import { apiCall, getConfig, updateChunkDuration } from "../api";
-import { showToast } from "../utils";
+import { showToast } from "./toast";
 import { DEFAULTS } from "../constants";
 import { t } from "../i18n";
 import { pipelineConfig } from "../store/index";

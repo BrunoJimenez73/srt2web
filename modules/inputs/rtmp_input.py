@@ -101,31 +101,19 @@ class RTMPInput(InputSource):
         Path(self._chunks_dir).mkdir(parents=True, exist_ok=True)
 
         # Detectar soporte GPU para hwaccel
-        from core.ffmpeg_utils import check_gpu_support
+        from core.ffmpeg_process import detect_gpu, resolve_hwaccel
 
-        self._gpu_info = check_gpu_support(self._ffmpeg_path)
-        logger.info(f"RTMP Input GPU support: {self._gpu_info}")
+        self._gpu_info = detect_gpu(self._ffmpeg_path, "RTMP Input")
 
         logger.info(f"RTMP Input URL being used: {self._url}")
         logger.info(f"RTMP Input mode: {self._mode}")
 
         # Habilitar hwaccel si hay GPU disponible
-        if self._gpu_info.get("nvenc"):
-            self._hwaccel_enabled = True
-            logger.info("RTMP Input: Using NVDEC hardware acceleration")
-        elif self._gpu_info.get("qsv"):
-            self._hwaccel_enabled = True
-            logger.info("RTMP Input: Using QSV hardware acceleration")
-        elif self._gpu_info.get("vaapi"):
-            self._hwaccel_enabled = True
-            logger.info("RTMP Input: Using VAAPI hardware acceleration")
-        else:
-            self._hwaccel_enabled = False
-            logger.info("RTMP Input: No GPU acceleration available, using CPU")
+        self._hwaccel_enabled, self._hwaccel_device = resolve_hwaccel(self._gpu_info, "RTMP Input")
 
-        for f in Path(self._chunks_dir).glob("chunk_*.ts"):
-            with contextlib.suppress(OSError):
-                f.unlink()
+        from core.ffmpeg_process import cleanup_old_chunks
+
+        cleanup_old_chunks(self._chunks_dir)
 
         # Reset cumulative duration tracking (F115: delegated to ChunkClock)
         self._clock.reset()
@@ -136,13 +124,9 @@ class RTMPInput(InputSource):
         cmd = [self._ffmpeg_path, "-y"]
 
         # Añadir hwaccel si hay GPU disponible
-        if self._hwaccel_enabled:
-            if self._gpu_info.get("nvenc"):
-                cmd.extend(["-hwaccel", "cuda", "-hwaccel_device", self._hwaccel_device])
-            elif self._gpu_info.get("qsv"):
-                cmd.extend(["-hwaccel", "qsv", "-hwaccel_device", self._hwaccel_device])
-            elif self._gpu_info.get("vaapi"):
-                cmd.extend(["-hwaccel", "vaapi"])
+        from core.ffmpeg_process import build_hwaccel_args
+
+        cmd.extend(build_hwaccel_args(self._hwaccel_enabled, self._gpu_info, self._hwaccel_device))
 
         # Resto del comando - use listen mode for server
         cmd.extend(
@@ -208,7 +192,7 @@ class RTMPInput(InputSource):
                 stdout = self._ffmpeg_proc.stdout
                 output = stdout.read(2000) if stdout else ""
                 logger.error(f"FFmpeg exited immediately. Output: {output}")
-            except Exception:
+            except Exception as e:
                 logger.error(f"FFmpeg exited immediately with code {self._ffmpeg_proc.returncode}")
             # Continue anyway - the process might work if we give it time
 
@@ -249,7 +233,7 @@ class RTMPInput(InputSource):
                 else:
                     self._ffmpeg_proc.terminate()
                 self._ffmpeg_proc.wait(timeout=2)
-            except Exception:
+            except Exception as e:
                 with contextlib.suppress(Exception):
                     self._ffmpeg_proc.kill()
             finally:
@@ -365,24 +349,15 @@ class RTMPInput(InputSource):
 
     def get_status(self) -> ModuleStatus:
         """Get status including GPU acceleration info."""
+        from core.ffmpeg_process import get_input_status_extra
+
         return ModuleStatus(
             name="input",
             state=ModuleState.RUNNING if self.is_receiving() else ModuleState.IDLE,
             enabled=True,
             processed_chunks=self._last_chunk_index + 1 if self._last_chunk_index >= 0 else 0,
             last_process_time_ms=0.0,
-            extra={
-                "using_gpu": self._hwaccel_enabled,
-                "gpu_info": self._gpu_info,
-                "encoder_label": "NVDEC"
-                if self._gpu_info.get("nvenc")
-                else "QSV"
-                if self._gpu_info.get("qsv")
-                else "VAAPI"
-                if self._gpu_info.get("vaapi")
-                else "CPU",
-                "hwaccel": self._hwaccel_enabled,
-            },
+            extra=get_input_status_extra(self._gpu_info, self._hwaccel_enabled),
         )
 
 

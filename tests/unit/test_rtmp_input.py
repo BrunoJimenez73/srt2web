@@ -144,45 +144,6 @@ class TestRTMPConfigHandling:
         ), "config.yaml should have RTMP listen_port set to 1935"
 
 
-class TestRTMPFrontend:
-    """Test RTMP functionality in frontend."""
-
-    def test_get_rtmp_url_function_exists(self) -> None:
-        """Test getRTMPUrl function exists in utils."""
-        utils_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "utils" / "index.ts"
-        assert utils_path.exists(), "Utils file should exist"
-
-        with open(utils_path) as f:
-            content = f.read()
-
-        assert "getRTMPUrl" in content, "getRTMPUrl function should be defined in utils"
-
-    def test_rtmp_url_format(self) -> None:
-        """Test getRTMPUrl generates correct format."""
-        utils_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "utils" / "index.ts"
-        with open(utils_path) as f:
-            content = f.read()
-
-        # Should generate rtmp://ip:port/app/streamkey format
-        assert "rtmp://" in content, "RTMP URL should use rtmp:// protocol"
-
-    def test_status_card_has_url_emision(self) -> None:
-        """Test StatusCard has url-emision element."""
-        status_card_path = PROJECT_ROOT / "frontend" / "src" / "components" / "StatusCard.astro"
-        with open(status_card_path, encoding="utf-8") as f:
-            content = f.read()
-
-        assert "url-emision" in content, "StatusCard should have url-emision element"
-
-    def test_input_card_rtmp_settings(self) -> None:
-        """Test InputCard has RTMP settings."""
-        input_card_path = PROJECT_ROOT / "frontend" / "src" / "components" / "InputCard.astro"
-        with open(input_card_path, encoding="utf-8") as f:
-            content = f.read()
-
-        assert "input-rtmp" in content, "InputCard should have RTMP settings section"
-
-
 class TestStopBatRTMPPort:
     """Test Stop.bat handles RTMP port cleanup."""
 

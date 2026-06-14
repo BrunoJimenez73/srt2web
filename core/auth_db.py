@@ -33,6 +33,12 @@ _security_logger = logging.getLogger("srt2web.security")
 JWT_SECRET_KEY = os.environ.get("SRT2WEB_JWT_SECRET", "")
 JWT_ALGORITHM = "HS256"
 
+if not JWT_SECRET_KEY:
+    _security_logger.warning(
+        "SRT2WEB_JWT_SECRET is empty — JWT tokens will be unsigned. "
+        "Set SRT2WEB_JWT_SECRET environment variable for production use."
+    )
+
 # F123: Access token (short-lived) and refresh token (long-lived)
 _ACCESS_TOKEN_MINUTES = 15
 _REFRESH_TOKEN_DAYS = 7

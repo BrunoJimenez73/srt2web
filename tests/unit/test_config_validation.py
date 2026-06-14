@@ -348,39 +348,25 @@ class TestRequiredDependencies:
 
     def test_fastapi_available(self) -> None:
         """Test that FastAPI is installed."""
-        try:
-            import fastapi
+        import fastapi
 
-            assert True
-        except ImportError:
-            pytest.fail("FastAPI not installed")
+        assert fastapi.__version__ is not None
 
     def test_uvicorn_available(self) -> None:
         """Test that Uvicorn is installed."""
-        try:
-            import uvicorn
+        import uvicorn
 
-            assert True
-        except ImportError:
-            pytest.fail("Uvicorn not installed")
+        assert uvicorn.__version__ is not None
 
     def test_faster_whisper_available(self) -> None:
         """Test that faster-whisper is installed."""
-        try:
-            import faster_whisper
-
-            assert True
-        except ImportError:
-            pytest.skip("faster-whisper not installed (optional)")
+        faster_whisper = pytest.importorskip("faster_whisper")
 
     def test_yaml_available(self) -> None:
         """Test that PyYAML is installed."""
-        try:
-            import yaml
+        import yaml
 
-            assert True
-        except ImportError:
-            pytest.fail("PyYAML not installed")
+        assert yaml.__version__ is not None
 
     def test_ffmpeg_available(self) -> None:
         """Test that FFmpeg is available."""

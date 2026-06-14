@@ -49,7 +49,9 @@ import {
   startPipeline,
   stopPipeline,
 } from "../api";
-import { showToast, copyToClipboard } from "../utils";
+import { copyToClipboard } from "../utils";
+import { showToast } from "./toast";
+import { showConfirm } from "./confirm-modal";
 import { DEFAULTS } from "../constants";
 import { t } from "../i18n";
 import { connectionMode, emitterAddress } from "../store/signals";
@@ -109,7 +111,7 @@ export async function handleStart(): Promise<void> {
 }
 
 export async function handleStop(): Promise<void> {
-  if (!confirm(t("confirm_stop"))) {
+  if (!(await showConfirm(t("confirm_stop")))) {
     return;
   }
   if (isLoading()) return;

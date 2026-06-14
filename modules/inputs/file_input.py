@@ -13,7 +13,6 @@ Configuración (input.file):
     chunk_duration_sec: Duración de cada chunk (default: 15)
 """
 
-import contextlib
 import glob
 import logging
 import os
@@ -145,9 +144,9 @@ class FileInput(InputSource):
         os.makedirs(self._chunks_dir, exist_ok=True)
 
         # Limpiar chunks antiguos
-        for f in glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")):
-            with contextlib.suppress(OSError):
-                os.remove(f)
+        from core.ffmpeg_process import cleanup_old_chunks
+
+        cleanup_old_chunks(self._chunks_dir)
 
         self._last_chunk_index = -1
         self._cumulative_duration = position  # Ajustar duración acumulada
@@ -162,13 +161,9 @@ class FileInput(InputSource):
         cmd = [self._ffmpeg_path, "-y"]
 
         # Añadir hwaccel
-        if self._hwaccel_enabled:
-            if self._gpu_info.get("nvenc"):
-                cmd.extend(["-hwaccel", "cuda", "-hwaccel_device", self._hwaccel_device])
-            elif self._gpu_info.get("qsv"):
-                cmd.extend(["-hwaccel", "qsv", "-hwaccel_device", self._hwaccel_device])
-            elif self._gpu_info.get("vaapi"):
-                cmd.extend(["-hwaccel", "vaapi"])
+        from core.ffmpeg_process import build_hwaccel_args
+
+        cmd.extend(build_hwaccel_args(self._hwaccel_enabled, self._gpu_info, self._hwaccel_device))
 
         # Input con seek position
         cmd.extend(
@@ -255,20 +250,17 @@ class FileInput(InputSource):
         os.makedirs(self._chunks_dir, exist_ok=True)
 
         # Detectar soporte GPU para hwaccel
-        from core.ffmpeg_utils import check_gpu_support
+        from core.ffmpeg_process import detect_gpu, resolve_hwaccel
 
-        self._gpu_info = check_gpu_support(self._ffmpeg_path)
+        self._gpu_info = detect_gpu(self._ffmpeg_path)
 
         # Habilitar hwaccel si hay GPU disponible
-        if self._gpu_info.get("nvenc") or self._gpu_info.get("qsv") or self._gpu_info.get("vaapi"):
-            self._hwaccel_enabled = True
-        else:
-            self._hwaccel_enabled = False
+        self._hwaccel_enabled, self._hwaccel_device = resolve_hwaccel(self._gpu_info)
 
         # Limpiar chunks antiguos
-        for f in glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")):
-            with contextlib.suppress(OSError):
-                os.remove(f)
+        from core.ffmpeg_process import cleanup_old_chunks
+
+        cleanup_old_chunks(self._chunks_dir)
 
         # Reset cumulative duration tracking
         self._cumulative_duration = 0.0
@@ -280,13 +272,9 @@ class FileInput(InputSource):
         cmd = [self._ffmpeg_path, "-y"]
 
         # Añadir hwaccel si hay GPU disponible
-        if self._hwaccel_enabled:
-            if self._gpu_info.get("nvenc"):
-                cmd.extend(["-hwaccel", "cuda", "-hwaccel_device", self._hwaccel_device])
-            elif self._gpu_info.get("qsv"):
-                cmd.extend(["-hwaccel", "qsv", "-hwaccel_device", self._hwaccel_device])
-            elif self._gpu_info.get("vaapi"):
-                cmd.extend(["-hwaccel", "vaapi"])
+        from core.ffmpeg_process import build_hwaccel_args
+
+        cmd.extend(build_hwaccel_args(self._hwaccel_enabled, self._gpu_info, self._hwaccel_device))
 
         # Resto del comando
         cmd.extend(
@@ -421,9 +409,9 @@ class FileInput(InputSource):
                 self._file_finished = False
                 self._last_chunk_index = -1
                 # Limpiar y reiniciar
-                for f in glob.glob(os.path.join(self._chunks_dir, "chunk_*.ts")):
-                    with contextlib.suppress(OSError):
-                        os.remove(f)
+                from core.ffmpeg_process import cleanup_old_chunks
+
+                cleanup_old_chunks(self._chunks_dir)
                 self.start()
             return None
 
@@ -474,24 +462,15 @@ class FileInput(InputSource):
 
     def get_status(self) -> ModuleStatus:
         """Get status including GPU acceleration info."""
+        from core.ffmpeg_process import get_input_status_extra
+
         return ModuleStatus(
             name="input",
             state=ModuleState.RUNNING if self.is_receiving() else ModuleState.IDLE,
             enabled=True,
             processed_chunks=self._last_chunk_index + 1 if self._last_chunk_index >= 0 else 0,
             last_process_time_ms=0.0,
-            extra={
-                "using_gpu": self._hwaccel_enabled,
-                "gpu_info": self._gpu_info,
-                "encoder_label": "NVDEC"
-                if self._gpu_info.get("nvenc")
-                else "QSV"
-                if self._gpu_info.get("qsv")
-                else "VAAPI"
-                if self._gpu_info.get("vaapi")
-                else "CPU",
-                "hwaccel": self._hwaccel_enabled,
-            },
+            extra=get_input_status_extra(self._gpu_info, self._hwaccel_enabled),
         )
 
     def _monitor_ffmpeg(self) -> None:

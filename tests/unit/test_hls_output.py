@@ -86,7 +86,7 @@ class TestHLSOutputGetStatus:
 
         output = HLSOutput({"encoder_mode": "cpu"})
         status = output.get_status()
-        assert status.name == "video_muxer"
+        assert status.name == "web"
         assert status.processed_chunks == 0
         assert status.extra.get("encoder_mode") == "cpu"
         assert status.extra.get("encoder_label") == "H.264 CPU"

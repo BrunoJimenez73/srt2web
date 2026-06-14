@@ -5,7 +5,15 @@ Proporciona configuración centralizada de parámetros de codificación
 de video que puede ser usada por múltiples módulos.
 """
 
+from __future__ import annotations
+
+import logging
 from typing import Any
+
+logger = logging.getLogger("srt2web.encoder_config")
+
+# Type alias for GPU info dict
+GpuInfo = dict[str, bool]
 
 
 class EncoderConfig:
@@ -187,6 +195,126 @@ class EncoderConfig:
         }
 
     @classmethod
-    def from_dict(cls, config_dict: dict[str, Any]) -> "EncoderConfig":
+    def from_dict(cls, config_dict: dict[str, Any]) -> EncoderConfig:
         """Crear configuración desde diccionario."""
         return cls(config_dict)
+
+    def resolve_encoder(self, gpu_info: GpuInfo) -> tuple[str, str, list[str]]:
+        """Resolve encoder, preset, and extra args based on mode and GPU availability.
+
+        Returns:
+            Tuple of (encoder_string, preset_string, extra_ffmpeg_args)
+        """
+        encoder = "libx264"
+        preset = self.video_preset
+        extra_args: list[str] = []
+        encoder_mode = self.encoder_mode
+
+        if encoder_mode == "auto":
+            if gpu_info.get("nvenc"):
+                encoder_mode = "gpu_nvenc"
+            elif gpu_info.get("amf"):
+                encoder_mode = "gpu_amf"
+            elif gpu_info.get("qsv"):
+                encoder_mode = "gpu_qsv"
+            elif gpu_info.get("vaapi"):
+                encoder_mode = "gpu_vaapi"
+            elif gpu_info.get("videotoolbox"):
+                encoder_mode = "gpu_videotoolbox"
+            else:
+                encoder_mode = "cpu"
+
+        if encoder_mode == "passthrough":
+            encoder = "copy"
+            preset = ""
+            extra_args = []
+        elif encoder_mode == "gpu_nvenc" and gpu_info.get("nvenc"):
+            encoder = "h264_nvenc"
+            preset = self.gpu_preset
+            extra_args = self.get_gpu_nvenc_args()
+        elif encoder_mode == "gpu_amf" and gpu_info.get("amf"):
+            encoder = "h264_amf"
+            preset = self.video_preset
+            extra_args = self.get_gpu_amf_args()
+        elif encoder_mode == "gpu_qsv" and gpu_info.get("qsv"):
+            encoder = "h264_qsv"
+            preset = self.video_preset
+            extra_args = self.get_gpu_qsv_args()
+        elif encoder_mode == "gpu_videotoolbox" and gpu_info.get("videotoolbox"):
+            encoder = "h264_videotoolbox"
+            preset = self.gpu_preset
+            extra_args = self.get_gpu_videotoolbox_args()
+        elif encoder_mode == "gpu_vaapi" and gpu_info.get("vaapi"):
+            encoder = "h264_vaapi"
+            preset = self.video_preset
+            extra_args = self.get_gpu_vaapi_args()
+        else:
+            encoder = "libx264"
+            preset = self.video_preset
+            extra_args = self.get_cpu_args()
+
+        return encoder, preset, extra_args
+
+    def get_encoder_status(self, gpu_info: GpuInfo, ffmpeg_path: str | None) -> dict[str, Any]:
+        """Build encoder status dict for ModuleStatus.extra.
+
+        Returns dict with keys: encoder_mode, actual_encoder, using_gpu,
+        gpu_available, gpu_preset, encoder_label.
+        """
+        using_gpu = False
+        actual_encoder = "libx264"
+        encoder_label = "CPU"
+        encoder_mode = self.encoder_mode
+
+        if encoder_mode == "passthrough":
+            actual_encoder = "copy"
+            encoder_label = "Passthrough"
+        elif ffmpeg_path and encoder_mode in (
+            "auto",
+            "gpu_nvenc",
+            "gpu_amf",
+            "gpu_qsv",
+            "gpu_vaapi",
+            "gpu_videotoolbox",
+        ):
+            if encoder_mode == "gpu_nvenc" and gpu_info.get("nvenc"):
+                using_gpu = True
+                actual_encoder = "h264_nvenc"
+                encoder_label = "H.264 NVENC"
+            elif encoder_mode == "gpu_nvenc" and not gpu_info.get("nvenc"):
+                logger.warning("NVENC requested but not detected by FFmpeg. " "Assuming compatibility.")
+                using_gpu = True
+                actual_encoder = "h264_nvenc"
+                encoder_label = "H.264 NVENC (ASSUMED)"
+            elif gpu_info.get("nvenc"):
+                using_gpu = True
+                actual_encoder = "h264_nvenc"
+                encoder_label = "H.264 NVENC"
+            elif gpu_info.get("amf"):
+                using_gpu = True
+                actual_encoder = "h264_amf"
+                encoder_label = "H.264 AMF"
+            elif gpu_info.get("qsv"):
+                using_gpu = True
+                actual_encoder = "h264_qsv"
+                encoder_label = "H.264 QSV"
+            elif gpu_info.get("vaapi"):
+                using_gpu = True
+                actual_encoder = "h264_vaapi"
+                encoder_label = "H.264 VAAPI"
+            elif gpu_info.get("videotoolbox"):
+                using_gpu = True
+                actual_encoder = "h264_videotoolbox"
+                encoder_label = "H.264 VideoToolbox"
+
+        if not using_gpu and encoder_mode != "passthrough":
+            encoder_label = "H.264 CPU"
+
+        return {
+            "encoder_mode": encoder_mode,
+            "actual_encoder": actual_encoder,
+            "using_gpu": using_gpu,
+            "gpu_available": gpu_info,
+            "gpu_preset": self.gpu_preset,
+            "encoder_label": encoder_label,
+        }

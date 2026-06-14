@@ -810,7 +810,6 @@ class TestNetworkUtils:
         ip = get_local_ip()
         assert ip is not None
         assert len(ip) > 0
-        assert ip != "127.0.0.1" or True  # Accept localhost as fallback
 
     def test_get_public_ip_returns_tuple(self) -> None:
         """Test that get_public_ip returns tuple."""

@@ -1,6 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { formatTime, formatBytes, formatTimestamp } from "./format";
-import { startClockUpdates, stopClockUpdates } from "./clock";
 
 describe("formatTime", () => {
   it("formats 0 seconds as 0:00", () => {
@@ -55,51 +54,5 @@ describe("formatTimestamp", () => {
   it("formats ISO string", () => {
     const result = formatTimestamp("2026-05-03T12:00:00Z");
     expect(result).toMatch(/\d{2}:\d{2}:\d{2}/);
-  });
-});
-
-describe("clock", () => {
-  beforeEach(() => {
-    // Mock the clock element
-    document.body.innerHTML = '<div id="live-clock"></div>';
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    stopClockUpdates();
-    vi.useRealTimers();
-  });
-
-  it("startClockUpdates sets interval", () => {
-    startClockUpdates();
-    const clock = document.getElementById("live-clock");
-    const initialText = clock?.textContent;
-
-    vi.advanceTimersByTime(1000);
-    expect(clock?.textContent).not.toBe(initialText);
-  });
-
-  it("stopClockUpdates clears interval", () => {
-    startClockUpdates();
-    stopClockUpdates();
-
-    const clock = document.getElementById("live-clock");
-    const textBefore = clock?.textContent;
-
-    vi.advanceTimersByTime(2000);
-    expect(clock?.textContent).toBe(textBefore);
-  });
-
-  it("initialized flag prevents duplicate intervals", () => {
-    startClockUpdates();
-    startClockUpdates(); // Should be ignored
-    startClockUpdates(); // Should be ignored
-
-    const clock = document.getElementById("live-clock");
-    const textBefore = clock?.textContent;
-
-    vi.advanceTimersByTime(1000);
-    // Should only update once per second, not 3x
-    expect(clock?.textContent).not.toBe(textBefore);
   });
 });

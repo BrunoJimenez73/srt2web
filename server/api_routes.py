@@ -28,8 +28,7 @@ def create_api_router() -> APIRouter:
     router.include_router(modules.router)
     router.include_router(outputs.router)
 
-    def _ctx(request: Request) -> dict[str, Any]:
-        return cast(dict[str, Any], request.app.state.ctx)
+    from server.ctx import get_ctx as _ctx
 
     @router.get("/output-info")
     async def output_info(request: Request) -> dict[str, Any]:

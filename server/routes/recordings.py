@@ -18,9 +18,7 @@ logger = logging.getLogger("srt2web.api.recordings")
 
 router = APIRouter(tags=["recordings"])
 
-
-def _ctx(request: Request) -> dict[str, Any]:
-    return request.app.state.ctx  # type: ignore[no-any-return]
+from server.ctx import get_ctx as _ctx
 
 
 def _get_recordings_dir(request: Request) -> Path:

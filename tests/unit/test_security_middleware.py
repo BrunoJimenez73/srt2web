@@ -211,13 +211,16 @@ class TestWebSocketAuth:
 
     def test_validate_ws_auth_without_token(self) -> None:
         """Test that WS auth passes when no token is configured."""
+        from unittest.mock import patch
+
         from server.security import validate_ws_auth
 
         mock_request = Mock(spec=Request)
         mock_request.query_params = {}
         mock_request.client = Mock(host="127.0.0.1")
 
-        result = validate_ws_auth(mock_request, lambda: "")
+        with patch.dict("os.environ", {}, clear=True):
+            result = validate_ws_auth(mock_request, lambda: "")
         assert result is True
 
     def test_validate_ws_auth_with_valid_token(self) -> None:

@@ -181,7 +181,7 @@ class TestStopConfirmation:
         with open("frontend/src/lib/modules/pipeline-control.ts", encoding="utf-8") as f:
             content = f.read()
 
-        assert "confirm(" in content
+        assert "showConfirm(" in content
         assert "confirm_stop" in content
 
 

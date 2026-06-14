@@ -13,7 +13,7 @@ from typing import Any, cast
 from fastapi import APIRouter, HTTPException, Request
 
 from core.cache import cached, invalidate_cache
-from core.paths import get_project_root, is_within_project
+from core.paths import is_within_project
 from server.validators import SeekPosition
 
 logger = logging.getLogger("srt2web.api.pipeline")
@@ -35,8 +35,7 @@ def _check_port_available(port: int) -> bool:
         return True  # assume available if check fails
 
 
-def _ctx(request: Request) -> dict[str, Any]:
-    return cast(dict[str, Any], request.app.state.ctx)
+from server.ctx import get_ctx as _ctx
 
 
 @router.get("/status")

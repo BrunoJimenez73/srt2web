@@ -3378,6 +3378,292 @@
           "Datos provienen de get_metrics() ya existente"
         ]
       }
+    },
+    {
+      "id": 136,
+      "name": "dead_code_removal",
+      "title": "Eliminacion de codigo muerto (~800 lineas)",
+      "status": "done",
+      "area": "maintenance",
+      "priority": "Alta",
+      "description": "Eliminar srt_ingest.py (~500), store.ts (176), file-input.ts (238), state.ts (79), clock.ts (39), performance.ts muertas, shared-types.ts (21), MESSAGES de constants.ts, y 3 test files que leen source strings.",
+      "acceptance": [
+        "init.ps1 -Quick pasa",
+        "No hay imports rotos (ruff check, tsc --noEmit)",
+        "pytest tests/unit/ pasa sin regresiones"
+      ],
+      "files_to_touch": [
+        "modules/srt_ingest.py",
+        "tests/unit/test_srt_ingest.py",
+        "frontend/src/lib/store.ts",
+        "frontend/src/lib/modules/file-input.ts",
+        "frontend/src/lib/types/state.ts",
+        "frontend/src/lib/utils/clock.ts",
+        "frontend/src/lib/shared-types.ts",
+        "frontend/src/lib/utils/performance.ts",
+        "frontend/src/lib/constants.ts",
+        "tests/unit/test_latest_features.py",
+        "tests/unit/test_workspace_fixes.py",
+        "tests/unit/test_complete_refactor.py"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "Codigo confirmado muerto via audit",
+          "Tests cubiertos no tienen dependencias"
+        ]
+      },
+      "completed_date": "2026-06-13"
+    },
+    {
+      "id": 137,
+      "name": "security_fixes",
+      "title": "Fixes de seguridad: timing attack, JWT, XSS",
+      "status": "done",
+      "area": "security",
+      "priority": "Alta",
+      "description": "Fix timing attack en auth token (hmac.compare_digest), JWT empty-string fallback, MD5 a SHA256 en translator, mensajes de error que exponen internas.",
+      "acceptance": [
+        "hmac.compare_digest en auth token path",
+        "JWT empty string rejected",
+        "translator usa SHA256",
+        "mypy --strict 0 errores",
+        "init.ps1 -Quick verde"
+      ],
+      "files_to_touch": [
+        "server/security.py",
+        "core/auth_db.py",
+        "modules/translator.py",
+        "server/webrtc_routes.py",
+        "server/routes/config.py"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Cambios mecanicos en paths de auth",
+          "Tests existentes validan auth"
+        ]
+      },
+      "completed_date": "2026-06-13"
+    },
+    {
+      "id": 138,
+      "name": "extract_encoder_logic",
+      "title": "Extraer logica de encoder duplicada",
+      "status": "done",
+      "area": "refactor",
+      "priority": "Alta",
+      "description": "_get_encoder_config() y get_status() estan casi identicos en HLSOutput y VideoMuxer (~200 lineas duplicadas).",
+      "acceptance": [
+        "Ambos modulos usan funcion compartida en core/encoder_config.py",
+        "Tests existentes pasan sin cambios",
+        "mypy --strict 0 errores"
+      ],
+      "files_to_touch": [
+        "core/encoder_config.py",
+        "modules/outputs/hls_output.py",
+        "modules/video_muxer.py",
+        "tests/unit/test_gpu_installer_restructure.py"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Extraer funcion, no cambiar logica",
+          "Tests validan comportamiento"
+        ]
+      },
+      "completed_date": "2026-06-13"
+    },
+    {
+      "id": 139,
+      "name": "extract_ffmpeg_process_lifecycle",
+      "title": "Extraer lifecycle de FFmpeg process",
+      "status": "done",
+      "area": "refactor",
+      "priority": "Alta",
+      "description": "srt_input.py, rtmp_input.py, file_input.py tienen _monitor_ffmpeg(), _kill_ffmpeg_process(), start subprocess duplicados (~200 lineas).",
+      "acceptance": [
+        "core/ffmpeg_process.py con FFmpegProcessManager mixin",
+        "~200 lineas eliminadas de inputs",
+        "Tests existentes pasan",
+        "init.ps1 -Quick verde"
+      ],
+      "files_to_touch": [
+        "core/ffmpeg_process.py",
+        "modules/inputs/srt_input.py",
+        "modules/inputs/rtmp_input.py",
+        "modules/inputs/file_input.py"
+      ],
+      "risk_assessment": {
+        "risk_level": "Alto",
+        "mitigation": [
+          "Cambios en 3 archivos de input",
+          "Requiere tests cuidadosos"
+        ]
+      },
+      "completed_date": "2026-06-13"
+    },
+    {
+      "id": 140,
+      "name": "fix_test_suite_quality",
+      "title": "Fix test suite quality (critical issues)",
+      "status": "done",
+      "area": "testing",
+      "priority": "Alta",
+      "description": "Global monkey-patches en conftest.py, fixture mock_whisper_model roto, weak assertions, flaky timing tests.",
+      "acceptance": [
+        "0 fixtures rotos",
+        "0 assert True o assert ... or True",
+        "Todos los tests de timing usan mock",
+        "pytest tests/unit/ pasa con -x"
+      ],
+      "files_to_touch": [
+        "tests/conftest.py",
+        "tests/unit/test_api_routes.py",
+        "tests/unit/test_f125_csrf_protection.py"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Cambios en test files solamente",
+          "No afecta produccion"
+        ]
+      }
+    },
+    {
+      "id": 141,
+      "name": "server_anti_patterns",
+      "title": "Server anti-patterns y type safety",
+      "status": "done",
+      "area": "refactor",
+      "priority": "Media",
+      "description": "_ctx() duplicado 6 veces, _is_public_path() 3 veces, app_context untyped, LogBroadcaster singleton, int() sin ValueError handling.",
+      "acceptance": [
+        "_ctx extraido a server/ctx.py",
+        "app_context tiene tipo",
+        "mypy --strict 0 errores en server/",
+        "Tests existentes pasan"
+      ],
+      "files_to_touch": [
+        "server/ctx.py",
+        "server/security.py",
+        "server/app.py",
+        "server/ws_routes.py",
+        "server/log_broadcaster.py"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Extracciones mecanicas",
+          "Tests existentes cubren paths"
+        ]
+      }
+    },
+    {
+      "id": 142,
+      "name": "frontend_cleanup",
+      "title": "Frontend cleanup y performance",
+      "status": "pending",
+      "area": "frontend",
+      "priority": "Media",
+      "description": "Duplicacion showToast, URL utils, JSON.stringify comparison en PipelineGraph, Metrics effect DOM lookups, inline CSS, native confirm/alert.",
+      "acceptance": [
+        "showToast unico en toast.ts",
+        "URL utils solo en signals.ts",
+        "npx tsc --noEmit 0 errores",
+        "npm test pasa"
+      ],
+      "files_to_touch": [
+        "frontend/src/lib/utils/index.ts",
+        "frontend/src/lib/modules/toast.ts",
+        "frontend/src/lib/store/signals.ts",
+        "frontend/src/lib/store/effects.ts",
+        "frontend/src/components/graph/*.tsx"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": [
+          "Cambios en frontend solamente",
+          "TypeScript catch errors"
+        ]
+      }
+    },
+    {
+      "id": 143,
+      "name": "module_type_safety",
+      "title": "Module type safety y error handling",
+      "status": "done",
+      "area": "refactor",
+      "priority": "Media",
+      "description": "piper_loader_script.py operator precedence bug, 12 except Exception pass, webrtc_engine Any returns, asyncio.get_event_loop deprecated.",
+      "acceptance": [
+        "piper_loader_script.py operator precedence corregido",
+        "0 except Exception pass sin logging",
+        "mypy --strict 0 errores en modules/",
+        "init.ps1 -Quick verde"
+      ],
+      "files_to_touch": [
+        "modules/piper_loader_script.py",
+        "modules/webrtc_engine.py",
+        "modules/subtitle_generator.py",
+        "modules/inputs/srt_input.py",
+        "modules/outputs/composite_output.py"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "Cambios puntuales en cada archivo",
+          "Tests existentes validan"
+        ]
+      }
+    },
+    {
+      "id": 144,
+      "name": "test_coverage_gaps",
+      "title": "Tests: coverage gaps en modulos nuevos",
+      "status": "done",
+      "area": "testing",
+      "priority": "Media",
+      "description": "Sin tests para strategies.py, pipeline_helpers.py, factory.py, srt_input chunk processing, hls_output remux path.",
+      "acceptance": [
+        "strategies.py > 80% coverage",
+        "pipeline_helpers.py > 80% coverage",
+        "pytest tests/unit/ pasa"
+      ],
+      "files_to_touch": [
+        "tests/unit/test_pipeline_strategies.py",
+        "tests/unit/test_pipeline_helpers.py",
+        "tests/unit/test_srt_input_chunks.py",
+        "tests/unit/test_hls_remux.py"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": ["Solo archivos de test nuevos", "No modifica produccion"]
+      }
+    },
+    {
+      "id": 145,
+      "name": "naming_style_consistency",
+      "title": "Naming y style consistency",
+      "status": "pending",
+      "area": "maintenance",
+      "priority": "Baja",
+      "description": "import json as JSON, import time as _time redundantes, logger name inconsistente, PresetSaveRequest dentro de funcion, sys.path.insert redundante en tests.",
+      "acceptance": [
+        "ruff check 0 errores",
+        "npm run lint 0 warnings nuevos",
+        "imports limpios"
+      ],
+      "files_to_touch": [
+        "modules/webrtc_engine.py",
+        "modules/subtitle_generator.py",
+        "server/routes/config.py",
+        "tests/conftest.py"
+      ],
+      "risk_assessment": {
+        "risk_level": "Bajo",
+        "mitigation": ["Cambios cosmesticos", "Validados por linters"]
+      }
     }
   ]
 }

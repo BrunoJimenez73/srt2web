@@ -235,8 +235,8 @@ class WebRTCEngine:
                     try:
                         data = JSON.loads(message)  # was JSON.parse (invalid); loads is stdlib equivalent
                         logger.info(f"Received from client: {data}")
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Failed to parse WebSocket message: {e}")
 
         answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)

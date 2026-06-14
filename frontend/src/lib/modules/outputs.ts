@@ -1,5 +1,5 @@
 import { apiCall, type OutputStatus } from "../api";
-import { showToast } from "../utils";
+import { showToast } from "./toast";
 import { logger } from "../utils/logger";
 
 let outputs: OutputStatus[] = [];

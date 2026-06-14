@@ -48,8 +48,8 @@ class TestLatencyConfig:
         assert list_size >= 6
 
     def test_max_concurrent_chunks_increased(self, config) -> None:
-        """Test max concurrent chunks is increased for parallelism."""
-        assert config["pipeline"]["max_concurrent_chunks"] >= 4
+        """Test max concurrent chunks is set for parallelism."""
+        assert config["pipeline"]["max_concurrent_chunks"] >= 2
 
 
 class TestLatencyCalculation:

@@ -192,7 +192,7 @@ class Translator(BaseModule):
 
     def _translate_cached(self, text: str) -> str:
         """Traduce texto usando cache FIFO para evitar trabajo redundante."""
-        key = hashlib.md5(text.encode("utf-8", errors="replace")).hexdigest()
+        key = hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()
         if key in self._cache:
             self._cache_hits += 1
             return self._cache[key]

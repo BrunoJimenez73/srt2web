@@ -5,8 +5,6 @@
  * Usage: const confirmed = await showConfirm('¿Está seguro?');
  */
 
-import { MESSAGES } from "../constants";
-
 // ── State ────────────────────────────────────────────────────────
 
 let modalElement: HTMLElement | null = null;
