@@ -185,11 +185,11 @@ const { version = 'dev' }: HeaderProps = Astro.props;
         if (res.ok) {
           await loadPresets();
         } else {
-          const { showToast } = await import('../../lib/utils');
+          const { showToast } = await import('../../lib/modules/toast');
           showToast(`Error al eliminar preset: ${res.status}`, 'error');
         }
       } catch (err) {
-        const { showToast } = await import('../../lib/utils');
+        const { showToast } = await import('../../lib/modules/toast');
         showToast(`Error: ${(err as Error).message}`, 'error');
       }
       return;

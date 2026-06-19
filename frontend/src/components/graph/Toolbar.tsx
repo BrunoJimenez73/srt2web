@@ -70,6 +70,8 @@ export function Toolbar(props: ToolbarProps) {
   const [presets, setPresets] = useState<PresetSummary[]>([]);
   const [selectedPreset, setSelectedPreset] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const [saveInput, setSaveInput] = useState<string>("");
+  const [showSaveInput, setShowSaveInput] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,14 +93,25 @@ export function Toolbar(props: ToolbarProps) {
   }, []);
 
   const handleSave = () => {
-    const name = window.prompt("Nombre del preset:");
+    setSaveInput("");
+    setShowSaveInput(true);
+  };
+
+  const confirmSave = () => {
+    const name = saveInput.trim();
     if (!name) return;
     if (presets.some((p) => p.name === name)) {
       setError(`Ya existe un preset con nombre "${name}"`);
       return;
     }
     setError(null);
+    setShowSaveInput(false);
     onSavePreset(name);
+  };
+
+  const cancelSave = () => {
+    setShowSaveInput(false);
+    setSaveInput("");
   };
 
   const handleLoad = () => {
@@ -145,7 +158,9 @@ export function Toolbar(props: ToolbarProps) {
         disabled={isApplying || !isDirty}
         style={isApplying || !isDirty ? disabledStyle : primaryStyle}
         data-testid="btn-apply"
-        title={isDirty ? "Aplicar cambios al backend" : "Sin cambios pendientes"}
+        title={
+          isDirty ? "Aplicar cambios al backend" : "Sin cambios pendientes"
+        }
       >
         {isApplying ? "Aplicando…" : isDirty ? "Apply * " : "Apply"}
       </button>
@@ -159,15 +174,53 @@ export function Toolbar(props: ToolbarProps) {
         ↺ Reset
       </button>
       <span style={{ width: 1, height: 24, background: "var(--border-dim)" }} />
-      <button
-        type="button"
-        onClick={handleSave}
-        disabled={isApplying}
-        style={isApplying ? disabledStyle : buttonStyle}
-        data-testid="btn-save-preset"
-      >
-        💾 Save preset
-      </button>
+      {showSaveInput ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <input
+            type="text"
+            value={saveInput}
+            onChange={(e) => setSaveInput(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") confirmSave();
+              if (e.key === "Escape") cancelSave();
+            }}
+            placeholder="Nombre del preset"
+            autoFocus
+            style={{
+              ...buttonStyle,
+              padding: "4px 8px",
+              minWidth: 160,
+            }}
+            data-testid="input-save-preset-name"
+          />
+          <button
+            type="button"
+            onClick={confirmSave}
+            style={primaryStyle}
+            data-testid="btn-confirm-save"
+          >
+            ✓
+          </button>
+          <button
+            type="button"
+            onClick={cancelSave}
+            style={buttonStyle}
+            data-testid="btn-cancel-save"
+          >
+            ✗
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={isApplying}
+          style={isApplying ? disabledStyle : buttonStyle}
+          data-testid="btn-save-preset"
+        >
+          💾 Save preset
+        </button>
+      )}
       <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
         <select
           value={selectedPreset}

@@ -7,15 +7,21 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel
 
 from core.cache import cached, invalidate_cache
+from server.ctx import get_ctx as _ctx
 from server.validators import ChunkDurationRequest, ConfigUpdate, validate_module_dependencies
 
 logger = logging.getLogger("srt2web.api.config")
 
 router = APIRouter(tags=["config"])
 
-from server.ctx import get_ctx as _ctx
+
+class PresetSaveRequest(BaseModel):
+    name: str
+    description: str = ""
+
 
 # ── Preset Endpoints (F19) ──────────────────────────────────────────
 
@@ -47,12 +53,6 @@ async def list_presets(request: Request) -> dict[str, Any]:
 @router.post("/presets")
 async def save_preset(request: Request) -> dict[str, Any]:
     """Save current configuration as a named preset."""
-    from pydantic import BaseModel
-
-    class PresetSaveRequest(BaseModel):
-        name: str
-        description: str = ""
-
     ctx = _ctx(request)
     config = ctx["config"]
     body = PresetSaveRequest(**await request.json())

@@ -2,13 +2,7 @@
 Unit tests for AudioExtractor module.
 """
 
-import sys
-from pathlib import Path
-
 import pytest
-
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.module_base import ModuleState, PipelineData
 from modules.audio_extractor import AudioExtractor

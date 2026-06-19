@@ -1,4 +1,4 @@
-# Sesión actual — F136-F140: Deep audit + systematic fixes (2026-06-13)
+# Sesión actual — F145+F142: Naming/style consistency + Frontend cleanup (2026-06-19)
 
 ## Features completadas esta sesión
 
@@ -77,6 +77,43 @@
 - **69 new tests, 0 failures**
 - All checks pass: init.ps1 -Quick ✅, mypy 0 errors, tsc 0 errors, ruff clean
 
-## Siguiente feature
+### F146: Fix audio stutter in webplayer + reparar tests pre-existentes — DONE
 
-F145: Naming & style — eliminate `import json as JSON`, fix logger name inconsistency, move PresetSaveRequest to module level
+- **Fix #1 (EXTINF real)**: HLS output ahora ejecuta `get_video_duration(segment_path)` via ffprobe después del mux y escribe la duración real en el manifest en vez del nominal `chunk_duration`.
+- **Fix #2 (PipelineData.duration real)**: `srt_input.py` usa `get_video_duration(chunk_path)` al crear `PipelineData`, pasando la duración medida.
+- **Fix #3 (crossfade)**: `audio_mixer.py:46` — crossfade aumentado de 10ms a 40ms.
+- **Fix #4 (timeout)**: `lost_chunk_timeout_sec` reducido de 30s a 15s.
+- **Fix #5 (sample rate)**: `audio_extractor.py:104` — FFmpeg `-ar 8000` corregido a `-ar 24000`.
+- **Fix #6 (test mock)**: `test_hls_output.py` — añadido `patch("modules.outputs.hls_output.get_video_duration")` para que el mock de subprocess.run no se rompa por la nueva llamada ffprobe.
+- **Fix #7 (config.yaml empty)**: Config restaurado desde commit `83eb251` y actualizado con customizaciones del usuario + `lost_chunk_timeout_sec: 15.0`. Git staged para evitar que `git stash pop` lo vacíe. **17 tests pre-existentes reparados** (config_validation, frontend_dashboard, latency_optimization, performance_optimizations).
+
+## Verificación (post-F142+F145)
+
+| Check        | Estado | Notas             |
+| ------------ | ------ | ----------------- |
+| pytest unit  | PASS   | 1399 pass, 0 fail |
+| tsc --noEmit | PASS   | 0 errores         |
+| ruff check   | PASS   | limpio            |
+
+## Features completadas esta sesión
+
+### F145: Naming & style consistency — DONE
+
+- `modules/webrtc_engine.py:12`: `import json as JSON` → `import json`
+- `modules/subtitle_generator.py:554`: `import time as _time` (inline) → `import time` global
+- `server/routes/config.py`: `PresetSaveRequest` movido de inner class a module level (con `from pydantic import BaseModel` top-level)
+- **22 test files**: eliminado `sys.path.insert` redundante (ya lo hace `conftest.py`)
+- Ruff clean, tests pasan
+
+### F142: Frontend code quality — DONE
+
+- `Header.astro`: `import('../../lib/utils')` → `import('../../lib/modules/toast')` — ruta correcta para `showToast`
+- `PipelineGraph.tsx`: `JSON.stringify(nodes) !== JSON.stringify(initialNodes)` reemplazado por comparación directa de `id`, `type`, `position`
+- `Toolbar.tsx`: `window.prompt()` reemplazado por inline input React con Enter/Escape + confirm/cancel
+- TypeScript typecheck 0 errores
+
+### Fix 18 tests fallando (config.yaml corrupto) — DONE
+
+- Root cause: `test_config_hot_reload.py` → `manager.save()` con parches incompletos (faltaban `atomic_replace` + `tempfile.mkstemp`)
+- Fix: `tmp_path` fixture + `patch("core.config_manager.atomic_replace")`
+- 1399 tests pasan, 0 fallos

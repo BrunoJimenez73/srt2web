@@ -8,6 +8,7 @@
 
 import { logger } from "../utils/logger";
 import { SubtitleRenderer } from "./subtitle-renderer";
+import { activateFirstSubtitleTrack } from "./player-subtitles";
 
 // HLS.js type declarations - must be before usage
 declare const Hls: HlsStatic | undefined;
@@ -28,6 +29,21 @@ interface HlsInstance {
   destroy(): void;
   on(event: string, callback: (...args: unknown[]) => void): void;
   once(event: string, callback: (...args: unknown[]) => void): void;
+  off(event: string, callback: (...args: unknown[]) => void): void;
+  subtitleTrack: number;
+  subtitleDisplay: boolean;
+  subtitleTracks: ReadonlyArray<{
+    id: number;
+    name?: string;
+    lang?: string;
+    type?: string;
+  }>;
+  allSubtitleTracks?: ReadonlyArray<{
+    id: number;
+    name?: string;
+    lang?: string;
+    type?: string;
+  }>;
 }
 
 interface HlsConfig {
@@ -49,6 +65,7 @@ const HlsEvents = {
   ERROR: "hlsError",
   FRAG_BUFFERED: "hlsFragBuffered",
   LEVEL_SWITCH: "hlsLevelSwitch",
+  SUBTITLE_TRACKS_UPDATED: "hlsSubtitleTracksUpdated",
 };
 
 // HLS Error Types enum
@@ -205,7 +222,7 @@ export function initHlsPlayer(): void {
       });
 
       // Subtitle renderer polls /subtitles/subs.m3u8 independently of
-      // HLS.js — no native track management required.
+      // HLS.js — fallback for browsers without HLS native subtitle support.
       renderer = new SubtitleRenderer();
       renderer.start(video, container);
 
@@ -221,8 +238,27 @@ export function initHlsPlayer(): void {
         retryCount = 0;
         video.play().catch(handlePlayError);
 
+        // Activate native HLS.js subtitle track for zero-lag sync
+        // Falls back to SubtitleRenderer if no native track is available.
+        if (hls) {
+          activateFirstSubtitleTrack(hls, {
+            preferredLang: "es",
+            showSubtitles: true,
+          });
+        }
+
         updateSubtitleUI(0);
         startHealthCheck();
+      });
+
+      // Re-activate subtitle track on every manifest re-parse (rolling window)
+      hls.on(HlsEvents.SUBTITLE_TRACKS_UPDATED, () => {
+        if (hls) {
+          activateFirstSubtitleTrack(hls, {
+            preferredLang: "es",
+            showSubtitles: true,
+          });
+        }
       });
 
       hls.on(HlsEvents.ERROR, (_event, data: unknown) => {

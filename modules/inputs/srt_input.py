@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from core.chunk_clock import ChunkClock
-from core.ffmpeg_utils import ensure_ffmpeg
+from core.ffmpeg_utils import ensure_ffmpeg, get_video_duration
 from core.input_source import InputSource
 from core.io_factory import InputFactory
 from core.module_base import ModuleState, ModuleStatus, PipelineData
@@ -585,12 +585,17 @@ class SRTInput(InputSource):
         if self._watchdog:
             self._watchdog.notify_activity()
 
+        # Get actual duration from the video chunk file
+        actual_duration = get_video_duration(str(chunk_path))
+        if actual_duration <= 0:
+            actual_duration = self._chunk_duration
+
         # Create PipelineData with video chunk (using correct dataclass syntax)
         return PipelineData(
             video_chunk_path=str(chunk_path),
             audio_chunk_path=None,
             chunk_index=idx,
-            duration=self._chunk_duration,
+            duration=actual_duration,
             cumulative_duration=chunk_cumulative,
             metadata={"source": "srt"},
         )

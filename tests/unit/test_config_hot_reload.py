@@ -24,26 +24,27 @@ class TestConfigReload:
 
         assert hasattr(ConfigManager, "reload")
 
-    def test_config_save_includes_reload(self) -> None:
+    def test_config_save_includes_reload(self, tmp_path) -> None:
         """Test config save triggers reload."""
         from core.config_manager import ConfigManager
 
-        config_path = "config.yaml"
+        config_path = str(tmp_path / "config.yaml")
 
-        with patch("builtins.open", create=True):
-            with patch("yaml.safe_load") as mock_yaml:
-                with patch("yaml.dump"):
-                    mock_yaml.return_value = {"test": "value"}
+        with patch("core.config_manager.atomic_replace") as mock_atomic:
+            with patch("builtins.open", create=True):
+                with patch("yaml.safe_load") as mock_yaml:
+                    with patch("yaml.dump"):
+                        mock_yaml.return_value = {"test": "value"}
 
-                    manager = ConfigManager(config_path)
-                    original_config = manager._config.copy()
+                        manager = ConfigManager(config_path)
+                        original_config = manager._config.copy()
 
-                    manager._config = {"pipeline": {"chunk_duration_sec": 10}}
-                    manager.save()
+                        manager._config = {"pipeline": {"chunk_duration_sec": 10}}
+                        manager.save()
 
-                    manager.reload()
+                        manager.reload()
 
-                    assert hasattr(manager, "_load")
+                        assert hasattr(manager, "_load")
 
 
 class TestConfigHotReloadOnUpdate:

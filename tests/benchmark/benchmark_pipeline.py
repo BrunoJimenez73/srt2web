@@ -14,14 +14,11 @@ import argparse
 import asyncio
 import json
 import logging
-import sys
 import time
 from datetime import datetime
 from pathlib import Path
 
 # Asegurar que el proyecto está en el path
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.config_manager import ConfigManager
 from core.unified_pipeline import PipelineMode, UnifiedPipeline

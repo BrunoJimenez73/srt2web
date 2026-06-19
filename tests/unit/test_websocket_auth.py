@@ -3,13 +3,10 @@ WebSocket authentication tests for SRT2Web.
 Tests WebSocket connection with and without auth token.
 """
 
-import sys
+
 from pathlib import Path
 
 import pytest
-
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 
 
 @pytest.mark.websocket
@@ -83,14 +80,14 @@ class TestWebSocketReconnect:
 
     def test_ws_client_class_exists(self):
         """Test WSClient class is defined in api.ts."""
-        api_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "api.ts"
+        api_path = Path(__file__).parent.parent.parent / "frontend" / "src" / "lib" / "api.ts"
         assert api_path.exists()
         content = api_path.read_text(encoding="utf-8")
         assert "class WSClient" in content
 
     def test_ws_client_has_reconnect_properties(self):
         """Test WSClient has reconnect configuration properties."""
-        api_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "api.ts"
+        api_path = Path(__file__).parent.parent.parent / "frontend" / "src" / "lib" / "api.ts"
         content = api_path.read_text(encoding="utf-8")
         assert "maxReconnectAttempts" in content
         assert "backoffBase" in content

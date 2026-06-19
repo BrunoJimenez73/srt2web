@@ -43,7 +43,7 @@ class AudioMixer(BaseModule):
         # Duration cache to avoid repeated ffprobe calls
         self._duration_cache: dict[str, float] = {}
         # Crossfade settings to prevent clicks at boundaries
-        self._crossfade_duration = 0.01  # 10ms crossfade
+        self._crossfade_duration = 0.04  # 40ms crossfade to mask chunk boundary artifacts
         self._prev_end_sample: np.ndarray | None = None
         super().__init__("audio_mixer", config)
 
@@ -135,7 +135,7 @@ class AudioMixer(BaseModule):
         expected_duration = max(0.1, min(expected_duration, 60.0))
 
         try:
-            # Read original audio (from audio_extractor: 16kHz, 16-bit, mono)
+            # Read original audio (from audio_extractor: 24kHz, 16-bit, mono)
             with wave.open(str(orig_audio), "rb") as wf:
                 orig_sr = wf.getframerate()
                 orig_channels = wf.getnchannels()
@@ -185,9 +185,7 @@ class AudioMixer(BaseModule):
                     fade_in = np.linspace(0.0, 1.0, crossfade_samples)
 
                     # Apply crossfade at chunk START (blend with previous chunk's END)
-                    mixed[:crossfade_samples] = (
-                        mixed[:crossfade_samples] * fade_in + self._prev_end_sample * fade_out
-                    )
+                    mixed[:crossfade_samples] = mixed[:crossfade_samples] * fade_in + self._prev_end_sample * fade_out
 
             # Save end of current chunk for next crossfade
             crossfade_samples = int(self._crossfade_duration * orig_sr)

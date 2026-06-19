@@ -21,9 +21,9 @@ class TestSubtitleGenerator:
         gen.start()
         return gen
 
-    def test_cache_hit_rate(self):
+    def test_vtt_entries_generated_per_chunk(self):
         gen = self._make_gen()
-        for i in range(10):
+        for i in range(5):
             data = PipelineData(
                 chunk_index=i,
                 transcript="test text",
@@ -33,36 +33,7 @@ class TestSubtitleGenerator:
             )
             result = gen._do_process(data)
             assert result is not None
-        assert gen.timestamp_cache is not None
-
-    def test_cache_ttl_expiration(self):
-        gen = self._make_gen()
-        gen.timestamp_cache.ttl_seconds = 1
-        import time
-
-        data1 = PipelineData(
-            chunk_index=0, transcript="test text", translated_text="test text", duration=5.0, cumulative_duration=0.0
-        )
-        gen._do_process(data1)
-        time.sleep(1.1)
-        data2 = PipelineData(
-            chunk_index=1, transcript="test text", translated_text="test text", duration=5.0, cumulative_duration=5.0
-        )
-        gen._do_process(data2)
-
-    def test_sync_correction_factor_applied(self):
-        gen = self._make_gen()
-        gen.sync_correction_factor = 1.02
-        data = PipelineData(
-            chunk_index=0,
-            transcript="test text for correction",
-            translated_text="test text for correction",
-            duration=5.0,
-            cumulative_duration=1000.0,
-        )
-        result = gen._do_process(data)
-        assert result is not None
-        assert gen.sync_correction_factor == 1.02
+        assert len(gen._vtt_entries) >= 5
 
     def test_empty_text_handling(self):
         gen = self._make_gen()

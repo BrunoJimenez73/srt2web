@@ -12,8 +12,7 @@ Backend (subtitle_generator + hls_output):
 - Rolling window: fragments beyond hls_list_size are dropped AND their files deleted.
 - start() cleans stale HLS subtitle fragments (subs_seg_*.vtt, subs.m3u8).
 - set_drift_monitor wires the previously-dead drift detection path.
-- Drift monitor check_sync is called per chunk; sync_correction_factor updates
-  via smoothed blend (0.7/0.3) and is clamped on large deviations.
+- Drift monitor check_sync is called per chunk with relative timestamps.
 - Legacy subs.vtt rolling file is still produced (webrtc_engine/recording_output
   backward compatibility).
 - HLSOutput master playlist points at /subtitles/subs.m3u8 when it exists,
@@ -343,54 +342,40 @@ class TestDriftMonitorWiring:
         monitor = _StubDriftMonitor()
         gen.set_drift_monitor(monitor)
         _process_chunk(gen, 2, cumulative=10.0)  # chunk 2 starts at 10s
-        # subtitle_timestamp_ms should be 10_000 (2*5)
+        # subtitle_timestamp_ms should be 10_000 (10s * 1000)
         assert monitor.last_subtitle_ms == 10_000.0
-        # audio wall clock is `now` — sanity check it's in a reasonable range
+        # audio_timestamp_ms is wall_elapsed_ms (time since pipeline start)
         assert monitor.last_audio_ms is not None
-        assert monitor.last_audio_ms > 1_000_000_000_000  # ms since epoch
+        assert 0 <= monitor.last_audio_ms < 60_000  # < 60s since pipeline start
 
-    def test_drift_monitor_factor_blend_applies(self, tmp_path: Path) -> None:
-        """smoothed blend: new = 0.7*old + 0.3*new_factor (when deviation < 0.5)."""
+    def test_drift_monitor_called_and_logged(self, tmp_path: Path) -> None:
+        """Drift monitor is called per chunk when deviation is within bounds."""
         gen = _make_gen(str(tmp_path))
-        gen.sync_correction_factor = 1.0
-        monitor = _StubDriftMonitor(factor=1.04)  # 0.04 deviation, within 0.5 clamp
+        monitor = _StubDriftMonitor(factor=1.04)
         gen.set_drift_monitor(monitor)
         _process_chunk(gen, 0)
-        # 0.7 * 1.0 + 0.3 * 1.04 = 0.7 + 0.312 = 1.012
-        assert abs(gen.sync_correction_factor - 1.012) < 1e-6
+        assert monitor.call_count == 1
 
     def test_drift_monitor_large_deviation_ignored(self, tmp_path: Path) -> None:
-        """deviation >= 0.5 is treated as glitch and discarded."""
+        """deviation >= 0.5 is treated as glitch and logged but skipped."""
         gen = _make_gen(str(tmp_path))
-        gen.sync_correction_factor = 1.0
         monitor = _StubDriftMonitor(factor=2.0)  # 1.0 deviation, well over clamp
         gen.set_drift_monitor(monitor)
         _process_chunk(gen, 0)
-        assert gen.sync_correction_factor == 1.0
-
-    def test_drift_monitor_factor_one_keeps_sync_correction(self, tmp_path: Path) -> None:
-        """factor == 1.0 (no drift) leaves sync_correction_factor unchanged."""
-        gen = _make_gen(str(tmp_path))
-        gen.sync_correction_factor = 1.05
-        monitor = _StubDriftMonitor(factor=1.0)
-        gen.set_drift_monitor(monitor)
-        _process_chunk(gen, 0)
-        assert gen.sync_correction_factor == 1.05
+        assert monitor.call_count == 1  # still called but deviation is ignored
 
     def test_drift_monitor_exception_does_not_crash(self, tmp_path: Path) -> None:
         """Failing monitor must not break the pipeline."""
         gen = _make_gen(str(tmp_path))
         gen.set_drift_monitor(_FailingDriftMonitor())
-        # Should not raise
         _process_chunk(gen, 0)
-        # Pipeline state remains valid
         assert gen._state.name == "RUNNING"
 
-    def test_no_monitor_no_op(self, tmp_path: Path) -> None:
-        """Without a monitor attached, sync_correction_factor stays at default."""
+    def test_no_monitor_no_crash(self, tmp_path: Path) -> None:
+        """Without a monitor attached, drift check is skipped."""
         gen = _make_gen(str(tmp_path))
         _process_chunk(gen, 0)
-        assert gen.sync_correction_factor == 1.0
+        assert gen._drift_monitor is None
 
 
 # ---------------------------------------------------------------------------

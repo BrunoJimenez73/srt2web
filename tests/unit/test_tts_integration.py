@@ -6,13 +6,10 @@ import os
 # Add project root to path
 import sys
 import tempfile
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.module_base import ModuleState, PipelineData
 from modules.tts_engine import TTSEngine

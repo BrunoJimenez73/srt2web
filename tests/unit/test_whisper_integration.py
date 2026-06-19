@@ -3,13 +3,9 @@ Integration tests for Whisper transcriber with real audio processing.
 Note: These tests require faster-whisper to be installed.
 """
 # Add project root to path
-import sys
-from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.module_base import ModuleState
 from modules.transcriber import Transcriber

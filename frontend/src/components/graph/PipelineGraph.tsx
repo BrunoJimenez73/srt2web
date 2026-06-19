@@ -21,7 +21,13 @@ import {
   validateTopology,
   type GraphNodeData,
 } from "../../lib/graph/serialize";
-import { startPipeline, stopPipeline, updateConfig, getConfig, getStatus } from "../../lib/api";
+import {
+  startPipeline,
+  stopPipeline,
+  updateConfig,
+  getConfig,
+  getStatus,
+} from "../../lib/api";
 import type { Config, Status } from "../../lib/types/api";
 import type { Edge, Node } from "@xyflow/react";
 
@@ -32,7 +38,10 @@ function useToast(): {
   kind: ToastKind;
   show: (msg: string, kind?: ToastKind) => void;
 } {
-  const [toast, setToast] = useState<{ message: string; kind: ToastKind } | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    kind: ToastKind;
+  } | null>(null);
   useEffect(() => {
     if (!toast) return;
     const h = setTimeout(() => setToast(null), 4000);
@@ -41,7 +50,8 @@ function useToast(): {
   return {
     message: toast?.message ?? null,
     kind: toast?.kind ?? "info",
-    show: (message: string, kind: ToastKind = "info") => setToast({ message, kind }),
+    show: (message: string, kind: ToastKind = "info") =>
+      setToast({ message, kind }),
   };
 }
 
@@ -91,10 +101,27 @@ export function PipelineGraph() {
 
   // Detecta cambios pendientes comparando con initial
   const isDirty = useMemo(() => {
-    return (
-      JSON.stringify(currentNodes) !== JSON.stringify(initialNodes) ||
-      JSON.stringify(currentEdges) !== JSON.stringify(initialEdges)
-    );
+    if (currentNodes.length !== initialNodes.length) return true;
+    if (currentEdges.length !== initialEdges.length) return true;
+    for (let i = 0; i < currentNodes.length; i++) {
+      const n = currentNodes[i],
+        m = initialNodes[i];
+      if (n.id !== m.id || n.type !== m.type) return true;
+      if (n.position.x !== m.position.x || n.position.y !== m.position.y)
+        return true;
+    }
+    for (let i = 0; i < currentEdges.length; i++) {
+      const e = currentEdges[i],
+        f = initialEdges[i];
+      if (e.id !== f.id || e.source !== f.source || e.target !== f.target)
+        return true;
+      if (
+        e.sourceHandle !== f.sourceHandle ||
+        e.targetHandle !== f.targetHandle
+      )
+        return true;
+    }
+    return false;
   }, [currentNodes, currentEdges, initialNodes, initialEdges]);
 
   const topology = useMemo(
@@ -113,7 +140,9 @@ export function PipelineGraph() {
 
   const handleInspectorChange = useCallback((next: GraphNodeData) => {
     setCurrentNodes((nodes) =>
-      nodes.map((n) => (n.id === nodeIdForKind(next.kind) ? { ...n, data: next } : n)),
+      nodes.map((n) =>
+        n.id === nodeIdForKind(next.kind) ? { ...n, data: next } : n,
+      ),
     );
     setSelectedData(next);
   }, []);
@@ -193,7 +222,10 @@ export function PipelineGraph() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ name, description: "Saved from /graph editor" }),
+          body: JSON.stringify({
+            name,
+            description: "Saved from /graph editor",
+          }),
         });
         if (!res.ok) {
           const errText = await res.text();
@@ -210,10 +242,13 @@ export function PipelineGraph() {
   const handleLoadPreset = useCallback(
     async (name: string) => {
       try {
-        const res = await fetch(`/api/presets/${encodeURIComponent(name)}/apply`, {
-          method: "POST",
-          credentials: "include",
-        });
+        const res = await fetch(
+          `/api/presets/${encodeURIComponent(name)}/apply`,
+          {
+            method: "POST",
+            credentials: "include",
+          },
+        );
         if (!res.ok) {
           const errText = await res.text();
           throw new Error(errText || `HTTP ${res.status}`);
@@ -273,7 +308,13 @@ export function PipelineGraph() {
         onSavePreset={(n) => void handleSavePreset(n)}
         onLoadPreset={(n) => void handleLoadPreset(n)}
       />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", minHeight: 0 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 320px",
+          minHeight: 0,
+        }}
+      >
         <PipelineCanvas
           initialNodes={initialNodes}
           initialEdges={initialEdges}

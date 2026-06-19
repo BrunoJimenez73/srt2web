@@ -10,15 +10,12 @@ These tests verify:
 """
 
 import os
-import sys
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-CONFIG_PATH = str(PROJECT_ROOT / "config.yaml")
-sys.path.insert(0, str(PROJECT_ROOT))
+CONFIG_PATH = str(Path(__file__).parent.parent.parent / "config.yaml")
 
 
 # ============================================================

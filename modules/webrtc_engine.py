@@ -9,7 +9,7 @@ Provides real-time WebRTC streaming with:
 
 import asyncio
 import contextlib
-import json as JSON
+import json
 import logging
 import threading
 import time
@@ -233,7 +233,7 @@ class WebRTCEngine:
                 @channel.on("message")  # type: ignore
                 def on_message(message: str) -> None:
                     try:
-                        data = JSON.loads(message)  # was JSON.parse (invalid); loads is stdlib equivalent
+                        data = json.loads(message)
                         logger.info(f"Received from client: {data}")
                     except Exception as e:
                         logger.debug(f"Failed to parse WebSocket message: {e}")

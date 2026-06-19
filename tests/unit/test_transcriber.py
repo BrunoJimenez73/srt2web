@@ -4,14 +4,11 @@ Unit tests for Transcriber module.
 
 import concurrent.futures
 import sys
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
 # Add project root to path
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 
 # Mock faster_whisper and torch before importing Transcriber
 mock_fw = MagicMock()

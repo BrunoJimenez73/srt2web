@@ -21,7 +21,7 @@ from typing import Any
 
 from core.encoder_config import EncoderConfig
 from core.ffmpeg_pool import FFmpegPool, get_pool
-from core.ffmpeg_utils import check_gpu_support, ensure_ffmpeg
+from core.ffmpeg_utils import check_gpu_support, ensure_ffmpeg, get_video_duration
 from core.module_base import ModuleState, ModuleStatus, PipelineData
 from core.output_sink import OutputSink
 from core.subprocess_utils import filter_command, get_creation_flags
@@ -214,14 +214,7 @@ class HLSOutput(OutputSink):
         # Si el mixer no está activo o falló, conservar el audio original del video.
         audio_input = data.mixed_audio_path if data.mixed_audio_path and os.path.exists(data.mixed_audio_path) else None
 
-        # Calcular offset de tiempo - usar cumulative_duration para sincronizar con subtitles
-        # Always use cumulative_duration from PipelineData (set by input source).
-        # Never fall back to _total_duration_emitted — it diverges from subtitle timeline.
-        offset_sec = f"{getattr(data, 'cumulative_duration', 0.0):.3f}"
         chunk_duration = data.duration or self._segment_duration
-
-        # Guardar duración para el manifest
-        self._segment_durations[self._segment_index] = chunk_duration
 
         # ── Fast path: remux when input is already H.264 ──
         # Avoid re-encoding when the input codec is already H.264.
@@ -255,8 +248,6 @@ class HLSOutput(OutputSink):
                     "aac",
                     "-b:a",
                     self._encoder_config.audio_bitrate,
-                    "-output_ts_offset",
-                    offset_sec,
                     "-f",
                     "mpegts",
                     segment_path,
@@ -271,8 +262,6 @@ class HLSOutput(OutputSink):
                     "copy",
                     "-c:a",
                     "copy",
-                    "-output_ts_offset",
-                    offset_sec,
                     "-f",
                     "mpegts",
                     segment_path,
@@ -302,7 +291,11 @@ class HLSOutput(OutputSink):
                 self._segment_index += 1
                 return
 
-            self._total_duration_emitted += chunk_duration
+            actual_duration = get_video_duration(segment_path)
+            if actual_duration <= 0:
+                actual_duration = chunk_duration
+            self._segment_durations[self._segment_index] = actual_duration
+            self._total_duration_emitted += actual_duration
             self._update_manifest()
             data.output_hls_path = os.path.join(self._hls_dir, "master.m3u8")
             elapsed = (time.perf_counter() - start_time) * 1000
@@ -312,7 +305,7 @@ class HLSOutput(OutputSink):
             self._clear_error()
             mode = "remux" if not has_mixed_audio else "copy-video+encode-audio"
             self.logger.info(
-                f"HLS segment written ({mode}): {segment_name} (duration={chunk_duration:.3f}s, process_time={elapsed:.1f}ms)"
+                f"HLS segment written ({mode}): {segment_name} (duration={actual_duration:.3f}s, process_time={elapsed:.1f}ms)"
             )
             self._segment_index += 1
             return
@@ -353,8 +346,6 @@ class HLSOutput(OutputSink):
         cmd.extend(extra_args)
         cmd.extend(
             [
-                "-output_ts_offset",
-                offset_sec,
                 "-f",
                 "mpegts",
                 os.path.join(self._hls_dir, f"seg_{self._segment_index:06d}.ts"),
@@ -399,8 +390,6 @@ class HLSOutput(OutputSink):
                         "high",
                         "-tune",
                         "zerolatency",
-                        "-output_ts_offset",
-                        offset_sec,
                         "-f",
                         "mpegts",
                         os.path.join(self._hls_dir, f"seg_{self._segment_index:06d}.ts"),
@@ -432,21 +421,25 @@ class HLSOutput(OutputSink):
             self._segment_index += 1
             return
 
-        self._total_duration_emitted += chunk_duration
+        segment_path = os.path.join(self._hls_dir, f"seg_{self._segment_index:06d}.ts")
+        actual_duration = get_video_duration(segment_path)
+        if actual_duration <= 0:
+            actual_duration = chunk_duration
+        self._segment_durations[self._segment_index] = actual_duration
+        self._total_duration_emitted += actual_duration
         self._update_manifest()
 
         data.output_hls_path = os.path.join(self._hls_dir, "master.m3u8")
         elapsed = (time.perf_counter() - start_time) * 1000
         self._last_process_time_ms = elapsed
 
-        segment_path = os.path.join(self._hls_dir, f"seg_{self._segment_index:06d}.ts")
         if os.path.exists(segment_path):
             seg_size = os.path.getsize(segment_path)
             self._update_write_stats(seg_size)
         self._clear_error()
 
         self.logger.info(
-            f"HLS segment written: seg_{self._segment_index:06d}.ts (duration={chunk_duration:.3f}s, process_time={elapsed:.1f}ms)"
+            f"HLS segment written: seg_{self._segment_index:06d}.ts (duration={actual_duration:.3f}s, process_time={elapsed:.1f}ms)"
         )
         self._segment_index += 1
 

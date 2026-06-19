@@ -3,15 +3,12 @@ Unit tests for AudioMixer module (numpy-based mixing).
 """
 
 import os
-import sys
 import tempfile
 import wave
 from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.module_base import ModuleState, PipelineData
 from modules.audio_mixer import AudioMixer

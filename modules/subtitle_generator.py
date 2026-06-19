@@ -12,6 +12,7 @@ import contextlib
 import logging
 import os
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -48,7 +49,6 @@ class SubtitleGenerator(BaseModule):
 
         self._last_chunk_index = -1
         self._last_cumulative = 0.0  # Track last cumulative for validation
-        self._last_wall_clock = 0.0  # Track wall clock time for drift detection
         self._drift_monitor: Any = None  # Optional SubtitleSyncMonitor (set by app_context)
 
         # Rolling window for VTT entries (prevent unbounded growth)
@@ -59,10 +59,6 @@ class SubtitleGenerator(BaseModule):
 
         # Cache for timestamp formatting to avoid recomputation
         self.timestamp_format_cache = LRUCache(maxsize=500, ttl_seconds=60)
-        # Cache for calculated timestamps (text, start_ms) -> timestamp
-        self.timestamp_cache = LRUCache(maxsize=500, ttl_seconds=60)
-        # Sync correction factor for drift compensation (1.0 = no correction)
-        self.sync_correction_factor = 1.0
 
         self._history: list[dict[str, Any]] = []
         self._max_history = 10
@@ -453,28 +449,10 @@ class SubtitleGenerator(BaseModule):
                         abs_start = chunk_start_time + rel_start
                         abs_end = chunk_start_time + rel_end
 
-                        # Apply timestamp caching with sync correction
-                        cache_key = (clean_text, int(abs_start * 1000))  # text, start_ms
-                        cached_timestamp = self.timestamp_cache.get(cache_key)
-
-                        if cached_timestamp is not None:
-                            # Cache hit: use cached timestamp with sync correction
-                            corrected_start = cached_timestamp + (self.sync_correction_factor - 1.0) * abs_start
-                            corrected_end = (
-                                cached_timestamp + (self.sync_correction_factor - 1.0) * abs_end + (abs_end - abs_start)
-                            )
-                            logger.debug(f"Cache hit for subtitle: {clean_text[:20]}...")
-                        else:
-                            # Cache miss: calculate and store
-                            self.timestamp_cache.set(cache_key, abs_start)
-                            corrected_start = abs_start
-                            corrected_end = abs_end
-                            logger.debug(f"Cache miss for subtitle: {clean_text[:20]}...")
-
                         self._vtt_entries.append(
                             {
-                                "start": corrected_start,  # ABSOLUTE timestamp with sync correction!
-                                "end": corrected_end,  # ABSOLUTE timestamp with sync correction!
+                                "start": abs_start,
+                                "end": abs_end,
                                 "text": clean_text,
                                 "chunk_start": chunk_start_time,
                             }
@@ -569,33 +547,21 @@ class SubtitleGenerator(BaseModule):
         except Exception as e:
             logger.error(f"Error writing chunk SRT: {e}")
 
-        # 3. F108 — Drift sync hook: actually call the monitor on every chunk
-        # so the previously-dead `enable_drift_detection` flag does something useful.
+        # 3. F108 — Drift sync hook: compare cumulative_duration (subtitle timeline)
+        # against wall clock elapsed since pipeline start. Both are relative time
+        # bases starting at 0, so the difference is the actual drift.
         if self._drift_monitor is not None and segments:
             try:
-                import time as _time
-
-                first_cue = segments[0]
-                cue_first_media_ms = chunk_start_time * 1000.0
-                wall_clock_ms = _time.time() * 1000.0
-                # The monitor compares an "expected audio wall clock" against
-                # the "subtitle first-cue media time". We approximate audio
-                # wall clock as `now` and subtitle time as the chunk start.
-                # If the chunk started N seconds ago, the cue should be N
-                # seconds in the past, so we shift the comparison to keep
-                # the drift signal stable across long sessions.
-                chunk_age_ms = max(0.0, wall_clock_ms - (wall_clock_ms - (chunk_start_time * 1000.0)))
-                # Simpler & correct: compare wall clock now vs (chunk_start + current chunk position).
-                # We use the chunk start as the subtitle's authoritative time anchor.
+                if not hasattr(self, "_pipeline_start_wall_ms"):
+                    self._pipeline_start_wall_ms = time.time() * 1000.0
+                wall_elapsed_ms = time.time() * 1000.0 - self._pipeline_start_wall_ms
+                subtitle_ms = chunk_start_time * 1000.0
                 drift_factor = self._drift_monitor.check_sync(
-                    audio_timestamp_ms=wall_clock_ms,
-                    subtitle_timestamp_ms=int(cue_first_media_ms),
+                    audio_timestamp_ms=wall_elapsed_ms,
+                    subtitle_timestamp_ms=subtitle_ms,
                 )
-                # Apply smoothing: only update if drift is meaningful
                 if drift_factor != 1.0 and abs(drift_factor - 1.0) < 0.5:
-                    # Smooth blend to avoid jitter
-                    new_factor = 0.7 * self.sync_correction_factor + 0.3 * drift_factor
-                    self.sync_correction_factor = new_factor
+                    logger.info(f"[SubtitleGen] Drift detected: {drift_factor:.3f}")
             except Exception as e:
                 logger.debug(f"[SubtitleGen] drift monitor check failed: {e}")
 

@@ -2,15 +2,10 @@
 Unit tests for VideoMuxer module.
 """
 
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-import sys
-
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.module_base import ModuleState, PipelineData
 from modules.video_muxer import VideoMuxer

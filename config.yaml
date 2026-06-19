@@ -1,0 +1,182 @@
+server:
+  host: 127.0.0.1
+  port: 9999
+  cors_origins:
+  - http://localhost:*
+  - http://127.0.0.1:*
+  auth_token: ''
+  rate_limit_rpm: 600
+  max_request_size_mb: 100
+input:
+  type: srt
+  srt:
+    listen_port: 9000
+    mode: listener
+    latency_ms: 200
+    caller_address: ''
+    chunk_duration_sec: 5
+  rtmp:
+    listen_port: 1935
+    app: live
+    stream_key: stream
+    url: ''
+    mode: listener
+    chunk_duration_sec: 5
+  file:
+    path: ''
+    loop: false
+    speed: 1.0
+    chunk_duration_sec: 5
+output:
+  type: web
+  web:
+    segment_duration: 5
+    list_size: 12
+    audio_offset_ms: 0
+    encoder_mode: auto
+  hls:
+    segment_duration: 5
+    list_size: 12
+    audio_offset_ms: 0
+    encoder_mode: auto
+  rtmp:
+    url: rtmp://localhost/live/stream
+    video_bitrate: 2500k
+    audio_bitrate: 128k
+    video_codec: h264
+    preset: medium
+    audio_codec: aac
+    encoder_mode: auto
+  srt:
+    url: srt://localhost:9001
+    mode: caller
+    latency_ms: 200
+    stream_id: ''
+    passphrase: ''
+    video_bitrate: 2500k
+    audio_bitrate: 128k
+    video_codec: h264
+    preset: medium
+    audio_codec: aac
+  file:
+    path: ./output
+    save_video: true
+    save_audio: true
+    save_subtitles: true
+  recording:
+    output_path: ./output/recording.mp4
+    format: mp4
+    codec: copy
+    video_bitrate: 5000k
+    video_crf: 23
+    quality_mode: cbr
+    audio_codec: copy
+    audio_bitrate: 128k
+    split_mode: none
+    split_value: 600
+    subtitles: vtt
+    video_preset: fast
+  outputs: []
+pipeline:
+  chunk_duration_sec: 5
+  mode: thread_parallel
+  max_concurrent_chunks: 4
+  buffer_size: 10
+  retry_attempts: 3
+  retry_delay: 1.0
+  lost_chunk_timeout_sec: 15.0
+modules:
+  audio_extractor:
+    enabled: true
+  transcriber:
+    enabled: true
+    model: tiny
+    language: es
+    device: cpu
+    beam_size: 2
+    timeout_sec: 120.0
+  translator:
+    enabled: true
+    source_lang: es
+    target_lang: it
+  subtitle_generator:
+    enabled: true
+    format: webvtt
+    use_translated: true
+    chunk_duration: 5
+    dual_track: false
+  tts_engine:
+    enabled: true
+    engine: piper
+    device: cpu
+    voice: it_IT-riccardo-x_low
+    speed: 1.0
+  audio_mixer:
+    enabled: true
+    original_volume: 1.0
+    tts_volume: 0.8
+  video_muxer:
+    enabled: true
+    engine: hls
+    hls_segment_duration: 5
+    hls_list_size: 12
+    audio_offset_ms: 0
+    encoder_mode: gpu_nvenc
+    video_quality: medium
+    video_crf: 23
+    audio_codec: aac
+    audio_bitrate: 128k
+    video_bitrate: 1000k
+    video_fps: 15
+    video_width: 320
+    video_height: 240
+    webrtc_audio_codec: null
+    webrtc_audio_bitrate: null
+    audio_sample_rate: 24000
+    gpu_preset: p4
+    video_preset: medium
+subtitle_sync:
+  sync_correction_threshold: 500
+  enable_drift_detection: false
+  drift_history_size: 100
+pipeline_validation:
+  enabled: false
+  fail_on_critical: true
+  audio_extractor:
+    enabled: true
+    min_confidence: 0.3
+    min_sample_rate: 8000
+    max_duration_ratio: 1.5
+    max_generation_time: 30.0
+    max_empty_ratio: 0.9
+  transcriber:
+    enabled: true
+    min_confidence: 0.3
+    min_sample_rate: 8000
+    max_duration_ratio: 1.5
+    max_generation_time: 30.0
+    max_empty_ratio: 0.9
+  translator:
+    enabled: true
+    min_confidence: 0.3
+    min_sample_rate: 8000
+    max_duration_ratio: 1.5
+    max_generation_time: 30.0
+    max_empty_ratio: 0.9
+  tts_engine:
+    enabled: true
+    min_confidence: 0.3
+    min_sample_rate: 8000
+    max_duration_ratio: 1.5
+    max_generation_time: 30.0
+    max_empty_ratio: 0.9
+  audio_mixer:
+    enabled: true
+    min_confidence: 0.3
+    min_sample_rate: 8000
+    max_duration_ratio: 1.5
+    max_generation_time: 30.0
+    max_empty_ratio: 0.9
+webhooks: []
+output_dir:
+  directory: ./output

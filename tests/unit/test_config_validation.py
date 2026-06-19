@@ -8,7 +8,6 @@ These tests ensure that:
 """
 
 import os
-import sys
 from pathlib import Path
 
 import pytest
@@ -259,9 +258,6 @@ class TestServerStartup:
 
     def test_main_py_can_be_imported(self) -> None:
         """Test that main.py can be imported without errors."""
-        # Add project root to path
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
         try:
             import main
 

@@ -162,7 +162,10 @@ class TestHLSOutputPassthrough:
         segment_path = str(tmp_path / "hls" / "seg_000000.ts")
         Path(segment_path).write_text("fake segment")
 
-        with patch("modules.outputs.hls_output.subprocess.run") as mock_run:
+        with (
+            patch("modules.outputs.hls_output.subprocess.run") as mock_run,
+            patch("modules.outputs.hls_output.get_video_duration", return_value=6.0),
+        ):
             mock_run.return_value.returncode = 0
             mock_run.return_value.stderr = ""
             output.write(data)

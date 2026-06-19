@@ -1,8 +1,8 @@
 """
 Audio Extractor Module — extracts audio from MPEG-TS chunks.
 
-Uses FFmpeg to extract a 8kHz mono WAV file from the video chunk,
-which is the required format for Whisper transcription.
+Uses FFmpeg to extract a 24kHz mono WAV file from the video chunk,
+matching the HLS output sample rate to avoid resampling artifacts.
 Optimized for speed with GPU acceleration (NVDEC) when available.
 """
 
@@ -23,7 +23,7 @@ class AudioExtractor(FFmpegModule):
     """
     Extracts the audio track from the incoming video chunk
     and converts it to a format suitable for speech recognition
-    (16kHz, mono, PCM WAV).
+    (24kHz, mono, PCM WAV), matching the HLS output sample rate.
     """
 
     def __init__(self, config: dict[str, Any] | None = None, output_dir: str = "./output", pool: Any = None) -> None:
@@ -101,7 +101,7 @@ class AudioExtractor(FFmpegModule):
                 "-map",
                 "0:a:0?",
                 "-ar",
-                "8000",
+                "24000",
                 "-ac",
                 "1",
                 "-c:a",
