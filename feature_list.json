@@ -3664,6 +3664,49 @@
         "risk_level": "Bajo",
         "mitigation": ["Cambios cosmesticos", "Validados por linters"]
       }
+    },
+    {
+      "id": 150,
+      "name": "pts_based_subtitle_sync",
+      "title": "Subtitle sync basado en PTS/PCR del stream (elimina drift sistemático mtime)",
+      "status": "done",
+      "area": "pipeline",
+      "priority": "Alta",
+      "description": "Reemplazar ChunkClock basado en mtime del filesystem por extracción de PTS/PCR directamente del stream MPEG-TS. El mtime tiene sesgo sistemático (~0.05s/chunk = 9s en 30min) por escrituras asincrónicas de FFmpeg. PTS/PCR del contenedor MPEG-TS da timing real del stream sin drift.",
+      "problems_identified": [
+        "core/chunk_clock.py usa mtime con clamp asimétrico [0.5, 2*chunk_duration] que produce sesgo negativo acumulativo",
+        "srt_input.py, rtmp_input.py, file_input.py pasan mtime a ChunkClock.record_mtime()",
+        "subtitle_generator.py usa cumulative_duration para sincronizar subtítulos con drift real",
+        "No hay extracción de PTS/PCR del chunk MPEG-TS en PipelineData creation"
+      ],
+      "acceptance": [
+        "core/ffmpeg_utils.py: get_first_packet_pts(file_path) extrae PTS del primer paquete video",
+        "core/ffmpeg_utils.py: get_pcr_from_ts(file_path) extrae PCR como fallback",
+        "core/chunk_clock.py: ChunkClock.record_pts(pts_seconds) usa PTS/PCR directo sin clamp mtime",
+        "srt_input.py, rtmp_input.py: extraen PTS/PCR del chunk antes de crear PipelineData",
+        "PipelineData.cumulative_duration proviene de PTS/PCR, no de mtime",
+        "Drift subtítulos en 30min < 200ms (antes ~9s)",
+        "Tests: test_chunk_clock_pts.py valida < 1ms drift por chunk con PTS sintético"
+      ],
+      "files_to_touch": [
+        "core/ffmpeg_utils.py",
+        "core/chunk_clock.py",
+        "modules/inputs/srt_input.py",
+        "modules/inputs/rtmp_input.py",
+        "tests/unit/test_chunk_clock_pts.py"
+      ],
+      "risk_assessment": {
+        "risk_level": "Medio",
+        "mitigation": [
+          "ChunkClock mantiene API compatible: record_mtime() sigue funcionando como fallback",
+          "PTS extraction es best-effort: si falla, fallback a mtime (no rompe pipeline)",
+          "Tests comparan drift antes/después con datos sintéticos",
+          "init.ps1 -Quick verde en cada commit"
+        ]
+      }
+    }
+  ]
+}
     }
   ]
 }

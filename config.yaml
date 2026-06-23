@@ -14,29 +14,29 @@ input:
     mode: listener
     latency_ms: 200
     caller_address: ''
-    chunk_duration_sec: 5
+    chunk_duration_sec: 7
   rtmp:
     listen_port: 1935
     app: live
     stream_key: stream
     url: ''
     mode: listener
-    chunk_duration_sec: 5
+    chunk_duration_sec: 7
   file:
     path: ''
     loop: false
     speed: 1.0
-    chunk_duration_sec: 5
+    chunk_duration_sec: 7
 output:
   type: web
   web:
-    segment_duration: 5
-    list_size: 12
+    segment_duration: 7
+    list_size: 9
     audio_offset_ms: 0
     encoder_mode: auto
   hls:
-    segment_duration: 5
-    list_size: 12
+    segment_duration: 7
+    list_size: 9
     audio_offset_ms: 0
     encoder_mode: auto
   rtmp:
@@ -78,7 +78,7 @@ output:
     video_preset: fast
   outputs: []
 pipeline:
-  chunk_duration_sec: 5
+  chunk_duration_sec: 7
   mode: thread_parallel
   max_concurrent_chunks: 4
   buffer_size: 10
@@ -91,35 +91,35 @@ modules:
   transcriber:
     enabled: true
     model: tiny
-    language: es
-    device: cpu
+    language: en
+    device: cuda
     beam_size: 2
     timeout_sec: 120.0
   translator:
     enabled: true
-    source_lang: es
-    target_lang: it
+    source_lang: en
+    target_lang: es
   subtitle_generator:
     enabled: true
     format: webvtt
     use_translated: true
-    chunk_duration: 5
+    chunk_duration: 7
     dual_track: false
   tts_engine:
     enabled: true
     engine: piper
-    device: cpu
-    voice: it_IT-riccardo-x_low
+    device: cuda
+    voice: es_ES-sharvard-medium
     speed: 1.0
   audio_mixer:
     enabled: true
-    original_volume: 1.0
-    tts_volume: 0.8
+    original_volume: 0.7
+    tts_volume: 1.0
   video_muxer:
     enabled: true
     engine: hls
-    hls_segment_duration: 5
-    hls_list_size: 12
+    hls_segment_duration: 7
+    hls_list_size: 9
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
     video_quality: medium

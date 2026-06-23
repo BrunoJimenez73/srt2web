@@ -6,6 +6,7 @@ Provides HTTP endpoints for WebRTC signaling between clients and the server.
 
 import json
 import logging
+import time
 import uuid
 from typing import Any
 
@@ -19,8 +20,18 @@ def create_webrtc_router() -> APIRouter:
     """Create WebRTC signaling router."""
     router = APIRouter()
 
-    # Store active signaling sessions
+    # F151: Store active signaling sessions with TTL-based cleanup
     _sessions: dict[str, Any] = {}
+    _SESSION_MAX_AGE_SEC = 3600  # 1 hour TTL
+    _SESSION_MAX_COUNT = 50
+
+    def _cleanup_stale_sessions() -> None:
+        """Remove sessions older than _SESSION_MAX_AGE_SEC."""
+        now = time.time()
+        stale = [sid for sid, s in _sessions.items() if now - s.get("created_at", now) > _SESSION_MAX_AGE_SEC]
+        for sid in stale:
+            del _sessions[sid]
+            logger.info("Cleaned up stale WebRTC session: %s", sid)
 
     @router.post("/webrtc/offer")
     async def handle_webrtc_offer(request: Request) -> JSONResponse:
@@ -83,8 +94,15 @@ def create_webrtc_router() -> APIRouter:
                 )
                 answer_sdp = future.result(timeout=10.0)
 
-                # Store session info
-                _sessions[client_id] = {"created_at": asyncio.get_event_loop().time(), "output_sink": output_sink}
+                # Store session info with wall-clock timestamp
+                _sessions[client_id] = {"created_at": time.time(), "output_sink": output_sink}
+                # F151: Enforce max session count and clean up stale sessions
+                if len(_sessions) > _SESSION_MAX_COUNT:
+                    _cleanup_stale_sessions()
+                if len(_sessions) > _SESSION_MAX_COUNT:
+                    oldest = min(_sessions, key=lambda k: _sessions[k].get("created_at", 0))
+                    del _sessions[oldest]
+                    logger.info("Evicted oldest WebRTC session: %s", oldest)
 
                 return JSONResponse(content={"sdp": answer_sdp, "type": "answer", "client_id": client_id})
             else:

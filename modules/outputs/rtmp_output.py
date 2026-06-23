@@ -154,6 +154,7 @@ class RTMPOutput(OutputSink):
                     self._ffmpeg_proc.terminate()
                 self._ffmpeg_proc.wait(timeout=5)
             except Exception:
+                logger.debug("RTMP: terminate failed, force-killing FFmpeg", exc_info=True)
                 with contextlib.suppress(Exception):
                     self._ffmpeg_proc.kill()
             finally:

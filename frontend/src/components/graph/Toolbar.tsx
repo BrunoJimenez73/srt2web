@@ -84,7 +84,7 @@ export function Toolbar(props: ToolbarProps) {
         const data = (await res.json()) as { presets?: PresetSummary[] };
         if (!cancelled && data.presets) setPresets(data.presets);
       } catch (e) {
-        if (!cancelled) setError((e as Error).message);
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       }
     })();
     return () => {

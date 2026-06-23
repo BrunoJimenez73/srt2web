@@ -31,7 +31,7 @@ def _check_port_available(port: int) -> bool:
             result = s.connect_ex(("127.0.0.1", port))
             return result != 0  # port is free if connection refused
     except Exception:
-        # Non-critical: port check is best-effort, assume available on failure
+        logger.debug("Port check failed for port %d, assuming available", port, exc_info=True)
         return True  # assume available if check fails
 
 

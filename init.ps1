@@ -17,23 +17,31 @@ $pyVer = & $VENV_PYTHON --version 2>&1
 if ($LASTEXITCODE -eq 0) { Ok "Python: $pyVer" } else { Fail "Python no disponible"; exit 1 }
 
 Write-Host "`n--- 2. Archivos base del arnes ---" -ForegroundColor Cyan
-$baseFiles = @("AGENTS.md", "CHECKPOINTS.md", "feature_list.json", "progress/current.md", "progress/history.md")
+$baseFiles = @("AGENTS.md", "CHECKPOINTS.md", "feature_list.json")
 foreach ($f in $baseFiles) {
     if (Test-Path $f) { Ok "Existe $f" } else { Fail "Falta $f" }
 }
 
-Write-Host "`n--- 3. feature_list.json ---" -ForegroundColor Cyan
-try {
-    $data = Get-Content "feature_list.json" -Raw -Encoding UTF8 | ConvertFrom-Json
-    $inProgress = $data.features | Where-Object { $_.status -eq "in_progress" }
-    if ($inProgress.Count -gt 1) { Fail "$($inProgress.Count) features en in_progress (max 1)" }
-    else {
+Write-Host "`n--- 3. Feature tracking (harness.db) ---" -ForegroundColor Cyan
+if (Test-Path "harness.db") {
+    $healthResult = & $VENV_PYTHON -m harness health 2>&1
+    if ($LASTEXITCODE -eq 0) { Ok "harness.db: saludable" } else { Fail "harness.db: problemas detectados"; Write-Host $healthResult -ForegroundColor Red }
+} else {
+    Warn "harness.db no existe — ejecutando migracion desde feature_list.json"
+    & $VENV_PYTHON -m harness migrate 2>&1 | Out-Null
+    if ($LASTEXITCODE -eq 0) { Ok "harness.db creado via migracion" } else { Fail "Migracion fallida" }
+}
+# Legacy JSON validation (backward compat)
+if (Test-Path "feature_list.json") {
+    try {
+        $data = Get-Content "feature_list.json" -Raw -Encoding UTF8 | ConvertFrom-Json
         $featureCount = $data.features.Count
-        Ok "feature_list.json valido ($featureCount features)"
+        Ok "feature_list.json existe ($featureCount features, legacy)"
+    } catch {
+        Warn "feature_list.json con problemas (no bloqueante si harness.db existe)"
     }
-} catch {
-    $errMsg = $_.Exception.Message
-    Fail "feature_list.json invalido: $errMsg"
+} else {
+    Warn "feature_list.json no encontrado (usa harness.db)"
 }
 
 Write-Host "`n--- 4. Tests Python (obligatorio) ---" -ForegroundColor Cyan

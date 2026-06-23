@@ -262,7 +262,8 @@ export function PipelineGraph() {
         setCurrentEdges(edges);
         toast.show(`Preset "${name}" aplicado`, "success");
       } catch (e) {
-        toast.show(`Error cargando preset: ${(e as Error).message}`, "error");
+        const msg = e instanceof Error ? e.message : String(e);
+        toast.show(`Error cargando preset: ${msg}`, "error");
       }
     },
     [toast],

@@ -11,12 +11,11 @@ import logging
 import subprocess
 import sys
 import time
-from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger("srt2web.mtx")
 
-from core.paths import get_project_root, get_bin_dir
+from core.paths import get_bin_dir, get_project_root
 
 PROJECT_ROOT = get_project_root()
 MEDIAMTX_DIR = get_bin_dir()
@@ -98,7 +97,7 @@ class MediaMTXManager:
                     if self._process.stderr:
                         stderr = self._process.stderr.read().decode("utf-8", errors="replace")
                 except Exception:
-                    pass
+                    logger.debug("Failed to read MediaMTX stderr", exc_info=True)
                 if not stderr:
                     stderr = "No stderr available"
                 logger.error(f"MediaMTX failed to start. stderr: {stderr[:500]}")

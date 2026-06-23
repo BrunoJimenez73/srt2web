@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from core.chunk_clock import ChunkClock
-from core.ffmpeg_utils import ensure_ffmpeg
+from core.ffmpeg_utils import ensure_ffmpeg, get_first_packet_pts, get_pcr_from_ts
 from core.input_source import InputSource
 from core.module_base import ModuleState, ModuleStatus
 from core.subprocess_utils import get_creation_flags
@@ -317,10 +317,17 @@ class RTMPInput(InputSource):
 
         from core.module_base import PipelineData
 
-        # F115: mtime drift correction is now in ChunkClock.
-        # Returns the cumulative_duration for THIS chunk, after applying
-        # wall-clock drift correction vs the previous chunk's mtime.
-        chunk_cumulative = self._clock.record_mtime(chunk_path.stat().st_mtime)
+        # F150: Try PTS-based timing first (eliminates mtime drift)
+        # Falls back to mtime if PTS extraction fails
+        pts_seconds = get_first_packet_pts(str(chunk_path))
+        if pts_seconds is None:
+            pts_seconds = get_pcr_from_ts(str(chunk_path))
+
+        if pts_seconds is not None:
+            chunk_cumulative = self._clock.record_pts(pts_seconds)
+        else:
+            # Fallback to mtime if PTS extraction fails
+            chunk_cumulative = self._clock.record_mtime(chunk_path.stat().st_mtime)
 
         logger.info(f"New RTMP chunk: {chunk_path} (cumulative: {chunk_cumulative:.3f}s)")
 

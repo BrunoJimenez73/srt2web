@@ -140,29 +140,33 @@ export function startFileInfoPolling(): void {
   ) as HTMLButtonElement | null;
 
   filePollingInterval = setInterval(() => {
-    fetchFileInfo().then((info) => {
-      if (!info) return;
+    fetchFileInfo()
+      .then((info) => {
+        if (!info) return;
 
-      if (positionSlider && info.duration > 0) {
-        positionSlider.value = (
-          (info.position / info.duration) *
-          100
-        ).toString();
-      }
-      if (currentDisplay)
-        currentDisplay.textContent = formatTime(info.position);
-      if (totalDisplay) totalDisplay.textContent = formatTime(info.duration);
-
-      if (playBtn && pauseBtn) {
-        if (info.is_playing) {
-          playBtn.style.display = "none";
-          pauseBtn.style.display = "inline";
-        } else {
-          playBtn.style.display = "inline";
-          pauseBtn.style.display = "none";
+        if (positionSlider && info.duration > 0) {
+          positionSlider.value = (
+            (info.position / info.duration) *
+            100
+          ).toString();
         }
-      }
-    });
+        if (currentDisplay)
+          currentDisplay.textContent = formatTime(info.position);
+        if (totalDisplay) totalDisplay.textContent = formatTime(info.duration);
+
+        if (playBtn && pauseBtn) {
+          if (info.is_playing) {
+            playBtn.style.display = "none";
+            pauseBtn.style.display = "inline";
+          } else {
+            playBtn.style.display = "inline";
+            pauseBtn.style.display = "none";
+          }
+        }
+      })
+      .catch(() => {
+        /* ignore file info polling errors */
+      });
   }, INTERVALS.FILE_POLL);
 }
 

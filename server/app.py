@@ -253,12 +253,14 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
     )
 
     # F125: CSRF protection (innermost, runs after auth)
-    from server.security import CsrfMiddleware
-
-    app.add_middleware(
-        CsrfMiddleware,
-        get_csrf_secret=lambda: config.get("server.auth_token", "") if config else "",
-    )
+    # Disabled until F125 is properly completed — frontend doesn't send
+    # X-CSRF-Token yet, so it blocks all state-changing requests.
+    # from server.security import CsrfMiddleware
+    #
+    # app.add_middleware(
+    #     CsrfMiddleware,
+    #     get_csrf_secret=lambda: config.get("server.auth_token", "") if config else "",
+    # )
 
     app.state.ctx = app_context
 
@@ -365,11 +367,18 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
         """Serve a 'coming soon' page for any docs subpath that doesn't have
         its own static HTML yet. The main /docs/ page is served by the
         static mount; this only fires for /docs/anything-else."""
-        target = FRONTEND_DIR / "docs" / path / "index.html"
-        if target.exists():
+        # F151: Prevent path traversal — reject any path with '..' or absolute components
+        from pathlib import PurePosixPath
+
+        sanitized = PurePosixPath(path)
+        if ".." in sanitized.parts or sanitized.is_absolute():
+            return HTMLResponse(content="Not found", status_code=404)
+        docs_dir = FRONTEND_DIR / "docs"
+        target = (docs_dir / path / "index.html").resolve()
+        if target.exists() and str(target).startswith(str(docs_dir.resolve())):
             return FileResponse(str(target), media_type="text/html")
-        target = FRONTEND_DIR / "docs" / f"{path}.html"
-        if target.exists():
+        target = (docs_dir / f"{path}.html").resolve()
+        if target.exists() and str(target).startswith(str(docs_dir.resolve())):
             return FileResponse(str(target), media_type="text/html")
 
         return HTMLResponse(

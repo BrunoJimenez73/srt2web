@@ -7,42 +7,43 @@
 
 ## 1. Mapa del repositorio
 
-| Archivo / carpeta     | Qué contiene                                                                                                                                                                                                                                                                 | Cuándo leerlo          |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
-| `feature_list.json`   | Features con status (pending/in_progress/done/blocked)                                                                                                                                                                                                                       | Siempre, al empezar    |
-| `progress/current.md` | Estado de la sesión activa                                                                                                                                                                                                                                                   | Siempre, al empezar    |
-| `progress/history.md` | Bitácora append-only de sesiones                                                                                                                                                                                                                                             | Si necesitas contexto  |
-| `CHECKPOINTS.md`      | Criterios de "estado final correcto"                                                                                                                                                                                                                                         | Antes de declarar done |
-| `init.ps1`            | Script de verificación (Windows)                                                                                                                                                                                                                                             | Al empezar y al cerrar |
-| `init_Mac.sh`         | Script de verificación (macOS)                                                                                                                                                                                                                                               | En Mac, al empezar     |
-| `install_Mac.sh`      | Instalador para Mac Silicon                                                                                                                                                                                                                                                  | En Mac, para setup     |
-| `core/`               | Pipeline, módulos base, config, factories                                                                                                                                                                                                                                    | Para implementar       |
-| `modules/`            | Procesamiento (audio, TTS, transcripción) + I/O plugins                                                                                                                                                                                                                      | Para implementar       |
-| `server/`             | FastAPI, WebSocket, seguridad                                                                                                                                                                                                                                                | Para implementar       |
-| `frontend/`           | Dashboard Astro + TypeScript + Tailwind. **F116**: editor visual en `/graph` con React Flow — `lib/graph/` (catálogo, validador, serializador, live status) + `components/graph/` (PipelineCanvas, ModuleNode, InspectorPanel, Toolbar, PipelineGraph) + `pages/graph.astro` | Para implementar       |
-| `cli/`                | CLI + TUI (Textual) — cliente HTTP/WS + comandos                                                                                                                                                                                                                             | Para implementar       |
-| `tests/`              | Tests pytest + vitest                                                                                                                                                                                                                                                        | Para verificar         |
-| `config.yaml`         | Configuración runtime del pipeline                                                                                                                                                                                                                                           | Para entender defaults |
-| `docs/`               | MkDocs, ADRs, guías de arquitectura                                                                                                                                                                                                                                          | Para contexto técnico  |
+| Archivo / carpeta   | Qué contiene                                                                                                                                                                                                                                                                 | Cuándo leerlo           |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| `harness.db`        | Base de datos SQLite con features, sesiones, audit trail y progreso                                                                                                                                                                                                          | Siempre, al empezar     |
+| `harness/`          | Paquete Python para gestionar features (CLI + DB + migración + web UI)                                                                                                                                                                                                       | Para gestionar features |
+| `feature_list.json` | Features con status (legacy, migrado a harness.db)                                                                                                                                                                                                                           | Solo para migración     |
+| `CHECKPOINTS.md`    | Criterios de "estado final correcto"                                                                                                                                                                                                                                         | Antes de declarar done  |
+| `init.ps1`          | Script de verificación (Windows)                                                                                                                                                                                                                                             | Al empezar y al cerrar  |
+| `init_Mac.sh`       | Script de verificación (macOS)                                                                                                                                                                                                                                               | En Mac, al empezar      |
+| `install_Mac.sh`    | Instalador para Mac Silicon                                                                                                                                                                                                                                                  | En Mac, para setup      |
+| `core/`             | Pipeline, módulos base, config, factories                                                                                                                                                                                                                                    | Para implementar        |
+| `modules/`          | Procesamiento (audio, TTS, transcripción) + I/O plugins                                                                                                                                                                                                                      | Para implementar        |
+| `server/`           | FastAPI, WebSocket, seguridad                                                                                                                                                                                                                                                | Para implementar        |
+| `frontend/`         | Dashboard Astro + TypeScript + Tailwind. **F116**: editor visual en `/graph` con React Flow — `lib/graph/` (catálogo, validador, serializador, live status) + `components/graph/` (PipelineCanvas, ModuleNode, InspectorPanel, Toolbar, PipelineGraph) + `pages/graph.astro` | Para implementar        |
+| `cli/`              | CLI + TUI (Textual) — cliente HTTP/WS + comandos                                                                                                                                                                                                                             | Para implementar        |
+| `tests/`            | Tests pytest + vitest                                                                                                                                                                                                                                                        | Para verificar          |
+| `config.yaml`       | Configuración runtime del pipeline                                                                                                                                                                                                                                           | Para entender defaults  |
+| `docs/`             | MkDocs, ADRs, guías de arquitectura                                                                                                                                                                                                                                          | Para contexto técnico   |
 
 ## 2. Antes de empezar
 
-1. Lee `feature_list.json` y elige una feature `pending`
-2. Lee `progress/current.md` para saber dónde se quedó la sesión anterior
+1. Consulta `python -m harness next` para ver la siguiente feature a trabajar
+2. Consulta `python -m harness show <id>` para ver el estado de una feature
 3. Ejecuta el script de verificación:
    - **Windows**: `.\init.ps1`
    - **macOS**: `./init_Mac.sh`
    - Si falla, **para y resuelve** antes de tocar código
-4. Cambia la feature a `in_progress` y anota el plan en `progress/current.md`
+4. Inicia sesión: `python -m harness session start --notes "描述 de la sesión"`
+5. Cambia la feature a `in_progress`: `python -m harness update <id> status in_progress --agent <nombre>`
 
 ## 3. Reglas duras
 
 - **Una feature a la vez.** No mezcles cambios de varias tareas.
 - **init.ps1 o init_Mac.sh verde para declarar done.** `pytest tests/unit/` pasa siempre.
-- **Documenta mientras trabajas** en `progress/current.md`, no al final.
+- **Documenta mientras trabajas** en la sesión de harness, no al final.
 - **Deja el repo limpio:** sin prints, TODOs sin contexto, ni archivos temporales.
 - **CHECKPOINTS.md completo** antes de cerrar sesión.
-- Si te bloqueas, documenta en `progress/current.md` con estado `blocked` y para.
+- Si te bloqueas, documenta en la sesión de harness con estado `blocked` y para.
 - **No toques `PARA BORRAR/`** — carpeta candidata a limpieza, ver F29.
 - **Código nuevo debe ser cross-platform.** Siempre verificar en Mac si el cambio afecta subprocess, paths o GPU.
 
@@ -54,6 +55,17 @@
 .\init.ps1 -Quick       # Windows: unit tests rápidos
 ./init_Mac.sh           # macOS: completo
 ./init_Mac.sh --quick   # macOS: unit tests rápidos
+
+# Gestión de features (harness)
+python -m harness next                    # Siguiente feature a trabajar
+python -m harness list --status=pending   # Features pendientes
+python -m harness show <id>               # Detalles de una feature
+python -m harness stats                   # Estadísticas del proyecto
+python -m harness health                  # Validar integridad de la DB
+python -m harness update <id> status done --agent <nombre>  # Marcar done
+python -m harness audit <id>              # Ver cambios de una feature
+python -m harness session start --notes "..."  # Iniciar sesión
+python -m harness session end <id> --features "1,2" --notes "..."  # Cerrar sesión
 
 # Tests
 python -m pytest tests/unit/ -v              # Unit tests
@@ -176,7 +188,7 @@ Por defecto `thread_parallel` con 2 workers concurrentes. Las estrategias viven 
 
 ## 7. Estado de features
 
-Ver `feature_list.json` para lista completa y estados. Total actual: 115 features.
+Ver `feature_list.json` para lista completa y estados. Total actual: 126 features.
 
 **Features 1–14**: todas DONE (ciclo Abril–Mayo 2026).
 
@@ -220,6 +232,8 @@ Ver `feature_list.json` para lista completa y estados. Total actual: 115 feature
 
 **Feature 122**: Account lockout — DONE (11/06/2026). 5 failed attempts → 30 min lockout, auto-expiry, unlock endpoint.
 
+**Feature 150**: PTS-based subtitle sync — DONE (23/06/2026). Elimina drift mtime (~9s/30min) usando PTS/PCR del contenedor MPEG-TS.
+
 **Siguiente pendiente**: F123 — session security (JWT expiry, refresh tokens, token blacklist).
 
 ## 8. Historial compacto (post-Abril 2026)
@@ -227,7 +241,7 @@ Ver `feature_list.json` para lista completa y estados. Total actual: 115 feature
 ### 13/06 — Refactor: extraer loops a strategies (F132)
 
 - **F132 cerrado**: `unified_pipeline.py` reducido de 1106 → 599 líneas (-46%). Los 5 métodos de loop (sequential, input/worker/output threads, async) movidos a `core/pipeline/strategies.py` con `PipelineContext` dataclass para compartir estado. `pipeline_helpers.py` nuevo con output status y reconfigure. Lazy imports vía `importlib` para romper dependencia circular. 48 tests pipeline pasan, mypy --strict 0 errores en 3 archivos.
-- Detalles en `progress/current.md`.
+- Detalles en `harness.db` (sesión del día).
 
 ### 07/06 — Editor visual de pipeline en /graph (F116)
 
@@ -243,19 +257,19 @@ Ver `feature_list.json` para lista completa y estados. Total actual: 115 feature
 - **Tests**: 5 archivos nuevos — `nodeCatalog.test.ts` (10), `typedEdge.test.ts` (15), `serialize.test.ts` (17), `ModuleNode.test.tsx` (6), `InspectorPanel.test.tsx` (7). Total: 249/249 pass.
 - **Verificación**: `tsc --noEmit` 0 errores, `npm run build` 6 páginas OK (`/graph/index.html` generado), `mypy --strict core/ server/ modules/` 0 errores, `npm run lint` sin warnings nuevos.
 - **No se toca**: `index.astro`, `index_new.astro`, `core/`, `modules/`, `server/` (salvo `tests/unit/test_logging_setup.py` que se ejecutó para verificar subset del backend).
-- Detalles completos en `progress/current.md`.
+- Detalles completos en `harness.db` (sesión del día).
 
 ### 11/06 — Fix critical bugs (F117) + Security hardening (F118)
 
 - **F117 cerrado**: 3 bugs críticos — hardware.py GPU auto-detect no-op (wrong key lookup), Dockerfile runtime COPY path wrong, config_manager.py non-atomic save on Windows
 - **F118 cerrado**: Security hardening — PBKDF2-HMAC-SHA256 (600K iter) for passwords, removed hardcoded JWT fallback, `secrets.compare_digest` for timing-safe compare, AuthMiddleware returns 503 when unconfigured. Auto-migration from legacy SHA-256 hashes. `SRT2WEB_TESTING` env var bypass for test suite.
 - **Tests**: 1271 unit tests pass, 0 failures; mypy --strict 0 errors
-- Detalles completos en `progress/current.md`
+- Detalles completos en `harness.db` (sesión del día)
 
 ### 04/06 — Subtítulos desincronizados F108
 
 - F108 cerrado: 3 capas de causas (polling+wipe, monitor muerto, drift mtime) sustituidas por HLS.js native subtitle track.
-- Detalles completos en `progress/current.md`
+- Detalles completos en `harness.db` (sesión del día)
 
 ### 03/06 — Pipeline init timeout (F107)
 
@@ -267,7 +281,7 @@ Ver `feature_list.json` para lista completa y estados. Total actual: 115 feature
 - **Log real que confirmó el bug**: `21:59:13 Starting` → `22:01:14 Pipeline initialization timed out after 60 seconds` → `22:01:23 Cannot start pipeline in state: starting`.
 - **Tests**: 11 nuevos en `tests/unit/test_f107_pipeline_init_timeout.py` — env-var override, timeout→ERROR, exception surfacing, retry-after-error, concurrent rejection, happy path, already-initialized skip.
 - **Verificación**: 11/11 pasan en 3.3s; mypy --strict 0 errores; ruff clean; sin regresiones. 4 fallos pre-existentes en main confirmados via git stash (no introducidos por F107).
-- Detalles completos en `progress/current.md`
+- Detalles completos en `harness.db` (sesión del día)
 
 ### 02/06 — Bugfixes UI dashboard (F104) + stop/reconnect (F105) + Piper voice (F106)
 
@@ -277,7 +291,7 @@ Ver `feature_list.json` para lista completa y estados. Total actual: 115 feature
   - **Bug 1 (config 400)**: `OutputFactory.resolve_type('HLSOutput')` devolvía `"webplayer"` (primer alias registrado) y `_sync_outputs_to_config` lo guardaba tal cual. `OutputTypeEnum` solo acepta `"web"` → PUT /api/config fallaba 400 y la UI mostraba "voz no cambió". Fix: `_canonical_types` en `OutputFactory` + `_normalize_output_type` en outputs route (defensa en 2 capas).
   - **Bug 2 (Piper crash)**: `PiperSubprocessManager._send_command` no serializaba concurrentes; synth + heartbeat (cada 30s) se peleaban por el mismo `proc.stdout.readline()` y producía "Invalid JSON response: Extra data: line 1 column 22652". Subprocess "murió" pero el código no recargaba → chunks subsiguientes sin audio. Fix: `_cmd_lock = threading.Lock()` envolviendo todo el ciclo send→read→parse.
   - 9 tests en `tests/unit/test_f106_piper_voice.py`. Honrando F106 mitigation: NO se tocó `tts_engine.py` (la chain ya funcionaba).
-- Detalles completos en `progress/current.md`
+- Detalles completos en `harness.db` (sesión del día)
 
 ### 14/05 — Plan de compatibilidad macOS
 

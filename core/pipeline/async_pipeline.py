@@ -113,7 +113,8 @@ class AsyncPipeline(PipelineStrategy):
         logger.info("AsyncIO processing loop started")
         chunk_index = 0
 
-        assert self._stop_event is not None
+        if self._stop_event is None:
+            raise RuntimeError("AsyncIOPipeline._stop_event not initialized — call start() first")
 
         try:
             while not self._stop_event.is_set():
@@ -131,7 +132,8 @@ class AsyncPipeline(PipelineStrategy):
                 data.timestamp = time.time()
 
                 # Process with semaphore control
-                assert self._semaphore is not None
+                if self._semaphore is None:
+                    raise RuntimeError("AsyncIOPipeline._semaphore not initialized — call start() first")
                 async with self._semaphore:
                     start_time = time.perf_counter()
 

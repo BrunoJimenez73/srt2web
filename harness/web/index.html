@@ -1,0 +1,1047 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>srt2web Harness</title>
+    <style>
+      :root {
+        --bg: #0d1117;
+        --bg-card: #161b22;
+        --bg-input: #0d1117;
+        --border: #30363d;
+        --text: #c9d1d9;
+        --text-dim: #8b949e;
+        --accent: #58a6ff;
+        --green: #3fb950;
+        --yellow: #d29922;
+        --red: #f85149;
+        --orange: #db6d28;
+        --purple: #bc8cff;
+        --radius: 6px;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica,
+          Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.5;
+      }
+      .header {
+        background: var(--bg-card);
+        border-bottom: 1px solid var(--border);
+        padding: 12px 24px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+      .header h1 {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--accent);
+      }
+      .header .stats {
+        display: flex;
+        gap: 12px;
+        margin-left: auto;
+        font-size: 13px;
+      }
+      .header .stat {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .header .stat .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+      .dot-done {
+        background: var(--green);
+      }
+      .dot-pending {
+        background: var(--yellow);
+      }
+      .dot-progress {
+        background: var(--accent);
+      }
+      .dot-blocked {
+        background: var(--red);
+      }
+
+      .toolbar {
+        padding: 12px 24px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        border-bottom: 1px solid var(--border);
+      }
+      .toolbar select,
+      .toolbar input,
+      .toolbar button {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 6px 12px;
+        border-radius: var(--radius);
+        font-size: 13px;
+      }
+      .toolbar select:focus,
+      .toolbar input:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+      .toolbar button {
+        cursor: pointer;
+        font-weight: 500;
+      }
+      .toolbar button:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .toolbar button.primary {
+        background: var(--accent);
+        color: var(--bg);
+        border-color: var(--accent);
+      }
+      .toolbar button.primary:hover {
+        opacity: 0.9;
+      }
+
+      .container {
+        display: flex;
+        height: calc(100vh - 94px);
+      }
+      .sidebar {
+        width: 320px;
+        border-right: 1px solid var(--border);
+        overflow-y: auto;
+        flex-shrink: 0;
+      }
+      .main {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
+      }
+
+      .feature-list {
+        list-style: none;
+      }
+      .feature-item {
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--border);
+        cursor: pointer;
+        transition: background 0.1s;
+      }
+      .feature-item:hover {
+        background: var(--bg-card);
+      }
+      .feature-item.active {
+        background: var(--bg-card);
+        border-left: 3px solid var(--accent);
+      }
+      .feature-item .fid {
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--accent);
+        margin-right: 8px;
+      }
+      .feature-item .ftitle {
+        font-size: 13px;
+        color: var(--text);
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .feature-item .fmeta {
+        font-size: 11px;
+        color: var(--text-dim);
+        margin-top: 2px;
+        display: flex;
+        gap: 8px;
+      }
+      .status-badge {
+        display: inline-block;
+        padding: 1px 6px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 500;
+      }
+      .status-done {
+        background: rgba(63, 185, 80, 0.15);
+        color: var(--green);
+      }
+      .status-pending {
+        background: rgba(210, 153, 34, 0.15);
+        color: var(--yellow);
+      }
+      .status-in_progress {
+        background: rgba(88, 166, 255, 0.15);
+        color: var(--accent);
+      }
+      .status-blocked {
+        background: rgba(248, 81, 73, 0.15);
+        color: var(--red);
+      }
+
+      .detail-view {
+        max-width: 800px;
+      }
+      .detail-view h2 {
+        font-size: 20px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .detail-view .field-group {
+        margin-bottom: 16px;
+      }
+      .detail-view label {
+        display: block;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-dim);
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .detail-view .field-value {
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      .detail-view .field-value.muted {
+        color: var(--text-dim);
+      }
+
+      .detail-view textarea,
+      .detail-view input,
+      .detail-view select {
+        width: 100%;
+        background: var(--bg-input);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 8px 12px;
+        border-radius: var(--radius);
+        font-size: 14px;
+        font-family: inherit;
+      }
+      .detail-view textarea:focus,
+      .detail-view input:focus,
+      .detail-view select:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+      .detail-view textarea {
+        min-height: 100px;
+        resize: vertical;
+      }
+
+      .btn-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+      }
+      .btn {
+        padding: 6px 16px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: var(--bg-card);
+        color: var(--text);
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .btn:hover {
+        border-color: var(--accent);
+      }
+      .btn.danger {
+        border-color: var(--red);
+        color: var(--red);
+      }
+      .btn.danger:hover {
+        background: rgba(248, 81, 73, 0.1);
+      }
+
+      .audit-list {
+        margin-top: 24px;
+        border-top: 1px solid var(--border);
+        padding-top: 16px;
+      }
+      .audit-list h3 {
+        font-size: 14px;
+        margin-bottom: 8px;
+        color: var(--text-dim);
+      }
+      .audit-entry {
+        font-size: 12px;
+        padding: 4px 0;
+        color: var(--text-dim);
+        border-bottom: 1px solid var(--border);
+      }
+      .audit-entry .ts {
+        color: var(--text-dim);
+      }
+      .audit-entry .field {
+        color: var(--accent);
+      }
+      .audit-entry .val {
+        color: var(--text);
+      }
+
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 200;
+      }
+      .modal {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 24px;
+        width: 480px;
+        max-width: 90vw;
+      }
+      .modal h3 {
+        margin-bottom: 16px;
+      }
+      .modal .field-group {
+        margin-bottom: 12px;
+      }
+      .modal label {
+        display: block;
+        font-size: 12px;
+        color: var(--text-dim);
+        margin-bottom: 4px;
+      }
+      .modal input,
+      .modal select,
+      .modal textarea {
+        width: 100%;
+        background: var(--bg-input);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 6px 10px;
+        border-radius: var(--radius);
+        font-size: 13px;
+      }
+      .modal .btn-row {
+        justify-content: flex-end;
+      }
+
+      .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: var(--text-dim);
+        font-size: 14px;
+      }
+      .empty-state .icon {
+        font-size: 48px;
+        margin-bottom: 12px;
+      }
+
+      .loading {
+        color: var(--text-dim);
+        font-style: italic;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 0;
+        border-bottom: 1px solid var(--border);
+        padding: 0 24px;
+        background: var(--bg-card);
+      }
+      .tab {
+        padding: 10px 20px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-dim);
+        border-bottom: 2px solid transparent;
+        transition: all 0.15s;
+      }
+      .tab:hover {
+        color: var(--text);
+      }
+      .tab.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+      }
+
+      .progress-list {
+        list-style: none;
+      }
+      .progress-item {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        cursor: pointer;
+        transition: background 0.1s;
+      }
+      .progress-item:hover {
+        background: var(--bg-card);
+      }
+      .progress-item.active {
+        background: var(--bg-card);
+        border-left: 3px solid var(--accent);
+      }
+      .progress-item .pdate {
+        font-weight: 600;
+        font-size: 12px;
+        color: var(--accent);
+        margin-right: 8px;
+      }
+      .progress-item .ptitle {
+        font-size: 13px;
+        color: var(--text);
+      }
+      .progress-item .pmeta {
+        font-size: 11px;
+        color: var(--text-dim);
+        margin-top: 4px;
+        display: flex;
+        gap: 8px;
+      }
+      .progress-item .current-badge {
+        background: rgba(63, 185, 80, 0.15);
+        color: var(--green);
+        padding: 1px 6px;
+        border-radius: 10px;
+        font-size: 10px;
+        font-weight: 600;
+      }
+
+      .progress-detail {
+        max-width: 800px;
+      }
+      .progress-detail h2 {
+        font-size: 18px;
+        margin-bottom: 12px;
+      }
+      .progress-detail .content-md {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+        font-size: 13px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        max-height: 500px;
+        overflow-y: auto;
+      }
+      .progress-detail .meta-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .progress-detail .meta-box {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 12px;
+      }
+      .progress-detail .meta-box h4 {
+        font-size: 11px;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-bottom: 6px;
+      }
+      .progress-detail .tag {
+        display: inline-block;
+        background: rgba(88, 166, 255, 0.1);
+        color: var(--accent);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        margin: 2px;
+      }
+      .progress-detail .verify-item {
+        font-size: 12px;
+        padding: 2px 0;
+        color: var(--green);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>srt2web Harness</h1>
+      <div class="stats" id="headerStats"></div>
+    </div>
+
+    <div class="toolbar">
+      <select id="filterStatus">
+        <option value="">All statuses</option>
+        <option value="pending">Pending</option>
+        <option value="in_progress">In Progress</option>
+        <option value="done">Done</option>
+        <option value="blocked">Blocked</option>
+      </select>
+      <select id="filterArea">
+        <option value="">All areas</option>
+      </select>
+      <input type="text" id="searchBox" placeholder="Search features..." />
+      <button class="primary" onclick="showNewModal()">+ New Feature</button>
+      <button onclick="doExport()">Export JSON</button>
+      <button onclick="doMigrate()">Re-migrate JSON</button>
+      <button onclick="doImportProgress()">Import Progress MD</button>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('features')" id="tab-features">
+        Features
+      </div>
+      <div class="tab" onclick="switchTab('progress')" id="tab-progress">
+        Progress
+      </div>
+    </div>
+
+    <div class="container" id="featuresView">
+      <div class="sidebar">
+        <ul class="feature-list" id="featureList"></ul>
+      </div>
+      <div class="main" id="mainPanel">
+        <div class="empty-state">
+          <div class="icon">&#128203;</div>
+          <div>Select a feature from the list</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container" id="progressView" style="display: none">
+      <div class="sidebar">
+        <ul class="progress-list" id="progressList"></ul>
+      </div>
+      <div class="main" id="progressPanel">
+        <div class="empty-state">
+          <div class="icon">&#128197;</div>
+          <div>Select a session from the list</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="modalContainer"></div>
+
+    <script>
+      const API = "";
+      let allFeatures = [];
+      let currentId = null;
+      let allProgress = [];
+      let currentProgressId = null;
+      let currentTab = "features";
+
+      async function fetchJSON(url, opts) {
+        const r = await fetch(API + url, opts);
+        return r.json();
+      }
+
+      function switchTab(tab) {
+        currentTab = tab;
+        document.getElementById("tab-features").className =
+          tab === "features" ? "tab active" : "tab";
+        document.getElementById("tab-progress").className =
+          tab === "progress" ? "tab active" : "tab";
+        document.getElementById("featuresView").style.display =
+          tab === "features" ? "flex" : "none";
+        document.getElementById("progressView").style.display =
+          tab === "progress" ? "flex" : "none";
+        if (tab === "progress" && allProgress.length === 0) loadProgress();
+      }
+
+      async function loadStats() {
+        const d = await fetchJSON("/api/stats");
+        const el = document.getElementById("headerStats");
+        const c = d.counts;
+        el.innerHTML = `
+    <span class="stat"><span class="dot dot-done"></span>${
+      c.done || 0
+    } done</span>
+    <span class="stat"><span class="dot dot-progress"></span>${
+      c.in_progress || 0
+    } active</span>
+    <span class="stat"><span class="dot dot-pending"></span>${
+      c.pending || 0
+    } pending</span>
+    <span class="stat"><span class="dot dot-blocked"></span>${
+      c.blocked || 0
+    } blocked</span>
+  `;
+        // populate area filter
+        const areaSelect = document.getElementById("filterArea");
+        const currentArea = areaSelect.value;
+        const areas = Object.keys(d.by_area || {}).sort();
+        areaSelect.innerHTML =
+          '<option value="">All areas</option>' +
+          areas
+            .map(
+              (a) =>
+                `<option value="${a}" ${
+                  a === currentArea ? "selected" : ""
+                }>${a} (${d.by_area[a]})</option>`,
+            )
+            .join("");
+      }
+
+      async function loadFeatures() {
+        const status = document.getElementById("filterStatus").value;
+        const area = document.getElementById("filterArea").value;
+        const q = document.getElementById("searchBox").value.toLowerCase();
+        let url = "/api/features?";
+        if (status) url += `status=${status}&`;
+        if (area) url += `area=${area}&`;
+        const d = await fetchJSON(url);
+        allFeatures = d.features;
+        if (q) {
+          allFeatures = allFeatures.filter(
+            (f) =>
+              f.name.toLowerCase().includes(q) ||
+              f.title.toLowerCase().includes(q) ||
+              (f.description || "").toLowerCase().includes(q),
+          );
+        }
+        renderList();
+      }
+
+      function renderList() {
+        const ul = document.getElementById("featureList");
+        ul.innerHTML = allFeatures
+          .map(
+            (f) => `
+    <li class="feature-item ${
+      f.id == currentId ? "active" : ""
+    }" onclick="selectFeature('${f.id}')">
+      <span class="fid">F${f.id}</span>
+      <span class="ftitle">${esc(f.title)}</span>
+      <div class="fmeta">
+        <span class="status-badge status-${f.status}">${f.status}</span>
+        <span>${f.area || "-"}</span>
+        <span>${f.priority || "-"}</span>
+      </div>
+    </li>
+  `,
+          )
+          .join("");
+      }
+
+      async function selectFeature(id) {
+        currentId = id;
+        renderList();
+        const d = await fetchJSON(`/api/features/${id}`);
+        const f = d.feature;
+        const audit = await fetchJSON(`/api/features/${id}/audit`);
+        const panel = document.getElementById("mainPanel");
+
+        const risk = f.risk_assessment;
+        panel.innerHTML = `
+    <div class="detail-view">
+      <h2><span class="status-badge status-${f.status}">${f.status}</span> F${
+        f.id
+      }: ${esc(f.title)}</h2>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="field-group">
+          <label>Name</label>
+          <input id="d-name" value="${esc(f.name)}">
+        </div>
+        <div class="field-group">
+          <label>Title</label>
+          <input id="d-title" value="${esc(f.title)}">
+        </div>
+        <div class="field-group">
+          <label>Status</label>
+          <select id="d-status">
+            ${["pending", "in_progress", "done", "blocked"]
+              .map(
+                (s) =>
+                  `<option value="${s}" ${
+                    f.status === s ? "selected" : ""
+                  }>${s}</option>`,
+              )
+              .join("")}
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Area</label>
+          <input id="d-area" value="${esc(f.area)}">
+        </div>
+        <div class="field-group">
+          <label>Priority</label>
+          <select id="d-priority">
+            ${["Alta", "Media", "Baja"]
+              .map(
+                (p) =>
+                  `<option value="${p}" ${
+                    f.priority === p ? "selected" : ""
+                  }>${p}</option>`,
+              )
+              .join("")}
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Phase</label>
+          <input id="d-phase" value="${esc(f.phase || "")}">
+        </div>
+        <div class="field-group">
+          <label>Completed Date</label>
+          <input id="d-completed_date" value="${esc(f.completed_date || "")}">
+        </div>
+        <div class="field-group">
+          <label>Started In Session</label>
+          <input id="d-started_in_session" value="${esc(
+            f.started_in_session || "",
+          )}">
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label>Description</label>
+        <textarea id="d-description">${esc(f.description || "")}</textarea>
+      </div>
+
+      <div class="field-group">
+        <label>Problems Identified (one per line)</label>
+        <textarea id="d-problems_identified">${(
+          f.problems_identified || []
+        ).join("\n")}</textarea>
+      </div>
+
+      <div class="field-group">
+        <label>Acceptance Criteria (one per line)</label>
+        <textarea id="d-acceptance">${(f.acceptance || []).join(
+          "\n",
+        )}</textarea>
+      </div>
+
+      <div class="field-group">
+        <label>Files To Touch (one per line)</label>
+        <textarea id="d-files_to_touch">${(f.files_to_touch || []).join(
+          "\n",
+        )}</textarea>
+      </div>
+
+      <div class="field-group">
+        <label>Fix / What Was Done (one per line)</label>
+        <textarea id="d-fix">${(f.fix || []).join("\n")}</textarea>
+      </div>
+
+      <div class="field-group">
+        <label>Completion Notes</label>
+        <textarea id="d-completion_notes">${esc(
+          f.completion_notes || "",
+        )}</textarea>
+      </div>
+
+      <div class="field-group">
+        <label>Dependencies (comma-separated IDs)</label>
+        <input id="d-dependencies" value="${(f.dependencies || []).join(", ")}">
+      </div>
+
+      ${
+        risk
+          ? `
+      <div class="field-group">
+        <label>Risk Level</label>
+        <input id="d-risk_level" value="${esc(risk.risk_level)}">
+      </div>
+      <div class="field-group">
+        <label>Mitigation (one per line)</label>
+        <textarea id="d-mitigation">${(risk.mitigation || []).join(
+          "\n",
+        )}</textarea>
+      </div>
+      `
+          : ""
+      }
+
+      <div class="btn-row">
+        <button class="btn primary" onclick="saveFeature()">Save</button>
+        <button class="btn danger" onclick="deleteFeature()">Delete</button>
+      </div>
+
+      ${
+        audit.entries.length
+          ? `
+      <div class="audit-list">
+        <h3>Audit Trail (${audit.entries.length})</h3>
+        ${audit.entries
+          .slice(0, 20)
+          .map(
+            (e) => `
+          <div class="audit-entry">
+            <span class="ts">${e.timestamp}</span>
+            <span class="field">${e.field_name}</span>:
+            <span class="val">${esc(e.old_value || "(empty)")}</span> ->
+            <span class="val">${esc(e.new_value || "(empty)")}</span>
+            <span style="color:var(--purple)">${e.agent}</span>
+          </div>
+        `,
+          )
+          .join("")}
+      </div>
+      `
+          : ""
+      }
+    </div>
+  `;
+      }
+
+      async function saveFeature() {
+        if (!currentId) return;
+        const data = {};
+        [
+          "name",
+          "title",
+          "status",
+          "area",
+          "priority",
+          "phase",
+          "description",
+          "completed_date",
+          "started_in_session",
+          "completion_notes",
+        ].forEach((k) => {
+          data[k] = document.getElementById("d-" + k)?.value || "";
+        });
+        ["problems_identified", "acceptance", "files_to_touch", "fix"].forEach(
+          (k) => {
+            const val = document.getElementById("d-" + k)?.value || "";
+            data[k] = val.split("\n").filter((x) => x.trim());
+          },
+        );
+        const deps = document.getElementById("d-dependencies")?.value || "";
+        data.dependencies = deps
+          .split(",")
+          .map((x) => x.trim())
+          .filter(Boolean);
+
+        const riskLevel = document.getElementById("d-risk_level")?.value;
+        if (riskLevel) {
+          const mitigation = (
+            document.getElementById("d-mitigation")?.value || ""
+          )
+            .split("\n")
+            .filter((x) => x.trim());
+          data.risk_assessment = { risk_level: riskLevel, mitigation };
+        }
+
+        await fetchJSON(`/api/features/${currentId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        await loadStats();
+        await loadFeatures();
+        selectFeature(currentId);
+      }
+
+      async function deleteFeature() {
+        if (!currentId || !confirm(`Delete feature F${currentId}?`)) return;
+        await fetchJSON(`/api/features/${currentId}/delete`, {
+          method: "POST",
+        });
+        currentId = null;
+        document.getElementById("mainPanel").innerHTML =
+          '<div class="empty-state"><div class="icon">&#128203;</div><div>Select a feature</div></div>';
+        await loadStats();
+        await loadFeatures();
+      }
+
+      function showNewModal() {
+        document.getElementById("modalContainer").innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <h3>New Feature</h3>
+        <div class="field-group"><label>ID</label><input id="n-id" type="number"></div>
+        <div class="field-group"><label>Name</label><input id="n-name"></div>
+        <div class="field-group"><label>Title</label><input id="n-title"></div>
+        <div class="field-group"><label>Area</label><input id="n-area"></div>
+        <div class="field-group">
+          <label>Priority</label>
+          <select id="n-priority"><option>Media</option><option>Alta</option><option>Baja</option></select>
+        </div>
+        <div class="field-group"><label>Description</label><textarea id="n-description"></textarea></div>
+        <div class="btn-row">
+          <button class="btn" onclick="closeModal()">Cancel</button>
+          <button class="btn primary" onclick="createFeature()">Create</button>
+        </div>
+      </div>
+    </div>
+  `;
+      }
+
+      function closeModal() {
+        document.getElementById("modalContainer").innerHTML = "";
+      }
+
+      async function createFeature() {
+        const data = {
+          id: parseInt(document.getElementById("n-id").value),
+          name: document.getElementById("n-name").value,
+          title: document.getElementById("n-title").value,
+          area: document.getElementById("n-area").value,
+          priority: document.getElementById("n-priority").value,
+          description: document.getElementById("n-description").value,
+        };
+        if (!data.id || !data.name || !data.title) {
+          alert("ID, Name, Title required");
+          return;
+        }
+        await fetchJSON("/api/features", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        closeModal();
+        await loadStats();
+        await loadFeatures();
+      }
+
+      async function doExport() {
+        const d = await fetchJSON("/api/export", { method: "POST" });
+        alert(`Exported ${d.exported} features to ${d.path}`);
+      }
+
+      async function doMigrate() {
+        if (
+          !confirm(
+            "Re-migrate feature_list.json? This will overwrite existing data.",
+          )
+        )
+          return;
+        const d = await fetchJSON("/api/migrate", { method: "POST" });
+        alert(`Migrated: ${d.imported} features`);
+        await loadStats();
+        await loadFeatures();
+      }
+
+      function esc(s) {
+        if (!s) return "";
+        return s
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      // Event listeners
+      document
+        .getElementById("filterStatus")
+        .addEventListener("change", loadFeatures);
+      document
+        .getElementById("filterArea")
+        .addEventListener("change", loadFeatures);
+      document
+        .getElementById("searchBox")
+        .addEventListener("input", loadFeatures);
+
+      // Init
+      loadStats().then(loadFeatures);
+
+      // ── Progress functions ──────────────────────────────────────────────
+
+      async function loadProgress() {
+        const d = await fetchJSON("/api/progress");
+        allProgress = d.entries || [];
+        renderProgressList();
+      }
+
+      function renderProgressList() {
+        const ul = document.getElementById("progressList");
+        ul.innerHTML = allProgress
+          .map(
+            (p) => `
+    <li class="progress-item ${
+      p.id == currentProgressId ? "active" : ""
+    }" onclick="selectProgress(${p.id})">
+      <span class="pdate">${p.date}</span>
+      ${p.is_current ? '<span class="current-badge">CURRENT</span>' : ""}
+      <div class="ptitle">${esc(p.title)}</div>
+      <div class="pmeta">
+        <span>${p.features_worked.length} features</span>
+        <span>${p.files_changed.length} files</span>
+      </div>
+    </li>
+  `,
+          )
+          .join("");
+      }
+
+      async function selectProgress(id) {
+        currentProgressId = id;
+        renderProgressList();
+        const entry = allProgress.find((p) => p.id === id);
+        if (!entry) return;
+
+        const panel = document.getElementById("progressPanel");
+        panel.innerHTML = `
+    <div class="progress-detail">
+      <h2>${entry.date} — ${esc(entry.title)}</h2>
+      <div class="meta-grid">
+        <div class="meta-box">
+          <h4>Features Worked (${entry.features_worked.length})</h4>
+          <div>${
+            entry.features_worked
+              .map((f) => `<span class="tag">F${f}</span>`)
+              .join(" ") || '<span style="color:var(--text-dim)">none</span>'
+          }</div>
+        </div>
+        <div class="meta-box">
+          <h4>Files Changed (${entry.files_changed.length})</h4>
+          <div style="font-size:11px;color:var(--text-dim);max-height:100px;overflow-y:auto">${
+            entry.files_changed.map((f) => esc(f)).join("<br>") || "none"
+          }</div>
+        </div>
+      </div>
+      ${
+        Object.keys(entry.verification).length
+          ? `
+      <div class="meta-box" style="margin-bottom:16px">
+        <h4>Verification</h4>
+        ${Object.entries(entry.verification)
+          .map(
+            ([k, v]) => `
+          <div class="verify-item">${
+            v === "PASS" ? "&#10003;" : "&#10007;"
+          } ${esc(k)}: ${esc(v)}</div>
+        `,
+          )
+          .join("")}
+      </div>
+      `
+          : ""
+      }
+      <div class="content-md">${esc(entry.content_md || "(no content)")}</div>
+    </div>
+  `;
+      }
+
+      async function doImportProgress() {
+        if (!confirm("Re-import progress from markdown files?")) return;
+        const d = await fetchJSON("/api/progress/import", { method: "POST" });
+        alert(`Imported: ${d.imported} progress entries`);
+        await loadProgress();
+      }
+    </script>
+  </body>
+</html>

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import tomllib
 from functools import lru_cache
-from pathlib import Path
 
 from core.paths import get_project_root
+
+logger = logging.getLogger("srt2web.version")
 
 _PYPROJECT = get_project_root() / "pyproject.toml"
 
@@ -19,6 +21,7 @@ def get_version() -> str:
 
         return version("srt2web")
     except Exception:
+        logger.debug("importlib.metadata failed, falling back to pyproject.toml", exc_info=True)
         with _PYPROJECT.open("rb") as f:
             data = tomllib.load(f)
         project = data.get("project", {})

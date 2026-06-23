@@ -229,7 +229,7 @@ def setup_logging(
         try:
             h.close()
         except Exception:
-            pass
+            logger.debug("Failed to close logging handler %s", h, exc_info=True)
     root.handlers.clear()
     root.setLevel(log_level)
     root.addHandler(console)
@@ -304,7 +304,7 @@ def install_crash_handler(log_dir: str | Path | None = None) -> logging.Logger |
         try:
             h.close()
         except Exception:
-            pass
+            logger.debug("Failed to close crash handler %s", h, exc_info=True)
     crash_logger.handlers.clear()
     crash_logger.addHandler(crash_handler)
     crash_logger.propagate = False  # do NOT also write to srt2web.log

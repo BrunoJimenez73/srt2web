@@ -184,7 +184,7 @@ def get_video_duration(file_path: str, ffprobe_path: str | None = None) -> float
         )
         return float(result.stdout.strip())
     except Exception:
-        # Non-critical: duration check is best-effort
+        logger.debug("get_duration: ffprobe failed for %s", file_path, exc_info=True)
         return 0.0
 
 
@@ -200,7 +200,7 @@ def check_srt_support(ffmpeg_path: str) -> bool:
         )
         return "srt" in result.stdout.lower()
     except Exception:
-        # Non-critical: SRT support check is best-effort
+        logger.debug("check_srt_support: ffmpeg -protocols failed", exc_info=True)
         return False
 
 
@@ -507,5 +507,116 @@ def check_videotoolbox_support() -> bool:
         output = (result.stderr + result.stdout).lower()
         return "h264_videotoolbox" in output
     except Exception:
-        # Non-critical: VideoToolbox check is best-effort
+        logger.debug("check_videotoolbox_support: ffmpeg failed", exc_info=True)
         return False
+
+
+def get_first_packet_pts(file_path: str, ffprobe_path: str | None = None) -> float | None:
+    """
+    Extract the PTS (Presentation Time Stamp) of the first video packet from an MPEG-TS file.
+
+    This provides accurate timing from the stream itself, avoiding filesystem mtime drift.
+
+    Args:
+        file_path: Path to the MPEG-TS chunk file
+        ffprobe_path: Optional path to ffprobe binary
+
+    Returns:
+        PTS in seconds, or None if extraction failed
+    """
+    if ffprobe_path is None:
+        ffprobe_path = find_ffprobe()
+
+    if not ffprobe_path:
+        return None
+
+    try:
+        # Get first packet PTS from video stream
+        # -read_intervals "%+#1" reads only the first packet
+        # -select_streams v:0 selects first video stream
+        # -show_entries packet=pts shows only PTS
+        # -of csv=p=0 outputs just the value
+        cmd = [
+            ffprobe_path,
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "packet=pts",
+            "-of",
+            "csv=p=0",
+            "-read_intervals",
+            "%+#1",
+            file_path,
+        ]
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=3,
+            creationflags=_get_creation_flags(),
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            pts_str = result.stdout.strip()
+            # PTS is in time_base units, need to convert to seconds
+            # For MPEG-TS, time_base is typically 1/90000
+            pts_value = int(pts_str)
+            # MPEG-TS typically uses 90kHz clock
+            return pts_value / 90000.0
+    except Exception as e:
+        logger.debug(f"Failed to extract PTS from {file_path}: {e}")
+    return None
+
+
+def get_pcr_from_ts(file_path: str, ffprobe_path: str | None = None) -> float | None:
+    """
+    Extract PCR (Program Clock Reference) from MPEG-TS file for more accurate timing.
+
+    PCR provides the system clock reference which is more stable than PTS.
+
+    Args:
+        file_path: Path to the MPEG-TS chunk file
+        ffprobe_path: Optional path to ffprobe binary
+
+    Returns:
+        PCR in seconds, or None if extraction failed
+    """
+    if ffprobe_path is None:
+        ffprobe_path = find_ffprobe()
+
+    if not ffprobe_path:
+        return None
+
+    try:
+        # Get PCR from the first packet that has it
+        # PCR is in the adaptation field of transport stream packets
+        cmd = [
+            ffprobe_path,
+            "-v",
+            "error",
+            "-show_entries",
+            "packet=pcr",
+            "-of",
+            "csv=p=0",
+            "-read_intervals",
+            "%+#5",  # Read first 5 packets to find PCR
+            "-select_streams",
+            "v:0",
+            file_path,
+        ]
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=3,
+            creationflags=_get_creation_flags(),
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            for line in result.stdout.strip().split("\n"):
+                if line and line != "N/A":
+                    pcr_value = int(line)
+                    return pcr_value / 90000.0
+    except Exception as e:
+        logger.debug(f"Failed to extract PCR from {file_path}: {e}")
+    return None

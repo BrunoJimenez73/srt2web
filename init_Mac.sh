@@ -64,39 +64,40 @@ else
     fail "venv directory not found (run ./install_Mac.sh)"
 fi
 
-# ── 3. Feature list validation ─────────────────────────────────────────
-echo -e "\n${CYAN}--- 3. feature_list.json ---${NC}"
+# ── 3. Feature tracking (harness.db) ──────────────────────────────────
+echo -e "\n${CYAN}--- 3. Feature tracking (harness.db) ---${NC}"
 
-if [ -f "feature_list.json" ]; then
-    # Count features in_progress using python
-    IN_PROGRESS=$("$PYTHON_BIN" -c "
-import json
-with open('feature_list.json') as f:
-    data = json.load(f)
-in_progress = [f for f in data['features'] if f.get('status') == 'in_progress']
-print(len(in_progress))
-" 2>/dev/null || echo "error")
-
-    if [ "$IN_PROGRESS" = "error" ]; then
-        fail "feature_list.json parsing failed"
-    elif [ "$IN_PROGRESS" -gt 1 ]; then
-        fail "feature_list.json: $IN_PROGRESS features in_progress (max 1)"
+if [ -f "harness.db" ]; then
+    if "$PYTHON_BIN" -m harness health 2>/dev/null; then
+        ok "harness.db: healthy"
     else
-        FEATURE_COUNT=$("$PYTHON_BIN" -c "
+        fail "harness.db: issues detected"
+    fi
+else
+    warn "harness.db not found — migrating from feature_list.json"
+    if "$PYTHON_BIN" -m harness migrate 2>/dev/null; then
+        ok "harness.db created via migration"
+    else
+        fail "Migration failed"
+    fi
+fi
+
+# Legacy JSON validation
+if [ -f "feature_list.json" ]; then
+    FEATURE_COUNT=$("$PYTHON_BIN" -c "
 import json
 with open('feature_list.json') as f:
     print(len(json.load(f)['features']))
 " 2>/dev/null || echo "?")
-        ok "feature_list.json valid ($FEATURE_COUNT features, $IN_PROGRESS in_progress)"
-    fi
+    ok "feature_list.json exists ($FEATURE_COUNT features, legacy)"
 else
-    fail "feature_list.json not found"
+    warn "feature_list.json not found (using harness.db)"
 fi
 
 # ── 4. Base files ──────────────────────────────────────────────────────
 echo -e "\n${CYAN}--- 4. Base files ---${NC}"
 
-for f in "AGENTS.md" "CHECKPOINTS.md" "feature_list.json" "progress/current.md" "progress/history.md"; do
+for f in "AGENTS.md" "CHECKPOINTS.md" "feature_list.json"; do
     if [ -f "$f" ]; then
         ok "Exists $f"
     else

@@ -248,7 +248,7 @@ class VideoMuxer(BaseModule):
                 else:
                     logger.info(f"VideoMuxer segment encoded ({encoder}): {segment_name}")
             except Exception:
-                # Fallback: copy segment instead of failing
+                logger.warning("VideoMuxer encode failed, falling back to copy for %s", segment_name, exc_info=True)
                 import shutil
 
                 shutil.copy2(input_path, segment_path)

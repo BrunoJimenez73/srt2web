@@ -183,27 +183,43 @@ export function setupFilePlayerControls(): void {
   pauseBtn.style.display = "none";
 
   playBtn.addEventListener("click", () => {
-    fileInputPlay().then(() => {
-      playBtn.style.display = "none";
-      pauseBtn.style.display = "inline";
-    });
+    fileInputPlay()
+      .then(() => {
+        playBtn.style.display = "none";
+        pauseBtn.style.display = "inline";
+      })
+      .catch(() => {
+        /* ignore play errors */
+      });
   });
 
   pauseBtn.addEventListener("click", () => {
-    fileInputPause().then(() => {
-      pauseBtn.style.display = "none";
-      playBtn.style.display = "inline";
-    });
+    fileInputPause()
+      .then(() => {
+        pauseBtn.style.display = "none";
+        playBtn.style.display = "inline";
+      })
+      .catch(() => {
+        /* ignore pause errors */
+      });
   });
 
   restartBtn.addEventListener("click", () => {
-    fileInputSeek(0).then(() => {
-      positionSlider.value = "0";
-      fileInputPlay().then(() => {
-        playBtn.style.display = "none";
-        pauseBtn.style.display = "inline";
+    fileInputSeek(0)
+      .then(() => {
+        positionSlider.value = "0";
+        fileInputPlay()
+          .then(() => {
+            playBtn.style.display = "none";
+            pauseBtn.style.display = "inline";
+          })
+          .catch(() => {
+            /* ignore play errors */
+          });
+      })
+      .catch(() => {
+        /* ignore seek errors */
       });
-    });
   });
 
   let seekTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -220,6 +236,9 @@ export function setupFilePlayerControls(): void {
           if (info?.duration) {
             fileInputSeek((percent / 100) * info.duration);
           }
+        })
+        .catch(() => {
+          /* ignore seek info errors */
         });
     }, 300);
   });

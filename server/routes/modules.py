@@ -88,14 +88,13 @@ async def toggle_module(
                 # Just reconfigure
                 pipeline.reconfigure(config)
         except Exception as e:
-            err_msg = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
-            logger.error(f"Error in hot-reload for {safe_module_name}: {err_msg}")
+            # F151: Log full traceback server-side but return only generic error to client
+            logger.error("Error in hot-reload for %s: %s", safe_module_name, traceback.format_exc())
             return {
                 "module": safe_module_name,
                 "enabled": body.enabled,
                 "status": module.get_status().to_dict(),
-                "warning": f"Hot reload failed: {e!s}",
-                "error": err_msg,
+                "warning": f"Hot reload failed: {type(e).__name__}",
             }
     else:
         pipeline.reconfigure(config)

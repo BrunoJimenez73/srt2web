@@ -5,6 +5,7 @@ Provides real-time log streaming and status updates to the frontend.
 """
 
 import asyncio
+import hmac
 import json
 import logging
 import os
@@ -227,7 +228,8 @@ def create_ws_router() -> APIRouter:
                     if auth_pending:
                         if msg.get("type") == "auth":
                             client_token = msg.get("token", "")
-                            if client_token == configured_token:
+                            # F151: Use timing-safe comparison to prevent timing attacks
+                            if hmac.compare_digest(client_token, configured_token):
                                 auth_pending = False
                                 await log_broadcaster.subscribe(websocket)
                                 await websocket.send_text(json.dumps({"type": "auth_ok"}))

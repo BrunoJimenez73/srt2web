@@ -89,6 +89,7 @@ class SRTOutput(BaseOutput):
                 self._ffmpeg_proc.terminate()
                 self._ffmpeg_proc.wait(timeout=5)
             except Exception:
+                logger.debug("SRT: terminate failed, force-killing FFmpeg", exc_info=True)
                 try:
                     self._ffmpeg_proc.kill()
                 except Exception as e:

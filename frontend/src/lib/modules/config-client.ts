@@ -46,7 +46,9 @@ export async function handleSaveConfig(): Promise<void> {
       await updateChunkDuration(chunkDuration);
       addLog("INFO", `${t("chunk_synced")}: ${chunkDuration}s`);
     } catch (chunkError) {
-      addLog("WARNING", `Chunk sync failed: ${(chunkError as Error).message}`);
+      const msg =
+        chunkError instanceof Error ? chunkError.message : String(chunkError);
+      addLog("WARNING", `Chunk sync failed: ${msg}`);
     }
 
     const cfg = await getConfig();
@@ -55,7 +57,7 @@ export async function handleSaveConfig(): Promise<void> {
     showToast(t("config_saved"), "success");
     addLog("INFO", t("config_saved"));
   } catch (e) {
-    const msg = (e as Error).message;
+    const msg = e instanceof Error ? e.message : String(e);
     showToast(`${t("config_save_error")}: ${msg}`, "error");
     addLog("ERROR", `${t("config_save_error")}: ${msg}`);
   } finally {
@@ -80,7 +82,8 @@ export async function exportConfig(): Promise<void> {
     URL.revokeObjectURL(url);
     showToast(t("config_exported"), "success");
   } catch (e) {
-    showToast(`${t("error")}: ${(e as Error).message}`, "error");
+    const msg = e instanceof Error ? e.message : String(e);
+    showToast(`${t("error")}: ${msg}`, "error");
   }
 }
 

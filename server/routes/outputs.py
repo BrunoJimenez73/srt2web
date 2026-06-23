@@ -19,6 +19,19 @@ from server.ctx import get_ctx as _ctx
 
 _CANONICAL_OUTPUT_TYPES = frozenset({"web", "srt", "rtmp", "file", "recording", "webrtc"})
 
+# F151: Keys that should never appear in untrusted output config dicts
+_FORBIDDEN_CONFIG_KEYS = frozenset({"command", "shell", "exec", "eval", "__import__", "subprocess"})
+
+
+def _validate_output_config(config: dict[str, Any]) -> None:
+    """F151: Reject output config dicts containing dangerous keys."""
+    for key in config:
+        key_lower = key.lower() if isinstance(key, str) else ""
+        if key_lower in _FORBIDDEN_CONFIG_KEYS:
+            raise HTTPException(400, f"Forbidden config key: {key}")
+        if isinstance(config[key], dict):
+            _validate_output_config(config[key])
+
 
 def _normalize_output_type(output_type: str | None) -> str:
     """Normaliza un tipo de output a un valor canónico aceptado por ``OutputTypeEnum``.
@@ -131,6 +144,10 @@ async def add_output(request: Request, body: AddOutputRequest) -> dict[str, Any]
     output_config = body.config or {}
     output_name = body.name or f"{output_type}_{int(time.time())}"
 
+    # F151: Validate output config before passing to factory
+    if output_config:
+        _validate_output_config(output_config)
+
     from core.io_factory import OutputFactory
 
     try:
@@ -173,6 +190,8 @@ async def update_output(request: Request, output_name: str, body: UpdateOutputRe
         raise HTTPException(404, f"Output '{output_name}' not found")
 
     if body.config is not None and hasattr(output, "configure"):
+        # F151: Validate output config before applying
+        _validate_output_config(body.config)
         output.configure(body.config)
 
     if body.enabled is not None and hasattr(composite, "enable_output"):

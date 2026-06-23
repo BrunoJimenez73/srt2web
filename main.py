@@ -31,11 +31,7 @@ try:
     from server.ws_routes import log_broadcaster
 except ImportError as _f111_import_error:
     _err = str(_f111_import_error)
-    _is_numpy_dll = (
-        "_multiarray_umath" in _err
-        or "DLL load failed" in _err
-        or "Control de aplicaciones" in _err
-    )
+    _is_numpy_dll = "_multiarray_umath" in _err or "DLL load failed" in _err or "Control de aplicaciones" in _err
     sys.stderr.write("=" * 70 + "\n")
     sys.stderr.write("SRT2Web failed to start — required dependency is broken.\n\n")
     sys.stderr.write(f"Original error: {_err}\n\n")
@@ -81,6 +77,13 @@ def main() -> None:
     # Setup logging with WebSocket broadcast
     setup_logging(log_broadcaster=log_broadcaster)
 
+    # F151: Guard against SRT2WEB_TESTING in production — this env var disables ALL auth
+    if os.environ.get("SRT2WEB_TESTING"):
+        logger.warning(
+            "SECURITY: SRT2WEB_TESTING is set — ALL authentication is bypassed. "
+            "This must NEVER be used in production."
+        )
+
     # F112: Validate secrets (SRT2WEB_JWT_SECRET etc.) at startup.
     # In strict mode, an empty/insecure secret blocks startup. Override with
     # SRT2WEB_ALLOW_INSECURE_DEFAULTS=1 for local dev runs.
@@ -88,10 +91,7 @@ def main() -> None:
     ok, msg = validate_secrets(strict=not allow_insecure)
     if not ok:
         logger.error("Secret validation failed: %s", msg)
-        logger.error(
-            "To skip this check (dev only), set SRT2WEB_ALLOW_INSECURE_DEFAULTS=1 "
-            "in your environment."
-        )
+        logger.error("To skip this check (dev only), set SRT2WEB_ALLOW_INSECURE_DEFAULTS=1 " "in your environment.")
         sys.stderr.write("\n" + "=" * 70 + "\n")
         sys.stderr.write("SRT2Web refused to start — insecure secret configuration.\n")
         sys.stderr.write("=" * 70 + "\n\n")

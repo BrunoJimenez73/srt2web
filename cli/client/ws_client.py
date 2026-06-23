@@ -12,6 +12,8 @@ import websockets
 
 from cli.client.http_client import LogEntry
 
+logger = logging.getLogger("srt2web.cli.ws")
+
 
 class WSClient:
     def __init__(
@@ -111,7 +113,7 @@ class WSClient:
             except Exception:
                 if self._manual_disconnect:
                     break
-                # Connection error, will attempt reconnect with backoff
+                logger.debug("WS connection error, will attempt reconnect with backoff", exc_info=True)
 
             if self._running and not self._manual_disconnect:
                 if self.on_connection_change:

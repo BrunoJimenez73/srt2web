@@ -193,10 +193,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return is_public_path(path)
 
     def _get_client_ip(self, request: Request) -> str:
-        """Get real client IP, considering proxies."""
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
+        """Get real client IP, considering proxies.
+
+        F151: Only trust X-Forwarded-For when SRT2WEB_TRUSTED_PROXIES is set
+        with a comma-separated list of proxy IPs. Otherwise, use the direct
+        client IP to prevent spoofing.
+        """
+        trusted_proxies = os.environ.get("SRT2WEB_TRUSTED_PROXIES", "")
+        if trusted_proxies:
+            forwarded = request.headers.get("X-Forwarded-For")
+            if forwarded and request.client and request.client.host in trusted_proxies.split(","):
+                return forwarded.split(",")[0].strip()
         if request.client:
             return request.client.host
         return "unknown"
@@ -243,7 +250,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     # Base CSP that can be extended per-route by other middleware
     _CSP_BASE = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
         "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
         "img-src 'self' data: blob: https: http:; "
