@@ -70,6 +70,12 @@ node_modules/
 startup_stdout.txt
 startup_stderr.txt
 
+# Scratch / test artifacts
+test_harness.py
+test_import.py
+player-page-snapshot.md
+player-screenshot.png
+
 # Logs
 logs/
 
