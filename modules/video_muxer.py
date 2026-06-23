@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from core.encoder_config import EncoderConfig
-from core.ffmpeg_utils import ensure_ffmpeg
+from core.ffmpeg_utils import ensure_ffmpeg, starts_with_keyframe
 from core.module_base import BaseModule, ModuleState, ModuleStatus, PipelineData
 from core.subprocess_utils import filter_command, get_creation_flags
 
@@ -56,7 +56,7 @@ class VideoMuxer(BaseModule):
     def configure(self, config: dict[str, Any]) -> None:
         super().configure(config)
         self._hls_segment_duration = config.get("hls_segment_duration", self._hls_segment_duration)
-        self._hls_list_size = 4  # Optimized for lower latency
+        self._hls_list_size = config.get("hls_list_size", self._hls_list_size)
         self._audio_offset_ms = config.get("audio_offset_ms", self._audio_offset_ms)
         # Video quality settings
         self._video_preset = config.get("video_preset", self._video_preset)
@@ -204,54 +204,23 @@ class VideoMuxer(BaseModule):
         encoder, preset, extra_args = self._get_encoder_config()
 
         if encoder_mode == "passthrough" or encoder == "libx264":
-            # Fast path: copy without re-encoding
-            try:
-                import shutil
-
-                shutil.copy2(input_path, segment_path)
-                logger.info(f"VideoMuxer segment copied (passthrough): {segment_name}")
-            except Exception as e:
-                logger.debug("Suppressed error: %s", e, exc_info=True)
-        else:
-            # GPU encode path: use FFmpeg with selected encoder
-            try:
-                cmd = [
-                    self._ffmpeg_path,
-                    "-y",
-                    "-i",
-                    str(input_path),
-                    "-map",
-                    "0:v:0",
-                    "-c:v",
-                    encoder,
-                    "-preset",
-                    preset,
-                    *extra_args,
-                    "-f",
-                    "mpegts",
-                    str(segment_path),
-                ]
-                result = subprocess.run(
-                    filter_command(cmd),
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    timeout=60,
-                    creationflags=get_creation_flags(),
-                )
-                if result.returncode != 0:
-                    logger.error(f"VideoMuxer FFmpeg error: {result.stderr[-500:]}")
-                    # Fallback: copy instead of failing silently
+            # Fast path: copy without re-encoding, only if chunk starts with keyframe
+            if starts_with_keyframe(input_path):
+                try:
                     import shutil
 
                     shutil.copy2(input_path, segment_path)
-                else:
-                    logger.info(f"VideoMuxer segment encoded ({encoder}): {segment_name}")
-            except Exception:
-                logger.warning("VideoMuxer encode failed, falling back to copy for %s", segment_name, exc_info=True)
-                import shutil
-
-                shutil.copy2(input_path, segment_path)
+                    logger.info(f"VideoMuxer segment copied (passthrough): {segment_name}")
+                except Exception as e:
+                    logger.debug("Suppressed error: %s", e, exc_info=True)
+            else:
+                logger.info(
+                    f"Input without keyframe, forcing re-encode for {segment_name}"
+                )
+                self._encode_segment(input_path, segment_path, segment_name, encoder, preset, extra_args)
+        else:
+            logger.info(f"VideoMuxer encoding segment ({encoder}): {segment_name}")
+            self._encode_segment(input_path, segment_path, segment_name, encoder, preset, extra_args)
 
         # Cache duration for manifest
         self._segment_durations[self._segment_index] = chunk_duration
@@ -266,6 +235,95 @@ class VideoMuxer(BaseModule):
         data.video_path = str(input_path)  # For RecordingOutput
 
         return data
+
+    def _encode_segment(
+        self,
+        input_path: str,
+        segment_path: Path,
+        segment_name: str,
+        encoder: str,
+        preset: str,
+        extra_args: list[str],
+    ) -> None:
+        """Encode segment with keyframe forcing, with CPU fallback on failure."""
+        cmd = [
+            self._ffmpeg_path,
+            "-y",
+            "-i",
+            str(input_path),
+            "-map",
+            "0:v:0",
+            "-c:v",
+            encoder,
+            "-preset",
+            preset,
+            *extra_args,
+            "-force_key_frames",
+            f"expr:gte(t,n*{self._hls_segment_duration})",
+            "-f",
+            "mpegts",
+            str(segment_path),
+        ]
+        try:
+            result = subprocess.run(
+                filter_command(cmd),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=60,
+                creationflags=get_creation_flags(),
+            )
+            if result.returncode == 0:
+                logger.info(f"VideoMuxer segment encoded ({encoder}): {segment_name}")
+                return
+            logger.error(f"VideoMuxer FFmpeg error: {result.stderr[-500:]}")
+        except Exception:
+            logger.warning("VideoMuxer encode failed for %s", segment_name, exc_info=True)
+
+        # Fallback: re-encode with CPU libx264
+        logger.info(f"VideoMuxer retrying {segment_name} with CPU libx264")
+        fallback_cmd = [
+            self._ffmpeg_path,
+            "-y",
+            "-i",
+            str(input_path),
+            "-map",
+            "0:v:0",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-crf",
+            "23",
+            "-profile:v",
+            "high",
+            "-tune",
+            "zerolatency",
+            "-force_key_frames",
+            f"expr:gte(t,n*{self._hls_segment_duration})",
+            "-f",
+            "mpegts",
+            str(segment_path),
+        ]
+        try:
+            result = subprocess.run(
+                filter_command(fallback_cmd),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=120,
+                creationflags=get_creation_flags(),
+            )
+            if result.returncode == 0:
+                logger.info(f"VideoMuxer segment encoded with CPU fallback: {segment_name}")
+            else:
+                logger.error(f"VideoMuxer CPU fallback also failed: {result.stderr[-500:]}")
+                import shutil
+                shutil.copy2(input_path, segment_path)
+        except Exception:
+            logger.warning("VideoMuxer CPU fallback failed for %s", segment_name, exc_info=True)
+            import shutil
+            shutil.copy2(input_path, segment_path)
 
     def _update_manifest(self) -> None:
         """

@@ -21,7 +21,7 @@ from typing import Any
 
 from core.encoder_config import EncoderConfig
 from core.ffmpeg_pool import FFmpegPool, get_pool
-from core.ffmpeg_utils import check_gpu_support, ensure_ffmpeg, get_video_duration
+from core.ffmpeg_utils import check_gpu_support, ensure_ffmpeg, get_video_duration, starts_with_keyframe
 from core.module_base import ModuleState, ModuleStatus, PipelineData
 from core.output_sink import OutputSink
 from core.subprocess_utils import filter_command, get_creation_flags
@@ -216,11 +216,21 @@ class HLSOutput(OutputSink):
 
         chunk_duration = data.duration or self._segment_duration
 
-        # ── Fast path: remux when input is already H.264 ──
+        # ── Fast path: remux when input is already H.264 AND starts with keyframe ──
         # Avoid re-encoding when the input codec is already H.264.
-        # Only re-encode when encoder_mode forces it AND input is not H.264.
+        # Only re-encode when encoder_mode forces it, input is not H.264,
+        # or the chunk doesn't start with a keyframe (which would cause stuttering).
         encoder_mode = self._encoder_config.encoder_mode
-        can_remux = encoder_mode == "passthrough" or (encoder_mode == "auto" and self._is_h264(input_path))
+        can_remux = encoder_mode == "passthrough" or (
+            encoder_mode == "auto"
+            and self._is_h264(input_path)
+            and starts_with_keyframe(input_path)
+        )
+        if encoder_mode == "auto" and not can_remux and self._is_h264(input_path):
+            self.logger.info(
+                f"Input does not start with keyframe, falling back to re-encode "
+                f"(prevents stuttering)"
+            )
 
         if can_remux:
             segment_name = f"seg_{self._segment_index:06d}.ts"
@@ -346,6 +356,8 @@ class HLSOutput(OutputSink):
         cmd.extend(extra_args)
         cmd.extend(
             [
+                "-force_key_frames",
+                f"expr:gte(t,n*{self._segment_duration})",
                 "-f",
                 "mpegts",
                 os.path.join(self._hls_dir, f"seg_{self._segment_index:06d}.ts"),
@@ -390,6 +402,8 @@ class HLSOutput(OutputSink):
                         "high",
                         "-tune",
                         "zerolatency",
+                        "-force_key_frames",
+                        f"expr:gte(t,n*{self._segment_duration})",
                         "-f",
                         "mpegts",
                         os.path.join(self._hls_dir, f"seg_{self._segment_index:06d}.ts"),

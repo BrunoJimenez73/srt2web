@@ -620,3 +620,50 @@ def get_pcr_from_ts(file_path: str, ffprobe_path: str | None = None) -> float | 
     except Exception as e:
         logger.debug(f"Failed to extract PCR from {file_path}: {e}")
     return None
+
+
+def starts_with_keyframe(file_path: str, ffprobe_path: str | None = None) -> bool:
+    """
+    Check if the first video frame of a file is a keyframe (I-frame).
+
+    Args:
+        file_path: Path to video file
+        ffprobe_path: Optional path to ffprobe binary
+
+    Returns:
+        True if first video frame is a keyframe, False otherwise
+    """
+    from core.subprocess_utils import get_creation_flags
+
+    if ffprobe_path is None:
+        ffprobe_path = find_ffprobe()
+    if not ffprobe_path:
+        return True  # Assume yes if we can't check
+
+    try:
+        cmd = [
+            ffprobe_path,
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "frame=pict_type",
+            "-read_intervals",
+            "%+#1",
+            "-of",
+            "csv=p=0",
+            file_path,
+        ]
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            creationflags=get_creation_flags(),
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip() == "I"
+    except Exception as e:
+        logger.debug(f"Failed to check keyframe for {file_path}: {e}")
+    return True  # Assume yes if check fails

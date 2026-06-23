@@ -212,7 +212,7 @@ export function initHlsPlayer(): void {
         maxLoadingDelay: 3,
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
-        liveSyncMaxLatency: 10,
+        liveSyncMaxLatency: 25,
         liveDurationInfinity: true,
         // Disable CEA-708 caption parsing so embedded closed captions from the
         // MPEG-TS stream don't create native subtitle tracks. These would show
