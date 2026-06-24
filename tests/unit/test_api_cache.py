@@ -103,3 +103,58 @@ class TestCachedDecorator:
         r2 = asyncio.run(my_func())
         assert r1 == {"count": 1}
         assert r2 == {"count": 2}  # Should increment after invalidation
+
+    def test_stampede_protection(self) -> None:
+        """Verify concurrent requests only execute the function once."""
+        import asyncio
+
+        from core.cache import cached
+
+        call_count = 0
+
+        @cached("stampede_test", ttl_seconds=60)
+        async def slow_func() -> dict:
+            nonlocal call_count
+            call_count += 1
+            await asyncio.sleep(0.05)  # Simulate slow computation
+            return {"count": call_count}
+
+        async def run_concurrent() -> list[dict]:
+            r1, r2, r3 = await asyncio.gather(
+                slow_func(), slow_func(), slow_func()
+            )
+            return [r1, r2, r3]
+
+        results = asyncio.run(run_concurrent())
+        assert call_count == 1  # Only one actual execution
+        for r in results:
+            assert r == {"count": 1}  # All get the same result
+
+    def test_stampede_after_expiry(self) -> None:
+        """Verify single-flight also works after cache expiry."""
+        import asyncio
+
+        from core.cache import cached
+
+        call_count = 0
+
+        @cached("stampede_expiry_test", ttl_seconds=0)
+        async def slow_func() -> dict:
+            nonlocal call_count
+            call_count += 1
+            await asyncio.sleep(0.05)
+            return {"count": call_count}
+
+        # First call populates cache (immediately expires with ttl=0)
+        r1 = asyncio.run(slow_func())
+        assert call_count == 1
+
+        # Concurrent calls after expiry
+        async def run_concurrent() -> list[dict]:
+            r2, r3 = await asyncio.gather(slow_func(), slow_func())
+            return [r2, r3]
+
+        r2, r3 = asyncio.run(run_concurrent())
+        assert call_count == 2  # Only one new execution
+        assert r2 == {"count": 2}
+        assert r3 == {"count": 2}

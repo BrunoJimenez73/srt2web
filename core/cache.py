@@ -1,4 +1,5 @@
 # File: core/cache.py
+import asyncio
 import copy
 import threading
 import time
@@ -55,6 +56,7 @@ class APICache:
 
     def __init__(self) -> None:
         self._caches: dict[str, LRUCache] = {}
+        self._pending: dict[str, asyncio.Future[Any]] = {}
         self._lock = threading.Lock()
 
     def _get_or_create(self, name: str, ttl_seconds: int, maxsize: int = 1) -> LRUCache:
@@ -101,7 +103,11 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 def cached(name: str, ttl_seconds: int = 2, maxsize: int = 1) -> Callable[[F], F]:
     """
-    Decorador que cachea la respuesta de un endpoint.
+    Decorador que cachea la respuesta de un endpoint con protección
+    contra cache stampede (single-flight).
+
+    Cuando el cache expira y múltiples requests concurrentes llegan,
+    solo una ejecuta la función; las demás esperan su resultado.
 
     Args:
         name: Nombre del cache (ej: "status", "config")
@@ -119,12 +125,30 @@ def cached(name: str, ttl_seconds: int = 2, maxsize: int = 1) -> Callable[[F], F
     def decorator(func: F) -> F:
         @wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
-            cached_value = api_cache.get(name)
-            if cached_value is not None:
-                return cached_value
-            result = await func(*args, **kwargs)
-            api_cache.set(name, result)
-            return result
+            # 1. Cache hit: return immediately (no stampede risk)
+            cached = api_cache.get(name)
+            if cached is not None:
+                return cached
+
+            # 2. Another request is already computing: await it (single-flight)
+            pending = api_cache._pending.get(name)
+            if pending is not None:
+                return await pending
+
+            # 3. Cache miss + no concurrent worker: compute and cache
+            loop = asyncio.get_running_loop()
+            future = loop.create_future()
+            api_cache._pending[name] = future
+            try:
+                result = await func(*args, **kwargs)
+                api_cache.set(name, result)
+                future.set_result(result)
+                return result
+            except Exception as e:
+                future.set_exception(e)
+                raise
+            finally:
+                api_cache._pending.pop(name, None)
 
         return wrapper  # type: ignore[return-value]
 
