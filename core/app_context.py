@@ -151,11 +151,13 @@ def _register_modules(
     from modules.transcriber import Transcriber
     from modules.translator import Translator
     from modules.tts_engine import TTSEngine
+    from modules.dmr_translator import DMRTranslator
 
     modules_config = {
         "audio_extractor": (AudioExtractor, True),
         "transcriber": (Transcriber, False),
         "translator": (Translator, False),
+        "dmr_translator": (DMRTranslator, False),
         "subtitle_generator": (SubtitleGenerator, True),
         "tts_engine": (TTSEngine, True),
         "audio_mixer": (AudioMixer, True),
