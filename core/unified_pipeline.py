@@ -86,12 +86,15 @@ logger = logging.getLogger("srt2web.unified_pipeline")
 
 
 class _CompletedAwaitable:
-    """Awaitable no-op used for backward-compatible sync APIs."""
+    """Awaitable no-op used for backward-compatible sync APIs.
+
+    DT-07: uses ``__iter__`` instead of ``__await__`` generator for
+    Python 3.12+ compatibility (generator-based coroutines are deprecated
+    in CPython 3.14+ but ``__await__`` returning an iterator is fine).
+    """
 
     def __await__(self) -> typing.Generator[None, None, None]:
-        if False:
-            yield None
-        return None
+        return typing.cast(typing.Generator[None, None, None], iter([]))
 
 
 class UnifiedPipeline:
@@ -417,13 +420,18 @@ class UnifiedPipeline:
         }
 
     async def stop(self) -> None:
-        """Detener pipeline gracefulmente."""
-        if not self.is_running:
-            return
-        self._hardware_monitor.shutdown()
+        """Detener pipeline gracefulmente.
 
-        self._set_state(PipelineState.STOPPING)
-        self._stop_event.set()
+        The guard + state transition are atomic under ``self._lock`` (ROB-01).
+        The rest of the shutdown runs outside the lock to avoid deadlocks with
+        module or strategy ``stop()`` methods that may acquire other locks.
+        """
+        with self._lock:
+            if not self.is_running:
+                return
+            self._hardware_monitor.shutdown()
+            self._set_state(PipelineState.STOPPING)
+            self._stop_event.set()
 
         # Delegate thread stopping to strategy (F132)
         if self._strategy:

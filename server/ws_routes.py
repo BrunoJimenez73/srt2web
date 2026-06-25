@@ -132,7 +132,7 @@ class LogBroadcaster:
     async def _async_broadcast(self, data: str) -> None:
         """Send data to all subscribers, removing dead connections."""
         dead = set()
-        for ws in self._subscribers:
+        for ws in list(self._subscribers):
             try:
                 await ws.send_text(data)
             except Exception as e:
@@ -177,14 +177,9 @@ class LogBroadcaster:
 # Global broadcaster instance
 log_broadcaster = LogBroadcaster()
 
-# Try to set the event loop immediately for the main thread
-try:
-    _main_loop = asyncio.get_event_loop()
-    if _main_loop and not _main_loop.is_closed():
-        log_broadcaster.set_loop(_main_loop)
-except RuntimeError:
-    # No event loop in current thread - will be set when first WebSocket connects
-    pass
+# Event loop is set lazily on the first WebSocket connection via the
+# ``ws_logs`` handler.  Avoid ``asyncio.get_event_loop()`` at module level
+# (deprecated since Python 3.12, emits ``DeprecationWarning``).
 
 
 def create_ws_router() -> APIRouter:

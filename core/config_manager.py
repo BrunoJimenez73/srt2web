@@ -273,20 +273,12 @@ class ConfigManager:
 
     def update_from_dict(self, data: dict[str, Any]) -> None:
         """Update configuration from a dictionary (partial update) with validation."""
-        logger.debug(f"[update_from_dict] BEFORE merge - input.srt: {data.get('input', {}).get('srt', {})}")
-
         new_config = _deep_merge(self._config, data)
 
-        logger.debug(f"[update_from_dict] AFTER merge - input.srt: {new_config.get('input', {}).get('srt', {})}")
-
         try:
-            # Validar que el resultado del merge siga siendo válido
             validated_config = SRT2WebConfig.from_dict(new_config)
             self._config = validated_config.to_dict()
-
-            logger.debug(
-                f"[update_from_dict] AFTER validate - input.srt: {self._config.get('input', {}).get('srt', {})}"
-            )
+            logger.debug("Config updated (%d top-level keys merged)", len(data))
         except Exception as ve:
             logger.error(f"Invalid configuration update attempt:\n{ve}")
             raise ValueError(f"Configuration update failed: {ve}") from ve

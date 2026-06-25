@@ -65,7 +65,7 @@ class WebRTCEngine:
         self._current_subtitles: list[SubtitleCue] = []
         self._last_subtitle_update = 0.0
 
-        self._connections: dict[str, "WebRTCConnection"] = {}
+        self._connections: dict[str, WebRTCConnection] = {}
         self._connection_lock = threading.Lock()
 
         self._media_buffer = MediaBuffer()
@@ -374,8 +374,7 @@ class WebRTCVideoTrack(VideoStreamTrack):
 
             self._current_path = engine_path
 
-            loop = asyncio.get_event_loop()
-            frames = await loop.run_in_executor(None, self._decode_frames, engine_path)
+            frames = await asyncio.get_running_loop().run_in_executor(None, self._decode_frames, engine_path)
 
             for frame in frames:
                 try:
@@ -454,8 +453,7 @@ class WebRTCAudioTrack(AudioStreamTrack):
 
         self._current_path = engine_path
 
-        loop = asyncio.get_event_loop()
-        samples, rate = await loop.run_in_executor(None, self._read_audio, engine_path)
+        samples, rate = await asyncio.get_running_loop().run_in_executor(None, self._read_audio, engine_path)
 
         if rate != self._sample_rate:
             new_len = int(len(samples) * self._sample_rate / rate)

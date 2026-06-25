@@ -29,6 +29,9 @@ class RateLimiter:
     """
     Simple in-memory rate limiter using sliding window.
     Thread-safe for concurrent access.
+
+    Stale entries are purged during ``is_allowed`` and ``get_retry_after``
+    to prevent memory leaks from abandoned IPs (Low: RateLimiter memory leak).
     """
 
     def __init__(self, requests_per_minute: int = 60) -> None:
@@ -36,6 +39,15 @@ class RateLimiter:
         self.window_ms = 60_000  # 1 minute in ms
         self._requests: dict[str, list[float]] = defaultdict(list)
         self._lock = Lock()
+        self._last_purge = 0.0
+        self._PURGE_INTERVAL = 300.0  # purge stale keys every 5 min
+
+    def _purge_stale_keys(self, now: float) -> None:
+        """Remove keys with no recent activity to prevent memory leak."""
+        cutoff = now - (self.window_ms / 1000)
+        stale = [k for k, v in self._requests.items() if not v or v[-1] < cutoff]
+        for k in stale:
+            del self._requests[k]
 
     def _cleanup_old(self, key: str, now: float) -> None:
         """Remove requests older than the window."""
@@ -49,6 +61,9 @@ class RateLimiter:
         """
         now = time.time()
         with self._lock:
+            if now - self._last_purge > self._PURGE_INTERVAL:
+                self._purge_stale_keys(now)
+                self._last_purge = now
             self._cleanup_old(key, now)
             count = len(self._requests[key])
             if count >= self.requests_per_minute:
@@ -70,6 +85,21 @@ class RateLimiter:
 class AuthMiddleware(BaseHTTPMiddleware):
     """
     Authentication middleware using Bearer token.
+
+    There are two parallel auth systems (DT-05):
+    1. Static token (this middleware) — compares the Bearer token verbatim
+       against ``auth_token`` from config/env. Used by the Web UI and TUI.
+    2. JWT with roles (``core/auth_db.py``) — used by ``routes/auth.py``
+       for multi-user login, role-based access, and token refresh.
+
+    Static token takes precedence at the middleware level.  If a valid
+    static token is present, the request passes through.  JWT validation
+    happens at the endpoint level (``_get_current_user``).
+
+    In production, either use the static token (simple single-user setup)
+    or configure JWT with users (multi-user).  Having both active is
+    supported but means either token type can authenticate.
+
     Skips /health, /api/available, and static files.
     """
 
@@ -93,12 +123,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Allow insecure dev mode: skip auth when SRT2WEB_ALLOW_INSECURE_DEFAULTS=1
-        # and request comes from localhost. This lets the frontend work without
-        # manually entering a token during local development, while still enforcing
-        # auth in production/staging where this env var is not set.
+        # and request comes from localhost. Uses the actual client IP (not the
+        # Host header, which is client-controlled — SEC-01).
         if os.environ.get("SRT2WEB_ALLOW_INSECURE_DEFAULTS", "").lower() in ("1", "true", "yes"):
-            host = request.headers.get("host", "")
-            if host.startswith("localhost") or host.startswith("127.0.0.1"):
+            if request.client and request.client.host in ("127.0.0.1", "::1", "localhost"):
                 return await call_next(request)
 
         # F118: If no token configured, reject with 503 (Service Unavailable)

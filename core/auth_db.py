@@ -162,6 +162,7 @@ ROLES = {"admin": 100, "operator": 50, "viewer": 10}
 from core.paths import get_user_config_dir
 
 USERS_FILE = get_user_config_dir() / "users.json"
+BLACKLIST_FILE = get_user_config_dir() / "token_blacklist.json"
 
 
 @dataclass
@@ -276,11 +277,31 @@ class AuthDB:
     def _load(self) -> None:
         with self._lock:
             self._users = _load_users()
+            self._load_blacklist()
             # F120: No default admin. First admin must be created via
             # setup_first_admin() or SRT2WEB_ADMIN_PASSWORD env var.
             # Check env var for automated deployment.
             if not self._users:
                 self._try_create_admin_from_env()
+
+    def _load_blacklist(self) -> None:
+        try:
+            if BLACKLIST_FILE.exists():
+                data = json.loads(BLACKLIST_FILE.read_text(encoding="utf-8"))
+                self._blacklist = set(data.get("blacklist", []))
+        except (json.JSONDecodeError, OSError):
+            self._blacklist = set()
+
+    def _save_blacklist(self) -> None:
+        try:
+            BLACKLIST_FILE.parent.mkdir(parents=True, exist_ok=True)
+            import tempfile
+            fd, temp_path = tempfile.mkstemp(dir=str(BLACKLIST_FILE.parent), suffix=".tmp")
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump({"blacklist": list(self._blacklist)}, f)
+            atomic_replace(temp_path, str(BLACKLIST_FILE))
+        except Exception:
+            pass
 
     def _try_create_admin_from_env(self) -> None:
         """Create admin from SRT2WEB_ADMIN_PASSWORD env var if set."""
@@ -296,13 +317,15 @@ class AuthDB:
                 "last_login": 0.0,
                 "failed_attempts": 0,
                 "locked_until": 0.0,
+                "token_version": 0,
             }
             _save_users(self._users)
             logger.info("F120: Created admin user from SRT2WEB_ADMIN_PASSWORD env var")
 
-    def setup_first_admin(self, password: str) -> tuple[bool, str]:
+    def setup_first_admin(self, password: str, username: str = "admin") -> tuple[bool, str]:
         """Create the first admin user. Only works if no users exist.
         Returns (ok, message) — F121: validates password strength.
+        SEC-03: uses the provided username instead of hardcoding \"admin\".
         """
         ok, msg = validate_password_strength(password)
         if not ok:
@@ -311,7 +334,7 @@ class AuthDB:
             if self._users:
                 return False, "Users already exist"
             h, salt = _hash_password(password)
-            self._users["admin"] = {
+            self._users[username] = {
                 "password_hash": h,
                 "password_salt": salt,
                 "role": "admin",
@@ -320,6 +343,7 @@ class AuthDB:
                 "last_login": 0.0,
                 "failed_attempts": 0,
                 "locked_until": 0.0,
+                "token_version": 0,
             }
             _save_users(self._users)
             return True, "Admin created"
@@ -328,6 +352,12 @@ class AuthDB:
         """Check if any users exist."""
         with self._lock:
             return bool(self._users)
+
+    def _get_token_version(self, username: str) -> int:
+        """Get the current token_version for a user (DT-08)."""
+        user = self._users.get(username, {})
+        tv: int = user.get("token_version", 0)
+        return tv
 
     def _generate_access_token(self, username: str, role: str) -> str:
         """F123: Generate a short-lived access token with unique jti."""
@@ -339,6 +369,7 @@ class AuthDB:
             "exp": now + _ACCESS_TOKEN_MINUTES * 60,
             "type": "access",
             "jti": secrets.token_hex(16),
+            "token_version": self._get_token_version(username),
         }
         return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
@@ -351,6 +382,7 @@ class AuthDB:
             "exp": now + _REFRESH_TOKEN_DAYS * 86400,
             "type": "refresh",
             "jti": secrets.token_hex(16),
+            "token_version": self._get_token_version(username),
         }
         return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
@@ -382,10 +414,11 @@ class AuthDB:
                 )
                 return None
 
-            # F122: Auto-expire lock if time passed
+            # F122 / DT-06: Auto-expire lock if time passed
             if locked_until:
                 user["locked_until"] = 0.0
                 user["failed_attempts"] = 0
+                user["_attempt_timestamps"] = []
 
             # F118: Try PBKDF2 first (current method)
             h_pbkdf2, _ = _hash_password(password, user["password_salt"])
@@ -404,8 +437,15 @@ class AuthDB:
                     logger.info(f"Migrated user '{username}' from SHA-256 to PBKDF2")
 
             if not matched:
-                # F122: Track failed attempt
-                attempts = user.get("failed_attempts", 0) + 1
+                # F122 / DT-06: Sliding-window lockout — only count
+                # attempts within the last _LOCKOUT_WINDOW_SECONDS.
+                now_float = time.time()
+                attempt_timestamps: list[float] = user.get("_attempt_timestamps", [])
+                cutoff_ts = now_float - _LOCKOUT_WINDOW_SECONDS
+                attempt_timestamps = [t for t in attempt_timestamps if t > cutoff_ts]
+                attempt_timestamps.append(now_float)
+                user["_attempt_timestamps"] = attempt_timestamps
+                attempts = len(attempt_timestamps)
                 user["failed_attempts"] = attempts
                 # F124: Log security event
                 _security_logger.warning(
@@ -429,9 +469,10 @@ class AuthDB:
                 _save_users(self._users)
                 return None
 
-            # F122: Reset lockout on successful login
+            # F122 / DT-06: Reset lockout on successful login
             user["failed_attempts"] = 0
             user["locked_until"] = 0.0
+            user["_attempt_timestamps"] = []
             user["last_login"] = time.time()
             _save_users(self._users)
 
@@ -508,6 +549,7 @@ class AuthDB:
                 "last_login": 0.0,
                 "failed_attempts": 0,
                 "locked_until": 0.0,
+                "token_version": 0,
             }
             _save_users(self._users)
             return True, "User created"
@@ -520,7 +562,11 @@ class AuthDB:
             admin_count = sum(1 for u in self._users.values() if u.get("role") == "admin")
             if self._users[username].get("role") == "admin" and admin_count <= 1:
                 return False
-            return self._users.pop(username, None) is not None
+            # Invalidate any existing tokens by bumping token_version
+            self._users[username]["token_version"] = self._users[username].get("token_version", 0) + 1
+            del self._users[username]
+            _save_users(self._users)
+        return True
 
     def update_role(self, username: str, role: str) -> bool:
         if role not in ROLES:
@@ -529,7 +575,10 @@ class AuthDB:
             if username not in self._users:
                 return False
             self._users[username]["role"] = role
+            self._users[username]["token_version"] = self._users[username].get("token_version", 0) + 1
             _save_users(self._users)
+            logger.info("DT-08: Role for '%s' changed to '%s' (token_version=%d)",
+                        username, role, self._users[username]["token_version"])
             return True
 
     def has_permission(self, role: str, required_role: str) -> bool:
@@ -572,6 +621,17 @@ class AuthDB:
             logger.debug("F123: Rejected blacklisted token")
             return None
 
+        # DT-08: Check token_version against current user version.
+        # If the user's role was changed (token_version incremented),
+        # all tokens issued before that change are rejected.
+        username = payload.get("sub", "")
+        token_ver = payload.get("token_version", 0)
+        current_ver = self._get_token_version(username)
+        if token_ver < current_ver:
+            logger.debug("DT-08: Rejected stale token for '%s' (ver %d < %d)",
+                         username, token_ver, current_ver)
+            return None
+
         return payload
 
     def _is_blacklisted(self, jti: str) -> bool:
@@ -591,6 +651,7 @@ class AuthDB:
             return False
         with self._blacklist_lock:
             self._blacklist.add(jti)
+            self._save_blacklist()
         logger.debug(f"F123: Revoked token jti={jti}")
         return True
 
@@ -620,6 +681,7 @@ class AuthDB:
         if jti:
             with self._blacklist_lock:
                 self._blacklist.add(jti)
+                self._save_blacklist()
 
         return {
             "access_token": self._generate_access_token(username, user["role"]),

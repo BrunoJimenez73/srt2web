@@ -517,6 +517,15 @@ class ThreadParallelStrategy(PipelineStrategy):
 
         except Exception as e:
             self._log("error", f"Output thread error: {e}")
+        finally:
+            # ROB-03: drain remaining pending items so task_done() is called
+            # for every get(). Without this, queue.join() hangs on shutdown.
+            import contextlib
+
+            for idx in list(pending.keys()):
+                pending.pop(idx, None)
+                with contextlib.suppress(Exception):
+                    ctx.output_queue.task_done()
 
     def get_metrics(self) -> dict[str, Any]:
         metrics = super().get_metrics()
@@ -548,8 +557,7 @@ class AsyncIOStrategy(PipelineStrategy):
             self._active_chunks += 1
             try:
                 start_time = time.time()
-                loop = asyncio.get_event_loop()
-                data = await loop.run_in_executor(None, self._process_modules, data)
+                data = await asyncio.get_running_loop().run_in_executor(None, self._process_modules, data)
 
                 self._chunks_processed += 1
                 self._total_time += time.time() - start_time
@@ -564,17 +572,16 @@ class AsyncIOStrategy(PipelineStrategy):
     def process_chunk(self, data: PipelineData) -> PipelineData:
         """Interfaz síncrona - crea un nuevo event loop si es necesario."""
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             if loop.is_running():
                 import concurrent.futures
 
                 with concurrent.futures.ThreadPoolExecutor() as pool:
                     future = pool.submit(asyncio.run, self.process_chunk_async(data))
                     return future.result()
-            else:
-                return asyncio.run(self.process_chunk_async(data))
         except RuntimeError:
-            return asyncio.run(self.process_chunk_async(data))
+            pass
+        return asyncio.run(self.process_chunk_async(data))
 
     def start_threads(self, ctx: PipelineContext) -> None:
         """Start the asyncio processing loop as a task."""

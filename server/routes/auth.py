@@ -114,14 +114,14 @@ async def get_setup_status() -> dict[str, Any]:
 
 
 @router.post("/auth/setup")
-async def setup_first_admin(body: LoginRequest) -> dict[str, Any]:
+async def setup_first_admin(body: RegisterRequest) -> dict[str, Any]:
     """Create the first admin user. Only works when no users exist."""
-    ok, msg = _get_auth_db().setup_first_admin(body.password)
+    ok, msg = _get_auth_db().setup_first_admin(body.password, username=body.username)
     if not ok:
         raise HTTPException(400, msg)
     # Auto-login after setup
-    tokens = _get_auth_db().authenticate_full("admin", body.password)
-    user = _get_auth_db().get_user("admin")
+    tokens = _get_auth_db().authenticate_full(body.username, body.password)
+    user = _get_auth_db().get_user(body.username)
     if tokens:
         return {**tokens, "user": user}
     return {"user": user}
@@ -210,7 +210,6 @@ async def register(body: RegisterRequest, request: Request) -> dict[str, Any]:
 @router.get("/auth/users")
 async def list_users(request: Request) -> dict[str, Any]:
     """List all users (admin only)."""
-    _get_current_user(request)  # Verify auth
     admin = _get_current_user(request)
     if not _get_auth_db().has_permission(admin["role"], "admin"):
         raise HTTPException(403, "Only admins can list users")

@@ -200,7 +200,7 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
     origin_regex_parts: list[str] = []
     for origin in cors_origins:
         if "*" in origin:
-            escaped = re.escape(origin).replace(r"\*", "\\d+")
+            escaped = re.escape(origin).replace(r"\*", r"[^:]*")
             origin_regex_parts.append(escaped)
         else:
             allowed_origins.append(origin)
@@ -252,15 +252,15 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
         get_auth_token=lambda: config.get("server.auth_token", "") if config else "",
     )
 
-    # F125: CSRF protection (innermost, runs after auth)
-    # Disabled until F125 is properly completed — frontend doesn't send
-    # X-CSRF-Token yet, so it blocks all state-changing requests.
-    # from server.security import CsrfMiddleware
-    #
-    # app.add_middleware(
-    #     CsrfMiddleware,
-    #     get_csrf_secret=lambda: config.get("server.auth_token", "") if config else "",
-    # )
+    # F125: CSRF protection (innermost, runs after auth).
+    # Enabled now — the frontend sends X-CSRF-Token on mutating requests.
+    # See /api/auth/csrf-token endpoint.
+    from server.security import CsrfMiddleware
+
+    app.add_middleware(
+        CsrfMiddleware,
+        get_csrf_secret=lambda: config.get("server.auth_token", "") if config else "",
+    )
 
     app.state.ctx = app_context
 

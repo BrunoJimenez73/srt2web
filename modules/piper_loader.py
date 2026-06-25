@@ -30,8 +30,23 @@ _MODULES_DIR = Path(__file__).parent
 _PERSISTENT_WORKER_PATH = _MODULES_DIR / "piper_worker.py"
 _LOADER_SCRIPT_PATH = _MODULES_DIR / "piper_loader_script.py"
 
-# Backward-compatible constant — actual worker script content
-PERSISTENT_WORKER_SCRIPT = _PERSISTENT_WORKER_PATH.read_text(encoding="utf-8")
+_PERSISTENT_WORKER_SCRIPT_CACHE: str | None = None
+
+def PERSISTENT_WORKER_SCRIPT() -> str:
+    """Lazy-load the worker script content.
+
+    Avoids crash at import time if the file is missing.  Backward-compatible
+    callable — tests access this via ``from modules.piper_loader import
+    PERSISTENT_WORKER_SCRIPT`` and then call it.
+    """
+    global _PERSISTENT_WORKER_SCRIPT_CACHE
+    if _PERSISTENT_WORKER_SCRIPT_CACHE is None:
+        try:
+            _PERSISTENT_WORKER_SCRIPT_CACHE = _PERSISTENT_WORKER_PATH.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            logger.warning("Piper worker script not found at %s", _PERSISTENT_WORKER_PATH)
+            _PERSISTENT_WORKER_SCRIPT_CACHE = ""
+    return _PERSISTENT_WORKER_SCRIPT_CACHE
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -250,7 +265,12 @@ class PiperSubprocessManager:
                 self._restart_subprocess()
 
     def _restart_subprocess(self) -> None:
-        """Restart the subprocess (reload model from scratch)."""
+        """Restart the subprocess (reload model from scratch).
+
+        NOTE: must NOT call ``self.start()`` inside ``self._lock`` because
+        ``start()`` also acquires ``self._lock``, causing a deadlock on
+        a non-reentrant ``threading.Lock`` (ROB-02).
+        """
         self._restart_count += 1
         logger.warning(
             f"[PiperManager] Restarting subprocess (attempt {self._restart_count}/{self.MAX_RESTART_ATTEMPTS})..."
@@ -265,15 +285,16 @@ class PiperSubprocessManager:
                 device = "cpu"
                 self._restart_count = 0
             self._ensure_stopped()
-            if model_path and config_path:
-                try:
-                    self.start(model_path, config_path, device)
-                    if device == "cpu":
-                        logger.info("[PiperManager] Subprocess restarted on CPU")
-                    else:
-                        logger.info("[PiperManager] Subprocess restarted successfully")
-                except Exception as e:
-                    logger.error(f"[PiperManager] Restart failed: {e}")
+        # Lock released before calling start() to avoid deadlock (ROB-02)
+        if model_path and config_path:
+            try:
+                self.start(model_path, config_path, device)
+                if device == "cpu":
+                    logger.info("[PiperManager] Subprocess restarted on CPU")
+                else:
+                    logger.info("[PiperManager] Subprocess restarted successfully")
+            except Exception as e:
+                logger.error(f"[PiperManager] Restart failed: {e}")
 
     def _send_command(self, cmd: dict[str, Any], timeout: float = 30.0) -> dict[str, Any]:
         """Send a command and wait for response.

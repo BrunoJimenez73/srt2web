@@ -151,8 +151,9 @@ class TestPiperPingAction:
         """Test that PERSISTENT_WORKER_SCRIPT handles 'ping' action."""
         from modules.piper_loader import PERSISTENT_WORKER_SCRIPT
 
-        assert "ping" in PERSISTENT_WORKER_SCRIPT
-        assert "pong" in PERSISTENT_WORKER_SCRIPT
+        script = PERSISTENT_WORKER_SCRIPT()
+        assert "ping" in script
+        assert "pong" in script
 
     def test_ping_action_returns_pong(self):
         """Test that ping/pong response is correct format.
@@ -162,7 +163,7 @@ class TestPiperPingAction:
         """
         from modules.piper_loader import PERSISTENT_WORKER_SCRIPT
 
-        assert '{"status": "success", "action": "pong"}' in PERSISTENT_WORKER_SCRIPT
+        assert '{"status": "success", "action": "pong"}' in PERSISTENT_WORKER_SCRIPT()
 
 
 class TestBaseModuleIsCritical:
