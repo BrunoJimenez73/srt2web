@@ -73,6 +73,11 @@ nav:
   - Sistema de Salidas: outputs.md
   - CLI: cli.md
   - Nuevo Modulo: new_module_guide.md
+  - Compatibilidad: compatibility.md
+  - Interpretación de Logs: log-interpretation.md
+  - Troubleshooting:
+      - Windows: troubleshooting-windows.md
+      - macOS: troubleshooting-mac.md
   - Contribuir: contributing.md
 
 # Options

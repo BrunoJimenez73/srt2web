@@ -9,7 +9,8 @@ Tests:
 """
 
 import pytest
-from core.security import sanitize_string, sanitize_username, sanitize_display_name
+
+from core.security import sanitize_display_name, sanitize_string, sanitize_username
 
 
 class TestSanitizeString:
@@ -198,7 +199,6 @@ class TestCORSHardening:
 
     def test_cors_headers_include_x_csrf_token(self):
         """X-CSRF-Token should be in allowed headers."""
-        from server.app import create_app
         # We just verify the middleware config includes it
         # The actual middleware testing needs a running app
 

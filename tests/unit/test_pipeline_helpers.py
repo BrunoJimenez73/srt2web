@@ -2,7 +2,6 @@
 Tests for pipeline helpers (core/pipeline/pipeline_helpers.py).
 """
 
-import pytest
 from unittest.mock import MagicMock
 
 from core.pipeline.pipeline_helpers import get_output_module_status

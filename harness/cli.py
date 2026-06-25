@@ -158,9 +158,10 @@ def cmd_update(args: argparse.Namespace) -> None:
 
     if args.field in ("problems_identified", "acceptance", "files_to_touch", "fix", "dependencies"):
         try:
-            value = json.loads(value)
+            parsed = json.loads(value)
+            value = json.dumps(parsed)
         except json.JSONDecodeError:
-            value = [value]
+            value = json.dumps([value])
     elif args.field == "risk_assessment":
         try:
             value = json.loads(value)

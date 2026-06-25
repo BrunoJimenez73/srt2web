@@ -242,18 +242,33 @@ class HarnessDB:
         if old_value == value:
             return True
 
+        _json_fields = {
+            "problems_identified",
+            "acceptance",
+            "files_to_touch",
+            "fix",
+            "dependencies",
+            "risk_assessment",
+            "results",
+        }
+
+        def _serialize(v: Any) -> str:
+            if field_name in _json_fields and isinstance(v, (list, dict)):
+                return json.dumps(v, ensure_ascii=False)
+            return str(v)
+
         now = _now()
         with self.transaction() as conn:
             if agent:
                 conn.execute(
                     "INSERT INTO audit_log (feature_id, field_name, old_value, new_value, agent, timestamp) "
                     "VALUES (?, ?, ?, ?, ?, ?)",
-                    (str(feature_id), field_name, str(old_value), str(value), agent, now),
+                    (str(feature_id), field_name, _serialize(old_value), _serialize(value), agent, now),
                 )
 
             conn.execute(
                 f"UPDATE features SET {field_name} = ?, updated_at = ? WHERE id = ?",
-                (str(value), now, str(feature_id)),
+                (_serialize(value), now, str(feature_id)),
             )
         return True
 

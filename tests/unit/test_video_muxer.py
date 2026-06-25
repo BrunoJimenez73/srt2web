@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 from core.module_base import ModuleState, PipelineData
 from modules.video_muxer import VideoMuxer
 
@@ -55,16 +54,15 @@ class TestVideoMuxer:
             def _do_process(self, data) -> None:
                 return data
 
-        with patch("modules.video_muxer.ensure_ffmpeg", return_value="/bin/ffmpeg"):
-            with patch(
-                "core.ffmpeg_utils.check_gpu_support",
-                return_value={"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False},
-            ):
-                muxer = Testable(output_dir="/tmp")
-                muxer.start()
+        with patch("modules.video_muxer.ensure_ffmpeg", return_value="/bin/ffmpeg"), patch(
+            "core.ffmpeg_utils.check_gpu_support",
+            return_value={"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False},
+        ):
+            muxer = Testable(output_dir="/tmp")
+            muxer.start()
 
-                status = muxer.get_status()
-                assert "encoder_mode" in status.extra
+            status = muxer.get_status()
+            assert "encoder_mode" in status.extra
 
     def test_process_with_none_input(self) -> None:
         """Test process handles None input."""
@@ -83,11 +81,10 @@ class TestVideoMuxer:
             def _do_process(self, data) -> None:
                 return data
 
-        with patch("modules.video_muxer.ensure_ffmpeg", return_value="/bin/ffmpeg"):
-            with patch(
-                "core.ffmpeg_utils.check_gpu_support",
-                return_value={"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False},
-            ):
-                muxer = Testable(output_dir="/tmp")
-                muxer.start()
-                assert muxer._hls_dir is not None
+        with patch("modules.video_muxer.ensure_ffmpeg", return_value="/bin/ffmpeg"), patch(
+            "core.ffmpeg_utils.check_gpu_support",
+            return_value={"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False},
+        ):
+            muxer = Testable(output_dir="/tmp")
+            muxer.start()
+            assert muxer._hls_dir is not None

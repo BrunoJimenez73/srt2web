@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from click.testing import CliRunner
-
 from cli.main import cli
+from click.testing import CliRunner
 
 
 class TestCLIEntry:

@@ -87,17 +87,16 @@ class TestRecordingOutputStop:
         from modules.outputs.recording_output import RecordingOutput
 
         config = {"output_path": "./output/test.mp4"}
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch.object(Path, "exists", return_value=True):
-                rec = RecordingOutput(config)
-                rec._recording_dir = tmpdir
-                rec._video_dir = os.path.join(tmpdir, "video")
+        with tempfile.TemporaryDirectory() as tmpdir, patch.object(Path, "exists", return_value=True):
+            rec = RecordingOutput(config)
+            rec._recording_dir = tmpdir
+            rec._video_dir = os.path.join(tmpdir, "video")
 
-                os.makedirs(rec._video_dir, exist_ok=True)
-                for i in range(3):
-                    Path(f"{rec._video_dir}/chunk_{i}.mp4").touch()
+            os.makedirs(rec._video_dir, exist_ok=True)
+            for i in range(3):
+                Path(f"{rec._video_dir}/chunk_{i}.mp4").touch()
 
-                rec.stop()
+            rec.stop()
 
 
 class TestRecordingOutputStatus:

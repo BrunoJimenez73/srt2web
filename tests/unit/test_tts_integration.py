@@ -10,7 +10,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-
 from core.module_base import ModuleState, PipelineData
 from modules.tts_engine import TTSEngine
 

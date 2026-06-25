@@ -5,10 +5,9 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from rich.console import Console
-
 from cli.commands.config import run_config_get, run_config_set
 from cli.commands.status import _state_label, _state_style
+from rich.console import Console
 
 
 class TestStatusHelpers:

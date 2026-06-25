@@ -8,6 +8,7 @@ F118: Password hashing upgraded from SHA-256 to PBKDF2-HMAC-SHA256 with
 600K iterations. Existing SHA-256 hashes are auto-migrated on login.
 """
 
+import contextlib
 import hashlib
 import json
 import logging
@@ -20,7 +21,7 @@ from typing import Any, cast
 
 import jwt
 
-from core.paths import atomic_replace
+from core.paths import atomic_replace, get_user_config_dir
 
 logger = logging.getLogger(__name__)
 
@@ -159,8 +160,6 @@ _COMMON_PASSWORDS: set[str] = {
 
 ROLES = {"admin": 100, "operator": 50, "viewer": 10}
 
-from core.paths import get_user_config_dir
-
 USERS_FILE = get_user_config_dir() / "users.json"
 BLACKLIST_FILE = get_user_config_dir() / "token_blacklist.json"
 
@@ -257,10 +256,8 @@ def _save_users(users: dict[str, dict[str, Any]]) -> None:
             json.dump(users, f, indent=2)
         atomic_replace(temp_path, str(USERS_FILE))
     except Exception:
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(temp_path)
-        except OSError:
-            pass
         raise
 
 
@@ -296,6 +293,7 @@ class AuthDB:
         try:
             BLACKLIST_FILE.parent.mkdir(parents=True, exist_ok=True)
             import tempfile
+
             fd, temp_path = tempfile.mkstemp(dir=str(BLACKLIST_FILE.parent), suffix=".tmp")
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump({"blacklist": list(self._blacklist)}, f)
@@ -577,8 +575,12 @@ class AuthDB:
             self._users[username]["role"] = role
             self._users[username]["token_version"] = self._users[username].get("token_version", 0) + 1
             _save_users(self._users)
-            logger.info("DT-08: Role for '%s' changed to '%s' (token_version=%d)",
-                        username, role, self._users[username]["token_version"])
+            logger.info(
+                "DT-08: Role for '%s' changed to '%s' (token_version=%d)",
+                username,
+                role,
+                self._users[username]["token_version"],
+            )
             return True
 
     def has_permission(self, role: str, required_role: str) -> bool:
@@ -628,8 +630,7 @@ class AuthDB:
         token_ver = payload.get("token_version", 0)
         current_ver = self._get_token_version(username)
         if token_ver < current_ver:
-            logger.debug("DT-08: Rejected stale token for '%s' (ver %d < %d)",
-                         username, token_ver, current_ver)
+            logger.debug("DT-08: Rejected stale token for '%s' (ver %d < %d)", username, token_ver, current_ver)
             return None
 
         return payload

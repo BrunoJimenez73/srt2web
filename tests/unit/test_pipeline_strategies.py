@@ -2,21 +2,19 @@
 Tests for pipeline strategies (core/pipeline/strategies.py).
 """
 
-import pytest
-from unittest.mock import MagicMock, patch
-import threading
-import queue
+from unittest.mock import MagicMock
 
-from core.pipeline.strategies import (
-    SequentialStrategy,
-    ThreadParallelStrategy,
-    AsyncIOStrategy,
-    PipelineStrategy,
-    StrategyConfig,
-    PipelineContext,
-    ChunkProcessor,
-)
+import pytest
+
 from core.module_base import PipelineData
+from core.pipeline.strategies import (
+    AsyncIOStrategy,
+    ChunkProcessor,
+    PipelineStrategy,
+    SequentialStrategy,
+    StrategyConfig,
+    ThreadParallelStrategy,
+)
 
 
 @pytest.fixture

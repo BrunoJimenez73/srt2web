@@ -80,6 +80,7 @@ class TestDefaultConfigSnapshot:
             "audio_extractor",
             "transcriber",
             "translator",
+            "dmr_translator",
             "subtitle_generator",
             "tts_engine",
             "audio_mixer",

@@ -6,7 +6,6 @@ Note: These tests require faster-whisper to be installed.
 
 import pytest
 
-
 from core.module_base import ModuleState
 from modules.transcriber import Transcriber
 

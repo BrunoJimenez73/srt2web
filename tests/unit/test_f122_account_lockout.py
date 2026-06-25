@@ -175,7 +175,7 @@ class TestLockoutAutoExpiry:
 
     def test_auto_expiry_after_duration(self):
         """Use mocked time to verify lockout expires."""
-        from core.auth_db import AuthDB, _LOCKOUT_DURATION_SECONDS
+        from core.auth_db import _LOCKOUT_DURATION_SECONDS, AuthDB
 
         db = AuthDB()
         db.setup_first_admin("MyStr0ng!Pass")
@@ -203,7 +203,7 @@ class TestLockoutAutoExpiry:
 
     def test_partial_time_not_enough(self):
         """Just before expiry, account is still locked."""
-        from core.auth_db import AuthDB, _LOCKOUT_DURATION_SECONDS
+        from core.auth_db import _LOCKOUT_DURATION_SECONDS, AuthDB
 
         db = AuthDB()
         db.setup_first_admin("MyStr0ng!Pass")
@@ -251,8 +251,8 @@ class TestLoginRoute:
 
     def test_login_returns_423_when_locked(self):
         from fastapi import HTTPException
-        from server.routes.auth import login
-        from server.routes.auth import LoginRequest
+
+        from server.routes.auth import LoginRequest, login
 
         # Lock the account
         auth_db = pytest.importorskip("core.auth_db").auth_db
@@ -268,8 +268,8 @@ class TestLoginRoute:
 
     def test_login_returns_401_for_wrong_password(self):
         from fastapi import HTTPException
-        from server.routes.auth import login
-        from server.routes.auth import LoginRequest
+
+        from server.routes.auth import LoginRequest, login
 
         with pytest.raises(HTTPException) as exc:
             import asyncio
@@ -278,10 +278,9 @@ class TestLoginRoute:
         assert exc.value.status_code == 401
 
     def test_login_returns_token_for_correct_password(self):
-        from server.routes.auth import login
-        from server.routes.auth import LoginRequest
-
         import asyncio
+
+        from server.routes.auth import LoginRequest, login
 
         result = asyncio.run(login(LoginRequest(username="admin", password="MyStr0ng!Pass")))
         assert "access_token" in result
@@ -327,10 +326,11 @@ class TestUnlockRoute:
             return auth_db.decode_token
 
     def test_unlock_endpoint_returns_404_for_unknown_user(self):
-        from fastapi import HTTPException
-        from server.routes.auth import unlock_user
-
         from unittest.mock import MagicMock
+
+        from fastapi import HTTPException
+
+        from server.routes.auth import unlock_user
 
         request = MagicMock()
         request.headers = {"Authorization": "Bearer dummy"}
@@ -348,10 +348,11 @@ class TestUnlockRoute:
             assert exc.value.status_code == 404
 
     def test_unlock_endpoint_returns_403_for_non_admin(self):
-        from fastapi import HTTPException
-        from server.routes.auth import unlock_user
-
         from unittest.mock import MagicMock
+
+        from fastapi import HTTPException
+
+        from server.routes.auth import unlock_user
 
         request = MagicMock()
         request.headers = {"Authorization": "Bearer dummy"}
@@ -368,9 +369,9 @@ class TestUnlockRoute:
             assert exc.value.status_code == 403
 
     def test_unlock_endpoint_success(self):
-        from server.routes.auth import unlock_user
-
         from unittest.mock import MagicMock
+
+        from server.routes.auth import unlock_user
 
         request = MagicMock()
         request.headers = {"Authorization": "Bearer dummy"}

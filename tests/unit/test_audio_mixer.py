@@ -9,7 +9,6 @@ from pathlib import Path
 
 import pytest
 
-
 from core.module_base import ModuleState, PipelineData
 from modules.audio_mixer import AudioMixer
 

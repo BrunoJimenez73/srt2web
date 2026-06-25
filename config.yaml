@@ -91,7 +91,7 @@ modules:
   transcriber:
     enabled: true
     model: tiny
-    language: auto
+    language: en
     device: cpu
     beam_size: 2
     timeout_sec: 120.0
@@ -99,6 +99,8 @@ modules:
     enabled: true
     source_lang: en
     target_lang: es
+  dmr_translator:
+    enabled: false
   subtitle_generator:
     enabled: true
     format: webvtt
@@ -109,7 +111,7 @@ modules:
     enabled: true
     engine: piper
     device: cpu
-    voice: es_ES-sharvard-medium
+    voice: es_MX-claude-high
     speed: 1.0
   audio_mixer:
     enabled: true

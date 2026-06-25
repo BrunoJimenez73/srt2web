@@ -2,8 +2,8 @@
 Tests for pipeline factory (core/pipeline/factory.py).
 """
 
+
 import pytest
-from unittest.mock import patch
 
 from core.pipeline.factory import create_pipeline, get_available_modes
 from core.schemas import PipelineMode

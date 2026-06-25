@@ -5,8 +5,6 @@ Unit tests for Preset API endpoints (F19).
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-
 from fastapi.testclient import TestClient
 
 

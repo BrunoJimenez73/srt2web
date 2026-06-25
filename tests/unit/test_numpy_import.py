@@ -27,7 +27,7 @@ import pytest
 def _try_import_numpy() -> tuple[bool, str]:
     """Try to import numpy and return (success, version_or_error)."""
     try:
-        import numpy as np  # noqa: F401 — only used to verify import works
+        import numpy as np
 
         return True, np.__version__
     except ImportError as e:
@@ -87,7 +87,7 @@ class TestNumpyImport:
             if not success:
                 pytest.skip("numpy not importable")
         try:
-            importlib.import_module("numpy._core._multiarray_umath")  # noqa: F401
+            importlib.import_module("numpy._core._multiarray_umath")
         except ImportError as e:
             if "_multiarray_umath" in str(e) or "DLL load failed" in str(e):
                 pytest.fail(

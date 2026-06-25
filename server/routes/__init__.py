@@ -10,4 +10,4 @@ Contains separated route modules:
 
 from server.routes import config, modules, outputs, pipeline
 
-__all__ = ["pipeline", "config", "modules", "outputs"]
+__all__ = ["config", "modules", "outputs", "pipeline"]

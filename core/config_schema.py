@@ -408,6 +408,12 @@ class TranslatorConfig(BaseModel):
     target_lang: LanguageEnum = Field(default=LanguageEnum.ES, description="Idioma destino")
 
 
+class DMRTranslatorConfig(BaseModel):
+    """Configuración de traductor DMR (Docker Model Runner)."""
+
+    enabled: bool = Field(default=False, description="Módulo habilitado")
+
+
 class SubtitleGeneratorConfig(BaseModel):
     """Configuración de generador de subtítulos."""
 
@@ -473,6 +479,7 @@ class ModulesConfig(BaseModel):
     )
     transcriber: TranscriberConfig = Field(default_factory=TranscriberConfig, description="Transcriptor Whisper")
     translator: TranslatorConfig = Field(default_factory=TranslatorConfig, description="Traductor")
+    dmr_translator: DMRTranslatorConfig = Field(default_factory=DMRTranslatorConfig, description="Traductor DMR")
     subtitle_generator: SubtitleGeneratorConfig = Field(
         default_factory=SubtitleGeneratorConfig, description="Generador de subtítulos"
     )

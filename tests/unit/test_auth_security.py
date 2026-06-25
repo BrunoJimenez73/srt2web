@@ -94,8 +94,7 @@ class TestLegacySHA256Migration:
 
     def test_login_migrates_sha256_to_pbkdf2(self):
         """Login with legacy SHA-256 hash should auto-migrate to PBKDF2."""
-        import core.auth_db
-        from core.auth_db import auth_db, _hash_password
+        from core.auth_db import _hash_password, auth_db
 
         # Create user with legacy SHA-256 hash
         salt = "abc123def456"

@@ -4,8 +4,6 @@ from contextlib import asynccontextmanager
 from unittest.mock import MagicMock
 
 import pytest
-from textual.app import App, ComposeResult
-
 from cli.tui.screens.dashboard import DashboardScreen
 from cli.tui.screens.help import HELP_TEXT
 from cli.tui.screens.module_detail import (
@@ -20,6 +18,7 @@ from cli.tui.widgets.log_panel import LOG_LEVELS, TUILogPanel
 from cli.tui.widgets.metrics_panel import TUIMetricsPanel
 from cli.tui.widgets.module_grid import CARD_NAMES, TUIModuleCard, TUIModuleGrid
 from cli.tui.widgets.status_bar import TUIStatusBar
+from textual.app import App, ComposeResult
 
 # ── Test helpers ──
 

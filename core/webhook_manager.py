@@ -111,7 +111,7 @@ class WebhookManager:
         while self._running:
             try:
                 event = await asyncio.wait_for(self._queue.get(), timeout=1.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
 
             payload = event.to_payload()

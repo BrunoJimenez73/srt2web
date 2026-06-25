@@ -3,11 +3,12 @@ E2E tests for the dashboard page using Astro frontend.
 """
 
 import os
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
 
-# Add project root to path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 def get_astro_source_content(file_path):  # type: ignore

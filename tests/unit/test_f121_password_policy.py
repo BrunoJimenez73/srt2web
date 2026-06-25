@@ -8,8 +8,6 @@ Validates that validate_password_strength() enforces:
 - Integration with create_user, setup_first_admin, change_password
 """
 
-import pytest
-
 
 class TestValidatePasswordStrength:
     """Unit tests for validate_password_strength()."""
@@ -98,8 +96,6 @@ class TestPasswordPolicyIntegration:
 
     def setup_method(self):
         """Clean up users.json before each test."""
-        import json
-        from pathlib import Path
 
         from core.auth_db import USERS_FILE
 

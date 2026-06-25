@@ -108,7 +108,7 @@ def create_webrtc_router() -> APIRouter:
             else:
                 raise HTTPException(status_code=503, detail="WebRTC engine event loop not running")
 
-        except asyncio.TimeoutError as exc:
+        except TimeoutError as exc:
             logger.error(f"WebRTC offer handling timed out for client {client_id}")
             raise HTTPException(status_code=504, detail="WebRTC offer handling timed out") from exc
         except Exception as e:

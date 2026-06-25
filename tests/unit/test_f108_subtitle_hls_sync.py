@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -505,6 +505,9 @@ class TestHLSOutputMasterPlaylist:
         output._segment_index = 0
         output._total_duration_emitted = 0.0
         output._first_segment_written = True
+        output._ffmpeg_path = "ffmpeg"
+        output._pool = MagicMock()
+        output._pool.acquire.return_value = True
 
         with patch("modules.outputs.hls_output.subprocess.run") as mock_run:
             mock_run.return_value.returncode = 0
@@ -538,6 +541,9 @@ class TestHLSOutputMasterPlaylist:
         output._segment_index = 0
         output._total_duration_emitted = 0.0
         output._first_segment_written = True
+        output._ffmpeg_path = "ffmpeg"
+        output._pool = MagicMock()
+        output._pool.acquire.return_value = True
 
         with patch("modules.outputs.hls_output.subprocess.run") as mock_run:
             mock_run.return_value.returncode = 0

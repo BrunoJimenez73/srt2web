@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from core.encoder_config import EncoderConfig
+from core.ffmpeg_pool import FFmpegPool, get_pool
 from core.ffmpeg_utils import ensure_ffmpeg, starts_with_keyframe
 from core.module_base import BaseModule, ModuleState, ModuleStatus, PipelineData
 from core.subprocess_utils import filter_command, get_creation_flags
@@ -51,6 +52,7 @@ class VideoMuxer(BaseModule):
         self._gpu_preset = "p4"  # Balanced GPU preset (p1=fastest/lowest quality, p7=slowest/best quality)
         # Encoder configuration
         self._encoder_config = EncoderConfig(config) if config else EncoderConfig()
+        self._pool: FFmpegPool = get_pool()
         super().__init__("video_muxer", config)
 
     def configure(self, config: dict[str, Any]) -> None:
@@ -75,6 +77,7 @@ class VideoMuxer(BaseModule):
         """Initialize HLS output directory."""
         self._state = ModuleState.STARTING
         self._ffmpeg_path = ensure_ffmpeg()
+        self._pool = get_pool()
         self._total_duration_emitted = 0.0  # Reset timing on every start!
         self._segment_durations = {}
 
@@ -214,9 +217,7 @@ class VideoMuxer(BaseModule):
                 except Exception as e:
                     logger.debug("Suppressed error: %s", e, exc_info=True)
             else:
-                logger.info(
-                    f"Input without keyframe, forcing re-encode for {segment_name}"
-                )
+                logger.info(f"Input without keyframe, forcing re-encode for {segment_name}")
                 self._encode_segment(input_path, segment_path, segment_name, encoder, preset, extra_args)
         else:
             logger.info(f"VideoMuxer encoding segment ({encoder}): {segment_name}")
@@ -246,6 +247,7 @@ class VideoMuxer(BaseModule):
         extra_args: list[str],
     ) -> None:
         """Encode segment with keyframe forcing, with CPU fallback on failure."""
+        assert self._ffmpeg_path is not None, "start() must be called before encode"
         cmd = [
             self._ffmpeg_path,
             "-y",
@@ -264,13 +266,19 @@ class VideoMuxer(BaseModule):
             "mpegts",
             str(segment_path),
         ]
+        job_id = f"vmx-encode-{self._segment_index:06d}"
+        if not self._pool.acquire(self._ffmpeg_path, job_id, timeout=30):
+            logger.warning("FFmpegPool timeout for encode job %s", job_id)
+            # Fall through to CPU fallback with retry
+            self._cpu_fallback_encode(input_path, segment_path, segment_name)
+            return
         try:
             result = subprocess.run(
                 filter_command(cmd),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=60,
+                timeout=30,
                 creationflags=get_creation_flags(),
             )
             if result.returncode == 0:
@@ -279,39 +287,53 @@ class VideoMuxer(BaseModule):
             logger.error(f"VideoMuxer FFmpeg error: {result.stderr[-500:]}")
         except Exception:
             logger.warning("VideoMuxer encode failed for %s", segment_name, exc_info=True)
+        finally:
+            self._pool.release(job_id)
 
         # Fallback: re-encode with CPU libx264
+        self._cpu_fallback_encode(input_path, segment_path, segment_name)
+
+    def _cpu_fallback_encode(self, input_path: str, segment_path: Path, segment_name: str) -> None:
+        """Re-encode with CPU libx264 as fallback."""
+        assert self._ffmpeg_path is not None, "start() must be called before encode"
         logger.info(f"VideoMuxer retrying {segment_name} with CPU libx264")
-        fallback_cmd = [
-            self._ffmpeg_path,
-            "-y",
-            "-i",
-            str(input_path),
-            "-map",
-            "0:v:0",
-            "-c:v",
-            "libx264",
-            "-preset",
-            "fast",
-            "-crf",
-            "23",
-            "-profile:v",
-            "high",
-            "-tune",
-            "zerolatency",
-            "-force_key_frames",
-            f"expr:gte(t,n*{self._hls_segment_duration})",
-            "-f",
-            "mpegts",
-            str(segment_path),
-        ]
+        job_id = f"vmx-cpu-fallback-{self._segment_index:06d}"
+        if not self._pool.acquire(self._ffmpeg_path, job_id, timeout=30):
+            logger.warning("FFmpegPool timeout for CPU fallback %s; copying raw input", job_id)
+            import shutil
+
+            shutil.copy2(str(input_path), str(segment_path))
+            return
         try:
+            fallback_cmd = [
+                self._ffmpeg_path,
+                "-y",
+                "-i",
+                str(input_path),
+                "-map",
+                "0:v:0",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "fast",
+                "-crf",
+                "23",
+                "-profile:v",
+                "high",
+                "-tune",
+                "zerolatency",
+                "-force_key_frames",
+                f"expr:gte(t,n*{self._hls_segment_duration})",
+                "-f",
+                "mpegts",
+                str(segment_path),
+            ]
             result = subprocess.run(
                 filter_command(fallback_cmd),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=120,
+                timeout=60,
                 creationflags=get_creation_flags(),
             )
             if result.returncode == 0:
@@ -319,11 +341,15 @@ class VideoMuxer(BaseModule):
             else:
                 logger.error(f"VideoMuxer CPU fallback also failed: {result.stderr[-500:]}")
                 import shutil
-                shutil.copy2(input_path, segment_path)
+
+                shutil.copy2(str(input_path), str(segment_path))
         except Exception:
             logger.warning("VideoMuxer CPU fallback failed for %s", segment_name, exc_info=True)
             import shutil
-            shutil.copy2(input_path, segment_path)
+
+            shutil.copy2(str(input_path), str(segment_path))
+        finally:
+            self._pool.release(job_id)
 
     def _update_manifest(self) -> None:
         """

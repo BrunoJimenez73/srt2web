@@ -14,10 +14,9 @@ import hashlib
 import json
 import logging
 import os
-import time
 from typing import Any
-from urllib.request import Request, urlopen
 from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 from core.module_base import BaseModule, ModuleState, PipelineData
 
@@ -47,16 +46,18 @@ def _build_system_prompt(source_lang: str, target_lang: str) -> str:
 
 def _call_dmr(prompt: str, system_prompt: str, max_tokens: int = 4096) -> str:
     """Call DMR OpenAI-compatible chat completions endpoint."""
-    payload = json.dumps({
-        "model": DMR_MODEL,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
-        ],
-        "max_tokens": max_tokens,
-        "temperature": 0.1,
-        "top_p": 0.3,
-    }).encode("utf-8")
+    payload = json.dumps(
+        {
+            "model": DMR_MODEL,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            "max_tokens": max_tokens,
+            "temperature": 0.1,
+            "top_p": 0.3,
+        }
+    ).encode("utf-8")
 
     req = Request(
         f"{DMR_BASE_URL}/chat/completions",
@@ -79,7 +80,7 @@ def _call_dmr(prompt: str, system_prompt: str, max_tokens: int = 4096) -> str:
     if not choices:
         raise RuntimeError(f"DMR returned no choices: {result}")
 
-    content = choices[0].get("message", {}).get("content", "")
+    content: str = str(choices[0].get("message", {}).get("content", ""))
     return content.strip()
 
 
@@ -143,15 +144,11 @@ class DMRTranslator(BaseModule):
         if available:
             self._state = ModuleState.RUNNING
             logger.info(
-                f"DMRTranslator ready: {self._source_lang} -> {self._target_lang} "
-                f"via {DMR_MODEL} at {DMR_BASE_URL}"
+                f"DMRTranslator ready: {self._source_lang} -> {self._target_lang} " f"via {DMR_MODEL} at {DMR_BASE_URL}"
             )
         else:
             self._state = ModuleState.IDLE
-            logger.warning(
-                "DMRTranslator started in IDLE (DMR unreachable). "
-                "Translations will passthrough."
-            )
+            logger.warning("DMRTranslator started in IDLE (DMR unreachable). " "Translations will passthrough.")
 
     def stop(self) -> None:
         self._state = ModuleState.STOPPING
@@ -191,30 +188,34 @@ class DMRTranslator(BaseModule):
         if not data.transcript:
             return data
 
+        # If a previous translator already set translated_text to something
+        # different from the original transcript, preserve that work.
+        if data.translated_text and data.translated_text != data.transcript:
+            logger.debug("DMR: translated_text already present from upstream, skipping")
+            return data
+
         try:
             text = data.transcript
             if len(text) > self._max_batch_chars:
-                logger.info(
-                    f"Truncating translation from {len(text)} to {self._max_batch_chars} chars"
-                )
-                text = text[:self._max_batch_chars]
+                logger.info(f"Truncating translation from {len(text)} to {self._max_batch_chars} chars")
+                text = text[: self._max_batch_chars]
 
             data.translated_text = self._translate_text(text)
 
             if data.transcript_segments:
                 translated_segs = []
                 for seg in data.transcript_segments:
-                    translated_segs.append({
-                        "start": seg["start"],
-                        "end": seg["end"],
-                        "text": self._translate_text(seg["text"]),
-                    })
+                    translated_segs.append(
+                        {
+                            "start": seg["start"],
+                            "end": seg["end"],
+                            "text": self._translate_text(seg["text"]),
+                        }
+                    )
                 data.translated_segments = translated_segs
 
             logger.info(f"DMR translated ({len(data.translated_text)} chars)")
-            hit_rate = round(
-                self._cache_hits / max(1, self._cache_hits + self._cache_misses) * 100, 1
-            )
+            hit_rate = round(self._cache_hits / max(1, self._cache_hits + self._cache_misses) * 100, 1)
             logger.debug(
                 f"DMR translation cache hit rate: {hit_rate}% "
                 f"({self._cache_hits} hits / {self._cache_misses} misses)"

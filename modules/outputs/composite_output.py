@@ -98,7 +98,7 @@ class CompositeOutput(BaseOutput):
             # Bug F105: si no se cancelan, disparan output.start() después
             # de que el usuario paró el pipeline, generando ruido "reconnect"
             # en el log panel y reanimando procesos que ya estaban muertos.
-            for name, timer in self._reconnect_timers.items():
+            for _, timer in self._reconnect_timers.items():
                 timer.cancel()
             self._reconnect_timers.clear()
 
@@ -109,18 +109,24 @@ class CompositeOutput(BaseOutput):
                     logger.error(f"Error stopping output '{name}': {e}")
 
     def write(self, data: PipelineData) -> None:
-        """Escribir en todas las salidas simultáneamente."""
-        with self._lock:
-            for name, output in self._outputs.items():
-                if self._errors.get(name):
-                    continue  # Omitir salidas con error
+        """Escribir en todas las salidas.
 
-                try:
-                    output.write(data)
-                except Exception as e:
+        Lock is only held for the error-tracking dict read, not during
+        ``output.write()``, so one slow output (e.g. HLS FFmpeg) does
+        not block all others.
+        """
+        with self._lock:
+            snapshot = list(self._outputs.items())
+        for name, output in snapshot:
+            with self._lock:
+                if self._errors.get(name):
+                    continue
+            try:
+                output.write(data)
+            except Exception as e:
+                with self._lock:
                     self._errors[name] = str(e)
                     logger.error(f"Output '{name}' error: {e}")
-                    # Intentar reconectar automáticamente
                     self._schedule_reconnect(name)
 
     def _schedule_reconnect(self, name: str) -> None:

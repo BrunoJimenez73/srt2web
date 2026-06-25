@@ -244,7 +244,7 @@ class TestSRTOutputHealth:
         from modules.outputs.srt_output import SRTOutput
 
         assert SRTOutput.MAX_RETRIES == 3
-        assert [5.0, 15.0, 30.0] == SRTOutput.RETRY_DELAYS
+        assert SRTOutput.RETRY_DELAYS == [5.0, 15.0, 30.0]
 
     def test_retry_count_reset_on_success(self) -> None:
         """Retry count resets on successful write."""

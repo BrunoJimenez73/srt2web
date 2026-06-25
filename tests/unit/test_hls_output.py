@@ -160,21 +160,14 @@ class TestHLSOutputPassthrough:
         )
 
         segment_path = str(tmp_path / "hls" / "seg_000000.ts")
-        Path(segment_path).write_text("fake segment")
 
         with (
             patch("modules.outputs.hls_output.subprocess.run") as mock_run,
-            patch("modules.outputs.hls_output.get_video_duration", return_value=6.0),
         ):
             mock_run.return_value.returncode = 0
             mock_run.return_value.stderr = ""
             output.write(data)
 
-        mock_run.assert_called_once()
-        cmd = mock_run.call_args[0][0]
-
-        ca_index = cmd.index("-c:a")
-        assert cmd[ca_index + 1] == "copy", f"Expected -c:a copy, got {cmd[ca_index:ca_index+2]}"
-
-        cv_index = cmd.index("-c:v")
-        assert cmd[cv_index + 1] == "copy", f"Expected -c:v copy, got {cmd[cv_index:cv_index+2]}"
+        # Fast path with no mixed audio: uses shutil.copy2, not subprocess.run
+        mock_run.assert_not_called()
+        assert os.path.exists(segment_path), "Segment should have been copied"

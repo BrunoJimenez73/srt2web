@@ -5,7 +5,6 @@ Unit tests for ConfigManager.
 
 import pytest
 
-
 from core.config_manager import ConfigManager
 
 
@@ -106,7 +105,6 @@ class TestConfigManagerAtomicSave:
 
     def test_save_is_atomic(self, tmp_path):
         """F117: Save should use os.replace() — no intermediate state without file."""
-        import os
 
         config_path = tmp_path / "config.yaml"
         config = ConfigManager(str(config_path))

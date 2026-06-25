@@ -2,11 +2,8 @@
 traceback leak, WebRTC session bounding, output config validation."""
 
 import hmac
-import time
-from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # 1. Path traversal in /docs/{path}
@@ -74,7 +71,6 @@ class TestTracebackLeak:
 
     def test_modules_route_no_traceback_in_response(self):
         """The modules toggle error path should return warning, not error with traceback."""
-        import ast
         import inspect
 
         from server.routes.modules import toggle_module

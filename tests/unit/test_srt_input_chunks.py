@@ -2,13 +2,14 @@
 Tests for SRT input chunk processing.
 """
 
-import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
-from pathlib import Path
-import time
-import tempfile
 import os
 import shutil
+import tempfile
+import time
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from core.module_base import PipelineData
 

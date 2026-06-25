@@ -267,8 +267,8 @@ def update_config_with_optimal_device(config: dict[str, Any]) -> dict[str, Any]:
 __all__ = [
     "HardwareType",
     "detect_cuda",
-    "detect_mps",
     "detect_hardware",
+    "detect_mps",
     "get_optimal_device",
     "update_config_with_optimal_device",
 ]

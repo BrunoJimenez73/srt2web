@@ -4,7 +4,6 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from cli.client.http_client import LogEntry
 from cli.client.ws_client import WSClient
 

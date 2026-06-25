@@ -13,8 +13,8 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from core.ffmpeg_utils import find_ffmpeg, find_ffprobe
 from core.ffmpeg_pool import FFmpegPool, get_pool
+from core.ffmpeg_utils import find_ffmpeg, find_ffprobe
 from core.module_base import BaseModule
 
 logger = logging.getLogger("srt2web.ffmpeg_wrapper")

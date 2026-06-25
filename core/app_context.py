@@ -147,11 +147,11 @@ def _register_modules(
     from core.subtitle_sync_monitor import SubtitleSyncMonitor
     from modules.audio_extractor import AudioExtractor
     from modules.audio_mixer import AudioMixer
+    from modules.dmr_translator import DMRTranslator
     from modules.subtitle_generator import SubtitleGenerator
     from modules.transcriber import Transcriber
     from modules.translator import Translator
     from modules.tts_engine import TTSEngine
-    from modules.dmr_translator import DMRTranslator
 
     modules_config = {
         "audio_extractor": (AudioExtractor, True),

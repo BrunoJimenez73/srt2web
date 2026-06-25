@@ -222,67 +222,79 @@ class HLSOutput(OutputSink):
         # or the chunk doesn't start with a keyframe (which would cause stuttering).
         encoder_mode = self._encoder_config.encoder_mode
         can_remux = encoder_mode == "passthrough" or (
-            encoder_mode == "auto"
-            and self._is_h264(input_path)
-            and starts_with_keyframe(input_path)
+            encoder_mode == "auto" and self._is_h264(input_path) and starts_with_keyframe(input_path)
         )
         if encoder_mode == "auto" and not can_remux and self._is_h264(input_path):
-            self.logger.info(
-                f"Input does not start with keyframe, falling back to re-encode "
-                f"(prevents stuttering)"
-            )
+            self.logger.info("Input does not start with keyframe, falling back to re-encode " "(prevents stuttering)")
 
         if can_remux:
             segment_name = f"seg_{self._segment_index:06d}.ts"
             segment_path = os.path.join(self._hls_dir, segment_name)
 
             has_mixed_audio = data.mixed_audio_path and os.path.exists(data.mixed_audio_path)
-            if has_mixed_audio:
-                audio_delay_sec = self._audio_offset_ms / 1000.0
-                cmd = [
-                    self._ffmpeg_path,
-                    "-y",
-                    "-i",
-                    input_path,
-                    "-itsoffset",
-                    str(audio_delay_sec),
-                    "-i",
-                    data.mixed_audio_path,
-                    "-map",
-                    "0:v:0",
-                    "-map",
-                    "1:a:0",
-                    "-c:v",
-                    "copy",
-                    "-c:a",
-                    "aac",
-                    "-b:a",
-                    self._encoder_config.audio_bitrate,
-                    "-f",
-                    "mpegts",
-                    segment_path,
-                ]
-            else:
-                cmd = [
-                    self._ffmpeg_path,
-                    "-y",
-                    "-i",
-                    input_path,
-                    "-c:v",
-                    "copy",
-                    "-c:a",
-                    "copy",
-                    "-f",
-                    "mpegts",
-                    segment_path,
-                ]
+            if not has_mixed_audio:
+                # Fastest path: pure file copy — no subprocess, no FFmpeg overhead
+                import shutil
+
+                try:
+                    shutil.copy2(input_path, segment_path)
+                except Exception as e:
+                    self.logger.error(f"Segment copy error: {e}")
+                    self._set_error(str(e))
+                    self._segment_index += 1
+                    return
+                actual_duration = chunk_duration
+                self._segment_durations[self._segment_index] = actual_duration
+                self._total_duration_emitted += actual_duration
+                self._update_manifest()
+                data.output_hls_path = os.path.join(self._hls_dir, "master.m3u8")
+                elapsed = (time.perf_counter() - start_time) * 1000
+                self._last_process_time_ms = elapsed
+                seg_size = os.path.getsize(segment_path)
+                self._update_write_stats(seg_size)
+                self._clear_error()
+                self.logger.info(f"HLS segment copied: {segment_name} (process_time={elapsed:.1f}ms)")
+                self._segment_index += 1
+                return
+
+            # Has mixed audio: remux video + re-encode audio through FFmpegPool
+            audio_delay_sec = self._audio_offset_ms / 1000.0
+            cmd = [
+                self._ffmpeg_path,
+                "-y",
+                "-i",
+                input_path,
+                "-itsoffset",
+                str(audio_delay_sec),
+                "-i",
+                data.mixed_audio_path,
+                "-map",
+                "0:v:0",
+                "-map",
+                "1:a:0",
+                "-c:v",
+                "copy",
+                "-c:a",
+                "aac",
+                "-b:a",
+                self._encoder_config.audio_bitrate,
+                "-f",
+                "mpegts",
+                segment_path,
+            ]
+            assert self._ffmpeg_path is not None, "start() must be called before write"
+            job_id = f"hls-remux-audio-{self._segment_index:06d}"
+            if not self._pool.acquire(self._ffmpeg_path, job_id, timeout=30):
+                self.logger.warning("FFmpegPool timeout for remux job %s", job_id)
+                self._segment_index += 1
+                return
             try:
                 result = subprocess.run(
                     filter_command(cmd),
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.PIPE,
                     text=True,
-                    timeout=60,
+                    timeout=30,
                     creationflags=get_creation_flags(),
                 )
                 if result.returncode != 0:
@@ -300,6 +312,8 @@ class HLSOutput(OutputSink):
                 self._set_error(str(e))
                 self._segment_index += 1
                 return
+            finally:
+                self._pool.release(job_id)
 
             actual_duration = get_video_duration(segment_path)
             if actual_duration <= 0:
@@ -313,10 +327,7 @@ class HLSOutput(OutputSink):
             seg_size = os.path.getsize(segment_path)
             self._update_write_stats(seg_size)
             self._clear_error()
-            mode = "remux" if not has_mixed_audio else "copy-video+encode-audio"
-            self.logger.info(
-                f"HLS segment written ({mode}): {segment_name} (duration={actual_duration:.3f}s, process_time={elapsed:.1f}ms)"
-            )
+            self.logger.info(f"HLS segment remuxed (audio-only): {segment_name} (process_time={elapsed:.1f}ms)")
             self._segment_index += 1
             return
 
@@ -364,19 +375,24 @@ class HLSOutput(OutputSink):
             ]
         )
 
+        assert self._ffmpeg_path is not None, "start() must be called before write"
+        job_id = f"hls-encode-{self._segment_index:06d}"
+        if not self._pool.acquire(self._ffmpeg_path, job_id, timeout=30):
+            self.logger.warning("FFmpegPool timeout for encode job %s", job_id)
+            self._segment_index += 1
+            return
         try:
             result = subprocess.run(
                 filter_command(cmd),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=60,
+                timeout=30,
                 creationflags=get_creation_flags(),
             )
             if result.returncode != 0:
                 # Fallback: retry with CPU encoder if GPU encoder failed
-                # Build clean command — strip all GPU-specific args
-                self.logger.warning(f"FFmpeg mux error (will retry with CPU): {result.stderr[-200:]}")
+                self.logger.warning(f"FFmpeg encode error (will retry with CPU): {result.stderr[-200:]}")
                 fallback_cmd = [self._ffmpeg_path, "-y", "-i", input_path]
                 if audio_input and os.path.exists(audio_input):
                     audio_delay_sec = self._audio_offset_ms / 1000.0
@@ -415,7 +431,7 @@ class HLSOutput(OutputSink):
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.PIPE,
                     text=True,
-                    timeout=120,
+                    timeout=60,
                     creationflags=get_creation_flags(),
                 )
                 if result.returncode != 0:
@@ -425,15 +441,17 @@ class HLSOutput(OutputSink):
                     return
                 self.logger.info("CPU fallback succeeded")
         except subprocess.TimeoutExpired:
-            self.logger.error("FFmpeg mux timed out")
-            self._set_error("FFmpeg mux timed out")
+            self.logger.error("FFmpeg encode timed out")
+            self._set_error("FFmpeg encode timed out")
             self._segment_index += 1
             return
         except Exception as e:
-            self.logger.error(f"FFmpeg mux exception: {e}")
+            self.logger.error(f"FFmpeg encode exception: {e}")
             self._set_error(str(e))
             self._segment_index += 1
             return
+        finally:
+            self._pool.release(job_id)
 
         segment_path = os.path.join(self._hls_dir, f"seg_{self._segment_index:06d}.ts")
         actual_duration = get_video_duration(segment_path)

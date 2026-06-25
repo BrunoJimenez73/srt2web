@@ -137,7 +137,7 @@ class TestSecurityLogging:
 
     def test_failed_login_logged_to_security(self):
         """Failed login attempt should log to srt2web.security."""
-        from core.auth_db import AuthDB, USERS_FILE
+        from core.auth_db import USERS_FILE, AuthDB
 
         if USERS_FILE.exists():
             USERS_FILE.unlink()
@@ -160,7 +160,7 @@ class TestSecurityLogging:
 
     def test_account_lockout_logged(self):
         """Account lockout after too many failures should log."""
-        from core.auth_db import AuthDB, USERS_FILE
+        from core.auth_db import USERS_FILE, AuthDB
 
         if USERS_FILE.exists():
             USERS_FILE.unlink()
@@ -184,7 +184,7 @@ class TestSecurityLogging:
 
     def test_rejected_locked_account_logged(self):
         """Rejected login for locked account should log."""
-        from core.auth_db import AuthDB, USERS_FILE
+        from core.auth_db import USERS_FILE, AuthDB
 
         if USERS_FILE.exists():
             USERS_FILE.unlink()
@@ -208,7 +208,7 @@ class TestSecurityLogging:
 
     def test_unlock_logged(self):
         """Manual unlock should log to security."""
-        from core.auth_db import AuthDB, USERS_FILE
+        from core.auth_db import USERS_FILE, AuthDB
 
         if USERS_FILE.exists():
             USERS_FILE.unlink()
@@ -233,7 +233,8 @@ class TestSecurityLogging:
     def test_rate_limit_logged_via_middleware(self):
         """Rate limit exceeded should log to security.log."""
         from fastapi import HTTPException
-        from server.security import RateLimitMiddleware, RateLimiter
+
+        from server.security import RateLimiter, RateLimitMiddleware
 
         app = FastAPI()
         limiter = RateLimiter(requests_per_minute=1)
@@ -273,8 +274,7 @@ class TestSecurityLogging:
             allowed, _ = limiter.is_allowed("test-client")
             assert allowed is True
 
-            from unittest.mock import MagicMock, patch
-            import server.security
+            from unittest.mock import patch
 
             with patch("server.security.logger") as mock_logger:
                 # Second request: rate limited

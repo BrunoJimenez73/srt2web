@@ -25,11 +25,7 @@ Two distinct bugs were diagnosed from user logs and both are fixed here:
 """
 
 import threading
-import time
 from unittest.mock import MagicMock, patch
-
-import pytest
-
 
 # ── Bug 1: OutputFactory.resolve_type prefers canonical names ──────────
 
@@ -66,8 +62,7 @@ class TestResolveTypePrefersCanonical:
             if resolved in skip_types:
                 continue
             assert resolved in {m.value for m in OutputTypeEnum}, (
-                f"resolve_type({class_name!r}) returned {resolved!r} "
-                f"which is not a valid OutputTypeEnum value"
+                f"resolve_type({class_name!r}) returned {resolved!r} " f"which is not a valid OutputTypeEnum value"
             )
 
 
@@ -140,8 +135,7 @@ class TestSyncOutputsPersistsCanonical:
         saved_list = call_args[0][1]
         assert len(saved_list) == 1
         assert saved_list[0]["type"] == "web", (
-            f"Expected canonical 'web', got {saved_list[0]['type']!r}. "
-            f"F106 regression: alias persisted."
+            f"Expected canonical 'web', got {saved_list[0]['type']!r}. " f"F106 regression: alias persisted."
         )
 
 
@@ -160,6 +154,7 @@ class TestPiperCmdLock:
         # tipo. El tipo real de una instancia Lock es `_thread.lock`, accesible vía
         # `type(threading.Lock())`.
         import threading
+
         assert isinstance(manager._cmd_lock, type(threading.Lock()))
 
     def test_concurrent_send_command_serialized(self) -> None:
@@ -205,7 +200,7 @@ class TestPiperCmdLock:
 
         class FakeStdout:
             def readline(self) -> str:
-                return "{\"status\":\"success\"}\n"
+                return '{"status":"success"}\n'
 
         proc.stdin = FakeStdin()
         proc.stdout = FakeStdout()

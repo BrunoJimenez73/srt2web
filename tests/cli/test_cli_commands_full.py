@@ -3,7 +3,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from cli.client.http_client import LogEntry
 from cli.commands.config import _build_tree, _format_value, run_config_get, run_config_show
 from cli.commands.logs import _format_log, _level_style, run_logs

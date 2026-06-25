@@ -5,7 +5,6 @@ Tests for JWT token expiry, refresh token rotation, and token blacklist/revocati
 """
 
 import time
-from unittest.mock import patch
 
 import jwt as pyjwt
 import pytest
@@ -20,7 +19,7 @@ def _clean_db():
 
 def _create_expired_token(sub: str = "admin", role: str = "admin") -> str:
     """Create a token that expired 1 hour ago for testing."""
-    from core.auth_db import JWT_SECRET_KEY, JWT_ALGORITHM
+    from core.auth_db import JWT_ALGORITHM, JWT_SECRET_KEY
 
     now = int(time.time())
     payload = {
@@ -68,7 +67,7 @@ class TestAccessToken:
         assert len(payload["jti"]) > 8
 
     def test_access_token_has_exp_claim(self):
-        from core.auth_db import AuthDB, _ACCESS_TOKEN_MINUTES
+        from core.auth_db import AuthDB
 
         db = AuthDB()
         db.setup_first_admin("MyStr0ng!Pass")
@@ -299,10 +298,10 @@ class TestLogoutRoute:
         yield
 
     def test_logout_revokes_token(self):
+        from unittest.mock import MagicMock
+
         from core.auth_db import auth_db
         from server.routes.auth import logout
-
-        from unittest.mock import MagicMock
 
         request = MagicMock()
         token = auth_db.authenticate("admin", "MyStr0ng!Pass")
@@ -317,9 +316,9 @@ class TestLogoutRoute:
         assert auth_db.decode_token(token) is None
 
     def test_logout_without_token_does_not_crash(self):
-        from server.routes.auth import logout
-
         from unittest.mock import MagicMock
+
+        from server.routes.auth import logout
 
         request = MagicMock()
         request.headers = {}
@@ -350,7 +349,7 @@ class TestRefreshRoute:
 
     def test_refresh_route_returns_new_tokens(self):
         from core.auth_db import auth_db
-        from server.routes.auth import refresh_token, RefreshTokenRequest
+        from server.routes.auth import RefreshTokenRequest, refresh_token
 
         result = auth_db.authenticate_full("admin", "MyStr0ng!Pass")
         import asyncio
@@ -361,10 +360,11 @@ class TestRefreshRoute:
         assert response["token_type"] == "bearer"
 
     def test_refresh_route_rejects_invalid_token(self):
-        from fastapi import HTTPException
-        from server.routes.auth import refresh_token, RefreshTokenRequest
-
         import asyncio
+
+        from fastapi import HTTPException
+
+        from server.routes.auth import RefreshTokenRequest, refresh_token
 
         with pytest.raises(HTTPException) as exc:
             asyncio.run(refresh_token(RefreshTokenRequest(refresh_token="invalid")))
@@ -372,8 +372,9 @@ class TestRefreshRoute:
 
     def test_refresh_route_rejects_reused_token(self):
         from fastapi import HTTPException
+
         from core.auth_db import auth_db
-        from server.routes.auth import refresh_token, RefreshTokenRequest
+        from server.routes.auth import RefreshTokenRequest, refresh_token
 
         result = auth_db.authenticate_full("admin", "MyStr0ng!Pass")
         import asyncio
@@ -405,8 +406,9 @@ class TestLoginRouteTokens:
         yield
 
     def test_login_returns_access_and_refresh(self):
-        from server.routes.auth import login, LoginRequest
         import asyncio
+
+        from server.routes.auth import LoginRequest, login
 
         result = asyncio.run(login(LoginRequest(username="admin", password="MyStr0ng!Pass")))
         assert "access_token" in result
@@ -420,8 +422,9 @@ class TestLoginRouteTokens:
         auth_db._users.clear()
         auth_db._blacklist.clear()
 
-        from server.routes.auth import setup_first_admin, LoginRequest
         import asyncio
+
+        from server.routes.auth import LoginRequest, setup_first_admin
 
         result = asyncio.run(setup_first_admin(LoginRequest(username="admin", password="MyStr0ng!Pass")))
         assert "access_token" in result

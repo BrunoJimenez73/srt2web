@@ -60,34 +60,32 @@ class TestHardwareMonitorMacOS:
     def test_hardware_monitor_macos_no_pynvml(self) -> None:
         """HardwareMonitor should use sysctl fallback on macOS when pynvml missing."""
 
-        with patch("sys.platform", "darwin"):
-            with patch.dict("sys.modules", {"pynvml": None}):
-                # Force reimport by creating fresh instance
-                import importlib
+        with patch("sys.platform", "darwin"), patch.dict("sys.modules", {"pynvml": None}):
+            # Force reimport by creating fresh instance
+            import importlib
 
-                import core.hardware_monitor
+            import core.hardware_monitor
 
-                importlib.reload(core.hardware_monitor)
-                mon = core.hardware_monitor.HardwareMonitor()
+            importlib.reload(core.hardware_monitor)
+            mon = core.hardware_monitor.HardwareMonitor()
 
-                # On macOS without pynvml, should still report GPU available via sysctl
-                metrics = mon.get_system_metrics()
-                assert metrics["gpu_available"] is True
+            # On macOS without pynvml, should still report GPU available via sysctl
+            metrics = mon.get_system_metrics()
+            assert metrics["gpu_available"] is True
 
     def test_hardware_monitor_windows_no_pynvml(self) -> None:
         """HardwareMonitor should report GPU unavailable on non-macOS without pynvml."""
 
-        with patch("sys.platform", "win32"):
-            with patch.dict("sys.modules", {"pynvml": None}):
-                import importlib
+        with patch("sys.platform", "win32"), patch.dict("sys.modules", {"pynvml": None}):
+            import importlib
 
-                import core.hardware_monitor
+            import core.hardware_monitor
 
-                importlib.reload(core.hardware_monitor)
-                mon = core.hardware_monitor.HardwareMonitor()
+            importlib.reload(core.hardware_monitor)
+            mon = core.hardware_monitor.HardwareMonitor()
 
-                metrics = mon.get_system_metrics()
-                assert metrics["gpu_available"] is False
+            metrics = mon.get_system_metrics()
+            assert metrics["gpu_available"] is False
 
 
 class TestOptimalDeviceConfig:
@@ -106,11 +104,10 @@ class TestOptimalDeviceConfig:
             "tts_engine": {"device": "auto"},
         }
 
-        with patch("sys.platform", "darwin"):
-            with patch.dict("sys.modules", {"torch": mock_torch}):
-                updated = update_config_with_optimal_device(config)
-                assert updated["transcriber"]["device"] == "mps"
-                assert updated["tts_engine"]["device"] == "mps"
+        with patch("sys.platform", "darwin"), patch.dict("sys.modules", {"torch": mock_torch}):
+            updated = update_config_with_optimal_device(config)
+            assert updated["transcriber"]["device"] == "mps"
+            assert updated["tts_engine"]["device"] == "mps"
 
     def test_update_config_preserves_explicit_device(self) -> None:
         """Config should preserve explicitly set device."""
@@ -125,8 +122,7 @@ class TestOptimalDeviceConfig:
             "tts_engine": {"device": "auto"},
         }
 
-        with patch("sys.platform", "darwin"):
-            with patch.dict("sys.modules", {"torch": mock_torch}):
-                updated = update_config_with_optimal_device(config)
-                assert updated["transcriber"]["device"] == "cpu"  # Preserved
-                assert updated["tts_engine"]["device"] == "mps"  # Auto-set
+        with patch("sys.platform", "darwin"), patch.dict("sys.modules", {"torch": mock_torch}):
+            updated = update_config_with_optimal_device(config)
+            assert updated["transcriber"]["device"] == "cpu"  # Preserved
+            assert updated["tts_engine"]["device"] == "mps"  # Auto-set

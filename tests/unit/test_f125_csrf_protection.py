@@ -4,7 +4,6 @@ F125: CSRF protection tests.
 Tests CsrfMiddleware token generation/validation and the /api/csrf-token endpoint.
 """
 
-import time
 from unittest.mock import patch
 
 import pytest
@@ -240,9 +239,9 @@ class TestCsrfTokenEndpoint:
 
     def _get_token(self, secret: str = "test-jwt-secret") -> str:
         """Helper: login and return auth token."""
-        from core.auth_db import auth_db
-        from server.routes.auth import login, LoginRequest
         import asyncio
+
+        from server.routes.auth import LoginRequest, login
 
         with patch("core.auth_db.JWT_SECRET_KEY", secret):
             result = asyncio.run(login(LoginRequest(username="admin", password="MyStr0ng!Pass")))
@@ -250,9 +249,10 @@ class TestCsrfTokenEndpoint:
 
     def test_csrf_endpoint_returns_token(self):
         """GET /api/auth/csrf-token should return a CSRF token."""
-        from server.routes.auth import csrf_token
-        from unittest.mock import patch, MagicMock
         import asyncio
+        from unittest.mock import MagicMock, patch
+
+        from server.routes.auth import csrf_token
 
         token = self._get_token()
         request = MagicMock()
@@ -267,10 +267,12 @@ class TestCsrfTokenEndpoint:
 
     def test_csrf_endpoint_requires_auth(self):
         """GET /api/auth/csrf-token without auth should fail."""
-        from fastapi import HTTPException
-        from server.routes.auth import csrf_token
-        from unittest.mock import MagicMock
         import asyncio
+        from unittest.mock import MagicMock
+
+        from fastapi import HTTPException
+
+        from server.routes.auth import csrf_token
 
         request = MagicMock()
         request.headers = {}
@@ -281,9 +283,10 @@ class TestCsrfTokenEndpoint:
 
     def test_generated_token_works_with_middleware(self):
         """CSRF token from endpoint should work with middleware."""
-        from server.security import CsrfMiddleware
-        from unittest.mock import patch, MagicMock
         import asyncio
+        from unittest.mock import MagicMock, patch
+
+        from server.security import CsrfMiddleware
 
         token = self._get_token()
         request = MagicMock()
@@ -298,10 +301,12 @@ class TestCsrfTokenEndpoint:
 
     def test_csrf_endpoint_503_without_jwt_secret(self):
         """CSRF endpoint returns 503 when JWT secret is not configured."""
-        from fastapi import HTTPException
-        from server.routes.auth import csrf_token
-        from unittest.mock import MagicMock, patch
         import asyncio
+        from unittest.mock import MagicMock, patch
+
+        from fastapi import HTTPException
+
+        from server.routes.auth import csrf_token
 
         request = MagicMock()
         request.headers = {"Authorization": "Bearer some-token"}

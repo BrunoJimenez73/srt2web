@@ -2,12 +2,11 @@
 Tests for HLS output remux path.
 """
 
-import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
-import os
 import tempfile
-import time
 from dataclasses import dataclass
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from core.module_base import PipelineData
 
@@ -16,16 +15,20 @@ from core.module_base import PipelineData
 class HLSOutputFixture:
     output: object
     mock_run: MagicMock
+    input_chunk: str
 
 
 @pytest.fixture
 def hls_output_with_mocks():
-    """Create HLSOutput with active patches. Yields fixture object with output + mock_run."""
+    """Create HLSOutput with active patches. Yields fixture object with output + mock_run + input_chunk."""
+    input_chunk = tempfile.mkstemp(suffix=".ts")[1]
+    with open(input_chunk, "w") as f:
+        f.write("fake ts content")
+
     with (
         patch("modules.outputs.hls_output.subprocess.run") as mock_run,
         patch("modules.outputs.hls_output.get_creation_flags", return_value=0),
         patch("modules.outputs.hls_output.filter_command", side_effect=lambda x: x),
-        patch("modules.outputs.hls_output.os.path.exists", return_value=True),
         patch("modules.outputs.hls_output.os.path.getsize", return_value=1024),
     ):
         from modules.outputs.hls_output import HLSOutput
@@ -40,7 +43,11 @@ def hls_output_with_mocks():
         }
         out = HLSOutput(config)
         out._hls_dir = config["hls_dir"]
-        yield HLSOutputFixture(output=out, mock_run=mock_run)
+        out._ffmpeg_path = "ffmpeg"
+        # Mock FFmpegPool to avoid acquiring real pool slot
+        out._pool = MagicMock()
+        out._pool.acquire.return_value = True
+        yield HLSOutputFixture(output=out, mock_run=mock_run, input_chunk=input_chunk)
 
 
 class TestIsH264:
@@ -82,7 +89,7 @@ class TestWriteRemux:
         fx = hls_output_with_mocks
         fx.output._encoder_config.encoder_mode = "passthrough"
 
-        data = PipelineData(video_chunk_path="/tmp/test.ts", chunk_index=0, duration=10.0)
+        data = PipelineData(video_chunk_path=fx.input_chunk, chunk_index=0, duration=10.0)
 
         with (
             patch.object(fx.output, "_update_manifest"),
@@ -91,37 +98,34 @@ class TestWriteRemux:
         ):
             fx.output.write(data)
 
-        assert fx.mock_run.called
-        cmd = fx.mock_run.call_args[0][0]
-        assert "-c:v" in cmd
-        assert cmd[cmd.index("-c:v") + 1] == "copy"
+        # No mixed audio + passthrough mode = shutil.copy2, not subprocess.run
+        fx.mock_run.assert_not_called()
 
     def test_remux_auto_with_h264_input(self, hls_output_with_mocks):
-        from modules.outputs.hls_output import HLSOutput
+        import modules.outputs.hls_output as hls_mod
 
         fx = hls_output_with_mocks
 
-        data = PipelineData(video_chunk_path="/tmp/test.ts", chunk_index=0, duration=10.0)
+        data = PipelineData(video_chunk_path=fx.input_chunk, chunk_index=0, duration=10.0)
 
         with (
-            patch.object(HLSOutput, "_is_h264", return_value=True),
+            patch.object(hls_mod.HLSOutput, "_is_h264", return_value=True),
+            patch.object(hls_mod, "starts_with_keyframe", return_value=True),
             patch.object(fx.output, "_update_manifest"),
             patch.object(fx.output, "_clear_error"),
             patch.object(fx.output, "_update_write_stats"),
         ):
             fx.output.write(data)
 
-        assert fx.mock_run.called
-        cmd = fx.mock_run.call_args[0][0]
-        assert "-c:v" in cmd
-        assert cmd[cmd.index("-c:v") + 1] == "copy"
+        # H.264 + starts with keyframe + no mixed audio = shutil.copy2
+        fx.mock_run.assert_not_called()
 
     def test_reencode_auto_with_non_h264_input(self, hls_output_with_mocks):
         from modules.outputs.hls_output import HLSOutput
 
         fx = hls_output_with_mocks
 
-        data = PipelineData(video_chunk_path="/tmp/test.ts", chunk_index=0, duration=10.0)
+        data = PipelineData(video_chunk_path=fx.input_chunk, chunk_index=0, duration=10.0)
 
         with (
             patch.object(HLSOutput, "_is_h264", return_value=False),
@@ -140,7 +144,7 @@ class TestWriteRemux:
     def test_skip_when_disabled(self, hls_output_with_mocks):
         fx = hls_output_with_mocks
         fx.output._enabled = False
-        data = PipelineData(video_chunk_path="/tmp/test.ts")
+        data = PipelineData(video_chunk_path=fx.input_chunk)
         fx.output.write(data)
         fx.mock_run.assert_not_called()
 
@@ -153,21 +157,19 @@ class TestWriteRemux:
     def test_skip_when_input_missing(self, hls_output_with_mocks):
         fx = hls_output_with_mocks
         with patch("modules.outputs.hls_output.os.path.exists", return_value=False):
-            data = PipelineData(video_chunk_path="/tmp/missing.ts")
+            data = PipelineData(video_chunk_path=fx.input_chunk)
             fx.output.write(data)
             fx.mock_run.assert_not_called()
 
 
 class TestRemuxWithMixedAudio:
     def test_remux_with_mixed_audio_copies_video_encodes_audio(self, hls_output_with_mocks):
-        from modules.outputs.hls_output import HLSOutput
-
         fx = hls_output_with_mocks
         fx.output._encoder_config.encoder_mode = "passthrough"
 
         data = PipelineData(
-            video_chunk_path="/tmp/test.ts",
-            mixed_audio_path="/tmp/mixed.wav",
+            video_chunk_path=fx.input_chunk,
+            mixed_audio_path=fx.input_chunk,
             chunk_index=0,
             duration=10.0,
         )
@@ -187,9 +189,8 @@ class TestRemuxWithMixedAudio:
     def test_remux_sets_output_hls_path(self, hls_output_with_mocks):
         fx = hls_output_with_mocks
         fx.output._encoder_config.encoder_mode = "passthrough"
-        fx.mock_run.return_value.returncode = 0
 
-        data = PipelineData(video_chunk_path="/tmp/test.ts", chunk_index=0, duration=10.0)
+        data = PipelineData(video_chunk_path=fx.input_chunk, chunk_index=0, duration=10.0)
 
         with (
             patch.object(fx.output, "_update_manifest"),
@@ -204,9 +205,8 @@ class TestRemuxWithMixedAudio:
     def test_remux_updates_segment_index(self, hls_output_with_mocks):
         fx = hls_output_with_mocks
         fx.output._encoder_config.encoder_mode = "passthrough"
-        fx.mock_run.return_value.returncode = 0
 
-        data = PipelineData(video_chunk_path="/tmp/test.ts", chunk_index=0, duration=10.0)
+        data = PipelineData(video_chunk_path=fx.input_chunk, chunk_index=0, duration=10.0)
 
         with (
             patch.object(fx.output, "_update_manifest"),
@@ -217,7 +217,7 @@ class TestRemuxWithMixedAudio:
 
         assert fx.output._segment_index == 1
 
-    def test_ffmpeg_nonzero_returncode(self, hls_output_with_mocks):
+    def test_ffmpeg_nonzero_returncode_with_mixed_audio(self, hls_output_with_mocks):
         fx = hls_output_with_mocks
         fx.output._encoder_config.encoder_mode = "passthrough"
 
@@ -226,7 +226,12 @@ class TestRemuxWithMixedAudio:
         mock_result.stderr = "error"
         fx.mock_run.return_value = mock_result
 
-        data = PipelineData(video_chunk_path="/tmp/test.ts", chunk_index=0, duration=10.0)
+        data = PipelineData(
+            video_chunk_path=fx.input_chunk,
+            mixed_audio_path=fx.input_chunk,
+            chunk_index=0,
+            duration=10.0,
+        )
 
         with (
             patch.object(fx.output, "_set_error") as mock_error,
@@ -237,7 +242,7 @@ class TestRemuxWithMixedAudio:
             fx.output.write(data)
             mock_error.assert_called_once()
 
-    def test_ffmpeg_timeout(self, hls_output_with_mocks):
+    def test_ffmpeg_timeout_with_mixed_audio(self, hls_output_with_mocks):
         import subprocess
 
         fx = hls_output_with_mocks
@@ -245,7 +250,12 @@ class TestRemuxWithMixedAudio:
 
         fx.mock_run.side_effect = subprocess.TimeoutExpired(cmd="ffmpeg", timeout=60)
 
-        data = PipelineData(video_chunk_path="/tmp/test.ts", chunk_index=0, duration=10.0)
+        data = PipelineData(
+            video_chunk_path=fx.input_chunk,
+            mixed_audio_path=fx.input_chunk,
+            chunk_index=0,
+            duration=10.0,
+        )
 
         with (
             patch.object(fx.output, "_set_error") as mock_error,

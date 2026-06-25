@@ -97,6 +97,6 @@ def has_cuda_support() -> bool:
 
 __all__ = [
     "get_cuda_paths",
-    "setup_cuda_environment",
     "has_cuda_support",
+    "setup_cuda_environment",
 ]

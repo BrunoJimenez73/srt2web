@@ -4,8 +4,6 @@ Tests for Pipeline Status API endpoint and readiness/security probes.
 
 import logging
 
-import pytest
-
 
 class TestReadinessEndpoint:
     """Test suite for /ready endpoint (F102)."""
@@ -48,7 +46,7 @@ class TestSecurityLogging:
     """Test suite for security logging channel (F102)."""
 
     def test_security_handler_added(self) -> None:
-        from core.logging_setup import setup_logging, SecurityLogHandler
+        from core.logging_setup import SecurityLogHandler, setup_logging
 
         setup_logging()
         root = logging.getLogger()
@@ -56,7 +54,7 @@ class TestSecurityLogging:
         assert found, "SecurityLogHandler should be registered on root logger"
 
     def test_security_events_not_filtered_from_file(self) -> None:
-        from core.logging_setup import setup_logging, get_filter_patterns
+        from core.logging_setup import get_filter_patterns
 
         patterns = get_filter_patterns()
         # SECURITY events should NOT be in the filter patterns (F102 fix)
