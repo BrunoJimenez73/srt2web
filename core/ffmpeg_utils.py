@@ -558,7 +558,8 @@ def get_first_packet_pts(file_path: str, ffprobe_path: str | None = None) -> flo
             creationflags=_get_creation_flags(),
         )
         if result.returncode == 0 and result.stdout.strip():
-            pts_str = result.stdout.strip()
+            # ffprobe -of csv=p=0 may append a trailing comma on some versions
+            pts_str = result.stdout.strip().rstrip(", \r\n")
             # PTS is in time_base units, need to convert to seconds
             # For MPEG-TS, time_base is typically 1/90000
             pts_value = int(pts_str)
@@ -614,6 +615,7 @@ def get_pcr_from_ts(file_path: str, ffprobe_path: str | None = None) -> float | 
         )
         if result.returncode == 0 and result.stdout.strip():
             for line in result.stdout.strip().split("\n"):
+                line = line.strip().rstrip(", \r\n")
                 if line and line != "N/A":
                     pcr_value = int(line)
                     return pcr_value / 90000.0

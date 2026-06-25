@@ -509,11 +509,13 @@ class HLSOutput(OutputSink):
                 except ValueError:
                     media_seq = 0
 
-            # Escribir media playlist
+            # TARGETDURATION must be >= actual max segment duration (HLS RFC)
+            max_dur = max(self._segment_durations.values()) if self._segment_durations else self._segment_duration
+            target_duration = int(max_dur) + 1
             media_lines = [
                 "#EXTM3U",
                 "#EXT-X-VERSION:4",
-                f"#EXT-X-TARGETDURATION:{self._segment_duration + 1}",
+                f"#EXT-X-TARGETDURATION:{target_duration}",
                 f"#EXT-X-MEDIA-SEQUENCE:{media_seq}",
             ]
 
@@ -522,6 +524,8 @@ class HLSOutput(OutputSink):
                 try:
                     seg_idx = int(seg_name.replace("seg_", "").replace(".ts", ""))
                     dur = self._segment_durations.get(seg_idx, float(self._segment_duration))
+                    # Clamp to target_duration to avoid HLS spec violations
+                    dur = min(dur, float(target_duration))
                     media_lines.append(f"#EXTINF:{dur:.3f},")
                 except ValueError:
                     media_lines.append(f"#EXTINF:{self._segment_duration}.000,")
