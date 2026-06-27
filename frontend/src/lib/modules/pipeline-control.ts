@@ -76,10 +76,11 @@ import {
 } from "./polling";
 
 // ── Loading State Helper ────────────────────────────────────────────────────
-let _isLoading = false;
+// F162: Uses shared isOperationPending signal instead of local boolean
+import { isOperationPending } from "../store/signals";
 
 function setLoading(loading: boolean, action: string = ""): void {
-  _isLoading = loading;
+  isOperationPending.value = loading;
   document.body.classList.toggle("loading", loading);
   if (loading && action) {
     addLog("INFO", `${action}...`);
@@ -87,7 +88,7 @@ function setLoading(loading: boolean, action: string = ""): void {
 }
 
 function isLoading(): boolean {
-  return _isLoading;
+  return isOperationPending.value;
 }
 
 // ── Pipeline Control ──────────────────────────────────────────────────────────

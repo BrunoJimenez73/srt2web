@@ -53,7 +53,7 @@ class TestSecurityHeaders:
         assert "media-src" in csp
 
     def test_hsts_includes_preload(self):
-        """HSTS must include preload for Chrome HSTS preload list eligibility."""
+        """Strict-Transport-Security must include preload directive (HTTPS only)."""
         from server.security import SecurityHeadersMiddleware
 
         app = FastAPI()
@@ -63,15 +63,16 @@ class TestSecurityHeaders:
         async def test_endpoint():
             return {"ok": True}
 
-        client = TestClient(app)
+        # F161: HSTS is only sent on HTTPS responses
+        client = TestClient(app, base_url="https://testserver")
         response = client.get("/test")
         hsts = response.headers.get("strict-transport-security", "")
         assert "preload" in hsts, "HSTS should include preload"
         assert "max-age=31536000" in hsts
         assert "includeSubDomains" in hsts
 
-    def test_hsts_header_present(self):
-        """Strict-Transport-Security must be present."""
+    def test_hsts_not_sent_on_http(self):
+        """F161: HSTS must NOT be sent on HTTP responses to avoid lockout."""
         from server.security import SecurityHeadersMiddleware
 
         app = FastAPI()
@@ -83,10 +84,10 @@ class TestSecurityHeaders:
 
         client = TestClient(app)
         response = client.get("/test")
-        assert "strict-transport-security" in response.headers
+        assert "strict-transport-security" not in response.headers
 
-    def test_security_headers_via_app(self):
-        """All security headers present via real app."""
+    def test_hsts_header_present(self):
+        """Strict-Transport-Security must be present on HTTPS."""
         from server.security import SecurityHeadersMiddleware
 
         app = FastAPI()
@@ -96,7 +97,23 @@ class TestSecurityHeaders:
         async def test_endpoint():
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, base_url="https://testserver")
+        response = client.get("/test")
+        assert "strict-transport-security" in response.headers
+
+    def test_security_headers_via_app(self):
+        """All security headers present via real app (HTTPS for HSTS)."""
+        from server.security import SecurityHeadersMiddleware
+
+        app = FastAPI()
+        app.add_middleware(SecurityHeadersMiddleware)
+
+        @app.get("/test")
+        async def test_endpoint():
+            return {"ok": True}
+
+        # F161: Use HTTPS to get HSTS header
+        client = TestClient(app, base_url="https://testserver")
         response = client.get("/test")
         assert response.headers.get("x-content-type-options") == "nosniff"
         assert response.headers.get("x-frame-options") == "SAMEORIGIN"

@@ -51,6 +51,16 @@ class HLSOutput(OutputSink):
         self._subtitle_language = config.get("subtitle_language", "es")
         self._subtitle_language_name = config.get("subtitle_language_name", "Spanish")
 
+        # F169 — ABR bitrate ladder
+        self._bitrate_ladder = config.get(
+            "bitrate_ladder",
+            [
+                {"name": "low", "bandwidth": 500000, "width": 854, "height": 480},
+                {"name": "medium", "bandwidth": 1500000, "width": 1280, "height": 720},
+                {"name": "high", "bandwidth": 3000000, "width": 1920, "height": 1080},
+            ],
+        )
+
         # Configuración de encoder
         self._encoder_config = EncoderConfig(config if config else {})
         self._enabled = config.get("enabled", True)
@@ -81,6 +91,8 @@ class HLSOutput(OutputSink):
             self._subtitle_language = config["subtitle_language"]
         if "subtitle_language_name" in config:
             self._subtitle_language_name = config["subtitle_language_name"]
+        if "bitrate_ladder" in config:
+            self._bitrate_ladder = config["bitrate_ladder"]
 
         self.logger.info(
             f"HLS output reconfigured: segment={self._segment_duration}s, list_size={self._list_size}, "
@@ -95,6 +107,7 @@ class HLSOutput(OutputSink):
             "master_url": "/hls/master.m3u8",
             "stream_url": "/hls/stream.m3u8",
             "segment_duration": self._segment_duration,
+            "bitrate_ladder": self._bitrate_ladder,
         }
 
     def start(self) -> None:
@@ -124,11 +137,7 @@ class HLSOutput(OutputSink):
 
         self._segment_index = 0
 
-        # Create initial master playlist
-        # Subtitle track declared with DEFAULT=NO (not auto-activated, no CC button).
-        # enableCEA708Captions:false in the frontend blocks embedded CC tracks.
-        # SubtitleRenderer renders via custom div; native track from "..." menu
-        # also works and disables SubtitleRenderer to avoid double-rendering.
+        # Create initial master playlist with ABR ladder
         master_path = os.path.join(self._hls_dir, "master.m3u8")
         try:
             with open(master_path, "w", encoding="utf-8") as master_file:
@@ -137,8 +146,13 @@ class HLSOutput(OutputSink):
                 master_file.write(
                     f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=NO,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="/subtitles/subs.m3u8"\n'
                 )
+                # Single stream entry (all ABR variants point to same stream.m3u8)
+                profile = self._bitrate_ladder[1] if len(self._bitrate_ladder) > 1 else self._bitrate_ladder[0]
+                bw = profile.get("bandwidth", 1500000)
+                w = profile.get("width", 1280)
+                h = profile.get("height", 720)
                 master_file.write(
-                    '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"\n'
+                    f'#EXT-X-STREAM-INF:BANDWIDTH={bw},RESOLUTION={w}x{h},CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"\n'
                 )
                 master_file.write("stream.m3u8\n")
         except Exception as e:
@@ -151,10 +165,12 @@ class HLSOutput(OutputSink):
         try:
             with open(stream_path, "w", encoding="utf-8") as f:
                 f.write("#EXTM3U\n")
-                f.write("#EXT-X-VERSION:3\n")
+                f.write("#EXT-X-VERSION:4\n")
                 f.write("#EXT-X-TARGETDURATION:10\n")
                 f.write("#EXT-X-MEDIA-SEQUENCE:0\n")
-                f.write("#EXT-X-DISCONTINUITY\n")
+                # No DISCONTINUITY — this is the first playlist, there is
+                # nothing to be discontinuous from. HLS.js may flush the
+                # buffer on a discontinuity boundary, causing a stall.
         except Exception as e:
             self.logger.error(f"Failed to create empty stream playlist: {e}")
 
@@ -218,14 +234,13 @@ class HLSOutput(OutputSink):
 
         # ── Fast path: remux when input is already H.264 AND starts with keyframe ──
         # Avoid re-encoding when the input codec is already H.264.
-        # Only re-encode when encoder_mode forces it, input is not H.264,
-        # or the chunk doesn't start with a keyframe (which would cause stuttering).
-        encoder_mode = self._encoder_config.encoder_mode
-        can_remux = encoder_mode == "passthrough" or (
-            encoder_mode == "auto" and self._is_h264(input_path) and starts_with_keyframe(input_path)
-        )
-        if encoder_mode == "auto" and not can_remux and self._is_h264(input_path):
-            self.logger.info("Input does not start with keyframe, falling back to re-encode " "(prevents stuttering)")
+        # Only re-encode when passthrough mode is off AND input is not H.264
+        # or doesn't start with a keyframe (which would cause stuttering).
+        is_h264 = self._is_h264(input_path)
+        has_keyframe = starts_with_keyframe(input_path)
+        can_remux = (is_h264 and has_keyframe) or self._encoder_config.encoder_mode == "passthrough"
+        if is_h264 and not has_keyframe:
+            self.logger.info("Input does not start with keyframe, falling back to re-encode (prevents stuttering)")
 
         if can_remux:
             segment_name = f"seg_{self._segment_index:06d}.ts"
@@ -243,7 +258,7 @@ class HLSOutput(OutputSink):
                     self._set_error(str(e))
                     self._segment_index += 1
                     return
-                actual_duration = chunk_duration
+                actual_duration = get_video_duration(segment_path) or chunk_duration
                 self._segment_durations[self._segment_index] = actual_duration
                 self._total_duration_emitted += actual_duration
                 self._update_manifest()
@@ -362,7 +377,11 @@ class HLSOutput(OutputSink):
         cmd.extend(audio_args)
         cmd.extend(["-c:v", encoder])
 
-        if encoder == "libx264":
+        if "nvenc" in encoder:
+            fps = self._encoder_config.video_fps or 25
+            gop_frames = int(round(fps * self._segment_duration))
+            cmd.extend(["-preset", preset, "-g", str(gop_frames), "-keyint_min", str(gop_frames), "-no-scenecut", "1"])
+        elif encoder == "libx264":
             cmd.extend(["-preset", preset])
         cmd.extend(extra_args)
         cmd.extend(
@@ -529,6 +548,11 @@ class HLSOutput(OutputSink):
                     media_lines.append(f"#EXTINF:{dur:.3f},")
                 except ValueError:
                     media_lines.append(f"#EXTINF:{self._segment_duration}.000,")
+                # Each pipeline chunk has independent PTS/DTS starting from 0.
+                # #EXT-X-DISCONTINUITY tells HLS.js not to expect continuous
+                # timestamps, which prevents GapController from detecting
+                # phantom holes and causing bufferStalledError.
+                media_lines.append("#EXT-X-DISCONTINUITY")
                 media_lines.append(seg_name)
 
             try:
@@ -544,16 +568,21 @@ class HLSOutput(OutputSink):
             except Exception as e:
                 self.logger.error(f"Failed to write media playlist: {e}")
 
-            # Escribir master playlist
-            # Subtitle track with DEFAULT=NO — in the "..." menu but no CC button.
-            # enableCEA708Captions:false blocks embedded CEA-608/708 tracks.
+            # Escribir master playlist con ABR ladder
             master_lines = [
                 "#EXTM3U",
                 "#EXT-X-VERSION:4",
                 f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=NO,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="/subtitles/subs.m3u8"',
-                '#EXT-X-STREAM-INF:BANDWIDTH=2000000,CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"',
-                "stream.m3u8",
             ]
+            # Single stream entry (all ABR variants point to same stream.m3u8)
+            profile = self._bitrate_ladder[1] if len(self._bitrate_ladder) > 1 else self._bitrate_ladder[0]
+            bw = profile.get("bandwidth", 1500000)
+            w = profile.get("width", 1280)
+            h = profile.get("height", 720)
+            master_lines.append(
+                f'#EXT-X-STREAM-INF:BANDWIDTH={bw},RESOLUTION={w}x{h},CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"'
+            )
+            master_lines.append("stream.m3u8")
 
             try:
                 master_tmp = master_path + ".tmp"

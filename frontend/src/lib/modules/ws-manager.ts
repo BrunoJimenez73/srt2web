@@ -48,6 +48,11 @@ export function connectWebSocket(): void {
     }
   });
 
+  // F162: Set wsConnected on open (including reconnections)
+  wsClient.onOpen(() => {
+    wsConnected.value = true;
+  });
+
   wsClient.connect();
 }
 

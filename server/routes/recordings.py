@@ -18,7 +18,7 @@ logger = logging.getLogger("srt2web.api.recordings")
 
 router = APIRouter(tags=["recordings"])
 
-from server.ctx import get_ctx as _ctx
+from server.ctx import get_ctx as _ctx  # noqa: E402
 
 
 def _get_recordings_dir(request: Request) -> Path:
@@ -125,5 +125,6 @@ async def delete_recording(request: Request, name: str) -> dict[str, Any]:
         logger.info(f"Recording deleted: {file_path.name}")
         return {"status": "deleted", "name": file_path.name}
     except OSError as e:
-        logger.error(f"Failed to delete recording {file_path.name}: {e}")
-        raise HTTPException(500, f"Failed to delete recording: {e}") from e
+        logger.error("Failed to delete recording %s: %s", file_path.name, e)
+        # F161: Return generic message to avoid leaking internal details
+        raise HTTPException(500, "Failed to delete recording") from e

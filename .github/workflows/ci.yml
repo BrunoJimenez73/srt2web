@@ -44,7 +44,7 @@ jobs:
 
       - name: Type check with MyPy
         run: |
-          mypy core/ modules/ server/ cli/ --config-file pyproject.toml
+          mypy core/ modules/ server/ cli/ --strict --config-file pyproject.toml
         continue-on-error: false
 
       - name: Run unit tests (skip slow)
@@ -85,6 +85,9 @@ jobs:
 
       - name: Run frontend tests
         run: npm test
+
+      - name: Lint frontend
+        run: npm run lint
 
   docker:
     runs-on: ubuntu-latest

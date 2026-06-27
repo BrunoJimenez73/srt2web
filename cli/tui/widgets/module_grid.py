@@ -49,18 +49,9 @@ class TUIModuleCard(Static, can_focus=True):
         self.post_message(CardClicked(self.module_name))
 
     def _render_card(self) -> None:
-        state_style = {
-            "running": "green",
-            "processing": "green",
-            "starting": "yellow",
-            "initializing": "blue",
-            "stopping": "yellow",
-            "stopped": "dim white",
-            "idle": "dim white",
-            "error": "red",
-            "degraded": "orange1",
-            "disabled": "dim",
-        }.get(self._state, "white")
+        from cli.constants import STATE_STYLE
+
+        state_style = STATE_STYLE.get(self._state, "white")
 
         if not self._enabled:
             state_dot = Text("—", style="dim")

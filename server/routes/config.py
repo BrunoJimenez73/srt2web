@@ -64,6 +64,12 @@ async def save_preset(request: Request) -> dict[str, Any]:
     if body.name.startswith("_"):
         raise HTTPException(400, "Preset name cannot start with '_'")
 
+    # F161: Sanitize preset name to prevent path traversal
+    import re
+
+    if not re.match(r"^[a-zA-Z0-9_\-. ]+$", body.name) or ".." in body.name:
+        raise HTTPException(400, "Preset name contains invalid characters")
+
     config.save_preset(body.name, body.description)
     return {"status": "saved", "name": body.name}
 
@@ -158,16 +164,18 @@ async def update_config(request: Request, body: ConfigUpdate) -> dict[str, Any]:
         logger.warning(f"Config validation failed: {e}")
         raise HTTPException(400, str(e)) from e
     except Exception as e:
-        logger.error(f"Failed to save config: {e}")
-        raise HTTPException(500, f"Failed to save configuration: {e}") from e
+        logger.error("Failed to save config: %s", e)
+        # F161: Return generic message to avoid leaking internal details
+        raise HTTPException(500, "Failed to save configuration") from e
 
     # Hot reload!
     pipeline = ctx["pipeline"]
     try:
         pipeline.reconfigure(config)
     except Exception as e:
-        logger.error(f"Failed to reconfigure pipeline: {e}")
-        raise HTTPException(500, f"Pipeline reconfiguration failed: {e}") from e
+        logger.error("Failed to reconfigure pipeline: %s", e)
+        # F161: Return generic message to avoid leaking internal details
+        raise HTTPException(500, "Pipeline reconfiguration failed") from e
 
     invalidate_cache("config")
     invalidate_cache("status")
@@ -236,8 +244,9 @@ async def update_video_muxer_config(request: Request) -> dict[str, Any]:
         logger.warning(f"[VIDEO_MUXER] Validation failed: {e}")
         raise HTTPException(400, str(e)) from e
     except Exception as e:
-        logger.error(f"[VIDEO_MUXER] Save failed: {e}")
-        raise HTTPException(500, f"Failed to save configuration: {e}") from e
+        logger.error("[VIDEO_MUXER] Save failed: %s", e)
+        # F161: Return generic message to avoid leaking internal details
+        raise HTTPException(500, "Failed to save configuration") from e
 
     try:
         pipeline.reconfigure(config)

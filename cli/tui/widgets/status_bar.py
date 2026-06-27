@@ -11,14 +11,10 @@ class TUIStatusBar(Static):
         self.update("Waiting for status...")
 
     def update_status(self, status: PipelineStatus) -> None:
-        state_style = {
-            "running": "bold green",
-            "starting": "bold yellow",
-            "stopping": "bold yellow",
-            "stopped": "white",
-            "error": "bold red",
-            "idle": "dim white",
-        }.get(status.state, "white")
+        from cli.constants import STATE_STYLE
+
+        base_style = STATE_STYLE.get(status.state, "white")
+        state_style = f"bold {base_style}" if base_style != "dim white" else base_style
 
         mode = status.mode or status.strategy or "—"
 

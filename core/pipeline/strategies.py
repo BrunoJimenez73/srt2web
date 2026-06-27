@@ -79,6 +79,10 @@ class PipelineContext:
     metrics: Any  # PipelineMetrics (avoiding circular import)
     lost_chunk_timeout: float
     buffer_size: int
+    hardware_monitor: Any = None  # HardwareMonitor for adaptive concurrency (F170)
+    adaptive_config: dict[str, Any] | None = None  # F170 reactive pipeline settings
+    chunk_duration: float = 10.0  # Current chunk_duration_sec for adaptation
+    on_chunk_duration_change: Callable[[float], None] | None = None  # F170 adaptation callback
 
 
 class PipelineStrategy(ABC):
@@ -306,6 +310,10 @@ class ThreadParallelStrategy(PipelineStrategy):
     - Módulos CPU-bound
     - Bloqueo I/O (disco, red)
     - Sistemas multi-core
+
+    F170 — Reactive pipeline:
+    - Dynamic concurrency based on CPU/GPU load
+    - Backpressure from queue occupancy
     """
 
     def __init__(self, config: StrategyConfig | None = None):
@@ -315,6 +323,12 @@ class ThreadParallelStrategy(PipelineStrategy):
         self._input_thread: threading.Thread | None = None
         self._worker_threads: list[threading.Thread] = []
         self._output_thread: threading.Thread | None = None
+        # F170 — Dynamic concurrency
+        self._concurrency_target: int = self._config.max_concurrent_chunks
+        self._monitor_thread: threading.Thread | None = None
+        self._monitor_interval: float = 5.0
+        # F170 — Backpressure state
+        self._backpressure_sleep: float = 0.01  # normal sleep between input polls
 
     def process_chunk(self, data: PipelineData) -> PipelineData:
         """Procesa un chunk con semáforo para limitar concurrencia."""
@@ -341,8 +355,12 @@ class ThreadParallelStrategy(PipelineStrategy):
                     self._active_chunks -= 1
 
     def start_threads(self, ctx: PipelineContext) -> None:
-        """Start input, worker, and output threads."""
+        """Start input, worker, output, and monitor threads."""
         super().start_threads(ctx)
+
+        # F170 — Initialize adaptive config from context
+        if ctx and ctx.adaptive_config:
+            self._backpressure_sleep = 0.01
 
         self._input_thread = threading.Thread(
             target=self._input_thread_loop,
@@ -351,10 +369,12 @@ class ThreadParallelStrategy(PipelineStrategy):
         )
         self._input_thread.start()
 
-        self._worker_threads = []
-        for i in range(
+        initial_workers = (
             ctx.semaphore._value if hasattr(ctx.semaphore, "_value") else self._config.max_concurrent_chunks
-        ):
+        )
+        self._concurrency_target = initial_workers
+        self._worker_threads = []
+        for i in range(initial_workers):
             worker = threading.Thread(
                 target=self._worker_thread_loop,
                 daemon=True,
@@ -370,6 +390,15 @@ class ThreadParallelStrategy(PipelineStrategy):
         )
         self._output_thread.start()
 
+        # F170 — Start adaptive monitor thread
+        if ctx and ctx.hardware_monitor and ctx.adaptive_config and ctx.adaptive_config.get("enabled", True):
+            self._monitor_thread = threading.Thread(
+                target=self._adaptive_monitor_loop,
+                daemon=True,
+                name="pipeline-adaptive-monitor",
+            )
+            self._monitor_thread.start()
+
     def stop_threads(self) -> None:
         """Join all threads."""
         if self._input_thread and self._input_thread.is_alive():
@@ -382,19 +411,75 @@ class ThreadParallelStrategy(PipelineStrategy):
         self._input_thread = None
         self._worker_threads.clear()
         self._output_thread = None
+        self._monitor_thread = None
+
+    def _adaptive_monitor_loop(self) -> None:
+        """F170 — Monitor CPU/GPU and adjust concurrency target."""
+        ctx = self._ctx
+        assert ctx is not None
+        adaptive = ctx.adaptive_config or {}
+        cpu_high = adaptive.get("cpu_high_threshold", 80.0)
+        gpu_high = adaptive.get("gpu_high_threshold", 85.0)
+        cpu_low = adaptive.get("cpu_low_threshold", 40.0)
+        gpu_low = adaptive.get("gpu_low_threshold", 50.0)
+        min_conc = adaptive.get("min_concurrent", 1)
+        max_conc = adaptive.get("max_concurrent", self._config.max_concurrent_chunks)
+
+        logger.info(
+            f"Adaptive monitor started: cpu_high={cpu_high}% gpu_high={gpu_high}% "
+            f"concurrency=[{min_conc}..{max_conc}]"
+        )
+
+        while not ctx.stop_event.is_set():
+            try:
+                hw = ctx.hardware_monitor
+                if hw:
+                    metrics = hw.get_system_metrics()
+                    cpu = metrics.get("cpu_percent", 0.0)
+                    gpu = metrics.get("gpu_percent", 0.0)
+                    gpu_avail = metrics.get("gpu_available", False)
+
+                    current = self._concurrency_target
+                    if cpu > cpu_high or (gpu_avail and gpu > gpu_high):
+                        new_target = max(min_conc, current - 1)
+                    elif cpu < cpu_low and (not gpu_avail or gpu < gpu_low):
+                        new_target = min(max_conc, current + 1)
+                    else:
+                        new_target = current
+
+                    if new_target != current:
+                        logger.info(
+                            f"Adaptive concurrency: {current} → {new_target} " f"(cpu={cpu:.0f}% gpu={gpu:.0f}%)"
+                        )
+                        self._concurrency_target = new_target
+                else:
+                    logger.debug("Hardware monitor not available, skipping adaptive adjustment")
+            except Exception as e:
+                logger.exception("Adaptive monitor error: %s", e)
+
+            time.sleep(self._monitor_interval)
 
     def _input_thread_loop(self) -> None:
-        """Thread de lectura de entrada."""
+        """Thread de lectura de entrada con backpressure (F170)."""
         ctx = self._ctx
         assert ctx is not None
         logger.info("Input thread started")
         chunk_index = 0
+        bp_ratio = (ctx.adaptive_config or {}).get("backpressure_queue_ratio", 0.7)
+        bp_threshold = int(ctx.buffer_size * bp_ratio)
 
         try:
             while not ctx.stop_event.is_set():
                 if not ctx.input_source:
                     time.sleep(0.1)
                     continue
+
+                # F170 — Backpressure: slow down if queues are filling up
+                output_qsize = ctx.output_queue.qsize()
+                chunk_qsize = ctx.chunk_queue.qsize()
+                if output_qsize > bp_threshold or chunk_qsize > bp_threshold:
+                    bp_sleep = min(0.5, 0.01 + 0.05 * max(output_qsize, chunk_qsize))
+                    time.sleep(bp_sleep)
 
                 data = ctx.input_source.get_next_chunk()
                 if data is None:
@@ -424,13 +509,19 @@ class ThreadParallelStrategy(PipelineStrategy):
             self._log("error", f"Input thread error: {e}")
 
     def _worker_thread_loop(self) -> None:
-        """Thread worker para procesamiento paralelo."""
+        """Thread worker para procesamiento paralelo con adaptación dinámica (F170)."""
         ctx = self._ctx
         assert ctx is not None
         logger.info("Worker thread started")
 
         try:
             while not ctx.stop_event.is_set():
+                # F170 — Dynamic concurrency: back off if over target
+                with self._lock:
+                    if self._active_chunks >= self._concurrency_target:
+                        time.sleep(0.2)
+                        continue
+
                 try:
                     processor = ctx.chunk_queue.get(timeout=1.0)
                 except queue.Empty:
@@ -438,6 +529,7 @@ class ThreadParallelStrategy(PipelineStrategy):
 
                 data = processor.data
                 if data is None:
+                    ctx.chunk_queue.task_done()
                     continue
 
                 start_time = time.perf_counter()
@@ -468,6 +560,8 @@ class ThreadParallelStrategy(PipelineStrategy):
         next_expected = 0
         _last_pending_time: float = 0.0
         lost_timeout = ctx.lost_chunk_timeout
+        # F170 — Chunk duration adaptation state
+        _last_adapt_chunk = 0
 
         try:
             while not ctx.stop_event.is_set():
@@ -503,6 +597,38 @@ class ThreadParallelStrategy(PipelineStrategy):
                     ctx.output_queue.task_done()
                     next_expected += 1
                     _last_pending_time = time.time()
+
+                    # F170 — Chunk duration adaptation
+                    if (
+                        ctx.adaptive_config
+                        and ctx.adaptive_config.get("chunk_duration_adapt", True)
+                        and ctx.on_chunk_duration_change
+                    ):
+                        interval = ctx.adaptive_config.get("adaptation_interval_chunks", 10)
+                        chunks_since = ctx.metrics.chunks_processed - _last_adapt_chunk
+                        if chunks_since >= interval and ctx.metrics.avg_processing_time > 0:
+                            _last_adapt_chunk = ctx.metrics.chunks_processed
+                            avg = ctx.metrics.avg_processing_time
+                            current_dur = ctx.chunk_duration
+                            ratio = avg / current_dur if current_dur > 0 else 0
+                            high_ratio = ctx.adaptive_config.get("chunk_duration_ratio_high", 0.8)
+                            low_ratio = ctx.adaptive_config.get("chunk_duration_ratio_low", 0.3)
+                            if ratio > high_ratio and current_dur < 60:
+                                new_dur = min(60, int(current_dur * 1.5))
+                                self._log(
+                                    "info",
+                                    f"Chunk duration adaptation: {current_dur}s → {new_dur}s (avg_proc={avg:.1f}s, ratio={ratio:.2f})",
+                                )
+                                ctx.chunk_duration = new_dur
+                                ctx.on_chunk_duration_change(float(new_dur))
+                            elif ratio < low_ratio and current_dur > 2:
+                                new_dur = max(2, int(current_dur / 1.5))
+                                self._log(
+                                    "info",
+                                    f"Chunk duration adaptation: {current_dur}s → {new_dur}s (avg_proc={avg:.1f}s, ratio={ratio:.2f})",
+                                )
+                                ctx.chunk_duration = new_dur
+                                ctx.on_chunk_duration_change(float(new_dur))
 
                 if pending and _last_pending_time > 0 and (time.time() - _last_pending_time) > lost_timeout:
                     self._log(
@@ -547,6 +673,7 @@ class AsyncIOStrategy(PipelineStrategy):
         super().__init__(config)
         self._semaphore: asyncio.Semaphore | None = None
         self._async_tasks: list[asyncio.Task[Any]] = []
+        self._worker_threads: list[threading.Thread] = []
 
     async def process_chunk_async(self, data: PipelineData) -> PipelineData:
         """Procesa un chunk de forma asíncrona."""
@@ -584,18 +711,29 @@ class AsyncIOStrategy(PipelineStrategy):
         return asyncio.run(self.process_chunk_async(data))
 
     def start_threads(self, ctx: PipelineContext) -> None:
-        """Start the asyncio processing loop as a task."""
+        """Start the asyncio processing loop in a dedicated thread."""
         super().start_threads(ctx)
-        task = asyncio.ensure_future(self._run_async_loop())
-        self._async_tasks.append(task)
+        self._ctx = ctx
+        thread = threading.Thread(
+            target=asyncio.run,
+            args=(self._run_async_loop(),),
+            daemon=True,
+            name="asyncio-loop",
+        )
+        thread.start()
+        self._worker_threads.append(thread)
 
     async def stop_threads(self) -> None:
-        """Cancel all async tasks."""
+        """Cancel all async tasks and join worker threads."""
         for task in self._async_tasks:
             task.cancel()
         if self._async_tasks:
             await asyncio.gather(*self._async_tasks, return_exceptions=True)
         self._async_tasks.clear()
+        # Join worker threads (they exit when stop_event is set)
+        for thread in self._worker_threads:
+            thread.join(timeout=5.0)
+        self._worker_threads.clear()
 
     async def _run_async_loop(self) -> None:
         """Bucle principal asyncio."""

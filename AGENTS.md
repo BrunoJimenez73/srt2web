@@ -188,7 +188,7 @@ Por defecto `thread_parallel` con 2 workers concurrentes. Las estrategias viven 
 
 ## 7. Estado de features
 
-Ver `feature_list.json` para lista completa y estados. Total actual: 126 features.
+Ver `feature_list.json` para lista completa y estados. Total actual: 130 features.
 
 **Features 1–14**: todas DONE (ciclo Abril–Mayo 2026).
 
@@ -234,7 +234,23 @@ Ver `feature_list.json` para lista completa y estados. Total actual: 126 feature
 
 **Feature 150**: PTS-based subtitle sync — DONE (23/06/2026). Elimina drift mtime (~9s/30min) usando PTS/PCR del contenedor MPEG-TS.
 
-**Siguiente pendiente**: F123 — session security (JWT expiry, refresh tokens, token blacklist).
+**Feature 167**: Unificar renderizado de subtítulos (eliminar dual path) — DONE (27/06/2026). Eliminado polling `setInterval(loadSubtitles, 2000)` y SubtitleRenderer; única ruta nativa HLS.js con `activateFirstSubtitleTrack()` + `forceSubtitleTrackMode()`.
+
+**Feature 168**: Aplicar corrección de drift en el pipeline — DONE (27/06/2026). `SubtitleGenerator._do_process()` llama `_drift_monitor.check_sync()` cada chunk, aplica correction factor a `pipeline_delay` y `shifted_start`. `enable_drift_detection: true` por defecto.
+
+**Feature 169**: ABR adaptativo en HLS — DONE (27/06/2026). `BitrateProfile` + `bitrate_ladder` en `WebOutputConfig` con 3 perfiles (500K/480p, 1.5M/720p, 3M/1080p). Master playlist genera `EXT-X-STREAM-INF` por perfil.
+
+**Feature 170**: Pipeline reactivo (auto-adaptación a carga) — DONE (27/06/2026). 4 subsistemas:
+
+- **(a) EMA reactivo**: smoothing factor configurable (`0.4` default), reset brusco (`reset_factor=0.7`) cuando `ratio > reset_threshold (0.3)`.
+- **(b) Concurrencia dinámica**: `_adaptive_monitor_loop` cada 5s lee CPU/GPU via `HardwareMonitor`, ajusta `_concurrency_target`. Umbrales: CPU>80% o GPU>85% reduce; CPU<40% y GPU<50% aumenta.
+- **(c) Backpressure**: `_input_thread_loop` frena si `output_queue` o `chunk_queue > buffer*0.7` con `sleep` progresivo hasta 0.5s.
+- **(d) Chunk duration adaptativo**: cada `adaptation_interval_chunks` (10) en `_output_thread_loop`, si `avg_proc_time/chunk_duration > 0.8` aumenta chunk (×1.5, max 60s); si < 0.3 reduce (/1.5, min 2s). Propaga via `set_chunk_duration()` en `BaseInput`.
+- **Config**: `AdaptiveConfig` (14 campos) en `config_schema.py` + `config.yaml`.
+
+**Feature 171**: Feedback loop player → servidor — DONE (27/06/2026). `PlayerFeedbackMonitor` en `core/player_feedback.py` con thresholds configurables. Endpoint `WS /ws/player-feedback` recibe buffer health, stall, bandwidth desde el player. Adaptación: stall o buffer<2s → reduce chunk_duration×0.5 y concurrencia→2; buffer>15s por >60s → restaura defaults. Frontend: `player-feedback.ts` conecta WS dedicado, hooks en `BUFFER_APPENDED`, `STALLED`, `LEVEL_UPDATED` de HLS.js. 238/238 tests frontend, todos los módulos Python OK.
+
+**Siguiente pendiente**: F172 por definir — posiblemente tuning de latencia total <20s o feedback loop bidireccional completo.
 
 ## 8. Historial compacto (post-Abril 2026)
 

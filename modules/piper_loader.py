@@ -11,6 +11,7 @@ crash the main Python process.
 """
 
 import base64
+import contextlib
 import json
 import logging
 import os
@@ -31,6 +32,7 @@ _PERSISTENT_WORKER_PATH = _MODULES_DIR / "piper_worker.py"
 _LOADER_SCRIPT_PATH = _MODULES_DIR / "piper_loader_script.py"
 
 _PERSISTENT_WORKER_SCRIPT_CACHE: str | None = None
+
 
 def PERSISTENT_WORKER_SCRIPT() -> str:
     """Lazy-load the worker script content.
@@ -271,7 +273,8 @@ class PiperSubprocessManager:
         ``start()`` also acquires ``self._lock``, causing a deadlock on
         a non-reentrant ``threading.Lock`` (ROB-02).
         """
-        self._restart_count += 1
+        with self._lock:
+            self._restart_count += 1
         logger.warning(
             f"[PiperManager] Restarting subprocess (attempt {self._restart_count}/{self.MAX_RESTART_ATTEMPTS})..."
         )
@@ -381,84 +384,90 @@ class PiperSubprocessManager:
         consume the JSON response that the worker writes before it exits.  If we
         ignore that response the worker can block on a full stdout pipe, leaving
         the subprocess alive and causing the test suite to hang.
+
+        The blocking waits (``proc.wait``) happen outside ``self._lock`` to
+        avoid holding the lock for up to 8 seconds during process shutdown.
         """
-        if self._proc:
+        proc = self._proc
+        if not proc:
+            return
+
+        # --- Quick operations under lock: signal shutdown, close pipes ---
+        try:
+            if proc.stdin:
+                try:
+                    shutdown_cmd = json.dumps({"action": "shutdown"}) + "\n"
+                    proc.stdin.write(shutdown_cmd)
+                    proc.stdin.flush()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # Release lock for blocking waits
+        self._lock.release()
+        try:
+            # Read any pending response to unblock the worker
             try:
-                # Try graceful shutdown: send the ``shutdown`` command and read the response.
-                if self._proc.stdin:
-                    try:
-                        shutdown_cmd = json.dumps({"action": "shutdown"}) + "\n"
-                        self._proc.stdin.write(shutdown_cmd)
-                        self._proc.stdin.flush()
-                        # Read the JSON response (if any) to unblock the worker.
-                        if self._proc.stdout:
-                            # Use a short timeout to avoid hanging indefinitely.
-                            try:
-                                # ``select`` works on Unix; on Windows we fall back to a thread read.
-                                if sys.platform != "win32":
-                                    import select
+                if proc.stdout:
+                    if sys.platform != "win32":
+                        import select
 
-                                    ready, _, _ = select.select([self._proc.stdout], [], [], 3)
-                                    if ready:
-                                        self._proc.stdout.readline()
-                                else:
-                                    # Windows: read in a separate thread with timeout.
-                                    response_line_shutdown: list[str | None] = [None]
-                                    proc_shutdown = self._proc
-
-                                    def _read() -> None:
-                                        try:
-                                            if proc_shutdown and proc_shutdown.stdout:
-                                                response_line_shutdown[0] = proc_shutdown.stdout.readline()
-                                        except Exception as e:
-                                            logger.debug("Suppressed error: %s", e, exc_info=True)
-
-                                    t = threading.Thread(target=_read)
-                                    t.start()
-                                    t.join(3)
-                            except Exception as e:
-                                # If reading fails we still attempt to wait for termination.
-                                logger.debug(f"Failed to read from subprocess stdout: {e}")
-                                pass
-                        # Wait for the process to exit gracefully.
-                        self._proc.wait(timeout=3)
-                    except Exception as e:
-                        # If anything goes wrong we fall back to force-kill.
-                        logger.debug(f"Failed to wait for subprocess graceful termination: {e}")
-                        pass
-
-                # Force kill if still running after graceful attempt.
-                if self._proc.poll() is None:
-                    if sys.platform == "win32":
-                        subprocess.run(
-                            ["taskkill", "/F", "/T", "/PID", str(self._proc.pid)],
-                            capture_output=True,
-                            creationflags=get_creation_flags(),
-                        )
+                        ready, _, _ = select.select([proc.stdout], [], [], 3)
+                        if ready:
+                            proc.stdout.readline()
                     else:
-                        self._proc.kill()
-                    # Ensure the process is reaped.
-                    self._proc.wait(timeout=5)
+                        response_line_shutdown: list[str | None] = [None]
+                        proc_shutdown = proc
+
+                        def _read() -> None:
+                            try:
+                                if proc_shutdown and proc_shutdown.stdout:
+                                    response_line_shutdown[0] = proc_shutdown.stdout.readline()
+                            except Exception as e:
+                                logger.debug("Suppressed error: %s", e, exc_info=True)
+
+                        t = threading.Thread(target=_read)
+                        t.start()
+                        t.join(3)
             except Exception as e:
-                logger.debug(f"[PiperManager] Cleanup: {e}")
-            finally:
-                # Close any open pipes to avoid resource leaks.
-                try:
-                    if self._proc.stdin:
-                        self._proc.stdin.close()
-                except Exception as e:
-                    logger.debug("Suppressed error: %s", e, exc_info=True)
-                try:
-                    if self._proc.stdout:
-                        self._proc.stdout.close()
-                except Exception as e:
-                    logger.debug("Suppressed error: %s", e, exc_info=True)
-                try:
-                    if self._proc.stderr:
-                        self._proc.stderr.close()
-                except Exception as e:
-                    logger.debug("Suppressed error: %s", e, exc_info=True)
-                self._proc = None
+                logger.debug("Failed to read from subprocess stdout: %s", e)
+
+            # Wait for graceful exit
+            with contextlib.suppress(Exception):
+                proc.wait(timeout=3)
+
+            # Force kill if still running
+            if proc.poll() is None:
+                if sys.platform == "win32":
+                    subprocess.run(
+                        ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                        capture_output=True,
+                        creationflags=get_creation_flags(),
+                    )
+                else:
+                    proc.kill()
+                with contextlib.suppress(Exception):
+                    proc.wait(timeout=5)
+        finally:
+            self._lock.acquire()
+            # Close pipes and clear reference under lock
+            try:
+                if proc.stdin:
+                    proc.stdin.close()
+            except Exception:
+                pass
+            try:
+                if proc.stdout:
+                    proc.stdout.close()
+            except Exception:
+                pass
+            try:
+                if proc.stderr:
+                    proc.stderr.close()
+            except Exception:
+                pass
+            self._proc = None
 
         # The worker script is a permanent file (modules/piper_worker.py),
         # so we don't clean it up here.

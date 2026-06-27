@@ -268,15 +268,35 @@ class InputConfig(BaseModel):
     file: FileInputConfig = Field(default_factory=FileInputConfig, description="Configuración archivo")
 
 
+class BitrateProfile(BaseModel):
+    """Un perfil de calidad para el ladder ABR."""
+
+    bandwidth: int = Field(default=1500000, ge=100000, le=50000000, description="Bitrate en bps")
+    width: int = Field(default=1280, ge=160, le=7680, description="Ancho de video")
+    height: int = Field(default=720, ge=90, le=4320, description="Alto de video")
+    name: str = Field(default="medium", description="Nombre del perfil (low, medium, high)")
+
+
+DEFAULT_BITRATE_LADDER: list[dict[str, Any]] = [
+    {"name": "low", "bandwidth": 500000, "width": 854, "height": 480},
+    {"name": "medium", "bandwidth": 1500000, "width": 1280, "height": 720},
+    {"name": "high", "bandwidth": 3000000, "width": 1920, "height": 1080},
+]
+
+
 class WebOutputConfig(BaseModel):
     """Configuración de salida Web (HLS)."""
 
-    segment_duration: int = Field(default=15, ge=1, le=30, description="Duración de segmento HLS en segundos")
+    segment_duration: int = Field(default=5, ge=1, le=30, description="Duración de segmento HLS en segundos")
     list_size: int = Field(
-        default=6, ge=2, le=20, description="Número de segmentos en manifiesto (mínimo 2 para buffer estable)"
+        default=12, ge=2, le=20, description="Número de segmentos en manifiesto (mínimo 2 para buffer estable)"
     )
     audio_offset_ms: int = Field(default=0, ge=-1000, le=1000, description="Offset de audio en ms")
     encoder_mode: EncoderModeEnum = Field(default=EncoderModeEnum.AUTO, description="Modo de encoder de video")
+    bitrate_ladder: list[BitrateProfile] = Field(
+        default_factory=lambda: [BitrateProfile(**p) for p in DEFAULT_BITRATE_LADDER],
+        description="Ladder de bitrates para ABR (HLS master playlist)",
+    )
 
 
 class RTMPOutputConfig(BaseModel):
@@ -356,28 +376,110 @@ class OutputConfig(BaseModel):
     outputs: list[NamedOutputEntry] = Field(default_factory=list, description="Lista de salidas activas")
 
 
+class AdaptiveConfig(BaseModel):
+    """Configuración del pipeline reactivo (F170)."""
+
+    enabled: bool = Field(default=True, description="Habilitar auto-adaptación del pipeline")
+    smoothing_factor: float = Field(
+        default=0.4,
+        ge=0.05,
+        le=0.9,
+        description="Factor de suavizado EMA del pipeline delay (más alto = más reactivo)",
+    )
+    reset_threshold: float = Field(
+        default=0.3,
+        ge=0.1,
+        le=1.0,
+        description="Cambio relativo mínimo para activar reset rápido del EMA",
+    )
+    reset_factor: float = Field(
+        default=0.7,
+        ge=0.2,
+        le=0.95,
+        description="Factor de suavizado durante reset brusco (más alto = más rápido)",
+    )
+    cpu_high_threshold: float = Field(
+        default=80.0,
+        ge=30.0,
+        le=100.0,
+        description="CPU % sobre el cual reducir concurrencia",
+    )
+    gpu_high_threshold: float = Field(
+        default=85.0,
+        ge=30.0,
+        le=100.0,
+        description="GPU % sobre el cual reducir concurrencia",
+    )
+    cpu_low_threshold: float = Field(
+        default=40.0,
+        ge=5.0,
+        le=80.0,
+        description="CPU % bajo el cual aumentar concurrencia",
+    )
+    gpu_low_threshold: float = Field(
+        default=50.0,
+        ge=5.0,
+        le=80.0,
+        description="GPU % bajo el cual aumentar concurrencia",
+    )
+    min_concurrent: int = Field(default=1, ge=1, le=5, description="Mínimo de workers activos")
+    max_concurrent: int = Field(default=4, ge=1, le=10, description="Máximo de workers activos")
+    backpressure_queue_ratio: float = Field(
+        default=0.7,
+        ge=0.3,
+        le=1.0,
+        description="Ratio de ocupación de cola que activa backpressure",
+    )
+    chunk_duration_adapt: bool = Field(
+        default=True,
+        description="Adaptar chunk_duration según tiempos de procesamiento",
+    )
+    chunk_duration_ratio_high: float = Field(
+        default=0.8,
+        ge=0.3,
+        le=1.5,
+        description="Si avg_proc_time / chunk_duration > esto, aumentar chunk",
+    )
+    chunk_duration_ratio_low: float = Field(
+        default=0.3,
+        ge=0.1,
+        le=0.8,
+        description="Si avg_proc_time / chunk_duration < esto, reducir chunk",
+    )
+    adaptation_interval_chunks: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="Cada N chunks, re-evaluar chunk_duration_adapt",
+    )
+
+
 class PipelineConfig(BaseModel):
     """Configuración del pipeline."""
 
-    chunk_duration_sec: int = Field(default=15, ge=1, le=60, description="Duración de chunk en segundos")
+    chunk_duration_sec: int = Field(default=5, ge=1, le=60, description="Duración de chunk en segundos")
     mode: PipelineModeEnum = Field(
         default=PipelineModeEnum.THREAD_PARALLEL,
         description="Modo de operación del pipeline",
     )
     max_concurrent_chunks: int = Field(
-        default=3,
+        default=4,
         ge=1,
         le=10,
         description="Máximo de chunks procesando simultáneamente",
     )
-    buffer_size: int = Field(default=5, ge=1, le=20, description="Tamaño del buffer de entrada")
-    retry_attempts: int = Field(default=2, ge=0, le=10, description="Número de reintentos por módulo")
+    buffer_size: int = Field(default=10, ge=1, le=20, description="Tamaño del buffer de entrada")
+    retry_attempts: int = Field(default=3, ge=0, le=10, description="Número de reintentos por módulo")
     retry_delay: float = Field(default=1.0, ge=0.1, le=10.0, description="Retraso entre reintentos en segundos")
     lost_chunk_timeout_sec: float = Field(
-        default=30.0,
+        default=15.0,
         ge=1.0,
         le=300.0,
         description="Segundos antes de declarar un chunk como perdido y saltarlo en output",
+    )
+    adaptive: AdaptiveConfig = Field(
+        default_factory=AdaptiveConfig,
+        description="Configuración de pipeline reactivo (F170)",
     )
 
 
@@ -421,7 +523,7 @@ class SubtitleGeneratorConfig(BaseModel):
     format: SubtitleFormatEnum = Field(default=SubtitleFormatEnum.WEBVTT, description="Formato de subtítulos")
     use_translated: bool = Field(default=True, description="Usar texto traducido")
     chunk_duration: int = Field(
-        default=10,
+        default=5,
         ge=1,
         le=60,
         description="Duración de chunk de subtítulos en segundos",
@@ -432,7 +534,7 @@ class SubtitleGeneratorConfig(BaseModel):
 class TTSEngineConfig(BaseModel):
     """Configuración de motor TTS."""
 
-    enabled: bool = Field(default=False, description="Módulo habilitado")
+    enabled: bool = Field(default=True, description="Módulo habilitado")
     engine: TTSEngineEnum = Field(default=TTSEngineEnum.EDGE_TTS, description="Motor TTS a usar")
     device: DeviceEnum = Field(default=DeviceEnum.AUTO, description="Dispositivo de cómputo")
     voice: str = Field(default="es-ES-ElviraNeural", description="Voz TTS")
@@ -442,7 +544,7 @@ class TTSEngineConfig(BaseModel):
 class AudioMixerConfig(BaseModel):
     """Configuración de mezclador de audio."""
 
-    enabled: bool = Field(default=False, description="Módulo habilitado")
+    enabled: bool = Field(default=True, description="Módulo habilitado")
     original_volume: float = Field(default=0.7, ge=0.0, le=2.0, description="Volumen audio original")
     tts_volume: float = Field(default=1.0, ge=0.0, le=2.0, description="Volumen audio TTS")
 
@@ -452,8 +554,8 @@ class VideoMuxerConfig(BaseModel):
 
     enabled: bool = Field(default=True, description="Módulo habilitado")
     engine: Literal["hls", "webrtc"] = Field(default="hls", description="Motor de salida")
-    hls_segment_duration: int = Field(default=15, ge=1, le=30, description="Duración de segmento HLS en segundos")
-    hls_list_size: int = Field(default=6, ge=1, le=20, description="Número de segmentos en manifiesto")
+    hls_segment_duration: int = Field(default=5, ge=1, le=30, description="Duración de segmento HLS en segundos")
+    hls_list_size: int = Field(default=12, ge=1, le=20, description="Número de segmentos en manifiesto")
     audio_offset_ms: int = Field(default=0, ge=-1000, le=1000, description="Offset de audio en ms")
     encoder_mode: EncoderModeEnum = Field(default=EncoderModeEnum.AUTO, description="Modo de encoder de video")
     video_quality: Literal["low", "medium", "high", "ultra"] = Field(default="medium", description="Calidad de video")
@@ -528,7 +630,9 @@ class SubtitleSyncConfig(BaseModel):
         le=2000,  # <= 2000ms
         description="Threshold en ms para activar corrección de sincronización",
     )
-    enable_drift_detection: bool = Field(default=False, description="Habilitar detección automática de drift")
+    enable_drift_detection: bool = Field(
+        default=True, description="Habilitar detección automática de drift y corrección"
+    )
     drift_history_size: int = Field(default=100, description="Número de mediciones de drift a mantener en historial")
 
 

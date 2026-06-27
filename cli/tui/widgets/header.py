@@ -24,15 +24,11 @@ class TUIHeader(Static):
         self._refresh_clock()
 
     def _refresh_clock(self) -> None:
+        from cli.constants import STATE_STYLE
+
         now = datetime.now().strftime("%H:%M:%S")
-        state_style = {
-            "running": "bold green",
-            "starting": "bold yellow",
-            "stopping": "bold yellow",
-            "stopped": "white",
-            "error": "bold red",
-            "idle": "dim white",
-        }.get(self.pipeline_state, "white")
+        base_style = STATE_STYLE.get(self.pipeline_state, "white")
+        state_style = f"bold {base_style}" if base_style != "dim white" else base_style
 
         ws_icon = "●" if self.ws_connected else "○"
         ws_style = "green" if self.ws_connected else "red"

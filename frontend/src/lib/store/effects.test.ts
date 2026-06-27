@@ -143,7 +143,8 @@ describe("effects - Status Effect", () => {
   });
 });
 
-describe("effects - Module Indicators", () => {
+// F162: Module indicators effect moved to ProcessGrid.astro (more comprehensive)
+describe.skip("effects - Module Indicators", () => {
   let container: HTMLDivElement;
 
   beforeEach(async () => {
@@ -431,7 +432,8 @@ describe("effects - System Metrics", () => {
   });
 });
 
-describe("effects - Module Metrics", () => {
+// F162: Module metrics and GPU badges effects moved to ProcessGrid.astro
+describe.skip("effects - Module Metrics", () => {
   let container: HTMLDivElement;
 
   beforeEach(async () => {

@@ -12,6 +12,7 @@ Mejora respecto a la versión anterior:
 - Útil para limitar paralelismo en audio_extractor, audio_mixer, video_muxer.
 """
 
+import contextlib
 import logging
 import threading
 import time
@@ -98,11 +99,16 @@ class FFmpegPool:
         }
 
     def shutdown(self) -> None:
-        """Marcar el pool como cerrado."""
+        """Marcar el pool como cerrado y liberar slots."""
         self._running = False
         with self._lock:
+            active_count = len(self._active)
             self._active.clear()
-        logger.info("FFmpegPool shut down")
+        # Release semaphores for active jobs so a future pool starts clean
+        for _ in range(active_count):
+            with contextlib.suppress(ValueError):
+                self._semaphore.release()
+        logger.info("FFmpegPool shut down (%d active jobs released)", active_count)
 
 
 # ---------------------------------------------------------------------------

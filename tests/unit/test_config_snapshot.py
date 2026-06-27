@@ -48,11 +48,11 @@ class TestDefaultConfigSnapshot:
     def test_default_pipeline_section(self):
         """Pipeline defaults should match expected values."""
         pipeline = DEFAULT_CONFIG["pipeline"]
-        assert pipeline["chunk_duration_sec"] == 15
+        assert pipeline["chunk_duration_sec"] == 5
         assert pipeline["mode"] == "thread_parallel"
-        assert pipeline["max_concurrent_chunks"] == 3
-        assert pipeline["buffer_size"] == 5
-        assert pipeline["retry_attempts"] == 2
+        assert pipeline["max_concurrent_chunks"] == 4
+        assert pipeline["buffer_size"] == 10
+        assert pipeline["retry_attempts"] == 3
         assert pipeline["retry_delay"] == 1.0
 
     def test_default_input_section(self):
@@ -63,14 +63,14 @@ class TestDefaultConfigSnapshot:
         assert input_cfg["srt"]["mode"] == "listener"
         assert input_cfg["srt"]["latency_ms"] == 200
         # SRT chunk_duration_syncs with pipeline.chunk_duration_sec via validation
-        assert input_cfg["srt"]["chunk_duration_sec"] == 15
+        assert input_cfg["srt"]["chunk_duration_sec"] == 5
 
     def test_default_output_section(self):
         """Output defaults should have web as default type."""
         output_cfg = DEFAULT_CONFIG["output"]
         assert output_cfg["type"] == "web"
-        assert output_cfg["web"]["segment_duration"] == 15
-        assert output_cfg["web"]["list_size"] == 6
+        assert output_cfg["web"]["segment_duration"] == 5
+        assert output_cfg["web"]["list_size"] == 12
         assert output_cfg["web"]["encoder_mode"] == "auto"
 
     def test_default_modules_section(self):
@@ -96,10 +96,9 @@ class TestDefaultConfigSnapshot:
         assert modules["transcriber"]["enabled"] is True
         assert modules["translator"]["enabled"] is True
         assert modules["subtitle_generator"]["enabled"] is True
+        assert modules["tts_engine"]["enabled"] is True
+        assert modules["audio_mixer"]["enabled"] is True
         assert modules["video_muxer"]["enabled"] is True
-        # These should be disabled by default
-        assert modules["tts_engine"]["enabled"] is False
-        assert modules["audio_mixer"]["enabled"] is False
 
     def test_default_transcriber_config(self):
         """Transcriber defaults should be sensible."""

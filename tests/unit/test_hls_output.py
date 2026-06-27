@@ -168,6 +168,9 @@ class TestHLSOutputPassthrough:
             mock_run.return_value.stderr = ""
             output.write(data)
 
-        # Fast path with no mixed audio: uses shutil.copy2, not subprocess.run
-        mock_run.assert_not_called()
+        # Fast path with no mixed audio: uses shutil.copy2, not ffmpeg encode.
+        # can_remux probes codec + keyframe + duration via ffprobe (3 calls).
+        assert mock_run.call_count == 3, "Expected 3 ffprobe probes for can_remux + duration"
+        all_args = [c[0][0] for c in mock_run.call_args_list]
+        assert all("ffprobe" in str(a[0]) for a in all_args), "Only ffprobe calls allowed for passthrough"
         assert os.path.exists(segment_path), "Segment should have been copied"

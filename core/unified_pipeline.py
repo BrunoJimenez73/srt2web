@@ -21,6 +21,7 @@ from core.exceptions import PipelineError, PipelineStateError
 from core.hardware_monitor import HardwareMonitor
 from core.module_base import BaseModule, PipelineData
 from core.pipeline_metrics import PipelineMetrics
+from core.pipeline_state_manager import VALID_TRANSITIONS
 from core.schemas import PipelineMode as PipelineMode
 from core.schemas import PipelineState as PipelineState
 from core.schemas import SystemMetrics
@@ -140,6 +141,8 @@ class UnifiedPipeline:
         self._init_thread: threading.Thread | None = None
         self._init_error: BaseException | None = None
         self._chunk_duration = 10.0
+        self._adaptive_config: dict[str, Any] | None = None
+        self._chunk_adapt_counter = 0
 
         # Initialize processing strategy (lazy import)
         self._strategy: Any = None
@@ -189,6 +192,20 @@ class UnifiedPipeline:
     def set_output_sink(self, sink: Any) -> None:
         self._output_sink = sink
 
+    def set_adaptive_config(self, config: dict[str, Any] | None) -> None:
+        """F170 — Set reactive pipeline config for the strategy."""
+        self._adaptive_config = config
+
+    def _on_chunk_duration_change(self, new_duration: float) -> None:
+        """F170 — Propagate chunk duration change to input sources."""
+        self._chunk_duration = new_duration
+        if self._input_source and hasattr(self._input_source, "set_chunk_duration"):
+            try:
+                self._input_source.set_chunk_duration(new_duration)
+                self._log("info", f"Input chunk_duration updated to {new_duration}s")
+            except Exception as e:
+                self._log("error", f"Failed to update input chunk_duration: {e}")
+
     def get_output_sink(self) -> Any | None:
         return self._output_sink
 
@@ -213,9 +230,18 @@ class UnifiedPipeline:
         return list(self._modules)
 
     def _set_state(self, new_state: PipelineState) -> None:
-        """Cambiar estado y notificar."""
-        old_state = self._state
-        self._state = new_state
+        """Cambiar estado y notificar with transition validation."""
+        with self._lock:
+            old_state = self._state
+            if new_state == old_state:
+                return
+            allowed = VALID_TRANSITIONS.get(old_state, [])
+            if allowed and new_state not in allowed:
+                logger.warning(
+                    f"Unexpected state transition: {old_state.value} -> {new_state.value}, "
+                    f"allowed: {[s.value for s in allowed]}"
+                )
+            self._state = new_state
         if self.metrics.start_time is None and new_state == PipelineState.RUNNING:
             self.metrics.start_time = time.time()
         if self._on_state_change:
@@ -276,6 +302,9 @@ class UnifiedPipeline:
 
             # Inicializar módulos
             for module in self._modules:
+                if self._stop_event.is_set():
+                    logger.info("Stop requested during initialization, aborting")
+                    return
                 try:
                     start_method = getattr(module, "start", None)
                     if start_method:
@@ -284,6 +313,10 @@ class UnifiedPipeline:
                 except Exception as e:
                     logger.error(f"Failed to initialize module '{module.name}': {e}")
                     raise
+
+            if self._stop_event.is_set():
+                logger.info("Stop requested during initialization, aborting")
+                return
 
             # Inicializar input/output
             if self._input_source:
@@ -327,6 +360,10 @@ class UnifiedPipeline:
             metrics=self._pipeline_metrics,
             lost_chunk_timeout=self.lost_chunk_timeout,
             buffer_size=self.buffer_size,
+            hardware_monitor=self._hardware_monitor,
+            adaptive_config=self._adaptive_config,
+            chunk_duration=float(self._chunk_duration),
+            on_chunk_duration_change=self._on_chunk_duration_change,
         )
 
     def start(
@@ -393,6 +430,12 @@ class UnifiedPipeline:
                 self._set_state(PipelineState.ERROR)
                 raise PipelineError("Pipeline initialization did not complete")
 
+        # F172: If stop() was called concurrently during init, abort
+        if self._stop_event.is_set() or self._state != PipelineState.STARTING:  # type: ignore[comparison-overlap]
+            self._set_state(PipelineState.IDLE)
+            self._log("info", "Pipeline start aborted — stop was requested during initialization")
+            return _CompletedAwaitable()
+
         self._stop_event.clear()
 
         # Delegate loop execution to strategy (F132)
@@ -439,7 +482,10 @@ class UnifiedPipeline:
                 self._strategy.stop_threads()
             except Exception as e:
                 self._log("error", f"Error stopping strategy threads: {e}")
-            self._strategy.stop()
+            try:
+                self._strategy.stop()
+            except Exception as e:
+                self._log("error", f"Error stopping strategy: {e}")
 
         # Detener módulos
         for module in self._modules:
@@ -587,8 +633,8 @@ class UnifiedPipeline:
             self._log("warning", "reconfigure_pipeline helper not available")
 
     def reset_error_state(self) -> None:
-        """Reset pipeline state from error to idle (public API)."""
-        if self._state == PipelineState.ERROR:
+        """Reset pipeline state from error or stopping to idle (public API)."""
+        if self._state in (PipelineState.ERROR, PipelineState.STOPPING):
             self._set_state(PipelineState.IDLE)
 
     # Alias para compatibilidad API 100% con versiones anteriores

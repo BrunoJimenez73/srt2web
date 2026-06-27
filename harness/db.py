@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sqlite3
 from contextlib import contextmanager
@@ -11,6 +12,8 @@ from pathlib import Path
 from typing import Any, Generator
 
 from .models import Feature, Session, AuditEntry, RiskAssessment, Progress
+
+logger = logging.getLogger("srt2web.harness.db")
 
 # DB lives at project root: <project>/harness.db
 DEFAULT_DB_PATH = Path(__file__).parent.parent / "harness.db"
@@ -120,7 +123,8 @@ class HarnessDB:
         try:
             yield conn
             conn.commit()
-        except Exception:
+        except Exception as e:
+            logger.debug("Transaction failed, rolling back: %s", e)
             conn.rollback()
             raise
 

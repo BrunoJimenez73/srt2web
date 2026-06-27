@@ -73,6 +73,13 @@ export interface ActivateOptions {
    * Defaults to true.
    */
   showSubtitles?: boolean;
+  /**
+   * If provided, also force all subtitle TextTracks on this video
+   * element to "showing" mode after activation. This works around an
+   * HLS.js bug where `<track>` elements get `mode="hidden"` after
+   * playlist refresh even with `subtitleDisplay: true`.
+   */
+  video?: HTMLVideoElement;
 }
 
 const HLS_EVENT_SUBTITLE_TRACKS_UPDATED = "hlsSubtitleTracksUpdated";
@@ -90,7 +97,7 @@ export function activateFirstSubtitleTrack(
   hls: HlsLike,
   options: ActivateOptions = {},
 ): number {
-  const { preferredLang, showSubtitles = true } = options;
+  const { preferredLang, showSubtitles = true, video } = options;
 
   const tracks = collectUsableSubtitleTracks(hls);
   if (tracks.length === 0) {
@@ -111,6 +118,11 @@ export function activateFirstSubtitleTrack(
     chosen.lang ?? "(no lang)",
     chosen.name ?? "(no name)",
   );
+
+  if (video) {
+    forceSubtitleTrackMode(video);
+  }
+
   return chosen.id;
 }
 

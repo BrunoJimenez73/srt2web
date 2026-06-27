@@ -6,7 +6,6 @@ facilitando la consistencia y el type checking.
 """
 
 import time
-import warnings
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -67,13 +66,6 @@ class EncoderMode(str, Enum):
     VIDEOTOOLBOX = "videotoolbox"  # Apple (obsoleto, usar GPU_VIDEOTOOLBOX)
     QSZ = "qsv"  # Intel QuickSync (obsoleto, usar GPU_QSV)
     VAAPI = "vaapi"  # Linux VA-API
-
-
-warnings.warn(
-    "EncoderMode está deprecado. Usar EncoderModeEnum de core.config_schema.",
-    DeprecationWarning,
-    stacklevel=2,
-)
 
 
 @dataclass

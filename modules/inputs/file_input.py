@@ -182,8 +182,6 @@ class FileInput(InputSource):
                 str(self._chunk_duration),
                 "-segment_format",
                 "mpegts",
-                "-reset_timestamps",
-                "1",
                 "-strftime",
                 "0",
             ]
@@ -291,8 +289,6 @@ class FileInput(InputSource):
                 str(self._chunk_duration),
                 "-segment_format",
                 "mpegts",
-                "-reset_timestamps",
-                "1",
                 "-strftime",
                 "0",
             ]

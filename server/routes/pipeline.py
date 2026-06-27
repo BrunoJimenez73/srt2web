@@ -35,7 +35,7 @@ def _check_port_available(port: int) -> bool:
         return True  # assume available if check fails
 
 
-from server.ctx import get_ctx as _ctx
+from server.ctx import get_ctx as _ctx  # noqa: E402
 
 
 @router.get("/status")
@@ -107,16 +107,15 @@ async def start_pipeline(request: Request) -> dict[str, Any]:
 
     # Check if pipeline is already running (handle both string and enum)
     pipeline_state = getattr(pipeline, "state", "idle")
-    if pipeline_state in ("running", "RUNNING") or (
-        hasattr(pipeline_state, "value") and pipeline_state.value == "running"
-    ):
-        raise HTTPException(400, "Pipeline is already running")
+    state_value = pipeline_state.value if hasattr(pipeline_state, "value") else pipeline_state
+    if state_value in ("running", "RUNNING", "starting", "STARTING"):
+        raise HTTPException(400, "Pipeline is already running or starting")
 
-    # If pipeline is in error state, reset to idle before starting again
-    if pipeline_state in ("error", "ERROR"):
+    # If pipeline is in error or stopping state, reset to idle before starting again
+    if state_value in ("error", "ERROR", "stopping", "STOPPING"):
         try:
             pipeline.reset_error_state()
-            logger.info("Pipeline state reset from error to idle")
+            logger.info(f"Pipeline state reset from {state_value} to idle")
         except Exception as e:
             logger.warning(f"Could not reset pipeline state: {e}")
 
@@ -174,8 +173,9 @@ async def start_pipeline(request: Request) -> dict[str, Any]:
             on_state_change=on_state,
         )
     except Exception as e:
-        logger.error(f"Failed to start pipeline: {e}")
-        raise HTTPException(500, f"Failed to start pipeline: {e}") from e
+        logger.error("Failed to start pipeline: %s", e)
+        # F161: Return generic message to avoid leaking internal details
+        raise HTTPException(500, "Failed to start pipeline") from e
 
     input_info = {}
     if input_source:
@@ -196,7 +196,17 @@ async def stop_pipeline(request: Request) -> dict[str, Any]:
         await pipeline.stop()
     except Exception as e:
         logger.error(f"Error stopping pipeline: {e}")
-        pass
+        invalidate_cache("status")
+        return {"status": "error", "error": str(e)}
+
+    # Verify the pipeline actually stopped
+    final_state = pipeline.state.value if hasattr(pipeline.state, "value") else str(pipeline.state)
+    if final_state not in ("idle", "IDLE"):
+        logger.warning(f"Stop completed but pipeline state is {final_state}, forcing reset")
+        try:
+            pipeline.reset_error_state()
+        except Exception as reset_err:
+            logger.error(f"Failed to reset pipeline state: {reset_err}")
 
     # Clean up temporary files
     # Safety: resolve output_dir and ensure it's within project root
@@ -283,8 +293,9 @@ async def restart_pipeline(request: Request) -> dict[str, Any]:
             on_state_change=lambda state: None,
         )
     except Exception as e:
-        logger.error(f"Failed to restart pipeline: {e}")
-        raise HTTPException(500, f"Failed to restart pipeline: {e}") from e
+        logger.error("Failed to restart pipeline: %s", e)
+        # F161: Return generic message to avoid leaking internal details
+        raise HTTPException(500, "Failed to restart pipeline") from e
 
     return {"status": "restarted"}
 

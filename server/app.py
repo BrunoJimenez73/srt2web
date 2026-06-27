@@ -6,6 +6,7 @@ Serves the web GUI, HLS segments, and API endpoints.
 
 import asyncio
 import logging
+import os
 import re
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -32,26 +33,34 @@ class NoCacheStaticFiles(StaticFiles):
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
+        if path.endswith(".ts") and self.directory:
+            try:
+                full_path = os.path.join(str(self.directory), path)
+                response.headers["Content-Length"] = str(os.path.getsize(full_path))
+                if "content-encoding" in response.headers:
+                    del response.headers["content-encoding"]
+            except (OSError, TypeError, KeyError):
+                pass
         return response
 
 
-from server.api_routes import create_api_router
-from server.routes.auth import router as auth_router
-from server.routes.metrics import router as metrics_router
-from server.routes.recordings import router as recordings_router
-from server.security import (
+from server.api_routes import create_api_router  # noqa: E402
+from server.routes.auth import router as auth_router  # noqa: E402
+from server.routes.metrics import router as metrics_router  # noqa: E402
+from server.routes.recordings import router as recordings_router  # noqa: E402
+from server.security import (  # noqa: E402
     AuthMiddleware,
     RateLimiter,
     RateLimitMiddleware,
     RequestSizeLimitMiddleware,
     SecurityHeadersMiddleware,
 )
-from server.webrtc_routes import create_webrtc_router
-from server.ws_routes import create_ws_router
+from server.webrtc_routes import create_webrtc_router  # noqa: E402
+from server.ws_routes import create_ws_router  # noqa: E402
 
 logger = logging.getLogger("srt2web.server")
 
-from core.paths import get_output_dir, get_project_root, get_static_dir
+from core.paths import get_output_dir, get_project_root, get_static_dir  # noqa: E402
 
 PROJECT_ROOT = get_project_root()
 OUTPUT_DIR = get_output_dir()

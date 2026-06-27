@@ -1,7 +1,7 @@
 // Bump CACHE_NAME on every breaking change to evict old client caches.
 // IMPORTANT: live content (HLS, subtitles, API, WebSocket upgrade) must NEVER be cached,
 // otherwise the player will replay stale segments from a previous session.
-const CACHE_NAME = "srt2web-v2";
+const CACHE_NAME = "srt2web-v3";
 
 // Only truly static, fingerprintable assets belong in the precache.
 const ASSETS_TO_CACHE = [
@@ -83,8 +83,18 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   // Live content: ALWAYS go to the network, never read or write the cache.
+  // .catch() is critical: without it, a transient server error causes the
+  // promise to reject, the browser gets a opaque network error, and the UI
+  // shows "Failed to fetch" for everything (outputs, subtitles, pipeline stop).
   if (isNoCachePath(url)) {
-    event.respondWith(fetch(request, { cache: "no-store" }));
+    event.respondWith(
+      fetch(request, { cache: "no-store" }).catch(() => {
+        return new Response("Service unavailable", {
+          status: 503,
+          statusText: "Service Unavailable",
+        });
+      }),
+    );
     return;
   }
 
@@ -115,6 +125,10 @@ self.addEventListener("fetch", (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(request)),
+      .catch(() => {
+        return caches
+          .match(request)
+          .then((cached) => cached || new Response("Offline", { status: 503 }));
+      }),
   );
 });

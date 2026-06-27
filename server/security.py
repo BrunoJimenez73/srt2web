@@ -16,6 +16,7 @@ import warnings
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from threading import Lock
+from typing import ClassVar
 
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse, Response
@@ -119,15 +120,20 @@ class AuthMiddleware(BaseHTTPMiddleware):
         )
 
         # In test mode, skip authentication entirely (no 503, no 401)
+        # F161: Log warning when test mode is active to prevent accidental production use
         if os.environ.get("SRT2WEB_TESTING"):
+            logger.warning("SECURITY: SRT2WEB_TESTING is set — authentication bypassed!")
             return await call_next(request)
 
         # Allow insecure dev mode: skip auth when SRT2WEB_ALLOW_INSECURE_DEFAULTS=1
         # and request comes from localhost. Uses the actual client IP (not the
         # Host header, which is client-controlled — SEC-01).
-        if os.environ.get("SRT2WEB_ALLOW_INSECURE_DEFAULTS", "").lower() in ("1", "true", "yes"):
-            if request.client and request.client.host in ("127.0.0.1", "::1", "localhost"):
-                return await call_next(request)
+        if (
+            os.environ.get("SRT2WEB_ALLOW_INSECURE_DEFAULTS", "").lower() in ("1", "true", "yes")
+            and request.client
+            and request.client.host in ("127.0.0.1", "::1", "localhost")
+        ):
+            return await call_next(request)
 
         # F118: If no token configured, reject with 503 (Service Unavailable)
         # instead of silently allowing all requests through.
@@ -193,8 +199,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         auth_token = self.get_auth_token()
         if auth_token:
             auth_header = request.headers.get("Authorization", "")
-            if auth_header.startswith("Bearer "):
-                key = f"token:{auth_header[7:]}"
+            if auth_header.startswith("Bearer ") and len(auth_header) > 7:
+                # F161: Hash the token to avoid storing raw values in memory
+                token_hash = hashlib.sha256(auth_header[7:].encode()).hexdigest()[:16]
+                key = f"token:{token_hash}"
             else:
                 key = f"ip:{self._get_client_ip(request)}"
         else:
@@ -308,8 +316,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # F124: Hardened Content Security Policy
         response.headers["Content-Security-Policy"] = self._CSP_BASE
 
-        # F124: Strict Transport Security with preload
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+        # F161: HSTS only on HTTPS to avoid locking out HTTP-only setups
+        if request.url.scheme == "https":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
 
         # Permissions Policy (disable unnecessary browser features)
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
@@ -329,12 +338,13 @@ class CsrfMiddleware(BaseHTTPMiddleware):
     they originate from programmatic API clients, not browser forms.
     """
 
-    _CSRF_TIMEOUT = 3600  # 1 hour token expiry
-    _MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+    _CSRF_TIMEOUT: ClassVar[int] = 3600  # 1 hour token expiry
+    _MUTATING_METHODS: ClassVar[set[str]] = {"POST", "PUT", "PATCH", "DELETE"}
 
     def __init__(self, app: ASGIApp, get_csrf_secret: Callable[[], str]) -> None:
         super().__init__(app)
         self.get_csrf_secret = get_csrf_secret
+        self._logger = logging.getLogger("srt2web.csrf")
 
     @staticmethod
     def generate_token(secret: str) -> str:
@@ -409,12 +419,15 @@ class CsrfMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # In test mode, skip CSRF validation entirely (matches AuthMiddleware)
+        # F161: Log warning when test mode is active
         if os.environ.get("SRT2WEB_TESTING"):
+            self._logger.warning("SECURITY: SRT2WEB_TESTING is set — CSRF validation bypassed!")
             return await call_next(request)
 
-        # Skip requests with Authorization header (programmatic API clients)
+        # Skip requests with a valid Authorization header (programmatic API clients)
+        # F161: Require non-empty token value, not just the header prefix
         auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
+        if auth_header.startswith("Bearer ") and len(auth_header) > 7:
             return await call_next(request)
 
         # Validate CSRF token — resolve secret with same fallback chain as AuthMiddleware

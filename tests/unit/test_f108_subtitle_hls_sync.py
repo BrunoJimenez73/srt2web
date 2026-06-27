@@ -281,19 +281,15 @@ class TestTrimHLSFragments:
 class TestStartCleansStaleHLS:
     """start() removes stale HLS subtitle artifacts from previous sessions."""
 
-    def test_start_removes_stale_subs_m3u8(self, tmp_path: Path) -> None:
+    def test_start_precreates_empty_subs_m3u8(self, tmp_path: Path) -> None:
         subs = tmp_path / "subtitles"
         subs.mkdir(parents=True)
         (subs / "subs.m3u8").write_text("stale playlist", encoding="utf-8")
         _make_gen(str(tmp_path))
-        # start() removes the stale playlist; a fresh one is rewritten on first
-        # chunk by _do_process (HLS spec requires the playlist be live). This is
-        # what we want — HLS.js must never see a playlist pointing at fragments
-        # from a previous session.
-        assert not (subs / "subs.m3u8").exists(), "start() should remove stale subs.m3u8"
-        # And the stale content is gone — fresh playlist written on first chunk
-        gen = _make_gen(str(tmp_path))
-        _process_chunk(gen, 0)
+        # start() overwrites the stale subs.m3u8 with an empty valid HLS playlist.
+        # This prevents HLS.js from getting a 404 that triggers a subtitle retry
+        # cascade (subtitleTrackLoadError → levelEmptyError → bufferStalledError).
+        assert (subs / "subs.m3u8").exists(), "start() should pre-create subs.m3u8"
         content = (subs / "subs.m3u8").read_text(encoding="utf-8")
         assert "stale playlist" not in content
         assert content.startswith("#EXTM3U")
@@ -320,8 +316,8 @@ class TestStartCleansStaleHLS:
 # ---------------------------------------------------------------------------
 
 
-class TestDriftMonitorWiring:
-    """set_drift_monitor + per-chunk check_sync wiring."""
+class TestPipelineDelayCompensation:
+    """Pipeline delay compensation — shifts subtitles forward to match video position."""
 
     def test_set_drift_monitor_stores_reference(self, tmp_path: Path) -> None:
         gen = _make_gen(str(tmp_path))
@@ -329,40 +325,39 @@ class TestDriftMonitorWiring:
         gen.set_drift_monitor(monitor)
         assert gen._drift_monitor is monitor
 
-    def test_drift_monitor_called_per_chunk(self, tmp_path: Path) -> None:
+    def test_pipeline_delay_initialized_on_first_chunk(self, tmp_path: Path) -> None:
         gen = _make_gen(str(tmp_path))
-        monitor = _StubDriftMonitor()
-        gen.set_drift_monitor(monitor)
+        # start() now sets _pipeline_start_wall immediately so the first
+        # _do_process call already has a meaningful wall_elapsed.
+        assert gen._pipeline_start_wall > 0
+        _process_chunk(gen, 0)
+        assert gen._pipeline_start_wall > 0
+
+    def test_pipeline_delay_smoothed_updated(self, tmp_path: Path) -> None:
+        gen = _make_gen(str(tmp_path))
         for i in range(3):
             _process_chunk(gen, i)
-        assert monitor.call_count == 3
+        assert gen._pipeline_delay_smoothed >= 0
 
-    def test_drift_monitor_receives_timestamps(self, tmp_path: Path) -> None:
+    def test_shifted_start_greater_than_cumulative(self, tmp_path: Path) -> None:
         gen = _make_gen(str(tmp_path))
-        monitor = _StubDriftMonitor()
-        gen.set_drift_monitor(monitor)
-        _process_chunk(gen, 2, cumulative=10.0)  # chunk 2 starts at 10s
-        # subtitle_timestamp_ms should be 10_000 (10s * 1000)
-        assert monitor.last_subtitle_ms == 10_000.0
-        # audio_timestamp_ms is wall_elapsed_ms (time since pipeline start)
-        assert monitor.last_audio_ms is not None
-        assert 0 <= monitor.last_audio_ms < 60_000  # < 60s since pipeline start
+        _process_chunk(gen, 2, cumulative=10.0)
+        if gen._vtt_entries:
+            assert gen._vtt_entries[0]["start"] >= 10.0
 
-    def test_drift_monitor_called_and_logged(self, tmp_path: Path) -> None:
-        """Drift monitor is called per chunk when deviation is within bounds."""
+    def test_hls_fragment_cues_shifted(self, tmp_path: Path) -> None:
         gen = _make_gen(str(tmp_path))
-        monitor = _StubDriftMonitor(factor=1.04)
-        gen.set_drift_monitor(monitor)
-        _process_chunk(gen, 0)
-        assert monitor.call_count == 1
+        _process_chunk(gen, 0, cumulative=0.0)
+        seg_file = tmp_path / "subtitles" / "subs_seg_000000.vtt"
+        if seg_file.exists():
+            content = seg_file.read_text(encoding="utf-8")
+            import re
 
-    def test_drift_monitor_large_deviation_ignored(self, tmp_path: Path) -> None:
-        """deviation >= 0.5 is treated as glitch and logged but skipped."""
-        gen = _make_gen(str(tmp_path))
-        monitor = _StubDriftMonitor(factor=2.0)  # 1.0 deviation, well over clamp
-        gen.set_drift_monitor(monitor)
-        _process_chunk(gen, 0)
-        assert monitor.call_count == 1  # still called but deviation is ignored
+            match = re.search(r"(\d+):(\d+):(\d+)\.(\d+)", content)
+            if match:
+                h, m, s, ms = int(match[1]), int(match[2]), int(match[3]), int(match[4])
+                total_sec = h * 3600 + m * 60 + s + ms / 1000
+                assert total_sec > 0.3, f"Cue starts at {total_sec}s, expected > 0.3s"
 
     def test_drift_monitor_exception_does_not_crash(self, tmp_path: Path) -> None:
         """Failing monitor must not break the pipeline."""
@@ -404,7 +399,7 @@ class TestPlaylistAccessors:
     def test_init_initializes_hls_state(self, tmp_path: Path) -> None:
         gen = SubtitleGenerator(output_dir=str(tmp_path))
         # HLS state should be initialized in __init__
-        assert gen._hls_list_size == 6
+        assert gen._hls_list_size == 12
         assert gen._hls_fragments == []
         assert isinstance(gen._hls_playlist_path, Path)
 

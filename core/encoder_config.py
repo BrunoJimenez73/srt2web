@@ -62,6 +62,9 @@ class EncoderConfig:
         # Configuración de GPU
         self.gpu_preset = config.get("gpu_preset") or "p4"
 
+        # FPS de video (usado para GOP en NVENC)
+        self.video_fps: int | None = config.get("video_fps")
+
         # Configuración de audio
         self.audio_codec = config.get("audio_codec") or "aac"
         self.audio_bitrate = config.get("audio_bitrate") or "192k"
@@ -189,6 +192,7 @@ class EncoderConfig:
             "video_profile": self.video_profile,
             "video_tune": self.video_tune,
             "gpu_preset": self.gpu_preset,
+            "video_fps": self.video_fps,
             "audio_codec": self.audio_codec,
             "audio_bitrate": self.audio_bitrate,
             "audio_sample_rate": self.audio_sample_rate,

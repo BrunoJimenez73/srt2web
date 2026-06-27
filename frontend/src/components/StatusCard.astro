@@ -58,43 +58,15 @@ const { state = 'idle' } = Astro.props;
 
 <script>
   import { effect } from "@preact/signals-core";
-  import {
-    pipelineStatus,
-    connectionUrls,
-    wsConnected,
-  } from "../lib/store/signals";
-  import { t } from "../lib/i18n";
+  import { connectionUrls } from "../lib/store/signals";
 
   function el<T extends HTMLElement>(id: string): T | null {
     return document.getElementById(id) as T | null;
   }
 
-  // Update status text and buttons
-  effect(() => {
-    const status = pipelineStatus.value;
-    const dot = el<HTMLSpanElement>("status-dot");
-    const text = el<HTMLSpanElement>("status-text");
-    const btnStart = el<HTMLButtonElement>("btn-start");
-    const btnStop = el<HTMLButtonElement>("btn-stop");
+  // F162: Status text/buttons effect removed — centralized in effects.ts
 
-    if (!dot || !text) return;
-
-    const running = status?.state === "running";
-    const stopping = status?.state === "stopping";
-    const error = status?.state === "error";
-
-    dot.className = "status-dot";
-    dot.classList.toggle("running", running);
-    dot.classList.toggle("error", error);
-    dot.classList.toggle("stopped", !running && !error && !stopping);
-
-    text.textContent = running ? t("status_active") : error ? t("status_error") : stopping ? t("status_stopping") : t("status_off");
-
-    if (btnStart) { btnStart.disabled = running; btnStart.style.opacity = running ? "0.5" : "1"; }
-    if (btnStop) { btnStop.disabled = !running; btnStop.style.opacity = running ? "1" : "0.5"; }
-  });
-
-  // Update URLs
+  // Update URLs (unique to StatusCard)
   effect(() => {
     const urls = connectionUrls.value;
     const emLabel = el<HTMLSpanElement>("url-emision-label");

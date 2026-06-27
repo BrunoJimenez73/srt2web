@@ -8,6 +8,7 @@ FUENTE ÚNICA DE VERDAD: schema Pydantic en config_schema.py
 Todos los defaults vienen de SRT2WebConfig().to_dict()
 """
 
+import contextlib
 import copy
 import json
 import logging
@@ -216,10 +217,8 @@ class ConfigManager:
                         )
                     atomic_replace(temp_path, str(self._config_path))
                 except Exception:
-                    try:
+                    with contextlib.suppress(OSError):
                         os.unlink(temp_path)
-                    except OSError:
-                        pass
                     raise
 
                 logger.info(f"Configuration validated and saved to {self._config_path}")
@@ -247,13 +246,14 @@ class ConfigManager:
         Creates intermediate dicts if needed.
         Example: config.set("srt.listen_port", 9001)
         """
-        keys = dotted_key.split(".")
-        target = self._config
-        for key in keys[:-1]:
-            if key not in target or not isinstance(target[key], dict):
-                target[key] = {}
-            target = target[key]
-        target[keys[-1]] = value
+        with self._lock:
+            keys = dotted_key.split(".")
+            target = self._config
+            for key in keys[:-1]:
+                if key not in target or not isinstance(target[key], dict):
+                    target[key] = {}
+                target = target[key]
+            target[keys[-1]] = value
 
     def get_section(self, section: str) -> dict[str, Any]:
         """Get an entire configuration section as a dict."""
@@ -273,15 +273,16 @@ class ConfigManager:
 
     def update_from_dict(self, data: dict[str, Any]) -> None:
         """Update configuration from a dictionary (partial update) with validation."""
-        new_config = _deep_merge(self._config, data)
+        with self._lock:
+            new_config = _deep_merge(self._config, data)
 
-        try:
-            validated_config = SRT2WebConfig.from_dict(new_config)
-            self._config = validated_config.to_dict()
-            logger.debug("Config updated (%d top-level keys merged)", len(data))
-        except Exception as ve:
-            logger.error(f"Invalid configuration update attempt:\n{ve}")
-            raise ValueError(f"Configuration update failed: {ve}") from ve
+            try:
+                validated_config = SRT2WebConfig.from_dict(new_config)
+                self._config = validated_config.to_dict()
+                logger.debug("Config updated (%d top-level keys merged)", len(data))
+            except Exception as ve:
+                logger.error(f"Invalid configuration update attempt:\n{ve}")
+                raise ValueError(f"Configuration update failed: {ve}") from ve
 
     def reload(self) -> None:
         """Reload configuration from file."""
@@ -320,10 +321,8 @@ class ConfigManager:
                     json.dump(presets, f, indent=2, ensure_ascii=False)
                 atomic_replace(temp_path, path)
             except Exception:
-                try:
+                with contextlib.suppress(OSError):
                     os.unlink(temp_path)
-                except OSError:
-                    pass
                 raise
         except Exception as e:
             logger.error(f"Failed to save presets: {e}")

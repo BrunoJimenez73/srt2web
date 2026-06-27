@@ -33,3 +33,11 @@ class BaseInput(InputSource):
     def get_chunk_duration(self) -> float:
         """Obtener duración configurada de chunks."""
         return float(self._chunk_duration)
+
+    def set_chunk_duration(self, duration: float) -> None:
+        """F170 — Actualizar chunk_duration dinámicamente."""
+        new_dur = int(max(2, min(60, duration)))
+        if new_dur != self._chunk_duration:
+            logger = __import__("logging").getLogger("srt2web.input")
+            logger.info(f"Chunk duration adapted: {self._chunk_duration}s → {new_dur}s")
+            self._chunk_duration = new_dur

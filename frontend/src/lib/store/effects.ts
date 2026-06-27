@@ -30,8 +30,8 @@ function el<T extends HTMLElement>(id: string): T | null {
 
 // ── Effect: Status Card (text, dot, buttons) ────────────────────────────────
 
-function startStatusEffect(): void {
-  effect(() => {
+function startStatusEffect(): (() => void) | void {
+  return effect(() => {
     const status = pipelineStatus.value;
     const dot = el<HTMLSpanElement>("status-dot");
     const text = el<HTMLSpanElement>("status-text");
@@ -68,54 +68,13 @@ function startStatusEffect(): void {
   });
 }
 
-// ── Effect: Module Indicators ───────────────────────────────────────────────
-
-function startModuleIndicatorsEffect(): void {
-  effect(() => {
-    const status = pipelineStatus.value;
-    const modules = status?.modules || [];
-    const running = status?.state === "running";
-
-    const indicatorIds = [
-      "indicator-input",
-      "indicator-whisper",
-      "indicator-translate",
-      "indicator-tts",
-      "indicator-subtitles",
-      "indicator-mixer",
-      "indicator-muxer",
-      "indicator-output",
-    ];
-
-    for (const id of indicatorIds) {
-      const indicator = el<HTMLSpanElement>(id);
-      if (!indicator) continue;
-
-      const moduleName = id.replace("indicator-", "");
-      const mod = modules.find(
-        (m) =>
-          m.name === moduleName ||
-          (moduleName === "input" && m.name === "input") ||
-          (moduleName === "whisper" && m.name === "transcriber") ||
-          (moduleName === "translate" && m.name === "translator") ||
-          (moduleName === "tts" && m.name === "tts_engine") ||
-          (moduleName === "subtitles" && m.name === "subtitle_generator") ||
-          (moduleName === "mixer" && m.name === "audio_mixer") ||
-          (moduleName === "muxer" && m.name === "video_muxer") ||
-          (moduleName === "output" && m.name === "output"),
-      );
-
-      const isActive = running && mod?.enabled;
-      indicator.classList.toggle("active", !!isActive);
-      indicator.classList.toggle("inactive", !isActive);
-    }
-  });
-}
-
 // ── Effect: System Metrics ──────────────────────────────────────────────────
+// F162: Module indicators, metrics, and GPU badges are handled by
+// ProcessGrid.astro which has a more comprehensive version (degraded state,
+// MPS, passthrough, encoder labels). Only system-level metrics remain here.
 
-function startMetricsEffect(): void {
-  effect(() => {
+function startMetricsEffect(): (() => void) | void {
+  return effect(() => {
     const status = pipelineStatus.value;
     const system = status?.system || status?.system_metrics || {};
 
@@ -150,37 +109,10 @@ function startMetricsEffect(): void {
   });
 }
 
-// ── Effect: Module Time and Chunks ──────────────────────────────────────────
-
-function startModuleMetricsEffect(): void {
-  effect(() => {
-    const status = pipelineStatus.value;
-    const modules = status?.modules || [];
-
-    for (const mod of modules) {
-      const timeEl = el<HTMLElement>(`module-time-${mod.name}`);
-      const chunksEl = el<HTMLElement>(`module-chunks-${mod.name}`);
-
-      if (timeEl) {
-        const ms = mod.last_process_time_ms ?? 0;
-        timeEl.textContent =
-          ms > 0
-            ? ms >= 1000
-              ? `${(ms / 1000).toFixed(1)}s`
-              : `${ms}ms`
-            : "--";
-      }
-      if (chunksEl) {
-        chunksEl.textContent = String(mod.processed_chunks ?? 0);
-      }
-    }
-  });
-}
-
 // ── Effect: Throughput Metric ───────────────────────────────────────────────
 
-function startThroughputEffect(): void {
-  effect(() => {
+function startThroughputEffect(): (() => void) | void {
+  return effect(() => {
     const history = throughputHistory.value;
     const tpValue = el<HTMLElement>("metric-throughput-value");
 
@@ -193,46 +125,10 @@ function startThroughputEffect(): void {
   });
 }
 
-// ── Effect: GPU Badges (per-module) ─────────────────────────────────────────
-// Shows "GPU" when module uses GPU acceleration, "CPU" when explicitly CPU,
-// and hides the badge when module state is unknown/not running.
-
-function startGpuBadgesEffect(): void {
-  effect(() => {
-    const status = pipelineStatus.value;
-    const modules = status?.modules || [];
-
-    // Update badges from module status. Cards without a badge element
-    // (e.g. the translator, which is CPU-only and intentionally has no
-    // CPU/GPU badge) are simply skipped here.
-    for (const mod of modules) {
-      const badge = el<HTMLElement>(`gpu-badge-${mod.name}`);
-      if (!badge) continue;
-
-      const usingGpu =
-        mod.extra?.using_gpu === true ||
-        mod.extra?.device === "cuda" ||
-        mod.extra?.device === "mps";
-
-      if (!mod.enabled) {
-        badge.style.display = "none";
-      } else if (usingGpu) {
-        badge.style.display = "inline";
-        badge.textContent = "GPU";
-        badge.classList.add("active");
-      } else {
-        badge.style.display = "inline";
-        badge.textContent = "CPU";
-        badge.classList.remove("active");
-      }
-    }
-  });
-}
-
 // ── Effect: WS Status Badge ─────────────────────────────────────────────────
 
-function startWsBadgeEffect(): void {
-  effect(() => {
+function startWsBadgeEffect(): (() => void) | void {
+  return effect(() => {
     const badge = el<HTMLSpanElement>("ws-status-badge");
     if (!badge) return;
 
@@ -248,8 +144,8 @@ function startWsBadgeEffect(): void {
 
 // ── Effect: Remote Mode Toggle ─────────────────────────────────────────────
 
-function startRemoteModeEffect(): void {
-  effect(() => {
+function startRemoteModeEffect(): (() => void) | void {
+  return effect(() => {
     const mode = connectionMode.value;
     const remoteConfig = el<HTMLDivElement>("remote-config");
     const btnLocal = el<HTMLButtonElement>("btn-mode-local");
@@ -284,8 +180,8 @@ function startClockEffect(): void {
 
 // ── Effect: Sync signals from pipelineStatus (F30) ────────────────────────
 
-function startSyncEffect(): void {
-  effect(() => {
+function startSyncEffect(): (() => void) | void {
+  return effect(() => {
     const s = pipelineStatus.value?.sync;
     if (s) {
       syncDriftMs.value = s.drift_ms ?? 0;
@@ -299,8 +195,8 @@ function startSyncEffect(): void {
 
 let _lastLogCount = 0;
 
-function startLogsEffect(): void {
-  effect(() => {
+function startLogsEffect(): (() => void) | void {
+  return effect(() => {
     const logs = pipelineLogs.value;
     const newLogs = logs.slice(_lastLogCount);
     for (const log of newLogs) {
@@ -312,8 +208,8 @@ function startLogsEffect(): void {
 
 // ── Effect: Sync inputType from pipelineConfig ──────────────────────────
 
-function startInputTypeEffect(): void {
-  effect(() => {
+function startInputTypeEffect(): (() => void) | void {
+  return effect(() => {
     const t = pipelineConfig.value?.input?.type;
     if (t === "srt" || t === "rtmp" || t === "file") {
       inputType.value = t;
@@ -323,33 +219,51 @@ function startInputTypeEffect(): void {
 
 // ── Effect: Pipeline status dot in header ─────────────────────────────────
 
-function startPipelineIndicatorEffect(): void {
-  effect(() => {
+function startPipelineIndicatorEffect(): (() => void) | void {
+  return effect(() => {
     const dot = el<HTMLSpanElement>("pipeline-indicator");
     if (dot)
       dot.classList.toggle("active", pipelineStatus.value?.state === "running");
   });
 }
 
+// ── Effect dispose handles ───────────────────────────────────────────────
+
+const _effectDisposers: (() => void)[] = [];
+
+function trackEffect(dispose: (() => void) | void): void {
+  if (typeof dispose === "function") {
+    _effectDisposers.push(dispose);
+  }
+}
+
 // ── Public API ────────────────────────────────────────────────────────────
 
 export function startEffects(): void {
-  startStatusEffect();
-  startModuleIndicatorsEffect();
-  startMetricsEffect();
-  startModuleMetricsEffect();
-  startThroughputEffect();
-  startGpuBadgesEffect();
-  startWsBadgeEffect();
-  startRemoteModeEffect();
+  trackEffect(startStatusEffect());
+  // F162: Module indicators, metrics, GPU badges handled by ProcessGrid.astro
+  trackEffect(startMetricsEffect());
+  trackEffect(startThroughputEffect());
+  trackEffect(startWsBadgeEffect());
+  trackEffect(startRemoteModeEffect());
   startClockEffect();
-  startSyncEffect();
-  startLogsEffect();
-  startPipelineIndicatorEffect();
-  startInputTypeEffect();
+  trackEffect(startSyncEffect());
+  trackEffect(startLogsEffect());
+  trackEffect(startPipelineIndicatorEffect());
+  trackEffect(startInputTypeEffect());
 }
 
 export function stopEffects(): void {
+  // Dispose all signal-driven effects to prevent memory leaks
+  for (const dispose of _effectDisposers) {
+    try {
+      dispose();
+    } catch {
+      /* ignore */
+    }
+  }
+  _effectDisposers.length = 0;
+
   if (_clockInterval) {
     clearInterval(_clockInterval);
     _clockInterval = null;

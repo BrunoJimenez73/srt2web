@@ -44,12 +44,18 @@ class SubtitleGenerator(BaseModule):
 
         # F108 — HLS-native subtitle path
         self._hls_playlist_path = Path()  # output/subtitles/subs.m3u8
-        self._hls_list_size = 6  # Mirrors video list_size; rolling window
+        self._hls_list_size = 12  # Keep more subtitle fragments than video segments
+        # so the player always finds cues for its current position
         self._hls_fragments: list[dict[str, Any]] = []  # [{chunk_index, start, duration, path}]
 
         self._last_chunk_index = -1
         self._last_cumulative = 0.0  # Track last cumulative for validation
         self._drift_monitor: Any = None  # Optional SubtitleSyncMonitor (set by app_context)
+        self._pipeline_start_wall: float = 0.0  # Wall clock when first subtitle is generated
+        self._pipeline_delay_smoothed: float = 0.0  # Smoothed pipeline latency (seconds)
+        self._smoothing_factor: float = 0.1  # Conservative EMA — low factor prevents oscillation
+        self._dead_zone: float = 1.0  # Ignore delay changes smaller than this (seconds)
+        self._max_delay_increase: float = 2.0  # Cap per-chunk delay increase (seconds)
 
         # Rolling window for VTT entries (prevent unbounded growth)
         self._vtt_entries: list[dict[str, Any]] = []
@@ -87,6 +93,11 @@ class SubtitleGenerator(BaseModule):
         self._chunk_duration = new_chunk_duration
         self._previous_chunk_duration = new_chunk_duration
         self._hls_list_size = int(config.get("hls_list_size", self._hls_list_size))
+        # Pipeline delay stabilization settings from config
+        self._smoothing_factor = config.get("smoothing_factor", self._smoothing_factor)
+        self._dead_zone = config.get("dead_zone", self._dead_zone)
+        self._max_delay_increase = config.get("max_delay_increase", self._max_delay_increase)
+
         # Rolling window settings - use config values or sensible defaults
         # Increased defaults to prevent subtitles from disappearing prematurely
         self._max_vtt_entries = config.get("max_vtt_entries", 1000)
@@ -98,6 +109,10 @@ class SubtitleGenerator(BaseModule):
     def start(self) -> None:
         """Initialize subtitle files."""
         self._state = ModuleState.STARTING
+
+        # Record pipeline start wall-clock so the first _do_process call
+        # already has a meaningful wall_elapsed (= pipeline latency).
+        self._pipeline_start_wall = time.time()
 
         self._subtitles_dir = Path(self._output_dir) / "subtitles"
         os.makedirs(self._subtitles_dir, exist_ok=True)
@@ -116,10 +131,12 @@ class SubtitleGenerator(BaseModule):
         for old_vtt in Path(self._output_dir, "subtitles").glob("subs_seg_*.vtt"):
             with contextlib.suppress(OSError):
                 old_vtt.unlink()
-        # Remove stale subs.m3u8 so the HLS player doesn't fetch a leftover playlist
-        if self._hls_playlist_path.exists():
-            with contextlib.suppress(OSError):
-                self._hls_playlist_path.unlink()
+        # Pre-create empty subs.m3u8 so HLS.js never gets a 404 during startup.
+        # HLS.js entering a subtitle retry loop on 404 causes levelEmptyError
+        # and buffer stalls. _rewrite_hls_playlist will update it with real fragments.
+        # Always rewrite even if a stale playlist exists — the previous session's
+        # fragment references are now invalid.
+        self._rewrite_hls_playlist()
 
         # Reset files with WebVTT header
         with self._lock:
@@ -217,6 +234,11 @@ class SubtitleGenerator(BaseModule):
         timed from the start of the fragment (not absolute media time). The player
         maps cue.start to absolute media time = sum(EXTINF preceding) + cue.start.
 
+        IMPORTANT: No time_shift is applied here. Cues MUST start from 0 within
+        each fragment. Pipeline delay is already accounted for by the EXTINF
+        durations in the subtitle playlist (each fragment's EXTINF matches the
+        video segment's duration, so HLS.js aligns them correctly).
+
         Returns the absolute path of the written fragment.
         """
         fragment_name = f"subs_seg_{chunk_index:06d}.vtt"
@@ -228,10 +250,8 @@ class SubtitleGenerator(BaseModule):
                 cue_index = 0
                 for seg in segments:
                     rel_start = float(seg.get("start", 0.0))
-                    # Clamp negative starts to 0; HLS cues must be >= 0
                     rel_start = max(0.0, rel_start)
                     rel_end = float(seg.get("end", duration))
-                    # Clamp end to duration so cues never extend past the fragment
                     rel_end = min(max(rel_end, rel_start), duration)
                     clean_text = seg.get("text", "").replace("\n", " ").strip()
                     if not clean_text:
@@ -367,6 +387,63 @@ class SubtitleGenerator(BaseModule):
         # This comes from InputSource and is validated there
         chunk_start_time = getattr(data, "cumulative_duration", 0.0)
 
+        # Pipeline delay compensation: shift subtitles forward to match actual playback
+        # position. The subtitle generator runs behind the live video because whisper
+        # + translate take several seconds per chunk. Without this shift, subtitle cues
+        # appear at cumulative time but the video is already ahead.
+        #
+        # FIX: Use a monotonic, damped estimator instead of oscillating EMA.
+        # The old EMA (factor=0.4 + reactive reset) caused the estimated delay
+        # to jump between chunks, shifting subtitle absolute positions and producing
+        # visible jitter. The new estimator:
+        #   - Uses a low EMA factor (0.1) for slow convergence
+        #   - Applies a dead zone (1s) to ignore minor fluctuations
+        #   - Is monotonically non-decreasing (delay only grows or stays constant)
+        #   - Caps per-chunk increase to prevent runaway
+        wall_elapsed = time.time() - self._pipeline_start_wall
+        raw_delay = wall_elapsed - chunk_start_time
+        if raw_delay >= 0:
+            if self._pipeline_delay_smoothed == 0:
+                self._pipeline_delay_smoothed = raw_delay
+            else:
+                diff = raw_delay - self._pipeline_delay_smoothed
+                # Dead zone: ignore small fluctuations
+                if abs(diff) < self._dead_zone:
+                    pass  # Keep current smoothed value
+                elif diff > 0:
+                    # Delay increased — apply conservative EMA then cap
+                    self._pipeline_delay_smoothed = (
+                        1 - self._smoothing_factor
+                    ) * self._pipeline_delay_smoothed + self._smoothing_factor * raw_delay
+                    # Monotonic cap: limit how fast delay can grow per chunk
+                    max_allowed = self._pipeline_delay_smoothed + self._max_delay_increase
+                    if raw_delay > max_allowed:
+                        self._pipeline_delay_smoothed = max_allowed
+                # Never decrease — delay is monotonically non-decreasing
+        pipeline_delay = self._pipeline_delay_smoothed
+        shifted_start = chunk_start_time + pipeline_delay
+
+        # F168 — Apply drift correction from SubtitleSyncMonitor
+        # Feed the monitor with current positions, then read the smoothed drift.
+        if self._drift_monitor is not None:
+            audio_wall_ms = wall_elapsed * 1000
+            sub_media_ms = shifted_start * 1000
+            try:
+                # Feed data into the monitor (updates smoothed_drift internally)
+                self._drift_monitor.check_sync(audio_wall_ms, sub_media_ms)
+                drift_ms = self._drift_monitor.get_drift_ms()
+                if abs(drift_ms) > 100:
+                    # Negative drift = subtitles behind audio → shift forward
+                    correction_s = drift_ms / 1000.0
+                    correction_s = max(-3.0, min(3.0, correction_s))
+                    shifted_start += correction_s
+                    logger.info(
+                        f"[SubtitleGen] Drift correction: drift={drift_ms:.0f}ms, "
+                        f"shift=+{correction_s:.2f}s -> shifted={shifted_start:.1f}s"
+                    )
+            except Exception as e:
+                logger.error(f"[SubtitleGen] Drift monitor error: {e}")
+
         # FIX: Validate cumulative_duration is monotonically increasing to prevent drift
         if chunk_start_time < self._last_cumulative:
             logger.warning(
@@ -445,16 +522,18 @@ class SubtitleGenerator(BaseModule):
                         with contextlib.suppress(BaseException):
                             clean_text = clean_text.encode("utf-8").decode("utf-8")
 
-                        # ABSOLUTE timestamps: chunk_start + relative offset
-                        abs_start = chunk_start_time + rel_start
-                        abs_end = chunk_start_time + rel_end
+                        # ABSOLUTE timestamps: shifted_start + relative offset
+                        # (shifted_start = cumulative + pipeline_delay, to compensate for
+                        #  processing latency so subtitles match actual playback position)
+                        abs_start = shifted_start + rel_start
+                        abs_end = shifted_start + rel_end
 
                         self._vtt_entries.append(
                             {
                                 "start": abs_start,
                                 "end": abs_end,
                                 "text": clean_text,
-                                "chunk_start": chunk_start_time,
+                                "chunk_start": shifted_start,
                             }
                         )
 
@@ -468,14 +547,14 @@ class SubtitleGenerator(BaseModule):
                         rel_end = seg.get("end", duration)
                         clean_alt = seg.get("text", "").replace("\n", " ").strip()
                         if clean_alt:
-                            abs_start = chunk_start_time + rel_start
-                            abs_end = chunk_start_time + rel_end
+                            abs_start = shifted_start + rel_start
+                            abs_end = shifted_start + rel_end
                             alt_entries.append(
                                 {
                                     "start": abs_start,
                                     "end": abs_end,
                                     "text": clean_alt,
-                                    "chunk_start": chunk_start_time,
+                                    "chunk_start": shifted_start,
                                 }
                             )
 
@@ -547,22 +626,11 @@ class SubtitleGenerator(BaseModule):
         except Exception as e:
             logger.error(f"Error writing chunk SRT: {e}")
 
-        # 3. F108 — Drift sync hook: compare cumulative_duration (subtitle timeline)
-        # against wall clock elapsed since pipeline start. Both are relative time
-        # bases starting at 0, so the difference is the actual drift.
-        if self._drift_monitor is not None and segments:
-            try:
-                if not hasattr(self, "_pipeline_start_wall_ms"):
-                    self._pipeline_start_wall_ms = time.time() * 1000.0
-                wall_elapsed_ms = time.time() * 1000.0 - self._pipeline_start_wall_ms
-                subtitle_ms = chunk_start_time * 1000.0
-                drift_factor = self._drift_monitor.check_sync(
-                    audio_timestamp_ms=wall_elapsed_ms,
-                    subtitle_timestamp_ms=subtitle_ms,
-                )
-                if drift_factor != 1.0 and abs(drift_factor - 1.0) < 0.5:
-                    logger.info(f"[SubtitleGen] Drift detected: {drift_factor:.3f}")
-            except Exception as e:
-                logger.debug(f"[SubtitleGen] drift monitor check failed: {e}")
+        # 3. F108 — Drift sync hook: log the remaining drift after pipeline delay compensation
+        if segments and pipeline_delay > 0:
+            logger.info(
+                f"[SubtitleGen] Pipeline delay={pipeline_delay:.1f}s, "
+                f"cumulative={chunk_start_time:.1f}s, shifted={shifted_start:.1f}s"
+            )
 
         return data

@@ -93,7 +93,7 @@ class RecordingsScreen(Screen[Any]):
             content = self.query_one("#rec-content", Static)
             summary = self.query_one("#summary-bar", Static)
         except Exception:
-            # UI elements not yet mounted, skip render
+            # UI elements not yet mounted, skip render — expected during startup
             return
 
         summary.update(Text(f"{len(self._recordings)} recording(s)", style="dim"))

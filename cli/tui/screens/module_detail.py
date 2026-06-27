@@ -179,8 +179,16 @@ class ModuleConfigForm(Vertical):
         )
 
     def _get_nested(self, key: str, data: dict[str, Any]) -> str | None:
+        # Try direct lookup first
         if key in data:
             return str(data[key])
+        # Try underscore-separated path (e.g. "srt_listen_port" → data["srt"]["listen_port"])
+        parts = key.split("_")
+        for prefix_len in range(1, len(parts)):
+            prefix = "_".join(parts[:prefix_len])
+            if prefix in data and isinstance(data[prefix], dict):
+                remaining = "_".join(parts[prefix_len:])
+                return self._get_nested(remaining, data[prefix])
         return None
 
     @on(Button.Pressed, "#btn-save-module")

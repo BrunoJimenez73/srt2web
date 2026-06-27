@@ -255,7 +255,8 @@ def _save_users(users: dict[str, dict[str, Any]]) -> None:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(users, f, indent=2)
         atomic_replace(temp_path, str(USERS_FILE))
-    except Exception:
+    except Exception as e:
+        logger.debug("Failed to persist users, cleaning up temp file: %s", e)
         with contextlib.suppress(OSError):
             os.unlink(temp_path)
         raise
@@ -298,8 +299,8 @@ class AuthDB:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump({"blacklist": list(self._blacklist)}, f)
             atomic_replace(temp_path, str(BLACKLIST_FILE))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to persist token blacklist: %s", e)
 
     def _try_create_admin_from_env(self) -> None:
         """Create admin from SRT2WEB_ADMIN_PASSWORD env var if set."""

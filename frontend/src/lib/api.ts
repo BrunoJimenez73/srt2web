@@ -338,6 +338,7 @@ export class WSClient {
   private onMessageHandler?: (data: WebSocketMessage) => void;
   private onErrorHandler?: (error: Event) => void;
   private onCloseHandler?: (wasFirstAttempt: boolean) => void;
+  private onOpenHandler?: () => void;
   private reconnectAttempts = 0;
   private maxReconnectAttempts: number;
   private backoffBase: number;
@@ -364,6 +365,10 @@ export class WSClient {
 
     this.ws.onopen = () => {
       this.reconnectAttempts = 0;
+      // F162: Set wsConnected on reconnect so UI reflects active connection
+      if (this.onOpenHandler) {
+        this.onOpenHandler();
+      }
       if (this.authToken) {
         this.sendAuth(this.authToken);
       }
@@ -423,6 +428,11 @@ export class WSClient {
 
   onClose(fn: (wasFirstAttempt: boolean) => void): this {
     this.onCloseHandler = fn;
+    return this;
+  }
+
+  onOpen(fn: () => void): this {
+    this.onOpenHandler = fn;
     return this;
   }
 

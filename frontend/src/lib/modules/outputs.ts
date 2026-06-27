@@ -1,9 +1,17 @@
+/**
+ * Outputs - Manages output status with reactive signals.
+ *
+ * F162: Converted from mutable arrays to @preact/signals-core for
+ * consistency with the rest of the codebase.
+ */
+
+import { signal } from "@preact/signals-core";
 import { apiCall, type OutputStatus } from "../api";
 import { showToast } from "./toast";
 import { logger } from "../utils/logger";
 
-let outputs: OutputStatus[] = [];
-let outputListeners: ((outputs: OutputStatus[]) => void)[] = [];
+/** Reactive list of output statuses */
+export const outputsSignal = signal<OutputStatus[]>([]);
 
 export async function fetchOutputs(): Promise<OutputStatus[]> {
   try {
@@ -11,9 +19,8 @@ export async function fetchOutputs(): Promise<OutputStatus[]> {
       "GET",
       "api/outputs",
     );
-    outputs = response.outputs || [];
-    notifyListeners();
-    return outputs;
+    outputsSignal.value = response.outputs || [];
+    return outputsSignal.value;
   } catch (e) {
     logger.error("outputs", "Failed to fetch outputs", e);
     return [];
@@ -97,32 +104,37 @@ export async function updateOutput(
 }
 
 export function getOutputs(): OutputStatus[] {
-  return outputs;
+  return outputsSignal.value;
 }
 
+/** @deprecated Use outputsSignal directly for reactive updates */
 export function onOutputsChange(
   listener: (outputs: OutputStatus[]) => void,
 ): () => void {
-  outputListeners.push(listener);
-  return () => {
-    outputListeners = outputListeners.filter((l) => l !== listener);
+  // F162: Legacy adapter — subscribe to signal changes
+  let prev = outputsSignal.value;
+  const check = () => {
+    const curr = outputsSignal.value;
+    if (curr !== prev) {
+      prev = curr;
+      listener(curr);
+    }
   };
-}
-
-function notifyListeners(): void {
-  outputListeners.forEach((l) => l(outputs));
+  // Poll for changes (signal subscriptions require effect() context)
+  const interval = setInterval(check, 500);
+  return () => clearInterval(interval);
 }
 
 export function getOutputIcon(type: string): string {
   const icons: Record<string, string> = {
-    web: "🌐",
-    recording: "⏺",
-    srt: "📡",
-    rtmp: "📺",
-    file: "📁",
-    hls: "🌐",
+    web: "\u{1F310}",
+    recording: "\u23FA",
+    srt: "\u{1F4E1}",
+    rtmp: "\u{1F4FA}",
+    file: "\u{1F4C1}",
+    hls: "\u{1F310}",
   };
-  return icons[type] || "📤";
+  return icons[type] || "\u{1F4E4}";
 }
 
 export function getOutputTypeName(type: string): string {

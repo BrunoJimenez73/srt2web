@@ -8,6 +8,7 @@ const mockWsClientInstance = {
   onMessage: vi.fn().mockReturnThis(),
   onError: vi.fn().mockReturnThis(),
   onClose: vi.fn().mockReturnThis(),
+  onOpen: vi.fn().mockReturnThis(),
   connect: vi.fn(),
   close: vi.fn(),
   send: vi.fn(),
@@ -49,6 +50,7 @@ describe("ws-manager", () => {
     mockWsClientInstance.onMessage.mockClear();
     mockWsClientInstance.onError.mockClear();
     mockWsClientInstance.onClose.mockClear();
+    mockWsClientInstance.onOpen.mockClear();
     mockWsClientInstance.connect.mockClear();
     mockWsClientInstance.close.mockClear();
 

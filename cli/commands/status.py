@@ -8,21 +8,11 @@ from rich.table import Table
 from rich.text import Text
 
 from cli.client.http_client import APIClient
+from cli.constants import STATE_STYLE
 
 
 def _state_style(state: str) -> str:
-    return {
-        "running": "green",
-        "starting": "yellow",
-        "stopping": "yellow",
-        "stopped": "white",
-        "error": "red",
-        "idle": "dim white",
-        "processing": "green",
-        "initializing": "blue",
-        "degraded": "orange1",
-        "disabled": "dim",
-    }.get(state, "white")
+    return STATE_STYLE.get(state, "white")
 
 
 def _state_label(state: str) -> Text:

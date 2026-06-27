@@ -73,6 +73,7 @@ class SRTInput(InputSource):
         self._watchdog_hang_timeout = config.get("watchdog_hang_timeout", 60.0)
         self._watchdog_max_restarts = config.get("watchdog_max_restarts", 10)
         self._is_restarting = False  # Flag para evitar restarts concurrentes
+        self._restart_lock = threading.Lock()
         self._stopping = threading.Event()  # Señal para abortar restart durante stop
 
         # GPU info for hwaccel (detect once at init)
@@ -228,8 +229,6 @@ class SRTInput(InputSource):
                     str(self._chunk_duration),
                     "-segment_format",
                     "mpegts",
-                    "-reset_timestamps",
-                    "1",
                     "-strftime",
                     "0",
                     "-max_muxing_queue_size",
@@ -314,16 +313,17 @@ class SRTInput(InputSource):
 
     def _on_ffmpeg_restart(self) -> None:
         """Callback llamado por el watchdog cuando necesita reiniciar FFmpeg."""
-        if self._is_restarting:
-            self.logger.warning("Restart already in progress, skipping")
-            return
+        with self._restart_lock:
+            if self._is_restarting:
+                self.logger.warning("Restart already in progress, skipping")
+                return
+            self._is_restarting = True
 
-        if self._stopping.is_set():
-            self.logger.info("Pipeline stopping, aborting FFmpeg restart")
-            return
-
-        self._is_restarting = True
         try:
+            if self._stopping.is_set():
+                self.logger.info("Pipeline stopping, aborting FFmpeg restart")
+                return
+
             self.logger.info("Watchdog requesting FFmpeg restart...")
 
             # Detener proceso actual
@@ -359,7 +359,8 @@ class SRTInput(InputSource):
 
             self.logger.error(f"Restart traceback: {traceback.format_exc()}")
         finally:
-            self._is_restarting = False
+            with self._restart_lock:
+                self._is_restarting = False
 
     def _start_ffmpeg_process(self) -> None:
         """Crear y iniciar el proceso FFmpeg (para reinicios)."""
@@ -386,8 +387,6 @@ class SRTInput(InputSource):
             str(self._chunk_duration),
             "-segment_format",
             "mpegts",
-            "-reset_timestamps",
-            "1",
             "-strftime",
             "0",
             "-max_muxing_queue_size",
@@ -553,6 +552,12 @@ class SRTInput(InputSource):
             try:
                 idx = int(fname.replace("chunk_", "").replace(".ts", ""))
                 if idx > self._last_chunk_index:
+                    # Skip 0-byte chunks (incomplete FFmpeg writes)
+                    chunk_size = chunk_path.stat().st_size
+                    if chunk_size == 0:
+                        self.logger.warning(f"Skipping empty chunk: {fname}")
+                        self._last_chunk_index = idx
+                        continue
                     processable.append((idx, chunk_path))
             except ValueError:
                 continue

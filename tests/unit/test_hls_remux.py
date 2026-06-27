@@ -98,8 +98,11 @@ class TestWriteRemux:
         ):
             fx.output.write(data)
 
-        # No mixed audio + passthrough mode = shutil.copy2, not subprocess.run
-        fx.mock_run.assert_not_called()
+        # No mixed audio + passthrough mode = shutil.copy2, not ffmpeg encode.
+        # can_remux probes codec + keyframe + duration via ffprobe (3 calls).
+        assert fx.mock_run.call_count == 3, "Expected 3 ffprobe probes for can_remux + duration"
+        all_args = [c[0][0] for c in fx.mock_run.call_args_list]
+        assert all("ffprobe" in str(a[0]) for a in all_args), "Only ffprobe calls allowed for passthrough"
 
     def test_remux_auto_with_h264_input(self, hls_output_with_mocks):
         import modules.outputs.hls_output as hls_mod
@@ -117,8 +120,11 @@ class TestWriteRemux:
         ):
             fx.output.write(data)
 
-        # H.264 + starts with keyframe + no mixed audio = shutil.copy2
-        fx.mock_run.assert_not_called()
+        # H.264 + starts with keyframe + no mixed audio = shutil.copy2.
+        # Only ffprobe call is for get_video_duration (1 call).
+        assert fx.mock_run.call_count == 1, "Expected 1 ffprobe probe for duration"
+        args = fx.mock_run.call_args[0][0]
+        assert "ffprobe" in str(args) and "duration" in str(args)
 
     def test_reencode_auto_with_non_h264_input(self, hls_output_with_mocks):
         from modules.outputs.hls_output import HLSOutput

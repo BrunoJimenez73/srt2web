@@ -1,16 +1,16 @@
-/**
- * Módulo para el reproductor HLS.
- *
- * Subtitles are rendered by SubtitleRenderer (custom VTT polling +
- * positioned div) instead of relying on HLS.js native track support,
- * which is unreliable with live rolling-window playlists.
- */
-
 import { logger } from "../utils/logger";
-import { SubtitleRenderer } from "./subtitle-renderer";
-import { activateFirstSubtitleTrack } from "./player-subtitles";
+import {
+  activateFirstSubtitleTrack,
+  forceSubtitleTrackMode,
+} from "./player-subtitles";
+import {
+  connectFeedbackWs,
+  disconnectFeedbackWs,
+  sendBufferHealth,
+  sendStalled,
+  sendBandwidth,
+} from "./player-feedback";
 
-// HLS.js type declarations - must be before usage
 declare const Hls: HlsStatic | undefined;
 
 interface HlsStatic {
@@ -44,31 +44,48 @@ interface HlsInstance {
     lang?: string;
     type?: string;
   }>;
+  levels?: ReadonlyArray<{
+    bitrate: number;
+    width: number;
+    height: number;
+  }>;
+  currentLevel?: number;
+  bandwidthEstimate?: number;
 }
 
 interface HlsConfig {
   debug: boolean;
   enableWorker: boolean;
   lowLatencyMode: boolean;
+  autoStartLoad: boolean;
   backBufferLength: number;
   maxLoadingDelay: number;
   maxBufferLength: number;
   maxMaxBufferLength: number;
   liveSyncMaxLatency: number;
+  liveSyncDuration: number;
   liveDurationInfinity: boolean;
+  highBufferWatchdogPeriod: number;
   enableCEA708Captions: boolean;
+  fragLoadingTimeOut: number;
+  manifestLoadingTimeOut: number;
+  levelLoadingTimeOut: number;
+  fragLoadingMaxRetry: number;
+  manifestLoadingMaxRetry: number;
+  levelLoadingMaxRetry: number;
 }
 
-// HLS Events enum
 const HlsEvents = {
   MANIFEST_PARSED: "hlsManifestParsed",
   ERROR: "hlsError",
   FRAG_BUFFERED: "hlsFragBuffered",
-  LEVEL_SWITCH: "hlsLevelSwitch",
   SUBTITLE_TRACKS_UPDATED: "hlsSubtitleTracksUpdated",
+  SUBTITLE_TRACK_LOADED: "hlsSubtitleTrackLoaded",
+  STALLED: "hlsStalled",
+  LEVEL_UPDATED: "hlsLevelUpdated",
+  BUFFER_APPENDED: "hlsBufferAppended",
 };
 
-// HLS Error Types enum
 const HlsErrorTypes = {
   NETWORK_ERROR: "networkError",
   MEDIA_ERROR: "mediaError",
@@ -80,38 +97,41 @@ interface HlsErrorData {
   details: string;
 }
 
-// Health check state
+interface HlsLevelUpdatedData {
+  level: number;
+  details?: {
+    bitrate?: number;
+    totalduration?: number;
+  };
+}
+
 let healthCheckInterval: ReturnType<typeof setInterval> | null = null;
+let subtitleWatchdog: ReturnType<typeof setInterval> | null = null;
 let consecutiveErrors = 0;
 const MAX_CONSECUTIVE_ERRORS = 5;
 
-// Retry backoff state
+let _hasStartedOnce = false;
+
 let retryCount = 0;
 const MAX_RETRY_DELAY_MS = 30000;
 const BASE_RETRY_DELAY_MS = 2000;
 
 export function initHlsPlayer(): void {
   const video = document.getElementById("video-player") as HTMLVideoElement;
-  const container = document.getElementById("video-container") as HTMLElement;
   const waitingEl = document.getElementById("waiting");
   const errorOverlay = document.getElementById("error-overlay");
   const errorMessage = document.getElementById("error-message");
   const btnRetry = document.getElementById("btn-retry");
-  const btnCC = document.getElementById("btn-cc") as HTMLButtonElement;
 
   if (!video) {
     logger.error("player", "Video element not found");
     return;
   }
 
-  // Cache buster to prevent loading stale HLS segments from previous sessions
   const _sessionTs = Date.now();
   const streamUrl = `${window.location.origin}/hls/master.m3u8?_=${_sessionTs}`;
   let hls: HlsInstance | null = null;
-  let renderer: SubtitleRenderer | null = null;
   let isConnected = false;
-  let subtitlesEnabled = true;
-  let nativeTrackCheck: ReturnType<typeof setInterval> | null = null;
 
   function showError(message: string) {
     if (errorOverlay) errorOverlay.style.display = "flex";
@@ -124,7 +144,6 @@ export function initHlsPlayer(): void {
     if (errorOverlay) errorOverlay.style.display = "none";
   }
 
-  // Health check - monitor stream availability
   function startHealthCheck() {
     stopHealthCheck();
     consecutiveErrors = 0;
@@ -138,7 +157,7 @@ export function initHlsPlayer(): void {
 
         if (response.ok) {
           consecutiveErrors = 0;
-          if (!isConnected && hls) {
+          if (_hasStartedOnce && !isConnected && hls) {
             hls.startLoad();
           }
         } else {
@@ -155,14 +174,13 @@ export function initHlsPlayer(): void {
         logger.warn("player", "Stream check failed", consecutiveErrors);
       }
 
-      // If too many consecutive errors, stop checking and show reconnect
       if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS && hls) {
         stopHealthCheck();
         showError(
           "Stream no disponible. Haz clic en Reintentar para conectar.",
         );
       }
-    }, 10000); // Check every 10 seconds
+    }, 10000);
   }
 
   function stopHealthCheck() {
@@ -170,6 +188,37 @@ export function initHlsPlayer(): void {
       clearInterval(healthCheckInterval);
       healthCheckInterval = null;
     }
+  }
+
+  function waitForSegments(attempt: number): void {
+    const MAX_ATTEMPTS = 15;
+
+    void (async () => {
+      try {
+        const segUrl = `${
+          window.location.origin
+        }/hls/stream.m3u8?_=${Date.now()}`;
+        const resp = await fetch(segUrl, { cache: "no-cache" });
+        if (!resp.ok) {
+          if (attempt < MAX_ATTEMPTS) {
+            setTimeout(() => waitForSegments(attempt + 1), 2000);
+          }
+          return;
+        }
+        const text = await resp.text();
+        if (text.includes("#EXTINF") && hls) {
+          _hasStartedOnce = true;
+          hls.startLoad();
+          startHealthCheck();
+          return;
+        }
+      } catch {
+        // connection not ready yet
+      }
+      if (attempt < MAX_ATTEMPTS) {
+        setTimeout(() => waitForSegments(attempt + 1), 2000);
+      }
+    })();
   }
 
   function handlePlayError(err: unknown) {
@@ -189,12 +238,11 @@ export function initHlsPlayer(): void {
     consecutiveErrors = 0;
     retryCount = 0;
 
-    // Update cache buster for fresh session
+    connectFeedbackWs();
+
     const ts = Date.now();
     const freshStreamUrl = `${window.location.origin}/hls/master.m3u8?_=${ts}`;
 
-    // Best-effort: ask the service worker to drop any previously cached live content
-    // so a stale segment from a prior pipeline session cannot leak into the new one.
     if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: "CLEAR_CACHES" });
     }
@@ -208,56 +256,81 @@ export function initHlsPlayer(): void {
         debug: false,
         enableWorker: true,
         lowLatencyMode: false,
-        backBufferLength: 30,
-        maxLoadingDelay: 3,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
-        liveSyncMaxLatency: 25,
+        autoStartLoad: false,
+        backBufferLength: 45,
+        maxLoadingDelay: 8,
+        maxBufferLength: 120,
+        maxMaxBufferLength: 240,
+        liveSyncMaxLatency: 30,
+        liveSyncDuration: 25,
         liveDurationInfinity: true,
-        // Disable CEA-708 caption parsing so embedded closed captions from the
-        // MPEG-TS stream don't create native subtitle tracks. These would show
-        // a CC button/label and "Spanish" in the player menu regardless of the
-        // actual language. Our custom SubtitleRenderer handles subtitles instead.
+        highBufferWatchdogPeriod: 2,
         enableCEA708Captions: false,
+        fragLoadingTimeOut: 20000,
+        manifestLoadingTimeOut: 20000,
+        levelLoadingTimeOut: 20000,
+        fragLoadingMaxRetry: 6,
+        manifestLoadingMaxRetry: 6,
+        levelLoadingMaxRetry: 6,
       });
 
-      // Subtitle renderer polls /subtitles/subs.m3u8 independently of
-      // HLS.js — fallback for browsers without HLS native subtitle support.
-      renderer = new SubtitleRenderer();
-      renderer.start(video, container);
-
-      // IMPORTANT: register handlers BEFORE loadSource/attachMedia.
-      // HLS.js emits MANIFEST_PARSED synchronously after parsing the manifest
-      // (which can happen very fast for a small playlist). If the handler is
-      // registered after loadSource, the event is missed and the player stays
-      // stuck on the "waiting" overlay forever.
       hls.on(HlsEvents.MANIFEST_PARSED, () => {
-        if (waitingEl) waitingEl.style.display = "none";
         hideError();
-        isConnected = true;
         retryCount = 0;
-        video.play().catch(handlePlayError);
 
-        // Activate native HLS.js subtitle track for zero-lag sync
-        // Falls back to SubtitleRenderer if no native track is available.
         if (hls) {
           activateFirstSubtitleTrack(hls, {
             preferredLang: "es",
             showSubtitles: true,
+            video,
           });
         }
 
-        updateSubtitleUI(0);
-        startHealthCheck();
+        waitForSegments(0);
       });
 
-      // Re-activate subtitle track on every manifest re-parse (rolling window)
       hls.on(HlsEvents.SUBTITLE_TRACKS_UPDATED, () => {
         if (hls) {
           activateFirstSubtitleTrack(hls, {
             preferredLang: "es",
             showSubtitles: true,
+            video,
           });
+        }
+      });
+
+      hls.on(HlsEvents.FRAG_BUFFERED, () => {
+        if (!isConnected) {
+          isConnected = true;
+          if (waitingEl) waitingEl.style.display = "none";
+          video.play().catch(handlePlayError);
+          startSubtitleWatchdog();
+        }
+      });
+
+      hls.on(HlsEvents.BUFFER_APPENDED, () => {
+        try {
+          const bufLen = video.buffered.length;
+          let maxBuffered = 0;
+          for (let i = 0; i < bufLen; i++) {
+            const end = video.buffered.end(i);
+            if (end > maxBuffered) maxBuffered = end;
+          }
+          const targetBuf = hls?.levels?.[0]?.bitrate ? 12000 : 12000;
+          sendBufferHealth(maxBuffered * 1000, targetBuf);
+        } catch {
+          // ignore
+        }
+      });
+
+      hls.on(HlsEvents.STALLED, () => {
+        sendStalled(100);
+      });
+
+      hls.on(HlsEvents.LEVEL_UPDATED, (_event, data: unknown) => {
+        const d = data as HlsLevelUpdatedData;
+        if (d.details?.bitrate) {
+          sendBandwidth(d.details.bitrate);
         }
       });
 
@@ -268,7 +341,6 @@ export function initHlsPlayer(): void {
         if (err.fatal) {
           switch (err.type) {
             case HlsErrorTypes.NETWORK_ERROR: {
-              // Exponential backoff: 2s, 4s, 8s, 16s, 30s max
               const delay = Math.min(
                 BASE_RETRY_DELAY_MS * Math.pow(2, retryCount),
                 MAX_RETRY_DELAY_MS,
@@ -295,11 +367,6 @@ export function initHlsPlayer(): void {
         }
       });
 
-      hls.once(HlsEvents.FRAG_BUFFERED, () => {
-        startHealthCheck();
-        startNativeTrackSync();
-      });
-
       hls.loadSource(freshStreamUrl);
       hls.attachMedia(video);
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
@@ -308,11 +375,6 @@ export function initHlsPlayer(): void {
         if (waitingEl) waitingEl.style.display = "none";
         isConnected = true;
         video.play().catch(handlePlayError);
-        // Native HLS path: the browser handles <track> elements
-        // attached to the <video>, but our hls.js path is the supported
-        // one. For Safari we still want subtitles; rely on the
-        // master.m3u8 SUBTITLES attribute being picked up by the
-        // browser's native HLS implementation.
         startHealthCheck();
       });
       video.addEventListener("error", () => {
@@ -329,57 +391,33 @@ export function initHlsPlayer(): void {
     }
   }
 
-  /** Monitor native text track mode changes from the "..." menu.
-   *  When the user activates the native subtitle track, disable our
-   *  SubtitleRenderer to avoid double-rendering. When deactivated, re-enable it. */
-  function startNativeTrackSync(): void {
-    stopNativeTrackSync();
-    nativeTrackCheck = setInterval(() => {
-      if (!video || !renderer) return;
-      const tracks = video.textTracks;
-      let nativeShowing = false;
-      for (let i = 0; i < tracks.length; i++) {
-        const t = tracks[i];
-        if (
-          (t.kind === "subtitles" || t.kind === "captions") &&
-          t.mode === "showing"
-        ) {
-          nativeShowing = true;
-          break;
-        }
+  function startSubtitleWatchdog() {
+    stopSubtitleWatchdog();
+    subtitleWatchdog = setInterval(() => {
+      if (video && isConnected) {
+        forceSubtitleTrackMode(video);
       }
-      if (nativeShowing && subtitlesEnabled) {
-        subtitlesEnabled = false;
-        renderer.setEnabled(false);
-        if (btnCC) btnCC.classList.remove("active");
-      } else if (!nativeShowing && !subtitlesEnabled) {
-        subtitlesEnabled = true;
-        renderer.setEnabled(true);
-        if (btnCC) btnCC.classList.add("active");
-      }
-    }, 1000);
+    }, 3000);
   }
 
-  function stopNativeTrackSync(): void {
-    if (nativeTrackCheck) {
-      clearInterval(nativeTrackCheck);
-      nativeTrackCheck = null;
+  function stopSubtitleWatchdog() {
+    if (subtitleWatchdog) {
+      clearInterval(subtitleWatchdog);
+      subtitleWatchdog = null;
     }
   }
 
   function disconnect() {
     stopHealthCheck();
-    stopNativeTrackSync();
-    if (renderer) {
-      renderer.stop();
-      renderer = null;
-    }
+    stopSubtitleWatchdog();
+    disconnectFeedbackWs();
     if (hls) {
       hls.stopLoad();
       hls.destroy();
       hls = null;
     }
     isConnected = false;
+    _hasStartedOnce = false;
   }
 
   if (btnRetry) {
@@ -387,33 +425,6 @@ export function initHlsPlayer(): void {
       disconnect();
       connect();
     });
-  }
-
-  function toggleSubtitles() {
-    if (!renderer) return;
-    subtitlesEnabled = !subtitlesEnabled;
-    renderer.setEnabled(subtitlesEnabled);
-    if (btnCC) btnCC.classList.toggle("active", subtitlesEnabled);
-    logger.info(
-      "player",
-      "Subtitles",
-      subtitlesEnabled ? "enabled" : "disabled",
-    );
-  }
-
-  if (btnCC) {
-    btnCC.addEventListener("click", toggleSubtitles);
-  }
-
-  function updateSubtitleUI(tracksCount: number) {
-    if (!btnCC) return;
-    if (tracksCount > 0) {
-      btnCC.classList.add("visible");
-      if (subtitlesEnabled) btnCC.classList.add("active");
-      else btnCC.classList.remove("active");
-    } else {
-      btnCC.classList.remove("visible", "active");
-    }
   }
 
   window.addEventListener("beforeunload", () => {
@@ -445,9 +456,6 @@ export function initHlsPlayer(): void {
     tryConnect();
   }
 
-  // Wait for the new service worker (if any) to take control before starting
-  // playback. Without this, the first page load after the SW is updated can
-  // race with the old SW and replay stale cached segments.
   async function waitForServiceWorker(): Promise<void> {
     if (!("serviceWorker" in navigator)) return;
     try {

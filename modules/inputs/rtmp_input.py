@@ -153,8 +153,6 @@ class RTMPInput(InputSource):
                 str(self._chunk_duration),
                 "-segment_format",
                 "mpegts",
-                "-reset_timestamps",
-                "1",
                 "-max_muxing_queue_size",
                 "8192",
                 chunk_pattern,
