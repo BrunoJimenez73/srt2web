@@ -136,13 +136,16 @@ class UnifiedPipeline:
         self._on_log: Callable[[str, str], None] | None = None
         self._on_state_change: Callable[[str], None] | None = None
         self._on_chunk_complete: Callable[[int, PipelineData], None] | None = None
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._hardware_monitor = HardwareMonitor()
         self._init_thread: threading.Thread | None = None
         self._init_error: BaseException | None = None
         self._chunk_duration = 10.0
         self._adaptive_config: dict[str, Any] | None = None
         self._chunk_adapt_counter = 0
+
+        # ROB: flag to prevent start() while stop() is still executing
+        self._stop_in_progress = False
 
         # Initialize processing strategy (lazy import)
         self._strategy: Any = None
@@ -374,6 +377,8 @@ class UnifiedPipeline:
         """Iniciar procesamiento del pipeline."""
         if self._state != PipelineState.IDLE:
             raise PipelineStateError(f"Cannot start pipeline in state: {self._state.value}")
+        if self._stop_in_progress:
+            raise PipelineError("Cannot start pipeline while a stop operation is in progress")
 
         self._on_log = on_log
         self._on_state_change = on_state_change
@@ -431,10 +436,15 @@ class UnifiedPipeline:
                 raise PipelineError("Pipeline initialization did not complete")
 
         # F172: If stop() was called concurrently during init, abort
-        if self._stop_event.is_set() or self._state != PipelineState.STARTING:  # type: ignore[comparison-overlap]
+        if self._stop_event.is_set():  # type: ignore[comparison-overlap]
             self._set_state(PipelineState.IDLE)
             self._log("info", "Pipeline start aborted — stop was requested during initialization")
             return _CompletedAwaitable()
+
+        # F172: initialize() sets state to IDLE on success; transition back to
+        # STARTING so the subsequent RUNNING transition is valid in the state machine.
+        if self._state == PipelineState.IDLE:
+            self._set_state(PipelineState.STARTING)
 
         self._stop_event.clear()
 
@@ -468,14 +478,40 @@ class UnifiedPipeline:
         The guard + state transition are atomic under ``self._lock`` (ROB-01).
         The rest of the shutdown runs outside the lock to avoid deadlocks with
         module or strategy ``stop()`` methods that may acquire other locks.
+
+        Has a 30-second overall timeout to prevent hanging the frontend.
         """
         with self._lock:
             if not self.is_running:
                 return
+            if self._stop_in_progress:
+                logger.warning("Stop already in progress — ignoring duplicate request")
+                return
+            self._stop_in_progress = True
             self._hardware_monitor.shutdown()
             self._set_state(PipelineState.STOPPING)
             self._stop_event.set()
 
+        # Run blocking stop operations in a thread executor with overall timeout
+        # so the frontend doesn't hang indefinitely.
+        loop = asyncio.get_running_loop()
+        try:
+            await asyncio.wait_for(
+                loop.run_in_executor(None, self._sync_stop),
+                timeout=30.0,
+            )
+        except asyncio.TimeoutError:
+            logger.error("Pipeline stop timed out after 30s — forcing error state")
+            self._set_state(PipelineState.ERROR)
+        except Exception as e:
+            logger.error(f"Error during pipeline stop: {e}")
+            self._set_state(PipelineState.ERROR)
+        finally:
+            with self._lock:
+                self._stop_in_progress = False
+
+    def _sync_stop(self) -> None:
+        """Synchronous portion of pipeline shutdown (runs in executor)."""
         # Delegate thread stopping to strategy (F132)
         if self._strategy:
             try:

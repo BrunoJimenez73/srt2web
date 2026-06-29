@@ -248,9 +248,11 @@ class SequentialStrategy(PipelineStrategy):
         self._thread.start()
 
     def stop_threads(self) -> None:
-        """Join the sequential thread."""
+        """Join the sequential thread with timeout."""
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=5.0)
+            if self._thread.is_alive():
+                logger.warning("Sequential pipeline thread did not stop within 5s timeout")
         self._thread = None
 
     def _run_sequential_loop(self) -> None:
@@ -400,14 +402,18 @@ class ThreadParallelStrategy(PipelineStrategy):
             self._monitor_thread.start()
 
     def stop_threads(self) -> None:
-        """Join all threads."""
-        if self._input_thread and self._input_thread.is_alive():
-            self._input_thread.join(timeout=5.0)
-        for worker in self._worker_threads:
-            if worker.is_alive():
-                worker.join(timeout=5.0)
-        if self._output_thread and self._output_thread.is_alive():
-            self._output_thread.join(timeout=5.0)
+        """Join all threads with timeout and warnings for stuck threads."""
+        threads = [
+            ("input", self._input_thread),
+            *[(f"worker-{i}", w) for i, w in enumerate(self._worker_threads)],
+            ("output", self._output_thread),
+            ("monitor", self._monitor_thread),
+        ]
+        for name, thread in threads:
+            if thread and thread.is_alive():
+                thread.join(timeout=5.0)
+                if thread.is_alive():
+                    logger.warning(f"Thread '{name}' did not stop within 5s timeout")
         self._input_thread = None
         self._worker_threads.clear()
         self._output_thread = None
@@ -723,16 +729,21 @@ class AsyncIOStrategy(PipelineStrategy):
         thread.start()
         self._worker_threads.append(thread)
 
-    async def stop_threads(self) -> None:
-        """Cancel all async tasks and join worker threads."""
-        for task in self._async_tasks:
-            task.cancel()
-        if self._async_tasks:
-            await asyncio.gather(*self._async_tasks, return_exceptions=True)
-        self._async_tasks.clear()
-        # Join worker threads (they exit when stop_event is set)
-        for thread in self._worker_threads:
-            thread.join(timeout=5.0)
+    def stop_threads(self) -> None:  # type: ignore[override]
+        """Stop async pipeline threads.
+
+        ``stop_event`` is already set by pipeline.stop(), so the async
+        loop in the worker thread will exit on its own. This method just
+        waits for the thread to finish. The old async ``stop_threads``
+        was changed to sync because it's called from the synchronous
+        ``_sync_stop()`` and awaiting a coroutine from a thread executor
+        was silently a no-op (the coroutine was created but never awaited).
+        """
+        for idx, thread in enumerate(self._worker_threads):
+            if thread.is_alive():
+                thread.join(timeout=5.0)
+                if thread.is_alive():
+                    logger.warning(f"AsyncIO worker thread {idx} did not stop within 5s timeout")
         self._worker_threads.clear()
 
     async def _run_async_loop(self) -> None:

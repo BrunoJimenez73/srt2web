@@ -92,6 +92,8 @@ class CompositeOutput(BaseOutput):
 
     def stop(self) -> None:
         """Detener todas las salidas y cancelar reconexiones pendientes."""
+        # Snapshot de outputs bajo el lock (rápido), luego parar fuera del lock
+        # para no bloquear el event loop cuando get_all_output_statuses() lo adquiere.
         with self._lock:
             self._stopped = True
             # Cancelar todos los timers de reconexión pendientes.
@@ -101,12 +103,13 @@ class CompositeOutput(BaseOutput):
             for _, timer in self._reconnect_timers.items():
                 timer.cancel()
             self._reconnect_timers.clear()
+            outputs = list(self._outputs.items())
 
-            for name, output in self._outputs.items():
-                try:
-                    output.stop()
-                except Exception as e:
-                    logger.error(f"Error stopping output '{name}': {e}")
+        for name, output in outputs:
+            try:
+                output.stop()
+            except Exception as e:
+                logger.error(f"Error stopping output '{name}': {e}")
 
     def write(self, data: PipelineData) -> None:
         """Escribir en todas las salidas.

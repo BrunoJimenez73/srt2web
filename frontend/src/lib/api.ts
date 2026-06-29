@@ -207,7 +207,7 @@ export async function startPipeline(): Promise<PipelineStartResponse> {
 }
 
 export async function stopPipeline(): Promise<PipelineStopResponse> {
-  return apiCall<PipelineStopResponse>("POST", "/api/stop");
+  return apiCall<PipelineStopResponse>("POST", "/api/stop", undefined, 60000);
 }
 
 export async function getStatus(): Promise<Status> {

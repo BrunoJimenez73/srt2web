@@ -189,6 +189,11 @@ class FFmpegWatchdog:
 
         time.sleep(self.restart_delay)
 
+        # Check if we're shutting down before restarting
+        if self._stop_event.is_set():
+            logger.info(f"{self._process_name} watchdog is stopped — " "skipping restart after delay")
+            return
+
         if self._restart_callback:
             try:
                 self._restart_callback()

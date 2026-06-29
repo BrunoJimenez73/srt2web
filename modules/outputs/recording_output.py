@@ -196,7 +196,8 @@ class RecordingOutput(OutputSink):
         self.logger.info(f"Recording started: {self._current_file}")
 
     def stop(self) -> None:
-        """Concatenar todos los chunks en un archivo y limpiar."""
+        """Detener grabación. La concat final se ejecuta en background para no
+        bloquear el stop del pipeline (el FFmpeg concat puede tardar minutos)."""
         self._running = False
 
         if self._process:
@@ -212,18 +213,25 @@ class RecordingOutput(OutputSink):
             finally:
                 self._process = None
 
-        if self._saved_video_paths:
-            self._do_concat()
-
-        for f in self._saved_video_paths + self._saved_audio_paths:
-            with contextlib.suppress(OSError):
-                os.remove(f)
+        # Capturar paths y limpiar listas antes de lanzar el background thread
+        # para evitar race conditions si write() sigue recibiendo datos.
+        video_paths = list(self._saved_video_paths)
+        audio_paths = list(self._saved_audio_paths)
         self._saved_video_paths.clear()
         self._saved_audio_paths.clear()
 
-        if self._recording_dir and os.path.exists(self._recording_dir):
-            with contextlib.suppress(OSError):
-                os.rmdir(self._recording_dir)
+        if video_paths:
+            t = threading.Thread(
+                target=self._do_concat_background,
+                args=(video_paths, audio_paths),
+                daemon=True,
+                name="recording-concat-bg",
+            )
+            t.start()
+            self.logger.info(f"Background concat started ({len(video_paths)} video, {len(audio_paths)} audio chunks)")
+        else:
+            # Sin chunks que concatenar, limpiar temp dir inmediatamente
+            self._cleanup_recording_dir()
 
         duration = time.time() - self._start_time
         self.logger.info(
@@ -231,9 +239,37 @@ class RecordingOutput(OutputSink):
             f"{self._bytes_written / (1024*1024):.1f} MB, {duration:.1f}s"
         )
 
+    def _do_concat_background(self, video_paths: list[str], audio_paths: list[str]) -> None:
+        """Ejecutar concat en background y limpiar temporales al finalizar."""
+        try:
+            self._do_concat_with(video_paths, audio_paths)
+        except Exception as e:
+            self.logger.error(f"Background concat failed: {e}")
+        finally:
+            for f in video_paths + audio_paths:
+                with contextlib.suppress(OSError):
+                    os.remove(f)
+            self._cleanup_recording_dir()
+
+    def _cleanup_recording_dir(self) -> None:
+        """Eliminar el directorio temporal de grabación si está vacío."""
+        if self._recording_dir and os.path.exists(self._recording_dir):
+            with contextlib.suppress(OSError):
+                os.rmdir(self._recording_dir)
+
     def _do_concat(self) -> None:
-        """Concatenar chunks guardados en un archivo usando concat demuxer."""
-        if not self._saved_video_paths:
+        """Concatenar chunks guardados en un archivo usando concat demuxer.
+        Legacy wrapper — usa las paths del estado interno."""
+        self._do_concat_with(self._saved_video_paths, self._saved_audio_paths)
+
+    def _do_concat_with(self, video_paths: list[str], audio_paths: list[str]) -> None:
+        """Concatenar chunks de video (y opcionalmente audio) en un archivo.
+
+        Args:
+            video_paths: Lista de paths de chunks de video a concatenar.
+            audio_paths: Lista de paths de chunks de audio a concatenar.
+        """
+        if not video_paths:
             return
 
         output_file = os.path.abspath(self._output_path)
@@ -251,7 +287,7 @@ class RecordingOutput(OutputSink):
         concat_list = os.path.join(self._recording_dir, "concat.txt")
         rec_dir_abs = os.path.abspath(self._recording_dir)
         with open(concat_list, "w", encoding="utf-8") as f:
-            for vp in self._saved_video_paths:
+            for vp in video_paths:
                 if os.path.exists(vp):
                     vp_abs = os.path.abspath(vp)
                     vp_rel = os.path.relpath(vp_abs, rec_dir_abs).replace("\\", "/")
@@ -268,12 +304,12 @@ class RecordingOutput(OutputSink):
             concat_list,
         ]
 
-        has_audio = bool(self._saved_audio_paths)
+        has_audio = bool(audio_paths)
 
         if has_audio:
             audio_concat = os.path.join(self._recording_dir, "audio_concat.txt")
             with open(audio_concat, "w", encoding="utf-8") as f:
-                for ap in self._saved_audio_paths:
+                for ap in audio_paths:
                     if os.path.exists(ap):
                         ap_abs = os.path.abspath(ap)
                         ap_rel = os.path.relpath(ap_abs, rec_dir_abs).replace("\\", "/")
