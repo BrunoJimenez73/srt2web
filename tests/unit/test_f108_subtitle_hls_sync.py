@@ -227,7 +227,7 @@ class TestRewriteHLSPlaylist:
         assert not tmp.exists(), "atomic write should rename the .tmp away"
 
     def test_playlist_media_sequence_always_zero(self, tmp_path: Path) -> None:
-        """MEDIA-SEQUENCE is always 0 — HLS.js needs the full timeline from start."""
+        """MEDIA-SEQUENCE is always 0 for absolute-timestamp VTT cues."""
         gen = _make_gen(str(tmp_path), hls_list_size=2)
         for i in range(5):
             _process_chunk(gen, i)
@@ -398,7 +398,7 @@ class TestPlaylistAccessors:
     def test_init_initializes_hls_state(self, tmp_path: Path) -> None:
         gen = SubtitleGenerator(output_dir=str(tmp_path))
         # HLS state should be initialized in __init__
-        assert gen._hls_list_size == 1000
+        assert gen._hls_list_size == 10
         assert gen._hls_fragments == []
         assert isinstance(gen._hls_playlist_path, Path)
 

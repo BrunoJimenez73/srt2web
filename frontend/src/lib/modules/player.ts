@@ -1,15 +1,16 @@
 import { logger } from "../utils/logger";
 import {
-  activateFirstSubtitleTrack,
-  forceSubtitleTrackMode,
-} from "./player-subtitles";
-import {
   connectFeedbackWs,
   disconnectFeedbackWs,
   sendBufferHealth,
   sendStalled,
   sendBandwidth,
 } from "./player-feedback";
+import {
+  activateFirstSubtitleTrack,
+  forceSubtitleTrackMode,
+  disableSubtitles,
+} from "./player-subtitles";
 
 declare const Hls: HlsStatic | undefined;
 
@@ -106,7 +107,6 @@ interface HlsLevelUpdatedData {
 }
 
 let healthCheckInterval: ReturnType<typeof setInterval> | null = null;
-let subtitleWatchdog: ReturnType<typeof setInterval> | null = null;
 let consecutiveErrors = 0;
 const MAX_CONSECUTIVE_ERRORS = 5;
 
@@ -277,44 +277,17 @@ export function initHlsPlayer(): void {
       hls.on(HlsEvents.MANIFEST_PARSED, () => {
         hideError();
         retryCount = 0;
-
-        if (hls) {
-          activateFirstSubtitleTrack(hls, {
-            preferredLang: "es",
-            showSubtitles: true,
-            video,
-          });
-        }
-
         waitForSegments(0);
-      });
-
-      hls.on(HlsEvents.SUBTITLE_TRACKS_UPDATED, () => {
         if (hls) {
           activateFirstSubtitleTrack(hls, {
-            preferredLang: "es",
-            showSubtitles: true,
             video,
+            preferredLang: "es",
           });
         }
       });
 
-      // FIX: HLS.js v1.5.7 has a known bug where subtitle display state gets
-      // reset after subtitle playlist refresh — <track>.mode is set to "hidden",
-      // hls.subtitleDisplay may become false, or hls.subtitleTrack may be reset
-      // to -1.  Subscribe to SUBTITLE_TRACK_LOADED (fires after each subtitle
-      // fragment is loaded) to re-enforce subtitle visibility immediately.
       hls.on(HlsEvents.SUBTITLE_TRACK_LOADED, () => {
-        if (!hls || !video) return;
-        hls.subtitleDisplay = true;
         forceSubtitleTrackMode(video);
-        if (hls.subtitleTrack < 0 && hls.subtitleTracks.length > 0) {
-          activateFirstSubtitleTrack(hls, {
-            preferredLang: "es",
-            showSubtitles: true,
-            video,
-          });
-        }
       });
 
       hls.on(HlsEvents.FRAG_BUFFERED, () => {
@@ -322,7 +295,6 @@ export function initHlsPlayer(): void {
           isConnected = true;
           if (waitingEl) waitingEl.style.display = "none";
           video.play().catch(handlePlayError);
-          startSubtitleWatchdog();
         }
       });
 
@@ -350,19 +322,7 @@ export function initHlsPlayer(): void {
         if (d.details?.bitrate) {
           sendBandwidth(d.details.bitrate);
         }
-        // FIX: Master playlist refresh is another opportunity for HLS.js to
-        // reset subtitle state. Re-enforce display and track mode.
-        if (hls && video) {
-          hls.subtitleDisplay = true;
-          forceSubtitleTrackMode(video);
-          if (hls.subtitleTrack < 0 && hls.subtitleTracks.length > 0) {
-            activateFirstSubtitleTrack(hls, {
-              preferredLang: "es",
-              showSubtitles: true,
-              video,
-            });
-          }
-        }
+        forceSubtitleTrackMode(video);
       });
 
       hls.on(HlsEvents.ERROR, (_event, data: unknown) => {
@@ -422,39 +382,11 @@ export function initHlsPlayer(): void {
     }
   }
 
-  function startSubtitleWatchdog() {
-    stopSubtitleWatchdog();
-    subtitleWatchdog = setInterval(() => {
-      if (video && hls) {
-        forceSubtitleTrackMode(video);
-        // FIX: HLS.js may also reset subtitleDisplay or subtitleTrack on
-        // playlist refresh — ensure both stay active.
-        if (!hls.subtitleDisplay) {
-          hls.subtitleDisplay = true;
-        }
-        if (hls.subtitleTrack < 0 && hls.subtitleTracks.length > 0) {
-          activateFirstSubtitleTrack(hls, {
-            preferredLang: "es",
-            showSubtitles: true,
-            video,
-          });
-        }
-      }
-    }, 3000);
-  }
-
-  function stopSubtitleWatchdog() {
-    if (subtitleWatchdog) {
-      clearInterval(subtitleWatchdog);
-      subtitleWatchdog = null;
-    }
-  }
-
   function disconnect() {
     stopHealthCheck();
-    stopSubtitleWatchdog();
     disconnectFeedbackWs();
     if (hls) {
+      disableSubtitles(hls);
       hls.stopLoad();
       hls.destroy();
       hls = null;

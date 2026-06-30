@@ -379,7 +379,7 @@ class HLSOutput(OutputSink):
 
         if "nvenc" in encoder:
             fps = self._encoder_config.video_fps or 25
-            gop_frames = int(round(fps * self._segment_duration))
+            gop_frames = round(fps * self._segment_duration)
             cmd.extend(["-preset", preset, "-g", str(gop_frames), "-keyint_min", str(gop_frames), "-no-scenecut", "1"])
         elif encoder == "libx264":
             cmd.extend(["-preset", preset])
