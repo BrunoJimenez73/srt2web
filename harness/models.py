@@ -3,9 +3,21 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from typing import Any, Optional
+
+
+def normalize_id(raw: str | int | None) -> str:
+    """Normalize a feature ID to canonical form (numeric string without 'F' prefix).
+
+    Accepts '115', 'F115', 'f115', 115 -> '115'.
+    """
+    if raw is None:
+        return ""
+    s = str(raw).strip().lstrip("Ff")
+    return s
 
 
 @dataclass
@@ -41,6 +53,11 @@ class Feature:
     status: str = "pending"
     area: str = ""
     priority: str = "Media"
+
+    def __post_init__(self) -> None:
+        """Normalize id to numeric string on construction."""
+        self.id = normalize_id(self.id)
+
     description: str = ""
     problems_identified: list[str] = field(default_factory=list)
     acceptance: list[str] = field(default_factory=list)
@@ -75,13 +92,10 @@ class Feature:
 
     @property
     def numeric_id(self) -> int:
-        """Extract numeric part from id (handles 'F115' -> 115)."""
-        if isinstance(self.id, int):
-            return self.id
-        s = str(self.id).lstrip("Ff")
+        """Extract numeric part from id (handles '115' -> 115)."""
         try:
-            return int(s)
-        except ValueError:
+            return int(str(self.id))
+        except (ValueError, TypeError):
             return 0
 
     def to_dict(self) -> dict[str, Any]:
@@ -121,8 +135,11 @@ class Feature:
     def from_json_dict(cls, d: dict[str, Any]) -> Feature:
         """Import from the legacy feature_list.json format."""
         risk = RiskAssessment.from_dict(d.get("risk_assessment"))
+        raw_id = d["id"]
+        # Normalize 'F115' -> '115' during legacy import
+        normalized_id = normalize_id(raw_id)
         return cls(
-            id=d["id"],
+            id=normalized_id,
             name=d.get("name", ""),
             title=d.get("title", ""),
             status=d.get("status", "pending"),

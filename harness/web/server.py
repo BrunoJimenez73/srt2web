@@ -2,6 +2,11 @@
 
 Usage:
     python -m harness.web.server [--port 8500]
+
+Security:
+    - Optional HARNESS_TOKEN env var for API authentication
+    - CORS restricted to localhost origins
+    - Rate limiting (120 req/min per IP)
 """
 
 from __future__ import annotations
@@ -9,10 +14,13 @@ from __future__ import annotations
 import json
 import sys
 import os
+import time
+from collections import defaultdict
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 import mimetypes
+import hmac
 
 WEB_DIR = Path(__file__).parent
 DB_PATH = WEB_DIR.parent.parent / "harness.db"
@@ -20,17 +28,99 @@ DB_PATH = WEB_DIR.parent.parent / "harness.db"
 # Ensure DB module is importable
 sys.path.insert(0, str(WEB_DIR.parent.parent))
 
+# ── Security config ─────────────────────────────────────────────────────────
+
+HARNESS_TOKEN = os.environ.get("HARNESS_TOKEN", "")
+ALLOWED_ORIGINS = {"http://localhost:8500", "http://127.0.0.1:8500", "http://localhost", "http://127.0.0.1"}
+RATE_LIMIT_REQUESTS = 120
+RATE_LIMIT_WINDOW = 60  # seconds
+
+# Per-IP rate tracking: {ip: [(timestamp, count), ...]}
+_rate_tracker: dict[str, list[float]] = defaultdict(list)
+# Per-IP request counter within current window
+_rate_counter: dict[str, int] = defaultdict(int)
+_rate_window_start: dict[str, float] = {}
+
+
+def _check_rate_limit(ip: str) -> bool:
+    """Returns True if request is allowed, False if rate limited."""
+    now = time.time()
+    window_start = _rate_window_start.get(ip, now)
+    if now - window_start > RATE_LIMIT_WINDOW:
+        _rate_counter[ip] = 0
+        _rate_window_start[ip] = now
+    _rate_counter[ip] += 1
+    return _rate_counter[ip] <= RATE_LIMIT_REQUESTS
+
+
+def _check_auth(headers: dict, parsed_query: dict) -> bool:
+    """Returns True if authentication passes (or no token configured)."""
+    if not HARNESS_TOKEN:
+        return True
+    # Check query param
+    token_params = parsed_query.get("token", [])
+    if token_params and token_params[0] == HARNESS_TOKEN:
+        return True
+    # Check Authorization header
+    auth = headers.get("Authorization", "")
+    if auth.startswith("Bearer ") and auth[7:] == HARNESS_TOKEN:
+        return True
+    # Check X-Auth-Token header
+    if headers.get("X-Auth-Token") == HARNESS_TOKEN:
+        return True
+    return False
+
 
 class HarnessHandler(BaseHTTPRequestHandler):
     """Serves the web UI and API endpoints."""
 
     db = None
 
-    def do_GET(self) -> None:
+    # ── Request routing ──────────────────────────────────────────────
+
+    def _is_api_path(self, path: str) -> bool:
+        return path.startswith("/api/")
+
+    def _handle_request(self, method: str) -> None:
         parsed = urlparse(self.path)
         path = parsed.path
         params = parse_qs(parsed.query)
 
+        # Auth check for API routes
+        if self._is_api_path(path) and not _check_auth(self.headers, params):
+            self._json({"error": "Unauthorized"}, status=401)
+            return
+
+        # Rate limiting for API routes
+        if self._is_api_path(path):
+            client_ip = self.client_address[0]
+            if not _check_rate_limit(client_ip):
+                self._json({"error": "Rate limit exceeded"}, status=429)
+                return
+
+        # Route based on method
+        if method == "GET":
+            self._do_get(path, params)
+        elif method == "POST":
+            self._do_post(path)
+        elif method == "PUT":
+            self._do_put(path)
+        elif method in ("OPTIONS",):
+            self._do_options()
+
+    def do_GET(self) -> None:
+        self._handle_request("GET")
+
+    def do_POST(self) -> None:
+        self._handle_request("POST")
+
+    def do_PUT(self) -> None:
+        self._handle_request("PUT")
+
+    def do_OPTIONS(self) -> None:
+        self._handle_request("OPTIONS")
+
+    def _do_get(self, path: str, params: dict) -> None:
         # API routes
         if path == "/api/features":
             self._json(self._api_features(params))
@@ -54,9 +144,7 @@ class HarnessHandler(BaseHTTPRequestHandler):
             # Static files
             self._serve_file(path)
 
-    def do_POST(self) -> None:
-        parsed = urlparse(self.path)
-        path = parsed.path
+    def _do_post(self, path: str) -> None:
         length = int(self.headers.get("Content-Length", 0))
         body = json.loads(self.rfile.read(length)) if length > 0 else {}
 
@@ -80,9 +168,7 @@ class HarnessHandler(BaseHTTPRequestHandler):
         else:
             self.send_error(404)
 
-    def do_PUT(self) -> None:
-        parsed = urlparse(self.path)
-        path = parsed.path
+    def _do_put(self, path: str) -> None:
         length = int(self.headers.get("Content-Length", 0))
         body = json.loads(self.rfile.read(length)) if length > 0 else {}
 
@@ -92,11 +178,14 @@ class HarnessHandler(BaseHTTPRequestHandler):
         else:
             self.send_error(404)
 
-    def do_OPTIONS(self) -> None:
-        self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
+    def _do_options(self) -> None:
+        self.send_response(204)
+        origin = self.headers.get("Origin", "")
+        if origin in ALLOWED_ORIGINS:
+            self.send_header("Access-Control-Allow-Origin", origin)
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Auth-Token")
+        self.send_header("Access-Control-Max-Age", "86400")
         self.end_headers()
 
     # ── Static file serving ──────────────────────────────────────────
@@ -121,7 +210,9 @@ class HarnessHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
-        self.send_header("Access-Control-Allow-Origin", "*")
+        origin = self.headers.get("Origin", "")
+        if origin in ALLOWED_ORIGINS:
+            self.send_header("Access-Control-Allow-Origin", origin)
         self.end_headers()
         self.wfile.write(data)
 
@@ -131,7 +222,9 @@ class HarnessHandler(BaseHTTPRequestHandler):
         body = json.dumps(data, ensure_ascii=False, default=str).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        origin = self.headers.get("Origin", "")
+        if origin in ALLOWED_ORIGINS:
+            self.send_header("Access-Control-Allow-Origin", origin)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -285,8 +378,10 @@ class HarnessHandler(BaseHTTPRequestHandler):
         return import_progress_from_md(self.db)
 
     def log_message(self, fmt, *args):
-        # Suppress log noise for API calls
-        pass
+        # Only log non-API requests to reduce noise
+        parsed = urlparse(self.path)
+        if not parsed.path.startswith("/api/"):
+            super().log_message(fmt, *args)
 
 
 def run_server(port: int = 8500) -> None:
@@ -300,6 +395,11 @@ def run_server(port: int = 8500) -> None:
     httpd = HTTPServer(("127.0.0.1", port), HarnessHandler)
     url = f"http://127.0.0.1:{port}"
     print(f"Harness web UI: {url}")
+    if HARNESS_TOKEN:
+        print(f"  Auth: enabled (HARNESS_TOKEN)")
+    else:
+        print(f"  Auth: disabled (set HARNESS_TOKEN env var to enable)")
+    print(f"  Rate limit: {RATE_LIMIT_REQUESTS} req/{RATE_LIMIT_WINDOW}s per IP")
     print("Press Ctrl+C to stop.")
 
     try:

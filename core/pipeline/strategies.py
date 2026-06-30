@@ -729,7 +729,7 @@ class AsyncIOStrategy(PipelineStrategy):
         thread.start()
         self._worker_threads.append(thread)
 
-    def stop_threads(self) -> None:  # type: ignore[override]
+    def stop_threads(self) -> None:
         """Stop async pipeline threads.
 
         ``stop_event`` is already set by pipeline.stop(), so the async

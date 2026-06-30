@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Generator
 
-from .models import Feature, Session, AuditEntry, RiskAssessment, Progress
+from .models import normalize_id, Feature, Session, AuditEntry, RiskAssessment, Progress
 
 logger = logging.getLogger("srt2web.harness.db")
 
@@ -130,9 +130,15 @@ class HarnessDB:
 
     # ── Feature CRUD ──────────────────────────────────────────────────
 
+    @staticmethod
+    def _nid(feature_id: int | str) -> str:
+        """Normalize a feature ID for DB queries."""
+        return normalize_id(feature_id)
+
     def get_feature(self, feature_id: int | str) -> Feature | None:
         conn = self.connect()
-        row = conn.execute("SELECT * FROM features WHERE id = ?", (str(feature_id),)).fetchone()
+        normalized = self._nid(feature_id)
+        row = conn.execute("SELECT * FROM features WHERE id = ?", (normalized,)).fetchone()
         return Feature.from_row(row) if row else None
 
     def list_features(
@@ -238,7 +244,8 @@ class HarnessDB:
         agent: str = "",
     ) -> bool:
         """Update a single field of a feature. Returns True if updated."""
-        feature = self.get_feature(feature_id)
+        normalized_id = self._nid(feature_id)
+        feature = self.get_feature(normalized_id)
         if not feature:
             return False
 
@@ -267,12 +274,12 @@ class HarnessDB:
                 conn.execute(
                     "INSERT INTO audit_log (feature_id, field_name, old_value, new_value, agent, timestamp) "
                     "VALUES (?, ?, ?, ?, ?, ?)",
-                    (str(feature_id), field_name, _serialize(old_value), _serialize(value), agent, now),
+                    (normalized_id, field_name, _serialize(old_value), _serialize(value), agent, now),
                 )
 
             conn.execute(
                 f"UPDATE features SET {field_name} = ?, updated_at = ? WHERE id = ?",
-                (_serialize(value), now, str(feature_id)),
+                (_serialize(value), now, normalized_id),
             )
         return True
 
@@ -311,7 +318,7 @@ class HarnessDB:
         conn = self.connect()
         rows = conn.execute(
             "SELECT * FROM audit_log WHERE feature_id = ? ORDER BY timestamp DESC",
-            (str(feature_id),),
+            (self._nid(feature_id),),
         ).fetchall()
         return [AuditEntry.from_row(r) for r in rows]
 
@@ -413,6 +420,101 @@ class HarnessDB:
             conn.execute("UPDATE progress SET is_current = 0")
             conn.execute("UPDATE progress SET is_current = 1 WHERE id = ?", (progress_id,))
 
+    # ── Sanitize / Migrate ────────────────────────────────────────────
+
+    def sanitize_ids(self, agent: str = "migrate") -> dict[str, Any]:
+        """Sanitize feature IDs: merge duplicates where '115' and 'F115' coexist.
+
+        Returns a summary of actions taken.
+        """
+        conn = self.connect()
+        actions: dict[str, Any] = {"merged": 0, "deleted": 0, "errors": []}
+        now = _now()
+
+        # Find all rows whose normalized IDs collide
+        rows = conn.execute(
+            "SELECT id, name, title, status, area, priority, description, "
+            "problems_identified, acceptance, files_to_touch, risk_assessment, "
+            "completed_date, started_in_session, completed_in_session, "
+            "dependencies, phase, fix, results, completion_notes, "
+            "created_at, updated_at FROM features"
+        ).fetchall()
+
+        groups: dict[str, list[sqlite3.Row]] = {}
+        for row in rows:
+            nid = normalize_id(row["id"])
+            groups.setdefault(nid, []).append(row)
+
+        for nid, group in groups.items():
+            if len(group) < 2:
+                continue
+            # Prefer the entry with the richer data (longer title, more fields filled)
+            group.sort(key=lambda r: len(r["title"] or ""), reverse=True)
+            keeper = group[0]
+            for duplicate in group[1:]:
+                old_id = duplicate["id"]
+                try:
+                    # Merge non-empty fields from duplicate into keeper
+                    fields_to_merge = [
+                        "name",
+                        "title",
+                        "description",
+                        "area",
+                        "priority",
+                        "status",
+                        "completed_date",
+                        "started_in_session",
+                        "completed_in_session",
+                        "phase",
+                        "completion_notes",
+                    ]
+                    for field in fields_to_merge:
+                        dup_val = duplicate[field]
+                        keep_val = keeper[field]
+                        if dup_val and not keep_val:
+                            conn.execute(
+                                f"UPDATE features SET {field} = ?, updated_at = ? WHERE id = ?",
+                                (dup_val, now, keeper["id"]),
+                            )
+
+                    # Merge JSON list fields
+                    for field in ("problems_identified", "acceptance", "files_to_touch", "fix", "dependencies"):
+                        dup_list = json.loads(duplicate[field] or "[]")
+                        keep_list = json.loads(keeper[field] or "[]")
+                        merged = keep_list + [x for x in dup_list if x not in keep_list]
+                        conn.execute(
+                            f"UPDATE features SET {field} = ?, updated_at = ? WHERE id = ?",
+                            (json.dumps(merged, ensure_ascii=False), now, keeper["id"]),
+                        )
+
+                    # Remove the duplicate row
+                    conn.execute("DELETE FROM features WHERE id = ?", (old_id,))
+                    conn.execute(
+                        "INSERT INTO audit_log (feature_id, field_name, old_value, new_value, agent, timestamp) "
+                        "VALUES (?, ?, ?, ?, ?, ?)",
+                        (nid, "id", old_id, f"merged_into_{keeper['id']}", agent, now),
+                    )
+                    actions["merged"] += 1
+                    conn.commit()
+                except Exception as e:
+                    actions["errors"].append(f"Failed to merge {old_id}: {e}")
+                    conn.rollback()
+
+        # Clean up any remaining non-normalized IDs (like 'F115' without a '115' counterpart)
+        rows = conn.execute("SELECT id FROM features").fetchall()
+        for row in rows:
+            raw_id = row["id"]
+            nid = normalize_id(raw_id)
+            if raw_id != nid:
+                try:
+                    conn.execute("UPDATE features SET id = ? WHERE id = ?", (nid, raw_id))
+                    conn.commit()
+                except sqlite3.IntegrityError:
+                    # Target already exists, skip (normalized collision already handled above)
+                    conn.rollback()
+
+        return actions
+
     # ── Health / Stats ────────────────────────────────────────────────
 
     def health(self) -> dict[str, Any]:
@@ -450,6 +552,20 @@ class HarnessDB:
             dupes = [x for x in ids if ids.count(x) > 1]
             if dupes:
                 issues.append(f"Duplicate feature IDs: {set(dupes)}")
+
+            # Check for non-normalized IDs (e.g., 'F115' instead of '115')
+            raw_ids_from_db = [r[0] for r in conn.execute("SELECT id FROM features").fetchall()]
+            for raw_id in raw_ids_from_db:
+                if raw_id != normalize_id(raw_id):
+                    issues.append(f"Non-normalized feature ID: '{raw_id}' (should be '{normalize_id(raw_id)}')")
+
+            # Check for semantic duplicates (different db rows with same normalized ID)
+            normalized_ids = [normalize_id(x) for x in raw_ids_from_db]
+            seen: set[str] = set()
+            for nid in normalized_ids:
+                if nid in seen:
+                    issues.append(f"Semantic duplicate: multiple entries with normalized ID '{nid}'")
+                seen.add(nid)
 
         except Exception as e:
             issues.append(f"Feature validation failed: {e}")

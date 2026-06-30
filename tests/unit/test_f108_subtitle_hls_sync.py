@@ -226,14 +226,13 @@ class TestRewriteHLSPlaylist:
         tmp = gen._hls_playlist_path.with_suffix(gen._hls_playlist_path.suffix + ".tmp")
         assert not tmp.exists(), "atomic write should rename the .tmp away"
 
-    def test_playlist_media_sequence_uses_first_chunk_index(self, tmp_path: Path) -> None:
-        """After rolling window drops the first few fragments, MEDIA-SEQUENCE follows."""
+    def test_playlist_media_sequence_always_zero(self, tmp_path: Path) -> None:
+        """MEDIA-SEQUENCE is always 0 — HLS.js needs the full timeline from start."""
         gen = _make_gen(str(tmp_path), hls_list_size=2)
         for i in range(5):
             _process_chunk(gen, i)
         content = gen._hls_playlist_path.read_text(encoding="utf-8")
-        # After trimming, only chunks 3 and 4 remain -> media sequence is 3
-        assert "#EXT-X-MEDIA-SEQUENCE:3" in content
+        assert "#EXT-X-MEDIA-SEQUENCE:0" in content
         assert "subs_seg_000003.vtt" in content
         assert "subs_seg_000004.vtt" in content
 
@@ -244,24 +243,24 @@ class TestRewriteHLSPlaylist:
 
 
 class TestTrimHLSFragments:
-    """Rolling window keeps only the most recent hls_list_size fragments."""
+    """Subtitle playlist keeps ALL fragments — never trims from the front."""
 
-    def test_trims_to_hls_list_size(self, tmp_path: Path) -> None:
+    def test_keeps_all_fragments(self, tmp_path: Path) -> None:
         gen = _make_gen(str(tmp_path), hls_list_size=3)
         for i in range(6):
             _process_chunk(gen, i)
-        assert len(gen._hls_fragments) == 3
-        # First three dropped
-        chunk_indices = [f["chunk_index"] for f in gen._hls_fragments]
-        assert chunk_indices == [3, 4, 5]
+        assert len(gen._hls_fragments) == 6
 
-    def test_trim_deletes_dropped_files(self, tmp_path: Path) -> None:
+    def test_trim_keeps_dropped_files(self, tmp_path: Path) -> None:
+        """After trimming, old fragment files are kept on disk to prevent
+        HLS.js 404 errors when it has pending requests for recently-removed
+        fragments."""
         gen = _make_gen(str(tmp_path), hls_list_size=2)
         for i in range(4):
             _process_chunk(gen, i)
-        # Oldest two files should be deleted
-        assert not (tmp_path / "subtitles" / "subs_seg_000000.vtt").exists()
-        assert not (tmp_path / "subtitles" / "subs_seg_000001.vtt").exists()
+        # Oldest two files are kept on disk (prevents 404 race condition)
+        assert (tmp_path / "subtitles" / "subs_seg_000000.vtt").exists()
+        assert (tmp_path / "subtitles" / "subs_seg_000001.vtt").exists()
         # Newest two retained
         assert (tmp_path / "subtitles" / "subs_seg_000002.vtt").exists()
         assert (tmp_path / "subtitles" / "subs_seg_000003.vtt").exists()
@@ -399,7 +398,7 @@ class TestPlaylistAccessors:
     def test_init_initializes_hls_state(self, tmp_path: Path) -> None:
         gen = SubtitleGenerator(output_dir=str(tmp_path))
         # HLS state should be initialized in __init__
-        assert gen._hls_list_size == 12
+        assert gen._hls_list_size == 1000
         assert gen._hls_fragments == []
         assert isinstance(gen._hls_playlist_path, Path)
 
@@ -453,25 +452,21 @@ class TestDoProcessHLSIntegration:
         playlist = (tmp_path / "subtitles" / "subs.m3u8").read_text(encoding="utf-8")
         assert "subs_seg_000000.vtt" in playlist
 
-    def test_processing_many_chunks_keeps_rolling_window(self, tmp_path: Path) -> None:
+    def test_all_chunks_preserved_in_playlist(self, tmp_path: Path) -> None:
         gen = _make_gen(str(tmp_path), hls_list_size=4)
         for i in range(10):
             _process_chunk(gen, i)
         playlist = (tmp_path / "subtitles" / "subs.m3u8").read_text(encoding="utf-8")
-        # Only the last 4 chunks should be referenced
-        for i in range(6, 10):
+        for i in range(10):
             assert f"subs_seg_{i:06d}.vtt" in playlist, f"chunk {i} should be in playlist"
-        for i in range(0, 6):
-            assert f"subs_seg_{i:06d}.vtt" not in playlist, f"chunk {i} should be dropped"
 
-    def test_playlist_does_not_reference_dropped_files(self, tmp_path: Path) -> None:
+    def test_all_chunks_present_in_playlist(self, tmp_path: Path) -> None:
         gen = _make_gen(str(tmp_path), hls_list_size=2)
         for i in range(4):
             _process_chunk(gen, i)
         playlist = (tmp_path / "subtitles" / "subs.m3u8").read_text(encoding="utf-8")
-        # No dangling references to files we deleted
-        assert "subs_seg_000000.vtt" not in playlist
-        assert "subs_seg_000001.vtt" not in playlist
+        assert "subs_seg_000000.vtt" in playlist
+        assert "subs_seg_000001.vtt" in playlist
 
 
 # ---------------------------------------------------------------------------
@@ -481,13 +476,13 @@ class TestDoProcessHLSIntegration:
 
 class TestHLSOutputMasterPlaylist:
     """
-    HLSOutput master playlist includes SUBTITLES EXT-X-MEDIA with DEFAULT=NO.
-    The track is listed in the native "..." menu with the correct language but
-    NOT auto-activated — no CC button appears. SubtitleRenderer renders via
-    custom div; enableCEA708Captions:false blocks embedded CEA-608/708 tracks.
+    HLSOutput master playlist includes SUBTITLES EXT-X-MEDIA with DEFAULT=YES.
+    The track is auto-activated by HLS.js on manifest parse. The frontend
+    also calls activateFirstSubtitleTrack() as a safety net.
     """
 
-    def test_master_playlist_has_subtitles_with_default_no(self, tmp_path: Path) -> None:
+    def test_master_playlist_has_subtitles_with_default_yes(self, tmp_path: Path) -> None:
+        """Master must have SUBTITLES tag with DEFAULT=YES and correct language."""
         """Master must have SUBTITLES tag with DEFAULT=NO and correct language."""
         from modules.outputs.hls_output import HLSOutput
 
@@ -520,7 +515,7 @@ class TestHLSOutputMasterPlaylist:
 
         master = (tmp_path / "hls" / "master.m3u8").read_text(encoding="utf-8")
         assert "TYPE=SUBTITLES" in master, "Master must have SUBTITLES tag"
-        assert "DEFAULT=NO" in master, "Track must be DEFAULT=NO"
+        assert "DEFAULT=YES" in master, "Track must be DEFAULT=YES"
         assert 'LANGUAGE="en"' in master, "Language must match config"
         assert 'NAME="English"' in master, "Name must match config"
         assert 'SUBTITLES="subs"' in master, "STREAM-INF must reference subs group"
@@ -557,7 +552,7 @@ class TestHLSOutputMasterPlaylist:
         master = (tmp_path / "hls" / "master.m3u8").read_text(encoding="utf-8")
         assert "EXT-X-STREAM-INF" in master
         assert "stream.m3u8" in master
-        assert "DEFAULT=NO" in master
+        assert "DEFAULT=YES" in master
 
 
 # ---------------------------------------------------------------------------

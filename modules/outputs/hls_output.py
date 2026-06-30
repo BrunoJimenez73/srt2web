@@ -144,7 +144,7 @@ class HLSOutput(OutputSink):
                 master_file.write("#EXTM3U\n")
                 master_file.write("#EXT-X-VERSION:4\n")
                 master_file.write(
-                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=NO,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="/subtitles/subs.m3u8"\n'
+                    f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="/subtitles/subs.m3u8"\n'
                 )
                 # Single stream entry (all ABR variants point to same stream.m3u8)
                 profile = self._bitrate_ladder[1] if len(self._bitrate_ladder) > 1 else self._bitrate_ladder[0]
@@ -528,6 +528,9 @@ class HLSOutput(OutputSink):
                 except ValueError:
                     media_seq = 0
 
+            # Push video media_seq — no longer needed, subtitle playlist
+            # always uses media_seq=0 (VTT cues are media-relative).
+
             # TARGETDURATION must be >= actual max segment duration (HLS RFC)
             max_dur = max(self._segment_durations.values()) if self._segment_durations else self._segment_duration
             target_duration = int(max_dur) + 1
@@ -572,7 +575,7 @@ class HLSOutput(OutputSink):
             master_lines = [
                 "#EXTM3U",
                 "#EXT-X-VERSION:4",
-                f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=NO,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="/subtitles/subs.m3u8"',
+                f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="/subtitles/subs.m3u8"',
             ]
             # Single stream entry (all ABR variants point to same stream.m3u8)
             profile = self._bitrate_ladder[1] if len(self._bitrate_ladder) > 1 else self._bitrate_ladder[0]

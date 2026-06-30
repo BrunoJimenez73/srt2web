@@ -157,7 +157,7 @@ class TestSecurityHeadersMiddleware:
         async def test_endpoint():
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, base_url="https://testserver")
         response = client.get("/test")
 
         assert response.status_code == 200

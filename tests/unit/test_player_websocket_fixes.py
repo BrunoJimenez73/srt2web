@@ -262,4 +262,3 @@ class TestSecurityMiddlewareOrder:
         assert response.headers.get("x-content-type-options") == "nosniff"
         assert response.headers.get("x-frame-options") == "SAMEORIGIN"
         assert "content-security-policy" in response.headers
-        assert "strict-transport-security" in response.headers

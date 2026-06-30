@@ -436,7 +436,7 @@ class UnifiedPipeline:
                 raise PipelineError("Pipeline initialization did not complete")
 
         # F172: If stop() was called concurrently during init, abort
-        if self._stop_event.is_set():  # type: ignore[comparison-overlap]
+        if self._stop_event.is_set():
             self._set_state(PipelineState.IDLE)
             self._log("info", "Pipeline start aborted — stop was requested during initialization")
             return _CompletedAwaitable()
@@ -507,6 +507,7 @@ class UnifiedPipeline:
             logger.error(f"Error during pipeline stop: {e}")
             self._set_state(PipelineState.ERROR)
         finally:
+            self._stop_event.clear()
             with self._lock:
                 self._stop_in_progress = False
 

@@ -44,7 +44,7 @@ class SubtitleGenerator(BaseModule):
 
         # F108 — HLS-native subtitle path
         self._hls_playlist_path = Path()  # output/subtitles/subs.m3u8
-        self._hls_list_size = 12  # Keep more subtitle fragments than video segments
+        self._hls_list_size = 1000  # Safety limit only — playlist must NOT trim
         # so the player always finds cues for its current position
         self._hls_fragments: list[dict[str, Any]] = []  # [{chunk_index, start, duration, path}]
 
@@ -205,7 +205,6 @@ class SubtitleGenerator(BaseModule):
     def _rewrite_vtt_file(self) -> None:
         """Rewrite VTT file with current rolling window entries (atomic write)."""
         tmp_path = Path(self._subtitles_dir) / ".subs.vtt.tmp"
-        import sys as _sys
 
         try:
             with open(tmp_path, "w", encoding="utf-8") as f:
@@ -217,12 +216,7 @@ class SubtitleGenerator(BaseModule):
                     f.write(f"NOTE chunk_start: {chunk_start:.3f}\n")
                     f.write(f"{start_str} --> {end_str}\n")
                     f.write(f"{entry['text']}\n\n")
-            if _sys.platform == "win32":
-                if self._vtt_path.exists():
-                    self._vtt_path.unlink()
-                tmp_path.rename(self._vtt_path)
-            else:
-                tmp_path.replace(self._vtt_path)
+            tmp_path.replace(self._vtt_path)
         except Exception as e:
             logger.error(f"Error rewriting VTT file: {e}")
 
@@ -278,8 +272,6 @@ class SubtitleGenerator(BaseModule):
         chunk's duration so the player can compute absolute media time
         from sum(EXTINF preceding) + cue.start (which is media-relative).
         """
-        import sys as _sys
-
         if not self._hls_playlist_path or str(self._hls_playlist_path) == ".":
             return
 
@@ -292,19 +284,16 @@ class SubtitleGenerator(BaseModule):
                     f.write("#EXT-X-VERSION:3\n")
                     f.write("#EXT-X-TARGETDURATION:10\n")
                     f.write("#EXT-X-MEDIA-SEQUENCE:0\n")
-                if _sys.platform == "win32":
-                    if self._hls_playlist_path.exists():
-                        self._hls_playlist_path.unlink()
-                    tmp_path.rename(self._hls_playlist_path)
-                else:
-                    tmp_path.replace(self._hls_playlist_path)
+                tmp_path.replace(self._hls_playlist_path)
             except Exception as e:
                 logger.error(f"Error writing empty HLS playlist: {e}")
             return
 
+        if not self._hls_fragments:
+            return
+
         # Compute target duration: max EXTINF rounded up
         target_duration = max(1, int(max(f["duration"] for f in self._hls_fragments)) + 1)
-        media_seq = self._hls_fragments[0]["chunk_index"]
 
         tmp_path = self._hls_playlist_path.with_suffix(self._hls_playlist_path.suffix + ".tmp")
         try:
@@ -312,36 +301,37 @@ class SubtitleGenerator(BaseModule):
                 f.write("#EXTM3U\n")
                 f.write("#EXT-X-VERSION:3\n")
                 f.write(f"#EXT-X-TARGETDURATION:{target_duration}\n")
-                f.write(f"#EXT-X-MEDIA-SEQUENCE:{media_seq}\n")
+                # CRITICAL: media_seq MUST be 0. HLS.js maps VTT cue timestamps
+                # to absolute media time by summing EXTINF durations from the
+                # start of THIS playlist. If we trim fragments and advance the
+                # sequence, cues get mapped to times far in the past and HLS.js
+                # drops them. The rolling window (_trim_hls_fragments) handles
+                # cleanup; the playlist always starts from chunk 0.
+                f.write("#EXT-X-MEDIA-SEQUENCE:0\n")
                 for frag in self._hls_fragments:
                     frag_chunk_index = frag["chunk_index"]
                     frag_duration = frag["duration"]
                     f.write(f"#EXTINF:{frag_duration:.3f},\n")
                     f.write(f"subs_seg_{frag_chunk_index:06d}.vtt\n")
-            if _sys.platform == "win32":
-                if self._hls_playlist_path.exists():
-                    self._hls_playlist_path.unlink()
-                tmp_path.rename(self._hls_playlist_path)
-            else:
-                tmp_path.replace(self._hls_playlist_path)
+            tmp_path.replace(self._hls_playlist_path)
         except Exception as e:
             logger.error(f"Error rewriting HLS subtitle playlist: {e}")
 
     def _trim_hls_fragments(self) -> None:
         """
         Apply rolling window to HLS fragments: keep only the most recent
-        `hls_list_size` fragments, deleting their files from disk.
+            `hls_list_size` fragments in the playlist.
+
+            IMPORTANT: We do NOT delete old fragment files from disk.
+            HLS.js may still have pending requests for recently-removed fragments.
+            Deleting files causes 404 errors which make HLS.js disable the
+            entire subtitle track. The VTT files are tiny (~1-5KB each) so
+            keeping them is negligible cost for reliability.
         """
         if len(self._hls_fragments) <= self._hls_list_size:
             return
         to_drop = self._hls_fragments[: -self._hls_list_size]
         self._hls_fragments = self._hls_fragments[-self._hls_list_size :]
-        for frag in to_drop:
-            frag_path = frag.get("path")
-            if not frag_path:
-                continue
-            with contextlib.suppress(OSError):
-                Path(frag_path).unlink()
 
     def set_drift_monitor(self, monitor: Any) -> None:
         """
@@ -576,7 +566,6 @@ class SubtitleGenerator(BaseModule):
                             "path": fragment_path,
                         }
                     )
-                    self._trim_hls_fragments()
                     self._rewrite_hls_playlist()
 
                 # Write dual track file if enabled and has content

@@ -299,6 +299,24 @@ export function initHlsPlayer(): void {
         }
       });
 
+      // FIX: HLS.js v1.5.7 has a known bug where subtitle display state gets
+      // reset after subtitle playlist refresh — <track>.mode is set to "hidden",
+      // hls.subtitleDisplay may become false, or hls.subtitleTrack may be reset
+      // to -1.  Subscribe to SUBTITLE_TRACK_LOADED (fires after each subtitle
+      // fragment is loaded) to re-enforce subtitle visibility immediately.
+      hls.on(HlsEvents.SUBTITLE_TRACK_LOADED, () => {
+        if (!hls || !video) return;
+        hls.subtitleDisplay = true;
+        forceSubtitleTrackMode(video);
+        if (hls.subtitleTrack < 0 && hls.subtitleTracks.length > 0) {
+          activateFirstSubtitleTrack(hls, {
+            preferredLang: "es",
+            showSubtitles: true,
+            video,
+          });
+        }
+      });
+
       hls.on(HlsEvents.FRAG_BUFFERED, () => {
         if (!isConnected) {
           isConnected = true;
@@ -331,6 +349,19 @@ export function initHlsPlayer(): void {
         const d = data as HlsLevelUpdatedData;
         if (d.details?.bitrate) {
           sendBandwidth(d.details.bitrate);
+        }
+        // FIX: Master playlist refresh is another opportunity for HLS.js to
+        // reset subtitle state. Re-enforce display and track mode.
+        if (hls && video) {
+          hls.subtitleDisplay = true;
+          forceSubtitleTrackMode(video);
+          if (hls.subtitleTrack < 0 && hls.subtitleTracks.length > 0) {
+            activateFirstSubtitleTrack(hls, {
+              preferredLang: "es",
+              showSubtitles: true,
+              video,
+            });
+          }
         }
       });
 
@@ -394,8 +425,20 @@ export function initHlsPlayer(): void {
   function startSubtitleWatchdog() {
     stopSubtitleWatchdog();
     subtitleWatchdog = setInterval(() => {
-      if (video && isConnected) {
+      if (video && hls) {
         forceSubtitleTrackMode(video);
+        // FIX: HLS.js may also reset subtitleDisplay or subtitleTrack on
+        // playlist refresh — ensure both stay active.
+        if (!hls.subtitleDisplay) {
+          hls.subtitleDisplay = true;
+        }
+        if (hls.subtitleTrack < 0 && hls.subtitleTracks.length > 0) {
+          activateFirstSubtitleTrack(hls, {
+            preferredLang: "es",
+            showSubtitles: true,
+            video,
+          });
+        }
       }
     }, 3000);
   }
