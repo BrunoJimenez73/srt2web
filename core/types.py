@@ -7,7 +7,7 @@ facilitando la consistencia y el type checking.
 
 import time
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from core.schemas import ModuleState, ModuleStatus, PipelineState
@@ -17,7 +17,7 @@ from core.schemas import ModuleState, ModuleStatus, PipelineState
 # ============================================================================
 
 
-class LogLevel(str, Enum):
+class LogLevel(StrEnum):
     """Niveles de log."""
 
     DEBUG = "debug"
@@ -28,7 +28,7 @@ class LogLevel(str, Enum):
     CRITICAL = "critical"
 
 
-class InputType(str, Enum):
+class InputType(StrEnum):
     """Tipos de input soportados."""
 
     SRT = "srt"
@@ -37,7 +37,7 @@ class InputType(str, Enum):
     WEBRTC = "webrtc"
 
 
-class OutputType(str, Enum):
+class OutputType(StrEnum):
     """Tipos de output soportados."""
 
     HLS = "hls"
@@ -46,7 +46,7 @@ class OutputType(str, Enum):
     FILE = "file"
 
 
-class DeviceType(str, Enum):
+class DeviceType(StrEnum):
     """Tipos de dispositivo para procesamiento."""
 
     CPU = "cpu"
@@ -55,7 +55,7 @@ class DeviceType(str, Enum):
     AUTO = "auto"
 
 
-class EncoderMode(str, Enum):
+class EncoderMode(StrEnum):
     """Modos de encoding de video.
 
     DEPRECATED: Usar EncoderModeEnum en core.config_schema en su lugar.

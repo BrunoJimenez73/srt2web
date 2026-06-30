@@ -12,6 +12,7 @@
 import { handleSaveConfig, handleStart, handleStop } from "../dashboard";
 import { showToast } from "./toast";
 import { t } from "../i18n";
+import { toggleLogPanel } from "./logpanel";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -118,16 +119,7 @@ const shortcuts: ShortcutDefinition[] = [
     key: "l",
     ctrlKey: true,
     handler: () => {
-      const panel = document.querySelector(".log-panel");
-      if (panel) {
-        panel.classList.toggle("collapsed");
-        const header = document.getElementById("log-header");
-        if (header)
-          header.setAttribute(
-            "aria-expanded",
-            String(!panel.classList.contains("collapsed")),
-          );
-      }
+      toggleLogPanel();
     },
     description: "Alternar panel de logs",
     preventDefault: true,

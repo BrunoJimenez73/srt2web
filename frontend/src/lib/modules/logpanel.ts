@@ -18,6 +18,7 @@ let collapseIcon: HTMLSpanElement | null = null;
 let logLevelFilter: HTMLSelectElement | null = null;
 let logExportJson: HTMLButtonElement | null = null;
 let logExportTxt: HTMLButtonElement | null = null;
+let logClearBtn: HTMLButtonElement | null = null;
 
 // State
 const maxLogs = 1000;
@@ -342,6 +343,7 @@ export function initLogPanel(): void {
     "btn-export-json",
   ) as HTMLButtonElement;
   logExportTxt = document.getElementById("btn-export-txt") as HTMLButtonElement;
+  logClearBtn = document.getElementById("btn-clear-logs") as HTMLButtonElement;
 
   // Setup search filter with debounce
   logSearch?.addEventListener("input", (e) => {
@@ -353,6 +355,26 @@ export function initLogPanel(): void {
   logLevelFilter?.addEventListener("change", (e) => {
     const value = (e.target as HTMLSelectElement).value;
     filterByLevel(value);
+  });
+
+  // Setup header toggle
+  logPanel?.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    if (
+      target.closest(".log-actions") ||
+      target.closest("button") ||
+      target.closest("select") ||
+      target.closest("input")
+    ) {
+      return;
+    }
+    toggleLogPanel();
+  });
+
+  // Setup clear button
+  logClearBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    clearLogs();
   });
 
   // Setup export buttons

@@ -13,9 +13,9 @@ import sys
 import time
 from typing import Any
 
-logger = logging.getLogger("srt2web.mtx")
-
 from core.paths import get_bin_dir, get_project_root
+
+logger = logging.getLogger("srt2web.mtx")
 
 PROJECT_ROOT = get_project_root()
 MEDIAMTX_DIR = get_bin_dir()

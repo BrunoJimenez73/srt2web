@@ -500,7 +500,7 @@ class UnifiedPipeline:
                 loop.run_in_executor(None, self._sync_stop),
                 timeout=30.0,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("Pipeline stop timed out after 30s — forcing error state")
             self._set_state(PipelineState.ERROR)
         except Exception as e:

@@ -274,6 +274,4 @@ class PipelineValidator:
         """Decide if pipeline should continue after a validation failure."""
         if result.is_critical and not result.passed:
             return False
-        if not result.passed and result.score < 0.2:
-            return False  # Very low score = stop even for non-critical
-        return True
+        return result.passed or result.score >= 0.2

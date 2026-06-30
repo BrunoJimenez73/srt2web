@@ -9,18 +9,11 @@ import { addLog } from "../store/index";
 import { applyConfigToUI } from "./config-collector";
 import { fetchWithAuth } from "../api";
 
-let _isLoading = false;
-
 function setLoading(loading: boolean, action: string = ""): void {
-  _isLoading = loading;
   document.body.classList.toggle("loading", loading);
   if (loading && action) {
     addLog("INFO", `${action}...`);
   }
-}
-
-function isLoading(): boolean {
-  return _isLoading;
 }
 
 export async function loadPresets(): Promise<void> {

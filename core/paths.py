@@ -160,7 +160,7 @@ def get_cache_dir() -> Path:
     Falls back to project_root/.cache/ if platformdirs not available.
     """
     try:
-        from platformdirs import user_cache_dir
+        from platformdirs import user_cache_dir  # type: ignore[import-not-found]
 
         cache = Path(user_cache_dir("srt2web", ensure_exists=True))
         return cache

@@ -30,9 +30,6 @@ export function collectConfigFromUI(): Partial<Config> {
   const inputType =
     (document.getElementById("input-type") as HTMLSelectElement)?.value ||
     "srt";
-  const outputType =
-    (document.getElementById("output-type") as HTMLSelectElement)?.value ||
-    "webplayer";
 
   const chunkDuration = parseInt(
     (document.getElementById("input-chunk-duration") as HTMLInputElement)

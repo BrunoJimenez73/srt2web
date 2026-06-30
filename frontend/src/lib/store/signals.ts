@@ -10,9 +10,7 @@ import type {
   Config,
   Status,
   LogMessage,
-  ModuleName,
   PipelineState,
-  ModuleState,
   ConnectionMode,
   MetricsData,
 } from "../api";

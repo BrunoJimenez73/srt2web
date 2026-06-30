@@ -8,13 +8,12 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
+from server.ctx import get_ctx as _ctx
 from server.validators import ModuleToggle, sanitize_module_name
 
 logger = logging.getLogger("srt2web.api.modules")
 
 router = APIRouter(tags=["modules"])
-
-from server.ctx import get_ctx as _ctx
 
 
 @router.get("/modules")

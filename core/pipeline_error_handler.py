@@ -13,13 +13,13 @@ import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 logger = logging.getLogger("srt2web.pipeline.error_handler")
 
 
-class ErrorSeverity(str, Enum):
+class ErrorSeverity(StrEnum):
     """Severidad del error."""
 
     INFO = "info"
@@ -28,7 +28,7 @@ class ErrorSeverity(str, Enum):
     CRITICAL = "critical"
 
 
-class ErrorCategory(str, Enum):
+class ErrorCategory(StrEnum):
     """Categoria del error."""
 
     MODULE_PROCESSING = "module_processing"
@@ -249,9 +249,7 @@ class PipelineErrorHandler:
             return False
         if self._consecutive_errors >= self._policy.max_consecutive_errors:
             return False
-        if self._errors_this_minute >= self._policy.max_errors_per_minute:
-            return False
-        return True
+        return not self._errors_this_minute >= self._policy.max_errors_per_minute
 
     def get_retry_delay(self, attempt: int) -> float:
         """Calcular delay para reintento con backoff exponencial."""

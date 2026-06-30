@@ -52,7 +52,6 @@ import {
 import { copyToClipboard } from "../utils";
 import { showToast } from "./toast";
 import { showConfirm } from "./confirm-modal";
-import { DEFAULTS } from "../constants";
 import { t } from "../i18n";
 import { connectionMode, emitterAddress } from "../store/signals";
 import {
@@ -65,7 +64,7 @@ import {
 } from "../store/index";
 import { initLogPanel } from "./logpanel";
 import type { Status } from "../types";
-import { collectConfigFromUI, applyConfigToUI } from "./config-collector";
+import { applyConfigToUI } from "./config-collector";
 import { connectWebSocket, disconnectWebSocket } from "./ws-manager";
 import {
   restartPolling,

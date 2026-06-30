@@ -105,7 +105,7 @@ class ConfigField(Vertical):
 
     def compose(self) -> ComposeResult:
         yield Static(f"{self.label}:", classes="field-label")
-        if self.field_type == bool:
+        if self.field_type is bool:
             yield Switch(value=self._initial_value == "True", id=f"sw-{self.key}")
         elif self.options:
             current = self._initial_value if self._initial_value else self.options[0]
@@ -207,7 +207,7 @@ class ModuleConfigForm(Vertical):
         values: dict[str, Any] = {}
         for child in self.query(ConfigField):
             key = child.key
-            if child.field_type == bool:
+            if child.field_type is bool:
                 sw = self.query_one(f"#sw-{key}", Switch)
                 values[key] = sw.value
             elif child.options:
@@ -216,9 +216,9 @@ class ModuleConfigForm(Vertical):
             else:
                 inp = self.query_one(f"#in-{key}", Input)
                 try:
-                    if child.field_type == int:
+                    if child.field_type is int:
                         values[key] = int(inp.value)
-                    elif child.field_type == float:
+                    elif child.field_type is float:
                         values[key] = float(inp.value)
                     else:
                         values[key] = inp.value

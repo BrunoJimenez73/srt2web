@@ -1,5 +1,5 @@
-import { signal, effect } from "@preact/signals-core";
-import { connectionUrls, inputType } from "../store/index";
+import { effect } from "@preact/signals-core";
+import { inputType } from "../store/index";
 
 /**
  * InputCard - Módulo de lógica para el componente InputCard.
@@ -19,8 +19,6 @@ let rtmpKeyInput: HTMLInputElement | null = null;
 let btnCopyRtmp: HTMLButtonElement | null = null;
 let fileSelectInput: HTMLInputElement | null = null;
 let fileSelectBtn: HTMLButtonElement | null = null;
-let inputFileChk: HTMLInputElement | null = null;
-let inputRtmpChk: HTMLInputElement | null = null;
 
 /**
  * Inicializa las referencias al DOM.
@@ -46,13 +44,6 @@ export function initInputCard(): void {
   fileSelectBtn = document.getElementById(
     "btn-file-select",
   ) as HTMLButtonElement;
-
-  inputFileChk = document.getElementById(
-    "input-file-chunk",
-  ) as HTMLInputElement;
-  inputRtmpChk = document.getElementById(
-    "input-rtmp-chunk",
-  ) as HTMLInputElement;
 
   setupEventListeners();
   // Estado inicial basado en el signal actual

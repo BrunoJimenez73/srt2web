@@ -1,16 +1,16 @@
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class PipelineMode(str, Enum):
+class PipelineMode(StrEnum):
     SEQUENTIAL = "sequential"
     THREAD_PARALLEL = "thread_parallel"
     ASYNCIO = "asyncio"
 
 
-class PipelineState(str, Enum):
+class PipelineState(StrEnum):
     IDLE = "idle"
     RUNNING = "running"
     STARTING = "starting"
@@ -18,7 +18,7 @@ class PipelineState(str, Enum):
     ERROR = "error"
 
 
-class ModuleState(str, Enum):
+class ModuleState(StrEnum):
     IDLE = "idle"
     INITIALIZING = "initializing"
     RUNNING = "running"

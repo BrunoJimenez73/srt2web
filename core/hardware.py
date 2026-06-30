@@ -11,13 +11,13 @@ Elimina la necesidad de que el usuario edite el config.yaml manualmente.
 
 import logging
 import sys
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 logger = logging.getLogger("srt2web.hardware")
 
 
-class HardwareType(str, Enum):
+class HardwareType(StrEnum):
     """Tipos de hardware disponibles."""
 
     CPU = "cpu"

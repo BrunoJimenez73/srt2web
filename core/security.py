@@ -5,6 +5,7 @@ Provides path sanitization, input validation, and other security helpers.
 """
 
 import re
+import unicodedata
 from pathlib import Path
 
 
@@ -233,8 +234,6 @@ def validate_directory_access(directory: str, create_if_missing: bool = True) ->
 
 
 # ── Input sanitization for user-supplied strings (F126) ──
-
-import unicodedata
 
 _HTML_TAG_RE = re.compile(r"<[^>]*>", re.UNICODE)
 _CONTROL_CHARS_RE = re.compile(

@@ -7,13 +7,13 @@ import logging
 import threading
 import time
 from collections.abc import Callable
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 logger = logging.getLogger("srt2web.circuit_breaker")
 
 
-class CircuitState(str, Enum):
+class CircuitState(StrEnum):
     """Circuit breaker states."""
 
     CLOSED = "closed"

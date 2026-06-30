@@ -224,7 +224,7 @@ class WebRTCEngine:
         pc.addTrack(video_track)
         pc.addTrack(audio_track)
 
-        @pc.on("datachannel")
+        @pc.on("datachannel")  # type: ignore[untyped-decorator]
         def on_datachannel(channel: Any) -> None:
             logger.info(f"Data channel received: {channel.label}")
             if channel.label == "subtitles":
@@ -240,11 +240,11 @@ class WebRTCEngine:
 
         answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
-        await pc.iceGatheringStateComplete  # type: ignore[attr-defined]
+        await pc.iceGatheringStateComplete
 
         logger.info(f"WebRTC connection established for client {client_id}")
 
-        return pc.localDescription.sdp
+        return pc.localDescription.sdp  # type: ignore[no-any-return]
 
     def remove_connection(self, client_id: str) -> None:
         """Remove a client connection."""
@@ -323,7 +323,7 @@ class WebRTCConnection:
         self.engine.remove_connection(self.client_id)
 
 
-class WebRTCVideoTrack(VideoStreamTrack):
+class WebRTCVideoTrack(VideoStreamTrack):  # type: ignore[misc]
     """Video track for WebRTC streaming using real HLS segment frames."""
 
     def __init__(self, engine: WebRTCEngine, client_id: str):
@@ -404,7 +404,7 @@ class WebRTCVideoTrack(VideoStreamTrack):
         return frames
 
 
-class WebRTCAudioTrack(AudioStreamTrack):
+class WebRTCAudioTrack(AudioStreamTrack):  # type: ignore[misc]
     """Audio track for WebRTC streaming using real mixed audio samples."""
 
     def __init__(self, engine: WebRTCEngine, client_id: str):
@@ -417,7 +417,7 @@ class WebRTCAudioTrack(AudioStreamTrack):
 
     async def recv(self) -> Any:
         """Receive next audio frame from mixed audio files."""
-        pts, time_base = await self.next_timestamp()  # type: ignore[attr-defined]
+        pts, time_base = await self.next_timestamp()
 
         samples = await self._get_samples(960)
 

@@ -29,19 +29,19 @@ from core.pipeline.sequential import SequentialPipeline
 from core.unified_pipeline import UnifiedPipeline as Pipeline
 
 __all__ = [
-    # Legacy base (deprecated — emite DeprecationWarning)
-    "PipelineStrategy",
-    "MetricsTracker",
-    "create_pipeline_metrics",
-    # Legacy factory
-    "PipelineMode",
-    "create_pipeline",
-    "get_available_modes",
-    # Legacy strategies (deprecated)
-    "SequentialPipeline",
-    "ParallelPipeline",
     "AsyncPipeline",
+    "MetricsTracker",
+    "ParallelPipeline",
     # Alias
     "Pipeline",
+    # Legacy factory
+    "PipelineMode",
+    # Legacy base (deprecated — emite DeprecationWarning)
+    "PipelineStrategy",
+    # Legacy strategies (deprecated)
+    "SequentialPipeline",
     "UnifiedPipeline",
+    "create_pipeline",
+    "create_pipeline_metrics",
+    "get_available_modes",
 ]

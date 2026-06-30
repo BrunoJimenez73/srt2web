@@ -9,13 +9,12 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from core.io_factory import OutputFactory
+from server.ctx import get_ctx as _ctx
 from server.validators import AddOutputRequest, UpdateOutputRequest
 
 logger = logging.getLogger("srt2web.api.outputs")
 
 router = APIRouter(tags=["outputs"])
-
-from server.ctx import get_ctx as _ctx
 
 _CANONICAL_OUTPUT_TYPES = frozenset({"web", "srt", "rtmp", "file", "recording", "webrtc"})
 

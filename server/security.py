@@ -405,9 +405,7 @@ class CsrfMiddleware(BaseHTTPMiddleware):
             return True
         if path.startswith("/hls/"):
             return True
-        if path == "/api/csrf-token":
-            return True
-        return False
+        return path == "/api/csrf-token"
 
     async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         # Only check mutating methods

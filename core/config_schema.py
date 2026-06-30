@@ -14,7 +14,7 @@ Características:
 ✅ Mensajes de error detallados
 """
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -102,7 +102,7 @@ VALID_INPUT_TYPES: frozenset[str] = frozenset({"srt", "file", "rtmp", "audio"})
 VALID_OUTPUT_TYPES: frozenset[str] = frozenset({"web", "hls", "srt", "rtmp", "audio"})
 
 
-class PipelineModeEnum(str, Enum):
+class PipelineModeEnum(StrEnum):
     """Modos de operación permitidos."""
 
     SEQUENTIAL = "sequential"
@@ -110,7 +110,7 @@ class PipelineModeEnum(str, Enum):
     ASYNCIO = "asyncio"
 
 
-class DeviceEnum(str, Enum):
+class DeviceEnum(StrEnum):
     """Dispositivos de cómputo permitidos."""
 
     AUTO = "auto"
@@ -119,7 +119,7 @@ class DeviceEnum(str, Enum):
     MPS = "mps"
 
 
-class ModelSizeEnum(str, Enum):
+class ModelSizeEnum(StrEnum):
     """Tamaños de modelo Whisper permitidos."""
 
     TINY = "tiny"
@@ -131,7 +131,7 @@ class ModelSizeEnum(str, Enum):
     LARGE_V3 = "large-v3"
 
 
-class LanguageEnum(str, Enum):
+class LanguageEnum(StrEnum):
     """Idiomas soportados."""
 
     AUTO = "auto"
@@ -147,7 +147,7 @@ class LanguageEnum(str, Enum):
     RU = "ru"
 
 
-class InputTypeEnum(str, Enum):
+class InputTypeEnum(StrEnum):
     """Tipos de entrada permitidos."""
 
     SRT = "srt"
@@ -155,7 +155,7 @@ class InputTypeEnum(str, Enum):
     FILE = "file"
 
 
-class OutputTypeEnum(str, Enum):
+class OutputTypeEnum(StrEnum):
     """Tipos de salida permitidos."""
 
     WEB = "web"
@@ -165,7 +165,7 @@ class OutputTypeEnum(str, Enum):
     RECORDING = "recording"
 
 
-class EncoderModeEnum(str, Enum):
+class EncoderModeEnum(StrEnum):
     """Modos de encoder de video permitidos."""
 
     AUTO = "auto"
@@ -177,7 +177,7 @@ class EncoderModeEnum(str, Enum):
     GPU_VIDEOTOOLBOX = "gpu_videotoolbox"
 
 
-class SubtitleFormatEnum(str, Enum):
+class SubtitleFormatEnum(StrEnum):
     """Formatos de subtítulos permitidos."""
 
     WEBVTT = "webvtt"
@@ -185,7 +185,7 @@ class SubtitleFormatEnum(str, Enum):
     ASS = "ass"
 
 
-class TTSEngineEnum(str, Enum):
+class TTSEngineEnum(StrEnum):
     """Motores TTS permitidos."""
 
     EDGE_TTS = "edge-tts"
@@ -193,7 +193,7 @@ class TTSEngineEnum(str, Enum):
     ELEVENLABS = "elevenlabs"
 
 
-class AudioCodecEnum(str, Enum):
+class AudioCodecEnum(StrEnum):
     """Códecs de audio permitidos."""
 
     AAC = "aac"
@@ -201,7 +201,7 @@ class AudioCodecEnum(str, Enum):
     OPUS = "opus"
 
 
-class VideoCodecEnum(str, Enum):
+class VideoCodecEnum(StrEnum):
     """Códecs de video permitidos."""
 
     H264 = "h264"

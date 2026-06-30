@@ -227,7 +227,7 @@ def download_ffmpeg(progress_callback: Callable[[int, int], None] | None = None)
         logger.info(f"Downloading FFmpeg from {url}...")
 
         # Download with progress
-        archive_path = bin_dir / ("ffmpeg_download.zip" if system == "Windows" else "ffmpeg_download.zip")
+        archive_path = bin_dir / "ffmpeg_download.zip"
 
         def _reporthook(block_num: int, block_size: int, total_size: int) -> None:
             if progress_callback and total_size > 0:

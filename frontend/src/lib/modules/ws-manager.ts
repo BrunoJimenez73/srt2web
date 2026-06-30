@@ -5,7 +5,7 @@
 import { WSClient, getWebSocketUrl, getAuthToken } from "../api";
 import type { WebSocketMessage } from "../api";
 import { wsConnected } from "../store/index";
-import { addLog, updateStatus, resetThroughput } from "../store/index";
+import { addLog, updateStatus } from "../store/index";
 import { t } from "../i18n";
 import { enterPostStartMode } from "./polling";
 
