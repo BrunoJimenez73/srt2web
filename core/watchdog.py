@@ -55,6 +55,8 @@ class FFmpegWatchdog:
         self._is_hung = False
         self._restart_callback: Callable[[], None] | None = None
         self._process_name = "FFmpeg"
+        self._has_ever_received_data = False
+        self._last_warning_time = 0.0
 
     @property
     def restart_count(self) -> int:
@@ -89,6 +91,8 @@ class FFmpegWatchdog:
         self._restart_callback = restart_callback
         self._last_output_time = time.time()
         self._is_hung = False
+        self._has_ever_received_data = False
+        self._last_warning_time = 0.0
 
     def detach(self) -> None:
         """Detach from the monitored process."""
@@ -117,9 +121,22 @@ class FFmpegWatchdog:
             self._watch_thread.join(timeout=5)
         logger.info(f"{self._process_name} watchdog stopped")
 
-    def notify_activity(self) -> None:
-        """Call this when the process produces output."""
+    @property
+    def has_ever_received_data(self) -> bool:
+        """Whether the process has ever received/produced data."""
+        return self._has_ever_received_data
+
+    def notify_activity(self, data_received: bool = False) -> None:
+        """Call this when the process produces output.
+
+        Args:
+            data_received: Set to True if this activity represents actual
+                data reception (not just stderr noise). Used to distinguish
+                between 'no source connected' and 'process hung after data'.
+        """
         self._last_output_time = time.time()
+        if data_received:
+            self._has_ever_received_data = True
         if self._is_hung:
             self._is_hung = False
             logger.info(f"{self._process_name} recovered from hang")
@@ -150,6 +167,20 @@ class FFmpegWatchdog:
         time_since_output = time.time() - self._last_output_time
         if time_since_output > self.hang_timeout and not self._is_hung:
             self._is_hung = True
+
+            # F181: If no data has ever been received, don't restart — just warn.
+            # This handles the case where FFmpeg is listening on SRT but no source
+            # (OBS/encoder) is connected and sending data.
+            if not self._has_ever_received_data:
+                now = time.time()
+                if now - self._last_warning_time >= 30.0:
+                    logger.warning(
+                        f"{self._process_name} active but no data received yet — "
+                        f"waiting for source (expected: OBS/encoder connected to port)"
+                    )
+                    self._last_warning_time = now
+                return
+
             logger.warning(f"{self._process_name} appears hung " f"(no output for {time_since_output:.0f}s)")
             self._handle_hang()
 

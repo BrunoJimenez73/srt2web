@@ -23,6 +23,10 @@ describe("presets-client", () => {
       removeItem: vi.fn(),
     });
 
+    // Pre-populate CSRF cache so mutation tests don't trigger a CSRF fetch
+    const api = await import("../api");
+    api.__testing_setCsrfToken("mock-csrf-token");
+
     const signals = await import("../store/signals");
     presetsSignal = signals.presets;
     selectedPresetSignal = signals.selectedPreset;

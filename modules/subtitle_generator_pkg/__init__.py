@@ -394,6 +394,7 @@ class SubtitleGenerator(BaseModule):
                             "path": fragment_path,
                         }
                     )
+                    self._hls_manager.trim()
                     self._hls_manager.rewrite_playlist()
 
                 if self._dual_track and alt_text and alt_segments:

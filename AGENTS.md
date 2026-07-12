@@ -685,3 +685,130 @@ F59 ──→ F60 ──→ F62 ──→ F63 ──→ F61 ──→ F64 ──
 - Cero `AttributeError` por `CREATE_NO_WINDOW` o `pynvml` en Mac
 - Cobertura de tests >70% en cli/ (F58)
 - GitHub Actions corre tests en macOS en cada PR
+
+---
+
+## 12. Plan de acción: correcciones post-análisis de logs (F181–F182)
+
+Basado en análisis de `server_test_err.log` del 11/07/2026. Dos problemas críticos identificados durante la ejecución del pipeline en modo SRT.
+
+### Resumen del plan
+
+| ID   | Área     | Nombre corto                                      | Prioridad | Estado  | Dependencias |
+| ---- | -------- | ------------------------------------------------- | --------- | ------- | ------------ |
+| F181 | pipeline | Manejo graceful de SRT input sin fuente de video  | Alta      | pending | —            |
+| F182 | modules  | Instalar dependencias faltantes (whisper + argos) | Alta      | pending | —            |
+
+```
+F182 (deps) → F181 (SRT hang) — F182 es prerequisito lógico para probar F181 con pipeline completo
+```
+
+### Orden de implementación sugerido
+
+```
+F182 → F181
+```
+
+**F182 primero**: Las dependencias de transcripción/traducción deben estar instaladas para que al probar F181 el pipeline funcione end-to-end y se pueda verificar que la corrección no rompe el flujo normal.
+
+---
+
+### F182 — Instalar dependencias faltantes: faster-whisper y argostranslate (Alta prioridad)
+
+**Qué**: Activar/instalar `faster-whisper` y `argostranslate`, actualmente comentados en `config/requirements.txt` como "Phase 2 - Processing (uncomment when needed)".
+
+**Problema**: Los módulos `transcriber` y `translator` no cargan porque sus dependencias no están instaladas. El pipeline funciona pero esas funciones esenciales están caídas, forzando el uso de DMR translator (AI local) como única alternativa.
+
+**Archivos**: `config/requirements.txt`, `pyproject.toml`
+
+**Riesgo**: Bajo. Dependencias ya especificadas, solo activar y verificar compatibilidad.
+
+**Acceptance**:
+
+- `pip install -e .[processing]` o equivalent instala faster-whisper y argostranslate sin errores
+- `pip install -r config/requirements.txt` incluye ambas (directamente)
+- Al reiniciar servidor, los módulos `transcriber` y `translator` cargan correctamente (no más "package not installed")
+- `tests/unit/test_transcriber.py` y `tests/unit/test_translator.py` pasan
+
+---
+
+### F181 — Manejo graceful de SRT input sin fuente de video (Alta prioridad)
+
+**Qué**: Detectar cuando el input SRT está activo pero no recibe datos de ningún emisor (OBS/encoder desconectado), detener el reinicio en bucle del watchdog y notificar al usuario.
+
+**Problema**: Cuando no hay fuente enviando video al puerto SRT 9000:
+
+1. FFmpeg se ejecuta pero no produce chunks ni stderr
+2. `_monitor_ffmpeg()` se bloquea en `readline()` (sin datos) → no llama a `notify_activity()`
+3. Watchdog detecta "hang" tras 60s sin actividad → mata FFmpeg y lo reinicia
+4. Ciclo infinito de reinicio (hasta 10 intentos, ~10-12 minutos)
+5. El usuario no recibe feedback de que no hay señal entrante
+
+**Causa raíz**: El watchdog solo monitorea actividad de stderr y existencia del proceso. No tiene concepto de "input source sin datos". El reinicio es un side-effect accidental, no un comportamiento diseñado.
+
+**Arquitectura**:
+
+```
+OBS/Encoder ──SRT──→ FFmpeg (listener) ──chunks──→ get_next_chunk() ──→ Pipeline
+                          │
+                          └── stderr ──→ _monitor_ffmpeg() ──→ watchdog.notify_activity()
+                                                                    │
+                                                                    └── _last_output_time reset
+```
+
+Cuando no hay OBS: FFmpeg no escribe chunks, stderr no produce líneas → `_last_output_time` nunca se actualiza → watchdog detecta hang → restart loop.
+
+**Archivos a modificar**:
+
+| Archivo                       | Cambio                                                                    |
+| ----------------------------- | ------------------------------------------------------------------------- |
+| `core/input/srt_input.py`     | Añadir timeout en `get_next_chunk()` que detecte "sin datos nunca"        |
+| `core/watchdog.py`            | Añadir `first_data_time` + `_has_ever_received_data` flag                 |
+| `core/watchdog.py`            | Si `_has_ever_received_data == False`: no reiniciar, solo log y notificar |
+| `core/pipeline/strategies.py` | Añadir timeout de "no chunks recibidos en N segundos"                     |
+| `core/unified_pipeline.py`    | Nuevo estado o flag `waiting_for_source`                                  |
+| `modules/inputs/srt_input.py` | `notify_activity()` con flag de datos recibidos                           |
+
+**Cambios específicos**:
+
+1. **En `core/watchdog.py`**:
+
+   - Añadir `_has_ever_received_data = False` en `__init__`
+   - Añadir `first_data_time = None` para tracking opcional
+   - En `notify_activity()`, si es primera vez, setear `_has_ever_received_data = True`
+   - En `_check_health()`, si el proceso no ha muerto y `not _has_ever_received_data`: loguear `WARNING "SRT input active but no data received yet (expected: OBS/encoder connected to port 9000)"` y **NO reiniciar** (solo log cada 30s)
+   - Si `_has_ever_received_data == True` y luego hay hang: comportamiento actual (restart, porque hubo datos antes)
+
+2. **En `modules/inputs/srt_input.py`**:
+
+   - `_monitor_ffmpeg()`: después de cada `readline()` que devuelva datos llamar `watchdog.notify_activity(data_received=True)`
+   - `_start_ffmpeg_process()`: al arrancar, llamar `watchdog.notify_activity()` para reset inicial
+   - Añadir `_idle_timeout = 30` segundos: si `get_next_chunk()` devuelve `None` consistentemente y `not _has_ever_received_data`, loguear estado "waiting_for_source" en `get_status()`
+   - `get_status()`: añadir campo `waiting_for_source: bool`
+
+3. **En `core/pipeline/strategies.py`**:
+
+   - `_input_thread_loop`: si `get_next_chunk()` devuelve `None` por más de `max_idle_seconds` (default 120s configurable), loguear advertencia y notificar cambio de estado via `ctx.on_state_change`
+
+4. **En `core/unified_pipeline.py`**:
+   - `get_status()`: incluir `waiting_for_source` del input source
+   - No cambiar la máquina de estados principal, solo exponer el flag
+
+**Riesgo**: Medio
+
+- **Mitigación 1**: No cambiar comportamiento para casos donde SRT funciona correctamente (solo afecta cuando `_has_ever_received_data == False` y hay hang)
+- **Mitigación 2**: Tests unitarios para watchdog que verifiquen comportamiento distinto con/s sin datos previos
+- **Mitigación 3**: Los cambios en watchdog no afectan otras fuentes de input (file, rtmp) porque solo se activa para SRT
+
+**Acceptance**:
+
+- Cuando no hay fuente SRT, el watchdog **NO reinicia** FFmpeg en bucle
+- Aparece log `WARNING` claro: "SRT input active but no data received yet — waiting for source on port 9000"
+- `GET /api/status` muestra `waiting_for_source: true` en el status del input
+- Cuando OBS se conecta y empieza a enviar, `_has_ever_received_data` se setea y el watchdog vuelve al comportamiento normal
+- Tests que verifiquen:
+  - Watchdog sin datos previos: no restart, solo warning
+  - Watchdog con datos previos + hang posterior: restart (comportamiento actual)
+  - `_has_ever_received_data` se setea correctamente al recibir primer chunk/stderr
+
+---

@@ -86,7 +86,7 @@ class Transcriber(BaseModule):
                 self._compute_type = "float16" if self._device == "cuda" else "int8"
 
             logger.info(
-                f"Loading Whisper '{self._model_size}' model " f"on {self._device.upper()} ({self._compute_type})..."
+                f"Loading Whisper '{self._model_size}' model on {self._device.upper()} ({self._compute_type})..."
             )
 
             # Avoid downloading logs spam
@@ -100,10 +100,11 @@ class Transcriber(BaseModule):
             self._state = ModuleState.RUNNING
             logger.info(f"Whisper model '{self._model_size}' loaded successfully on {self._device.upper()} (cached)")
 
-        except ImportError:
+        except ImportError as e:
             self._state = ModuleState.ERROR
-            self._error_message = "faster-whisper package not installed"
-            logger.error(self._error_message)
+            _mod_name = getattr(e, "name", str(e))
+            self._error_message = f"Missing package: {_mod_name}"
+            logger.error("Transcriber init failed: %s (try: pip install faster-whisper torch)", _mod_name)
             self.enabled = False
         except Exception as e:
             self._state = ModuleState.ERROR

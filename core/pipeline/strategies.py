@@ -473,6 +473,10 @@ class ThreadParallelStrategy(PipelineStrategy):
         chunk_index = 0
         bp_ratio = (ctx.adaptive_config or {}).get("backpressure_queue_ratio", 0.7)
         bp_threshold = int(ctx.buffer_size * bp_ratio)
+        # F181: Idle timeout detection
+        _idle_start: float | None = None
+        _idle_warned = False
+        _max_idle_before_warn = 60.0
 
         try:
             while not ctx.stop_event.is_set():
@@ -489,8 +493,19 @@ class ThreadParallelStrategy(PipelineStrategy):
 
                 data = ctx.input_source.get_next_chunk()
                 if data is None:
+                    # F181: Warn if input has been idle for too long
+                    if _idle_start is None:
+                        _idle_start = time.time()
+                        _idle_warned = False
+                    elif not _idle_warned and (time.time() - _idle_start) > _max_idle_before_warn:
+                        self._log("warning", f"Input source idle for {_max_idle_before_warn:.0f}s — no chunks received")
+                        _idle_warned = True
                     time.sleep(0.01)
                     continue
+
+                # Reset idle tracking when data arrives
+                _idle_start = None
+                _idle_warned = False
 
                 data.chunk_index = chunk_index
                 data.timestamp = time.time()

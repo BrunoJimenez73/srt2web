@@ -28,7 +28,7 @@ python-dotenv>=1.0.0  # F112: load .env for SRT2WEB_JWT_SECRET
 # Pydantic v2 (required for this codebase)
 pydantic>=2.0.0
 
-# Phase 2 - Processing (uncomment when needed)
+# Processing (transcriber, translator, TTS)
 faster-whisper>=1.0.0
 argostranslate>=1.9.0
 piper-tts>=1.2.0

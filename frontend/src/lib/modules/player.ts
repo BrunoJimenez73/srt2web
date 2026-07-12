@@ -113,6 +113,11 @@ const MAX_CONSECUTIVE_ERRORS = 5;
 let _hasStartedOnce = false;
 
 let retryCount = 0;
+
+// Subtitle watchdog: HLS.js may reset TextTrack.mode to "hidden" after a
+// subtitle playlist reload. This flag + timeupdate listener detect and fix it.
+let _subtitleWatchdogActive = false;
+let _subtitleWatchdogHandler: (() => void) | null = null;
 const MAX_RETRY_DELAY_MS = 30000;
 const BASE_RETRY_DELAY_MS = 2000;
 
@@ -221,6 +226,45 @@ export function initHlsPlayer(): void {
     })();
   }
 
+  /**
+   * Start a subtitle watchdog that listens to video timeupdate and
+   * enforces TextTrack mode="showing". This is a fail-safe against
+   * HLS.js resetting the subtitle track mode to "hidden".
+   *
+   * HLS.js has a known issue where after a subtitle playlist reload,
+   * the browser TextTrack mode gets set to "hidden" even though
+   * subtitleDisplay=true. The event-based handlers (SUBTITLE_TRACK_LOADED,
+   * SUBTITLE_TRACKS_UPDATED, LEVEL_UPDATED) may fire before the reset
+   * happens, so a timeupdate-based watchdog catches the stale state.
+   *
+   * The timeupdate event fires ~4 times per second during playback,
+   * so the overhead is negligible.
+   */
+  function startSubtitleWatchdog(videoEl: HTMLVideoElement): void {
+    if (_subtitleWatchdogActive) return;
+    _subtitleWatchdogActive = true;
+
+    const handler = () => {
+      forceSubtitleTrackMode(videoEl);
+    };
+    _subtitleWatchdogHandler = handler;
+    videoEl.addEventListener("timeupdate", handler);
+    logger.debug("player", "Subtitle watchdog started (timeupdate)");
+  }
+
+  function stopSubtitleWatchdog(): void {
+    if (!_subtitleWatchdogActive) return;
+    _subtitleWatchdogActive = false;
+    const video = document.getElementById(
+      "video-player",
+    ) as HTMLVideoElement | null;
+    if (video && _subtitleWatchdogHandler) {
+      video.removeEventListener("timeupdate", _subtitleWatchdogHandler);
+    }
+    _subtitleWatchdogHandler = null;
+    logger.debug("player", "Subtitle watchdog stopped");
+  }
+
   function handlePlayError(err: unknown) {
     if (err instanceof DOMException && err.name === "NotAllowedError") {
       showError(
@@ -287,6 +331,15 @@ export function initHlsPlayer(): void {
       });
 
       hls.on(HlsEvents.SUBTITLE_TRACK_LOADED, () => {
+        forceSubtitleTrackMode(video);
+      });
+
+      // SUBTITLE_TRACKS_UPDATED fires when HLS.js re-parses the subtitle
+      // tracks after a manifest refresh. HLS.js may reset the TextTrack
+      // mode to "hidden" during this process, so we force it back to
+      // "showing" here. Without this handler, subtitles can disappear
+      // when the subtitle playlist is reloaded (~every targetDuration).
+      hls.on(HlsEvents.SUBTITLE_TRACKS_UPDATED, () => {
         forceSubtitleTrackMode(video);
       });
 
@@ -380,9 +433,15 @@ export function initHlsPlayer(): void {
     } else {
       showError("HLS no es soportado en este navegador");
     }
+
+    // Start subtitle watchdog after all event handlers are set up.
+    // The watchdog runs on video timeupdate (~4 Hz) and enforces
+    // TextTrack mode="showing" as a fail-safe against HLS.js mode resets.
+    startSubtitleWatchdog(video);
   }
 
   function disconnect() {
+    stopSubtitleWatchdog();
     stopHealthCheck();
     disconnectFeedbackWs();
     if (hls) {

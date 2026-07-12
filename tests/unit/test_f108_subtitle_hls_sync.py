@@ -9,7 +9,10 @@ Backend (subtitle_generator + hls_output):
 - _rewrite_hls_playlist emits valid HLS v3 with correct EXTINF/EXT-X-TARGETDURATION/
   EXT-X-MEDIA-SEQUENCE entries.
 - Empty playlist state (no fragments yet) is a valid #EXTM3U v3 file.
-- Rolling window: fragments beyond hls_list_size are dropped AND their files deleted.
+- FIXED window (no rolling): all subtitle fragments are kept forever in the
+  playlist. Unlike video HLS, subtitle data is tiny and HLS.js needs every cue
+  for backward seeking. The old rolling-window trimmed fragments and advanced
+  MEDIA-SEQUENCE, causing subtitles to disappear after ~10 chunks.
 - start() cleans stale HLS subtitle fragments (subs_seg_*.vtt, subs.m3u8).
 - set_drift_monitor wires the previously-dead drift detection path.
 - Drift monitor check_sync is called per chunk with relative timestamps.
@@ -226,15 +229,19 @@ class TestRewriteHLSPlaylist:
         tmp = gen._hls_playlist_path.with_suffix(gen._hls_playlist_path.suffix + ".tmp")
         assert not tmp.exists(), "atomic write should rename the .tmp away"
 
-    def test_playlist_media_sequence_always_zero(self, tmp_path: Path) -> None:
-        """MEDIA-SEQUENCE is always 0 for absolute-timestamp VTT cues."""
+    def test_playlist_media_sequence_matches_window(self, tmp_path: Path) -> None:
+        """MEDIA-SEQUENCE matches first fragment's chunk_index (rolling window)."""
         gen = _make_gen(str(tmp_path), hls_list_size=2)
         for i in range(5):
             _process_chunk(gen, i)
         content = gen._hls_playlist_path.read_text(encoding="utf-8")
-        assert "#EXT-X-MEDIA-SEQUENCE:0" in content
+        # hls_list_size=2, chunks 0-4 → window keeps chunks 3,4 → MEDIA-SEQUENCE:3
+        assert "#EXT-X-MEDIA-SEQUENCE:3" in content
         assert "subs_seg_000003.vtt" in content
         assert "subs_seg_000004.vtt" in content
+        # Older chunks are trimmed from the playlist
+        assert "subs_seg_000000.vtt" not in content
+        assert "subs_seg_000001.vtt" not in content
 
 
 # ---------------------------------------------------------------------------
@@ -243,13 +250,16 @@ class TestRewriteHLSPlaylist:
 
 
 class TestTrimHLSFragments:
-    """Subtitle playlist keeps ALL fragments — never trims from the front."""
+    """Subtitle playlist uses rolling window matching video HLS."""
 
-    def test_keeps_all_fragments(self, tmp_path: Path) -> None:
+    def test_keeps_only_windowed_fragments(self, tmp_path: Path) -> None:
         gen = _make_gen(str(tmp_path), hls_list_size=3)
         for i in range(6):
             _process_chunk(gen, i)
-        assert len(gen._hls_fragments) == 6
+        # Only the last 3 fragments are kept (list_size=3)
+        assert len(gen._hls_fragments) == 3
+        assert gen._hls_fragments[0]["chunk_index"] == 3
+        assert gen._hls_fragments[-1]["chunk_index"] == 5
 
     def test_trim_keeps_dropped_files(self, tmp_path: Path) -> None:
         """After trimming, old fragment files are kept on disk to prevent
@@ -261,7 +271,7 @@ class TestTrimHLSFragments:
         # Oldest two files are kept on disk (prevents 404 race condition)
         assert (tmp_path / "subtitles" / "subs_seg_000000.vtt").exists()
         assert (tmp_path / "subtitles" / "subs_seg_000001.vtt").exists()
-        # Newest two retained
+        # Newest two retained in playlist
         assert (tmp_path / "subtitles" / "subs_seg_000002.vtt").exists()
         assert (tmp_path / "subtitles" / "subs_seg_000003.vtt").exists()
 
@@ -453,20 +463,27 @@ class TestDoProcessHLSIntegration:
         assert "subs_seg_000000.vtt" in playlist
 
     def test_all_chunks_preserved_in_playlist(self, tmp_path: Path) -> None:
+        """Only fragments in the rolling window are in the playlist."""
         gen = _make_gen(str(tmp_path), hls_list_size=4)
         for i in range(10):
             _process_chunk(gen, i)
         playlist = (tmp_path / "subtitles" / "subs.m3u8").read_text(encoding="utf-8")
-        for i in range(10):
+        # Chunks 6-9 should be in the window (list_size=4)
+        for i in range(6, 10):
             assert f"subs_seg_{i:06d}.vtt" in playlist, f"chunk {i} should be in playlist"
+        # Chunks 0-5 should be trimmed
+        for i in range(6):
+            assert f"subs_seg_{i:06d}.vtt" not in playlist, f"chunk {i} should be trimmed"
 
     def test_all_chunks_present_in_playlist(self, tmp_path: Path) -> None:
+        """Only windowed chunks appear in playlist."""
         gen = _make_gen(str(tmp_path), hls_list_size=2)
         for i in range(4):
             _process_chunk(gen, i)
         playlist = (tmp_path / "subtitles" / "subs.m3u8").read_text(encoding="utf-8")
-        assert "subs_seg_000000.vtt" in playlist
-        assert "subs_seg_000001.vtt" in playlist
+        assert "subs_seg_000002.vtt" in playlist
+        assert "subs_seg_000003.vtt" in playlist
+        assert "subs_seg_000000.vtt" not in playlist
 
 
 # ---------------------------------------------------------------------------

@@ -81,6 +81,10 @@ class SRTInput(InputSource):
         self._hwaccel_enabled = False
         self._hwaccel_device = "0"
 
+        # F181: Tracking for "no source connected" detection
+        self._no_data_start_time: float | None = None
+        self._no_data_warning_logged = False
+
     def configure(self, config: dict[str, Any]) -> None:
         """Aplicar configuración."""
         self._srt_port = config.get("listen_port", self._srt_port)
@@ -415,6 +419,10 @@ class SRTInput(InputSource):
 
         self.logger.info(f"FFmpeg process restarted with PID: {self._ffmpeg_proc.pid}")
 
+        # F181: Reset no-data tracking on restart (new FFmpeg instance)
+        self._no_data_start_time = None
+        self._no_data_warning_logged = False
+
         # Reiniciar hilo monitor
         self._monitor_thread = threading.Thread(
             target=self._monitor_ffmpeg,
@@ -527,6 +535,17 @@ class SRTInput(InputSource):
         _t0 = time.perf_counter()
 
         if not chunks:
+            # F181: Track continuous no-data duration
+            if self._no_data_start_time is None:
+                self._no_data_start_time = time.time()
+                self._no_data_warning_logged = False
+            elif not self._no_data_warning_logged:
+                idle_secs = time.time() - self._no_data_start_time
+                if idle_secs >= 30.0:
+                    self.logger.warning(
+                        f"SRT input: no chunks for {idle_secs:.0f}s — " f"waiting for source on port {self._srt_port}"
+                    )
+                    self._no_data_warning_logged = True
             self.logger.debug(f"SRT input: no chunks found in {self._chunks_dir}")
             return None
 
@@ -593,9 +612,11 @@ class SRTInput(InputSource):
 
         self._last_process_time = (time.perf_counter() - _t0) * 1000
 
-        # Notify watchdog of activity
+        # F181: Reset no-data tracking and notify watchdog with data_received flag
+        self._no_data_start_time = None
+        self._no_data_warning_logged = False
         if self._watchdog:
-            self._watchdog.notify_activity()
+            self._watchdog.notify_activity(data_received=True)
 
         # Get actual duration from the video chunk file
         actual_duration = get_video_duration(str(chunk_path))
@@ -644,13 +665,24 @@ class SRTInput(InputSource):
         """Get status including GPU acceleration info."""
         from core.ffmpeg_process import get_input_status_extra
 
+        # F181: Detect if input is active but no data has arrived
+        waiting_for_source = False
+        if self.is_receiving() and self._no_data_start_time is not None:
+            idle_secs = time.time() - self._no_data_start_time
+            waiting_for_source = idle_secs >= 5.0
+
+        extra = get_input_status_extra(self._gpu_info, self._hwaccel_enabled)
+        extra["waiting_for_source"] = waiting_for_source
+        if waiting_for_source and self._no_data_start_time is not None:
+            extra["idle_seconds"] = round(time.time() - self._no_data_start_time, 1)
+
         return ModuleStatus(
             name="input",
             state=ModuleState.RUNNING if self.is_receiving() else ModuleState.IDLE,
             enabled=True,
             processed_chunks=self._last_chunk_index + 1 if self._last_chunk_index >= 0 else 0,
             last_process_time_ms=self._last_process_time,
-            extra=get_input_status_extra(self._gpu_info, self._hwaccel_enabled),
+            extra=extra,
         )
 
     def _monitor_ffmpeg(self) -> None:

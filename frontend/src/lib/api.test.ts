@@ -15,6 +15,7 @@ import {
   apiCall,
   ApiError,
   WSClient,
+  __testing_setCsrfToken,
 } from "./api";
 
 describe("Auth Token Management", () => {
@@ -133,6 +134,13 @@ describe("API Client", () => {
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     clearAuthToken();
+    // Mock CSRF token endpoint for GET requests
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ csrf_token: "mock-csrf-token", expires_in: 3600 }),
+        { status: 200 },
+      ),
+    );
   });
 
   afterEach(() => {
@@ -161,12 +169,30 @@ describe("API Client", () => {
       expect(headers.get("Authorization")).toBeNull();
     }
   });
+
+  it("fetchWithAuth adds CSRF token on POST requests", async () => {
+    await fetchWithAuth("http://localhost:9999/api/start", { method: "POST" });
+
+    const callArgs = fetchMock.mock.calls[1];
+    const headers = new Headers(callArgs[1]?.headers);
+    expect(headers.get("X-CSRF-Token")).toBe("mock-csrf-token");
+  });
+
+  it("fetchWithAuth does not fetch CSRF token on GET requests", async () => {
+    fetchMock.mockResolvedValueOnce(new Response("{}", { status: 200 }));
+
+    await fetchWithAuth("http://localhost:9999/api/status", { method: "GET" });
+
+    // First call should be the GET, not CSRF fetch
+    expect(fetchMock.mock.calls[0][0]).toBe("http://localhost:9999/api/status");
+  });
 });
 
 describe("apiCall", () => {
   let fetchMock: any;
 
   beforeEach(() => {
+    __testing_setCsrfToken(null);
     vi.stubGlobal("window", {
       location: { protocol: "http:", host: "localhost:9999" },
     });
@@ -192,9 +218,17 @@ describe("apiCall", () => {
     );
   });
 
-  it("makes POST request with body", async () => {
+  it("makes POST request with body and CSRF token", async () => {
     const mockData = { status: "started" };
     const body = { action: "start" };
+    // First call: CSRF token fetch
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ csrf_token: "test-csrf", expires_in: 3600 }),
+        { status: 200 },
+      ),
+    );
+    // Second call: the actual POST
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify(mockData), { status: 200 }),
     );
@@ -202,11 +236,15 @@ describe("apiCall", () => {
     const result = await apiCall<typeof mockData>("POST", "/api/start", body);
     expect(result).toEqual(mockData);
 
-    const callArgs = fetchMock.mock.calls[0];
-    expect(callArgs[1]?.method).toBe("POST");
-    expect(callArgs[1]?.body).toBe(JSON.stringify(body));
-    const headers = new Headers(callArgs[1]?.headers);
+    const csrfCall = fetchMock.mock.calls[0];
+    expect(csrfCall[0]).toContain("/api/auth/csrf-token");
+
+    const postCall = fetchMock.mock.calls[1];
+    expect(postCall[1]?.method).toBe("POST");
+    expect(postCall[1]?.body).toBe(JSON.stringify(body));
+    const headers = new Headers(postCall[1]?.headers);
     expect(headers.get("Content-Type")).toBe("application/json");
+    expect(headers.get("X-CSRF-Token")).toBe("test-csrf");
   });
 
   it("strips leading slashes from path", async () => {
@@ -235,6 +273,7 @@ describe("apiCall", () => {
   });
 
   it("ApiError captures response text on error", async () => {
+    __testing_setCsrfToken("test-csrf");
     fetchMock.mockResolvedValueOnce(
       new Response('{"error": "invalid"}', {
         status: 400,

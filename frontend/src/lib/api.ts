@@ -90,6 +90,7 @@ import type {
 // ── Funciones de autenticación ─────────────────────────────────────────────────
 
 const AUTH_TOKEN_KEY = STORAGE_KEYS.AUTH_TOKEN;
+const CSRF_TOKEN_KEY = STORAGE_KEYS.CSRF_TOKEN;
 
 export function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -105,6 +106,42 @@ export function setAuthToken(token: string | null): void {
 export function clearAuthToken(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+// ── CSRF Token ────────────────────────────────────────────────────────────────
+
+let _csrfToken: string | null = null;
+let _csrfExpiry = 0;
+
+/** @internal Test helper: pre-populate CSRF token cache to avoid a fetch. */
+export function __testing_setCsrfToken(
+  token: string | null,
+  expiresInMs = 3600000,
+) {
+  _csrfToken = token;
+  _csrfExpiry = token ? Date.now() + expiresInMs : 0;
+}
+
+export async function ensureCsrfToken(): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  if (_csrfToken && Date.now() < _csrfExpiry) return _csrfToken;
+
+  try {
+    const base = getApiBase();
+    const res = await fetch(`${base}/api/auth/csrf-token`, {
+      credentials: "include",
+      headers: getAuthToken()
+        ? { Authorization: `Bearer ${getAuthToken()}` }
+        : {},
+    });
+    if (!res.ok) return _csrfToken;
+    const data = await res.json();
+    _csrfToken = data.csrf_token;
+    _csrfExpiry = Date.now() + (data.expires_in ?? 3600) * 1000 - 60000;
+    return _csrfToken;
+  } catch {
+    return _csrfToken;
+  }
 }
 
 // ── URLs ───────────────────────────────────────────────────────────────────────
@@ -130,6 +167,13 @@ export async function fetchWithAuth(
   const token = getAuthToken();
   const headers = new Headers(options.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const method = (options.method ?? "GET").toUpperCase();
+  if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
+    const csrf = await ensureCsrfToken();
+    if (csrf) headers.set("X-CSRF-Token", csrf);
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {

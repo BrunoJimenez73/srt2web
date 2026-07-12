@@ -61,6 +61,36 @@ except ImportError as _f111_import_error:
 # Setup CUDA paths - must be called before any GPU-related imports
 setup_cuda_environment()
 
+# GPU detection log at startup
+try:
+    import torch
+
+    if torch.cuda.is_available():
+        gpu_name = torch.cuda.get_device_name(0)
+        props = torch.cuda.get_device_properties(0)
+        vram_gb = (getattr(props, "total_memory", 0) or 0) / (1024**3)
+        print(f"[GPU] {gpu_name} ({vram_gb:.1f} GB VRAM) — CUDA disponible")
+    else:
+        print("[GPU] CUDA no disponible — usando CPU")
+except Exception:
+    print("[GPU] No detectado — usando CPU")
+
+# Verify critical packages
+_CRITICAL_PACKAGES = {
+    "faster_whisper": "faster-whisper (transcripción)",
+    "piper": "piper-tts (TTS)",
+    "argostranslate": "argostranslate (traducción)",
+}
+_missing = []
+for _mod, _label in _CRITICAL_PACKAGES.items():
+    try:
+        __import__(_mod)
+    except ImportError:
+        _missing.append(_label)
+if _missing:
+    print(f"[WARN] Paquetes faltantes: {', '.join(_missing)}")
+    print(f"[WARN] Ejecuta: venv\\Scripts\\python.exe -m pip install {' '.join(_missing)}")
+
 # F114: Install crash capture EARLY (after core is importable, before main()
 # runs). This captures any unhandled exception in main() to logs/crash.log
 # while preserving the original sys.excepthook so the user still sees the
@@ -68,6 +98,27 @@ setup_cuda_environment()
 install_crash_handler()
 
 PROJECT_ROOT = get_project_root()
+
+# Quick FFmpeg health check
+_FFMPEG_CANDIDATES = [
+    str(PROJECT_ROOT / "bin" / "ffmpeg-master-latest-win64-gpl" / "bin" / "ffmpeg.exe"),
+    "ffmpeg",
+]
+_ffmpeg_ok = False
+for _ff in _FFMPEG_CANDIDATES:
+    try:
+        import subprocess
+
+        r = subprocess.run([_ff, "-version"], capture_output=True, text=True, timeout=5)
+        if r.returncode == 0:
+            _ver = r.stdout.splitlines()[0] if r.stdout else "ok"
+            print(f"[FFmpeg] {_ver}")
+            _ffmpeg_ok = True
+            break
+    except Exception:
+        continue
+if not _ffmpeg_ok:
+    print("[WARN] FFmpeg no responde — puede causar timeouts en output HLS")
 
 
 def main() -> None:

@@ -429,9 +429,12 @@ class CsrfMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Validate CSRF token — resolve secret with same fallback chain as AuthMiddleware
-        csrf_header = request.headers.get("X-CSRF-Token", "")
         secret = self.get_csrf_secret() or os.environ.get("SRT2WEB_AUTH_TOKEN", "") or os.environ.get("AUTH_TOKEN", "")
-        if not csrf_header or not secret or not self.validate_token(csrf_header, secret):
+        # F125 fix: skip CSRF when auth is not configured (empty secret)
+        if not secret:
+            return await call_next(request)
+        csrf_header = request.headers.get("X-CSRF-Token", "")
+        if not csrf_header or not self.validate_token(csrf_header, secret):
             logger.warning(
                 "F125: CSRF validation failed for %s %s",
                 request.method,

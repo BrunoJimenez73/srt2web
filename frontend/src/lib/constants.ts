@@ -16,6 +16,7 @@ export const STORAGE_KEYS = {
   LAST_CONFIG: "srt2web_last_config",
   SHOW_LOGS: "srt2web_show_logs",
   LANGUAGE: "srt2web_language",
+  CSRF_TOKEN: "srt2web_csrf_token",
 } as const;
 
 // ── Valores por defecto ───────────────────────────────────────────────────────

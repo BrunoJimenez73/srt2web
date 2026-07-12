@@ -624,6 +624,15 @@ class UnifiedPipeline:
         except Exception as e:
             logger.warning("Failed to get input source status: %s", e)
 
+        # F181: Extract waiting_for_source from input module status
+        waiting_for_source = False
+        for mod in modules_status:
+            if isinstance(mod, dict) and mod.get("name") == "input":
+                extra = mod.get("extra", {})
+                if isinstance(extra, dict):
+                    waiting_for_source = extra.get("waiting_for_source", False)
+                break
+
         avg_time = self._pipeline_metrics.avg_processing_time
         system_metrics = self._hardware_monitor.get_system_metrics()
 
@@ -652,6 +661,7 @@ class UnifiedPipeline:
             "max_concurrent_chunks": self.max_concurrent_chunks,
             "concurrent_chunks": strategy_metrics.get("active_chunks", 0),
             "buffer_size": self.buffer_size,
+            "waiting_for_source": waiting_for_source,
             "modules": modules_status,
             "system": system_metrics,
             "system_metrics": system_metrics,
