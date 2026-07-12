@@ -144,7 +144,6 @@ def _register_modules(
     ffmpeg_pool: FFmpegPool | None = None,
 ) -> None:
     """Register all processing modules with the pipeline."""
-    from core.subtitle_sync_monitor import SubtitleSyncMonitor
     from modules.audio_extractor import AudioExtractor
     from modules.audio_mixer import AudioMixer
     from modules.dmr_translator import DMRTranslator
@@ -179,17 +178,4 @@ def _register_modules(
         module = module_class(**kwargs)
         pipeline.register_module(module)
 
-    # Register subtitle sync monitor as a special module (doesn't process data, just monitors)
-    sync_config = config_manager.get_section("subtitle_sync")
-    sync_monitor = SubtitleSyncMonitor(
-        threshold_ms=sync_config.get("sync_correction_threshold", 500), smoothing_factor=0.7
-    )
-    # Store reference in pipeline for access
-    pipeline.subtitle_sync_monitor = sync_monitor  # type: ignore[attr-defined]
-
-    # F108 — wire the drift monitor INTO the subtitle generator so the previously
-    # dead `enable_drift_detection` flag actually applies a correction factor
-    # on every chunk. This is the only place the two objects can meet.
-    subtitle_module = pipeline.get_module("subtitle_generator")
-    if subtitle_module is not None and hasattr(subtitle_module, "set_drift_monitor"):
-        subtitle_module.set_drift_monitor(sync_monitor)
+    # Subtitle sync removed — PTS-based HLS fragments are the single source of truth

@@ -3,19 +3,18 @@ from pathlib import Path
 from typing import Any
 
 from ._format import format_timestamp
-from ._types import HLSFragment
 
 logger = logging.getLogger("srt2web.module.subtitle_generator")
 
 
-class HLSManager:
-    """Manages per-chunk HLS subtitle fragments + media playlist.
+class FragmentWriter:
+    """
+    Writes HLS subtitle fragments and manages the media playlist.
 
-    Uses a rolling window matching the video HLS playlist so timeline
-    alignment is consistent. VTT cues use fragment-relative timestamps
-    (0 to duration) and each fragment carries #EXT-X-DISCONTINUITY to
-    match the video segments. MEDIA-SEQUENCE increments with the window
-    just like the video playlist.
+    Each fragment contains cues with media-relative timestamps (0 to duration).
+    The playlist uses #EXT-X-DISCONTINUITY before each fragment to match
+    the video HLS segments where FFmpeg resets PTS to ~0 per segment.
+    MEDIA-SEQUENCE and rolling window match the video HLS playlist exactly.
     """
 
     def __init__(
@@ -27,8 +26,7 @@ class HLSManager:
         self._playlist_path = playlist_path
         self._list_size = list_size
         self._subtitles_dir = subtitles_dir
-        self._fragments: list[HLSFragment] = []
-        self._base_sequence: int = 0
+        self._fragments: list[dict[str, Any]] = []
 
     def configure(self, list_size: int) -> None:
         self._list_size = list_size
@@ -41,7 +39,7 @@ class HLSManager:
         self._fragments.clear()
 
     @property
-    def fragments(self) -> list[HLSFragment]:
+    def fragments(self) -> list[dict[str, Any]]:
         return self._fragments
 
     @property
@@ -53,16 +51,19 @@ class HLSManager:
         chunk_index: int,
         segments: list[dict[str, Any]],
         duration: float,
-        abs_start: float = 0.0,
+        pts_start: float = 0.0,
     ) -> str:
         """
-        Write a per-chunk HLS subtitle fragment with FRAGMENT-RELATIVE timestamps
-        (0 to duration). This matches the video HLS segments where each TS segment
-        has PTS starting from ~0 (FFmpeg mpegts muxer resets timestamps).
-        The #EXT-X-DISCONTINUITY in the playlist tells HLS.js to compute the
-        correct timeline offset from MEDIA-SEQUENCE.
+        Write a per-chunk HLS subtitle fragment with MEDIA-RELATIVE timestamps.
 
-        Returns the absolute path of the written fragment, or empty string on failure.
+        Args:
+            chunk_index: Sequential chunk index
+            segments: List of segment dicts with 'start', 'end', 'text'
+            duration: Fragment duration in seconds
+            pts_start: PTS timestamp from ChunkClock (cumulative_duration)
+
+        Returns:
+            Absolute path of written fragment, or empty string on failure.
         """
         fragment_name = f"subs_seg_{chunk_index:06d}.vtt"
         fragment_path = self._subtitles_dir / fragment_name
@@ -72,15 +73,13 @@ class HLSManager:
                 f.write("WEBVTT\n\n")
                 cue_index = 0
                 for seg in segments:
-                    rel_start = float(seg.get("start", 0.0))
-                    rel_start = max(0.0, rel_start)
+                    rel_start = max(0.0, float(seg.get("start", 0.0)))
                     rel_end = float(seg.get("end", duration))
                     rel_end = min(max(rel_end, rel_start), duration)
                     clean_text = seg.get("text", "").replace("\n", " ").strip()
                     if not clean_text:
                         continue
-                    # FRAGMENT-RELATIVE timestamps (0 to duration) to match
-                    # video segment PTS reset by FFmpeg mpegts muxer.
+                    # MEDIA-RELATIVE timestamps (0 to duration)
                     start_str = format_timestamp(rel_start, "vtt")
                     end_str = format_timestamp(rel_end, "vtt")
                     cue_index += 1
@@ -97,8 +96,7 @@ class HLSManager:
         """
         Write the HLS subtitle media playlist (subs.m3u8) with rolling window
         matching the video HLS playlist. Uses #EXT-X-DISCONTINUITY before each
-        fragment to match video segments. MEDIA-SEQUENCE matches the first
-        fragment's chunk_index. Atomic write.
+        fragment. MEDIA-SEQUENCE matches the first fragment's chunk_index. Atomic write.
         """
         if not self._playlist_path or str(self._playlist_path) == ".":
             return
@@ -118,8 +116,6 @@ class HLSManager:
             return
 
         target_duration = max(1, int(max(f["duration"] for f in self._fragments)) + 1)
-        # MEDIA-SEQUENCE matches the first fragment's chunk_index.
-        # Only fragments within the rolling window are included.
         first_sn = self._fragments[0]["chunk_index"]
         media_sequence = first_sn
 
@@ -135,9 +131,6 @@ class HLSManager:
                     frag_chunk_index = frag["chunk_index"]
                     frag_duration = frag["duration"]
                     f.write(f"#EXTINF:{frag_duration:.3f},\n")
-                    # Each subtitle fragment gets #EXT-X-DISCONTINUITY to
-                    # match the video playlist, where FFmpeg mpegts muxer
-                    # resets PTS to ~0 for every segment.
                     f.write("#EXT-X-DISCONTINUITY\n")
                     f.write(f"subs_seg_{frag_chunk_index:06d}.vtt\n")
             tmp_path.replace(self._playlist_path)
@@ -149,3 +142,27 @@ class HLSManager:
         if len(self._fragments) <= self._list_size:
             return
         self._fragments = self._fragments[-self._list_size :]
+
+    def add_fragment(self, chunk_index: int, duration: float, pts_start: float, path: str) -> None:
+        """Register a new fragment in the rolling window."""
+        self._fragments.append(
+            {
+                "chunk_index": chunk_index,
+                "duration": duration,
+                "pts_start": pts_start,
+                "path": path,
+            }
+        )
+        self.trim()
+
+    def get_window_info(self) -> dict[str, Any]:
+        """Get current playlist window info for debugging/monitoring."""
+        if not self._fragments:
+            return {"count": 0, "first_index": None, "last_index": None}
+        return {
+            "count": len(self._fragments),
+            "first_index": self._fragments[0]["chunk_index"],
+            "last_index": self._fragments[-1]["chunk_index"],
+            "media_sequence": self._fragments[0]["chunk_index"],
+            "target_duration": max(1, int(max(f["duration"] for f in self._fragments)) + 1),
+        }

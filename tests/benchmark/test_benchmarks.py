@@ -58,25 +58,7 @@ class TestFFmpegPoolBenchmarks:
         benchmark(run_all)
 
 
-@pytest.mark.benchmark
-class TestSubtitleSyncBenchmarks:
-    """Benchmarks for subtitle drift monitor blending."""
-
-    def test_check_sync_blending(self, benchmark):
-        from core.subtitle_sync_monitor import SubtitleSyncMonitor
-
-        monitor = SubtitleSyncMonitor(
-            correction_threshold_ms=500,
-            enable_drift_detection=True,
-            drift_history_size=100,
-        )
-        for i in range(50):
-            monitor.check_sync(audio_wall_clock_ms=1000 * i, first_cue_media_ms=1000 * i + 10)
-
-        def blend():
-            monitor.check_sync(audio_wall_clock_ms=51000, first_cue_media_ms=51005)
-
-        benchmark(blend)
+# SubtitleSyncMonitor benchmarks removed — PTS-based HLS fragments are the single source of truth
 
 
 @pytest.mark.benchmark

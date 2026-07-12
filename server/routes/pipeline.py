@@ -67,31 +67,13 @@ async def get_status(request: Request) -> dict[str, Any]:
     network["caller_address"] = caller_address
     status["network"] = network
 
-    # Add subtitle sync information
-    subtitle_sync_config = config.get_section("subtitle_sync")
-    if subtitle_sync_config.get("enable_drift_detection", False):
-        if hasattr(pipeline, "subtitle_sync_monitor") and pipeline.subtitle_sync_monitor:
-            monitor = pipeline.subtitle_sync_monitor
-            status["sync"] = {
-                "drift_ms": round(monitor.get_drift_ms(), 1),
-                "state": monitor.get_state(),
-                "correction_active": monitor.correction_active,
-                "threshold_ms": subtitle_sync_config.get("sync_correction_threshold", 500),
-            }
-        else:
-            status["sync"] = {
-                "drift_ms": 0,
-                "state": "in_sync",
-                "correction_active": False,
-                "threshold_ms": subtitle_sync_config.get("sync_correction_threshold", 500),
-            }
-    else:
-        status["sync"] = {
-            "drift_ms": 0,
-            "state": "in_sync",
-            "correction_active": False,
-            "threshold_ms": subtitle_sync_config.get("sync_correction_threshold", 500),
-        }
+    # Subtitle sync info — deprecated with PTS-based HLS fragments (single source of truth)
+    status["sync"] = {
+        "drift_ms": 0,
+        "state": "disabled",
+        "correction_active": False,
+        "threshold_ms": 0,
+    }
 
     return status
 
@@ -213,7 +195,7 @@ async def stop_pipeline(request: Request) -> dict[str, Any]:
     _output_path = Path(output_dir).resolve()
     if not is_within_project(_output_path):
         logger.warning(
-            f"Output dir '{output_dir}' resolves outside project root, " "skipping cleanup to avoid accidental deletion"
+            f"Output dir '{output_dir}' resolves outside project root, skipping cleanup to avoid accidental deletion"
         )
         invalidate_cache("status")
         return {"status": "stopped", "warning": "output_dir outside project root"}

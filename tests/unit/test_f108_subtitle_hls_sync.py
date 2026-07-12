@@ -9,17 +9,11 @@ Backend (subtitle_generator + hls_output):
 - _rewrite_hls_playlist emits valid HLS v3 with correct EXTINF/EXT-X-TARGETDURATION/
   EXT-X-MEDIA-SEQUENCE entries.
 - Empty playlist state (no fragments yet) is a valid #EXTM3U v3 file.
-- FIXED window (no rolling): all subtitle fragments are kept forever in the
-  playlist. Unlike video HLS, subtitle data is tiny and HLS.js needs every cue
-  for backward seeking. The old rolling-window trimmed fragments and advanced
-  MEDIA-SEQUENCE, causing subtitles to disappear after ~10 chunks.
+- Rolling window matches video HLS playlist exactly (MEDIA-SEQUENCE, TARGETDURATION,
+  #EXT-X-DISCONTINUITY before each fragment).
 - start() cleans stale HLS subtitle fragments (subs_seg_*.vtt, subs.m3u8).
-- set_drift_monitor wires the previously-dead drift detection path.
-- Drift monitor check_sync is called per chunk with relative timestamps.
-- Legacy subs.vtt rolling file is still produced (webrtc_engine/recording_output
-  backward compatibility).
-- HLSOutput master playlist points at /subtitles/subs.m3u8 when it exists,
-  falls back to /subtitles/subs.vtt otherwise.
+- Legacy subs.vtt removed; RecordingOutput converts fragments -> SRT on concat.
+- HLSOutput master playlist points at /subtitles/subs.m3u8 when it exists.
 - Pre-creation of empty subs.m3u8 keeps the master playlist URI valid
   before the first fragment is written.
 """
@@ -34,29 +28,6 @@ import pytest
 
 from core.module_base import PipelineData
 from modules.subtitle_generator import SubtitleGenerator
-
-
-class _StubDriftMonitor:
-    """Stub SubtitleSyncMonitor for drift-wiring tests."""
-
-    def __init__(self, factor: float = 1.0) -> None:
-        self._factor = factor
-        self.call_count = 0
-        self.last_audio_ms: float | None = None
-        self.last_subtitle_ms: float | None = None
-
-    def check_sync(self, audio_timestamp_ms: float, subtitle_timestamp_ms: float) -> float:
-        self.call_count += 1
-        self.last_audio_ms = audio_timestamp_ms
-        self.last_subtitle_ms = subtitle_timestamp_ms
-        return self._factor
-
-
-class _FailingDriftMonitor:
-    """Drift monitor that raises — generator must swallow and not crash."""
-
-    def check_sync(self, audio_timestamp_ms: float, subtitle_timestamp_ms: float) -> float:
-        raise RuntimeError("drift monitor unavailable")
 
 
 def _make_gen(output_dir: str, **configure_kwargs) -> SubtitleGenerator:
@@ -208,6 +179,8 @@ class TestRewriteHLSPlaylist:
         assert "#EXTINF:5.000," in content
         # MEDIA-SEQUENCE matches the first chunk
         assert "#EXT-X-MEDIA-SEQUENCE:0" in content
+        # Each fragment has DISCONTINUITY tag
+        assert content.count("#EXT-X-DISCONTINUITY") == 3
 
     def test_target_duration_uses_max_extinf_plus_one(self, tmp_path: Path) -> None:
         """TARGETDURATION = max(EXTINF) + 1 (HLS spec)."""
@@ -321,68 +294,6 @@ class TestStartCleansStaleHLS:
 
 
 # ---------------------------------------------------------------------------
-# Drift monitor wiring (previously dead code)
-# ---------------------------------------------------------------------------
-
-
-class TestPipelineDelayCompensation:
-    """Pipeline delay compensation — shifts subtitles forward to match video position."""
-
-    def test_set_drift_monitor_stores_reference(self, tmp_path: Path) -> None:
-        gen = _make_gen(str(tmp_path))
-        monitor = _StubDriftMonitor()
-        gen.set_drift_monitor(monitor)
-        assert gen._drift_monitor is monitor
-
-    def test_pipeline_delay_initialized_on_first_chunk(self, tmp_path: Path) -> None:
-        gen = _make_gen(str(tmp_path))
-        # start() now sets _pipeline_start_wall immediately so the first
-        # _do_process call already has a meaningful wall_elapsed.
-        assert gen._pipeline_start_wall > 0
-        _process_chunk(gen, 0)
-        assert gen._pipeline_start_wall > 0
-
-    def test_pipeline_delay_smoothed_updated(self, tmp_path: Path) -> None:
-        gen = _make_gen(str(tmp_path))
-        for i in range(3):
-            _process_chunk(gen, i)
-        assert gen._pipeline_delay_smoothed >= 0
-
-    def test_shifted_start_greater_than_cumulative(self, tmp_path: Path) -> None:
-        gen = _make_gen(str(tmp_path))
-        _process_chunk(gen, 2, cumulative=10.0)
-        if gen._vtt_entries:
-            assert gen._vtt_entries[0]["start"] >= 10.0
-
-    def test_hls_fragment_cues_shifted(self, tmp_path: Path) -> None:
-        gen = _make_gen(str(tmp_path))
-        _process_chunk(gen, 0, cumulative=0.0)
-        seg_file = tmp_path / "subtitles" / "subs_seg_000000.vtt"
-        if seg_file.exists():
-            content = seg_file.read_text(encoding="utf-8")
-            import re
-
-            match = re.search(r"(\d+):(\d+):(\d+)\.(\d+)", content)
-            if match:
-                h, m, s, ms = int(match[1]), int(match[2]), int(match[3]), int(match[4])
-                total_sec = h * 3600 + m * 60 + s + ms / 1000
-                assert total_sec > 0.3, f"Cue starts at {total_sec}s, expected > 0.3s"
-
-    def test_drift_monitor_exception_does_not_crash(self, tmp_path: Path) -> None:
-        """Failing monitor must not break the pipeline."""
-        gen = _make_gen(str(tmp_path))
-        gen.set_drift_monitor(_FailingDriftMonitor())
-        _process_chunk(gen, 0)
-        assert gen._state.name == "RUNNING"
-
-    def test_no_monitor_no_crash(self, tmp_path: Path) -> None:
-        """Without a monitor attached, drift check is skipped."""
-        gen = _make_gen(str(tmp_path))
-        _process_chunk(gen, 0)
-        assert gen._drift_monitor is None
-
-
-# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -414,46 +325,12 @@ class TestPlaylistAccessors:
 
 
 # ---------------------------------------------------------------------------
-# Legacy subs.vtt compatibility
-# ---------------------------------------------------------------------------
-
-
-class TestLegacyVTTCompat:
-    """subs.vtt (rolling, absolute timestamps) is still produced for legacy consumers."""
-
-    def test_subs_vtt_still_written(self, tmp_path: Path) -> None:
-        gen = _make_gen(str(tmp_path))
-        _process_chunk(gen, 0, text="hola mundo")
-        subs = (tmp_path / "subtitles" / "subs.vtt").read_text(encoding="utf-8")
-        assert subs.startswith("WEBVTT")
-        assert "hola mundo" in subs
-
-    def test_subs_vtt_uses_absolute_timestamps(self, tmp_path: Path) -> None:
-        """Legacy subs.vtt uses chunk_start + rel for absolute time (legacy webplayer)."""
-        gen = _make_gen(str(tmp_path))
-        _process_chunk(gen, 2, cumulative=10.0)  # chunk starts at 10s
-        subs = (tmp_path / "subtitles" / "subs.vtt").read_text(encoding="utf-8")
-        # 10.5s + 4.5s = 10.5s .. 14.5s — but `start` is 0.5s into chunk, end 4.5s
-        # so absolute: 10.5s .. 14.5s. Wait — that's wrong: chunk_start 10s + rel start 0.5 = 10.5s
-        # 10s + 4.5 = 14.5s. Verify the timestamps.
-        assert "00:00:10.500 --> 00:00:14.500" in subs
-
-    def test_subs_m3u8_and_subs_vtt_coexist(self, tmp_path: Path) -> None:
-        """Both the new playlist and the legacy single-file VTT are produced each chunk."""
-        gen = _make_gen(str(tmp_path))
-        _process_chunk(gen, 0)
-        assert (tmp_path / "subtitles" / "subs.m3u8").exists()
-        assert (tmp_path / "subtitles" / "subs.vtt").exists()
-        assert (tmp_path / "subtitles" / "subs_seg_000000.vtt").exists()
-
-
-# ---------------------------------------------------------------------------
 # _do_process integration
 # ---------------------------------------------------------------------------
 
 
 class TestDoProcessHLSIntegration:
-    """_do_process writes both HLS fragment + subs.vtt + subs.m3u8 in one pass."""
+    """_do_process writes both HLS fragment + subs.m3u8 in one pass."""
 
     def test_processing_one_chunk_creates_hls_artifact(self, tmp_path: Path) -> None:
         gen = _make_gen(str(tmp_path))
@@ -484,6 +361,7 @@ class TestDoProcessHLSIntegration:
         assert "subs_seg_000002.vtt" in playlist
         assert "subs_seg_000003.vtt" in playlist
         assert "subs_seg_000000.vtt" not in playlist
+        assert "subs_seg_000001.vtt" not in playlist
 
 
 # ---------------------------------------------------------------------------
@@ -500,7 +378,6 @@ class TestHLSOutputMasterPlaylist:
 
     def test_master_playlist_has_subtitles_with_default_yes(self, tmp_path: Path) -> None:
         """Master must have SUBTITLES tag with DEFAULT=YES and correct language."""
-        """Master must have SUBTITLES tag with DEFAULT=NO and correct language."""
         from modules.outputs.hls_output import HLSOutput
 
         output = HLSOutput(

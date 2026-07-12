@@ -46,76 +46,54 @@ class TestGZipMiddleware:
 
 
 class TestRollingSubtitles:
-    """Test rolling window for VTT subtitles."""
+    """Test rolling window for HLS subtitle fragments."""
 
-    def test_subtitle_generator_has_rolling_window_attrs(self) -> None:
-        """Test that SubtitleGenerator has rolling window attributes."""
+    def test_subtitle_generator_has_fragment_attrs(self) -> None:
+        """Test that SubtitleGenerator has fragment writer attributes."""
         from modules.subtitle_generator import SubtitleGenerator
 
         gen = SubtitleGenerator()
-        assert hasattr(gen, "_vtt_entries")
-        assert hasattr(gen, "_max_vtt_entries")
-        assert hasattr(gen, "_vtt_max_age_seconds")
-        assert isinstance(gen._vtt_entries, list)
+        assert hasattr(gen, "_fragment_writer")
+        assert hasattr(gen._fragment_writer, "_list_size")
+        assert isinstance(gen._fragment_writer.fragments, list)
 
     def test_rolling_window_defaults(self) -> None:
         """Test default rolling window values."""
         from modules.subtitle_generator import SubtitleGenerator
 
         gen = SubtitleGenerator()
-        assert gen._max_vtt_entries == 2000
-        assert gen._vtt_max_age_seconds == 7200.0  # 2 hours rolling window
+        assert gen._hls_list_size == 10
 
-    def test_trim_vtt_entries_limits_count(self) -> None:
-        """Test that _trim_vtt_entries limits entry count."""
+    def test_trim_fragments_limits_count(self) -> None:
+        """Test that fragment writer trim limits entry count."""
         from modules.subtitle_generator import SubtitleGenerator
 
         gen = SubtitleGenerator()
-        gen._max_vtt_entries = 5
+        gen._fragment_writer._list_size = 5
 
-        # Add more entries than max
-        gen._vtt_entries = [{"start": float(i), "end": float(i + 1), "text": f"Entry {i}"} for i in range(10)]
-
-        gen._trim_vtt_entries()
-        assert len(gen._vtt_entries) == 5
-
-    def test_trim_vtt_entries_removes_old_by_time(self) -> None:
-        """Test that _trim_vtt_entries removes entries older than max age."""
-        from modules.subtitle_generator import SubtitleGenerator
-
-        gen = SubtitleGenerator()
-        gen._vtt_max_age_seconds = 10.0
-        gen._max_vtt_entries = 100  # High count limit
-
-        # Add entries with old timestamps
-        gen._vtt_entries = [
-            {"start": 0.0, "end": 5.0, "text": "Old entry"},
-            {"start": 100.0, "end": 105.0, "text": "Recent entry"},
+        # Add more fragments than max
+        gen._fragment_writer._fragments = [
+            {"chunk_index": i, "duration": 5.0, "pts_start": 0.0, "path": f"seg_{i}.vtt"}
+            for i in range(10)
         ]
 
-        gen._trim_vtt_entries()
+        gen._fragment_writer.trim()
+        assert len(gen._fragment_writer.fragments) == 5
 
-        # Only recent entry should remain
-        assert len(gen._vtt_entries) == 1
-        assert gen._vtt_entries[0]["text"] == "Recent entry"
-
-    def test_rewrite_vtt_file(self, temp_dir) -> None:
-        """Test that _rewrite_vtt_file writes correct VTT format."""
+    def test_write_fragment_produces_valid_vtt(self, temp_dir) -> None:
+        """Test that write_fragment writes correct VTT format."""
         from modules.subtitle_generator import SubtitleGenerator
 
         gen = SubtitleGenerator(output_dir=temp_dir)
-        gen._subtitles_dir = temp_dir
-        gen._vtt_path = Path(temp_dir) / "test.vtt"
+        gen.configure({"chunk_duration": 5})
+        gen.start()
 
-        gen._vtt_entries = [
-            {"start": 0.0, "end": 2.0, "text": "Hello"},
-            {"start": 2.0, "end": 4.0, "text": "World"},
-        ]
+        fragment_path = gen._fragment_writer.write_fragment(
+            0, [{"start": 0.0, "end": 2.0, "text": "Hello"}, {"start": 2.0, "end": 4.0, "text": "World"}], 5.0, 0.0
+        )
 
-        gen._rewrite_vtt_file()
-
-        assert os.path.exists(gen._vtt_path)
-        with open(gen._vtt_path, encoding="utf-8") as f:
+        assert os.path.exists(fragment_path)
+        with open(fragment_path, encoding="utf-8") as f:
             content = f.read()
 
         assert content.startswith("WEBVTT")
@@ -124,16 +102,16 @@ class TestRollingSubtitles:
         assert "00:00:02.000 --> 00:00:04.000" in content
         assert "World" in content
 
-    def test_start_clears_rolling_window(self, temp_dir) -> None:
-        """Test that start() clears the rolling window."""
+    def test_start_clears_fragments(self, temp_dir) -> None:
+        """Test that start() clears the fragment registry."""
         from modules.subtitle_generator import SubtitleGenerator
 
         gen = SubtitleGenerator(output_dir=temp_dir)
-        gen._vtt_entries = [{"start": 0, "end": 1, "text": "test"}]
+        gen._fragment_writer._fragments = [{"chunk_index": 99, "duration": 5.0, "pts_start": 0.0, "path": "x"}]
 
         gen.start()
 
-        assert gen._vtt_entries == []
+        assert gen._fragment_writer.fragments == []
 
 
 class TestHLSPlayerErrorHandling:

@@ -1,4 +1,5 @@
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -21,7 +22,7 @@ class TestSubtitleGenerator:
         gen.start()
         return gen
 
-    def test_vtt_entries_generated_per_chunk(self):
+    def test_hls_fragments_generated_per_chunk(self):
         gen = self._make_gen()
         for i in range(5):
             data = PipelineData(
@@ -33,7 +34,16 @@ class TestSubtitleGenerator:
             )
             result = gen._do_process(data)
             assert result is not None
-        assert len(gen._vtt_entries) >= 5
+        # Verify HLS fragments were created
+        assert len(gen._hls_fragments) == 5
+        # Verify playlist exists
+        playlist = gen.get_playlist_path()
+        assert playlist is not None
+        assert playlist.exists()
+        # Verify fragment files exist
+        for i in range(5):
+            frag_path = Path(self.temp_dir) / "subtitles" / f"subs_seg_{i:06d}.vtt"
+            assert frag_path.exists(), f"Fragment {i} not found"
 
     def test_empty_text_handling(self):
         gen = self._make_gen()
