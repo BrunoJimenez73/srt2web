@@ -35,7 +35,12 @@ export const DEFAULTS = {
   WHISPER_LANGUAGE: "en",
   TRANSLATE_TARGET: "es",
   SUBTITLE_FORMAT: "srt",
+  /** Idioma preferido para la pista de subtítulos HLS nativa (véase F108). */
+  SUBTITLE_LANG: "es",
 } as const;
+
+/** Idioma preferido para activar la pista de subtítulos HLS nativa (F108). */
+export const DEFAULT_SUBTITLE_LANG: string = DEFAULTS.SUBTITLE_LANG;
 
 // ── Estados de módulos ────────────────────────────────────────────────────────
 export const MODULE_STATES = {

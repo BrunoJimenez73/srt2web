@@ -316,7 +316,7 @@ describe("WSClient - Basic Tests", () => {
 
   it("WSClient send does not throw when not connected", () => {
     const client = new WSClient("ws://localhost:9999/ws/logs");
-    expect(() => client.send({ test: "data" })).not.toThrow();
+    expect(() => client.send({ type: "auth", token: "abc" })).not.toThrow();
   });
 });
 

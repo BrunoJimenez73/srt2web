@@ -1,11 +1,12 @@
 ---
 import OutputStatusCard from './OutputStatusCard.astro';
 import OutputConfigForm from './OutputConfigForm.astro';
+import type { AnyOutputConfig, OutputStatus } from '../lib/types';
 
 interface Props {
-  outputs: any[];
+  outputs: OutputStatus[];
   errors: Record<string, string>;
-  onAddOutput: (config: any) => void;
+  onAddOutput: (config: AnyOutputConfig) => void;
   onRemoveOutput: (name: string) => void;
   onReconnectOutput: (name: string) => void;
   onEnableOutput: (name: string, enable: boolean) => void;

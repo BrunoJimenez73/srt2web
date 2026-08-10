@@ -135,9 +135,18 @@ export async function ensureCsrfToken(): Promise<string | null> {
         : {},
     });
     if (!res.ok) return _csrfToken;
-    const data = await res.json();
-    _csrfToken = data.csrf_token;
-    _csrfExpiry = Date.now() + (data.expires_in ?? 3600) * 1000 - 60000;
+    const data: unknown = await res.json();
+    if (!data || typeof data !== "object") return _csrfToken;
+    const csrfResponse = data as { csrf_token?: unknown; expires_in?: unknown };
+    if (typeof csrfResponse.csrf_token !== "string") return _csrfToken;
+    _csrfToken = csrfResponse.csrf_token;
+    _csrfExpiry =
+      Date.now() +
+      (typeof csrfResponse.expires_in === "number"
+        ? csrfResponse.expires_in
+        : 3600) *
+        1000 -
+      60000;
     return _csrfToken;
   } catch {
     return _csrfToken;
@@ -194,8 +203,17 @@ export class ApiError extends Error {
   }
 }
 
+export type HttpMethod =
+  | "GET"
+  | "POST"
+  | "PUT"
+  | "DELETE"
+  | "PATCH"
+  | "HEAD"
+  | "OPTIONS";
+
 export async function apiCall<T>(
-  method: string,
+  method: HttpMethod,
   path: string,
   body?: unknown,
   timeoutMs: number = 15000,
@@ -480,7 +498,11 @@ export class WSClient {
     return this;
   }
 
-  send(data: unknown): void {
+  /**
+   * Outbound WebSocket messages. The backend dispatches on `type`, so
+   * every frame must declare one.
+   */
+  send(data: { type: string; [key: string]: unknown }): void {
     this.ws?.send(JSON.stringify(data));
   }
 

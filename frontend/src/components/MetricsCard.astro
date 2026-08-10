@@ -529,7 +529,7 @@ const { title = 'System Metrics' } = Astro.props;
     }
 
     // Chunks failed
-    const cf = (pipelineStatus.value as any)?.chunks_failed ?? 0;
+    const cf = pipelineStatus.value?.chunks_failed ?? 0;
     const cfEl = el<HTMLDivElement>("chunks-failed");
     const cfText = el<HTMLSpanElement>("chunks-failed-text");
     if (cfEl && cfText) {

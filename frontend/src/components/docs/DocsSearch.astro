@@ -33,7 +33,19 @@
     const input = document.getElementById('search-input') as HTMLInputElement;
     const results = document.getElementById('search-results');
 
-    let pagefind: any = null;
+    interface PagefindSearchResult {
+        data: () => Promise<{
+            url: string;
+            meta?: { title?: string };
+            excerpt: string;
+        }>;
+    }
+    interface PagefindInstance {
+        init: () => Promise<void>;
+        search: (query: string) => Promise<{ results: PagefindSearchResult[] }>;
+    }
+
+    let pagefind: PagefindInstance | null = null;
     let pagefindLoading = false;
     let pagefindLoadTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -60,7 +72,16 @@
 
         try {
             const pf = '/docs/pagefind/pagefind.js';
-            pagefind = await import(/* @vite-ignore */ pf);
+            const mod: unknown = await import(/* @vite-ignore */ pf);
+            if (
+                !mod ||
+                typeof mod !== 'object' ||
+                typeof (mod as { init?: unknown }).init !== 'function' ||
+                typeof (mod as { search?: unknown }).search !== 'function'
+            ) {
+                throw new Error('pagefind module shape mismatch');
+            }
+            pagefind = mod as PagefindInstance;
             await pagefind.init();
 
             if (pagefindLoadTimeout) {
@@ -133,7 +154,7 @@
                 return;
             }
 
-            const items = await Promise.all(search.results.slice(0, 10).map(async (r: { data: () => Promise<{ url: string; meta?: { title?: string }; excerpt: string }> }) => {
+            const items = await Promise.all(search.results.slice(0, 10).map(async (r: PagefindSearchResult) => {
                 const data = await r.data();
                 return createResultItem(data);
             }));

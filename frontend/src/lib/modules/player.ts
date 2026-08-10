@@ -11,6 +11,8 @@ import {
   forceSubtitleTrackMode,
   disableSubtitles,
 } from "./player-subtitles";
+import { isHlsErrorData, isHlsLevelUpdatedData } from "../hls-guards";
+import { DEFAULT_SUBTITLE_LANG } from "../constants";
 
 declare const Hls: HlsStatic | undefined;
 
@@ -91,20 +93,6 @@ const HlsErrorTypes = {
   NETWORK_ERROR: "networkError",
   MEDIA_ERROR: "mediaError",
 };
-
-interface HlsErrorData {
-  type: string;
-  fatal: boolean;
-  details: string;
-}
-
-interface HlsLevelUpdatedData {
-  level: number;
-  details?: {
-    bitrate?: number;
-    totalduration?: number;
-  };
-}
 
 let healthCheckInterval: ReturnType<typeof setInterval> | null = null;
 let consecutiveErrors = 0;
@@ -325,7 +313,7 @@ export function initHlsPlayer(): void {
         if (hls) {
           activateFirstSubtitleTrack(hls, {
             video,
-            preferredLang: "es",
+            preferredLang: DEFAULT_SUBTITLE_LANG,
           });
         }
       });
@@ -371,19 +359,20 @@ export function initHlsPlayer(): void {
       });
 
       hls.on(HlsEvents.LEVEL_UPDATED, (_event, data: unknown) => {
-        const d = data as HlsLevelUpdatedData;
-        if (d.details?.bitrate) {
-          sendBandwidth(d.details.bitrate);
+        if (!isHlsLevelUpdatedData(data)) return;
+        if (data.details?.bitrate) {
+          sendBandwidth(data.details.bitrate);
         }
         forceSubtitleTrackMode(video);
       });
 
       hls.on(HlsEvents.ERROR, (_event, data: unknown) => {
-        const err = data as HlsErrorData;
-        logger.warn("player", "HLS Error", err.type, err.fatal, err.details);
+        if (!isHlsErrorData(data)) return;
+        const { type, fatal, details } = data;
+        logger.warn("player", "HLS Error", type, fatal, details);
 
-        if (err.fatal) {
-          switch (err.type) {
+        if (fatal) {
+          switch (type) {
             case HlsErrorTypes.NETWORK_ERROR: {
               const delay = Math.min(
                 BASE_RETRY_DELAY_MS * Math.pow(2, retryCount),
