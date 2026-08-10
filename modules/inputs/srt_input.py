@@ -368,6 +368,21 @@ class SRTInput(InputSource):
 
     def _start_ffmpeg_process(self) -> None:
         """Crear y iniciar el proceso FFmpeg (para reinicios)."""
+        # F185: FFmpeg renumbers chunk_%06d.ts from 0 on every fresh process.
+        # After a watchdog restart, keep the consumed index in sync and
+        # purge stale chunk files, otherwise get_next_chunk() ignores the
+        # new chunks (idx <= _last_chunk_index) and the stream freezes
+        # until FFmpeg's counter catches up with the old index.
+        if self._last_chunk_index >= 0:
+            self.logger.info(
+                f"F185: purging {len(list(Path(self._chunks_dir).glob('chunk_*.ts')))} stale chunks "
+                f"and resetting chunk index {self._last_chunk_index} -> -1"
+            )
+        self._last_chunk_index = -1
+        with contextlib.suppress(OSError):
+            for stale in Path(self._chunks_dir).glob("chunk_*.ts"):
+                stale.unlink()
+
         # Construir URL SRT
         latency_us = self._srt_latency_ms * 1000
         if self._srt_mode == "caller" and self._srt_caller_address:
@@ -503,7 +518,11 @@ class SRTInput(InputSource):
                 try:
                     test_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                     test_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                    test_sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0))
+                    # F187: SO_LINGER on a UDP socket raises WSAEOPNOTSUPP
+                    # (WinError 10042) on newer Python/stack combinations.
+                    # It is optional — a plain bind() is enough to probe the port.
+                    with contextlib.suppress(OSError):
+                        test_sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0))
                     test_sock.bind(("0.0.0.0", self._srt_port))
                     test_sock.close()
                     self.logger.info(f"✓ Port {self._srt_port} is now FREE")

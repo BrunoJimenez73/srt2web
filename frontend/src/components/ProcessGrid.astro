@@ -22,6 +22,8 @@ import OutputCard from './OutputCard.astro';
 <style>
   .process-grid {
     display: grid;
+    /* F186: CSS grid guarantees every card in a row has the SAME width.
+       flex-wrap produced irregular rows (4 / 3 / 1 loose card). */
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 12px;
     margin-bottom: 16px;
@@ -32,9 +34,87 @@ import OutputCard from './OutputCard.astro';
       grid-template-columns: 1fr;
     }
   }
+
+  /* ================================
+     COLLAPSIBLE CARD PATTERN (vMix-like)
+     ================================ */
+  .collapsible-card {
+    position: relative;
+  }
+
+  .collapsible-card .process-header {
+    cursor: pointer;
+    user-select: none;
+    border-radius: var(--radius-sm);
+  }
+
+  .collapsible-card .process-header:hover {
+    background: var(--bg-surface);
+  }
+
+  .collapse-chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: var(--text-sec);
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+    transform: rotate(90deg);
+  }
+
+  .collapsible-card.collapsed .collapse-chevron {
+    transform: rotate(0deg);
+  }
+
+  .collapsible-card.collapsed .process-content {
+    display: none !important;
+  }
 </style>
 
 <script>
+  // Collapsible cards: apply to all cards that are direct children of .process-grid
+  function initCollapsibleCards() {
+    const grid = document.querySelector('.process-grid');
+    if (!grid) return;
+
+    const cards = grid.querySelectorAll(':scope > .collapsible-card');
+    for (const card of cards) {
+      const header = card.querySelector('.process-header');
+      if (!header) continue;
+
+      // Check if header already has a chevron, add one if not
+      let chevron = header.querySelector('.collapse-chevron');
+      if (!chevron) {
+        chevron = document.createElement('span');
+        chevron.className = 'collapse-chevron';
+        chevron.setAttribute('aria-hidden', 'true');
+        chevron.textContent = '▶';
+        header.insertBefore(chevron, header.firstChild);
+      }
+
+      header.addEventListener('click', (e) => {
+        // Don't collapse if clicking a toggle, button, select, input, or link
+        const target = e.target as HTMLElement;
+        if (target.closest('label') || target.closest('button') || target.closest('select') ||
+            target.closest('input') || target.closest('a') || target.closest('.toggle-switch') ||
+            target.closest('.gpu-badge') || target.closest('.sync-badge') ||
+            target.closest('.btn-copy-small') || target.closest('.btn')) {
+          return;
+        }
+        card.classList.toggle('collapsed');
+      });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCollapsibleCards);
+  } else {
+    initCollapsibleCards();
+  }
+
   import { effect } from "@preact/signals-core";
   import { pipelineStatus, isPipelineRunning, throughputAvg } from "../lib/store/signals";
 
@@ -63,8 +143,10 @@ import OutputCard from './OutputCard.astro';
     ];
 
     for (const entry of moduleEntries) {
-      // Find module by checking multiple possible names
-      const mod = moduleMap[entry.name] ?? moduleMap[entry.name.replace("_", "_")];
+      // F186: moduleMap keys match module names 1:1. The previous
+      // `replace("_", "\\_")` produced "audio\\_extractor" — never a
+      // real key — so every badge/indicator silently stayed off.
+      const mod = moduleMap[entry.name];
 
       // Indicators (green dot)
       const ind = el<HTMLSpanElement>(entry.indicator);

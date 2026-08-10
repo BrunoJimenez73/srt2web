@@ -20,7 +20,7 @@ from types import FrameType
 try:
     from dotenv import load_dotenv  # F112: load .env (SRT2WEB_JWT_SECRET etc.) before other imports
 
-    load_dotenv()  # noqa: E402 - intentional: must run before core imports below
+    load_dotenv()
     from core import SERVER_HOST, SERVER_PORT_DEFAULT, get_config_path, get_project_root
     from core.app_context import create_app_context
     from core.config_manager import ConfigManager, validate_secrets
@@ -167,6 +167,13 @@ def main() -> None:
     # Build application context (pipeline + modules + I/O)
     output_dir = str(PROJECT_ROOT / "output")
     app_context = create_app_context(config_manager, output_dir)
+
+    # F183: Pre-warm expensive one-time imports (argostranslate ~30s,
+    # faster_whisper) in a background thread so the first pipeline start
+    # doesn't block the event loop for tens of seconds.
+    from core.warmup import prewarm_models
+
+    prewarm_models()
 
     # Open browser after startup
     ssl_enabled = ssl_config.get("enabled", False)

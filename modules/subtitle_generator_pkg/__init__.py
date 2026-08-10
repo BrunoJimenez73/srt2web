@@ -56,6 +56,12 @@ class SubtitleGenerator(BaseModule):
         self._last_chunk_index = -1
         self._last_cumulative = 0.0
 
+        # F184: chunks from parallel workers can arrive out of order. Buffer
+        # them and write strictly in chunk-index order so the rolling HLS
+        # playlist never skips or reorders fragments.
+        self._pending: dict[int, PipelineData] = {}
+        self._MAX_PENDING = 128
+
         super().__init__("subtitle_generator", config)
 
     def configure(self, config: dict[str, Any]) -> None:
@@ -70,6 +76,7 @@ class SubtitleGenerator(BaseModule):
             with self._lock:
                 self._last_chunk_index = -1
                 self._last_cumulative = 0.0
+                self._pending.clear()
                 self._fragment_writer.clear()
                 self._fragment_writer.rewrite_playlist()
             self._chunk_duration = new_chunk_duration
@@ -107,6 +114,7 @@ class SubtitleGenerator(BaseModule):
 
         self._last_chunk_index = -1
         self._last_cumulative = 0.0
+        self._pending.clear()
         self._state = ModuleState.RUNNING
         logger.info(
             f"SubtitleGenerator ready. Format: {self._format}, "
@@ -114,6 +122,7 @@ class SubtitleGenerator(BaseModule):
         )
 
     def stop(self) -> None:
+        self._pending.clear()
         self._state = ModuleState.IDLE
 
     def get_playlist_path(self) -> Path | None:
@@ -172,7 +181,15 @@ class SubtitleGenerator(BaseModule):
         self._fragment_writer.rewrite_playlist()
 
     def _do_process(self, data: PipelineData) -> PipelineData:
-        """Append new text to the HLS fragment and rewrite the playlist."""
+        """Append new text to the HLS fragment and rewrite the playlist.
+
+        F184: workers run in parallel, so chunks can arrive out of order.
+        A pending buffer reserializes them — fragments and the rolling
+        playlist stay in strictly ascending chunk order. Without this,
+        a later chunk gets written first, the playlist shows subtitles
+        that do not belong to the current video segment, and fragments
+        get dropped from the rolling window (subtitles "disappear").
+        """
         text = data.translated_text if self._use_translated else data.transcript
 
         data_duration = getattr(data, "duration", None)
@@ -187,6 +204,53 @@ class SubtitleGenerator(BaseModule):
         if not text:
             return data
 
+        # Handle pause loop / duplicate chunks
+        is_loop = data.metadata.get("is_loop", False)
+        if is_loop:
+            logger.debug(f"[SubtitleGen] Pause loop detected - chunk {data.chunk_index} replaying, skipping")
+            return data
+
+        with self._lock:
+            expected = self._last_chunk_index + 1
+
+            if data.chunk_index < expected:
+                # Stale or duplicate — a fragment with this index was already written
+                return data
+
+            if data.chunk_index > expected:
+                # Out-of-order: hold it until its predecessors arrive
+                if data.chunk_index > expected + self._MAX_PENDING:
+                    # Predecessors are lost (e.g. watchdog restart renumbered
+                    # the source). Accept the jump instead of stalling forever.
+                    logger.warning(
+                        f"[SubtitleGen] Chunk gap too large: expected {expected}, "
+                        f"got {data.chunk_index} — writing anyway"
+                    )
+                else:
+                    self._pending[data.chunk_index] = data
+                    logger.debug(f"[SubtitleGen] Buffered out-of-order chunk {data.chunk_index} (expected {expected})")
+                    return data
+
+            self._write_chunk_locked(data, text, duration, chunk_start_time)
+            self._drain_pending_locked(duration)
+
+        return data
+
+    def _drain_pending_locked(self, default_duration: float) -> None:
+        """Write buffered successors that are now contiguous. Caller holds ``self._lock``."""
+        while True:
+            nxt = self._pending.pop(self._last_chunk_index + 1, None)
+            if nxt is None:
+                break
+            nxt_duration = getattr(nxt, "duration", None)
+            if not nxt_duration or nxt_duration <= 0:
+                nxt_duration = default_duration
+            nxt_text = (nxt.translated_text if self._use_translated else nxt.transcript) or ""
+            nxt_cumulative = getattr(nxt, "cumulative_duration", 0.0)
+            self._write_chunk_locked(nxt, nxt_text, nxt_duration, nxt_cumulative)
+
+    def _write_chunk_locked(self, data: PipelineData, text: str, duration: float, chunk_start_time: float) -> None:
+        """Write one fragment + rewrite playlist. Caller must hold ``self._lock``."""
         # Validate cumulative_duration is monotonically increasing
         if chunk_start_time < self._last_cumulative:
             logger.warning(
@@ -195,18 +259,6 @@ class SubtitleGenerator(BaseModule):
                 f"using last cumulative to prevent drift"
             )
             chunk_start_time = self._last_cumulative
-
-        # Handle pause loop / duplicate chunks
-        is_loop = data.metadata.get("is_loop", False)
-        if is_loop:
-            logger.debug(f"[SubtitleGen] Pause loop detected - chunk {data.chunk_index} replaying, skipping")
-            return data
-        elif data.chunk_index == self._last_chunk_index and self._last_chunk_index >= 0:
-            return data
-        elif data.chunk_index != self._last_chunk_index + 1 and self._last_chunk_index >= 0:
-            logger.warning(
-                f"[SubtitleGen] Chunk sequence break: expected {self._last_chunk_index + 1}, got {data.chunk_index}"
-            )
 
         if chunk_start_time <= self._last_cumulative and self._last_cumulative > 0:
             logger.warning(
@@ -241,39 +293,36 @@ class SubtitleGenerator(BaseModule):
 
         # Write HLS fragment + rewrite playlist (single atomic operation under lock)
         try:
-            with self._lock:
-                # Write fragment with media-relative timestamps (0..duration)
-                fragment_path = self._fragment_writer.write_fragment(
-                    data.chunk_index, segments, duration, pts_start=chunk_start_time
-                )
+            # Write fragment with media-relative timestamps (0..duration)
+            fragment_path = self._fragment_writer.write_fragment(
+                data.chunk_index, segments, duration, pts_start=chunk_start_time
+            )
 
-                if fragment_path:
-                    self._fragment_writer.add_fragment(data.chunk_index, duration, chunk_start_time, fragment_path)
-                    self._fragment_writer.rewrite_playlist()
+            if fragment_path:
+                self._fragment_writer.add_fragment(data.chunk_index, duration, chunk_start_time, fragment_path)
+                self._fragment_writer.rewrite_playlist()
 
-                # Dual track: write alt VTT with absolute timestamps (legacy path)
-                if self._dual_track and alt_segments:
-                    try:
-                        with open(self._vtt_alt_path, "w", encoding="utf-8") as f:
-                            f.write("WEBVTT\n\n")
-                            for i, seg in enumerate(alt_segments):
-                                rel_start = seg.get("start", 0)
-                                rel_end = seg.get("end", duration)
-                                clean_alt = seg.get("text", "").replace("\n", " ").strip()
-                                if not clean_alt:
-                                    continue
-                                abs_start = chunk_start_time + rel_start
-                                abs_end = chunk_start_time + rel_end
-                                start_str = format_timestamp(abs_start, "vtt")
-                                end_str = format_timestamp(abs_end, "vtt")
-                                f.write(f"{i + 1}\n")
-                                f.write(f"{start_str} --> {end_str}\n")
-                                f.write(f"{clean_alt}\n\n")
-                    except Exception as e:
-                        logger.error(f"Error writing alt VTT: {e}")
+            # Dual track: write alt VTT with absolute timestamps (legacy path)
+            if self._dual_track and alt_segments:
+                try:
+                    with open(self._vtt_alt_path, "w", encoding="utf-8") as f:
+                        f.write("WEBVTT\n\n")
+                        for i, seg in enumerate(alt_segments):
+                            rel_start = seg.get("start", 0)
+                            rel_end = seg.get("end", duration)
+                            clean_alt = seg.get("text", "").replace("\n", " ").strip()
+                            if not clean_alt:
+                                continue
+                            abs_start = chunk_start_time + rel_start
+                            abs_end = chunk_start_time + rel_end
+                            start_str = format_timestamp(abs_start, "vtt")
+                            end_str = format_timestamp(abs_end, "vtt")
+                            f.write(f"{i + 1}\n")
+                            f.write(f"{start_str} --> {end_str}\n")
+                            f.write(f"{clean_alt}\n\n")
+                except Exception as e:
+                    logger.error(f"Error writing alt VTT: {e}")
 
-                data.subtitles_path = fragment_path or str(self._subtitles_dir / "subs.m3u8")
+            data.subtitles_path = fragment_path or str(self._subtitles_dir / "subs.m3u8")
         except Exception as e:
             logger.error(f"Error writing HLS fragment/playlist: {e}")
-
-        return data

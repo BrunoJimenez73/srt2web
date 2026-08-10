@@ -73,8 +73,7 @@ class TestRollingSubtitles:
 
         # Add more fragments than max
         gen._fragment_writer._fragments = [
-            {"chunk_index": i, "duration": 5.0, "pts_start": 0.0, "path": f"seg_{i}.vtt"}
-            for i in range(10)
+            {"chunk_index": i, "duration": 5.0, "pts_start": 0.0, "path": f"seg_{i}.vtt"} for i in range(10)
         ]
 
         gen._fragment_writer.trim()

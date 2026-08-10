@@ -150,10 +150,11 @@ async def start_pipeline(request: Request) -> dict[str, Any]:
             log_broadcast("info", f"Pipeline state changed: {state}")
 
     try:
-        pipeline.start(
-            on_log=on_log,
-            on_state_change=on_state,
-        )
+        # F183: pipeline.start() blocks for tens of seconds (model imports,
+        # Piper warm-up). Run it in a thread so the event loop keeps serving
+        # /api/status, /api/outputs and WebSockets — otherwise the dashboard
+        # shows "failed to fetch outputs" and the UI freezes during startup.
+        await asyncio.to_thread(pipeline.start, on_log, on_state)
     except Exception as e:
         logger.error("Failed to start pipeline: %s", e)
         # F161: Return generic message to avoid leaking internal details

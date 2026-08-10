@@ -254,6 +254,43 @@ Ver `feature_list.json` para lista completa y estados. Total actual: 130 feature
 
 ## 8. Historial compacto (post-Abril 2026)
 
+### 10/08 — Frontend type safety audit (F180)
+
+- **F180 cerrado**: eliminados `any` y casteos sin validación en producción:
+  - `apiCall()`: `method: string` → union `HttpMethod` ("GET"|"POST"|"PUT"|"DELETE"|"PATCH"|"HEAD"|"OPTIONS"). `ensureCsrfToken()` validaba con type guard propio y `unknown` (antes `data.csrf_token` con any implícito).
+  - `WSClient.send()`: `data: unknown` → `{ type: string; [key: string]: unknown }` (el backend despacha por `type`, cada frame debe declararlo). Test de api ajustado.
+  - Eventos HLS.js con type guards: nuevo `frontend/src/lib/hls-guards.ts` con `isHlsErrorData()`/`isHlsLevelUpdatedData()` (interfaces `HlsErrorData`/`HlsLevelUpdatedData` movidas de player.ts). `player.ts` usa los guards en LEVEL_UPDATED y ERROR en vez de `data as X`.
+  - `preferredLang` externalizado: `DEFAULT_SUBTITLE_LANG = DEFAULTS.SUBTITLE_LANG` en `lib/constants.ts`; `player.ts` ya no hardcodea `"es"`.
+  - `MetricsCard.astro`: `(pipelineStatus.value as any)?.chunks_failed` → `pipelineStatus.value?.chunks_failed` (Status ya tipa `chunks_failed?`).
+  - `OutputManagerCard.astro`: props `any[]`/`(config: any)` → `OutputStatus[]`/`AnyOutputConfig` (import de `lib/types`).
+  - `DocsSearch.astro`: `pagefind: any` → interfaz `PagefindInstance` con shape-check al importar.
+- **Verificación**: `tsc --noEmit` 0 errores; `npm test` 248 passed, 8 skipped (8 nuevos en `hls-guards.test.ts`); `npm run lint` 0 errores (3 warnings pre-existentes); `build:local` 6 páginas OK — build-all falla solo por `mkdocs` no instalado en este entorno (pre-existente, docs).
+- Detalles en `harness.db` (sesión #33).
+
+### 10/08 — Type safety audit (F179)
+
+- **F179 cerrado**: eliminados los últimos `Any` con tipos concretos y código huérfano:
+  - `modules/tts_engine.py`: `_piper_manager: Any` → `PiperSubprocessManager | None` (import vía TYPE_CHECKING; el lazy import real en `_init_piper` se mantiene → cero carga de onnxruntime en import).
+  - `server/routes/outputs.py`: `_get_composite(pipeline: Any) -> Any` → `(pipeline: UnifiedPipeline) -> CompositeOutput` (imports vía TYPE_CHECKING; `from __future__ import annotations` para evaluación diferida). `status: dict[str, Any] | ModuleStatus` en fallback de sink simple. En `server/api_routes.py` eliminado `cast(dict[str, Any], ...)` redundante.
+  - TUI screens (4): `api_client: Any` → `APIClient` en `input_control.py`, `presets_screen.py`, `recordings_screen.py`, `module_detail.py` (import de `cli.client.http_client`).
+  - `core/module_base.py:93-136`: eliminado docstring huérfano + `MemoryManager.to_dict()` roto (referenciaba `self.name/state/extra` inexistentes, 0 usos en repo).
+  - `core/types.py`: eliminada dataclass duplicada `SystemMetrics` (nadie la importaba; la canónica Pydantic vive en `core/schemas.py:67`).
+- **Verificación**: mypy --strict sobre los 9 archivos tocados + `core/ server/ modules/` — único error restante `core/paths.py:163` (pre-existente); mypy `cli/` solo 3 errores pre-existentes en `cli/tui/app.py` (reactive assignments, no tocado); ruff 0 en los 9; 63 tests impactados pasan (test_stability, test_tts_engine, test_f106_piper_voice, test_f183_f187_startup_races); 25 fallos tests/cli confirmados pre-existentes vía git stash (fallan igual en HEAD); imports de todos los módulos editados OK.
+- Detalles en `harness.db` (sesión #32).
+
+### 10/08 — Fixes de arranque, races paralelas y dashboard (F183–F187)
+
+- **F183 cerrado** (start no bloqueante): `POST /api/start` bloqueaba el event loop ~41s (import argos 31.7s + whisper + Piper lazy). Fix: `await asyncio.to_thread(pipeline.start, ...)` en `server/routes/pipeline.py` (el endpoint responde al instante); `core/warmup.py` nuevo — daemon thread que pre-carga argos/whisper al arrancar el server (idempotente, skip en testing); `modules/tts_engine.py` arma el subproceso Piper en thread `tts-warmup-{voice}` (best-effort). Primer start pasa de ~41s a segundos de respuesta inmediata del API.
+- **F184 cerrado** (races paralelas, eco + subtítulos que desaparecen):
+  - **TTS doble subproceso**: lazy-load sin lock → 2 workers spawn eran 2 subprocesos Piper (log: doble load 23:06:05/06 → audio repetido 10-20s). Fix: `_load_lock` threading.Lock + `_ensure_piper_loaded()` con doble-check; si `stop()` ocurre durante la carga se mata el manager y se resetea.
+  - **Subtítulos fuera de orden**: workers en paralelo entregaban chunks desordenados a `SubtitleGenerator`, que escribía en orden de llegada → playlist rolling saltaba fragmentos (subtítulos desaparecían). Fix: buffer `_pending` + `_drain_pending_locked()` en `modules/subtitle_generator_pkg/__init__.py` — `idx == expected` escribe directo (cero latencia en orden), `idx > expected` se bufferiza, `idx < expected` se descarta (duplicado/stale), gap `> expected+128` (MAX_PENDING) escribe con warning (escape tras watchdog restart). Fragmentos estrictamente ascendentes.
+  - **Crossfade no atómico**: `AudioMixer._prev_end_sample` leído/escrito sin lock → cola del chunk tardío sangraba en la cabeza del previo. Fix: `_mix_lock` alrededor del bloque read-blend-write.
+- **F185 cerrado** (SRT congelado tras watchdog restart): FFmpeg renumera `chunk_%06d.ts` desde 0 en cada proceso nuevo, pero `_last_chunk_index` quedaba alto → chunks nuevos ignorados hasta alcanzar el contador. Fix: `_start_ffmpeg_process()` resetea `_last_chunk_index = -1` y purga `chunk_*.ts` antes de lanzar FFmpeg.
+- **F186 cerrado** (dashboard grid irregular): CSS grid `repeat(auto-fit, minmax(280px, 1fr))` (era flex-wrap → 4/3/1 layout), móduloMap sin el replace roto, `mod.extra.encoder_mode` (snake_case) en las cards, `collapsible-card` añadido en las 9 cards.
+- **F187 cerrado**: `stop()` lanzaba WinError 10042 (WSAEOPNOTSUPP) en `setsockopt(SO_LINGER)` sobre socket UDP → bind se skipeaba → "port still in use" ×3 + taskkill agresivo. Fix: `with contextlib.suppress(OSError)` (SO_LINGER es opcional).
+- **Tests**: `tests/unit/test_f183_f187_startup_races.py` (17 tests: warmup, concurrencia `_ensure_piper_loaded`, orden de fragmentos con threads, crossfade atómico con contenido verificado, reset de índice+purge, SO_LINGER falla/soporta). Verificación: 1594 passed; los 45 failed son todos pre-existentes confirmados vía `git stash` (auth/JWT "HMAC key must not be empty", WebRTC, mypy `core/paths.py:163`, f108 master playlist ×2); mypy --strict sin errores nuevos (solo el pre-existente); ruff limpio en archivos tocados; frontend 240 tests passed, tsc 0 errores, lint 0 errores.
+- Detalles en `harness.db` (sesión #29).
+
 ### 13/06 — Refactor: extraer loops a strategies (F132)
 
 - **F132 cerrado**: `unified_pipeline.py` reducido de 1106 → 599 líneas (-46%). Los 5 métodos de loop (sequential, input/worker/output threads, async) movidos a `core/pipeline/strategies.py` con `PipelineContext` dataclass para compartir estado. `pipeline_helpers.py` nuevo con output status y reconfigure. Lazy imports vía `importlib` para romper dependencia circular. 48 tests pipeline pasan, mypy --strict 0 errores en 3 archivos.
