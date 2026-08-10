@@ -14,6 +14,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
@@ -224,7 +225,7 @@ class WebRTCEngine:
         pc.addTrack(video_track)
         pc.addTrack(audio_track)
 
-        @pc.on("datachannel")  # type: ignore[untyped-decorator]
+        @pc.on("datachannel")
         def on_datachannel(channel: Any) -> None:
             logger.info(f"Data channel received: {channel.label}")
             if channel.label == "subtitles":
@@ -240,11 +241,18 @@ class WebRTCEngine:
 
         answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
-        await pc.iceGatheringStateComplete
+
+        # Esperar a que el ICE gathering termine (defaults/excludes en la
+        # respuesta). En aiortc moderno no existe iceGatheringStateComplete;
+        # poll del estado con timeout de 5s.
+        for _ in range(50):
+            if pc.iceGatheringState == "complete":
+                break
+            await asyncio.sleep(0.1)
 
         logger.info(f"WebRTC connection established for client {client_id}")
 
-        return pc.localDescription.sdp  # type: ignore[no-any-return]
+        return pc.localDescription.sdp
 
     def remove_connection(self, client_id: str) -> None:
         """Remove a client connection."""
@@ -323,7 +331,7 @@ class WebRTCConnection:
         self.engine.remove_connection(self.client_id)
 
 
-class WebRTCVideoTrack(VideoStreamTrack):  # type: ignore[misc]
+class WebRTCVideoTrack(VideoStreamTrack):
     """Video track for WebRTC streaming using real HLS segment frames."""
 
     def __init__(self, engine: WebRTCEngine, client_id: str):
@@ -404,7 +412,7 @@ class WebRTCVideoTrack(VideoStreamTrack):  # type: ignore[misc]
         return frames
 
 
-class WebRTCAudioTrack(AudioStreamTrack):  # type: ignore[misc]
+class WebRTCAudioTrack(AudioStreamTrack):
     """Audio track for WebRTC streaming using real mixed audio samples."""
 
     def __init__(self, engine: WebRTCEngine, client_id: str):
@@ -414,12 +422,17 @@ class WebRTCAudioTrack(AudioStreamTrack):  # type: ignore[misc]
         self._sample_buffer = np.array([], dtype=np.float32)
         self._sample_rate = 48000
         self._current_path = ""
+        self._timestamp = 0
 
     async def recv(self) -> Any:
         """Receive next audio frame from mixed audio files."""
-        pts, time_base = await self.next_timestamp()
-
         samples = await self._get_samples(960)
+
+        # AudioStreamTrack moderno no expone next_timestamp(); el timestamp
+        # se gestiona localmente como en los ejemplos oficiales de aiortc.
+        pts = self._timestamp
+        self._timestamp += samples.shape[0]
+        time_base = Fraction(1, self._sample_rate)
 
         from av import AudioFrame
 

@@ -2,6 +2,7 @@
 Centralized path utilities for SRT2Web.
 All path operations should use functions from this module.
 """
+
 import os
 import time
 from pathlib import Path
@@ -160,7 +161,7 @@ def get_cache_dir() -> Path:
     Falls back to project_root/.cache/ if platformdirs not available.
     """
     try:
-        from platformdirs import user_cache_dir  # type: ignore[import-not-found]
+        from platformdirs import user_cache_dir
 
         cache = Path(user_cache_dir("srt2web", ensure_exists=True))
         return cache

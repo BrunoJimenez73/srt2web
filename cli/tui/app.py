@@ -8,7 +8,6 @@ from typing import Any
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.reactive import reactive
 from textual.widgets import Footer
 
 from cli.client.http_client import APIClient, LogEntry, ModuleInfo, PipelineStatus
@@ -118,8 +117,6 @@ class SRT2WebTUI(App[Any]):
         self._polling_task: asyncio.Task[Any] | None = None
         self.status: PipelineStatus | None = None
         self.logs: list[LogEntry] = []
-        self.ws_connected = reactive(False)
-        self.pipeline_state = reactive("stopped")
         self._config_data: dict[str, Any] | None = None
         self._last_module_index = 0
 
@@ -155,7 +152,6 @@ class SRT2WebTUI(App[Any]):
             return
         try:
             self.status = PipelineStatus.from_dict(data)
-            self.pipeline_state = self.status.state
             dashboard = self.query_one(DashboardScreen)
             dashboard.update_status(self.status)
             dashboard.update_metrics(self.status.system)
@@ -164,7 +160,6 @@ class SRT2WebTUI(App[Any]):
             logger.warning("Failed to process WS status update: %s", e, exc_info=True)
 
     def _on_ws_connection(self, connected: bool) -> None:
-        self.ws_connected = connected
         try:
             dashboard = self.query_one(DashboardScreen)
             h = dashboard.query_one("#tui-header")
@@ -183,7 +178,6 @@ class SRT2WebTUI(App[Any]):
 
             try:
                 self.status = await self.api.get_status()
-                self.pipeline_state = self.status.state
                 dashboard.update_status(self.status)
                 dashboard.update_metrics(self.status.system)
                 dashboard.update_modules(self.status.modules)
