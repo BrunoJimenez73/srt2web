@@ -90,51 +90,6 @@ class MemoryManager:
         """Check if it's time to run memory check."""
         return self._chunk_counter % self.check_interval == 0
 
-    """Status information for a pipeline module.
-
-    Attributes:
-        name: Name of the module.
-        state: Current state of the module (from ModuleState).
-        enabled: Whether the module is enabled.
-        error_message: Error message if module is in error state.
-        processed_chunks: Number of chunks processed by this module.
-        last_process_time_ms: Processing time of last chunk in milliseconds.
-        extra: Additional module-specific status information.
-        circuit_state: Current circuit breaker state if applicable.
-        memory_mb: Memory usage in MB if available.
-    """
-
-    name: str
-    state: ModuleState
-    enabled: bool
-    error_message: str | None = None
-    processed_chunks: int = 0
-    last_process_time_ms: float = 0.0
-    extra: dict[str, Any] = field(default_factory=dict)
-    circuit_state: str | None = None
-    memory_mb: float | None = None
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert status to dictionary for JSON serialization.
-
-        Returns:
-            Dictionary with status information.
-        """
-        result = {
-            "name": self.name,
-            "state": self.state.value,
-            "enabled": self.enabled,
-            "error_message": self.error_message,
-            "processed_chunks": self.processed_chunks,
-            "last_process_time_ms": round(self.last_process_time_ms, 2),
-            "extra": self.extra,
-        }
-        if self.circuit_state:
-            result["circuit_state"] = self.circuit_state
-        if self.memory_mb is not None:
-            result["memory_mb"] = self.memory_mb
-        return result
-
 
 @dataclass
 class PipelineData:
@@ -370,7 +325,7 @@ class BaseModule(ABC):
                     )
                     time.sleep(delay)
                 else:
-                    self.logger.error(f"All retries exhausted for {self.name} " f"(chunk {data.chunk_index}): {e}")
+                    self.logger.error(f"All retries exhausted for {self.name} (chunk {data.chunk_index}): {e}")
 
         elapsed = (time.perf_counter() - start_time) * 1000
         self._last_process_time_ms = elapsed

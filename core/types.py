@@ -138,55 +138,6 @@ class LogMessage:
 
 
 @dataclass
-class SystemMetrics:
-    """
-    Métricas del sistema.
-    """
-
-    cpu_percent: float = 0.0
-    memory_percent: float = 0.0
-    memory_used_mb: float = 0.0
-    memory_total_mb: float = 0.0
-    disk_percent: float = 0.0
-    disk_used_gb: float = 0.0
-    disk_total_gb: float = 0.0
-
-    # GPU (si está disponible)
-    gpu_available: bool = False
-    gpu_name: str | None = None
-    gpu_usage_percent: float = 0.0
-    gpu_memory_used_mb: float = 0.0
-    gpu_memory_total_mb: float = 0.0
-    gpu_temperature: float | None = None
-
-    # Proceso actual
-    process_cpu_percent: float = 0.0
-    process_memory_percent: float = 0.0
-    process_memory_used_mb: float = 0.0
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convierte las métricas a diccionario."""
-        return {
-            "cpu_percent": self.cpu_percent,
-            "memory_percent": self.memory_percent,
-            "memory_used_mb": self.memory_used_mb,
-            "memory_total_mb": self.memory_total_mb,
-            "disk_percent": self.disk_percent,
-            "disk_used_gb": self.disk_used_gb,
-            "disk_total_gb": self.disk_total_gb,
-            "gpu_available": self.gpu_available,
-            "gpu_name": self.gpu_name,
-            "gpu_usage_percent": self.gpu_usage_percent,
-            "gpu_memory_used_mb": self.gpu_memory_used_mb,
-            "gpu_memory_total_mb": self.gpu_memory_total_mb,
-            "gpu_temperature": self.gpu_temperature,
-            "process_cpu_percent": self.process_cpu_percent,
-            "process_memory_percent": self.process_memory_percent,
-            "process_memory_used_mb": self.process_memory_used_mb,
-        }
-
-
-@dataclass
 class ChunkInfo:
     """
     Información sobre un chunk de video/audio.

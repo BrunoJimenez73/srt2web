@@ -9,6 +9,8 @@ from textual.containers import Horizontal, ScrollableContainer
 from textual.screen import Screen
 from textual.widgets import Button, Static
 
+from cli.client.http_client import APIClient
+
 
 class RecordingsScreen(Screen[Any]):
     CSS = """
@@ -56,7 +58,7 @@ class RecordingsScreen(Screen[Any]):
         ("r", "refresh", "Refresh"),
     ]
 
-    def __init__(self, api_client: Any):
+    def __init__(self, api_client: APIClient):
         super().__init__()
         self.api_client = api_client
         self._recordings: list[dict[str, Any]] = []

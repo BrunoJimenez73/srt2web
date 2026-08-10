@@ -9,6 +9,8 @@ from textual.containers import Horizontal, ScrollableContainer
 from textual.screen import Screen
 from textual.widgets import Button, Input, Static
 
+from cli.client.http_client import APIClient
+
 
 class PresetsScreen(Screen[Any]):
     CSS = """
@@ -70,7 +72,7 @@ class PresetsScreen(Screen[Any]):
         ("d", "delete_preset", "Delete"),
     ]
 
-    def __init__(self, api_client: Any):
+    def __init__(self, api_client: APIClient):
         super().__init__()
         self.api_client = api_client
         self._presets: list[dict[str, Any]] = []

@@ -2,15 +2,22 @@
 Output management routes for SRT2Web API.
 """
 
+from __future__ import annotations
+
 import logging
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, HTTPException, Request
 
 from core.io_factory import OutputFactory
+from core.schemas import ModuleStatus
 from server.ctx import get_ctx as _ctx
 from server.validators import AddOutputRequest, UpdateOutputRequest
+
+if TYPE_CHECKING:
+    from core.unified_pipeline import UnifiedPipeline
+    from modules.outputs.composite_output import CompositeOutput
 
 logger = logging.getLogger("srt2web.api.outputs")
 
@@ -84,7 +91,7 @@ def _sync_outputs_to_config(request: Request, composite: Any) -> None:
         logger.warning(f"Could not sync outputs to config: {e}")
 
 
-def _get_composite(pipeline: Any) -> Any:
+def _get_composite(pipeline: UnifiedPipeline) -> CompositeOutput:
     """Helper: obtiene el CompositeOutput del pipeline. Lanza 500 si no existe."""
     composite = pipeline.get_output_sinks()
     if composite is None:
@@ -107,7 +114,7 @@ async def list_outputs(request: Request) -> dict[str, Any]:
         return {"outputs": composite.get_all_output_statuses()}
 
     # Fallback para sink simple
-    status = composite.get_status() if hasattr(composite, "get_status") else {}
+    status: dict[str, Any] | ModuleStatus = composite.get_status() if hasattr(composite, "get_status") else {}
     if hasattr(status, "to_dict"):
         status = status.to_dict()
     return {

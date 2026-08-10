@@ -9,14 +9,18 @@ import asyncio
 import contextlib
 import logging
 import os
+import threading
 import time
 import traceback
 import wave
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.module_base import BaseModule, ModuleState, ModuleStatus, PipelineData
 from core.subprocess_utils import get_creation_flags
+
+if TYPE_CHECKING:
+    from modules.piper_loader import PiperSubprocessManager
 
 logger = logging.getLogger("srt2web.module.tts_engine")
 
@@ -39,7 +43,13 @@ class TTSEngine(BaseModule):
 
         # Piper specific
         self._piper_voice = None
-        self._piper_manager: Any = None  # PiperSubprocessManager when engine is piper
+        self._piper_manager: PiperSubprocessManager | None = None
+        self._voice_loaded = False  # Track if voice has been loaded
+
+        # F183/F184: serialize lazy-load so concurrent workers can never
+        # spawn a second Piper subprocess, and track stop/start lifecycle.
+        self._load_lock = threading.Lock()
+        self._stopped = True
 
         super().__init__("tts_engine", config, is_critical=False)
 
@@ -76,6 +86,7 @@ class TTSEngine(BaseModule):
         self._piper_voice = None  # Don't load on start - load lazily
         self._using_cuda = False
         self._voice_loaded = False  # Track if voice has been loaded
+        self._stopped = False
 
         self._tts_dir = Path(self._output_dir) / "temp_tts"
         os.makedirs(self._tts_dir, exist_ok=True)
@@ -94,14 +105,56 @@ class TTSEngine(BaseModule):
         # For now, just verify config is valid - load voice lazily when needed
         if self._engine == "piper":
             logger.info(f"Piper TTS configured (voice: {self._voice_model}, will load lazily)")
+            # F183: warm the voice load in background so the first chunk
+            # doesn't pay the ~30s Piper subprocess startup synchronously.
+            warm = threading.Thread(
+                target=self._warmup_piper,
+                name=f"tts-warmup-{self._voice_model}",
+                daemon=True,
+            )
+            warm.start()
             self._state = ModuleState.RUNNING
-            logger.info("TTS Engine ready (lazy load)")
+            logger.info("TTS Engine ready (lazy load, warming in background)")
         elif self._engine == "edge-tts":
             logger.info(f"Edge-TTS ready to use voice '{self._voice_model}' (Online, ultra-natural)")
             self._state = ModuleState.RUNNING
             logger.info("TTS Engine ready")
         else:
             raise ValueError(f"Unknown TTS engine: {self._engine}")
+
+    def _warmup_piper(self) -> None:
+        """Background voice warm-up (F183). Never raises."""
+        try:
+            self._ensure_piper_loaded()
+            logger.info(f"[Piper] Background warm-up finished: {self._voice_model}")
+        except Exception as exc:  # best effort, falls back to lazy load
+            logger.error(f"[Piper] Background warm-up failed, will retry lazily: {exc}")
+            self._voice_loaded = False
+
+    def _ensure_piper_loaded(self) -> None:
+        """Serialize Piper subprocess lazy-load (F184).
+
+        Without this lock, two concurrent workers can both observe
+        ``_voice_loaded == False`` and each spawn their own Piper
+        subprocess — the resulting duplicated audio sounds like an echo
+        of speech spoken 10-20s earlier. The lock guarantees exactly one
+        subprocess per voice.
+        """
+        if self._voice_loaded:
+            return
+        with self._load_lock:
+            if self._voice_loaded:
+                return
+            if self._stopped:
+                return
+            self._init_piper()
+            self._voice_loaded = True
+            if self._stopped:
+                # Stopped while loading — discard the freshly started subprocess
+                with contextlib.suppress(Exception):
+                    self._piper_manager.stop()
+                self._piper_manager = None
+                self._voice_loaded = False
 
     def _init_piper(self) -> None:
         """
@@ -151,7 +204,7 @@ class TTSEngine(BaseModule):
 
         self._using_cuda = self._piper_manager.using_cuda
         logger.debug(
-            f"[PIPER_DEBUG] Piper ready: CUDA={self._using_cuda}, " f"sample_rate={self._piper_manager.sample_rate}"
+            f"[PIPER_DEBUG] Piper ready: CUDA={self._using_cuda}, sample_rate={self._piper_manager.sample_rate}"
         )
 
     def get_status(self) -> ModuleStatus:
@@ -174,6 +227,7 @@ class TTSEngine(BaseModule):
     def stop(self) -> None:
         """Cleanup TTS resources."""
         self._state = ModuleState.STOPPING
+        self._stopped = True
         if self._piper_manager:
             self._piper_manager.stop()
             self._piper_manager = None
@@ -289,8 +343,7 @@ class TTSEngine(BaseModule):
         """Run Piper TTS synthesis via persistent subprocess (GPU-enabled)."""
         if not self._voice_loaded:
             logger.info(f"[Piper] Lazy loading voice: {self._voice_model}")
-            self._init_piper()
-            self._voice_loaded = True
+            self._ensure_piper_loaded()
 
         if not self._piper_manager or not self._piper_manager.is_alive:
             logger.error("Piper subprocess not running")

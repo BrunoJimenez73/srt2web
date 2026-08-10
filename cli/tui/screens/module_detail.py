@@ -11,7 +11,7 @@ from textual.message import Message
 from textual.screen import Screen
 from textual.widgets import Button, Input, Select, Static, Switch
 
-from cli.client.http_client import ModuleInfo
+from cli.client.http_client import APIClient, ModuleInfo
 
 logger = logging.getLogger(__name__)
 
@@ -319,7 +319,7 @@ class ModuleDetailScreen(Screen[Any]):
         Binding("escape", "app.pop_screen", "Back"),
     ]
 
-    def __init__(self, module_name: str, module_info: ModuleInfo | None, config: dict[str, Any], api_client: Any):
+    def __init__(self, module_name: str, module_info: ModuleInfo | None, config: dict[str, Any], api_client: APIClient):
         super().__init__()
         self.module_name = module_name
         self.module_info = module_info

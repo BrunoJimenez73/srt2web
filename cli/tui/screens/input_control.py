@@ -10,6 +10,8 @@ from textual.containers import Horizontal, ScrollableContainer
 from textual.screen import Screen
 from textual.widgets import Button, Input, Static
 
+from cli.client.http_client import APIClient
+
 logger = logging.getLogger(__name__)
 
 
@@ -58,7 +60,7 @@ class InputControlScreen(Screen[Any]):
         ("r", "refresh", "Refresh"),
     ]
 
-    def __init__(self, api_client: Any):
+    def __init__(self, api_client: APIClient):
         super().__init__()
         self.api_client = api_client
         self._input_info: dict[str, Any] = {}

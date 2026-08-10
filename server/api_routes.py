@@ -42,7 +42,7 @@ def create_api_router() -> APIRouter:
             statuses = composite.get_all_output_statuses()
             if not statuses:
                 raise HTTPException(404, "No outputs configured")
-            return cast(dict[str, Any], statuses[0])
+            return statuses[0]
         sink = pipeline.get_output_sink()
         if not sink:
             raise HTTPException(404, "No output sink configured")
