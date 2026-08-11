@@ -21,10 +21,10 @@ from pathlib import Path
 # Asegurar que el proyecto está en el path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
-from core.config_manager import ConfigManager
-from core.unified_pipeline import PipelineMode, UnifiedPipeline
-from modules.inputs.file_input import FileInput
-from modules.outputs.hls_output import HLSOutput
+from core.config_manager import ConfigManager  # noqa: E402
+from core.unified_pipeline import PipelineMode, UnifiedPipeline  # noqa: E402
+from modules.inputs.file_input import FileInput  # noqa: E402
+from modules.outputs.hls_output import HLSOutput  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,

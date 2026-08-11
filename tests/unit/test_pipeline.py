@@ -2,6 +2,7 @@
 Unit tests for Pipeline.
 """
 
+import contextlib
 import time
 
 import pytest
@@ -15,7 +16,7 @@ from core.unified_pipeline import UnifiedPipeline as Pipeline
 class DummyModule(BaseModule):
     """A dummy module for testing."""
 
-    def __init__(self, name: str = "dummy", config: dict = None):  # type: ignore
+    def __init__(self, name: str = "dummy", config: dict | None = None):  # type: ignore
         self._start_called = False
         self._stop_called = False
         self._process_count = 0
@@ -257,11 +258,9 @@ class TestPipeline:
         test_data = PipelineData(chunk_index=0)
 
         for module in pipeline.get_modules():
-            try:
+            # Expected: failing module should not crash pipeline
+            with contextlib.suppress(Exception):
                 test_data = module.process(test_data)
-            except Exception:
-                # Expected: failing module should not crash pipeline
-                pass
 
         assert normal_module._process_count == 1
 

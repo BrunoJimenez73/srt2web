@@ -51,7 +51,7 @@ class DummyModule:
 class TestPipelineLifecycle:
     """Pipeline start/stop/restart flow."""
 
-    MODULES = ["audio_extractor", "transcriber", "translator", "subtitle_generator"]
+    MODULES = ("audio_extractor", "transcriber", "translator", "subtitle_generator")
 
     @pytest.fixture
     def ctx(self):

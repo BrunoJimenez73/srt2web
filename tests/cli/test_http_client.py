@@ -1,7 +1,8 @@
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
-from cli.client.http_client import APIClient
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import httpx
+import pytest
+from cli.client.http_client import APIClient
 
 
 @pytest.fixture
@@ -16,14 +17,17 @@ def api_client():
 @pytest.mark.asyncio
 async def test_api_client_get_modules(api_client):
     """Test GET /api/modules endpoint."""
-    expected_response = [{"name": "transcriber", "status": "running"}]
+    # NOTE: httpx Response.json() is synchronous (no await), so MagicMock, not AsyncMock
+    expected_payload = {"modules": [{"name": "transcriber", "state": "running"}]}
     mock_response = MagicMock()
-    mock_response.json = AsyncMock(return_value=expected_response)
+    mock_response.json = MagicMock(return_value=expected_payload)
     mock_response.raise_for_status = MagicMock()
     api_client._client.get = AsyncMock(return_value=mock_response)
 
     result = await api_client.get_modules()
-    assert result == expected_response
+    assert len(result) == 1
+    assert result[0].name == "transcriber"
+    assert result[0].state == "running"
     api_client._client.get.assert_called_with("/api/modules")
 
 

@@ -23,7 +23,7 @@ def parse_history_md(content: str) -> list[Progress]:
         header = lines[0].strip()
 
         # Extract date and title from header like "2026-06-23 — F150: PTS-based subtitle sync"
-        date_match = re.match(r"(\d{4}-\d{2}-\d{2})\s*[—–-]\s*(.+)", header)
+        date_match = re.match(r"(\d{4}-\d{2}-\d{2})\s*[\u2014\u2013-]\s*(.+)", header)
         if not date_match:
             continue
 
@@ -67,7 +67,9 @@ def parse_current_md(content: str) -> Progress | None:
         return None
 
     # Extract session title
-    title_match = re.search(r"#\s*(?:Sesi[oó]n actual|Current session)\s*[—–-]\s*(.+)", content, re.IGNORECASE)
+    title_match = re.search(
+        r"#\s*(?:Sesi[oó]n actual|Current session)\s*[\u2014\u2013-]\s*(.+)", content, re.IGNORECASE
+    )
     title = title_match.group(1).strip() if title_match else "Current session"
 
     # Extract date from title or content
@@ -147,8 +149,6 @@ def import_progress_from_md(
 
 
 if __name__ == "__main__":
-    import sys
-
     db = HarnessDB()
     db.connect()
     result = import_progress_from_md(db)

@@ -9,6 +9,7 @@ Tests:
 """
 
 import pytest
+from pydantic import ValidationError
 
 from core.security import sanitize_display_name, sanitize_string, sanitize_username
 
@@ -123,13 +124,13 @@ class TestAuthModelSanitization:
     def test_register_role_rejects_invalid(self):
         from server.routes.auth import RegisterRequest
 
-        with pytest.raises(Exception):  # pydantic.ValidationError
+        with pytest.raises(ValidationError):
             RegisterRequest(username="valid", password="MyStr0ng!Pass", role="superadmin")
 
     def test_role_update_rejects_invalid_role(self):
         from server.routes.auth import RoleUpdateRequest
 
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             RoleUpdateRequest(role="hacker")
 
     def test_role_update_allows_valid(self):

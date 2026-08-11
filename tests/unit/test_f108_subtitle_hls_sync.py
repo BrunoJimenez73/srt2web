@@ -393,7 +393,12 @@ class TestHLSOutputMasterPlaylist:
         output._pool = MagicMock()
         output._pool.acquire.return_value = True
 
-        with patch("modules.outputs.hls_output.subprocess.run") as mock_run:
+        with (
+            patch("modules.outputs.hls_output.subprocess.run") as mock_run,
+            patch("core.ffmpeg_utils.find_ffprobe", return_value=""),
+        ):
+            # find_ffprobe patched: is_keyframe() returns True without touching
+            # platform.system()/subprocess (ffprobe lookup is platform-dependent).
             mock_run.return_value.returncode = 0
             mock_run.return_value.stderr = ""
             seg_path = tmp_path / "hls" / "seg_000000.ts"
@@ -429,7 +434,12 @@ class TestHLSOutputMasterPlaylist:
         output._pool = MagicMock()
         output._pool.acquire.return_value = True
 
-        with patch("modules.outputs.hls_output.subprocess.run") as mock_run:
+        with (
+            patch("modules.outputs.hls_output.subprocess.run") as mock_run,
+            patch("core.ffmpeg_utils.find_ffprobe", return_value=""),
+        ):
+            # find_ffprobe patched: is_keyframe() returns True without touching
+            # platform.system()/subprocess (ffprobe lookup is platform-dependent).
             mock_run.return_value.returncode = 0
             mock_run.return_value.stderr = ""
             seg_path = tmp_path / "hls" / "seg_000000.ts"

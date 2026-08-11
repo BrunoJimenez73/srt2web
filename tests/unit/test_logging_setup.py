@@ -13,6 +13,7 @@ Covers:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import sys
 from pathlib import Path
@@ -53,10 +54,8 @@ class TestSetupLogging:
         yield
         root = logging.getLogger()
         for h in root.handlers[:]:
-            try:
+            with contextlib.suppress(Exception):
                 h.close()
-            except Exception:
-                pass
         root.handlers.clear()
 
     def test_creates_srt2web_log_file(self, log_dir: Path) -> None:
@@ -136,10 +135,8 @@ class TestInstallCrashHandler:
         yield
         crash_logger = logging.getLogger(CRASH_LOGGER_NAME)
         for h in crash_logger.handlers[:]:
-            try:
+            with contextlib.suppress(Exception):
                 h.close()
-            except Exception:
-                pass
         crash_logger.handlers.clear()
 
     def test_creates_crash_log_file(self, log_dir: Path, restore_excepthook: None) -> None:

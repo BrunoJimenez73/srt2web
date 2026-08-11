@@ -1,6 +1,6 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
-from typing import Generator
 
 # --- Fixtures for Mocking Clients and Services ---
 
@@ -8,13 +8,16 @@ from typing import Generator
 @pytest.fixture(scope="session")
 def mock_api():
     """Provides a fully mocked APIClient instance with all expected methods."""
+    from cli.client.http_client import ConfigData, PipelineStatus
+
     mock = MagicMock()
     # Pipeline methods
-    mock.start_pipeline = AsyncMock(return_value={"success": True})
-    mock.stop_pipeline = AsyncMock(return_value={"success": True})
-    mock.get_status = AsyncMock(return_value={"status": "running"})
-    # Config methods
-    mock.get_config = AsyncMock(return_value={"raw": {}, "get": lambda k: None, "set": MagicMock()})
+    mock.start_pipeline = AsyncMock(return_value={"status": "started"})
+    mock.stop_pipeline = AsyncMock(return_value={"status": "stopped"})
+    mock.get_status = AsyncMock(return_value=PipelineStatus(state="running", mode="thread_parallel"))
+    # Config methods (real ConfigData object so .raw/.get/.set work)
+    config = ConfigData.from_dict({"server": {"port": 9999}, "modules": {"tts": {"enabled": True}}})
+    mock.get_config = AsyncMock(return_value=config)
     mock.update_config = AsyncMock(return_value={"success": True})
     # Module methods
     mock.get_modules = AsyncMock(return_value=[])

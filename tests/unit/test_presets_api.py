@@ -137,7 +137,7 @@ class TestSavePreset:
 @pytest.mark.unit
 class TestApplyPreset:
     def test_applies_built_in_preset(self, client_with_presets):
-        client, config = client_with_presets
+        client, _config = client_with_presets
         response = client.post("/api/presets/low_latency/apply")
         assert response.status_code == 200
         data = response.json()

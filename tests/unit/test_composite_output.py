@@ -17,7 +17,7 @@ from modules.outputs.composite_output import CompositeOutput
 class MockOutput(BaseOutput):
     """Mock de una salida para testing."""
 
-    def __init__(self, name: str, config: dict = None):  # type: ignore
+    def __init__(self, name: str, config: dict | None = None):  # type: ignore
         super().__init__(name, config or {})
         self._enabled = True
         self._started = False
@@ -275,12 +275,12 @@ class TestCompositeOutput:
         composite_output.add_output("test_output", mock_output)
 
         def writer() -> None:
-            for i in range(100):
+            for _i in range(100):
                 composite_output.write(MagicMock())
 
         # Crear múltiples threads
         threads = []
-        for i in range(5):
+        for _i in range(5):
             t = threading.Thread(target=writer)
             threads.append(t)
             t.start()

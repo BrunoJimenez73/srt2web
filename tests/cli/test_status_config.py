@@ -1,7 +1,7 @@
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
-from cli.commands.status import run_status
-from cli.commands.config import run_config_show, run_config_get
+from cli.commands.config import run_config_get, run_config_show
 
 
 @pytest.mark.asyncio

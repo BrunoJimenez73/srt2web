@@ -24,8 +24,8 @@ sys.modules["argostranslate"] = mock_argos
 sys.modules["argostranslate.package"] = mock_package
 sys.modules["argostranslate.translate"] = mock_translate
 
-from core.module_base import ModuleState, PipelineData
-from modules.translator import Translator
+from core.module_base import ModuleState, PipelineData  # noqa: E402
+from modules.translator import Translator  # noqa: E402
 
 
 @pytest.mark.unit

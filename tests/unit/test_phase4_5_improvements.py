@@ -3,7 +3,6 @@ Tests for Phase 4-5 improvements (compression, rolling subtitles, UX).
 """
 
 import os
-from pathlib import Path
 
 import pytest
 

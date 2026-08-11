@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 from collections import defaultdict
+from datetime import UTC
 
 from harness.db import HarnessDB
 from harness.models import Feature
@@ -25,9 +26,9 @@ def cmd_list(args: argparse.Namespace) -> None:
         for status in ["in_progress", "pending", "blocked", "done"]:
             if status not in groups:
                 continue
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print(f"  {status.upper()} ({len(groups[status])})")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
             for f in groups[status]:
                 print(f"  F{f.numeric_id:>3} [{f.priority:>5}] {f.title}")
     else:
@@ -44,7 +45,7 @@ def cmd_show(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     print(f"Feature F{feature.numeric_id}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"  Name:       {feature.name}")
     print(f"  Title:      {feature.title}")
     print(f"  Status:     {feature.status}")
@@ -60,21 +61,21 @@ def cmd_show(args: argparse.Namespace) -> None:
         print(f"  Depends on: {', '.join(feature.dependencies)}")
 
     if feature.description:
-        print(f"\n  Description:")
+        print("\n  Description:")
         print(f"    {feature.description}")
 
     if feature.problems_identified:
-        print(f"\n  Problems identified:")
+        print("\n  Problems identified:")
         for p in feature.problems_identified:
             print(f"    - {p}")
 
     if feature.acceptance:
-        print(f"\n  Acceptance criteria:")
+        print("\n  Acceptance criteria:")
         for a in feature.acceptance:
             print(f"    - {a}")
 
     if feature.files_to_touch:
-        print(f"\n  Files to touch:")
+        print("\n  Files to touch:")
         for f in feature.files_to_touch:
             print(f"    - {f}")
 
@@ -84,7 +85,7 @@ def cmd_show(args: argparse.Namespace) -> None:
             print(f"    - {m}")
 
     if feature.fix:
-        print(f"\n  Fix (what was done):")
+        print("\n  Fix (what was done):")
         for f in feature.fix:
             print(f"    - {f}")
 
@@ -121,18 +122,18 @@ def cmd_update(args: argparse.Namespace) -> None:
     value = args.value
     if args.field == "status":
         if value == "done" and not feature.completed_date:
-            from datetime import datetime, timezone
+            from datetime import datetime
 
             db.update_feature_field(
-                args.id, "completed_date", datetime.now(timezone.utc).strftime("%Y-%m-%d"), agent=args.agent or "cli"
+                args.id, "completed_date", datetime.now(UTC).strftime("%Y-%m-%d"), agent=args.agent or "cli"
             )
         elif value == "in_progress" and not feature.started_in_session:
-            from datetime import datetime, timezone
+            from datetime import datetime
 
             db.update_feature_field(
                 args.id,
                 "started_in_session",
-                datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                datetime.now(UTC).strftime("%Y-%m-%d"),
                 agent=args.agent or "cli",
             )
 

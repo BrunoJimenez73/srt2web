@@ -3,7 +3,6 @@ WebSocket authentication tests for SRT2Web.
 Tests WebSocket connection with and without auth token.
 """
 
-
 from pathlib import Path
 
 import pytest
@@ -35,7 +34,8 @@ class TestWebSocketAuth:
         mock_request.client = Mock()
         mock_request.client.host = "127.0.0.1"
 
-        get_auth_token = lambda: None
+        def get_auth_token() -> None:
+            return None
 
         with patch.dict("os.environ", {}, clear=True):
             result = validate_ws_auth(mock_request, get_auth_token)
@@ -52,7 +52,8 @@ class TestWebSocketAuth:
         mock_request.client = Mock()
         mock_request.client.host = "127.0.0.1"
 
-        get_auth_token = lambda: "test-token-123"
+        def get_auth_token() -> str:
+            return "test-token-123"
 
         result = validate_ws_auth(mock_request, get_auth_token)
         assert result is False
@@ -68,7 +69,8 @@ class TestWebSocketAuth:
         mock_request.client = Mock()
         mock_request.client.host = "127.0.0.1"
 
-        get_auth_token = lambda: "test-token-123"
+        def get_auth_token() -> str:
+            return "test-token-123"
 
         result = validate_ws_auth(mock_request, get_auth_token)
         assert result is True

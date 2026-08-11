@@ -68,7 +68,7 @@ VALID_TTS_VOICES = [
 
 VALID_VIDEO_PRESETS = ["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"]
 
-from core.constants import ALLOWED_ENCODER_MODES as VALID_ENCODER_MODES
+from core.constants import ALLOWED_ENCODER_MODES as VALID_ENCODER_MODES  # noqa: E402
 
 
 class TestConfigYAMLValidity:
@@ -416,7 +416,7 @@ class TestConfigManagerAtomicSave:
 
         mgr = ConfigManager(str(config_path))
         assert hasattr(mgr, "_lock")
-        assert type(mgr._lock) == type(threading.Lock())
+        assert isinstance(mgr._lock, type(threading.Lock()))
 
     def test_update_from_dict_validates_before_assign(self, tmp_path: Path) -> None:
         """update_from_dict validates via Pydantic before mutating _config."""

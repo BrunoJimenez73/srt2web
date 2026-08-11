@@ -30,9 +30,11 @@ class TestVideoToolboxDetection:
         mock_run = MagicMock()
         mock_run.stdout = "h264_videotoolbox  - H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10 (VideoToolbox)"
 
-        with patch("core.ffmpeg_utils.find_ffmpeg", return_value="/usr/bin/ffmpeg"):
-            with patch("subprocess.run", return_value=mock_run):
-                assert check_videotoolbox_support() is True
+        with (
+            patch("core.ffmpeg_utils.find_ffmpeg", return_value="/usr/bin/ffmpeg"),
+            patch("subprocess.run", return_value=mock_run),
+        ):
+            assert check_videotoolbox_support() is True
 
     def test_videotoolbox_not_supported(self) -> None:
         """check_videotoolbox_support should return False when h264_videotoolbox not found."""
@@ -41,17 +43,21 @@ class TestVideoToolboxDetection:
         mock_run = MagicMock()
         mock_run.stdout = "h264_libx264  - H.264/AVC (libx264)"
 
-        with patch("core.ffmpeg_utils.find_ffmpeg", return_value="/usr/bin/ffmpeg"):
-            with patch("subprocess.run", return_value=mock_run):
-                assert check_videotoolbox_support() is False
+        with (
+            patch("core.ffmpeg_utils.find_ffmpeg", return_value="/usr/bin/ffmpeg"),
+            patch("subprocess.run", return_value=mock_run),
+        ):
+            assert check_videotoolbox_support() is False
 
     def test_videotoolbox_timeout(self) -> None:
         """check_videotoolbox_support should handle subprocess timeout."""
         from core.ffmpeg_utils import check_videotoolbox_support
 
-        with patch("core.ffmpeg_utils.find_ffmpeg", return_value="/usr/bin/ffmpeg"):
-            with patch("subprocess.run", side_effect=TimeoutError):
-                assert check_videotoolbox_support() is False
+        with (
+            patch("core.ffmpeg_utils.find_ffmpeg", return_value="/usr/bin/ffmpeg"),
+            patch("subprocess.run", side_effect=TimeoutError),
+        ):
+            assert check_videotoolbox_support() is False
 
 
 class TestHardwareMonitorMacOS:

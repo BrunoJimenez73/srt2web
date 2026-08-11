@@ -12,15 +12,14 @@ Security:
 from __future__ import annotations
 
 import json
-import sys
+import mimetypes
 import os
+import sys
 import time
 from collections import defaultdict
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs
-import mimetypes
-import hmac
+from urllib.parse import parse_qs, urlparse
 
 WEB_DIR = Path(__file__).parent
 DB_PATH = WEB_DIR.parent.parent / "harness.db"
@@ -66,9 +65,7 @@ def _check_auth(headers: dict, parsed_query: dict) -> bool:
     if auth.startswith("Bearer ") and auth[7:] == HARNESS_TOKEN:
         return True
     # Check X-Auth-Token header
-    if headers.get("X-Auth-Token") == HARNESS_TOKEN:
-        return True
-    return False
+    return headers.get("X-Auth-Token") == HARNESS_TOKEN
 
 
 class HarnessHandler(BaseHTTPRequestHandler):
@@ -396,9 +393,9 @@ def run_server(port: int = 8500) -> None:
     url = f"http://127.0.0.1:{port}"
     print(f"Harness web UI: {url}")
     if HARNESS_TOKEN:
-        print(f"  Auth: enabled (HARNESS_TOKEN)")
+        print("  Auth: enabled (HARNESS_TOKEN)")
     else:
-        print(f"  Auth: disabled (set HARNESS_TOKEN env var to enable)")
+        print("  Auth: disabled (set HARNESS_TOKEN env var to enable)")
     print(f"  Rate limit: {RATE_LIMIT_REQUESTS} req/{RATE_LIMIT_WINDOW}s per IP")
     print("Press Ctrl+C to stop.")
 

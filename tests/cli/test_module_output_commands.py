@@ -1,5 +1,7 @@
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from cli.client.http_client import ModuleInfo
 from cli.commands.module import run_module_list
 from cli.commands.output import run_output_add
 from cli.commands.preset import run_preset_list
@@ -8,7 +10,10 @@ from cli.commands.preset import run_preset_list
 @pytest.mark.asyncio
 async def test_list_modules(mock_api):
     """Test the new 'module list' command."""
-    expected_response = [{"name": "transcriber", "status": "running"}, {"name": "tts_engine", "status": "idle"}]
+    expected_response = [
+        ModuleInfo(name="transcriber", state="running", processed_chunks=4, last_process_time_ms=100.0),
+        ModuleInfo(name="tts_engine", state="idle"),
+    ]
     mock_api.get_modules = AsyncMock(return_value=expected_response)
 
     result = await run_module_list(mock_api, json_output=False)

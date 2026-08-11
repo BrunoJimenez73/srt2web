@@ -17,8 +17,8 @@ def cmd_stats(args: argparse.Namespace) -> None:
     all_features = db.list_features()
 
     total = sum(counts.values())
-    print(f"Feature Statistics")
-    print(f"{'='*40}")
+    print("Feature Statistics")
+    print(f"{'=' * 40}")
     for status in ["done", "in_progress", "pending", "blocked"]:
         cnt = counts.get(status, 0)
         pct = (cnt / total * 100) if total else 0
@@ -28,7 +28,7 @@ def cmd_stats(args: argparse.Namespace) -> None:
 
     area_counts = Counter(f.area for f in all_features if f.area)
     if area_counts:
-        print(f"\nBy Area:")
+        print("\nBy Area:")
         for area, cnt in area_counts.most_common():
             print(f"  {area:>15}: {cnt}")
 
@@ -54,7 +54,7 @@ def cmd_health(args: argparse.Namespace) -> None:
 def cmd_sanitize(args: argparse.Namespace) -> None:
     db = HarnessDB(args.db)
     result = db.sanitize_ids(agent="cli")
-    print(f"Sanitize complete:")
+    print("Sanitize complete:")
     print(f"  Merged: {result['merged']} duplicate entries")
     print(f"  Errors: {len(result['errors'])}")
     for err in result["errors"]:
@@ -90,6 +90,6 @@ def cmd_audit(args: argparse.Namespace) -> None:
         print(f"No audit entries for feature {args.id}.")
         return
     print(f"Audit trail for F{args.id}:")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     for e in entries:
         print(f"  [{e.timestamp}] {e.field_name}: '{e.old_value}' -> '{e.new_value}' (by {e.agent})")

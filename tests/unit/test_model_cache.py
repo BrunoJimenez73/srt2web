@@ -180,11 +180,12 @@ class TestModelCacheWarmUp:
         }
 
         mock_model = MagicMock()
-
-        with patch("faster_whisper.WhisperModel", return_value=mock_model):
-            with patch("psutil.Process", MagicMock()):
-                with patch.dict("sys.modules", {"argostranslate": None}):
-                    mc.warm_up(config)
+        with (
+            patch("faster_whisper.WhisperModel", return_value=mock_model),
+            patch("psutil.Process", MagicMock()),
+            patch.dict("sys.modules", {"argostranslate": None}),
+        ):
+            mc.warm_up(config)
 
     def test_warm_up_auto_detects_cuda(self) -> None:
         """Test warm-up with auto device detection."""
@@ -200,8 +201,17 @@ class TestModelCacheWarmUp:
         }
 
         mock_model = MagicMock()
+        # torch is not installed in CI; inject a stub so the auto-detection
+        # path can be tested in isolation (mirrors test_transcriber pattern).
+        mock_torch = MagicMock()
+        mock_torch.cuda.is_available.return_value = False
+        mock_cuda = MagicMock()
+        mock_cuda.is_available.return_value = False
+        mock_torch.cuda = mock_cuda
 
-        with patch("faster_whisper.WhisperModel", return_value=mock_model):
-            with patch("psutil.Process", MagicMock()):
-                with patch("torch.cuda.is_available", return_value=False):
-                    mc.warm_up(config)
+        with (
+            patch.dict("sys.modules", {"torch": mock_torch, "torch.cuda": mock_cuda}),
+            patch("faster_whisper.WhisperModel", return_value=mock_model),
+            patch("psutil.Process", MagicMock()),
+        ):
+            mc.warm_up(config)

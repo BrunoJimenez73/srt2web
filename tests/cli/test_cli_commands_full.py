@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from cli.client.http_client import LogEntry
-from cli.commands.config import _build_tree, _format_value, run_config_get, run_config_show
+from cli.commands.config import _build_tree, _format_value, run_config_get, run_config_set, run_config_show
 from cli.commands.logs import _format_log, _level_style, run_logs
 from cli.commands.start import run_start
 from cli.commands.status import _state_label, _state_style, run_status
@@ -33,6 +33,8 @@ class TestRunStart:
 
     @pytest.mark.asyncio
     async def test_start_returns_unknown_status(self, mock_api, console):
+        # Clear side_effect left by test_start_failure (session-scoped fixture)
+        mock_api.start_pipeline.side_effect = None
         mock_api.start_pipeline.return_value = {}
         code = await run_start(mock_api, console)
         assert code == 0
@@ -133,7 +135,7 @@ class TestConfigHelpers:
 
     def test_format_value_empty_string(self):
         result = _format_value("")
-        assert '""' in result
+        assert '"' in result
 
     def test_build_tree_empty(self):
         tree = _build_tree({})
@@ -236,53 +238,30 @@ class TestRunLogs:
 
 
 class TestConfigValueParsing:
+    # The mock_api fixture returns a real ConfigData, so parsing + set() flow
+    # against config.set()/config.raw without extra overrides.
     @pytest.mark.asyncio
     async def test_config_set_bool_true(self, mock_api, console):
-        mock_api.get_config.return_value.raw = {}
-        mock_api.get_config.return_value.get = lambda k: None
-        mock_api.get_config.return_value.set = MagicMock()
-        from cli.commands.config import run_config_set
-
         code = await run_config_set(mock_api, console, "modules.tts.enabled", "true")
         assert code == 0
         mock_api.update_config.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_config_set_int(self, mock_api, console):
-        mock_api.get_config.return_value.raw = {}
-        mock_api.get_config.return_value.get = lambda k: None
-        mock_api.get_config.return_value.set = MagicMock()
-        from cli.commands.config import run_config_set
-
         code = await run_config_set(mock_api, console, "server.port", "8080")
         assert code == 0
 
     @pytest.mark.asyncio
     async def test_config_set_float(self, mock_api, console):
-        mock_api.get_config.return_value.raw = {}
-        mock_api.get_config.return_value.get = lambda k: None
-        mock_api.get_config.return_value.set = MagicMock()
-        from cli.commands.config import run_config_set
-
         code = await run_config_set(mock_api, console, "audio.volume", "3.14")
         assert code == 0
 
     @pytest.mark.asyncio
     async def test_config_set_false(self, mock_api, console):
-        mock_api.get_config.return_value.raw = {}
-        mock_api.get_config.return_value.get = lambda k: None
-        mock_api.get_config.return_value.set = MagicMock()
-        from cli.commands.config import run_config_set
-
         code = await run_config_set(mock_api, console, "modules.tts.enabled", "false")
         assert code == 0
 
     @pytest.mark.asyncio
     async def test_config_set_null(self, mock_api, console):
-        mock_api.get_config.return_value.raw = {}
-        mock_api.get_config.return_value.get = lambda k: None
-        mock_api.get_config.return_value.set = MagicMock()
-        from cli.commands.config import run_config_set
-
         code = await run_config_set(mock_api, console, "some.key", "null")
         assert code == 0

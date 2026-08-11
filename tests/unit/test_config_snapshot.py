@@ -11,8 +11,8 @@ import pytest
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.config_manager import DEFAULT_CONFIG, ConfigManager
-from core.config_schema import (
+from core.config_manager import DEFAULT_CONFIG, ConfigManager  # noqa: E402
+from core.config_schema import (  # noqa: E402
     SRT2WebConfig,
 )
 

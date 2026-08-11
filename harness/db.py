@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import sqlite3
+from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 
-from .models import normalize_id, Feature, Session, AuditEntry, RiskAssessment, Progress
+from .models import AuditEntry, Feature, Progress, Session, normalize_id
 
 logger = logging.getLogger("srt2web.harness.db")
 
@@ -89,11 +89,11 @@ CREATE INDEX IF NOT EXISTS idx_progress_current ON progress(is_current);
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _today() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return datetime.now(UTC).strftime("%Y-%m-%d")
 
 
 class HarnessDB:
@@ -362,9 +362,7 @@ class HarnessDB:
             existing = self.get_progress_by_date(progress.date)
 
         with self.transaction() as conn:
-            created = existing.created_at if existing else now if existing else now
-            if existing and existing.created_at:
-                created = existing.created_at
+            created = existing.created_at if existing and existing.created_at else now
 
             conn.execute(
                 """INSERT INTO progress (id, date, title, session_notes, features_worked,

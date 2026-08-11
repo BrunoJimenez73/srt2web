@@ -102,7 +102,7 @@ class TestParallelProcessing:
         max_concurrent = 4
 
         can_process_parallel = max_concurrent > 1
-        assert can_process_parallel == True
+        assert can_process_parallel
 
     def test_buffer_size_for_parallelism(self) -> None:
         """Test buffer size is reasonable."""
@@ -110,7 +110,7 @@ class TestParallelProcessing:
         max_concurrent = 4
 
         is_reasonable = buffer_size >= max_concurrent
-        assert is_reasonable == True
+        assert is_reasonable
 
 
 class TestOBSKeyframe:
@@ -122,7 +122,7 @@ class TestOBSKeyframe:
         keyframe_interval = 2
 
         recommended_match = keyframe_interval == chunk_duration
-        assert recommended_match == True
+        assert recommended_match
 
     def test_keyframe_lower_bound(self) -> None:
         """Test keyframe interval minimum."""

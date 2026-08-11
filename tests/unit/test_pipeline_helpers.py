@@ -179,7 +179,7 @@ class TestGetOutputModuleStatus:
         assert muxer_status["name"] == "video_muxer"
 
     def test_running_state_from_flag(self):
-        output_status, muxer_status = get_output_module_status(
+        output_status, _muxer_status = get_output_module_status(
             is_running=False, output_sink=None, module_map={}, chunks_processed=0
         )
 

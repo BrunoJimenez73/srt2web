@@ -137,7 +137,7 @@ class TestPasswordPolicyIntegration:
         from core.auth_db import AuthDB
 
         db = AuthDB()
-        ok, msg = db.setup_first_admin("MyStr0ng!Pass")
+        ok, _msg = db.setup_first_admin("MyStr0ng!Pass")
         assert ok is True
 
     def test_change_password_weak_rejected(self):
@@ -145,7 +145,7 @@ class TestPasswordPolicyIntegration:
 
         db = AuthDB()
         db.setup_first_admin("MyStr0ng!Pass")
-        ok, msg = db.change_password("admin", "MyStr0ng!Pass", "weak")
+        ok, _msg = db.change_password("admin", "MyStr0ng!Pass", "weak")
         assert ok is False
 
     def test_change_password_strong_accepted(self):
@@ -153,7 +153,7 @@ class TestPasswordPolicyIntegration:
 
         db = AuthDB()
         db.setup_first_admin("MyStr0ng!Pass")
-        ok, msg = db.change_password("admin", "MyStr0ng!Pass", "N3wStr0ng!Pass")
+        ok, _msg = db.change_password("admin", "MyStr0ng!Pass", "N3wStr0ng!Pass")
         assert ok is True
         # Verify new password works
         token = db.authenticate("admin", "N3wStr0ng!Pass")

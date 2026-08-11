@@ -28,7 +28,7 @@ class TestPlayerConfig:
             "liveDurationInfinity": False,
         }
 
-        assert config["lowLatencyMode"] == True
+        assert config["lowLatencyMode"]
         assert config["backBufferLength"] == 30
         assert config["maxBufferLength"] == 10
         assert config["liveSyncMaxLatency"] == 4
@@ -50,7 +50,7 @@ class TestHealthCheck:
         consecutive_errors = 0
         max_errors = 5
 
-        for i in range(3):
+        for _i in range(3):
             consecutive_errors += 1
 
         assert consecutive_errors == 3
@@ -85,10 +85,10 @@ class TestPlayerConnection:
         """Test different connection states."""
         isConnected = False
 
-        assert isConnected == False
+        assert not isConnected
 
         isConnected = True
-        assert isConnected == True
+        assert isConnected
 
     def test_error_display_controlled(self) -> None:
         """Test error can be shown/hidden."""
@@ -120,7 +120,7 @@ class TestPlayerErrorHandling:
         network_error_count = 0
         isConnected = False
 
-        for i in range(3):
+        for _i in range(3):
             if not isConnected:
                 network_error_count += 1
                 if network_error_count > 3:
@@ -138,7 +138,7 @@ class TestPlayerErrorHandling:
             if recovery_attempts == 2:
                 recovered = True
 
-        assert recovered == True
+        assert recovered
         assert recovery_attempts == 2
 
 

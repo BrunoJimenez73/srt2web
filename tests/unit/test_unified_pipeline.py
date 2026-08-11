@@ -13,7 +13,7 @@ from core.unified_pipeline import UnifiedPipeline as Pipeline
 class DummyModule(BaseModule):
     """A dummy module for testing."""
 
-    def __init__(self, name: str = "dummy", config: dict = None):
+    def __init__(self, name: str = "dummy", config: dict | None = None):
         self._start_called = False
         self._stop_called = False
         self._process_count = 0
@@ -177,10 +177,7 @@ class TestF127InitializedSingleAssignment:
         """__init__ debe contener exactamente una asignación a _initialized."""
         src = inspect.getsource(Pipeline.__init__)
         lines = textwrap.dedent(src).splitlines()
-        assignments = [
-            ln for ln in lines
-            if "self._initialized =" in ln and not ln.lstrip().startswith("#")
-        ]
+        assignments = [ln for ln in lines if "self._initialized =" in ln and not ln.lstrip().startswith("#")]
         assert len(assignments) == 1, (
             f"Se esperaba exactamente 1 asignación a self._initialized en __init__, "
             f"se encontraron {len(assignments)}: {assignments}"

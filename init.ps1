@@ -27,7 +27,7 @@ if (Test-Path "harness.db") {
     $healthResult = & $VENV_PYTHON -m harness health 2>&1
     if ($LASTEXITCODE -eq 0) { Ok "harness.db: saludable" } else { Fail "harness.db: problemas detectados"; Write-Host $healthResult -ForegroundColor Red }
 } else {
-    Warn "harness.db no existe — ejecutando migracion desde feature_list.json"
+    Warn "harness.db no existe - ejecutando migracion desde feature_list.json"
     & $VENV_PYTHON -m harness migrate 2>&1 | Out-Null
     if ($LASTEXITCODE -eq 0) { Ok "harness.db creado via migracion" } else { Fail "Migracion fallida" }
 }

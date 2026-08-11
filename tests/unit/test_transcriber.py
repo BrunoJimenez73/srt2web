@@ -4,6 +4,7 @@ Unit tests for Transcriber module.
 
 import concurrent.futures
 import sys
+from typing import ClassVar
 from unittest.mock import MagicMock
 
 import pytest
@@ -16,8 +17,8 @@ sys.modules["faster_whisper"] = mock_fw
 mock_torch = MagicMock()
 sys.modules["torch"] = mock_torch
 
-from core.module_base import ModuleState, PipelineData
-from modules.transcriber import Transcriber
+from core.module_base import ModuleState, PipelineData  # noqa: E402
+from modules.transcriber import Transcriber  # noqa: E402
 
 
 @pytest.mark.unit
@@ -48,7 +49,7 @@ class TestTranscriber:
         mock_fw.WhisperModel.assert_called_once()
 
         # Verify arguments to WhisperModel
-        args, kwargs = mock_fw.WhisperModel.call_args
+        _args, kwargs = mock_fw.WhisperModel.call_args
         assert kwargs["device"] == "cpu"
         assert kwargs["compute_type"] == "int8"
 
@@ -62,7 +63,7 @@ class TestTranscriber:
         assert trans._device == "cuda"
         assert trans._compute_type == "float16"
 
-        args, kwargs = mock_fw.WhisperModel.call_args
+        _args, kwargs = mock_fw.WhisperModel.call_args
         assert kwargs["device"] == "cuda"
         assert kwargs["compute_type"] == "float16"
 
@@ -205,7 +206,7 @@ class TestTranscriber:
                 return True
 
         class FakeExecutor:
-            instances = []
+            instances: ClassVar[list] = []
 
             def __init__(self, max_workers: int) -> None:
                 self.max_workers = max_workers

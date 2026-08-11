@@ -848,4 +848,16 @@ Cuando no hay OBS: FFmpeg no escribe chunks, stderr no produce líneas → `_las
   - Watchdog con datos previos + hang posterior: restart (comportamiento actual)
   - `_has_ever_received_data` se setea correctamente al recibir primer chunk/stderr
 
+### 11/08 — Auditoría + mejoras de calidad (F188–F192)
+
+Auditoría técnica del repo completa (tests/unit 1599P+40F, tests/cli 78P+25F, ruff 128 errores en tests+harness, mypy --strict limpio, frontend tsc+vitest 248 limpio). 5 features implementadas una a una:
+
+- **F188** ✅ Fix `init.ps1`: em-dash `—` (UTF-8 sin BOM) en la línea 30 rompía el parseo en PowerShell 5.1 (byte 0x94 → `”` → cascada de errores). Verificado con `Parser::ParseFile` → PARSE-OK.
+- **F189** ✅ Fix 40 tests auth: `tests/conftest.py` activaba `SRT2WEB_TESTING` sin setear `SRT2WEB_JWT_SECRET` → "HMAC key must not be empty" en todo el clúster F121/F122/F123. Una línea `os.environ.setdefault` → suite unit **1639 passed, 0 failed**.
+- **F190** ✅ 25 tests CLI obsoletos → API real: `ConfigData` (no dicts), `PipelineStatus`, URL con `/ws/logs`, `json()` síncrono de httpx, firmas reales de screens TUI. Suite CLI **110 passed**.
+- **F191** ✅ f108 flaky aislado: el patch `modules.outputs.hls_output.subprocess.run` es global → `find_ffprobe()` → `platform.system()` → `_syscmd_ver()` → `check_output()` → `run()` → MagicMock. Fix: parchear `core.ffmpeg_utils.find_ffprobe` con `return_value=""` + test `test_warm_up_auto_detects_cuda` robusto aislado (stub propio de `sys.modules["torch"]`).
+- **F192** ✅ Ruff cleanup: **128 → 0 errores** en `tests/` + `harness/` (auto-fix + RUF059/E402 noqa deliberados + SIM105/117/115 + B017 tipadas: ValueError/ValidationError/TimeoutError + RUF012 ClassVar). `ruff check tests/ harness/ core/ modules/ server/ cli/` → todo verde.
+
+**Verificación final**: unit 1639 + cli 110 passed, mypy --strict 100 archivos sin errores, ruff global 0 errores, frontend tsc+vitest 248 pass. Detalles en `harness.db` (sesión #34).
+
 ---

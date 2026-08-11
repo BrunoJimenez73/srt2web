@@ -13,7 +13,7 @@ import pytest
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.config_schema import SRT2WebConfig
+from core.config_schema import SRT2WebConfig  # noqa: E402
 
 
 @pytest.mark.unit

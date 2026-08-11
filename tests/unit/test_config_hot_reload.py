@@ -30,20 +30,23 @@ class TestConfigReload:
 
         config_path = str(tmp_path / "config.yaml")
 
-        with patch("core.config_manager.atomic_replace") as mock_atomic, patch("builtins.open", create=True):
-            with patch("yaml.safe_load") as mock_yaml:
-                with patch("yaml.dump"):
-                    mock_yaml.return_value = {"test": "value"}
+        with (
+            patch("core.config_manager.atomic_replace") as mock_atomic,
+            patch("builtins.open", create=True),
+            patch("yaml.safe_load") as mock_yaml,
+            patch("yaml.dump"),
+        ):
+            mock_yaml.return_value = {"test": "value"}
 
-                    manager = ConfigManager(config_path)
-                    original_config = manager._config.copy()
+            manager = ConfigManager(config_path)
+            original_config = manager._config.copy()
 
-                    manager._config = {"pipeline": {"chunk_duration_sec": 10}}
-                    manager.save()
+            manager._config = {"pipeline": {"chunk_duration_sec": 10}}
+            manager.save()
 
-                    manager.reload()
+            manager.reload()
 
-                    assert hasattr(manager, "_load")
+            assert hasattr(manager, "_load")
 
 
 class TestConfigHotReloadOnUpdate:
@@ -83,20 +86,23 @@ class TestConfigCachePrevention:
         """Test config reads from disk, not cache."""
         config_path = "config.yaml"
 
-        with patch("builtins.open", create=True) as mock_open, patch("yaml.safe_load") as mock_yaml:
-            with patch("os.path.getmtime") as mock_mtime:
-                mock_yaml.return_value = {"test": "value"}
-                mock_mtime.return_value = time.time()
+        with (
+            patch("builtins.open", create=True) as mock_open,
+            patch("yaml.safe_load") as mock_yaml,
+            patch("os.path.getmtime") as mock_mtime,
+        ):
+            mock_yaml.return_value = {"test": "value"}
+            mock_mtime.return_value = time.time()
 
-                from core.config_manager import ConfigManager
+            from core.config_manager import ConfigManager
 
-                manager = ConfigManager.__new__(ConfigManager)
-                manager._config_path = config_path
-                manager._config = {"pipeline": {"chunk_duration_sec": 5}}
+            manager = ConfigManager.__new__(ConfigManager)
+            manager._config_path = config_path
+            manager._config = {"pipeline": {"chunk_duration_sec": 5}}
 
-                manager.reload()
+            manager.reload()
 
-                assert manager._config is not None
+            assert manager._config is not None
 
     def test_config_updates_immediately(self) -> None:
         """Test config updates are immediately visible."""

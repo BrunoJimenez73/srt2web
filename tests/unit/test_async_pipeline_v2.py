@@ -96,7 +96,7 @@ class MockSyncModule:
 class MockInputSource:
     """Mock input source for testing."""
 
-    def __init__(self, data_items: list = None):  # type: ignore
+    def __init__(self, data_items: list | None = None):  # type: ignore
         self.data_items = data_items or []
         self.index = 0
         self.initialized = False
@@ -318,7 +318,7 @@ class TestAsyncPipelineV2ErrorHandling:
         await pipeline.initialize()
 
         data = PipelineData(chunk_index=0)
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             await pipeline._process_chunk(data)
 
     async def test_retry_on_failure(self):

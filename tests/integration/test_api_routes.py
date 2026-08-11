@@ -4,6 +4,7 @@ Extends test_server.py coverage with auth, presets, config validation,
 health detail, and error paths not covered in the basic tests.
 """
 
+import contextlib
 from typing import Any
 from unittest.mock import Mock
 
@@ -321,10 +322,8 @@ class TestPresetEndpoints:
         yield
         cm = ConfigManager()
         for name in ["low_latency", "test_preset_e2e", "test_apply_preset"]:
-            try:
+            with contextlib.suppress(KeyError, Exception):
                 cm.delete_preset(name)
-            except (KeyError, Exception):
-                pass
 
     def test_list_presets(self):
         client = _make_client()

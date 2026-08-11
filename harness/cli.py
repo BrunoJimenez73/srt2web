@@ -25,8 +25,8 @@ import argparse
 import io
 import sys
 
-from harness.commands.features import cmd_list, cmd_show, cmd_add, cmd_update, cmd_next, cmd_search
-from harness.commands.admin import cmd_stats, cmd_health, cmd_sanitize, cmd_migrate, cmd_export, cmd_audit
+from harness.commands.admin import cmd_audit, cmd_export, cmd_health, cmd_migrate, cmd_sanitize, cmd_stats
+from harness.commands.features import cmd_add, cmd_list, cmd_next, cmd_search, cmd_show, cmd_update
 from harness.commands.sessions import cmd_session
 
 

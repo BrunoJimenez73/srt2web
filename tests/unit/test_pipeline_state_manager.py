@@ -9,7 +9,7 @@ import os
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.pipeline_state_manager import (
+from core.pipeline_state_manager import (  # noqa: E402
     VALID_TRANSITIONS,
     ModuleState,
     ModuleStateInfo,

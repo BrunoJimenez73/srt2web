@@ -175,10 +175,10 @@ class TestRetryStrategy:
         from core.circuit_breaker import RetryStrategy
 
         retry = RetryStrategy(max_retries=3, base_delay=0.01)
-        func = MagicMock(side_effect=Exception("timeout"))
+        func = MagicMock(side_effect=TimeoutError("timeout"))
         is_recoverable = MagicMock(return_value=False)
 
-        with pytest.raises(Exception):
+        with pytest.raises(TimeoutError):
             retry.execute(func, is_recoverable=is_recoverable)
 
         assert func.call_count == 1

@@ -15,9 +15,8 @@ import pytest
 @pytest.fixture(autouse=True)
 def _isolated_auth_db(monkeypatch: pytest.MonkeyPatch) -> None:
     """Use temp file for users.json to avoid polluting real config."""
-    tmp = tempfile.NamedTemporaryFile(suffix=".json", delete=False)
-    tmp.write(b"{}")
-    tmp.close()
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tmp, open(tmp.name, "w", encoding="utf-8") as f:
+        f.write("{}")
     import core.auth_db
 
     monkeypatch.setattr(core.auth_db, "USERS_FILE", Path(tmp.name))

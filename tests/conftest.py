@@ -19,6 +19,12 @@ sys.path.insert(0, str(PROJECT_ROOT))
 # F118: Signal to AuthMiddleware that we're in test mode — skip auth checks entirely
 os.environ.setdefault("SRT2WEB_TESTING", "1")
 
+# F189: Tests need a JWT signing key. core/auth_db.py reads it at import time
+# (module-level constant), so it must be set BEFORE any auth module import.
+# Without it, jwt.encode() raises InvalidKeyError("HMAC key must not be empty")
+# and the whole F121/F122/F123 + auth suite fails (40 tests).
+os.environ.setdefault("SRT2WEB_JWT_SECRET", "test-secret-for-unit-tests")
+
 
 @pytest.fixture
 def temp_dir() -> Generator[str, None, None]:

@@ -11,7 +11,7 @@ import pytest
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.pipeline_error_handler import (
+from core.pipeline_error_handler import (  # noqa: E402
     ErrorCategory,
     ErrorPolicy,
     ErrorRecord,

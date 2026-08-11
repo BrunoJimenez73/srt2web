@@ -14,9 +14,8 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def users_file() -> Path:
     """Use a temp file for users.json to avoid polluting real config."""
-    tmp = tempfile.NamedTemporaryFile(suffix=".json", delete=False)
-    tmp.write(b"{}")
-    tmp.close()
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tmp, open(tmp.name, "w", encoding="utf-8") as f:
+        f.write("{}")
     yield Path(tmp.name)
     os.unlink(tmp.name)
 
