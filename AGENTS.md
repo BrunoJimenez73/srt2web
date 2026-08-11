@@ -860,4 +860,11 @@ Auditoría técnica del repo completa (tests/unit 1599P+40F, tests/cli 78P+25F, 
 
 **Verificación final**: unit 1639 + cli 110 passed, mypy --strict 100 archivos sin errores, ruff global 0 errores, frontend tsc+vitest 248 pass. Detalles en `harness.db` (sesión #34).
 
+### 11/08 — Fix venv pre-commit (mypy hook roto)
+
+- **Síntoma**: `git commit` falla con `ModuleNotFoundError: No module named 'librt.internal'` en el hook mypy.
+- **Causa raíz (investigada a fondo)**: el venv de Hermes está SANO (`import mypy`, `import librt.internal` OK bajo su Python 3.11). El problema es el `PYTHONPATH` global que el runtime de codex/hermes inyecta en los procesos hijo (`...\hermes-agent;...\hermes-agent\venv\Lib\site-packages`). pre-commit crea sus py_env con Python 3.12 y su propio mypy 1.15 cp312, pero al heredar ese PYTHONPATH, `import mypy` resuelve al 2.1.0 cp311 del venv de Hermes → el `.pyd` de `librt` no carga bajo cp312 → falso "No module named".
+- **Fix**: `unset PYTHONPATH` en `.git/hooks/pre-commit` (solo para procesos del hook; no toca el entorno). Verificado: `env -u PYTHONPATH pre_commit run mypy` → **Passed** en core/ server/ modules/ cli/.
+- **Bonus**: el mismo PYTHONPATH global es el que rompía los workers xdist de pytest (`pydantic_core` ausente) — `env -u PYTHONPATH pytest ...` es el workaround si reaparece.
+
 ---
