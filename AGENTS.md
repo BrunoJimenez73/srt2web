@@ -867,4 +867,19 @@ Auditoría técnica del repo completa (tests/unit 1599P+40F, tests/cli 78P+25F, 
 - **Fix**: `unset PYTHONPATH` en `.git/hooks/pre-commit` (solo para procesos del hook; no toca el entorno). Verificado: `env -u PYTHONPATH pre_commit run mypy` → **Passed** en core/ server/ modules/ cli/.
 - **Bonus**: el mismo PYTHONPATH global es el que rompía los workers xdist de pytest (`pydantic_core` ausente) — `env -u PYTHONPATH pytest ...` es el workaround si reaparece.
 
+### 12/08 — Subtítulos estables: ventana subs alineada al video (F193)
+
+- **Síntoma reportado**: "los subtítulos a veces no salen, salen un poco y desaparecen".
+- **Diagnóstico en pipeline vivo** (evidencia filesystem en `output/hls/` + `output/subtitles/`): 4 causas raíz:
+  - **Subs 1 fragmento por delante del video**: la ventana de `subs.m3u8` exponía `subs_seg_000060.vtt` cuando el video solo había publicado `seg_000059.ts` → el player descartaba las cues del fragmento punta.
+  - **`#EXT-X-PLAYLIST-TYPE:EVENT` en `subs.m3u8`** (escrito por `_fragment_writer.py`) con `MEDIA-SEQUENCE` avanzando y rolling window de 10: contradicción de spec (RFC 8216: EVENT nunca recorta ni avanza seq) → HLS.js podía descartar/resetear el track → "salen un poco y desaparecen".
+  - **EXTINF dispares**: `subs.m3u8` con duraciones calculadas del chunk vs `stream.m3u8` con las reales (11.4 vs 12.043) → desfase temporal progresivo de las cues.
+  - **Bug de índice con chunk silencioso** (`__init__.py` ~204): `if not text: return data` no avanzaba `_last_chunk_index`; todos los chunks con texto siguientes quedaban atrapados en `_pending` como out-of-order → subtítulos congelados hasta superar `MAX_PENDING` (~128 chunks, ~10 min). Causa del "a veces no salen".
+- **Fix** (4 archivos):
+  - `_fragment_writer.py`: eliminado `#EXT-X-PLAYLIST-TYPE:EVENT`; nueva `set_video_playlist_path()` — `rewrite_playlist()` recorta la ventana de subs al último fragmento publicado del video (`stream.m3u8` como fuente de verdad compartida) y reutiliza sus EXTINF reales (`_read_video_durations`). Timelines subs≡video. Fallback intacto si no hay `stream.m3u8`.
+  - `subtitle_generator_pkg/__init__.py`: `start()` conecta el video playlist al writer; chunk sin texto ya no rompe la secuencia — se escribe un fragmento VTT vacío y avanza el índice (correspondencia 1:1 con el video), salvo pause loop (`is_loop`) que se chequea antes.
+  - `hls_output.py`: comentario obsoleto 531-532 actualizado ("media_seq=0" ya no aplica).
+  - `tests/unit/test_f108_subtitle_hls_sync.py`: +11 tests de regresión (ventana recortada al video, EXTINF del video, sin tag EVENT, chunk silencioso avanza el índice / escribe vacío / no congela el siguiente, loop skip).
+- **Verificación**: `test_f108_subtitle_hls_sync` + `test_subtitle_generator` **43/43**; `test_f183_f187_startup_races` **17/17**; fallos de `test_hls_output`/`test_hls_remux` confirmados **pre-existentes** (git stash, patrones F191/mock); ruff 0 errores; mypy 0 errores en los 3 módulos. Detalles en `harness.db` (sesión #35, F193 done).
+
 ---

@@ -99,6 +99,9 @@ class SubtitleGenerator(BaseModule):
 
         hls_playlist_path = self._subtitles_dir / "subs.m3u8"
         self._fragment_writer.set_paths(hls_playlist_path, self._subtitles_dir)
+        # Align the subtitle window with the video HLS playlist (stream.m3u8)
+        # so subs.m3u8 never runs ahead of the published video segments.
+        self._fragment_writer.set_video_playlist_path(Path(self._output_dir) / "hls" / "stream.m3u8")
 
         # Clean stale HLS subtitle artifacts from previous sessions
         for old_chunk in Path(self._output_dir, "subtitles").glob("chunk_*.srt"):
@@ -201,15 +204,21 @@ class SubtitleGenerator(BaseModule):
         # Default subtitles_path to playlist even if no text
         data.subtitles_path = str(self._subtitles_dir / "subs.m3u8")
 
-        if not text:
-            return data
-
-        # Handle pause loop / duplicate chunks
+        # Handle pause loop / duplicate chunks FIRST: a replayed chunk must
+        # never advance the index nor write a fragment.
         is_loop = data.metadata.get("is_loop", False)
         if is_loop:
             logger.debug(f"[SubtitleGen] Pause loop detected - chunk {data.chunk_index} replaying, skipping")
             return data
 
+        # FIX-2026-08: chunks WITHOUT transcript were previously dropped here
+        # without advancing _last_chunk_index. The video still produces its
+        # segment for that chunk, so the 1:1 video<->subtitle correspondence
+        # broke: every later chunk looked "out of order" (expected < actual),
+        # got buffered in _pending, and subtitles froze until MAX_PENDING was
+        # exceeded (~10 min at 5s chunks) — users saw subtitles vanish. Now a
+        # silent chunk writes an EMPTY fragment (WEBVTT header only) to keep
+        # the sequence contiguous and the windows aligned.
         with self._lock:
             expected = self._last_chunk_index + 1
 
@@ -231,7 +240,7 @@ class SubtitleGenerator(BaseModule):
                     logger.debug(f"[SubtitleGen] Buffered out-of-order chunk {data.chunk_index} (expected {expected})")
                     return data
 
-            self._write_chunk_locked(data, text, duration, chunk_start_time)
+            self._write_chunk_locked(data, text or "", duration, chunk_start_time)
             self._drain_pending_locked(duration)
 
         return data

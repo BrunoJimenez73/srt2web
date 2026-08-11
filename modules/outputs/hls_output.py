@@ -528,8 +528,10 @@ class HLSOutput(OutputSink):
                 except ValueError:
                     media_seq = 0
 
-            # Push video media_seq — no longer needed, subtitle playlist
-            # always uses media_seq=0 (VTT cues are media-relative).
+            # The subtitle fragment writer (modules/subtitle_generator_pkg/
+            # _fragment_writer.py) reads this same stream.m3u8 to align its
+            # window (never ahead of the video) and reuse these EXTINF
+            # durations, keeping both playlists on identical timelines.
 
             # TARGETDURATION must be >= actual max segment duration (HLS RFC)
             max_dur = max(self._segment_durations.values()) if self._segment_durations else self._segment_duration

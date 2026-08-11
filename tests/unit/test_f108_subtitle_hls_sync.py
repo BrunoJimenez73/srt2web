@@ -511,3 +511,158 @@ class TestConfigureClearsHLS:
             _process_chunk(gen, i)
         gen.configure({"chunk_duration": 5, "hls_list_size": 6})  # same as default
         assert len(gen._hls_fragments) == 3, "no change in chunk_duration must preserve fragments"
+
+
+# ---------------------------------------------------------------------------
+# FIX-2026-08: ventana de subtítulos alineada con el video + chunks sin texto
+# ---------------------------------------------------------------------------
+
+
+class TestSubtitleWindowAlignedToVideo:
+    """subs.m3u8 nunca debe ir por delante del video publicado (FIX-2026-08)."""
+
+    @staticmethod
+    def _write_video_playlist(tmp_path: Path, segments: list[tuple[int, float]]) -> Path:
+        hls_dir = tmp_path / "hls"
+        hls_dir.mkdir(exist_ok=True)
+        lines = ["#EXTM3U", "#EXT-X-VERSION:4"]
+        lines.append(f"#EXT-X-TARGETDURATION:{int(max(d for _, d in segments)) + 1}")
+        lines.append(f"#EXT-X-MEDIA-SEQUENCE:{segments[0][0]}")
+        for idx, dur in segments:
+            lines.append(f"#EXTINF:{dur:.3f},")
+            lines.append(f"seg_{idx:06d}.ts")
+        path = hls_dir / "stream.m3u8"
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return path
+
+    def test_playlist_trimmed_to_video_window(self, tmp_path: Path) -> None:
+        """El subs ya consumió chunks 0-5, pero el video solo publicó 0-3."""
+        self._write_video_playlist(tmp_path, [(0, 5.0), (1, 5.0), (2, 5.0), (3, 5.0)])
+        gen = _make_gen(str(tmp_path))
+        for i in range(6):
+            _process_chunk(gen, i)
+        content = gen._hls_playlist_path.read_text(encoding="utf-8")
+        assert "subs_seg_000004.vtt" not in content
+        assert "subs_seg_000005.vtt" not in content
+        assert "subs_seg_000003.vtt" in content
+        assert "#EXT-X-MEDIA-SEQUENCE:0" in content
+
+    def test_playlist_uses_video_extinf_when_available(self, tmp_path: Path) -> None:
+        """EXTINF del subs toma la duración REAL del video (12.043, no 11.4)."""
+        self._write_video_playlist(tmp_path, [(0, 12.043), (1, 6.043)])
+        gen = _make_gen(str(tmp_path))
+        _process_chunk(gen, 0)
+        _process_chunk(gen, 1)
+        content = gen._hls_playlist_path.read_text(encoding="utf-8")
+        assert "#EXTINF:12.043," in content
+        assert "#EXTINF:6.043," in content
+        assert "#EXTINF:5.000," not in content  # no usa la duración nominal del chunk
+
+    def test_no_video_playlist_falls_back_to_own_durations(self, tmp_path: Path) -> None:
+        """Sin stream.m3u8 (tests, standalone): comportamiento legacy intacto."""
+        gen = _make_gen(str(tmp_path))
+        for i in range(3):
+            _process_chunk(gen, i)
+        content = gen._hls_playlist_path.read_text(encoding="utf-8")
+        assert "#EXTINF:5.000," in content
+        assert "#EXT-X-MEDIA-SEQUENCE:0" in content
+        assert content.count("#EXT-X-DISCONTINUITY") == 3
+
+    def test_playlist_has_no_event_type_tag(self, tmp_path: Path) -> None:
+        """EVENT prohíbe recortar; con rolling window es contradicción de spec (FIX)."""
+        gen = _make_gen(str(tmp_path))
+        for i in range(3):
+            _process_chunk(gen, i)
+        content = gen._hls_playlist_path.read_text(encoding="utf-8")
+        assert "#EXT-X-PLAYLIST-TYPE" not in content
+
+    def test_empty_playlist_keeps_media_sequence_zero(self, tmp_path: Path) -> None:
+        gen = _make_gen(str(tmp_path))
+        content = gen._hls_playlist_path.read_text(encoding="utf-8")
+        assert "#EXT-X-MEDIA-SEQUENCE:0" in content
+        assert "#EXT-X-PLAYLIST-TYPE" not in content
+
+    def test_video_far_ahead_subs_not_ahead_of_video(self, tmp_path: Path) -> None:
+        """El video puede estar por delante; el subs nunca lo sobrepasa."""
+        self._write_video_playlist(tmp_path, [(0, 5.0), (1, 5.0), (2, 5.0)])
+        gen = _make_gen(str(tmp_path))
+        _process_chunk(gen, 0)
+        _process_chunk(gen, 1)
+        _process_chunk(gen, 2)
+        content = gen._hls_playlist_path.read_text(encoding="utf-8")
+        assert "subs_seg_000002.vtt" in content
+        assert "subs_seg_000003.vtt" not in content
+
+
+class TestEmptyTextKeepsSequenceContiguous:
+    """Chunk sin transcripción ya no rompe la correspondencia 1:1 (FIX-2026-08)."""
+
+    def test_silent_chunk_still_advances_index(self, tmp_path: Path) -> None:
+        gen = _make_gen(str(tmp_path))
+        _process_chunk(gen, 0)
+        data = PipelineData(
+            chunk_index=1,
+            transcript=None,
+            translated_text=None,
+            translated_segments=[],
+            duration=5.0,
+            cumulative_duration=5.0,
+        )
+        gen._do_process(data)
+        assert gen._last_chunk_index == 1, "chunk sin texto debe avanzar el índice"
+
+    def test_silent_chunk_does_not_stall_next_text_chunk(self, tmp_path: Path) -> None:
+        """Antes: chunk 1 sin texto dejaba el 2 (con texto) atrapado en pending."""
+        gen = _make_gen(str(tmp_path))
+        _process_chunk(gen, 0)
+        silent = PipelineData(
+            chunk_index=1,
+            transcript=None,
+            translated_text=None,
+            translated_segments=[],
+            duration=5.0,
+            cumulative_duration=5.0,
+        )
+        gen._do_process(silent)
+        _process_chunk(gen, 2)  # con texto otra vez
+        frag_2 = tmp_path / "subtitles" / "subs_seg_000002.vtt"
+        assert frag_2.exists(), "el chunk 2 no debe quedar congelado en el buffer pending"
+        playlist = gen._hls_playlist_path.read_text(encoding="utf-8")
+        assert "subs_seg_000002.vtt" in playlist
+
+    def test_silent_chunk_writes_empty_fragment(self, tmp_path: Path) -> None:
+        """El fragmento vacío mantiene la ventana 1:1 con el video."""
+        gen = _make_gen(str(tmp_path))
+        _process_chunk(gen, 0)
+        silent = PipelineData(
+            chunk_index=1,
+            transcript=None,
+            translated_text=None,
+            translated_segments=[],
+            duration=5.0,
+            cumulative_duration=5.0,
+        )
+        gen._do_process(silent)
+        frag_1 = tmp_path / "subtitles" / "subs_seg_000001.vtt"
+        assert frag_1.exists()
+        content = frag_1.read_text(encoding="utf-8")
+        assert content.startswith("WEBVTT")
+        assert "-->" not in content  # vacío, sin cues
+        playlist = gen._hls_playlist_path.read_text(encoding="utf-8")
+        assert "subs_seg_000001.vtt" in playlist
+
+    def test_loop_chunk_still_skipped(self, tmp_path: Path) -> None:
+        """is_loop (pause loop) sigue descartándose ANTES de tocar el índice."""
+        gen = _make_gen(str(tmp_path))
+        _process_chunk(gen, 0)
+        looped = PipelineData(
+            chunk_index=0,
+            transcript="hola",
+            translated_text="hola",
+            translated_segments=[{"start": 0.5, "end": 4.5, "text": "hola"}],
+            duration=5.0,
+            cumulative_duration=0.0,
+            metadata={"is_loop": True},
+        )
+        gen._do_process(looped)
+        assert gen._last_chunk_index == 0, "chunk en pause loop no debe avanzar el índice"

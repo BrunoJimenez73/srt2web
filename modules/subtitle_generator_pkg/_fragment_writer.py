@@ -27,6 +27,7 @@ class FragmentWriter:
         self._list_size = list_size
         self._subtitles_dir = subtitles_dir
         self._fragments: list[dict[str, Any]] = []
+        self._video_playlist_path: Path | None = None
 
     def configure(self, list_size: int) -> None:
         self._list_size = list_size
@@ -34,6 +35,42 @@ class FragmentWriter:
     def set_paths(self, playlist_path: Path, subtitles_dir: Path) -> None:
         self._playlist_path = playlist_path
         self._subtitles_dir = subtitles_dir
+
+    def set_video_playlist_path(self, video_playlist_path: Path | None) -> None:
+        """Point at the video HLS playlist (stream.m3u8) for window alignment.
+
+        When available, the subtitle playlist is trimmed to the video window
+        (never ahead of the video) and reuses the video EXTINF durations so
+        both playlists accumulate identical timelines (no cue drift).
+        """
+        self._video_playlist_path = video_playlist_path
+
+    def _read_video_durations(self) -> dict[int, float] | None:
+        """Read {segment_index: EXTINF} from the video stream.m3u8, if present."""
+        if not self._video_playlist_path or not self._video_playlist_path.exists():
+            return None
+        try:
+            durations: dict[int, float] = {}
+            last_dur = 0.0
+            for line in self._video_playlist_path.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if line.startswith("#EXTINF:"):
+                    val = line[len("#EXTINF:") :]
+                    if val.endswith(","):
+                        val = val[:-1]
+                    try:
+                        last_dur = float(val)
+                    except ValueError:
+                        last_dur = 0.0
+                elif line.startswith("seg_") and line.endswith(".ts"):
+                    try:
+                        idx = int(line[4:-3])
+                    except ValueError:
+                        continue
+                    durations[idx] = last_dur
+            return durations or None
+        except OSError:
+            return None
 
     def clear(self) -> None:
         self._fragments.clear()
@@ -97,6 +134,16 @@ class FragmentWriter:
         Write the HLS subtitle media playlist (subs.m3u8) with rolling window
         matching the video HLS playlist. Uses #EXT-X-DISCONTINUITY before each
         fragment. MEDIA-SEQUENCE matches the first fragment's chunk_index. Atomic write.
+
+        FIX-2026-08: this playlist must *never* run ahead of the video. The
+        writer consumes chunks before HLSOutput does (it sits earlier in the
+        pipeline), so its window can expose fragments whose video segment does
+        not exist yet — HLS.js then drops those cues (subtitles appear briefly
+        and vanish). We therefore trim the playlist to the video window and
+        reuse the video EXTINF durations when stream.m3u8 is available, so both
+        playlists accumulate identical timelines (no progressive cue drift).
+        #EXT-X-PLAYLIST-TYPE:EVENT is NOT emitted: EVENT forbids trimming,
+        contradicting our rolling window and the advancing MEDIA-SEQUENCE.
         """
         if not self._playlist_path or str(self._playlist_path) == ".":
             return
@@ -107,7 +154,6 @@ class FragmentWriter:
                 with open(tmp_path, "w", encoding="utf-8") as f:
                     f.write("#EXTM3U\n")
                     f.write("#EXT-X-VERSION:3\n")
-                    f.write("#EXT-X-PLAYLIST-TYPE:EVENT\n")
                     f.write("#EXT-X-TARGETDURATION:10\n")
                     f.write("#EXT-X-MEDIA-SEQUENCE:0\n")
                 tmp_path.replace(self._playlist_path)
@@ -115,22 +161,37 @@ class FragmentWriter:
                 logger.error(f"Error writing empty HLS playlist: {e}")
             return
 
-        target_duration = max(1, int(max(f["duration"] for f in self._fragments)) + 1)
-        first_sn = self._fragments[0]["chunk_index"]
+        video_durations = self._read_video_durations()
+
+        # Trim to the video window: drop fragments ahead of the last video segment
+        frags: list[dict[str, Any]] = self._fragments
+        if video_durations:
+            max_video_idx = max(video_durations)
+            frags = [f for f in self._fragments if f["chunk_index"] <= max_video_idx]
+            if not frags:
+                # Video has not published any segment this window can join yet —
+                # keep the empty playlist until it catches up.
+                return
+
+        target_duration = max(1, int(max(f["duration"] for f in frags)) + 1)
+        first_sn = frags[0]["chunk_index"]
         media_sequence = first_sn
+
+        def _extinf_duration(frag: dict[str, Any]) -> float:
+            if video_durations:
+                return float(video_durations.get(frag["chunk_index"], frag["duration"]))
+            return float(frag["duration"])
 
         tmp_path = self._playlist_path.with_suffix(self._playlist_path.suffix + ".tmp")
         try:
             with open(tmp_path, "w", encoding="utf-8") as f:
                 f.write("#EXTM3U\n")
                 f.write("#EXT-X-VERSION:3\n")
-                f.write("#EXT-X-PLAYLIST-TYPE:EVENT\n")
                 f.write(f"#EXT-X-TARGETDURATION:{target_duration}\n")
                 f.write(f"#EXT-X-MEDIA-SEQUENCE:{media_sequence}\n")
-                for frag in self._fragments:
+                for frag in frags:
                     frag_chunk_index = frag["chunk_index"]
-                    frag_duration = frag["duration"]
-                    f.write(f"#EXTINF:{frag_duration:.3f},\n")
+                    f.write(f"#EXTINF:{_extinf_duration(frag):.3f},\n")
                     f.write("#EXT-X-DISCONTINUITY\n")
                     f.write(f"subs_seg_{frag_chunk_index:06d}.vtt\n")
             tmp_path.replace(self._playlist_path)
