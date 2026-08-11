@@ -14,24 +14,24 @@ input:
     mode: listener
     latency_ms: 200
     caller_address: ''
-    chunk_duration_sec: 10
+    chunk_duration_sec: 5
   rtmp:
     listen_port: 1935
     app: live
     stream_key: stream
     url: ''
     mode: listener
-    chunk_duration_sec: 10
+    chunk_duration_sec: 5
   file:
     path: ''
     loop: false
     speed: 1.0
-    chunk_duration_sec: 10
+    chunk_duration_sec: 5
 output:
   type: web
   web:
-    segment_duration: 10
-    list_size: 6
+    segment_duration: 5
+    list_size: 12
     audio_offset_ms: 0
     encoder_mode: auto
     bitrate_ladder:
@@ -48,8 +48,8 @@ output:
       height: 1080
       name: high
   hls:
-    segment_duration: 10
-    list_size: 6
+    segment_duration: 5
+    list_size: 12
     audio_offset_ms: 0
     encoder_mode: auto
     bitrate_ladder:
@@ -103,31 +103,13 @@ output:
     subtitles: vtt
     video_preset: fast
   outputs:
-  - name: web_1
-    type: web
+  - name: srt_1
+    type: srt
     enabled: true
     config:
-      segment_duration: 10
-      list_size: 6
-      audio_offset_ms: 0
-      encoder_mode: auto
-      bitrate_ladder:
-      - bandwidth: 500000
-        width: 854
-        height: 480
-        name: low
-      - bandwidth: 1500000
-        width: 1280
-        height: 720
-        name: medium
-      - bandwidth: 3000000
-        width: 1920
-        height: 1080
-        name: high
-      subtitle_language: es
-      subtitle_language_name: Spanish
+      port: 9002
 pipeline:
-  chunk_duration_sec: 10
+  chunk_duration_sec: 5
   mode: thread_parallel
   max_concurrent_chunks: 4
   buffer_size: 10
@@ -157,7 +139,7 @@ modules:
     enabled: true
     model: tiny
     language: en
-    device: cuda
+    device: cpu
     beam_size: 2
     timeout_sec: 120.0
   translator:
@@ -170,13 +152,13 @@ modules:
     enabled: true
     format: webvtt
     use_translated: true
-    chunk_duration: 10
+    chunk_duration: 5
     dual_track: false
   tts_engine:
     enabled: true
     engine: piper
-    device: cuda
-    voice: es_ES-davefx-medium
+    device: cpu
+    voice: es_MX-claude-high
     speed: 1.2
   audio_mixer:
     enabled: true
@@ -185,8 +167,8 @@ modules:
   video_muxer:
     enabled: true
     engine: hls
-    hls_segment_duration: 10
-    hls_list_size: 6
+    hls_segment_duration: 5
+    hls_list_size: 12
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
     video_quality: medium
