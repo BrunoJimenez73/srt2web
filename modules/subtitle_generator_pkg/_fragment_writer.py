@@ -45,6 +45,19 @@ class FragmentWriter:
         """
         self._video_playlist_path = video_playlist_path
 
+    def _write_empty_playlist(self, media_sequence: int) -> None:
+        """Write a minimal empty media playlist anchored at a sequence number."""
+        tmp_path = self._playlist_path.with_suffix(self._playlist_path.suffix + ".tmp")
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                f.write("#EXTM3U\n")
+                f.write("#EXT-X-VERSION:3\n")
+                f.write("#EXT-X-TARGETDURATION:10\n")
+                f.write(f"#EXT-X-MEDIA-SEQUENCE:{media_sequence}\n")
+            tmp_path.replace(self._playlist_path)
+        except Exception as e:
+            logger.error(f"Error writing empty HLS playlist: {e}")
+
     def _read_video_durations(self) -> dict[int, float] | None:
         """Read {segment_index: EXTINF} from the video stream.m3u8, if present."""
         if not self._video_playlist_path or not self._video_playlist_path.exists():
@@ -149,28 +162,26 @@ class FragmentWriter:
             return
 
         if not self._fragments:
-            tmp_path = self._playlist_path.with_suffix(self._playlist_path.suffix + ".tmp")
-            try:
-                with open(tmp_path, "w", encoding="utf-8") as f:
-                    f.write("#EXTM3U\n")
-                    f.write("#EXT-X-VERSION:3\n")
-                    f.write("#EXT-X-TARGETDURATION:10\n")
-                    f.write("#EXT-X-MEDIA-SEQUENCE:0\n")
-                tmp_path.replace(self._playlist_path)
-            except Exception as e:
-                logger.error(f"Error writing empty HLS playlist: {e}")
+            self._write_empty_playlist(0)
             return
 
         video_durations = self._read_video_durations()
 
-        # Trim to the video window: drop fragments ahead of the last video segment
+        # Align the FULL window with the video: intersection of the sub window
+        # with the video window [min_idx, max_idx]. Trimming only the ceiling
+        # (F193) left stale fragments at the base (e.g. video seq 15, subs
+        # still listing 11..14), so both playlists had different
+        # MEDIA-SEQUENCE and HLS.js dropped the subtitle cues.
         frags: list[dict[str, Any]] = self._fragments
         if video_durations:
+            min_video_idx = min(video_durations)
             max_video_idx = max(video_durations)
-            frags = [f for f in self._fragments if f["chunk_index"] <= max_video_idx]
+            frags = [f for f in self._fragments if min_video_idx <= f["chunk_index"] <= max_video_idx]
             if not frags:
-                # Video has not published any segment this window can join yet —
-                # keep the empty playlist until it catches up.
+                # No overlap (e.g. video restarted and renumbered segments).
+                # Serve an empty playlist anchored to the video sequence so
+                # HLS.js does not keep stale cues and re-syncs cleanly.
+                self._write_empty_playlist(min_video_idx)
                 return
 
         target_duration = max(1, int(max(f["duration"] for f in frags)) + 1)

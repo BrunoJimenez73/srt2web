@@ -593,6 +593,43 @@ class TestSubtitleWindowAlignedToVideo:
         assert "subs_seg_000002.vtt" in content
         assert "subs_seg_000003.vtt" not in content
 
+    def test_playlist_base_aligned_to_video_window(self, tmp_path: Path) -> None:
+        # La BASE tambien se alinea: video seq 15..20, subs 0..19 procesados.
+        # La ventana de subs queda 15..19 (interseccion), sin fantasma 11..14.
+        self._write_video_playlist(tmp_path, [(15, 5.0), (16, 5.0), (17, 5.0), (18, 5.0), (19, 5.0), (20, 5.0)])
+        gen = _make_gen(str(tmp_path))
+        for i in range(20):
+            _process_chunk(gen, i)
+        content = gen._hls_playlist_path.read_text(encoding="utf-8")
+        assert "#EXT-X-MEDIA-SEQUENCE:15" in content
+        assert "subs_seg_000011.vtt" not in content  # base recortada al video
+        assert "subs_seg_000014.vtt" not in content
+        assert "subs_seg_000015.vtt" in content
+        assert "subs_seg_000019.vtt" in content
+        assert "subs_seg_000020.vtt" not in content  # subs nunca por delante del video
+
+    def test_no_overlap_serves_empty_playlist_anchored_to_video(self, tmp_path: Path) -> None:
+        # Video renumerado (restart watchdog): sin solapamiento -> playlist
+        # vacio anclado a la MEDIA-SEQUENCE del video, sin cues stale.
+        self._write_video_playlist(tmp_path, [(100, 5.0)])
+        gen = _make_gen(str(tmp_path))
+        for i in range(3):
+            _process_chunk(gen, i)
+        content = gen._hls_playlist_path.read_text(encoding="utf-8")
+        assert "#EXT-X-MEDIA-SEQUENCE:100" in content
+        assert "subs_seg_" not in content  # sin fragmentos stale
+
+    def test_base_alignment_keeps_extinf_sync(self, tmp_path: Path) -> None:
+        # EXTINF sigue tomando la duracion real del video tras recortar la base.
+        self._write_video_playlist(tmp_path, [(15, 11.283), (16, 5.283), (17, 6.043)])
+        gen = _make_gen(str(tmp_path))
+        for i in range(18):
+            _process_chunk(gen, i)
+        content = gen._hls_playlist_path.read_text(encoding="utf-8")
+        assert "#EXTINF:11.283," in content
+        assert "#EXTINF:5.283," in content
+        assert "#EXTINF:5.000," not in content
+
 
 class TestEmptyTextKeepsSequenceContiguous:
     """Chunk sin transcripción ya no rompe la correspondencia 1:1 (FIX-2026-08)."""
