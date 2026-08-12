@@ -882,4 +882,14 @@ Auditoría técnica del repo completa (tests/unit 1599P+40F, tests/cli 78P+25F, 
   - `tests/unit/test_f108_subtitle_hls_sync.py`: +11 tests de regresión (ventana recortada al video, EXTINF del video, sin tag EVENT, chunk silencioso avanza el índice / escribe vacío / no congela el siguiente, loop skip).
 - **Verificación**: `test_f108_subtitle_hls_sync` + `test_subtitle_generator` **46/46** (+3: base alineada, playlist vacío sin solapamiento, EXTINF tras recorte de base); `test_f183_f187_startup_races` **17/17**; fallos de `test_hls_output`/`test_hls_remux` confirmados **pre-existentes** (git stash, patrones F191/mock); ruff 0 errores; mypy 0 errores en los 3 módulos. Detalles en `harness.db` (sesión #35, F193 done).
 
+### 12/08 — Subs siguen saltando trozos: re-sync del playlist tras publicar segmento (F193 2ª ronda)
+
+- **Síntoma**: tras el fix de intersección de ventanas y reinicio, "el audio traducido va perfecto pero los subtítulos se saltan muchos trozos".
+- **Diagnóstico en vivo** (mtimes de `subs.m3u8` vs `stream.m3u8`): el generador de subs escribe `subs.m3u8` ~1s **ANTES** de que `HLSOutput` publique el segmento de video del mismo índice (va antes en el pipeline: audio→…→subtitle_generator→tts→mixer→HLSOutput). `rewrite_playlist()` recorta entonces a `max_video_idx = N-1` y la ventana de subs queda congelada 1 fragmento por detrás cuando el video avanza (evidencia: video `MEDIA-SEQUENCE:64` con seg 64–69 vs subs `63` con frag 63–68). Dos playlists con `MEDIA-SEQUENCE` distintas → HLS.js correlaciona mal y descarta/mezcla cues → "saltos". Los VTT en disco estaban llenos de cues (el texto llega bien); el problema era la **entrega del playlist**, no la generación.
+- **Fix (3 archivos + tests)**:
+  - `modules/outputs/hls_output.py`: `set_subtitle_resync_callback()` + invocación al final de `_update_manifest()` (se llama en los 3 paths de `write()`) — tras publicar cada segmento, dispara el re-write del playlist de subs LEYENDO el `stream.m3u8` ya actualizado.
+  - `modules/subtitle_generator_pkg/__init__.py`: método público `sync_playlist()` bajo `self._lock` → `_fragment_writer.rewrite_playlist()`.
+  - `core/app_context.py`: wiring tras `_register_modules` — `pipeline.get_module("subtitle_generator")` + `composite_sink.get_output_names()`/`get_output_by_name()` registran el callback en cada output que lo soporte (duck-typing con `getattr`).
+- **Verificación**: 69/69 (test_f108 +test_subtitle_generator 52 = 46 + 4 re-sync + 2 callback HLSOutput; test_f183_f187 17 intacto); smoke test de `create_app_context` en vivo: "WIRING OK wired callback on web_1"; mypy 0 errores; ruff 0 errores.
+
 ---

@@ -137,6 +137,18 @@ class SubtitleGenerator(BaseModule):
     def get_playlist_url(self) -> str:
         return "/subtitles/subs.m3u8"
 
+    def sync_playlist(self) -> None:
+        """Re-align subs.m3u8 with the current video HLS window.
+
+        Called by HLSOutput after each stream.m3u8 update: the generator
+        writes its playlist before the video segment of the same chunk is
+        published (it sits earlier in the pipeline), so without this
+        re-sync the subtitle window lags the video by one fragment and the
+        MEDIA-SEQUENCE values diverge, making HLS.js drop cues.
+        """
+        with self._lock:
+            self._fragment_writer.rewrite_playlist()
+
     # ------------------------------------------------------------------ #
     # Backward-compatible shim properties (tests access internals)
     # ------------------------------------------------------------------ #

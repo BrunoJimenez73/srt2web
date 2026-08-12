@@ -17,6 +17,7 @@ import os
 import subprocess
 import sys
 import threading
+from collections.abc import Callable
 from typing import Any
 
 from core.encoder_config import EncoderConfig
@@ -50,6 +51,7 @@ class HLSOutput(OutputSink):
         # Configuración de subtítulos
         self._subtitle_language = config.get("subtitle_language", "es")
         self._subtitle_language_name = config.get("subtitle_language_name", "Spanish")
+        self._subtitle_resync_callback: Callable[[], None] | None = None
 
         # F169 — ABR bitrate ladder
         self._bitrate_ladder = config.get(
@@ -500,6 +502,17 @@ class HLSOutput(OutputSink):
         self.logger.info(f"Using encoder: {encoder} (preset: {preset or 'default'})")
         return encoder, preset, extra_args
 
+    def set_subtitle_resync_callback(self, callback: Callable[[], None] | None) -> None:
+        """Register a callback invoked after each manifest update.
+
+        The subtitle generator (modules/subtitle_generator_pkg/) writes its
+        playlist slightly BEFORE the video segment of the same chunk is
+        published, so its window can lag the video by one fragment. This
+        callback lets HLSOutput re-align subs.m3u8 right after stream.m3u8
+        advances, keeping both MEDIA-SEQUENCE values identical.
+        """
+        self._subtitle_resync_callback = callback
+
     def _update_manifest(self) -> None:
         """Actualizar playlists HLS."""
         with self._manifest_lock:
@@ -601,6 +614,16 @@ class HLSOutput(OutputSink):
                     os.replace(master_tmp, master_path)
             except Exception as e:
                 self.logger.error(f"Failed to write master playlist: {e}")
+
+        # Re-align the subtitle playlist with the freshly published video
+        # window. stream.m3u8 just advanced (new segment / trimmed base);
+        # the subtitle writer must read it NOW so both playlists expose
+        # the same MEDIA-SEQUENCE and HLS.js keeps the cues.
+        if self._subtitle_resync_callback is not None:
+            try:
+                self._subtitle_resync_callback()
+            except Exception as e:
+                self.logger.error(f"Subtitle playlist resync failed: {e}")
 
     def get_status(self) -> ModuleStatus:
         """Get status including GPU encoder info."""

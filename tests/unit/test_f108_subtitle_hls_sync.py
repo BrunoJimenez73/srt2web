@@ -419,6 +419,81 @@ class TestHLSOutputMasterPlaylist:
         assert 'NAME="English"' in master, "Name must match config"
         assert 'SUBTITLES="subs"' in master, "STREAM-INF must reference subs group"
 
+    def test_publish_triggers_subtitle_resync_callback(self, tmp_path: Path) -> None:
+        # FIX 2026-08: HLSOutput debe re-disparar el rewrite de subs.m3u8 tras
+        # publicar cada segmento (el generador escribe su playlist ANTES de que
+        # el video publique el segmento del mismo indice, asi que sin este
+        # callback la ventana de subs queda 1 fragmento por detras).
+        from modules.outputs.hls_output import HLSOutput
+
+        output = HLSOutput({"output_dir": str(tmp_path)})
+        output._output_dir = str(tmp_path)
+        output._hls_dir = str(tmp_path / "hls")
+        os.makedirs(output._hls_dir, exist_ok=True)
+        output._segment_index = 0
+        output._total_duration_emitted = 0.0
+        output._first_segment_written = True
+        output._ffmpeg_path = "ffmpeg"
+        output._pool = MagicMock()
+        output._pool.acquire.return_value = True
+
+        resynced = MagicMock()
+        output.set_subtitle_resync_callback(resynced)
+
+        with (
+            patch("modules.outputs.hls_output.subprocess.run") as mock_run,
+            patch("core.ffmpeg_utils.find_ffprobe", return_value=""),
+        ):
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stderr = ""
+            seg_path = tmp_path / "hls" / "seg_000000.ts"
+            seg_path.parent.mkdir(parents=True, exist_ok=True)
+            seg_path.write_text("fake", encoding="utf-8")
+            output.write(
+                PipelineData(
+                    chunk_index=0,
+                    video_chunk_path=str(seg_path),
+                    duration=6.0,
+                )
+            )
+
+        resynced.assert_called_once_with()
+        # El stream.m3u8 publicado primero, para que el rewrite lea la ventana fresca
+        assert (tmp_path / "hls" / "stream.m3u8").exists()
+
+    def test_no_resync_callback_is_noop(self, tmp_path: Path) -> None:
+        # Sin callback registrado (otros sinks, tests), write() no falla.
+        from modules.outputs.hls_output import HLSOutput
+
+        output = HLSOutput({"output_dir": str(tmp_path)})
+        output._output_dir = str(tmp_path)
+        output._hls_dir = str(tmp_path / "hls")
+        os.makedirs(output._hls_dir, exist_ok=True)
+        output._segment_index = 0
+        output._total_duration_emitted = 0.0
+        output._first_segment_written = True
+        output._ffmpeg_path = "ffmpeg"
+        output._pool = MagicMock()
+        output._pool.acquire.return_value = True
+
+        with (
+            patch("modules.outputs.hls_output.subprocess.run") as mock_run,
+            patch("core.ffmpeg_utils.find_ffprobe", return_value=""),
+        ):
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stderr = ""
+            seg_path = tmp_path / "hls" / "seg_000000.ts"
+            seg_path.parent.mkdir(parents=True, exist_ok=True)
+            seg_path.write_text("fake", encoding="utf-8")
+            output.write(
+                PipelineData(
+                    chunk_index=0,
+                    video_chunk_path=str(seg_path),
+                    duration=6.0,
+                )
+            )
+        assert (tmp_path / "hls" / "stream.m3u8").exists()
+
     def test_master_playlist_contains_stream_inf(self, tmp_path: Path) -> None:
         """Master playlist must contain EXT-X-STREAM-INF with stream.m3u8."""
         from modules.outputs.hls_output import HLSOutput
@@ -703,3 +778,88 @@ class TestEmptyTextKeepsSequenceContiguous:
         )
         gen._do_process(looped)
         assert gen._last_chunk_index == 0, "chunk en pause loop no debe avanzar el índice"
+
+
+# ---------------------------------------------------------------------------
+# FIX 2026-08: re-sync del playlist de subs tras publicar el segmento de video
+# ---------------------------------------------------------------------------
+# El generador de subs escribe subs.m3u8 ANTES de que HLSOutput publique el
+# segmento de video del mismo índice (va antes en el pipeline). Sin re-sync,
+# la ventana de subs queda congelada 1 fragmento por detras del video cuando
+# este avanza -> MEDIA-SEQUENCE divergentes -> HLS.js descarta las cues.
+
+
+class TestSubtitleResyncAfterVideoPublish:
+    """HLSOutput re-dispara rewrite_playlist() al publicar cada segmento."""
+
+    @staticmethod
+    def _write_video_playlist(tmp_path: Path, segments: list[tuple[int, float]]) -> Path:
+        hls_dir = tmp_path / "hls"
+        hls_dir.mkdir(exist_ok=True)
+        lines = ["#EXTM3U", "#EXT-X-VERSION:4"]
+        lines.append(f"#EXT-X-TARGETDURATION:{int(max(d for _, d in segments)) + 1}")
+        lines.append(f"#EXT-X-MEDIA-SEQUENCE:{segments[0][0]}")
+        for idx, dur in segments:
+            lines.append(f"#EXTINF:{dur:.3f},")
+            lines.append(f"seg_{idx:06d}.ts")
+        path = hls_dir / "stream.m3u8"
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return path
+
+    def test_subs_stuck_base_without_resync(self, tmp_path: Path) -> None:
+        # El video publico hasta seg_5 cuando se proceso el chunk 6; luego
+        # avanza a [1..6]. El subs (que ya tiene fragments 0..6) queda con la
+        # base 0 si nadie re-escribe -> MEDIA-SEQUENCE 0 vs video 1 (bug vivo:
+        # video seq 15/64, subs seq 11/63).
+        self._write_video_playlist(tmp_path, [(0, 5.0), (1, 5.0), (2, 5.0), (3, 5.0), (4, 5.0), (5, 5.0)])
+        gen = _make_gen(str(tmp_path))
+        for i in range(7):
+            _process_chunk(gen, i)
+        # El video avanza: publica seg_6 y trimea la base a 1
+        self._write_video_playlist(tmp_path, [(1, 5.0), (2, 5.0), (3, 5.0), (4, 5.0), (5, 5.0), (6, 5.0)])
+        content = gen._hls_playlist_path.read_text(encoding="utf-8")
+        assert "#EXT-X-MEDIA-SEQUENCE:0" in content  # congelado en la base vieja
+        assert "subs_seg_000006.vtt" not in content  # le falta el punta recien publicado
+
+    def test_resync_realigns_window_and_sequence(self, tmp_path: Path) -> None:
+        # Mismo escenario que arriba, pero tras sync_playlist() la ventana y la
+        # MEDIA-SEQUENCE deben coincidir EXACTAMENTE con el video [1..6].
+        self._write_video_playlist(tmp_path, [(0, 5.0), (1, 5.0), (2, 5.0), (3, 5.0), (4, 5.0), (5, 5.0)])
+        gen = _make_gen(str(tmp_path))
+        for i in range(7):
+            _process_chunk(gen, i)
+        self._write_video_playlist(tmp_path, [(1, 5.0), (2, 5.0), (3, 5.0), (4, 5.0), (5, 5.0), (6, 5.0)])
+        gen.sync_playlist()
+        content = gen._hls_playlist_path.read_text(encoding="utf-8")
+        assert "#EXT-X-MEDIA-SEQUENCE:1" in content
+        assert "subs_seg_000001.vtt" in content  # base recortada a la del video
+        assert "subs_seg_000006.vtt" in content  # punta alineado con el video
+        assert "subs_seg_000000.vtt" not in content
+        # El playlist de subs replica la ventana del video exacta (6 fragments)
+        assert content.count("#EXT-X-DISCONTINUITY") == 6
+
+    def test_sync_playlist_under_lock_keeps_order(self, tmp_path: Path) -> None:
+        # sync_playlist() debe re-escribir bajo el lock; un chunk procesandose
+        # en paralelo no puede corromper el playlist (F184 intacto).
+        self._write_video_playlist(tmp_path, [(0, 5.0), (1, 5.0), (2, 5.0), (3, 5.0), (4, 5.0), (5, 5.0)])
+        gen = _make_gen(str(tmp_path))
+        for i in range(8):
+            _process_chunk(gen, i)
+        self._write_video_playlist(tmp_path, [(2, 5.0), (3, 5.0), (4, 5.0), (5, 5.0), (6, 5.0), (7, 5.0)])
+        gen.sync_playlist()
+        content = gen._hls_playlist_path.read_text(encoding="utf-8")
+        indices = [
+            int(line.split("_")[2].split(".")[0]) for line in content.splitlines() if line.startswith("subs_seg_")
+        ]
+        assert indices == sorted(indices), "fragments estrictamente ascendentes tras el re-sync"
+        assert indices == [2, 3, 4, 5, 6, 7], f"ventana == video, got {indices}"
+
+    def test_no_video_playlist_resync_falls_back(self, tmp_path: Path) -> None:
+        # Sin stream.m3u8 (tests/standalone), sync_playlist() es un no-op segur
+        gen = _make_gen(str(tmp_path))
+        for i in range(3):
+            _process_chunk(gen, i)
+        gen.sync_playlist()
+        content = gen._hls_playlist_path.read_text(encoding="utf-8")
+        assert "#EXT-X-MEDIA-SEQUENCE:0" in content
+        assert content.count("#EXT-X-DISCONTINUITY") == 3

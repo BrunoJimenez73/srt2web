@@ -127,6 +127,22 @@ def create_app_context(
     # Register modules (pool injected where modules accept it)
     _register_modules(pipeline, config_manager, output_dir, chunk_duration, ffmpeg_pool)
 
+    # F194: keep subs.m3u8 aligned with the video window. The subtitle
+    # generator writes its playlist just before HLSOutput publishes the
+    # segment of the same chunk, so without this hook the subtitle
+    # playlist lags one fragment forever (diverging MEDIA-SEQUENCE -
+    # HLS.js drops cues). HLSOutput re-triggers the rewrite after every
+    # manifest update.
+    subtitle_gen = pipeline.get_module("subtitle_generator")
+    resync_cb = getattr(subtitle_gen, "sync_playlist", None) if subtitle_gen is not None else None
+    if resync_cb is not None:
+        for out_name in composite_sink.get_output_names():
+            out = composite_sink.get_output_by_name(out_name)
+            set_cb = getattr(out, "set_subtitle_resync_callback", None) if out is not None else None
+            if set_cb is not None:
+                set_cb(resync_cb)
+                logger.info(f"Wired subtitle playlist resync to output '{out_name}'")
+
     return {
         "pipeline": pipeline,
         "config": config_manager,
