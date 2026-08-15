@@ -103,9 +103,14 @@ let _hasStartedOnce = false;
 let retryCount = 0;
 
 // Subtitle watchdog: HLS.js may reset TextTrack.mode to "hidden" after a
-// subtitle playlist reload. This flag + timeupdate listener detect and fix it.
+// subtitle playlist reload. This flag + listeners detect and fix it.
 let _subtitleWatchdogActive = false;
 let _subtitleWatchdogHandler: (() => void) | null = null;
+let _subtitleWatchdogAddTrackHandler: ((e: Event) => void) | null = null;
+let _subtitleWatchdogInterval: ReturnType<typeof setInterval> | null = null;
+// Aggressive interval watchdog: catches mode resets even when video is paused
+// or between timeupdate events (which fire ~4 Hz = 250ms gaps).
+const SUBTITLE_WATCHDOG_INTERVAL_MS = 200;
 const MAX_RETRY_DELAY_MS = 30000;
 const BASE_RETRY_DELAY_MS = 2000;
 
@@ -227,6 +232,11 @@ export function initHlsPlayer(): void {
    *
    * The timeupdate event fires ~4 times per second during playback,
    * so the overhead is negligible.
+   *
+   * Additionally, an aggressive interval-based watchdog runs every 200ms
+   * to catch mode resets even when video is paused or between timeupdate
+   * events. The interval also listens for the "addtrack" event which fires
+   * when HLS.js creates new <track> elements after a playlist reload.
    */
   function startSubtitleWatchdog(videoEl: HTMLVideoElement): void {
     if (_subtitleWatchdogActive) return;
@@ -237,7 +247,41 @@ export function initHlsPlayer(): void {
     };
     _subtitleWatchdogHandler = handler;
     videoEl.addEventListener("timeupdate", handler);
-    logger.debug("player", "Subtitle watchdog started (timeupdate)");
+
+    // Aggressive interval watchdog: catches resets between timeupdate events
+    // and when video is paused/buffering (timeupdate doesn't fire). Logs only
+    // when it actually changes a track mode.
+    _subtitleWatchdogInterval = setInterval(() => {
+      const changed = forceSubtitleTrackMode(videoEl);
+      if (changed > 0) {
+        logger.info(
+          "player",
+          `Subtitle watchdog forced ${changed} track(s) to showing (interval)`,
+        );
+      }
+    }, SUBTITLE_WATCHDOG_INTERVAL_MS);
+
+    // Also listen to "addtrack" on the TextTrackList: fires when HLS.js
+    // creates a new <track> via media.addTextTrack() after a subtitle
+    // playlist reload. Note: "addtrack" is dispatched on video.textTracks
+    // (a TextTrackList), NOT on the <video> element itself.
+    const addTrackHandler = (e: Event) => {
+      const added = (e as TrackEvent).track;
+      logger.info(
+        "player",
+        "Subtitle textTrack added",
+        added?.label ?? "(no label)",
+        added?.mode ?? "(no mode)",
+      );
+      forceSubtitleTrackMode(videoEl);
+    };
+    _subtitleWatchdogAddTrackHandler = addTrackHandler;
+    videoEl.textTracks.addEventListener("addtrack", addTrackHandler);
+
+    logger.debug(
+      "player",
+      "Subtitle watchdog started (timeupdate + interval + textTracks addtrack)",
+    );
   }
 
   function stopSubtitleWatchdog(): void {
@@ -249,7 +293,18 @@ export function initHlsPlayer(): void {
     if (video && _subtitleWatchdogHandler) {
       video.removeEventListener("timeupdate", _subtitleWatchdogHandler);
     }
+    if (video && _subtitleWatchdogAddTrackHandler) {
+      video.textTracks.removeEventListener(
+        "addtrack",
+        _subtitleWatchdogAddTrackHandler,
+      );
+    }
+    if (_subtitleWatchdogInterval) {
+      clearInterval(_subtitleWatchdogInterval);
+      _subtitleWatchdogInterval = null;
+    }
     _subtitleWatchdogHandler = null;
+    _subtitleWatchdogAddTrackHandler = null;
     logger.debug("player", "Subtitle watchdog stopped");
   }
 
@@ -328,7 +383,23 @@ export function initHlsPlayer(): void {
       // "showing" here. Without this handler, subtitles can disappear
       // when the subtitle playlist is reloaded (~every targetDuration).
       hls.on(HlsEvents.SUBTITLE_TRACKS_UPDATED, () => {
-        forceSubtitleTrackMode(video);
+        if (hls && hls.subtitleTrack === -1) {
+          // hls.js reset its internal subtitle selection (happens on
+          // manifest reload when the subtitle group is re-parsed). With
+          // subtitleTrack === -1 the SubtitleStreamController stops loading
+          // subs.m3u8, so no cues are delivered no matter the DOM track
+          // mode. Re-activate instead of only forcing the DOM mode.
+          logger.warn(
+            "player",
+            "Subtitle selection lost after track update - re-activating",
+          );
+          activateFirstSubtitleTrack(hls, {
+            video,
+            preferredLang: DEFAULT_SUBTITLE_LANG,
+          });
+        } else {
+          forceSubtitleTrackMode(video);
+        }
       });
 
       hls.on(HlsEvents.FRAG_BUFFERED, () => {

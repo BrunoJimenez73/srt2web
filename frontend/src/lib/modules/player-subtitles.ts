@@ -137,15 +137,31 @@ export function activateFirstSubtitleTrack(
  *
  * Safe to call multiple times; only affects tracks whose mode is not
  * already "showing".
+ *
+ * Returns the number of tracks whose mode was actually changed, so
+ * callers (e.g. polling watchdogs) can log only on state transitions
+ * instead of spamming on every tick.
  */
-export function forceSubtitleTrackMode(video: HTMLVideoElement): void {
+export function forceSubtitleTrackMode(video: HTMLVideoElement): number {
+  let changed = 0;
+  const summary: string[] = [];
   for (let i = 0; i < video.textTracks.length; i++) {
     const track = video.textTracks[i];
-    if (track.kind === "subtitles" && track.mode !== "showing") {
+    if (track.kind !== "subtitles") continue;
+    summary.push(`${i}:${track.mode}/${track.cues?.length ?? 0}`);
+    if (track.mode !== "showing") {
       track.mode = "showing";
-      logger.debug("player-subtitles", "Forced subtitle track to showing", i);
+      changed++;
     }
   }
+  if (summary.length > 0) {
+    logger.debug(
+      "player-subtitles",
+      "Subtitle track state",
+      summary.join(" | "),
+    );
+  }
+  return changed;
 }
 
 /**

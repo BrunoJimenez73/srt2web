@@ -29,6 +29,7 @@ import type { HlsLike, SubtitleTrackDescriptor } from "./player-subtitles";
 import {
   activateFirstSubtitleTrack,
   disableSubtitles,
+  forceSubtitleTrackMode,
   getActiveSubtitleTrackId,
   onSubtitleTrackListChange,
 } from "./player-subtitles";
@@ -145,6 +146,54 @@ describe("F108 — player-subtitles native track helper", () => {
       expect(activateFirstSubtitleTrack(hls)).toBe(0);
       expect(activateFirstSubtitleTrack(hls)).toBe(0);
       expect(hls.subtitleTrack).toBe(0);
+    });
+  });
+
+  describe("forceSubtitleTrackMode", () => {
+    function makeVideo(
+      tracks: Array<{ mode: string; cues?: number; kind?: string }>,
+    ): HTMLVideoElement {
+      return {
+        textTracks: tracks.map((t, i) => ({
+          kind: t.kind ?? "subtitles",
+          mode: t.mode,
+          cues: t.cues !== undefined ? { length: t.cues } : null,
+          label: `track-${i}`,
+          language: "es",
+        })),
+      } as unknown as HTMLVideoElement;
+    }
+
+    it("forces hidden subtitle tracks to showing and returns the count", () => {
+      const video = makeVideo([
+        { mode: "hidden" },
+        { mode: "disabled", cues: 3 },
+      ]);
+      const changed = forceSubtitleTrackMode(video);
+      expect(changed).toBe(2);
+      expect(video.textTracks[0].mode).toBe("showing");
+      expect(video.textTracks[1].mode).toBe("showing");
+    });
+
+    it("returns 0 when all subtitle tracks are already showing", () => {
+      const video = makeVideo([{ mode: "showing" }, { mode: "showing" }]);
+      expect(forceSubtitleTrackMode(video)).toBe(0);
+    });
+
+    it("ignores non-subtitle tracks (captions, metadata)", () => {
+      const video = makeVideo([
+        { mode: "hidden", kind: "captions" },
+        { mode: "showing" },
+        { mode: "disabled", kind: "metadata" },
+      ]);
+      const changed = forceSubtitleTrackMode(video);
+      expect(changed).toBe(0);
+      expect(video.textTracks[1].mode).toBe("showing");
+    });
+
+    it("is safe on a video without tracks (returns 0)", () => {
+      const video = makeVideo([]);
+      expect(forceSubtitleTrackMode(video)).toBe(0);
     });
   });
 

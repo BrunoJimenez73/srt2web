@@ -406,6 +406,48 @@ Ver `feature_list.json` para lista completa y estados. Total actual: 130 feature
 
 ---
 
+### 12/08 — Subtítulos estables: ventana subs alineada al video + fix índice chunk silencioso (F193)
+
+- **Síntoma**: subtítulos se saltan trozos, a veces no salen, audio traducido va perfecto.
+- **Causas raíz (4)**:
+
+  1. Subs 1 fragmento por delante del video (sin ancla tras eliminar sync F167).
+  2. `#EXT-X-PLAYLIST-TYPE:EVENT` en `subs.m3u8` (rolling window + seq avanzando = contradictorio, RFC 8216: EVENT nunca recorta).
+  3. EXTINF dispares: video 12.043/6.043 vs subs 11.4; TARGETDURATION subs 13.
+  4. **Bug crítico** `if not text: return data` en `__init__.py:204`: chunk sin voz no avanza `_last_chunk_index` → chunks con texto siguientes atrapados en buffer pending "out-of-order" → subs congelados ~128 chunks (~10 min).
+
+- **Fix v1 (backend, commit ad6bb28)**:
+
+  - `_fragment_writer.py`: sin EVENT; ventana y EXTINF alineados con `stream.m3u8` del video (patrón `_detect_video_media_seq` de F108 reintroducido, lee EXTINF reales del video como fuente compartida; fallback intacto si no hay stream.m3u8).
+  - `__init__.py`: chunk sin texto ya no rompe la secuencia — escribe fragmento vacío (WEBVTT sin cues) y avanza el índice, con `is_loop` (pause loop) chequeado antes.
+  - `hls_output.py`: comentario muerto 531-532 actualizado.
+  - +11 tests de regresión en `test_f108_subtitle_hls_sync.py`.
+
+- **Fix v2 (backend, tras "reiniciado y va mejor pero sigue fallando")**:
+
+  - Evidencia en vivo: video `MEDIA-SEQUENCE:15` (seg 15–20) vs subs `MEDIA-SEQUENCE:11` (frag 11–19) — 4 fragmentos fantasma en la base.
+  - F193 v1 recortaba solo el **techo** de la ventana de subs (`<= max_video_idx`) pero no la **base**.
+  - `_fragment_writer.py`: intersección completa de ventanas `[min_video_idx, max_video_idx]` (replica la ventana del video en AMBOS extremos). Sin solapamiento (p.ej. tras restart que renumera segmentos), sirve playlist vacío anclado a la `MEDIA-SEQUENCE` del video en vez de cues stale. Nuevo helper `_write_empty_playlist()`.
+  - `test_f108_subtitle_hls_sync.py`: +3 tests de regresión (base alineada al video, playlist vacío sin solapamiento, EXTINF del video tras recorte de base).
+  - Verificación: 46/46 (f108 + subtitle_generator); 17/17 (f183-f187); mypy 0 errores; ruff 0 errores; pre-commit verde.
+
+- **Fix frontend (watchdog agresivo)**:
+
+  - Síntoma residual: "aparecen y desaparecen al recargar" — HLS.js resetea TextTrack.mode a "hidden" tras cada recarga de playlist de subtítulos.
+  - `player.ts`: watchdog original solo en `timeupdate` (~4 Hz = 250ms gaps) + handlers de eventos (SUBTITLE_TRACK_LOADED, SUBTITLE_TRACKS_UPDATED, LEVEL_UPDATED) que pueden disparar ANTES del reset.
+  - **Nuevo watchdog triple**: `timeupdate` + intervalo agresivo 200ms (`SUBTITLE_WATCHDOG_INTERVAL_MS`) + evento `addtrack` (dispara cuando HLS.js crea nuevos `<track>` tras playlist reload). Fuerza `mode="showing"` inmediatamente en los 3 vectores.
+  - `stopSubtitleWatchdog()` limpia interval + removeEventListener de `addtrack`.
+
+- **Fix frontend r2 (auditoría hls.js 1.5.7)**: al leer el bundle real de hls.js se confirmó que `toggleTrackModes` (el único motor de modo de TextTrack) solo corre desde `setSubtitleTrack`/setter `subtitleDisplay`, y que **en un reload de playlist hls.js NO toca el mode** — el "hidden" lo crea el propio TimelineController al crear `<track>` nuevos (`media.addTextTrack(...)` con `mode='disabled'`, línea ~21827) cuando el nivel/subtitle group cambia tras re-parse del master. Además `_appendCues` DROPEA cues si el track está `'disabled'` en el momento de parse. Correcciones:
+
+  - **Bug `addtrack`**: el evento `addtrack` se dispara sobre `video.textTracks` (TextTrackList), NO sobre el elemento `<video>` — el listener anterior era código muerto. Ahora: `videoEl.textTracks.addEventListener("addtrack", ...)` con handler con nombre y `removeEventListener` correcto en `stop()` (antes se intentaba quitar con `_subtitleWatchdogHandler` → leak).
+  - **Hardening `SUBTITLE_TRACKS_UPDATED`**: si `hls.subtitleTrack === -1` (hls.js pierde la selección interna tras re-parse del master; SubtitleStreamController deja de cargar subs.m3u8 → no llegan cues aunque el track DOM esté `showing`) → se re-activa con `activateFirstSubtitleTrack`. Si no, se fuerza mode.
+  - **Ruido**: `forceSubtitleTrackMode` ahora devuelve nº de tracks cambiados y loguea un summary de una línea (`idx:mode/cues | ...`); el intervalo solo loguea cuando cambia algo (antes logueaba 5×/seg en debug).
+  - **Tests**: +4 en `player-subtitles.test.ts` (retorno cambiado, hidden→showing, capa captions/metadata ignorados, sin tracks). Verificación: 252 passed | 8 skipped, `tsc --noEmit` 0, eslint 0, `build:local` 6 páginas OK (fallo solo en mkdocs, pre-existente), código verificado en bundle `player.astro_astro_type_script_index_1_lang.*.js`.
+
+- **Estado actual**: Backend OK (MEDIA-SEQUENCE coinciden, EXTINF idénticos). Frontend construido con fix r2. **Pendiente verificación en vivo** — con OBS + server: revisar logs WS del player ("Subtitle selection lost after track update - re-activating", "textTrack added", summary de tracks) para confirmar si el mecanismo era mode reset (watchdog lo atrapa) o selección interna perdida (re-activación lo cura).
+- \*\*Detalles en `harness.db` (sesión #35, feature F193).
+
 ## 9. Plan de implementación macOS (F59–F65)
 
 Basado en auditoría de código del 14/05/2026. ~50+ ocurrencias de código platform-specific, 3 scripts Mac existentes pero incompletos.
