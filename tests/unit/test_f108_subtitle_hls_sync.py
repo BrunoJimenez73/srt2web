@@ -551,8 +551,9 @@ class TestHLSOutputNoSubsPreCreation:
         from modules.outputs.hls_output import HLSOutput
 
         monkeypatch.chdir(tmp_path)
-        output = HLSOutput({})
-        output.start()
+        with patch("modules.outputs.hls_output.ensure_ffmpeg", return_value="ffmpeg"):
+            output = HLSOutput({})
+            output.start()
 
         subs_m3u8 = tmp_path / "output" / "subtitles" / "subs.m3u8"
         assert not subs_m3u8.exists(), "HLSOutput.start() should NOT pre-create subs.m3u8; SubtitleGenerator handles it"

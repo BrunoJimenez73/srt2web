@@ -7,6 +7,23 @@ import pytest
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
+def _collect_paths(routes: list) -> list[str]:
+    """Collect route paths, handling FastAPI's nested _IncludedRouter entries.
+
+    Newer FastAPI versions wrap routers included via ``include_router`` in
+    ``_IncludedRouter`` objects inside ``router.routes``; those have no
+    ``path`` attribute but expose their own nested ``routes`` list.
+    """
+    paths: list[str] = []
+    for route in routes:
+        if hasattr(route, "path"):
+            paths.append(route.path)
+        nested = getattr(route, "routes", None)
+        if nested:
+            paths.extend(_collect_paths(nested))
+    return paths
+
+
 class TestCLIEndpoints:
     """Test CLI can access API via HTTP."""
 
@@ -22,7 +39,7 @@ class TestCLIEndpoints:
         from server.api_routes import create_api_router
 
         router = create_api_router()
-        paths = [route.path for route in router.routes]
+        paths = _collect_paths(router.routes)
         assert "/start" in paths or "/api/start" in paths
 
     def test_api_router_has_stop_endpoint(self) -> None:
@@ -30,7 +47,7 @@ class TestCLIEndpoints:
         from server.api_routes import create_api_router
 
         router = create_api_router()
-        paths = [route.path for route in router.routes]
+        paths = _collect_paths(router.routes)
         assert "/stop" in paths or "/api/stop" in paths
 
     def test_api_router_has_status_endpoint(self) -> None:
@@ -38,7 +55,7 @@ class TestCLIEndpoints:
         from server.api_routes import create_api_router
 
         router = create_api_router()
-        paths = [route.path for route in router.routes]
+        paths = _collect_paths(router.routes)
         assert "/status" in paths or "/api/status" in paths
 
     def test_api_router_has_config_endpoint(self) -> None:
@@ -46,7 +63,7 @@ class TestCLIEndpoints:
         from server.api_routes import create_api_router
 
         router = create_api_router()
-        paths = [route.path for route in router.routes]
+        paths = _collect_paths(router.routes)
         assert "/config" in paths or "/api/config" in paths
 
     def test_api_router_has_health_endpoint(self) -> None:
@@ -54,7 +71,7 @@ class TestCLIEndpoints:
         from server.api_routes import create_api_router
 
         router = create_api_router()
-        paths = [route.path for route in router.routes]
+        paths = _collect_paths(router.routes)
         assert "/health" in paths or "/api/health" in paths
 
 
@@ -94,7 +111,7 @@ class TestCLIServerInfo:
         from server.api_routes import create_api_router
 
         router = create_api_router()
-        paths = [route.path for route in router.routes]
+        paths = _collect_paths(router.routes)
         assert "/network/info" in paths
 
 

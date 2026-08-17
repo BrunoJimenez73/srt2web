@@ -142,7 +142,12 @@ class TestPiperTimeout:
             time.sleep(10)
             return '{"status": "success"}\n'
 
-        with patch.object(manager._proc.stdout, "readline", side_effect=slow_response):
+        with (
+            patch.object(manager._proc.stdout, "readline", side_effect=slow_response),
+            # Unix branch uses select() on the stdout pipe; simulate "never ready"
+            # so the timeout path triggers without needing a real pipe fd.
+            patch("select.select", return_value=[]),
+        ):
             result = manager._send_command({"action": "load"}, timeout=0.1)
 
         assert result["status"] == "error"
@@ -176,7 +181,10 @@ class TestErrorPaths:
         """Test handling of FFmpeg command failure."""
         from core.ffmpeg_utils import run_ffmpeg
 
-        with patch("core.ffmpeg_utils.subprocess.run") as mock_run:
+        with (
+            patch("core.ffmpeg_utils.ensure_ffmpeg", return_value="ffmpeg"),
+            patch("core.ffmpeg_utils.subprocess.run") as mock_run,
+        ):
             mock_run.return_value.returncode = 1
             mock_run.return_value.stdout = ""
             mock_run.return_value.stderr = "Invalid input"
@@ -198,7 +206,10 @@ class TestErrorPaths:
         """Test handling of subprocess creation failure."""
         from core.ffmpeg_utils import start_ffmpeg_process
 
-        with patch("core.ffmpeg_utils.subprocess.Popen") as mock_popen:
+        with (
+            patch("core.ffmpeg_utils.ensure_ffmpeg", return_value="ffmpeg"),
+            patch("core.ffmpeg_utils.subprocess.Popen") as mock_popen,
+        ):
             mock_popen.side_effect = OSError("Cannot create process")
 
             with pytest.raises(OSError):

@@ -17,6 +17,23 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 CONFIG_PATH = str(PROJECT_ROOT / "config.yaml")
 
 
+def _collect_paths(routes: list) -> list[str]:
+    """Collect route paths, handling FastAPI's nested _IncludedRouter entries.
+
+    Newer FastAPI versions wrap routers included via ``include_router`` in
+    ``_IncludedRouter`` objects inside ``app.routes``; those have no
+    ``path`` attribute but expose their own nested ``routes`` list.
+    """
+    paths: list[str] = []
+    for route in routes:
+        if hasattr(route, "path"):
+            paths.append(route.path)
+        nested = getattr(route, "routes", None)
+        if nested:
+            paths.extend(_collect_paths(nested))
+    return paths
+
+
 # Valid values for config validation
 VALID_WHISPER_MODELS = [
     "tiny",
@@ -306,7 +323,7 @@ class TestServerStartup:
         app = create_app(app_context)
 
         # Get all routes
-        routes = [route.path for route in app.routes]
+        routes = _collect_paths(app.routes)
 
         assert "/" in routes, "Missing root route"
         assert "/health" in routes, "Missing health route"
