@@ -36,27 +36,25 @@ def _mock_tempfile():
     Mock tempfile module to use project test temp directory.
     This avoids sandbox permission issues with system temp directories.
     """
-    with patch("tempfile.gettempdir", return_value=str(TEST_TEMP_DIR)):
-        with patch("tempfile.tempdir", str(TEST_TEMP_DIR)):
-            # Also patch mkdtemp and TemporaryDirectory to use our safe directory
-            original_mkdtemp = tempfile.mkdtemp
-            
-            def safe_mkdtemp(suffix=None, prefix=None, dir=None):
-                return original_mkdtemp(suffix=suffix, prefix=prefix, dir=str(TEST_TEMP_DIR))
-            
-            with patch("tempfile.mkdtemp", side_effect=safe_mkdtemp):
-                # Patch NamedTemporaryFile too
-                original_named_temp = tempfile.NamedTemporaryFile
-                
-                def safe_named_temp(*args, **kwargs):
-                    kwargs.setdefault("dir", str(TEST_TEMP_DIR))
-                    return original_named_temp(*args, **kwargs)
-                
-                with patch("tempfile.NamedTemporaryFile", side_effect=safe_named_temp):
-                    yield
-                # Restore NamedTemporaryFile
-            # Restore mkdtemp
-        # Restore tempdir
+    # Also patch mkdtemp and TemporaryDirectory to use our safe directory
+    original_mkdtemp = tempfile.mkdtemp
+
+    def safe_mkdtemp(suffix=None, prefix=None, dir=None):
+        return original_mkdtemp(suffix=suffix, prefix=prefix, dir=str(TEST_TEMP_DIR))
+
+    original_named_temp = tempfile.NamedTemporaryFile
+
+    def safe_named_temp(*args, **kwargs):
+        kwargs.setdefault("dir", str(TEST_TEMP_DIR))
+        return original_named_temp(*args, **kwargs)
+
+    with (
+        patch("tempfile.gettempdir", return_value=str(TEST_TEMP_DIR)),
+        patch("tempfile.tempdir", str(TEST_TEMP_DIR)),
+        patch("tempfile.mkdtemp", side_effect=safe_mkdtemp),
+        patch("tempfile.NamedTemporaryFile", side_effect=safe_named_temp),
+    ):
+        yield
 
 
 @pytest.fixture
