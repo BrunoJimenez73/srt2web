@@ -370,7 +370,7 @@ class AuthDB:
             "jti": secrets.token_hex(16),
             "token_version": self._get_token_version(username),
         }
-        return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        return str(jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM))
 
     def _generate_refresh_token(self, username: str) -> str:
         """F123: Generate a long-lived refresh token."""
@@ -383,7 +383,7 @@ class AuthDB:
             "jti": secrets.token_hex(16),
             "token_version": self._get_token_version(username),
         }
-        return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        return str(jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM))
 
     def authenticate(self, username: str, password: str) -> str | None:
         """Verify credentials and return JWT access token, or None if invalid.
@@ -632,6 +632,9 @@ class AuthDB:
         current_ver = self._get_token_version(username)
         if token_ver < current_ver:
             logger.debug("DT-08: Rejected stale token for '%s' (ver %d < %d)", username, token_ver, current_ver)
+            return None
+
+        if not isinstance(payload, dict):
             return None
 
         return payload

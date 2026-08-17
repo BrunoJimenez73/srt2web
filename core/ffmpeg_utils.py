@@ -441,7 +441,7 @@ def kill_process_gracefully(process: subprocess.Popen[str] | None, timeout: int 
         if platform.system() == "Windows":
             process.kill()
         else:
-            process.send_signal(signal.SIGKILL)  # type: ignore[attr-defined]
+            process.send_signal(getattr(signal, "SIGKILL", signal.SIGTERM))
 
         try:
             process.wait(timeout=2)

@@ -93,11 +93,12 @@ def setup_cuda_environment(apply: bool = True) -> str | None:
         os.environ["PATH"] = new_path
 
         # Add DLL directories for Python 3.8+ (required for proper DLL loading)
+        add_dll_directory = getattr(os, "add_dll_directory", None)
         for path in cuda_paths:
             p = Path(path)
-            if p.is_dir():
-                with contextlib.suppress(AttributeError, OSError):
-                    os.add_dll_directory(str(p))
+            if p.is_dir() and add_dll_directory is not None:
+                with contextlib.suppress(OSError):
+                    add_dll_directory(str(p))
         return None
     else:
         return new_path
