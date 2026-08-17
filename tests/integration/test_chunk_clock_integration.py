@@ -5,7 +5,6 @@ These tests use real file I/O (os.utime, temp files) and should run in the integ
 """
 
 import os
-import tempfile
 from pathlib import Path
 
 import pytest
