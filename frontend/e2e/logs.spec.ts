@@ -5,9 +5,9 @@ test.describe("Log Panel", () => {
     await page.goto("/");
     const toggle = page.locator("[data-testid='btn-toggle-logs']");
     await toggle.click();
-    await expect(page.locator("[data-testid='log-panel']")).toBeVisible();
+    await expect(page.locator("#log-content")).toBeVisible();
     await toggle.click();
-    await expect(page.locator("[data-testid='log-panel']")).toBeHidden();
+    await expect(page.locator("#log-content")).toBeHidden();
   });
 
   test("should show log entries", async ({ page }) => {

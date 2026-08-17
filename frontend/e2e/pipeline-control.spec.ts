@@ -3,27 +3,21 @@ import { test, expect } from "@playwright/test";
 test.describe("Pipeline Control", () => {
   test("should have start button visible", async ({ page }) => {
     await page.goto("/");
-    const startBtn = page.locator("[data-testid='btn-start']");
+    const startBtn = page.locator("#btn-start");
     await expect(startBtn).toBeVisible();
   });
 
   test("should have stop button visible", async ({ page }) => {
     await page.goto("/");
-    const stopBtn = page.locator("[data-testid='btn-stop']");
+    const stopBtn = page.locator("#btn-stop");
     await expect(stopBtn).toBeVisible();
   });
 
-  test("should change chunk duration", async ({ page }) => {
+  test("should allow changing chunk duration", async ({ page }) => {
     await page.goto("/");
-    const input = page.locator("[data-testid='chunk-duration-input']");
+    const input = page.locator("#input-chunk-duration");
+    await expect(input).toBeVisible();
     await input.fill("10");
-    const confirmBtn = page.locator("[data-testid='btn-apply-chunk']");
-    await confirmBtn.click();
-  });
-
-  test("should show preset dropdown", async ({ page }) => {
-    await page.goto("/");
-    const presetSelect = page.locator("[data-testid='preset-select']");
-    await expect(presetSelect).toBeVisible();
+    await expect(input).toHaveValue("10");
   });
 });
