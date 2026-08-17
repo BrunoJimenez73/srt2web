@@ -1,6 +1,7 @@
 """
 Unit tests for error paths, timeouts, and CPU/GPU fallback.
 """
+
 import signal
 import subprocess
 from unittest.mock import MagicMock, patch

@@ -381,7 +381,7 @@ class TestAudioMixerCrossfadeLock:
         mixer._prev_end_sample = np.full(crossfade_samples, 1000.0)
 
         data1 = PipelineData(
-            chunk_index=1,
+            chunk_index=0,
             duration=0.5,
             audio_chunk_path=str(directory / "o1.wav"),
             dubbed_audio_path=str(directory / "t1.wav"),

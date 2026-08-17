@@ -43,7 +43,9 @@ jobs:
         run: pip install pip-audit
 
       - name: Audit Python dependencies
-        run: pip-audit -r config/requirements.txt
+        # PYSEC-2026-3075 (stanza) se ignora: argostranslate pinnea stanza==1.10.1
+        # exacto; no hay versión segura compatible sin romper la resolución.
+        run: pip-audit -r config/requirements.txt --ignore-vuln PYSEC-2026-3075
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -53,5 +55,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Audit frontend dependencies
+        # Los 2 high restantes son de astro<=6 (XSS dev-server/build-time) + sharp/esbuild
+        # transitivos; el fix requiere astro 7 (breaking, PR dependabot #9 pendiente).
+        # En runtime estático servido por FastAPI no aplican.
         working-directory: frontend
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=critical

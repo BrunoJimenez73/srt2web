@@ -154,7 +154,7 @@ class PlayerFeedbackMonitor:
                 max_conc = self.thresholds.get("concurrency_reduction", 2)
                 reason = "stall" if recent_stalled else "buffer_critical"
                 logger.info(
-                    f"Player feedback adapt: reducing chunk*{chunk_dur}, " f"concurrency={max_conc} (reason={reason})"
+                    f"Player feedback adapt: reducing chunk*{chunk_dur}, concurrency={max_conc} (reason={reason})"
                 )
                 if self._on_adapt:
                     self._on_adapt(

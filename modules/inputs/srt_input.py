@@ -529,7 +529,7 @@ class SRTInput(InputSource):
                     port_free = True
                     break
                 except OSError as e:
-                    self.logger.warning(f"Port {self._srt_port} still in use: {e}, attempt {attempt+1}/3")
+                    self.logger.warning(f"Port {self._srt_port} still in use: {e}, attempt {attempt + 1}/3")
                     # Aggressive cleanup
                     subprocess.run(["taskkill", "/F", "/IM", "ffmpeg.exe"], capture_output=True, timeout=2)
                     if attempt < 2:
@@ -562,7 +562,7 @@ class SRTInput(InputSource):
                 idle_secs = time.time() - self._no_data_start_time
                 if idle_secs >= 30.0:
                     self.logger.warning(
-                        f"SRT input: no chunks for {idle_secs:.0f}s — " f"waiting for source on port {self._srt_port}"
+                        f"SRT input: no chunks for {idle_secs:.0f}s — waiting for source on port {self._srt_port}"
                     )
                     self._no_data_warning_logged = True
             self.logger.debug(f"SRT input: no chunks found in {self._chunks_dir}")

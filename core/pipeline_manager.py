@@ -70,9 +70,7 @@ class PipelineManager:
             )
 
             self._pipelines[pipeline_id] = pipeline
-            logger.info(
-                f"Pipeline created (id={pipeline_id}, mode={mode.value}, " f"max_chunks={max_concurrent_chunks})"
-            )
+            logger.info(f"Pipeline created (id={pipeline_id}, mode={mode.value}, max_chunks={max_concurrent_chunks})")
             return pipeline_id
 
     def get_pipeline(self, pipeline_id: str) -> UnifiedPipeline | None:

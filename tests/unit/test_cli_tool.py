@@ -1,4 +1,5 @@
 """Tests for CLI tool and HTTP API endpoints."""
+
 from pathlib import Path
 
 import pytest

@@ -216,7 +216,7 @@ def download_ffmpeg(progress_callback: Callable[[int, int], None] | None = None)
     """
     system = platform.system()
     if system not in FFMPEG_URLS:
-        logger.error(f"No pre-built FFmpeg available for {system}. " "Please install FFmpeg manually.")
+        logger.error(f"No pre-built FFmpeg available for {system}. Please install FFmpeg manually.")
         return None
 
     url = FFMPEG_URLS[system]
@@ -238,13 +238,17 @@ def download_ffmpeg(progress_callback: Callable[[int, int], None] | None = None)
 
         logger.info("Extracting FFmpeg...")
 
-        # Extract
+        # Extract (safe mode: reject absolute paths and .. traversal)
         if str(archive_path).endswith(".zip"):
             with zipfile.ZipFile(archive_path, "r") as zf:
-                zf.extractall(bin_dir)
+                for member in zf.infolist():
+                    target = (bin_dir / member.filename).resolve()
+                    if not target.is_relative_to(bin_dir):
+                        raise ValueError(f"Unsafe path in FFmpeg archive: {member.filename!r}")
+                    zf.extract(member, bin_dir)
         elif str(archive_path).endswith((".tar.gz", ".tar.xz")):
             with tarfile.open(archive_path, "r:*") as tf:
-                tf.extractall(bin_dir)
+                tf.extractall(bin_dir, filter="data")
 
         # Clean up archive
         archive_path.unlink(missing_ok=True)

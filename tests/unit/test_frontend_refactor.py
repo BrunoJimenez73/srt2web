@@ -1,6 +1,7 @@
 """
 Tests para verificar la refactorización del frontend
 """
+
 import re
 from pathlib import Path
 

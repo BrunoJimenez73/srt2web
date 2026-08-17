@@ -72,6 +72,7 @@ class TestTranscriber:
         trans = Transcriber()
         trans._model = MagicMock()
         trans._device = "cuda"
+        mock_torch.cuda.empty_cache.reset_mock()
 
         trans.stop()
 

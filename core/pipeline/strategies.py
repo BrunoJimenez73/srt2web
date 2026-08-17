@@ -432,8 +432,7 @@ class ThreadParallelStrategy(PipelineStrategy):
         max_conc = adaptive.get("max_concurrent", self._config.max_concurrent_chunks)
 
         logger.info(
-            f"Adaptive monitor started: cpu_high={cpu_high}% gpu_high={gpu_high}% "
-            f"concurrency=[{min_conc}..{max_conc}]"
+            f"Adaptive monitor started: cpu_high={cpu_high}% gpu_high={gpu_high}% concurrency=[{min_conc}..{max_conc}]"
         )
 
         while not ctx.stop_event.is_set():
@@ -454,9 +453,7 @@ class ThreadParallelStrategy(PipelineStrategy):
                         new_target = current
 
                     if new_target != current:
-                        logger.info(
-                            f"Adaptive concurrency: {current} → {new_target} " f"(cpu={cpu:.0f}% gpu={gpu:.0f}%)"
-                        )
+                        logger.info(f"Adaptive concurrency: {current} → {new_target} (cpu={cpu:.0f}% gpu={gpu:.0f}%)")
                         self._concurrency_target = new_target
                 else:
                     logger.debug("Hardware monitor not available, skipping adaptive adjustment")

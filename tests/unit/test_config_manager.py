@@ -2,7 +2,6 @@
 Unit tests for ConfigManager.
 """
 
-
 import pytest
 
 from core.config_manager import ConfigManager

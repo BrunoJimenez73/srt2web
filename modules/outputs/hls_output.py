@@ -15,7 +15,6 @@ import glob
 import logging
 import os
 import subprocess
-import sys
 import threading
 from collections.abc import Callable
 from typing import Any
@@ -25,6 +24,7 @@ from core.ffmpeg_pool import FFmpegPool, get_pool
 from core.ffmpeg_utils import check_gpu_support, ensure_ffmpeg, get_video_duration, starts_with_keyframe
 from core.module_base import ModuleState, ModuleStatus, PipelineData
 from core.output_sink import OutputSink
+from core.paths import atomic_replace
 from core.subprocess_utils import filter_command, get_creation_flags
 
 logger = logging.getLogger(__name__)
@@ -577,12 +577,7 @@ class HLSOutput(OutputSink):
                 media_tmp = media_path + ".tmp"
                 with open(media_tmp, "w", encoding="utf-8") as f:
                     f.write("\n".join(media_lines) + "\n")
-                if sys.platform == "win32":
-                    if os.path.exists(media_path):
-                        os.remove(media_path)
-                    os.rename(media_tmp, media_path)
-                else:
-                    os.replace(media_tmp, media_path)
+                atomic_replace(media_tmp, media_path)
             except Exception as e:
                 self.logger.error(f"Failed to write media playlist: {e}")
 
@@ -606,12 +601,7 @@ class HLSOutput(OutputSink):
                 master_tmp = master_path + ".tmp"
                 with open(master_tmp, "w", encoding="utf-8") as f:
                     f.write("\n".join(master_lines) + "\n")
-                if sys.platform == "win32":
-                    if os.path.exists(master_path):
-                        os.remove(master_path)
-                    os.rename(master_tmp, master_path)
-                else:
-                    os.replace(master_tmp, master_path)
+                atomic_replace(master_tmp, master_path)
             except Exception as e:
                 self.logger.error(f"Failed to write master playlist: {e}")
 
@@ -621,9 +611,14 @@ class HLSOutput(OutputSink):
         # the same MEDIA-SEQUENCE and HLS.js keeps the cues.
         if self._subtitle_resync_callback is not None:
             try:
+                self.logger.debug(f"[HLSOutput] Firing subtitle resync callback (segment_index={self._segment_index})")
                 self._subtitle_resync_callback()
             except Exception as e:
                 self.logger.error(f"Subtitle playlist resync failed: {e}")
+        else:
+            self.logger.debug(
+                f"[HLSOutput] NO subtitle resync callback registered (segment_index={self._segment_index})"
+            )
 
     def get_status(self) -> ModuleStatus:
         """Get status including GPU encoder info."""

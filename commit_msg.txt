@@ -1,0 +1,14 @@
+fix(subtitles): fix subtitle disappearance & unify list_size config
+
+Root causes fixed:
+1. Config mismatch: SubtitleGenerator hls_list_size=10 vs video HLS=12
+2. Double rewrite_playlist() race condition
+3. Frontend watchdog over-aggressive (500ms interval + aggressive toggle)
+
+Changes:
+- core/config_schema.py: Added pipeline.hls_list_size (single source of truth, auto-calculated)
+- config.yaml: Removed duplicated list_size, added pipeline.hls_list_size comment
+- modules/subtitle_generator_pkg/__init__.py: Default list_size=12, deferred rewrite to sync_playlist()
+- frontend/src/lib/modules/player.ts: Watchdog 500ms->2000ms, removed aggressive toggle
+
+Verified: mypy --strict passes, tsc --noEmit passes

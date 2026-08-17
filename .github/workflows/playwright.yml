@@ -26,6 +26,9 @@ jobs:
         working-directory: ./frontend
         run: npm run build
       - name: Start server
+        env:
+          SRT2WEB_TESTING: "1"
+          SRT2WEB_JWT_SECRET: "ci-e2e-secret-not-for-production"
         run: |
           python -m pip install -r config/requirements.txt
           python main.py &

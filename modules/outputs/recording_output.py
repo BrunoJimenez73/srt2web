@@ -236,7 +236,7 @@ class RecordingOutput(OutputSink):
         duration = time.time() - self._start_time
         self.logger.info(
             f"Recording stopped. {self._processed_chunks} chunks -> {self._output_path}, "
-            f"{self._bytes_written / (1024*1024):.1f} MB, {duration:.1f}s"
+            f"{self._bytes_written / (1024 * 1024):.1f} MB, {duration:.1f}s"
         )
 
     def _do_concat_background(self, video_paths: list[str], audio_paths: list[str]) -> None:
@@ -391,7 +391,7 @@ class RecordingOutput(OutputSink):
             if result.returncode == 0:
                 size = os.path.getsize(output_file)
                 self._bytes_written = size
-                self.logger.info(f"Recording saved: {output_file} ({size / (1024*1024):.1f} MB)")
+                self.logger.info(f"Recording saved: {output_file} ({size / (1024 * 1024):.1f} MB)")
             else:
                 self.logger.error(f"Concat failed: {result.stderr[-500:]}")
         except subprocess.TimeoutExpired:

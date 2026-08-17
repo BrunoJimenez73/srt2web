@@ -132,8 +132,7 @@ class DMRTranslator(BaseModule):
         available = DMR_MODEL in model_ids or any(DMR_MODEL in m for m in model_ids)
         if not available:
             logger.warning(
-                f"Model {DMR_MODEL} not found in DMR. "
-                f"Available: {model_ids[:5]}. Run: docker model pull {DMR_MODEL}"
+                f"Model {DMR_MODEL} not found in DMR. Available: {model_ids[:5]}. Run: docker model pull {DMR_MODEL}"
             )
         self._dmr_available = available
         return available
@@ -144,11 +143,11 @@ class DMRTranslator(BaseModule):
         if available:
             self._state = ModuleState.RUNNING
             logger.info(
-                f"DMRTranslator ready: {self._source_lang} -> {self._target_lang} " f"via {DMR_MODEL} at {DMR_BASE_URL}"
+                f"DMRTranslator ready: {self._source_lang} -> {self._target_lang} via {DMR_MODEL} at {DMR_BASE_URL}"
             )
         else:
             self._state = ModuleState.IDLE
-            logger.warning("DMRTranslator started in IDLE (DMR unreachable). " "Translations will passthrough.")
+            logger.warning("DMRTranslator started in IDLE (DMR unreachable). Translations will passthrough.")
 
     def stop(self) -> None:
         self._state = ModuleState.STOPPING
@@ -217,8 +216,7 @@ class DMRTranslator(BaseModule):
             logger.info(f"DMR translated ({len(data.translated_text)} chars)")
             hit_rate = round(self._cache_hits / max(1, self._cache_hits + self._cache_misses) * 100, 1)
             logger.debug(
-                f"DMR translation cache hit rate: {hit_rate}% "
-                f"({self._cache_hits} hits / {self._cache_misses} misses)"
+                f"DMR translation cache hit rate: {hit_rate}% ({self._cache_hits} hits / {self._cache_misses} misses)"
             )
 
         except Exception as e:

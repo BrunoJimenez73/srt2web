@@ -61,7 +61,7 @@ class TestRollingSubtitles:
         from modules.subtitle_generator import SubtitleGenerator
 
         gen = SubtitleGenerator()
-        assert gen._hls_list_size == 10
+        assert gen._hls_list_size == 12
 
     def test_trim_fragments_limits_count(self) -> None:
         """Test that fragment writer trim limits entry count."""

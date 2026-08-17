@@ -170,6 +170,7 @@ class TestRewriteHLSPlaylist:
         gen = _make_gen(str(tmp_path))
         for i in range(3):
             _process_chunk(gen, i, text=f"chunk{i}")
+        gen.sync_playlist()
         content = gen._hls_playlist_path.read_text(encoding="utf-8")
         # Fragments appear in order
         assert "subs_seg_000000.vtt" in content
@@ -207,6 +208,7 @@ class TestRewriteHLSPlaylist:
         gen = _make_gen(str(tmp_path), hls_list_size=2)
         for i in range(5):
             _process_chunk(gen, i)
+        gen.sync_playlist()
         content = gen._hls_playlist_path.read_text(encoding="utf-8")
         # hls_list_size=2, chunks 0-4 → window keeps chunks 3,4 → MEDIA-SEQUENCE:3
         assert "#EXT-X-MEDIA-SEQUENCE:3" in content
@@ -319,7 +321,7 @@ class TestPlaylistAccessors:
     def test_init_initializes_hls_state(self, tmp_path: Path) -> None:
         gen = SubtitleGenerator(output_dir=str(tmp_path))
         # HLS state should be initialized in __init__
-        assert gen._hls_list_size == 10
+        assert gen._hls_list_size == 12
         assert gen._hls_fragments == []
         assert isinstance(gen._hls_playlist_path, Path)
 
@@ -336,6 +338,7 @@ class TestDoProcessHLSIntegration:
         gen = _make_gen(str(tmp_path))
         _process_chunk(gen, 0, text="hola")
         assert (tmp_path / "subtitles" / "subs_seg_000000.vtt").exists()
+        gen.sync_playlist()
         playlist = (tmp_path / "subtitles" / "subs.m3u8").read_text(encoding="utf-8")
         assert "subs_seg_000000.vtt" in playlist
 
@@ -344,6 +347,7 @@ class TestDoProcessHLSIntegration:
         gen = _make_gen(str(tmp_path), hls_list_size=4)
         for i in range(10):
             _process_chunk(gen, i)
+        gen.sync_playlist()
         playlist = (tmp_path / "subtitles" / "subs.m3u8").read_text(encoding="utf-8")
         # Chunks 6-9 should be in the window (list_size=4)
         for i in range(6, 10):
@@ -357,6 +361,7 @@ class TestDoProcessHLSIntegration:
         gen = _make_gen(str(tmp_path), hls_list_size=2)
         for i in range(4):
             _process_chunk(gen, i)
+        gen.sync_playlist()
         playlist = (tmp_path / "subtitles" / "subs.m3u8").read_text(encoding="utf-8")
         assert "subs_seg_000002.vtt" in playlist
         assert "subs_seg_000003.vtt" in playlist
@@ -616,6 +621,7 @@ class TestSubtitleWindowAlignedToVideo:
         gen = _make_gen(str(tmp_path))
         for i in range(6):
             _process_chunk(gen, i)
+        gen.sync_playlist()
         content = gen._hls_playlist_path.read_text(encoding="utf-8")
         assert "subs_seg_000004.vtt" not in content
         assert "subs_seg_000005.vtt" not in content
@@ -628,6 +634,7 @@ class TestSubtitleWindowAlignedToVideo:
         gen = _make_gen(str(tmp_path))
         _process_chunk(gen, 0)
         _process_chunk(gen, 1)
+        gen.sync_playlist()
         content = gen._hls_playlist_path.read_text(encoding="utf-8")
         assert "#EXTINF:12.043," in content
         assert "#EXTINF:6.043," in content
@@ -638,6 +645,7 @@ class TestSubtitleWindowAlignedToVideo:
         gen = _make_gen(str(tmp_path))
         for i in range(3):
             _process_chunk(gen, i)
+        gen.sync_playlist()
         content = gen._hls_playlist_path.read_text(encoding="utf-8")
         assert "#EXTINF:5.000," in content
         assert "#EXT-X-MEDIA-SEQUENCE:0" in content
@@ -664,35 +672,87 @@ class TestSubtitleWindowAlignedToVideo:
         _process_chunk(gen, 0)
         _process_chunk(gen, 1)
         _process_chunk(gen, 2)
+        gen.sync_playlist()
         content = gen._hls_playlist_path.read_text(encoding="utf-8")
         assert "subs_seg_000002.vtt" in content
         assert "subs_seg_000003.vtt" not in content
 
     def test_playlist_base_aligned_to_video_window(self, tmp_path: Path) -> None:
         # La BASE tambien se alinea: video seq 15..20, subs 0..19 procesados.
-        # La ventana de subs queda 15..19 (interseccion), sin fantasma 11..14.
+        # El playlist de subs lista los fragmentos REALES que caen en la
+        # ventana del video (15..19): el 20 aún no está escrito (el generador
+        # va por detrás) y NO se lista — listarlo vacío "quemaría" la cue
+        # (hls.js no re-parsea un fragmento ya descargado).
         self._write_video_playlist(tmp_path, [(15, 5.0), (16, 5.0), (17, 5.0), (18, 5.0), (19, 5.0), (20, 5.0)])
         gen = _make_gen(str(tmp_path))
         for i in range(20):
             _process_chunk(gen, i)
+        gen.sync_playlist()
         content = gen._hls_playlist_path.read_text(encoding="utf-8")
         assert "#EXT-X-MEDIA-SEQUENCE:15" in content
         assert "subs_seg_000011.vtt" not in content  # base recortada al video
         assert "subs_seg_000014.vtt" not in content
         assert "subs_seg_000015.vtt" in content
         assert "subs_seg_000019.vtt" in content
-        assert "subs_seg_000020.vtt" not in content  # subs nunca por delante del video
+        # El fragmento 20 no está listado ni existe placeholder en disco
+        assert "subs_seg_000020.vtt" not in content
+        assert not (tmp_path / "subtitles" / "subs_seg_000020.vtt").exists()
+        # Cuando el chunk 20 llega, el playlist lo incorpora (self-heal)
+        _process_chunk(gen, 20)
+        gen.sync_playlist()
+        content2 = gen._hls_playlist_path.read_text(encoding="utf-8")
+        assert "subs_seg_000020.vtt" in content2
+        assert "#EXT-X-MEDIA-SEQUENCE:15" in content2
+
+    def test_video_window_larger_than_subs_window_keeps_base_parity(self, tmp_path: Path) -> None:
+        # FIX-2026-08r3: el bug real — la ventana interna de subs (list_size)
+        # es más pequeña que la del video, así que la intersección dejaba la
+        # base de subs 2-3 fragmentos por delante (seq subs 106 vs video 104)
+        # y HLS.js colocaba todas las cues ~2-3 fragmentos antes del audio
+        # ("subtítulos desaparecen tras la primera frase"). El playlist debe
+        # reflejar la MISMA base que el video, incluyendo los fragmentos
+        # reales que ya salieron de la ventana de memoria.
+        segments = [(i, 6.043) for i in range(104, 116)]  # 12 entradas video
+        self._write_video_playlist(tmp_path, segments)
+        gen = _make_gen(str(tmp_path), hls_list_size=10)
+        for i in range(112):
+            _process_chunk(gen, i)
+        gen.sync_playlist()
+        content = gen._hls_playlist_path.read_text(encoding="utf-8")
+        assert "#EXT-X-MEDIA-SEQUENCE:104" in content  # MISMA base que el video
+        for idx in range(104, 112):
+            assert f"subs_seg_{idx:06d}.vtt" in content
+        assert "subs_seg_000100.vtt" not in content
+        # Los índices 112..115 del video aún no escritos por el generador no
+        # se listan (llegarán en el próximo re-sync)
+        assert "subs_seg_000115.vtt" not in content
+        assert len(gen._hls_fragments) <= 11  # memoria recortada, playlist completa
 
     def test_no_overlap_serves_empty_playlist_anchored_to_video(self, tmp_path: Path) -> None:
         # Video renumerado (restart watchdog): sin solapamiento -> playlist
-        # vacio anclado a la MEDIA-SEQUENCE del video, sin cues stale.
+        # vacio anclado a la MEDIA-SEQUENCE del video, sin cues stale ni
+        # placeholders en disco. Cuando el generador escribe con la numeración
+        # nueva, el playlist refleja el video.
         self._write_video_playlist(tmp_path, [(100, 5.0)])
         gen = _make_gen(str(tmp_path))
         for i in range(3):
             _process_chunk(gen, i)
+        gen.sync_playlist()
         content = gen._hls_playlist_path.read_text(encoding="utf-8")
         assert "#EXT-X-MEDIA-SEQUENCE:100" in content
         assert "subs_seg_" not in content  # sin fragmentos stale
+        assert not (tmp_path / "subtitles" / "subs_seg_000100.vtt").exists()
+        # Cuando los chunks de la numeración nueva llegan (el pending buffer
+        # se vacía en orden), el fragmento 100 se escribe y se lista
+        for i in range(3, 100):
+            _process_chunk(gen, i)
+        _process_chunk(gen, 100)
+        gen.sync_playlist()
+        content2 = gen._hls_playlist_path.read_text(encoding="utf-8")
+        assert "subs_seg_000100.vtt" in content2
+        assert "#EXT-X-MEDIA-SEQUENCE:100" in content2
+        real = (tmp_path / "subtitles" / "subs_seg_000100.vtt").read_text(encoding="utf-8")
+        assert "hola" in real
 
     def test_base_alignment_keeps_extinf_sync(self, tmp_path: Path) -> None:
         # EXTINF sigue tomando la duracion real del video tras recortar la base.
@@ -700,6 +760,7 @@ class TestSubtitleWindowAlignedToVideo:
         gen = _make_gen(str(tmp_path))
         for i in range(18):
             _process_chunk(gen, i)
+        gen.sync_playlist()
         content = gen._hls_playlist_path.read_text(encoding="utf-8")
         assert "#EXTINF:11.283," in content
         assert "#EXTINF:5.283," in content
@@ -739,6 +800,7 @@ class TestEmptyTextKeepsSequenceContiguous:
         _process_chunk(gen, 2)  # con texto otra vez
         frag_2 = tmp_path / "subtitles" / "subs_seg_000002.vtt"
         assert frag_2.exists(), "el chunk 2 no debe quedar congelado en el buffer pending"
+        gen.sync_playlist()
         playlist = gen._hls_playlist_path.read_text(encoding="utf-8")
         assert "subs_seg_000002.vtt" in playlist
 
@@ -760,6 +822,7 @@ class TestEmptyTextKeepsSequenceContiguous:
         content = frag_1.read_text(encoding="utf-8")
         assert content.startswith("WEBVTT")
         assert "-->" not in content  # vacío, sin cues
+        gen.sync_playlist()
         playlist = gen._hls_playlist_path.read_text(encoding="utf-8")
         assert "subs_seg_000001.vtt" in playlist
 

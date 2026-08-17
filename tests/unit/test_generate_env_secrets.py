@@ -31,10 +31,7 @@ def _run(tmp_path: Path, env_content: str | None, example_content: str) -> subpr
     )
 
 
-EXAMPLE_BASIC = (
-    "# SRT2Web example\n"
-    "SRT2WEB_JWT_SECRET=\n"
-)
+EXAMPLE_BASIC = "# SRT2Web example\nSRT2WEB_JWT_SECRET=\n"
 
 
 class TestGenerateEnvSecrets:

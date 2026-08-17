@@ -2,6 +2,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from core.paths import atomic_replace
+
 from ._format import format_timestamp
 
 logger = logging.getLogger("srt2web.module.subtitle_generator")
@@ -45,16 +47,17 @@ class FragmentWriter:
         """
         self._video_playlist_path = video_playlist_path
 
-    def _write_empty_playlist(self, media_sequence: int) -> None:
+    def _write_empty_playlist(self, media_sequence: int, target_duration: int | None = None) -> None:
         """Write a minimal empty media playlist anchored at a sequence number."""
         tmp_path = self._playlist_path.with_suffix(self._playlist_path.suffix + ".tmp")
         try:
             with open(tmp_path, "w", encoding="utf-8") as f:
                 f.write("#EXTM3U\n")
                 f.write("#EXT-X-VERSION:3\n")
-                f.write("#EXT-X-TARGETDURATION:10\n")
+                td = target_duration if target_duration is not None else 10
+                f.write(f"#EXT-X-TARGETDURATION:{td}\n")
                 f.write(f"#EXT-X-MEDIA-SEQUENCE:{media_sequence}\n")
-            tmp_path.replace(self._playlist_path)
+            atomic_replace(tmp_path, self._playlist_path)
         except Exception as e:
             logger.error(f"Error writing empty HLS playlist: {e}")
 
@@ -161,30 +164,69 @@ class FragmentWriter:
         if not self._playlist_path or str(self._playlist_path) == ".":
             return
 
-        if not self._fragments:
+        video_durations = self._read_video_durations()
+        logger.debug(
+            f"[FragmentWriter] rewrite_playlist: fragments={len(self._fragments)}, video_durations={list(video_durations.keys()) if video_durations else None}"
+        )
+
+        if not self._fragments and not video_durations:
             self._write_empty_playlist(0)
             return
 
-        video_durations = self._read_video_durations()
-
-        # Align the FULL window with the video: intersection of the sub window
-        # with the video window [min_idx, max_idx]. Trimming only the ceiling
-        # (F193) left stale fragments at the base (e.g. video seq 15, subs
-        # still listing 11..14), so both playlists had different
-        # MEDIA-SEQUENCE and HLS.js dropped the subtitle cues.
-        frags: list[dict[str, Any]] = self._fragments
+        # Align the FULL window with the video: the subs playlist mirrors the
+        # video playlist indices EXACTLY (same MEDIA-SEQUENCE, same EXTINF,
+        # same window). A per-index intersection of the trimmed sub window
+        # (F193 v1/v2) still diverged because the internal rolling window
+        # (hls_list_size=10) is smaller than the video window (12): the sub
+        # base ran 2-3 fragments ahead of the video base, and HLS.js placed
+        # every cue ~2-3 fragments early (subtitles appear once at startup,
+        # then vanish from the correct cue onward).
+        #
+        # Indexes the generator has NOT written yet are NOT listed here and
+        # get NO placeholder file: an earlier version created empty
+        # placeholders for them, but HLS.js downloads a fragment once and
+        # never re-parses it, so the real cues written seconds later were
+        # permanently "burned" (subtitles frozen until the window rolled).
+        # The re-sync callback rewrites the playlist as each fragment
+        # materializes, so the window self-heals within one chunk.
+        frags: list[dict[str, Any]] = list(self._fragments)
         if video_durations:
+            frags = []
             min_video_idx = min(video_durations)
-            max_video_idx = max(video_durations)
-            frags = [f for f in self._fragments if min_video_idx <= f["chunk_index"] <= max_video_idx]
+            for idx in sorted(video_durations):
+                frag = next(
+                    (f for f in self._fragments if f["chunk_index"] == idx),
+                    None,
+                )
+                if frag is not None:
+                    frags.append(frag)
+                    continue
+                # Outside the in-memory window but already written to disk by
+                # the generator (legitimate rolled-out fragments). Files on
+                # disk always carry real content — placeholders no longer
+                # exist by construction.
+                if (self._subtitles_dir / f"subs_seg_{idx:06d}.vtt").exists():
+                    frags.append(
+                        {
+                            "chunk_index": idx,
+                            "duration": float(video_durations[idx]),
+                            "pts_start": 0.0,
+                            "path": "",
+                        }
+                    )
             if not frags:
-                # No overlap (e.g. video restarted and renumbered segments).
-                # Serve an empty playlist anchored to the video sequence so
-                # HLS.js does not keep stale cues and re-syncs cleanly.
-                self._write_empty_playlist(min_video_idx)
+                # Video playlist has segments but no subtitle fragment is
+                # written yet (generator warming up). Anchor the empty
+                # playlist to the video sequence so hls.js does not treat
+                # the track as a fresh timeline.
+                td = max(1, int(max(video_durations.values())) + 1) if video_durations else 10
+                self._write_empty_playlist(min_video_idx, td)
                 return
 
-        target_duration = max(1, int(max(f["duration"] for f in frags)) + 1)
+        if video_durations:
+            target_duration = max(1, int(max(video_durations.values())) + 1)
+        else:
+            target_duration = max(1, int(max(f["duration"] for f in frags)) + 1)
         first_sn = frags[0]["chunk_index"]
         media_sequence = first_sn
 
@@ -205,7 +247,7 @@ class FragmentWriter:
                     f.write(f"#EXTINF:{_extinf_duration(frag):.3f},\n")
                     f.write("#EXT-X-DISCONTINUITY\n")
                     f.write(f"subs_seg_{frag_chunk_index:06d}.vtt\n")
-            tmp_path.replace(self._playlist_path)
+            atomic_replace(tmp_path, self._playlist_path)
         except Exception as e:
             logger.error(f"Error rewriting HLS subtitle playlist: {e}")
 

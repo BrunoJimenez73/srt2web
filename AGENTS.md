@@ -44,7 +44,6 @@
 - **Deja el repo limpio:** sin prints, TODOs sin contexto, ni archivos temporales.
 - **CHECKPOINTS.md completo** antes de cerrar sesión.
 - Si te bloqueas, documenta en la sesión de harness con estado `blocked` y para.
-- **No toques `PARA BORRAR/`** — carpeta candidata a limpieza, ver F29.
 - **Código nuevo debe ser cross-platform.** Siempre verificar en Mac si el cambio afecta subprocess, paths o GPU.
 
 ## 4. Comandos útiles

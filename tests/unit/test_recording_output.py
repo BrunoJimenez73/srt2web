@@ -1,4 +1,5 @@
 """Tests for RecordingOutput functionality - matching actual implementation."""
+
 import os
 import tempfile
 from pathlib import Path

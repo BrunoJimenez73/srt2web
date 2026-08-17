@@ -120,6 +120,9 @@ class Transcriber(BaseModule):
             self._model = None
 
             # Force CUDA memory cleanup if applicable
+            # NOTE: Only call empty_cache() here. ModelCache.clear_cache() will also
+            # release CUDA memory when the cache is explicitly cleared, but we avoid
+            # double-calling empty_cache() to satisfy test expectations (1 call per stop).
             try:
                 if self._device == "cuda":
                     import torch

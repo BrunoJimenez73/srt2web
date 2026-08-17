@@ -122,7 +122,7 @@ class TestCompositeOutput:
         mock_output._error_on_write = "Test error"
         composite_output.add_output("test_output", mock_output)
 
-        composite_output.start()
+        # Sin start(): el worker de reconexión no debe borrar el error (determinista)
         composite_output.write(pipeline_data)
 
         assert mock_output._write_calls == 1
@@ -133,12 +133,12 @@ class TestCompositeOutput:
         mock_output._error_on_write = "Test error"
         composite_output.add_output("test_output", mock_output)
 
-        composite_output.start()
+        # Sin start(): la tarea de reconexión queda en cola sin procesarse
         composite_output.write(pipeline_data)
 
         # Verificar que se programó reconexión
-        time.sleep(0.1)  # Esperar a que se ejecute el timer
         assert composite_output._reconnect_attempts["test_output"] == 1
+        assert composite_output._reconnect_queue.qsize() >= 1
 
     def test_get_status(self, composite_output, mock_output) -> None:
         """Test para obtener estado del composite."""
@@ -328,7 +328,7 @@ class TestCompositeOutput:
         composite_output.add_output("good", good_output)
         composite_output.add_output("bad", bad_output)
 
-        composite_output.start()
+        # Sin start(): el worker de reconexión no debe borrar el error (determinista)
 
         # Escribir datos
         data = MagicMock()
@@ -343,8 +343,7 @@ class TestCompositeOutput:
         errors = composite_output.get_output_errors()
         assert errors["bad"] == "Intentional error"
 
-        # Verificar reconexión
-        time.sleep(0.1)
+        # Verificar reconexión programada
         assert composite_output._reconnect_attempts["bad"] == 1
 
     def test_configurable_reconnect(self, composite_output, mock_output) -> None:
@@ -369,15 +368,14 @@ class TestCompositeOutput:
         time.sleep(0.2)
         assert composite_output._reconnect_attempts["test_output"] >= 0
 
-    def test_f105_reconnect_timer_cancelled_on_stop(self, composite_output, mock_output) -> None:
-        """F105: tras stop() los timers de reconexión deben cancelarse.
+    def test_f105_reconnect_cancelled_on_stop(self, composite_output, mock_output) -> None:
+        """F105: tras stop() las reconexiones programadas no deben ejecutarse.
 
         Bug: composite_output._schedule_reconnect creaba threading.Timer
         que sobrevivían a stop(). El Timer disparaba output.start() después
         de que el usuario paró el pipeline, generando ruido 'reconnect' en
         el log panel y reanimando procesos muertos.
         """
-        # Acelerar el timer para que el test sea rápido
         composite_output._reconnect_delay = 0.05
         composite_output._max_reconnect_attempts = 5
 
@@ -385,24 +383,19 @@ class TestCompositeOutput:
         composite_output.add_output("test_output", mock_output)
         composite_output.start()
 
-        # Disparar la primera reconexión
+        # Disparar la primera reconexión (worker puede procesarla antes de stop)
         composite_output.write(MagicMock())
-        assert "test_output" in composite_output._reconnect_timers
-        initial_start_count = mock_output._started_count
-
-        # Parar el composite
         composite_output.stop()
 
-        # El timer debe estar cancelado y el registro vacío
-        assert composite_output._reconnect_timers == {}
+        after_stop = mock_output._started_count
         assert composite_output._stopped is True
 
-        # Esperar más que el delay del timer. Si el Timer NO se hubiera
-        # cancelado, dispararía _reconnect_output → output.start().
+        # Esperar más que el delay. Si la reconexión sobreviviera a stop,
+        # dispararía output.start() → _started_count crecería.
         time.sleep(0.2)
 
-        # El mock no debe haber sido reiniciado tras stop
-        assert mock_output._started_count == initial_start_count
+        # El mock no debe ser reiniciado tras stop
+        assert mock_output._started_count == after_stop
 
     def test_f105_reconnect_after_stop_is_noop(self, composite_output, mock_output) -> None:
         """F105: aunque llegue un _schedule_reconnect tras stop, debe ser no-op."""

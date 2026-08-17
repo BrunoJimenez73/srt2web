@@ -120,9 +120,7 @@ class TestCachedDecorator:
             return {"count": call_count}
 
         async def run_concurrent() -> list[dict]:
-            r1, r2, r3 = await asyncio.gather(
-                slow_func(), slow_func(), slow_func()
-            )
+            r1, r2, r3 = await asyncio.gather(slow_func(), slow_func(), slow_func())
             return [r1, r2, r3]
 
         results = asyncio.run(run_concurrent())

@@ -10,11 +10,46 @@ import sys
 import threading
 import time
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, Optional
 
 from core.subprocess_utils import get_creation_flags
 
 logger = logging.getLogger("srt2web.watchdog")
+
+
+def _is_ffmpeg_process(pid: int) -> bool:
+    """
+    Verify that a PID belongs to an ffmpeg process.
+
+    On Windows, uses tasklist to check the process image name.
+    On Unix, reads /proc/<pid>/comm.
+
+    Args:
+        pid: Process ID to check
+
+    Returns:
+        True if the process is ffmpeg, False otherwise or if check fails
+    """
+    try:
+        if sys.platform == "win32":
+            result = subprocess.run(
+                ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+                capture_output=True,
+                text=True,
+                creationflags=get_creation_flags(),
+                timeout=5,
+            )
+            # Output format: "ffmpeg.exe","1234",...
+            return "ffmpeg.exe" in result.stdout.lower()
+        else:
+            # Linux/macOS: check /proc/<pid>/comm
+            comm_path = Path(f"/proc/{pid}/comm")
+            if comm_path.exists():
+                return comm_path.read_text().strip().lower().startswith("ffmpeg")
+    except Exception:
+        pass
+    return False
 
 
 class FFmpegWatchdog:
@@ -181,7 +216,7 @@ class FFmpegWatchdog:
                     self._last_warning_time = now
                 return
 
-            logger.warning(f"{self._process_name} appears hung " f"(no output for {time_since_output:.0f}s)")
+            logger.warning(f"{self._process_name} appears hung (no output for {time_since_output:.0f}s)")
             self._handle_hang()
 
     def _handle_crash(self) -> None:
@@ -191,25 +226,30 @@ class FFmpegWatchdog:
     def _handle_hang(self) -> None:
         """Handle process hang."""
         if self._process and self._process.poll() is None:
-            logger.info(f"Killing hung {self._process_name}...")
-            try:
-                if sys.platform == "win32":
-                    subprocess.run(
-                        ["taskkill", "/F", "/T", "/PID", str(self._process.pid)],
-                        capture_output=True,
-                        creationflags=get_creation_flags(),
-                    )
-                else:
-                    self._process.kill()
-            except Exception as e:
-                logger.error(f"Failed to kill process: {e}")
+            pid = self._process.pid
+            # Validate PID before killing to avoid killing recycled PIDs
+            if not _is_ffmpeg_process(pid):
+                logger.warning(f"PID {pid} is not an ffmpeg process, skipping kill")
+            else:
+                logger.info(f"Killing hung {self._process_name} (PID: {pid})...")
+                try:
+                    if sys.platform == "win32":
+                        subprocess.run(
+                            ["taskkill", "/F", "/T", "/PID", str(pid)],
+                            capture_output=True,
+                            creationflags=get_creation_flags(),
+                        )
+                    else:
+                        self._process.kill()
+                except Exception as e:
+                    logger.error(f"Failed to kill process: {e}")
 
         self._attempt_restart("hang")
 
     def _attempt_restart(self, reason: str) -> None:
         """Attempt to restart the process."""
         if self._restart_count >= self.max_restarts:
-            logger.error(f"{self._process_name} max restarts ({self.max_restarts}) reached. " "Giving up.")
+            logger.error(f"{self._process_name} max restarts ({self.max_restarts}) reached. Giving up.")
             return
 
         self._restart_count += 1
@@ -222,7 +262,7 @@ class FFmpegWatchdog:
 
         # Check if we're shutting down before restarting
         if self._stop_event.is_set():
-            logger.info(f"{self._process_name} watchdog is stopped — " "skipping restart after delay")
+            logger.info(f"{self._process_name} watchdog is stopped — skipping restart after delay")
             return
 
         if self._restart_callback:
@@ -243,26 +283,34 @@ class ProcessManager:
 
     Ensures only one instance of each process type runs at a time,
     and automatically cleans up orphaned processes.
+
+    Thread-safe singleton with double-checked locking.
+    All public methods are protected by _lock.
     """
 
     _instance: Optional["ProcessManager"] = None
     _lock: threading.Lock = threading.Lock()
+
+    # Instance attributes (declared here for type checker)
     _initialized: bool
+    _processes: dict[str, FFmpegWatchdog]
 
     def __new__(cls) -> "ProcessManager":
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-                    cls._instance._initialized = False
+                    instance = super().__new__(cls)
+                    instance._initialized = False
+                    cls._instance = instance
         return cls._instance
 
     def __init__(self) -> None:
-        if self._initialized:
-            return
-
-        self._processes: dict[str, FFmpegWatchdog] = {}
-        self._initialized = True
+        # Double-check initialization under lock to prevent race in __init__
+        with self._lock:
+            if self._initialized:
+                return
+            self._processes = {}
+            self._initialized = True
         logger.info("ProcessManager initialized")
 
     def register_process(
@@ -288,38 +336,53 @@ class ProcessManager:
         watchdog.attach_process(process, name, restart_callback)
         watchdog.start()
 
-        self._processes[name] = watchdog
+        with self._lock:
+            self._processes[name] = watchdog
         logger.info(f"Registered process '{name}' with ProcessManager")
 
         return watchdog
 
     def unregister_process(self, name: str) -> None:
         """Unregister and stop monitoring a process."""
-        if name in self._processes:
-            watchdog = self._processes.pop(name)
-            watchdog.detach()
-            watchdog.stop()
-            logger.info(f"Unregistered process '{name}' from ProcessManager")
+        with self._lock:
+            if name in self._processes:
+                watchdog = self._processes.pop(name)
+            else:
+                return
+
+        watchdog.detach()
+        watchdog.stop()
+        logger.info(f"Unregistered process '{name}' from ProcessManager")
 
     def get_watchdog(self, name: str) -> FFmpegWatchdog | None:
         """Get the watchdog for a registered process."""
-        return self._processes.get(name)
+        with self._lock:
+            return self._processes.get(name)
 
     def get_all_health(self) -> dict[str, Any]:
         """Get health status of all monitored processes."""
+        with self._lock:
+            processes = dict(self._processes)
         return {
             name: {
                 "healthy": wd.is_healthy,
                 "restart_count": wd.restart_count,
             }
-            for name, wd in self._processes.items()
+            for name, wd in processes.items()
         }
 
     def kill_all(self) -> None:
         """Kill all monitored processes."""
-        for name, watchdog in self._processes.items():
+        with self._lock:
+            processes = dict(self._processes)
+
+        for name, watchdog in processes.items():
             if watchdog._process and watchdog._process.poll() is None:
-                logger.info(f"Killing process '{name}'...")
+                pid = watchdog._process.pid
+                if not _is_ffmpeg_process(pid):
+                    logger.warning(f"PID {pid} ('{name}') is not an ffmpeg process, skipping kill")
+                    continue
+                logger.info(f"Killing process '{name}' (PID: {pid})...")
                 try:
                     if sys.platform == "win32":
                         subprocess.run(
@@ -328,7 +391,7 @@ class ProcessManager:
                                 "/F",
                                 "/T",
                                 "/PID",
-                                str(watchdog._process.pid),
+                                str(pid),
                             ],
                             capture_output=True,
                             creationflags=get_creation_flags(),
@@ -338,7 +401,8 @@ class ProcessManager:
                 except Exception as e:
                     logger.error(f"Failed to kill '{name}': {e}")
 
-        self._processes.clear()
+        with self._lock:
+            self._processes.clear()
         logger.info("All processes killed")
 
     def cleanup_orphans(self) -> int:
@@ -356,20 +420,26 @@ class ProcessManager:
                     ["tasklist", "/FI", "IMAGENAME eq ffmpeg.exe", "/FO", "CSV", "/NH"],
                     capture_output=True,
                     text=True,
+                    creationflags=get_creation_flags(),
                 )
                 for line in result.stdout.strip().split("\n"):
                     if line:
                         parts = line.split(",")
                         if len(parts) >= 2:
-                            pid = parts[1].strip('"')
+                            pid_str = parts[1].strip('"')
                             try:
-                                subprocess.run(
-                                    ["taskkill", "/F", "/PID", pid],
-                                    capture_output=True,
-                                    creationflags=get_creation_flags(),
-                                )
-                                cleaned += 1
-                                logger.info(f"Cleaned up orphan FFmpeg (PID: {pid})")
+                                pid = int(pid_str)
+                                # Double-check it's still ffmpeg (PID could be recycled)
+                                if _is_ffmpeg_process(pid):
+                                    subprocess.run(
+                                        ["taskkill", "/F", "/PID", pid_str],
+                                        capture_output=True,
+                                        creationflags=get_creation_flags(),
+                                    )
+                                    cleaned += 1
+                                    logger.info(f"Cleaned up orphan FFmpeg (PID: {pid})")
+                                else:
+                                    logger.debug(f"PID {pid} no longer ffmpeg, skipping")
                             except Exception as e:
                                 logger.debug("Suppressed error: %s", e, exc_info=True)
             else:

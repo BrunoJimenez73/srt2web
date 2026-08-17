@@ -286,7 +286,7 @@ class EncoderConfig:
                 actual_encoder = "h264_nvenc"
                 encoder_label = "H.264 NVENC"
             elif encoder_mode == "gpu_nvenc" and not gpu_info.get("nvenc"):
-                logger.warning("NVENC requested but not detected by FFmpeg. " "Assuming compatibility.")
+                logger.warning("NVENC requested but not detected by FFmpeg. Assuming compatibility.")
                 using_gpu = True
                 actual_encoder = "h264_nvenc"
                 encoder_label = "H.264 NVENC (ASSUMED)"

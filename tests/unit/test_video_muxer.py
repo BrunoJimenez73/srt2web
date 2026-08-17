@@ -54,9 +54,12 @@ class TestVideoMuxer:
             def _do_process(self, data) -> None:
                 return data
 
-        with patch("modules.video_muxer.ensure_ffmpeg", return_value="/bin/ffmpeg"), patch(
-            "core.ffmpeg_utils.check_gpu_support",
-            return_value={"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False},
+        with (
+            patch("modules.video_muxer.ensure_ffmpeg", return_value="/bin/ffmpeg"),
+            patch(
+                "core.ffmpeg_utils.check_gpu_support",
+                return_value={"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False},
+            ),
         ):
             muxer = Testable(output_dir="/tmp")
             muxer.start()
@@ -81,9 +84,12 @@ class TestVideoMuxer:
             def _do_process(self, data) -> None:
                 return data
 
-        with patch("modules.video_muxer.ensure_ffmpeg", return_value="/bin/ffmpeg"), patch(
-            "core.ffmpeg_utils.check_gpu_support",
-            return_value={"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False},
+        with (
+            patch("modules.video_muxer.ensure_ffmpeg", return_value="/bin/ffmpeg"),
+            patch(
+                "core.ffmpeg_utils.check_gpu_support",
+                return_value={"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False},
+            ),
         ):
             muxer = Testable(output_dir="/tmp")
             muxer.start()

@@ -45,8 +45,10 @@ class AudioMixer(BaseModule):
         self._duration_cache: dict[str, float] = {}
         # Crossfade settings to prevent clicks at chunk boundaries
         self._crossfade_duration = 0.04  # 40ms crossfade to mask chunk boundary artifacts
-        # F184: crossfade state is shared between parallel workers.
+        # Crossfade state shared between parallel workers.
+        # Track last processed chunk index to detect out-of-order processing.
         self._prev_end_sample: np.ndarray | None = None
+        self._last_chunk_index: int = -1
         self._mix_lock = threading.Lock()
         super().__init__("audio_mixer", config)
 
@@ -178,31 +180,44 @@ class AudioMixer(BaseModule):
             mixed = np.clip(mixed, -32768, 32767).astype(np.int16)
 
             # Apply crossfade to prevent clicks at chunk boundaries.
-            # F184: the read-blend-write of _prev_end_sample must be atomic
-            # across workers; otherwise a parallel chunk can overwrite the
-            # tail mid-blend and bleed a later chunk's speech into the start
-            # of the current one.
+            # Crossfade state is shared between parallel workers.
+            # Only apply crossfade if this chunk is the immediate successor
+            # of the last processed chunk; otherwise reset crossfade state.
             with self._mix_lock:
-                if self._prev_end_sample is not None and len(self._prev_end_sample) > 0:
-                    # Crossfade between previous chunk's end and current chunk's start
+                expected_chunk = self._last_chunk_index + 1
+                if data.chunk_index == expected_chunk:
+                    # In-order chunk: apply crossfade with previous chunk's end
+                    if self._prev_end_sample is not None and len(self._prev_end_sample) > 0:
+                        crossfade_samples = int(self._crossfade_duration * orig_sr)
+                        if crossfade_samples > 0 and len(mixed) >= crossfade_samples:
+                            # Fade out previous chunk's end
+                            fade_out = np.linspace(1.0, 0.0, crossfade_samples)
+                            # Fade in current chunk's start
+                            fade_in = np.linspace(0.0, 1.0, crossfade_samples)
+
+                            # Apply crossfade at chunk START (blend with previous chunk's END)
+                            mixed[:crossfade_samples] = (
+                                mixed[:crossfade_samples] * fade_in + self._prev_end_sample * fade_out
+                            )
+
+                    # Save end of current chunk for next crossfade
                     crossfade_samples = int(self._crossfade_duration * orig_sr)
                     if crossfade_samples > 0 and len(mixed) >= crossfade_samples:
-                        # Fade out previous chunk's end
-                        fade_out = np.linspace(1.0, 0.0, crossfade_samples)
-                        # Fade in current chunk's start
-                        fade_in = np.linspace(0.0, 1.0, crossfade_samples)
-
-                        # Apply crossfade at chunk START (blend with previous chunk's END)
-                        mixed[:crossfade_samples] = (
-                            mixed[:crossfade_samples] * fade_in + self._prev_end_sample * fade_out
-                        )
-
-                # Save end of current chunk for next crossfade
-                crossfade_samples = int(self._crossfade_duration * orig_sr)
-                if crossfade_samples > 0 and len(mixed) >= crossfade_samples:
-                    self._prev_end_sample = mixed[-crossfade_samples:].copy()
+                        self._prev_end_sample = mixed[-crossfade_samples:].copy()
+                    else:
+                        self._prev_end_sample = None
+                    self._last_chunk_index = data.chunk_index
                 else:
+                    # Out-of-order chunk (gap or duplicate): reset crossfade state
+                    logger.debug(
+                        f"[AudioMixer] Chunk {data.chunk_index} out of order "
+                        f"(expected {expected_chunk}), resetting crossfade"
+                    )
                     self._prev_end_sample = None
+                    if data.chunk_index > expected_chunk:
+                        # Gap detected - update last_chunk_index but don't crossfade
+                        self._last_chunk_index = data.chunk_index
+                    # If data.chunk_index <= expected_chunk (duplicate), keep last_chunk_index
 
             # Write output WAV
             with wave.open(str(mix_wav), "wb") as wf:

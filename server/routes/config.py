@@ -308,9 +308,7 @@ async def update_chunk_duration(request: Request, body: ChunkDurationRequest) ->
     config.set("modules.subtitle_generator.chunk_duration", chunk_duration)
     # Sync named outputs (handled by schema validator on save/reload)
 
-    logger.info(
-        f"[CHUNK] Syncing chunk_duration={chunk_duration}s, " f"list_size={calculated_list_size} to all modules"
-    )
+    logger.info(f"[CHUNK] Syncing chunk_duration={chunk_duration}s, list_size={calculated_list_size} to all modules")
 
     try:
         config.save()

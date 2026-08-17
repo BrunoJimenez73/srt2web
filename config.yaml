@@ -31,7 +31,7 @@ output:
   type: web
   web:
     segment_duration: 5
-    # list_size: 12  # Auto-calculado desde pipeline.hls_list_size (o pipeline.chunk_duration_sec). Descomenta para forzar valor.
+    list_size: 12
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
     bitrate_ladder:
@@ -49,7 +49,7 @@ output:
       name: high
   hls:
     segment_duration: 5
-    # list_size: 12  # Auto-calculado desde pipeline.hls_list_size (o pipeline.chunk_duration_sec). Descomenta para forzar valor.
+    list_size: 12
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
     bitrate_ladder:
@@ -111,7 +111,6 @@ pipeline:
   retry_attempts: 3
   retry_delay: 1.0
   lost_chunk_timeout_sec: 15.0
-  # hls_list_size: 12  # Auto-calculado desde chunk_duration_sec (buffer >= 60s, min 6). Descomenta para forzar valor.
   adaptive:
     enabled: true
     smoothing_factor: 0.4
@@ -128,6 +127,7 @@ pipeline:
     chunk_duration_ratio_high: 0.8
     chunk_duration_ratio_low: 0.3
     adaptation_interval_chunks: 10
+  hls_list_size: null
 modules:
   audio_extractor:
     enabled: true
@@ -150,7 +150,7 @@ modules:
     use_translated: true
     chunk_duration: 5
     dual_track: false
-    # hls_list_size: 12  # Auto-calculado desde pipeline.hls_list_size (o pipeline.chunk_duration_sec). Descomenta para forzar valor.
+    hls_list_size: 12
   tts_engine:
     enabled: true
     engine: piper
@@ -165,7 +165,7 @@ modules:
     enabled: true
     engine: hls
     hls_segment_duration: 5
-    # hls_list_size: 12  # Auto-calculado desde pipeline.hls_list_size (o pipeline.chunk_duration_sec). Descomenta para forzar valor.
+    hls_list_size: 12
     audio_offset_ms: 0
     encoder_mode: auto
     video_quality: medium

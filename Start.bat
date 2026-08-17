@@ -70,9 +70,8 @@ REM Launch server with visible console for logs (logs also saved to logs/srt2web
 REM Using start (not Start-Process) to avoid Windows Defender DLL blocking
 start "SRT2Web Server" "%SCRIPT_DIR%venv\Scripts\python.exe" -X utf8 main.py
 
-REM Wait briefly then capture PID via WMI for selective stop
-powershell -NoProfile -Command ^
-  "Start-Sleep -Milliseconds 1500; $p = Get-CimInstance -ClassName Win32_Process -Filter \"Name='python.exe'\" | Where-Object { $_.CommandLine -like '*main.py*' } | Select-Object -First 1; if ($p) { $p.ProcessId | Out-File '%SCRIPT_DIR%srt2web.pid' -Encoding ascii }"
+REM Wait briefly then capture PID of the process actually listening on the port
+powershell -NoProfile -Command "Start-Sleep -Milliseconds 2000; $c = Get-NetTCPConnection -LocalPort !PORT! -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1; if ($c) { $c.OwningProcess | Out-File -LiteralPath '%SCRIPT_DIR%srt2web.pid' -Encoding ascii }"
 if exist "%SCRIPT_DIR%srt2web.pid" (
     set /p SRT_PID=<"%SCRIPT_DIR%srt2web.pid"
     echo [OK] Servidor iniciado (PID: !SRT_PID!).

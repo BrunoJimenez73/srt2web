@@ -2,7 +2,6 @@
 Tests for pipeline factory (core/pipeline/factory.py).
 """
 
-
 import pytest
 
 from core.pipeline.factory import create_pipeline, get_available_modes

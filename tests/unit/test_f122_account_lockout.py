@@ -74,9 +74,9 @@ class TestLockoutAfterFailures:
         # 5 failed attempts should lock the account
         for i in range(5):
             token = db.authenticate("admin", "WrongPass1!")
-            assert token is None, f"Attempt {i+1} should fail"
+            assert token is None, f"Attempt {i + 1} should fail"
             if i < 4:
-                assert db.is_locked("admin") is False, f"Not locked yet at attempt {i+1}"
+                assert db.is_locked("admin") is False, f"Not locked yet at attempt {i + 1}"
             else:
                 assert db.is_locked("admin") is True, "Should be locked after 5 attempts"
 

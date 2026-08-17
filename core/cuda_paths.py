@@ -66,15 +66,31 @@ def get_cuda_paths() -> list[str]:
     return cuda_paths
 
 
-def setup_cuda_environment() -> None:
+def setup_cuda_environment(apply: bool = True) -> str | None:
     """
-    Configura las variables de entorno de CUDA para el proceso actual.
-    Debe llamarse ANTES de importar librerías que usen CUDA.
+    Configura las variables de entorno de CUDA.
+
+    Args:
+        apply: Si True (default), modifica os.environ["PATH"] globalmente
+               para compatibilidad hacia atrás. Si False, retorna el nuevo PATH
+               sin modificar el entorno global, para que el caller lo use en
+               subprocess.run(env=...) o similar.
+
+    Returns:
+        El nuevo PATH si apply=False, None si apply=True.
+
+    Nota: En macOS y Linux sin NVIDIA GPU, retorna el PATH original sin cambios.
+    Debe llamarse ANTES de importar librerías que usen CUDA si apply=True.
     """
     cuda_paths = get_cuda_paths()
 
-    if cuda_paths:
-        os.environ["PATH"] = os.pathsep.join(cuda_paths) + os.pathsep + os.environ.get("PATH", "")
+    if not cuda_paths:
+        return None
+
+    new_path = os.pathsep.join(cuda_paths) + os.pathsep + os.environ.get("PATH", "")
+
+    if apply:
+        os.environ["PATH"] = new_path
 
         # Add DLL directories for Python 3.8+ (required for proper DLL loading)
         for path in cuda_paths:
@@ -82,6 +98,9 @@ def setup_cuda_environment() -> None:
             if p.is_dir():
                 with contextlib.suppress(AttributeError, OSError):
                     os.add_dll_directory(str(p))
+        return None
+    else:
+        return new_path
 
 
 def has_cuda_support() -> bool:

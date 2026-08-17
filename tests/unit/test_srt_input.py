@@ -2,7 +2,6 @@
 Unit tests for SRT Input module.
 """
 
-
 from core.module_base import PipelineData
 
 

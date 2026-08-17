@@ -195,7 +195,7 @@ class ModelCache:
             import argostranslate.translate
 
             t1 = time.perf_counter()
-            logger.info(f"[TIMING] get_argos_pair: import translate: {t1-t0:.3f}s")
+            logger.info(f"[TIMING] get_argos_pair: import translate: {t1 - t0:.3f}s")
 
             # Use the correct API for newer argostranslate versions
             try:
@@ -203,7 +203,7 @@ class ModelCache:
                 t2 = time.perf_counter()
                 installed_languages = argostranslate.translate.get_installed_languages()
                 t3 = time.perf_counter()
-                logger.info(f"[TIMING] get_argos_pair: get_installed_languages(): {t3-t2:.3f}s")
+                logger.info(f"[TIMING] get_argos_pair: get_installed_languages(): {t3 - t2:.3f}s")
                 source = None
                 target = None
 
@@ -292,7 +292,7 @@ class ModelCache:
         logger.info("All model preload started")
 
     def clear_cache(self) -> None:
-        """Clear all cached models."""
+        """Clear all cached models and release CUDA memory."""
         logger.info("Clearing model cache...")
 
         self._whisper_models.clear()
@@ -300,7 +300,39 @@ class ModelCache:
         self._models_loaded = False
         self._preload_done.clear()
 
+        # Release CUDA memory if any models were on GPU
+        self._release_cuda_memory()
+
         logger.info("Model cache cleared")
+
+    def _release_cuda_memory(self) -> None:
+        """Release CUDA memory held by cached models.
+
+        This is called after clearing the model cache to ensure
+        GPU memory is freed back to the system.
+        """
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                # Force garbage collection first
+                import gc
+
+                gc.collect()
+
+                # Empty CUDA cache
+                torch.cuda.empty_cache()
+
+                # Optional: synchronize to ensure all operations complete
+                torch.cuda.synchronize()
+
+                logger.info("CUDA memory released")
+        except ImportError:
+            # torch not available
+            pass
+        except Exception as e:
+            # Log but don't fail - cache clear should succeed even if CUDA cleanup has issues
+            logger.warning(f"Failed to release CUDA memory: {e}")
 
     def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics."""

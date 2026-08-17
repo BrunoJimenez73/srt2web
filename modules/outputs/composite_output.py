@@ -4,6 +4,7 @@ Delega el trabajo a cada salida individual.
 """
 
 import logging
+import queue
 import threading
 from dataclasses import dataclass, field
 from typing import Any
@@ -28,10 +29,24 @@ class OutputStatus:
     extra: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass
+class _ReconnectTask:
+    """Tarea de reconexión para el worker thread."""
+
+    name: str
+    attempt: int
+
+
 class CompositeOutput(BaseOutput):
     """
     Gestiona múltiples salidas simultáneamente.
     Delega el trabajo a cada salida individual.
+
+    Thread-safety:
+    - _lock protects _outputs, _errors, _reconnect_attempts
+    - _reconnect_queue + _reconnect_worker_thread handle reconnection scheduling
+      atomically without race conditions (replaces threading.Timer).
+    - _stop_event signals worker thread to shut down gracefully.
     """
 
     def __init__(self, config: dict[str, Any]):
@@ -39,11 +54,15 @@ class CompositeOutput(BaseOutput):
         self._outputs: dict[str, OutputSink] = {}
         self._errors: dict[str, str | None] = {}
         self._reconnect_attempts: dict[str, int] = {}
-        self._reconnect_timers: dict[str, threading.Timer] = {}
         self._max_reconnect_attempts = 3
         self._reconnect_delay = 5.0  # segundos
         self._stopped = False
         self._lock = threading.Lock()
+
+        # Reconnection worker (replaces threading.Timer)
+        self._reconnect_queue: queue.Queue[_ReconnectTask | None] = queue.Queue()
+        self._stop_event = threading.Event()
+        self._reconnect_worker_thread: threading.Thread | None = None
 
     def add_output(self, name: str, output: OutputSink) -> None:
         """Añadir una nueva salida al composite."""
@@ -78,9 +97,10 @@ class CompositeOutput(BaseOutput):
                 logger.warning(f"Failed to reconfigure output '{name}': {e}")
 
     def start(self) -> None:
-        """Iniciar todas las salidas."""
+        """Iniciar todas las salidas y el worker de reconexión."""
         with self._lock:
             self._stopped = False
+            self._stop_event.clear()
             for name, output in self._outputs.items():
                 try:
                     output.start()
@@ -90,20 +110,33 @@ class CompositeOutput(BaseOutput):
                     self._errors[name] = str(e)
                     logger.error(f"Failed to start output '{name}': {e}")
 
+        # Start reconnection worker thread
+        if self._reconnect_worker_thread is None or not self._reconnect_worker_thread.is_alive():
+            self._reconnect_worker_thread = threading.Thread(
+                target=self._reconnect_worker,
+                name="composite-reconnect-worker",
+                daemon=True,
+            )
+            self._reconnect_worker_thread.start()
+            logger.debug("CompositeOutput reconnection worker started")
+
     def stop(self) -> None:
-        """Detener todas las salidas y cancelar reconexiones pendientes."""
+        """Detener todas las salidas y el worker de reconexión."""
+        # Signal worker to stop and wait for it
+        self._stop_event.set()
+        self._reconnect_queue.put(None)  # Wake up worker
+        worker = self._reconnect_worker_thread
+        self._reconnect_worker_thread = None
+
         # Snapshot de outputs bajo el lock (rápido), luego parar fuera del lock
         # para no bloquear el event loop cuando get_all_output_statuses() lo adquiere.
         with self._lock:
             self._stopped = True
-            # Cancelar todos los timers de reconexión pendientes.
-            # Bug F105: si no se cancelan, disparan output.start() después
-            # de que el usuario paró el pipeline, generando ruido "reconnect"
-            # en el log panel y reanimando procesos que ya estaban muertos.
-            for _, timer in self._reconnect_timers.items():
-                timer.cancel()
-            self._reconnect_timers.clear()
             outputs = list(self._outputs.items())
+
+        if worker and worker.is_alive():
+            worker.join(timeout=2.0)
+            logger.debug("CompositeOutput reconnection worker stopped")
 
         for name, output in outputs:
             try:
@@ -130,48 +163,83 @@ class CompositeOutput(BaseOutput):
                 with self._lock:
                     self._errors[name] = str(e)
                     logger.error(f"Output '{name}' error: {e}")
-                    self._schedule_reconnect(name)
+                self._schedule_reconnect(name)
 
     def _schedule_reconnect(self, name: str) -> None:
-        """Programar reconexión automática."""
-        if self._stopped:
-            return  # No reconectar si el composite está parado (F105)
-        if self._reconnect_attempts[name] >= self._max_reconnect_attempts:
-            return  # No intentar más
-
-        self._reconnect_attempts[name] += 1
-
-        def reconnect() -> None:
-            # Limpiar el timer del registro antes de ejecutar
-            self._reconnect_timers.pop(name, None)
-            self._reconnect_output(name)
-
-        # Programar reconexión después del delay
-        timer = threading.Timer(self._reconnect_delay, reconnect)
-        timer.daemon = True
-        self._reconnect_timers[name] = timer
-        timer.start()
-
-    def _reconnect_output(self, name: str) -> None:
-        """Intentar reconectar una salida que falló."""
+        """Programar reconexión automática (thread-safe via queue)."""
         with self._lock:
             if self._stopped:
-                return  # F105: el pipeline ya se paró, no resucitar outputs
+                return  # No reconectar si el composite está parado
+            if self._reconnect_attempts.get(name, 0) >= self._max_reconnect_attempts:
+                return  # No intentar más
+
+            self._reconnect_attempts[name] = self._reconnect_attempts.get(name, 0) + 1
+            attempt = self._reconnect_attempts[name]
+
+        # Enqueue task for worker thread (non-blocking)
+        try:
+            self._reconnect_queue.put_nowait(_ReconnectTask(name=name, attempt=attempt))
+        except queue.Full:
+            logger.warning(f"Reconnect queue full, dropping reconnect for '{name}'")
+
+    def _reconnect_worker(self) -> None:
+        """Worker thread que procesa tareas de reconexión secuencialmente.
+
+        Este reemplaza threading.Timer y elimina race conditions:
+        - El worker es el único que ejecuta reconexiones
+        - _stop_event permite apagado graceful
+        - Queue garantiza orden FIFO y atomicidad
+        """
+        logger.debug("Reconnection worker started")
+        while not self._stop_event.is_set():
+            try:
+                # Wait for task with timeout to check _stop_event periodically
+                task = self._reconnect_queue.get(timeout=0.5)
+            except queue.Empty:
+                continue
+
+            if task is None:  # Shutdown sentinel
+                break
+
+            if self._stop_event.is_set():
+                break
+
+            self._reconnect_output(task.name, task.attempt)
+
+        logger.debug("Reconnection worker stopped")
+
+    def _reconnect_output(self, name: str, attempt: int) -> None:
+        """Intentar reconectar una salida que falló.
+
+        Args:
+            name: Nombre de la salida
+            attempt: Número de intento actual (1-based)
+        """
+        with self._lock:
+            if self._stopped:
+                return  # Pipeline ya se paró, no resucitar outputs
             if name not in self._outputs:
                 return
 
             output = self._outputs[name]
 
-            try:
-                output.stop()
-                output.start()
+        try:
+            output.stop()
+            output.start()
+            with self._lock:
                 self._errors[name] = None
                 self._reconnect_attempts[name] = 0
-                logger.info(f"Output '{name}' reconnected successfully")
-            except Exception as e:
-                logger.error(f"Reconnect attempt {self._reconnect_attempts[name]} failed: {e}")
-                # Programar siguiente intento
-                self._schedule_reconnect(name)
+            logger.info(f"Output '{name}' reconnected successfully (attempt {attempt})")
+        except Exception as e:
+            logger.error(f"Reconnect attempt {attempt} for '{name}' failed: {e}")
+            # Programar siguiente intento si no se ha alcanzado el máximo
+            with self._lock:
+                if attempt < self._max_reconnect_attempts and not self._stopped:
+                    self._reconnect_attempts[name] = attempt
+                    try:
+                        self._reconnect_queue.put_nowait(_ReconnectTask(name=name, attempt=attempt + 1))
+                    except queue.Full:
+                        logger.warning(f"Reconnect queue full, giving up on '{name}'")
 
     def get_status(self) -> ModuleStatus:
         """Obtener estado de todas las salidas (compatible con formato legacy)."""
