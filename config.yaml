@@ -4,13 +4,13 @@ server:
   cors_origins:
   - http://localhost:*
   - http://127.0.0.1:*
-  auth_token: ''
+  auth_token: test-token-123
   rate_limit_rpm: 600
   max_request_size_mb: 100
 input:
   type: srt
   srt:
-    listen_port: 8888
+    listen_port: 9000
     mode: listener
     latency_ms: 200
     caller_address: ''
@@ -31,7 +31,7 @@ output:
   type: web
   web:
     segment_duration: 5
-    list_size: 12
+    # list_size: 12  # Auto-calculado desde pipeline.hls_list_size (o pipeline.chunk_duration_sec). Descomenta para forzar valor.
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
     bitrate_ladder:
@@ -49,7 +49,7 @@ output:
       name: high
   hls:
     segment_duration: 5
-    list_size: 12
+    # list_size: 12  # Auto-calculado desde pipeline.hls_list_size (o pipeline.chunk_duration_sec). Descomenta para forzar valor.
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
     bitrate_ladder:
@@ -102,12 +102,7 @@ output:
     split_value: 600
     subtitles: vtt
     video_preset: fast
-  outputs:
-  - name: srt_1
-    type: srt
-    enabled: true
-    config:
-      port: 9002
+  outputs: []
 pipeline:
   chunk_duration_sec: 5
   mode: thread_parallel
@@ -116,6 +111,7 @@ pipeline:
   retry_attempts: 3
   retry_delay: 1.0
   lost_chunk_timeout_sec: 15.0
+  # hls_list_size: 12  # Auto-calculado desde chunk_duration_sec (buffer >= 60s, min 6). Descomenta para forzar valor.
   adaptive:
     enabled: true
     smoothing_factor: 0.4
@@ -136,7 +132,7 @@ modules:
   audio_extractor:
     enabled: true
   transcriber:
-    enabled: false
+    enabled: true
     model: tiny
     language: en
     device: cpu
@@ -144,7 +140,7 @@ modules:
     timeout_sec: 120.0
   translator:
     enabled: true
-    source_lang: fr
+    source_lang: en
     target_lang: es
   dmr_translator:
     enabled: false
@@ -154,31 +150,32 @@ modules:
     use_translated: true
     chunk_duration: 5
     dual_track: false
+    # hls_list_size: 12  # Auto-calculado desde pipeline.hls_list_size (o pipeline.chunk_duration_sec). Descomenta para forzar valor.
   tts_engine:
     enabled: true
     engine: piper
     device: cpu
-    voice: es_ES-davefx-medium
+    voice: es_MX-claude-high
     speed: 1.1
   audio_mixer:
     enabled: true
-    original_volume: 0.7
+    original_volume: 0.9
     tts_volume: 1.0
   video_muxer:
     enabled: true
     engine: hls
     hls_segment_duration: 5
-    hls_list_size: 12
+    # hls_list_size: 12  # Auto-calculado desde pipeline.hls_list_size (o pipeline.chunk_duration_sec). Descomenta para forzar valor.
     audio_offset_ms: 0
-    encoder_mode: gpu_nvenc
+    encoder_mode: auto
     video_quality: medium
     video_crf: 23
     audio_codec: aac
     audio_bitrate: 128k
     video_bitrate: 1000k
-    video_fps: 15
-    video_width: 320
-    video_height: 240
+    video_fps: 30
+    video_width: 1920
+    video_height: 1080
     webrtc_audio_codec: null
     webrtc_audio_bitrate: null
     audio_sample_rate: 24000

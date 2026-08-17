@@ -481,6 +481,15 @@ class PipelineConfig(BaseModel):
         default_factory=AdaptiveConfig,
         description="Configuración de pipeline reactivo (F170)",
     )
+    # Shared HLS playlist window size — single source of truth for
+    # HLSOutput, VideoMuxer, and SubtitleGenerator. Auto-calculated from
+    # chunk_duration_sec if not explicitly set (minimum 60s buffer, min 6 segments).
+    hls_list_size: int | None = Field(
+        default=None,
+        ge=2,
+        le=20,
+        description="Número de segmentos en playlist HLS (auto-calculado si no se especifica: buffer >= 60s, min 6)",
+    )
 
 
 class AudioExtractorConfig(BaseModel):
@@ -529,6 +538,12 @@ class SubtitleGeneratorConfig(BaseModel):
         description="Duración de chunk de subtítulos en segundos",
     )
     dual_track: bool = Field(default=False, description="Generar track alternativo (original+traducido)")
+    hls_list_size: int = Field(
+        default=12,
+        ge=1,
+        le=20,
+        description="Número de fragmentos en playlist HLS (debe coincidir con video HLS list_size)",
+    )
 
 
 class TTSEngineConfig(BaseModel):
@@ -690,6 +705,31 @@ class SRT2WebConfig(BaseModel):
 
         if errors:
             raise ValueError(f"Configuration validation failed: {', '.join(errors)}")
+
+        return self
+
+    @model_validator(mode="after")
+    def propagate_hls_list_size(self) -> "SRT2WebConfig":
+        """
+        Propagar hls_list_size compartido a todos los módulos HLS.
+
+        Si pipeline.hls_list_size está configurado, se usa ese valor.
+        Si es None, se auto-calcula basado en chunk_duration_sec (buffer >= 60s, min 6).
+        """
+        # Calcular o usar el valor compartido
+        shared_list_size = self.pipeline.hls_list_size
+        if shared_list_size is None:
+            shared_list_size = self.calculate_list_size(self.pipeline.chunk_duration_sec)
+
+        # Propagar a WebOutputConfig (HLSOutput)
+        self.output.web.list_size = shared_list_size
+        self.output.hls.list_size = shared_list_size  # alias
+
+        # Propagar a VideoMuxerConfig
+        self.modules.video_muxer.hls_list_size = shared_list_size
+
+        # Propagar a SubtitleGeneratorConfig
+        self.modules.subtitle_generator.hls_list_size = shared_list_size
 
         return self
 

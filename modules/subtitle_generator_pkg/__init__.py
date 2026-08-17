@@ -45,7 +45,7 @@ class SubtitleGenerator(BaseModule):
         self._use_translated = True
         self._dual_track = False
         self._chunk_duration = 5
-        self._list_size = 10
+        self._list_size = 12  # Default matches video HLS list_size
         self._lock = threading.Lock()
 
         self._fragment_writer = FragmentWriter(list_size=self._list_size)
@@ -312,7 +312,7 @@ class SubtitleGenerator(BaseModule):
             elif not self._use_translated and data.translated_segments:
                 alt_segments = data.translated_segments
 
-        # Write HLS fragment + rewrite playlist (single atomic operation under lock)
+        # Write HLS fragment (playlist rewrite deferred to sync_playlist callback from HLSOutput when video playlist exists)
         try:
             # Write fragment with media-relative timestamps (0..duration)
             fragment_path = self._fragment_writer.write_fragment(
@@ -321,7 +321,12 @@ class SubtitleGenerator(BaseModule):
 
             if fragment_path:
                 self._fragment_writer.add_fragment(data.chunk_index, duration, chunk_start_time, fragment_path)
-                self._fragment_writer.rewrite_playlist()
+                # Only rewrite immediately if NO video playlist is configured (standalone mode).
+                # In pipeline mode, HLSOutput calls sync_playlist() AFTER stream.m3u8 is updated,
+                # which avoids a race where HLS.js loads subs.m3u8 before the corresponding
+                # video segment exists in stream.m3u8.
+                if self._fragment_writer._video_playlist_path is None:
+                    self._fragment_writer.rewrite_playlist()
 
             # Dual track: write alt VTT with absolute timestamps (legacy path)
             if self._dual_track and alt_segments:
