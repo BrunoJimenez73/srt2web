@@ -32,7 +32,20 @@ jobs:
         run: |
           python -m pip install -r config/requirements.txt
           python main.py &
-          sleep 10
+          SERVER_PID=$!
+          # Wait for server to be ready with health check using /status endpoint
+          for i in {1..30}; do
+            if curl -sf http://localhost:9999/status > /dev/null; then
+              echo "Server is ready"
+              break
+            fi
+            sleep 2
+          done
+          if ! curl -sf http://localhost:9999/status > /dev/null; then
+            echo "Server failed to start"
+            kill $SERVER_PID
+            exit 1
+          fi
       - name: Run Playwright tests
         working-directory: ./frontend
         run: npx playwright test

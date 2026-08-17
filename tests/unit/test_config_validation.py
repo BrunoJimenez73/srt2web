@@ -29,6 +29,9 @@ def _collect_paths(routes: list) -> list[str]:
         if hasattr(route, "path"):
             paths.append(route.path)
         nested = getattr(route, "routes", None)
+        if not nested:
+            sub_router = getattr(route, "router", None)
+            nested = getattr(sub_router, "routes", None)
         if nested:
             paths.extend(_collect_paths(nested))
     return paths
@@ -217,7 +220,7 @@ class TestConfigYAMLValidity:
         with open(CONFIG_PATH, encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
-        server_port = config.get("server", {}).get("port", 0)
+        _ = config.get("server", {}).get("port", 0)
         srt_port = config.get("srt", {}).get("listen_port", 0)
         input_srt_port = config.get("input", {}).get("srt", {}).get("listen_port", 0)
 
@@ -373,7 +376,7 @@ class TestRequiredDependencies:
 
     def test_faster_whisper_available(self) -> None:
         """Test that faster-whisper is installed."""
-        faster_whisper = pytest.importorskip("faster_whisper")
+        _ = pytest.importorskip("faster_whisper")
 
     def test_yaml_available(self) -> None:
         """Test that PyYAML is installed."""

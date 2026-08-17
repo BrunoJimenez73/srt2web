@@ -162,6 +162,7 @@ class TestHLSOutputPassthrough:
 
         with (
             patch("modules.outputs.hls_output.subprocess.run") as mock_run,
+            patch("core.ffmpeg_utils.find_ffprobe", return_value="ffprobe"),
         ):
             mock_run.return_value.returncode = 0
             mock_run.return_value.stderr = ""

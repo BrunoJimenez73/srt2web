@@ -19,6 +19,9 @@ def _collect_paths(routes: list) -> list[str]:
         if hasattr(route, "path"):
             paths.append(route.path)
         nested = getattr(route, "routes", None)
+        if not nested:
+            sub_router = getattr(route, "router", None)
+            nested = getattr(sub_router, "routes", None)
         if nested:
             paths.extend(_collect_paths(nested))
     return paths

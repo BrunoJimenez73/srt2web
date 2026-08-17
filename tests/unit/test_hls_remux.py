@@ -27,6 +27,8 @@ def hls_output_with_mocks():
 
     with (
         patch("modules.outputs.hls_output.subprocess.run") as mock_run,
+        patch("modules.outputs.hls_output.ensure_ffmpeg", return_value="ffmpeg"),
+        patch("core.ffmpeg_utils.find_ffprobe", return_value="ffprobe"),
         patch("modules.outputs.hls_output.get_creation_flags", return_value=0),
         patch("modules.outputs.hls_output.filter_command", side_effect=lambda x: x),
         patch("modules.outputs.hls_output.os.path.getsize", return_value=1024),

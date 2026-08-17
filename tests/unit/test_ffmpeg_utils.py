@@ -60,7 +60,10 @@ class TestFFmpegUtils:
         """Test run_ffmpeg function handles bytes output."""
         from core.ffmpeg_utils import run_ffmpeg
 
-        with patch("core.ffmpeg_utils.subprocess.run") as mock_run:
+        with (
+            patch("core.ffmpeg_utils.ensure_ffmpeg", return_value="ffmpeg"),
+            patch("core.ffmpeg_utils.subprocess.run") as mock_run,
+        ):
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = b"test"
             mock_run.return_value.stderr = b""
@@ -71,7 +74,10 @@ class TestFFmpegUtils:
         """Test start_ffmpeg_process function."""
         from core.ffmpeg_utils import start_ffmpeg_process
 
-        with patch("core.ffmpeg_utils.subprocess.Popen") as mock_popen:
+        with (
+            patch("core.ffmpeg_utils.ensure_ffmpeg", return_value="ffmpeg"),
+            patch("core.ffmpeg_utils.subprocess.Popen") as mock_popen,
+        ):
             mock_popen.return_value.pid = 1234
             process = start_ffmpeg_process(["-version"])
             assert process is not None

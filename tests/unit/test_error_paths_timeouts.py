@@ -146,7 +146,7 @@ class TestPiperTimeout:
             patch.object(manager._proc.stdout, "readline", side_effect=slow_response),
             # Unix branch uses select() on the stdout pipe; simulate "never ready"
             # so the timeout path triggers without needing a real pipe fd.
-            patch("select.select", return_value=[]),
+            patch("select.select", return_value=([], [], [])),
         ):
             result = manager._send_command({"action": "load"}, timeout=0.1)
 

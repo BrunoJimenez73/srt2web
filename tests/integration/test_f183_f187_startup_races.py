@@ -446,6 +446,7 @@ class TestSRTChunkIndexReset:
 
 
 class TestSRTStopPortCheck:
+    @pytest.mark.skipif(sys.platform != "win32", reason="SO_LINGER port-check bug is Windows-specific (WSAEOPNOTSUPP)")
     def test_so_linger_wsaenotsupp_does_not_break_port_check(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
@@ -495,6 +496,7 @@ class TestSRTStopPortCheck:
         assert "is now FREE" in caplog.text, "port check must succeed despite SO_LINGER raising"
         assert "still in use" not in caplog.text, "no aggressive taskkill loop for a free port"
 
+    @pytest.mark.skipif(sys.platform != "win32", reason="SO_LINGER port-check bug is Windows-specific (WSAEOPNOTSUPP)")
     def test_so_linger_still_used_when_supported(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:

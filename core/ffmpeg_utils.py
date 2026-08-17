@@ -311,7 +311,7 @@ def _get_creation_flags() -> int:
     """
     flags = get_creation_flags()
     if sys.platform == "win32":
-        flags |= subprocess.BELOW_NORMAL_PRIORITY_CLASS
+        flags |= getattr(subprocess, "BELOW_NORMAL_PRIORITY_CLASS", 0)
     return flags
 
 

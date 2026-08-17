@@ -8,7 +8,7 @@ import sys
 import tempfile
 from collections.abc import Generator
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -24,6 +24,39 @@ os.environ.setdefault("SRT2WEB_TESTING", "1")
 # Without it, jwt.encode() raises InvalidKeyError("HMAC key must not be empty")
 # and the whole F121/F122/F123 + auth suite fails (40 tests).
 os.environ.setdefault("SRT2WEB_JWT_SECRET", "test-secret-for-unit-tests")
+
+# Test temp directory that works in sandbox environments
+TEST_TEMP_DIR = PROJECT_ROOT / "tests" / "temp"
+TEST_TEMP_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@pytest.fixture(autouse=True)
+def _mock_tempfile():
+    """
+    Mock tempfile module to use project test temp directory.
+    This avoids sandbox permission issues with system temp directories.
+    """
+    with patch("tempfile.gettempdir", return_value=str(TEST_TEMP_DIR)):
+        with patch("tempfile.tempdir", str(TEST_TEMP_DIR)):
+            # Also patch mkdtemp and TemporaryDirectory to use our safe directory
+            original_mkdtemp = tempfile.mkdtemp
+            
+            def safe_mkdtemp(suffix=None, prefix=None, dir=None):
+                return original_mkdtemp(suffix=suffix, prefix=prefix, dir=str(TEST_TEMP_DIR))
+            
+            with patch("tempfile.mkdtemp", side_effect=safe_mkdtemp):
+                # Patch NamedTemporaryFile too
+                original_named_temp = tempfile.NamedTemporaryFile
+                
+                def safe_named_temp(*args, **kwargs):
+                    kwargs.setdefault("dir", str(TEST_TEMP_DIR))
+                    return original_named_temp(*args, **kwargs)
+                
+                with patch("tempfile.NamedTemporaryFile", side_effect=safe_named_temp):
+                    yield
+                # Restore NamedTemporaryFile
+            # Restore mkdtemp
+        # Restore tempdir
 
 
 @pytest.fixture

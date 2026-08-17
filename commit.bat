@@ -1,4 +1,5 @@
-feat: reorganize tests into unit/integration + GitHub Actions benchmark + mock tempfile
+git add -A
+git commit -m "feat: reorganize tests into unit/integration + GitHub Actions benchmark + mock tempfile
 
 - Reorganize tests: unit/ (fast, mocked) vs integration/ (real I/O, models, binaries)
 - Add pytest-benchmark to pyproject.toml + benchmark.yml workflow (nightly + PR comments)
@@ -25,4 +26,4 @@ Files changed:
 - tests/unit/test_chunk_clock.py (removed real-file tests)
 - tests/conftest.py (mock tempfile)
 - pytest.ini / tests/pytest.ini (unit config)
-- tests/integration/pytest.ini (new, integration config)
+- tests/integration/pytest.ini (new, integration config)"

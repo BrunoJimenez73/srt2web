@@ -27,10 +27,11 @@ class TestAudioMixerDurationCache:
         """Test that duration cache is cleared when mixer starts."""
         from modules.audio_mixer import AudioMixer
 
-        mixer = AudioMixer(output_dir=temp_dir)
-        mixer._duration_cache = {"some_key": 1.5}
-        mixer.start()
-        assert len(mixer._duration_cache) == 0
+        with patch("modules.audio_mixer.ensure_ffmpeg", return_value="ffmpeg"):
+            mixer = AudioMixer(output_dir=temp_dir)
+            mixer._duration_cache = {"some_key": 1.5}
+            mixer.start()
+            assert len(mixer._duration_cache) == 0
 
 
 class TestTTSAsyncioOptimization:

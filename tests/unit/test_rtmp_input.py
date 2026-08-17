@@ -10,9 +10,12 @@ This test file covers:
 - H264 bitstream filter is applied
 """
 
+import shutil
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
@@ -160,7 +163,7 @@ class TestRTMPInputIntegration:
     """Integration tests for RTMP input."""
 
     @patch("modules.inputs.rtmp_input.subprocess.Popen")
-    @patch("core.ffmpeg_utils.ensure_ffmpeg")
+    @patch("modules.inputs.rtmp_input.ensure_ffmpeg")
     @patch("core.ffmpeg_utils.check_gpu_support")
     def test_rtmp_input_start_creates_process(self, mock_gpu, mock_ffmpeg, mock_popen) -> None:
         """Test RTMP input start creates FFmpeg process."""
@@ -230,12 +233,14 @@ class TestRTMPInputIntegration:
 class TestFFmpegRTMPProtocol:
     """Test FFmpeg RTMP protocol support."""
 
+    @pytest.mark.skipif(shutil.which("ffprobe") is None, reason="ffprobe not installed")
     def test_ffmpeg_has_rtmp_protocol(self) -> None:
         """Test system FFmpeg supports RTMP protocol."""
         result = subprocess.run(["ffprobe", "-protocols"], capture_output=True, text=True, timeout=10)
 
         assert "rtmp" in result.stdout.lower(), "FFmpeg should support RTMP protocol"
 
+    @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg not installed")
     def test_ffmpeg_has_rtmp_listen_option(self) -> None:
         """Test FFmpeg has rtmp_listen option."""
         result = subprocess.run(

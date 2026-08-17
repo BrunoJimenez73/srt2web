@@ -13,13 +13,12 @@ class TestFFmpegUtilsOptimizations:
 
     def test_get_creation_flags_windows(self) -> None:
         """Test Windows creation flags."""
-        import subprocess
-
         from core.ffmpeg_utils import _get_creation_flags
 
         with patch("sys.platform", "win32"):
             flags = _get_creation_flags()
-            assert flags == subprocess.CREATE_NO_WINDOW | subprocess.BELOW_NORMAL_PRIORITY_CLASS
+            # CREATE_NO_WINDOW (0x08000000) | BELOW_NORMAL_PRIORITY_CLASS (0x00004000)
+            assert flags == 0x08000000 | 0x00004000
 
     def test_get_creation_flags_non_windows(self) -> None:
         """Test creation flags are 0 on non-Windows."""
