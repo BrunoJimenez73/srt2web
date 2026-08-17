@@ -61,9 +61,9 @@ class TestResolveTypePrefersCanonical:
             assert resolved is not None
             if resolved in skip_types:
                 continue
-            assert resolved in {
-                m.value for m in OutputTypeEnum
-            }, f"resolve_type({class_name!r}) returned {resolved!r} which is not a valid OutputTypeEnum value"
+            assert resolved in {m.value for m in OutputTypeEnum}, (
+                f"resolve_type({class_name!r}) returned {resolved!r} which is not a valid OutputTypeEnum value"
+            )
 
 
 class TestNormalizeOutputType:
@@ -134,9 +134,9 @@ class TestSyncOutputsPersistsCanonical:
         assert call_args[0][0] == "output.outputs"
         saved_list = call_args[0][1]
         assert len(saved_list) == 1
-        assert (
-            saved_list[0]["type"] == "web"
-        ), f"Expected canonical 'web', got {saved_list[0]['type']!r}. F106 regression: alias persisted."
+        assert saved_list[0]["type"] == "web", (
+            f"Expected canonical 'web', got {saved_list[0]['type']!r}. F106 regression: alias persisted."
+        )
 
 
 # ── Bug 2: PiperSubprocessManager._send_command serialization ─────────

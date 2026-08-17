@@ -49,9 +49,9 @@ class TestRTMPInputModule:
         # Just verify the module can be imported and has the registration function
         from modules.inputs import rtmp_input
 
-        assert hasattr(rtmp_input, "_input_class") or hasattr(
-            rtmp_input, "_register"
-        ), "RTMP input module should have registration mechanism"
+        assert hasattr(rtmp_input, "_input_class") or hasattr(rtmp_input, "_register"), (
+            "RTMP input module should have registration mechanism"
+        )
 
 
 class TestRTMPFFmpegCommand:
@@ -63,9 +63,9 @@ class TestRTMPFFmpegCommand:
         with open(rtmp_input_path) as f:
             content = f.read()
 
-        assert (
-            "-rtmp_listen" in content or "rtmp_listen" in content
-        ), "FFmpeg command should include -rtmp_listen option"
+        assert "-rtmp_listen" in content or "rtmp_listen" in content, (
+            "FFmpeg command should include -rtmp_listen option"
+        )
 
     def test_h264_mp4toannexb_filter(self) -> None:
         """Test FFmpeg command includes h264_mp4toannexb bitstream filter."""
@@ -73,9 +73,9 @@ class TestRTMPFFmpegCommand:
         with open(rtmp_input_path) as f:
             content = f.read()
 
-        assert (
-            "h264_mp4toannexb" in content
-        ), "FFmpeg command should include h264_mp4toannexb filter for OBS compatibility"
+        assert "h264_mp4toannexb" in content, (
+            "FFmpeg command should include h264_mp4toannexb filter for OBS compatibility"
+        )
 
     def test_segment_output_for_chunks(self) -> None:
         """Test FFmpeg uses segment output for chunking."""
@@ -139,9 +139,9 @@ class TestRTMPConfigHandling:
         with open(config_path) as f:
             content = f.read()
 
-        assert (
-            "listen_port: 1935" in content or "listen_port:1935" in content
-        ), "config.yaml should have RTMP listen_port set to 1935"
+        assert "listen_port: 1935" in content or "listen_port:1935" in content, (
+            "config.yaml should have RTMP listen_port set to 1935"
+        )
 
 
 class TestStopBatRTMPPort:
@@ -245,9 +245,9 @@ class TestFFmpegRTMPProtocol:
             timeout=10,
         )
 
-        assert (
-            "rtmp_listen" in result.stdout.lower() or "listen" in result.stdout.lower()
-        ), "FFmpeg RTMP protocol should support listen option"
+        assert "rtmp_listen" in result.stdout.lower() or "listen" in result.stdout.lower(), (
+            "FFmpeg RTMP protocol should support listen option"
+        )
 
 
 class TestRTMPStatusDisplay:

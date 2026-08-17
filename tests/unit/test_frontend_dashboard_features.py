@@ -114,9 +114,9 @@ class TestModuleStatusIndicators:
         pipeline_control_path = PROJECT_ROOT / "frontend" / "src" / "lib" / "modules" / "pipeline-control.ts"
         if pipeline_control_path.exists():
             content = pipeline_control_path.read_text(encoding="utf-8")
-            assert (
-                "updateStatus" in content or "getStatus" in content or "getModuleStatus" in content
-            ), "Should have status handling in pipeline-control.ts"
+            assert "updateStatus" in content or "getStatus" in content or "getModuleStatus" in content, (
+                "Should have status handling in pipeline-control.ts"
+            )
         else:
             raise AssertionError("Neither dashboard.ts nor pipeline-control.ts found")
 
@@ -154,9 +154,9 @@ class TestModuleStatusIndicators:
         # If not found in TypeScript, check if module names are defined in API response types
         # The modules are likely referenced by name in the backend, so we check if there's any reference
         has_module_references = any(m in content for m in required_modules) if content else True
-        assert (
-            has_module_references or len(content) > 0
-        ), "Module names should be referenced in TypeScript types or signals"
+        assert has_module_references or len(content) > 0, (
+            "Module names should be referenced in TypeScript types or signals"
+        )
 
     def test_indicator_ids_exist_in_components(self) -> None:
         """Test that indicator IDs are defined in component cards."""
@@ -207,9 +207,9 @@ class TestGPUBadgeDisplay:
                 content += path.read_text(encoding="utf-8")
 
         # Check for badge-related logic (search for GPU badge implementation)
-        assert (
-            "gpu" in content.lower() or "badge" in content.lower()
-        ), "Should have GPU badge logic in dashboard modules"
+        assert "gpu" in content.lower() or "badge" in content.lower(), (
+            "Should have GPU badge logic in dashboard modules"
+        )
 
 
 class TestDeviceEncoderMetrics:
@@ -339,9 +339,9 @@ class TestMetricsDisplay:
                 content += path.read_text(encoding="utf-8")
 
         # Check for time-related handling (last_process_time_ms is in backend)
-        assert (
-            "process_time" in content.lower() or "last_process" in content.lower()
-        ), "Should handle time metrics in dashboard modules"
+        assert "process_time" in content.lower() or "last_process" in content.lower(), (
+            "Should handle time metrics in dashboard modules"
+        )
 
     def test_chunks_metric_in_dashboard(self) -> None:
         """Test that chunks metric handling exists in pipeline modules."""
@@ -358,9 +358,9 @@ class TestMetricsDisplay:
                 content += path.read_text(encoding="utf-8")
 
         # Check for chunks handling
-        assert (
-            "processed_chunks" in content.lower() or "chunks" in content.lower()
-        ), "Should handle chunks metrics in dashboard modules"
+        assert "processed_chunks" in content.lower() or "chunks" in content.lower(), (
+            "Should handle chunks metrics in dashboard modules"
+        )
 
     def test_metrics_display_logic(self) -> None:
         """Test that metrics display logic exists."""
@@ -400,9 +400,9 @@ class TestRefreshModuleStatus:
                 content += path.read_text(encoding="utf-8")
 
         # Should have getStatus or API calls
-        assert (
-            "getStatus" in content or "/api/status" in content or "fetch" in content.lower()
-        ), "Should fetch status from API in dashboard modules"
+        assert "getStatus" in content or "/api/status" in content or "fetch" in content.lower(), (
+            "Should fetch status from API in dashboard modules"
+        )
 
     def test_status_update_interval(self) -> None:
         """Test that status polling is set up."""

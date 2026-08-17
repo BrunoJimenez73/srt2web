@@ -139,9 +139,9 @@ class TestNetworkInfoSRTPort:
 
         network_info = get_network_info(srt_port=srt_port, server_port=server_port, latency_ms=1000)
 
-        assert (
-            network_info["srt_port"] == srt_port
-        ), f"Network info SRT port should be {srt_port}, got {network_info['srt_port']}"
+        assert network_info["srt_port"] == srt_port, (
+            f"Network info SRT port should be {srt_port}, got {network_info['srt_port']}"
+        )
 
 
 class TestOBSConnectionScenario:
@@ -239,9 +239,9 @@ class TestLocalhostURLGeneration:
         if dashboard_content is None:
             pytest.skip("Dashboard HTML not found (not built)")
         combined = dashboard_content + (dashboard_js_content or "")
-        assert (
-            "input-srt-port" in combined or "getElementById" in combined
-        ), "Dashboard should read SRT port from input element"
+        assert "input-srt-port" in combined or "getElementById" in combined, (
+            "Dashboard should read SRT port from input element"
+        )
 
 
 class TestPortConflictPrevention:

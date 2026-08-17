@@ -505,9 +505,9 @@ class TestProjectStructure:
 
     def test_requirements_txt_exists(self) -> None:
         """Test that requirements.txt exists (in config/ or root)."""
-        assert os.path.exists("requirements.txt") or os.path.exists(
-            os.path.join("config", "requirements.txt")
-        ), "requirements.txt not found"
+        assert os.path.exists("requirements.txt") or os.path.exists(os.path.join("config", "requirements.txt")), (
+            "requirements.txt not found"
+        )
 
     @pytest.mark.skipif(not os.path.isdir("bin"), reason="bin/ es gitignored (solo existe en instalaciones locales)")
     def test_bin_directory_exists(self) -> None:
