@@ -15,6 +15,20 @@ from core.module_base import ModuleState, PipelineData
 from modules.tts_engine import TTSEngine
 
 
+def _piper_available() -> bool:
+    """Check if Piper TTS is available for integration testing."""
+    try:
+        from modules.piper_loader import check_piper_environment
+
+        env_info = check_piper_environment()
+        return env_info.get("piper_available", False) and env_info.get("onnxruntime_available", False)
+    except Exception:
+        return False
+
+
+_PIPER_AVAILABLE = _piper_available()
+
+
 @pytest.mark.slow
 @pytest.mark.unit
 class TestTTSIntegration:
@@ -28,6 +42,7 @@ class TestTTSIntegration:
         if "piper" in sys.modules and isinstance(sys.modules["piper"], MagicMock):
             del sys.modules["piper"]
 
+    @pytest.mark.skipif(not _PIPER_AVAILABLE, reason="Piper TTS not installed in test environment")
     def test_piper_tts_synthesis(self) -> None:
         """Test Piper TTS synthesizes audio from text."""
         # Create temporary directory for output
