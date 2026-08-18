@@ -27,11 +27,17 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+# Node 22 LTS via official tarball: Debian trixie ships node 20, which Astro
+# rejects ("Node.js v20.x is not supported by Astro! >=22.12.0 required").
+ARG TARGETARCH=amd64
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    nodejs \
-    npm \
+    ca-certificates \
+    curl \
     ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL "https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-${TARGETARCH}.tar.gz" -o /tmp/node.tar.gz \
+    && tar -xzf /tmp/node.tar.gz -C /usr/local --strip-components=1 \
+    && rm /tmp/node.tar.gz
 
 COPY config/requirements.txt config/
 RUN pip install --no-cache-dir -r config/requirements.txt
