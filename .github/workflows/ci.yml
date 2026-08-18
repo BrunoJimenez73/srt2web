@@ -168,6 +168,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Set lowercase repository
+        id: lower-repo
+        run: echo "repo=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
       - name: Build image (validation)
         uses: docker/build-push-action@v5
         with:
@@ -192,7 +196,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository }}/srt2web:latest
+          tags: ghcr.io/${{ steps.lower-repo.outputs.repo }}/srt2web:latest
           platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
