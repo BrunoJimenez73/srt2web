@@ -29,13 +29,16 @@ WORKDIR /app
 
 # Node 22 LTS via official tarball: Debian trixie ships node 20, which Astro
 # rejects ("Node.js v20.x is not supported by Astro! >=22.12.0 required").
-ARG TARGETARCH=amd64
+# NOTE: TARGETARCH must be declared WITHOUT a default — buildkit only
+# auto-populates platform ARGs (amd64/arm64) when no default is given;
+# a default would reuse the amd64 layer for the arm64 leg.
+ARG TARGETARCH
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
-    && NODE_ARCH="$( [ "${TARGETARCH}" = "amd64" ] && echo x64 || echo "${TARGETARCH}" )" \
+    && NODE_ARCH="$( [ "${TARGETARCH:-amd64}" = "amd64" ] && echo x64 || echo "${TARGETARCH:-amd64}" )" \
     && curl -fsSL "https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-${NODE_ARCH}.tar.gz" -o /tmp/node.tar.gz \
     && tar -xzf /tmp/node.tar.gz -C /usr/local --strip-components=1 \
     && rm /tmp/node.tar.gz
