@@ -40,7 +40,7 @@ TEST_TEMP_DIR.mkdir(parents=True, exist_ok=True)
 # inside a test function re-bind the patched value at call time, and all
 # internal reads in auth_db are module-global lookups, so patching here covers
 # both.
-import core.auth_db as _auth_db
+import core.auth_db as _auth_db  # noqa: E402 - must stay after env vars above
 
 _auth_db.USERS_FILE = TEST_TEMP_DIR / "users.json"
 _auth_db.BLACKLIST_FILE = TEST_TEMP_DIR / "token_blacklist.json"
