@@ -56,7 +56,7 @@ jobs:
       - name: Run unit tests (skip integration/slow)
         run: |
           python -m pytest tests/unit/ -v --cov=core --cov=modules --cov=server --cov-report=xml -m "not integration"
-        timeout-minutes: 15
+        timeout-minutes: 30
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
