@@ -19,6 +19,7 @@ class TestFFmpegUtilsOptimizations:
         with (
             patch("sys.platform", "win32"),
             patch.object(subprocess, "CREATE_NO_WINDOW", 0x08000000, create=True),
+            patch.object(subprocess, "BELOW_NORMAL_PRIORITY_CLASS", 0x00004000, create=True),
         ):
             flags = _get_creation_flags()
             # CREATE_NO_WINDOW (0x08000000) | BELOW_NORMAL_PRIORITY_CLASS (0x00004000)
