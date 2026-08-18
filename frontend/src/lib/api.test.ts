@@ -16,6 +16,11 @@ import {
   ApiError,
   WSClient,
   __testing_setCsrfToken,
+  toggleModule,
+  getModules,
+  inputPlay,
+  inputPause,
+  inputSeek,
 } from "./api";
 
 describe("Auth Token Management", () => {
@@ -102,7 +107,7 @@ describe("URL Generation", () => {
     expect(url).toBe("ws://localhost:9999/ws/logs");
   });
 
-  it("getWebSocketUrl excludes token from URL (auth via WS message)", () => {
+  it("getWebSocketUrl remains a base URL; WSClient adds auth before connect", () => {
     setAuthToken("my-token");
     const url = getWebSocketUrl("/ws/logs");
     expect(url).toBe("ws://localhost:9999/ws/logs");
@@ -288,6 +293,31 @@ describe("apiCall", () => {
       expect(err.message).toContain("invalid");
     }
   });
+
+  it("uses the server /api contract for module and input controls", async () => {
+    __testing_setCsrfToken("test-csrf");
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ status: "ok", modules: [] }), {
+          status: 200,
+        }),
+      ),
+    );
+
+    await toggleModule("translator", true);
+    await getModules();
+    await inputPlay();
+    await inputPause();
+    await inputSeek(12);
+
+    expect(fetchMock.mock.calls.map((call: unknown[]) => call[0])).toEqual([
+      "http://localhost:9999/api/modules/translator/toggle",
+      "http://localhost:9999/api/modules",
+      "http://localhost:9999/api/input/control/play",
+      "http://localhost:9999/api/input/control/pause",
+      "http://localhost:9999/api/input/control/seek",
+    ]);
+  });
 });
 
 describe("WSClient - Basic Tests", () => {
@@ -391,5 +421,35 @@ describe("WSClient - Auth Token", () => {
   it("WSClient defaults authToken to null", () => {
     const client = new WSClient("ws://localhost:9999/ws");
     expect(client["authToken"]).toBeNull();
+  });
+
+  it("adds the token before opening the socket", () => {
+    class FakeWebSocket {
+      static instances: FakeWebSocket[] = [];
+      public onopen: (() => void) | null = null;
+      public onmessage: ((event: MessageEvent) => void) | null = null;
+      public onerror: ((event: Event) => void) | null = null;
+      public onclose: (() => void) | null = null;
+      public readyState = WebSocket.OPEN;
+      public send = vi.fn();
+      public close = vi.fn();
+
+      constructor(public readonly url: string) {
+        FakeWebSocket.instances.push(this);
+      }
+    }
+
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    const client = new WSClient("ws://localhost:9999/ws/logs", {
+      authToken: "token with spaces",
+    });
+
+    client.connect();
+
+    expect(FakeWebSocket.instances[0].url).toBe(
+      "ws://localhost:9999/ws/logs?token=token%20with%20spaces",
+    );
+    expect(FakeWebSocket.instances[0].send).not.toHaveBeenCalled();
+    client.close();
   });
 });

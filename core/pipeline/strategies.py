@@ -16,6 +16,7 @@ a las estrategias correspondientes, reduciendo unified_pipeline.py de ~1100 a <6
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import queue
 import threading
@@ -166,7 +167,7 @@ class PipelineStrategy(ABC):
                 if not getattr(module, "is_critical", True):
                     self._log("warning", f"Non-critical module {module.name} failed, continuing in degraded mode")
                     continue
-                break
+                raise
         return data
 
     def _log(self, level: str, message: str) -> None:
@@ -536,9 +537,10 @@ class ThreadParallelStrategy(PipelineStrategy):
             while not ctx.stop_event.is_set():
                 # F170 — Dynamic concurrency: back off if over target
                 with self._lock:
-                    if self._active_chunks >= self._concurrency_target:
-                        time.sleep(0.2)
-                        continue
+                    at_capacity = self._active_chunks >= self._concurrency_target
+                if at_capacity:
+                    time.sleep(0.2)
+                    continue
 
                 try:
                     processor = ctx.chunk_queue.get(timeout=1.0)
@@ -551,6 +553,8 @@ class ThreadParallelStrategy(PipelineStrategy):
                     continue
 
                 start_time = time.perf_counter()
+                with self._lock:
+                    self._active_chunks += 1
 
                 try:
                     data = self._process_modules_with_tracking(data, processor)
@@ -558,13 +562,22 @@ class ThreadParallelStrategy(PipelineStrategy):
                     elapsed = time.perf_counter() - start_time
                     processor.stages_completed["total"] = elapsed
 
-                    ctx.output_queue.put(processor)
-
                 except Exception as e:
                     processor.error = str(e)
+                    processor.data = data
+                    processor.stages_completed["total"] = time.perf_counter() - start_time
+                    with self._lock:
+                        self._chunks_failed += 1
                     self._log("error", f"Worker error processing chunk {processor.chunk_index}: {e}")
                 finally:
-                    ctx.chunk_queue.task_done()
+                    try:
+                        # Preserve ordering: the output loop must observe a
+                        # failed processor and advance its sequence number.
+                        ctx.output_queue.put(processor)
+                    finally:
+                        with self._lock:
+                            self._active_chunks -= 1
+                        ctx.chunk_queue.task_done()
 
         except Exception as e:
             self._log("error", f"Worker thread error: {e}")
@@ -602,14 +615,18 @@ class ThreadParallelStrategy(PipelineStrategy):
                     with ctx.lock:
                         ctx.results.pop(next_expected, None)
 
-                    ctx.metrics.chunks_processed += 1
                     ctx.metrics.total_processing_time += processor.stages_completed.get("total", 0)
 
                     for mod_name, mod_time_ms in processor.stages_completed.items():
                         if mod_name != "total":
                             ctx.metrics.record_module_timing(mod_name, mod_time_ms)
 
-                    if ctx.on_chunk_complete and processor.data:
+                    if processor.error:
+                        ctx.metrics.chunks_failed += 1
+                    else:
+                        ctx.metrics.chunks_processed += 1
+
+                    if not processor.error and ctx.on_chunk_complete and processor.data:
                         ctx.on_chunk_complete(next_expected, processor.data)
 
                     ctx.output_queue.task_done()
@@ -787,6 +804,7 @@ class AsyncIOStrategy(PipelineStrategy):
 
                 task = asyncio.create_task(self._process_chunk_async_full(data))
                 self._async_tasks.append(task)
+                task.add_done_callback(self._forget_async_task)
 
                 chunk_index += 1
 
@@ -797,6 +815,11 @@ class AsyncIOStrategy(PipelineStrategy):
             from core.schemas import PipelineState
 
             ctx.set_state(PipelineState.ERROR)
+
+    def _forget_async_task(self, task: asyncio.Task[Any]) -> None:
+        """Remove completed tasks so long-running streams do not leak memory."""
+        with contextlib.suppress(ValueError):
+            self._async_tasks.remove(task)
 
     async def _process_chunk_async_full(self, data: PipelineData) -> PipelineData:
         """Procesar un chunk completo en modo asyncio (modules + output + metrics)."""

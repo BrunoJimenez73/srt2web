@@ -45,6 +45,7 @@ class NoCacheStaticFiles(StaticFiles):
 
 
 from server.api_routes import create_api_router  # noqa: E402
+from server.ctx import get_auth_token  # noqa: E402
 from server.routes.auth import router as auth_router  # noqa: E402
 from server.routes.metrics import router as metrics_router  # noqa: E402
 from server.routes.recordings import router as recordings_router  # noqa: E402
@@ -253,13 +254,13 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
     app.add_middleware(
         RateLimitMiddleware,
         rate_limiter=rate_limiter,
-        get_auth_token=lambda: config.get("server.auth_token", "") if config else "",
+        get_auth_token=lambda: get_auth_token(config),
     )
 
     # Authentication
     app.add_middleware(
         AuthMiddleware,
-        get_auth_token=lambda: config.get("server.auth_token", "") if config else "",
+        get_auth_token=lambda: get_auth_token(config),
     )
 
     # F125: CSRF protection (innermost, runs after auth).
@@ -269,7 +270,7 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
 
     app.add_middleware(
         CsrfMiddleware,
-        get_csrf_secret=lambda: config.get("server.auth_token", "") if config else "",
+        get_csrf_secret=lambda: get_auth_token(config),
     )
 
     app.state.ctx = app_context

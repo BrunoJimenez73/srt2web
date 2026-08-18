@@ -15,6 +15,8 @@ from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from server.ctx import get_auth_token
+
 
 @dataclass
 class WebSocketRequest:
@@ -193,7 +195,7 @@ def create_ws_router() -> APIRouter:
         """WebSocket endpoint for real-time log streaming."""
         ctx = websocket.app.state.ctx
         config = ctx.get("config")
-        configured_token = config.get("server.auth_token", "") if config else ""
+        configured_token = get_auth_token(config)
         auth_required = bool(configured_token)
         if os.environ.get("SRT2WEB_TESTING"):
             auth_required = False
@@ -249,7 +251,7 @@ def create_ws_router() -> APIRouter:
         """F171 — WebSocket endpoint for player buffer health & rebuffering feedback."""
         ctx = websocket.app.state.ctx
         config = ctx.get("config")
-        configured_token = config.get("server.auth_token", "") if config else ""
+        configured_token = get_auth_token(config)
         auth_required = bool(configured_token)
         if os.environ.get("SRT2WEB_TESTING"):
             auth_required = False
@@ -365,8 +367,9 @@ def create_ws_router() -> APIRouter:
             def on_restore() -> None:
                 if pipeline is None:
                     return
+                restore_duration = getattr(pipeline, "_default_chunk_duration", 10.0)
                 if hasattr(pipeline, "_on_chunk_duration_change"):
-                    pipeline._on_chunk_duration_change(10.0)
+                    pipeline._on_chunk_duration_change(float(restore_duration))
                 if hasattr(pipeline, "_adaptive_config") and pipeline._adaptive_config:
                     pipeline._adaptive_config["max_concurrent"] = 4
                 logger.info("Player feedback on_restore: restored defaults")

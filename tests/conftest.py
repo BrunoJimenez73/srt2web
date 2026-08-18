@@ -25,11 +25,17 @@ os.environ.setdefault("SRT2WEB_TESTING", "1")
 # and the whole F121/F122/F123 + auth suite fails (40 tests).
 os.environ.setdefault("SRT2WEB_JWT_SECRET", "test-secret-for-unit-tests")
 
-# Test temp directory that works in sandbox environments.  When pytest-xdist
-# is active, each worker gets its own directory so one worker cannot remove
-# another worker's temporary files during pytest's basetemp cleanup.
+# Test temp directory that works in sandbox environments.  It can be moved by
+# CI or local tooling without editing the fixture, and each pytest-xdist worker
+# gets its own directory so one worker cannot remove another worker's files.
 _WORKER_ID = os.environ.get("PYTEST_XDIST_WORKER", "main")
-TEST_TEMP_DIR = PROJECT_ROOT / "tests" / "temp" / _WORKER_ID
+_TEST_TEMP_ROOT = Path(
+    os.environ.get(
+        "SRT2WEB_TEST_TEMP_ROOT",
+        str(PROJECT_ROOT / "tests" / ".srt2web-test-temp"),
+    )
+)
+TEST_TEMP_DIR = _TEST_TEMP_ROOT / _WORKER_ID
 TEST_TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 # Auth DB files must be per-worker under pytest-xdist: by default they live in

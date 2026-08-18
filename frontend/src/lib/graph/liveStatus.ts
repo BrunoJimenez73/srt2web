@@ -13,7 +13,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { getModules } from "../api";
-import { WSClient, getWebSocketUrl } from "../api";
+import { WSClient, getAuthToken, getWebSocketUrl } from "../api";
 import type { ModuleStatus, WebSocketMessage } from "../types/api";
 import type { NodeKind } from "./nodeCatalog";
 
@@ -97,8 +97,8 @@ export function useLiveModuleStatus(
   options: UseLiveModuleStatusOptions = {},
 ): LiveStatusMap {
   const { disabled = false } = options;
-  const [status, setStatus] = useState<Map<NodeKind, LiveNodeStatus>>(
-    () => emptyStatusMap(),
+  const [status, setStatus] = useState<Map<NodeKind, LiveNodeStatus>>(() =>
+    emptyStatusMap(),
   );
   const statusRef = useRef(status);
   statusRef.current = status;
@@ -175,7 +175,9 @@ export function useLiveModuleStatus(
     }, POLL_INTERVAL_MS);
 
     // WebSocket para eventos de log → pulse
-    const ws = new WSClient(getWebSocketUrl("/ws/logs"));
+    const ws = new WSClient(getWebSocketUrl("/ws/logs"), {
+      authToken: getAuthToken(),
+    });
     ws.onMessage((msg: WebSocketMessage) => {
       if (msg.type !== "log" || !msg.module) return;
       const kind = moduleNameToKind(msg.module);

@@ -1,4 +1,5 @@
 import { logger } from "../utils/logger";
+import { getAuthToken } from "../api";
 
 let ws: WebSocket | null = null;
 let reconnectAttempts = 0;
@@ -7,11 +8,12 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 const BASE_DELAY_MS = 2000;
 const MAX_DELAY_MS = 30000;
 
-function getFeedbackUrl(): string {
+export function getFeedbackUrl(): string {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const url = `${protocol}//${window.location.host}/ws/player-feedback`;
-  const token = new URLSearchParams(window.location.search).get("token");
-  return token ? `${url}?token=${token}` : url;
+  const token =
+    new URLSearchParams(window.location.search).get("token") ?? getAuthToken();
+  return token ? `${url}?token=${encodeURIComponent(token)}` : url;
 }
 
 function calculateBackoff(): number {

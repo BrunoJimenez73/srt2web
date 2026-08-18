@@ -12,6 +12,7 @@
  * la toolbar presentacional.
  */
 import { useEffect, useState } from "react";
+import { fetchWithAuth } from "../../lib/api";
 
 export interface PresetSummary {
   name: string;
@@ -79,7 +80,7 @@ export function Toolbar(props: ToolbarProps) {
       try {
         // listPresets es un módulo existente que usa signals; aquí solo
         // necesitamos los nombres, así que hacemos una llamada directa.
-        const res = await fetch("/api/presets", { credentials: "include" });
+        const res = await fetchWithAuth("/api/presets");
         if (!res.ok) return;
         const data = (await res.json()) as { presets?: PresetSummary[] };
         if (!cancelled && data.presets) setPresets(data.presets);

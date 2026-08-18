@@ -48,6 +48,7 @@ import {
   getStatus,
   startPipeline,
   stopPipeline,
+  toggleModule,
 } from "../api";
 import { copyToClipboard } from "../utils";
 import { showToast } from "./toast";
@@ -136,7 +137,7 @@ export async function handleStop(): Promise<void> {
 
 export async function fileInputPlay(): Promise<void> {
   try {
-    await apiCall("POST", "input/control/play");
+    await apiCall("POST", "/api/input/control/play");
     showToast(t("input_file_play"), "success");
   } catch (e) {
     showToast(`${t("error")}: ${(e as Error).message}`, "error");
@@ -145,7 +146,7 @@ export async function fileInputPlay(): Promise<void> {
 
 export async function fileInputPause(): Promise<void> {
   try {
-    await apiCall("POST", "input/control/pause");
+    await apiCall("POST", "/api/input/control/pause");
     showToast(t("input_file_pause"), "success");
   } catch (e) {
     showToast(`${t("error")}: ${(e as Error).message}`, "error");
@@ -154,7 +155,7 @@ export async function fileInputPause(): Promise<void> {
 
 export async function fileInputSeek(position: number): Promise<void> {
   try {
-    await apiCall("POST", "input/control/seek", { position });
+    await apiCall("POST", "/api/input/control/seek", { position });
   } catch (e) {
     showToast(
       `${t("input_file_seek_error")}: ${(e as Error).message}`,
@@ -355,6 +356,12 @@ export function setupEventListeners(): void {
   (
     window as unknown as { handleTtsEngineChange: (v: string) => void }
   ).handleTtsEngineChange = handleTtsEngineChange;
+
+  // Legacy Astro cards use inline handlers. Keep their surface backed by the
+  // authenticated API client instead of leaving undefined window functions.
+  window.apiCall = apiCall;
+  window.toggleModule = (moduleName: string, enabled: boolean) =>
+    toggleModule(moduleName, enabled);
 }
 
 export function handleTtsEngineChange(engine: string): void {

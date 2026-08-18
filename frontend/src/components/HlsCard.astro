@@ -421,7 +421,7 @@
 
     // Send to backend via API
     if (window.apiCall) {
-      window.apiCall('PUT', '/config/video_muxer', configUpdate).catch(err => {
+      window.apiCall('PUT', '/api/config/video_muxer', configUpdate).catch(err => {
         console.error('Failed to update WebRTC config:', err);
       });
     }
@@ -479,7 +479,7 @@
 
     // Send to backend via API
     if (window.apiCall) {
-      window.apiCall('PUT', '/config/video_muxer', configUpdate).catch(err => {
+      window.apiCall('PUT', '/api/config/video_muxer', configUpdate).catch(err => {
         console.error('Failed to update video muxer config:', err);
       });
     }

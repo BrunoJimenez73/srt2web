@@ -7,12 +7,23 @@ import logging
 import random
 from collections.abc import Callable
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import websockets
 
 from cli.client.http_client import LogEntry
 
 logger = logging.getLogger("srt2web.cli.ws")
+
+
+def _with_token(url: str, token: str | None) -> str:
+    """Append the token using the server's pre-accept WebSocket contract."""
+    if not token:
+        return url
+    parts = urlsplit(url)
+    query = parse_qsl(parts.query, keep_blank_values=True)
+    query.append(("token", token))
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
 class WSClient:
@@ -76,24 +87,13 @@ class WSClient:
         while self._running and self._reconnect_count < self._max_reconnect:
             try:
                 async with websockets.connect(
-                    self.url,
+                    _with_token(self.url, self.token),
                     ping_interval=30,
                     ping_timeout=10,
                     close_timeout=5,
                 ) as ws:
                     self._ws = ws
                     self._reconnect_count = 0
-
-                    # Auth handshake: send token as message if configured
-                    if self.token:
-                        await ws.send(json.dumps({"type": "auth", "token": self.token}))
-                        auth_response = await asyncio.wait_for(ws.recv(), timeout=10)
-                        auth_msg = json.loads(auth_response)
-                        if auth_msg.get("type") != "auth_ok":
-                            logger = logging.getLogger("srt2web.cli.ws")
-                            logger.warning("WebSocket auth failed: %s", auth_msg)
-                            await ws.close()
-                            break
 
                     if self.on_connection_change:
                         self.on_connection_change(True)

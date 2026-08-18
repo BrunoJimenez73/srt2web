@@ -54,7 +54,14 @@ def create_app_context(
         - input_source: Input source instance
     """
     auto_discover()
-    chunk_duration = config_manager.get("pipeline.chunk_duration_sec", 15)
+    pipeline_config = config_manager.get_section("pipeline") or {}
+    chunk_duration = int(pipeline_config.get("chunk_duration_sec", 5))
+    try:
+        pipeline_mode = PipelineMode(pipeline_config.get("mode", PipelineMode.THREAD_PARALLEL.value))
+    except ValueError:
+        logger.warning("Invalid pipeline mode; falling back to thread_parallel")
+        pipeline_mode = PipelineMode.THREAD_PARALLEL
+    adaptive_config = pipeline_config.get("adaptive") or {}
 
     # Input source
     input_config = config_manager.get_section("input")
@@ -115,14 +122,17 @@ def create_app_context(
 
     # Pipeline
     pipeline = UnifiedPipeline(
-        mode=PipelineMode.THREAD_PARALLEL,
-        max_concurrent_chunks=2,
-        buffer_size=20,
-        retry_attempts=2,
-        retry_delay=1.0,
+        mode=pipeline_mode,
+        max_concurrent_chunks=int(pipeline_config.get("max_concurrent_chunks", 4)),
+        buffer_size=int(pipeline_config.get("buffer_size", 10)),
+        retry_attempts=int(pipeline_config.get("retry_attempts", 3)),
+        retry_delay=float(pipeline_config.get("retry_delay", 1.0)),
+        lost_chunk_timeout_sec=float(pipeline_config.get("lost_chunk_timeout_sec", 15.0)),
     )
     pipeline.set_input_source(input_source)
     pipeline.set_output_sink(composite_sink)
+    pipeline.set_chunk_duration(float(chunk_duration))
+    pipeline.set_adaptive_config(adaptive_config)
 
     # Register modules (pool injected where modules accept it)
     _register_modules(pipeline, config_manager, output_dir, chunk_duration, ffmpeg_pool)

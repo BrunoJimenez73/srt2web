@@ -80,7 +80,15 @@ def reconfigure_pipeline(
     """Reconfigure pipeline modules, output sinks, and input source."""
     try:
         new_chunk_duration = config_manager.get("pipeline.chunk_duration_sec", 10)
-        pipeline._chunk_duration = new_chunk_duration
+        set_chunk_duration = getattr(pipeline, "set_chunk_duration", None)
+        if callable(set_chunk_duration):
+            set_chunk_duration(float(new_chunk_duration))
+        else:
+            pipeline._chunk_duration = new_chunk_duration
+        adaptive_config = (config_manager.get_section("pipeline") or {}).get("adaptive", {})
+        set_adaptive_config = getattr(pipeline, "set_adaptive_config", None)
+        if callable(set_adaptive_config):
+            set_adaptive_config(adaptive_config or {})
         log_fn("info", f"Reconfigured pipeline chunk_duration: {new_chunk_duration}s")
     except Exception as e:
         log_fn("warning", f"Could not update chunk_duration: {e}")

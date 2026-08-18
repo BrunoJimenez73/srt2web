@@ -90,7 +90,6 @@ import type {
 // ── Funciones de autenticación ─────────────────────────────────────────────────
 
 const AUTH_TOKEN_KEY = STORAGE_KEYS.AUTH_TOKEN;
-const CSRF_TOKEN_KEY = STORAGE_KEYS.CSRF_TOKEN;
 
 export function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -164,6 +163,11 @@ export function getWebSocketUrl(path: string = "/ws/logs"): string {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const base = `${protocol}//${window.location.host}${path}`;
   return base;
+}
+
+function appendWebSocketToken(url: string, token: string): string {
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}token=${encodeURIComponent(token)}`;
 }
 
 // ── Cliente HTTP ───────────────────────────────────────────────────────────────
@@ -292,13 +296,17 @@ export async function toggleModule(
   moduleName: string,
   enabled: boolean,
 ): Promise<ModuleToggleResponse> {
-  return apiCall<ModuleToggleResponse>("PUT", `modules/${moduleName}/toggle`, {
-    enabled,
-  });
+  return apiCall<ModuleToggleResponse>(
+    "PUT",
+    `/api/modules/${moduleName}/toggle`,
+    {
+      enabled,
+    },
+  );
 }
 
 export async function getModules(): Promise<{ modules: ModuleStatus[] }> {
-  return apiCall<{ modules: ModuleStatus[] }>("GET", "/modules");
+  return apiCall<{ modules: ModuleStatus[] }>("GET", "/api/modules");
 }
 
 export async function getAvailableOutputs(): Promise<{
@@ -352,7 +360,7 @@ export async function inputPlay(): Promise<{
 }> {
   return apiCall<{ status: string; message: string }>(
     "POST",
-    "input/control/play",
+    "/api/input/control/play",
   );
 }
 
@@ -362,7 +370,7 @@ export async function inputPause(): Promise<{
 }> {
   return apiCall<{ status: string; message: string }>(
     "POST",
-    "input/control/pause",
+    "/api/input/control/pause",
   );
 }
 
@@ -371,7 +379,7 @@ export async function inputSeek(
 ): Promise<{ status: string; position: number; message: string }> {
   return apiCall<{ status: string; position: number; message: string }>(
     "POST",
-    "input/control/seek",
+    "/api/input/control/seek",
     { position },
   );
 }
@@ -408,7 +416,6 @@ export class WSClient {
   private jitter: number;
   private authToken: string | null;
   private _isManualClose = false;
-  private _authSent = false;
 
   constructor(url: string, config: WSClientConfig = {}) {
     this.url = url;
@@ -422,17 +429,16 @@ export class WSClient {
 
   connect(): void {
     this._isManualClose = false;
-    this._authSent = false;
-    this.ws = new WebSocket(this.url);
+    const connectionUrl = this.authToken
+      ? appendWebSocketToken(this.url, this.authToken)
+      : this.url;
+    this.ws = new WebSocket(connectionUrl);
 
     this.ws.onopen = () => {
       this.reconnectAttempts = 0;
       // F162: Set wsConnected on reconnect so UI reflects active connection
       if (this.onOpenHandler) {
         this.onOpenHandler();
-      }
-      if (this.authToken) {
-        this.sendAuth(this.authToken);
       }
     };
 
@@ -521,6 +527,10 @@ export class WSClient {
     return this.reconnectAttempts;
   }
 
+  /**
+   * Backwards-compatible manual auth frame for older integrations.
+   * New connections authenticate before the handshake through `?token=`.
+   */
   sendAuth(token: string): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type: "auth", token }));

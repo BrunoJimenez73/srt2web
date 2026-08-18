@@ -141,6 +141,7 @@ class UnifiedPipeline:
         self._init_thread: threading.Thread | None = None
         self._init_error: BaseException | None = None
         self._chunk_duration = 10.0
+        self._default_chunk_duration = 10.0
         self._adaptive_config: dict[str, Any] | None = None
         self._chunk_adapt_counter = 0
 
@@ -198,6 +199,13 @@ class UnifiedPipeline:
     def set_adaptive_config(self, config: dict[str, Any] | None) -> None:
         """F170 — Set reactive pipeline config for the strategy."""
         self._adaptive_config = config
+
+    def set_chunk_duration(self, duration: float) -> None:
+        """Set the configured baseline chunk duration before processing."""
+        if duration <= 0:
+            raise ValueError("chunk duration must be positive")
+        self._default_chunk_duration = float(duration)
+        self._on_chunk_duration_change(float(duration))
 
     def _on_chunk_duration_change(self, new_duration: float) -> None:
         """F170 — Propagate chunk duration change to input sources."""

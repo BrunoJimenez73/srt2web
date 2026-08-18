@@ -27,6 +27,7 @@ import {
   updateConfig,
   getConfig,
   getStatus,
+  fetchWithAuth,
 } from "../../lib/api";
 import type { Config, Status } from "../../lib/types/api";
 import type { Edge, Node } from "@xyflow/react";
@@ -218,7 +219,7 @@ export function PipelineGraph() {
         }
         await updateConfig(result.config);
         // POST /api/presets
-        const res = await fetch("/api/presets", {
+        const res = await fetchWithAuth("/api/presets", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -242,7 +243,7 @@ export function PipelineGraph() {
   const handleLoadPreset = useCallback(
     async (name: string) => {
       try {
-        const res = await fetch(
+        const res = await fetchWithAuth(
           `/api/presets/${encodeURIComponent(name)}/apply`,
           {
             method: "POST",

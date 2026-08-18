@@ -188,6 +188,13 @@ declare global {
     player?: HlsInstance | HTMLVideoElement | null;
     // Global saveConfig handler (set by pipeline-control.ts)
     saveConfig?: () => void;
+    apiCall?: <T>(
+      method: import("./api").HttpMethod,
+      path: string,
+      body?: unknown,
+      timeoutMs?: number,
+    ) => Promise<T>;
+    toggleModule?: (moduleName: string, enabled: boolean) => Promise<unknown>;
   }
 }
 

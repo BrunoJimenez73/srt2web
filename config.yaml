@@ -4,7 +4,7 @@ server:
   cors_origins:
   - http://localhost:*
   - http://127.0.0.1:*
-  auth_token: test-token-123
+  auth_token: ''
   rate_limit_rpm: 600
   max_request_size_mb: 100
 input:

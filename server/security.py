@@ -405,6 +405,8 @@ class CsrfMiddleware(BaseHTTPMiddleware):
             return True
         if path.startswith("/hls/"):
             return True
+        if path.startswith("/subtitles/"):
+            return True
         return path == "/api/csrf-token"
 
     async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:

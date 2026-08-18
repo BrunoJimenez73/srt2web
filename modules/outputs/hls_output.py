@@ -14,6 +14,7 @@ import contextlib
 import glob
 import logging
 import os
+import re
 import subprocess
 import threading
 from collections.abc import Callable
@@ -62,6 +63,13 @@ class HLSOutput(OutputSink):
                 {"name": "high", "bandwidth": 3000000, "width": 1920, "height": 1080},
             ],
         )
+        # The schema supplies the ladder for real application configs. Keep
+        # hand-built HLSOutput({}) instances on the legacy single-rendition
+        # path unless a ladder was explicitly configured.
+        self._abr_enabled = (
+            "bitrate_ladder" in config and len(self._bitrate_ladder) > 1 and config.get("encoder_mode") != "passthrough"
+        )
+        self._variant_durations: dict[str, dict[int, float]] = {}
 
         # Configuración de encoder
         self._encoder_config = EncoderConfig(config if config else {})
@@ -95,6 +103,7 @@ class HLSOutput(OutputSink):
             self._subtitle_language_name = config["subtitle_language_name"]
         if "bitrate_ladder" in config:
             self._bitrate_ladder = config["bitrate_ladder"]
+            self._abr_enabled = len(self._bitrate_ladder) > 1 and config.get("encoder_mode") != "passthrough"
 
         self.logger.info(
             f"HLS output reconfigured: segment={self._segment_duration}s, list_size={self._list_size}, "
@@ -112,6 +121,124 @@ class HLSOutput(OutputSink):
             "bitrate_ladder": self._bitrate_ladder,
         }
 
+    def _profile_name(self, profile: dict[str, Any], index: int) -> str:
+        """Return a filesystem-safe, stable name for an ABR profile."""
+        raw_name = str(profile.get("name", f"variant_{index}"))
+        return re.sub(r"[^A-Za-z0-9_-]", "_", raw_name) or f"variant_{index}"
+
+    def _primary_profile_index(self) -> int:
+        return len(self._bitrate_ladder) // 2
+
+    def _master_playlist_lines(self) -> list[str]:
+        """Build a master playlist with one media playlist per rendition."""
+        lines = [
+            "#EXTM3U",
+            "#EXT-X-VERSION:4",
+            f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="/subtitles/subs.m3u8"',
+        ]
+        profiles = self._bitrate_ladder if self._abr_enabled else [self._bitrate_ladder[self._primary_profile_index()]]
+        for profile_index, profile in enumerate(profiles):
+            actual_index = profile_index if self._abr_enabled else self._primary_profile_index()
+            bw = int(profile.get("bandwidth", 1500000))
+            width = int(profile.get("width", 1280))
+            height = int(profile.get("height", 720))
+            name = self._profile_name(profile, actual_index)
+            playlist_uri = "stream.m3u8" if actual_index == self._primary_profile_index() else f"{name}.m3u8"
+            lines.append(
+                f'#EXT-X-STREAM-INF:BANDWIDTH={bw},RESOLUTION={width}x{height},CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"'
+            )
+            lines.append(playlist_uri)
+        return lines
+
+    def _write_empty_variant_playlists(self) -> None:
+        """Create media playlist files before the first encoded segment."""
+        if not self._abr_enabled:
+            return
+        primary = self._primary_profile_index()
+        for index, profile in enumerate(self._bitrate_ladder):
+            if index == primary:
+                continue
+            name = self._profile_name(profile, index)
+            variant_dir = os.path.join(self._hls_dir, name)
+            os.makedirs(variant_dir, exist_ok=True)
+            self._variant_durations[name] = {}
+            with open(os.path.join(self._hls_dir, f"{name}.m3u8"), "w", encoding="utf-8") as stream_file:
+                stream_file.write("#EXTM3U\n#EXT-X-VERSION:4\n#EXT-X-TARGETDURATION:10\n#EXT-X-MEDIA-SEQUENCE:0\n")
+
+    def _generate_abr_variants(self, source_path: str, segment_index: int) -> None:
+        """Encode low/high renditions from the primary segment.
+
+        The primary rendition is encoded by ``write``. Deriving the other
+        renditions from that self-contained MPEG-TS segment keeps every
+        rendition on the same chunk boundary and makes the HLS timelines
+        interchangeable for the player.
+        """
+        if not self._abr_enabled:
+            return
+        primary = self._primary_profile_index()
+        for index, profile in enumerate(self._bitrate_ladder):
+            if index == primary:
+                continue
+            name = self._profile_name(profile, index)
+            variant_dir = os.path.join(self._hls_dir, name)
+            os.makedirs(variant_dir, exist_ok=True)
+            target_path = os.path.join(variant_dir, f"seg_{segment_index:06d}.ts")
+            width = int(profile.get("width", 1280))
+            height = int(profile.get("height", 720))
+            bandwidth = int(profile.get("bandwidth", 1500000))
+            cmd = [
+                self._ffmpeg_path or "ffmpeg",
+                "-y",
+                "-i",
+                source_path,
+                "-map",
+                "0:v:0",
+                "-map",
+                "0:a:0?",
+                "-vf",
+                f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "veryfast",
+                "-tune",
+                "zerolatency",
+                "-b:v",
+                str(bandwidth),
+                "-maxrate",
+                str(bandwidth),
+                "-bufsize",
+                str(bandwidth * 2),
+                "-c:a",
+                "copy",
+                "-f",
+                "mpegts",
+                target_path,
+            ]
+            job_id = f"hls-abr-{name}-{segment_index:06d}"
+            if not self._pool.acquire(self._ffmpeg_path or "ffmpeg", job_id, timeout=30):
+                self.logger.warning("FFmpegPool timeout for ABR job %s", job_id)
+                continue
+            try:
+                result = subprocess.run(
+                    filter_command(cmd),
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    timeout=60,
+                    creationflags=get_creation_flags(),
+                )
+                if result.returncode != 0:
+                    self.logger.error("ABR rendition %s failed: %s", name, result.stderr[-500:])
+                    continue
+                self._variant_durations.setdefault(name, {})[segment_index] = self._segment_durations.get(
+                    segment_index, self._segment_duration
+                )
+            except (subprocess.TimeoutExpired, OSError) as exc:
+                self.logger.error("ABR rendition %s failed: %s", name, exc)
+            finally:
+                self._pool.release(job_id)
+
     def start(self) -> None:
         """Iniciar salida HLS."""
         if not self._enabled:
@@ -120,6 +247,7 @@ class HLSOutput(OutputSink):
         self._ffmpeg_path = ensure_ffmpeg()
         self._total_duration_emitted = 0.0
         self._segment_durations = {}
+        self._variant_durations = {}
 
         # Crear directorio HLS
         self._hls_dir = os.path.join(self._output_dir or "./output", "hls")
@@ -136,6 +264,15 @@ class HLSOutput(OutputSink):
         for m3u8_file in glob.glob(os.path.join(self._hls_dir, "*.m3u8")):
             with contextlib.suppress(OSError):
                 os.remove(m3u8_file)
+        if self._abr_enabled:
+            primary = self._primary_profile_index()
+            for index, profile in enumerate(self._bitrate_ladder):
+                if index == primary:
+                    continue
+                variant_dir = os.path.join(self._hls_dir, self._profile_name(profile, index))
+                for ts_file in glob.glob(os.path.join(variant_dir, "*.ts")):
+                    with contextlib.suppress(OSError):
+                        os.remove(ts_file)
 
         self._segment_index = 0
 
@@ -148,17 +285,11 @@ class HLSOutput(OutputSink):
                 master_file.write(
                     f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="/subtitles/subs.m3u8"\n'
                 )
-                # Single stream entry (all ABR variants point to same stream.m3u8)
-                profile = self._bitrate_ladder[1] if len(self._bitrate_ladder) > 1 else self._bitrate_ladder[0]
-                bw = profile.get("bandwidth", 1500000)
-                w = profile.get("width", 1280)
-                h = profile.get("height", 720)
-                master_file.write(
-                    f'#EXT-X-STREAM-INF:BANDWIDTH={bw},RESOLUTION={w}x{h},CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"\n'
-                )
-                master_file.write("stream.m3u8\n")
+                master_file.write("\n".join(self._master_playlist_lines()[2:]) + "\n")
         except Exception as e:
             self.logger.error(f"Failed to create initial master playlist: {e}")
+
+        self._write_empty_variant_playlists()
 
         # Create empty stream.m3u8 so the player doesn't hit a fatal 404
         # while waiting for the first chunk. HLSOutput.write() replaces this
@@ -240,7 +371,9 @@ class HLSOutput(OutputSink):
         # or doesn't start with a keyframe (which would cause stuttering).
         is_h264 = self._is_h264(input_path)
         has_keyframe = starts_with_keyframe(input_path)
-        can_remux = (is_h264 and has_keyframe) or self._encoder_config.encoder_mode == "passthrough"
+        can_remux = (
+            (is_h264 and has_keyframe) or self._encoder_config.encoder_mode == "passthrough"
+        ) and not self._abr_enabled
         if is_h264 and not has_keyframe:
             self.logger.info("Input does not start with keyframe, falling back to re-encode (prevents stuttering)")
 
@@ -379,6 +512,16 @@ class HLSOutput(OutputSink):
         cmd.extend(audio_args)
         cmd.extend(["-c:v", encoder])
 
+        primary_profile = self._bitrate_ladder[self._primary_profile_index()]
+        cmd.extend(
+            [
+                "-b:v",
+                str(int(primary_profile.get("bandwidth", 1500000))),
+                "-s",
+                f"{int(primary_profile.get('width', 1280))}x{int(primary_profile.get('height', 720))}",
+            ]
+        )
+
         if "nvenc" in encoder:
             fps = self._encoder_config.video_fps or 25
             gop_frames = round(fps * self._segment_duration)
@@ -433,6 +576,10 @@ class HLSOutput(OutputSink):
                         "libx264",
                         "-preset",
                         "fast",
+                        "-b:v",
+                        str(int(primary_profile.get("bandwidth", 1500000))),
+                        "-s",
+                        f"{int(primary_profile.get('width', 1280))}x{int(primary_profile.get('height', 720))}",
                         "-crf",
                         "23",
                         "-profile:v",
@@ -480,6 +627,7 @@ class HLSOutput(OutputSink):
             actual_duration = chunk_duration
         self._segment_durations[self._segment_index] = actual_duration
         self._total_duration_emitted += actual_duration
+        self._generate_abr_variants(segment_path, self._segment_index)
         self._update_manifest()
 
         data.output_hls_path = os.path.join(self._hls_dir, "master.m3u8")
@@ -532,6 +680,14 @@ class HLSOutput(OutputSink):
                         os.remove(old_seg)
                         old_idx = int(os.path.basename(old_seg).replace("seg_", "").replace(".ts", ""))
                         self._segment_durations.pop(old_idx, None)
+                        if self._abr_enabled:
+                            for profile_index, profile in enumerate(self._bitrate_ladder):
+                                name = self._profile_name(profile, profile_index)
+                                if name in self._variant_durations:
+                                    self._variant_durations[name].pop(old_idx, None)
+                                variant_seg = os.path.join(self._hls_dir, name, os.path.basename(old_seg))
+                                with contextlib.suppress(OSError):
+                                    os.remove(variant_seg)
                     except (OSError, ValueError):
                         pass
                 segments = segments[-self._list_size :]
@@ -584,21 +740,43 @@ class HLSOutput(OutputSink):
             except Exception as e:
                 self.logger.error(f"Failed to write media playlist: {e}")
 
+            # Publish one media playlist for every configured rendition.
+            if self._abr_enabled:
+                primary = self._primary_profile_index()
+                for index, profile in enumerate(self._bitrate_ladder):
+                    if index == primary:
+                        continue
+                    name = self._profile_name(profile, index)
+                    variant_segments = sorted(glob.glob(os.path.join(self._hls_dir, name, "seg_*.ts")))
+                    variant_lines = [
+                        "#EXTM3U",
+                        "#EXT-X-VERSION:4",
+                        f"#EXT-X-TARGETDURATION:{target_duration}",
+                        f"#EXT-X-MEDIA-SEQUENCE:{media_seq}",
+                    ]
+                    for variant_seg in variant_segments:
+                        seg_name = os.path.basename(variant_seg)
+                        try:
+                            seg_idx = int(seg_name.replace("seg_", "").replace(".ts", ""))
+                        except ValueError:
+                            continue
+                        dur = self._variant_durations.get(name, {}).get(
+                            seg_idx, self._segment_durations.get(seg_idx, float(self._segment_duration))
+                        )
+                        variant_lines.append(f"#EXTINF:{min(dur, float(target_duration)):.3f},")
+                        variant_lines.append("#EXT-X-DISCONTINUITY")
+                        variant_lines.append(f"{name}/{seg_name}")
+                    try:
+                        variant_path = os.path.join(self._hls_dir, f"{name}.m3u8")
+                        variant_tmp = variant_path + ".tmp"
+                        with open(variant_tmp, "w", encoding="utf-8") as f:
+                            f.write("\n".join(variant_lines) + "\n")
+                        atomic_replace(variant_tmp, variant_path)
+                    except Exception as e:
+                        self.logger.error("Failed to write ABR playlist %s: %s", name, e)
+
             # Escribir master playlist con ABR ladder
-            master_lines = [
-                "#EXTM3U",
-                "#EXT-X-VERSION:4",
-                f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="{self._subtitle_language_name}",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="{self._subtitle_language}",URI="/subtitles/subs.m3u8"',
-            ]
-            # Single stream entry (all ABR variants point to same stream.m3u8)
-            profile = self._bitrate_ladder[1] if len(self._bitrate_ladder) > 1 else self._bitrate_ladder[0]
-            bw = profile.get("bandwidth", 1500000)
-            w = profile.get("width", 1280)
-            h = profile.get("height", 720)
-            master_lines.append(
-                f'#EXT-X-STREAM-INF:BANDWIDTH={bw},RESOLUTION={w}x{h},CODECS="avc1.64001f,mp4a.40.2",SUBTITLES="subs"'
-            )
-            master_lines.append("stream.m3u8")
+            master_lines = self._master_playlist_lines()
 
             try:
                 master_tmp = master_path + ".tmp"
