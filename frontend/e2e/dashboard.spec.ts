@@ -19,7 +19,7 @@ test.describe("Dashboard", () => {
 
   test("should show process grid with module cards", async ({ page }) => {
     await page.goto("/");
-    const cards = page.locator(".module-card");
+    const cards = page.locator(".collapsible-card");
     await expect(cards.first()).toBeVisible();
   });
 
