@@ -29,13 +29,16 @@ test.describe("Log Panel", () => {
   test("should export logs", async ({ page }) => {
     await page.goto("/");
     await page.locator("[data-testid='btn-toggle-logs']").click();
-    const exportBtn = page.locator("[data-testid='btn-export-logs']");
-    if (await exportBtn.isVisible()) {
-      const [download] = await Promise.all([
-        page.waitForEvent("download"),
-        exportBtn.click(),
-      ]);
-      expect(download.suggestedFilename()).toContain("srt2web-logs");
-    }
+    await expect(page.locator("[data-testid='log-entry']").first()).toBeVisible(
+      {
+        timeout: 10000,
+      },
+    );
+    const exportBtn = page.locator("[data-testid='btn-export-logs']").first();
+    const [download] = await Promise.all([
+      page.waitForEvent("download", { timeout: 10000 }),
+      exportBtn.click(),
+    ]);
+    expect(download.suggestedFilename()).toContain("srt2web-logs");
   });
 });
