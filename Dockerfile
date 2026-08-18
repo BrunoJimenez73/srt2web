@@ -4,14 +4,17 @@
 # Build:    docker build -t srt2web .
 # Run:      docker run -p 9999:9999 -p 9000:9000/udp srt2web
 #
-# GPU:      docker build --build-arg BASE_IMAGE=nvidia/cuda:12.2.0-runtime-ubuntu22.04 .
+# GPU:      docker build --build-arg BASE_IMAGE=nvidia/cuda:12.6.3-runtime-ubuntu24.04 .
 #
 
 # -----------------------------------------------------------------------------
 # Argumentos de build
 # -----------------------------------------------------------------------------
 ARG BASE_IMAGE=python:3.12-slim
-ARG CUDA_IMAGE=nvidia/cuda:12.2.0-runtime-ubuntu22.04
+# CUDA runtime with python3.12 available in default repos (ubuntu 24.04
+# noble ships python3.12; jammy did not — apt install python3.12 failed with
+# exit 100). 12.6.3 is the oldest CUDA tag with both amd64+arm64 manifests.
+ARG CUDA_IMAGE=nvidia/cuda:12.6.3-runtime-ubuntu24.04
 
 # -----------------------------------------------------------------------------
 # Etapa 1: Builder — dependencias Python + build frontend
@@ -88,7 +91,7 @@ ENV CUDA_VISIBLE_DEVICES=0
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.12 \
+    python3 \
     python3-pip \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
