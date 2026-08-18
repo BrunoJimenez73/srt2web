@@ -32,6 +32,19 @@ _WORKER_ID = os.environ.get("PYTEST_XDIST_WORKER", "main")
 TEST_TEMP_DIR = PROJECT_ROOT / "tests" / "temp" / _WORKER_ID
 TEST_TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
+# Auth DB files must be per-worker under pytest-xdist: by default they live in
+# the real user config dir (platformdirs), shared by every worker. Concurrent
+# workers then race on users.json (e.g. AuthDB.setup_first_admin() returns
+# "Users already exist" after another worker wrote it) — flaky CI failures on
+# macOS/windows runners. Tests that do `from core.auth_db import USERS_FILE`
+# inside a test function re-bind the patched value at call time, and all
+# internal reads in auth_db are module-global lookups, so patching here covers
+# both.
+import core.auth_db as _auth_db
+
+_auth_db.USERS_FILE = TEST_TEMP_DIR / "users.json"
+_auth_db.BLACKLIST_FILE = TEST_TEMP_DIR / "token_blacklist.json"
+
 
 @pytest.fixture(autouse=True)
 def _mock_tempfile():
