@@ -17,6 +17,10 @@ env:
   PYTHON_VERSION: "3.12"
   NODE_VERSION: "22"
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   backend-tests:
     name: Unit Tests
