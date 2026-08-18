@@ -35,7 +35,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
-    && curl -fsSL "https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-${TARGETARCH}.tar.gz" -o /tmp/node.tar.gz \
+    && NODE_ARCH="$( [ "${TARGETARCH}" = "amd64" ] && echo x64 || echo "${TARGETARCH}" )" \
+    && curl -fsSL "https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-${NODE_ARCH}.tar.gz" -o /tmp/node.tar.gz \
     && tar -xzf /tmp/node.tar.gz -C /usr/local --strip-components=1 \
     && rm /tmp/node.tar.gz
 
