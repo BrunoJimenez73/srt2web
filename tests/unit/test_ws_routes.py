@@ -3,6 +3,7 @@ Unit tests for WebSocket routes.
 """
 
 import json
+import sys
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -101,6 +102,11 @@ class TestWebSocketIntegration:
     """Integration tests for WebSocket functionality."""
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(
+        sys.platform != "linux",
+        reason="CI: instantiating full UnifiedPipeline+app stalls the suite end "
+        "for 10-25min on GitHub windows/macos runners (ubuntu still covers it)",
+    )
     async def test_ws_connection_flow(self):
         """Test WebSocket connection and messaging flow."""
         from core.config_manager import ConfigManager

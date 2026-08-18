@@ -25,8 +25,11 @@ os.environ.setdefault("SRT2WEB_TESTING", "1")
 # and the whole F121/F122/F123 + auth suite fails (40 tests).
 os.environ.setdefault("SRT2WEB_JWT_SECRET", "test-secret-for-unit-tests")
 
-# Test temp directory that works in sandbox environments
-TEST_TEMP_DIR = PROJECT_ROOT / "tests" / "temp"
+# Test temp directory that works in sandbox environments.  When pytest-xdist
+# is active, each worker gets its own directory so one worker cannot remove
+# another worker's temporary files during pytest's basetemp cleanup.
+_WORKER_ID = os.environ.get("PYTEST_XDIST_WORKER", "main")
+TEST_TEMP_DIR = PROJECT_ROOT / "tests" / "temp" / _WORKER_ID
 TEST_TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -40,11 +43,13 @@ def _mock_tempfile():
     original_mkdtemp = tempfile.mkdtemp
 
     def safe_mkdtemp(suffix=None, prefix=None, dir=None):
+        TEST_TEMP_DIR.mkdir(parents=True, exist_ok=True)
         return original_mkdtemp(suffix=suffix, prefix=prefix, dir=str(TEST_TEMP_DIR))
 
     original_named_temp = tempfile.NamedTemporaryFile
 
     def safe_named_temp(*args, **kwargs):
+        TEST_TEMP_DIR.mkdir(parents=True, exist_ok=True)
         kwargs.setdefault("dir", str(TEST_TEMP_DIR))
         return original_named_temp(*args, **kwargs)
 
