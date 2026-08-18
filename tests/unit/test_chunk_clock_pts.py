@@ -45,7 +45,7 @@ class TestChunkClockPTS:
             mtime = i * chunk_duration + mtime_drift_per_chunk * i
 
             pts_cumulative = pts_clock.record_pts(pts_seconds)
-            mtime_cumulative = mtime_clock.record_mtime(mtime)
+            _ = mtime_clock.record_mtime(mtime)
 
             # PTS cumulative should be perfect
             assert pts_cumulative == pytest.approx(i * chunk_duration, abs=0.001)

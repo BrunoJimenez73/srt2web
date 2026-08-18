@@ -170,7 +170,7 @@ class TestBaseModule:
         module.configure({"enabled": False})
 
         data = PipelineData(chunk_index=0)
-        result = module.process(data)
+        _ = module.process(data)
 
         assert len(module.process_calls) == 0
 

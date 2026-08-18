@@ -69,7 +69,7 @@ class TestLockoutAfterFailures:
 
     def test_lockout_after_5_failed_attempts(self):
         db = self._make()
-        PASSWORD = "MyStr0ng!Pass"
+        _ = "MyStr0ng!Pass"  # PASSWORD (unused)
 
         # 5 failed attempts should lock the account
         for i in range(5):

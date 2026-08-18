@@ -228,7 +228,7 @@ class TestDashboardHTMLConfig:
 
         id_pattern = r'id="([^"]+)"'
         ids = re.findall(id_pattern, dashboard_html)
-        unique_ids = set(ids)
+        _ = set(ids)  # unique_ids, kept for clarity
 
         duplicates = [id_val for id_val in ids if ids.count(id_val) > 1]
         duplicate_set = set(duplicates)

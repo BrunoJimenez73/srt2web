@@ -283,7 +283,7 @@ class TestStartCleansStaleHLS:
         subs.mkdir(parents=True)
         for i in range(3):
             (subs / f"subs_seg_{i:06d}.vtt").write_text("stale", encoding="utf-8")
-        gen = _make_gen(str(tmp_path))
+        _ = _make_gen(str(tmp_path))
         # No new chunks processed yet, so no seg files exist after start
         remaining = list(subs.glob("subs_seg_*.vtt"))
         assert remaining == []

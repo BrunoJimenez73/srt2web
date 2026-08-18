@@ -312,7 +312,8 @@ class SubtitleGenerator(BaseModule):
             elif not self._use_translated and data.translated_segments:
                 alt_segments = data.translated_segments
 
-        # Write HLS fragment (playlist rewrite deferred to sync_playlist callback from HLSOutput when video playlist exists)
+        # Write HLS fragment (playlist rewrite deferred to sync_playlist
+        # callback from HLSOutput when video playlist exists)
         try:
             # Write fragment with media-relative timestamps (0..duration)
             fragment_path = self._fragment_writer.write_fragment(

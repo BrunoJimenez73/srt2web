@@ -137,7 +137,7 @@ class TestErrorRecording:
     def test_record_success_resets_consecutive(self):
         """Recording success should reset consecutive counter."""
         self.handler.record_error(RuntimeError("Error"))
-        count_before = self.handler.consecutive_error_count
+        _ = self.handler.consecutive_error_count
         self.handler.record_success()
         assert self.handler.consecutive_error_count == 0
 

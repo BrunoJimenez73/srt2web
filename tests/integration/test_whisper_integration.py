@@ -18,7 +18,7 @@ class TestWhisperIntegration:
     def test_transcriber_cpu_configuration(self) -> None:
         """Test Whisper transcriber configuration for CPU."""
         # Skip if faster-whisper is not available
-        faster_whisper = pytest.importorskip("faster_whisper")
+        _ = pytest.importorskip("faster_whisper")
 
         # Initialize transcriber with CPU device and tiny model for speed
         transcriber = Transcriber({"model": "tiny", "device": "cpu", "language": "en"})
@@ -43,7 +43,7 @@ class TestWhisperIntegration:
     def test_transcriber_gpu_configuration(self) -> None:
         """Test Whisper transcriber configuration for GPU (simulated)."""
         # Skip if faster-whisper is not available
-        faster_whisper = pytest.importorskip("faster_whisper")
+        _ = pytest.importorskip("faster_whisper")
 
         # Initialize transcriber with GPU device
         transcriber = Transcriber(

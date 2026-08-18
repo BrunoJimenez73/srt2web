@@ -135,7 +135,8 @@ _DOCS_STUB_HTML = """<!DOCTYPE html>
 <div class="card">
   <div class="icon">📄</div>
   <h1>Sección en construcción</h1>
-  <p>Esta página de la documentación aún no se ha publicado. Vuelve al inicio para explorar las secciones disponibles.</p>
+  <p>Esta página de la documentación aún no se ha publicado.
+     Vuelve al inicio para explorar las secciones disponibles.</p>
   <div class="actions">
     <a href="/docs/" class="btn btn-primary">← Volver al inicio</a>
   </div>

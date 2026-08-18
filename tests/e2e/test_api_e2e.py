@@ -280,7 +280,7 @@ class TestAPIIntegration:
         # Get initial config
         config_response = client.get("/api/config")
         config_data = config_response.json()
-        initial_port = config_data.get("input", {}).get("srt", {}).get("listen_port", 9000)
+        _ = config_data.get("input", {}).get("srt", {}).get("listen_port", 9000)
 
         # Update config via nested input.srt path
         client.put("/api/config", json={"config": {"input": {"srt": {"listen_port": 8888}}}})

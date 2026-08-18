@@ -144,7 +144,7 @@ class TestCachedDecorator:
             return {"count": call_count}
 
         # First call populates cache (immediately expires with ttl=0)
-        r1 = asyncio.run(slow_func())
+        _ = asyncio.run(slow_func())
         assert call_count == 1
 
         # Concurrent calls after expiry

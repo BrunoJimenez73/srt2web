@@ -42,7 +42,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install "ruff==0.15.14" "mypy==2.1.0" "types-psutil" pytest pytest-asyncio pytest-cov pytest-benchmark pydantic
+          pip install "ruff==0.15.14" "mypy==2.1.0" "types-psutil" pytest pytest-asyncio pytest-cov pytest-benchmark pytest-mock pydantic
           pip install -r config/requirements.txt
           pip install -e .[dev]
 
@@ -78,18 +78,18 @@ jobs:
           script: |
             const fs = require('fs');
             const results = JSON.parse(fs.readFileSync('benchmark-results.json', 'utf8'));
-            
+
             let markdown = '## 📊 Benchmark Results\n\n';
             markdown += '| Test | Min (ms) | Max (ms) | Mean (ms) | StdDev (ms) | Median (ms) | Ops/sec |\n';
             markdown += '|------|----------|----------|-----------|-------------|-------------|---------|\n';
-            
+
             for (const [name, data] of Object.entries(results.benchmarks)) {
               const stats = data.stats;
               markdown += `| ${name} | ${stats.min.toFixed(2)} | ${stats.max.toFixed(2)} | ${stats.mean.toFixed(2)} | ${stats.stddev.toFixed(2)} | ${stats.median.toFixed(2)} | ${(1/stats.mean*1000).toFixed(2)} |\n`;
             }
-            
+
             markdown += '\n*Runs: ${{ env.BENCHMARK_RUNS }} | Timer: time.perf_counter*';
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
@@ -126,7 +126,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-benchmark pytest-asyncio
+          pip install pytest pytest-benchmark pytest-asyncio pytest-mock
           pip install -e .[dev]
 
       - name: Run cross-platform benchmarks

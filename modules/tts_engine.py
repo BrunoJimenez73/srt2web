@@ -77,7 +77,11 @@ class TTSEngine(BaseModule):
             logger.info(f"[Piper] Voice changed from {old_voice} to {self._voice_model}, will reload lazily")
 
         logger.info(
-            f"TTS configured: voice={self._voice_model}, speed={self._speed}, engine={self._engine}, device={self._device}"
+            "TTS configured: voice=%s, speed=%s, engine=%s, device=%s",
+            self._voice_model,
+            self._speed,
+            self._engine,
+            self._device,
         )
 
     def start(self) -> None:

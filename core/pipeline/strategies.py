@@ -635,7 +635,8 @@ class ThreadParallelStrategy(PipelineStrategy):
                                 new_dur = min(60, int(current_dur * 1.5))
                                 self._log(
                                     "info",
-                                    f"Chunk duration adaptation: {current_dur}s → {new_dur}s (avg_proc={avg:.1f}s, ratio={ratio:.2f})",
+                                    f"Chunk duration adaptation: {current_dur}s → {new_dur}s "
+                                    f"(avg_proc={avg:.1f}s, ratio={ratio:.2f})",
                                 )
                                 ctx.chunk_duration = new_dur
                                 ctx.on_chunk_duration_change(float(new_dur))
@@ -643,7 +644,8 @@ class ThreadParallelStrategy(PipelineStrategy):
                                 new_dur = max(2, int(current_dur / 1.5))
                                 self._log(
                                     "info",
-                                    f"Chunk duration adaptation: {current_dur}s → {new_dur}s (avg_proc={avg:.1f}s, ratio={ratio:.2f})",
+                                    f"Chunk duration adaptation: {current_dur}s → {new_dur}s "
+                                    f"(avg_proc={avg:.1f}s, ratio={ratio:.2f})",
                                 )
                                 ctx.chunk_duration = new_dur
                                 ctx.on_chunk_duration_change(float(new_dur))
@@ -834,7 +836,7 @@ class AsyncIOStrategy(PipelineStrategy):
                         data = module.process(data)
                     if module.state.value == "degraded" and not getattr(module, "is_critical", True):
                         self._log("warning", f"Non-critical module {module.name} degraded, continuing pipeline")
-                except Exception as e:
+                except Exception:
                     if not getattr(module, "is_critical", True):
                         self._log("warning", f"Non-critical module {module.name} failed, continuing in degraded mode")
                         continue

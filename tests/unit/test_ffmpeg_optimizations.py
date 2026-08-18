@@ -2,6 +2,7 @@
 Tests for FFmpeg optimizations: process pool and optimized utilities.
 """
 
+import subprocess
 from unittest.mock import patch
 
 import pytest
@@ -15,7 +16,10 @@ class TestFFmpegUtilsOptimizations:
         """Test Windows creation flags."""
         from core.ffmpeg_utils import _get_creation_flags
 
-        with patch("sys.platform", "win32"):
+        with (
+            patch("sys.platform", "win32"),
+            patch.object(subprocess, "CREATE_NO_WINDOW", 0x08000000, create=True),
+        ):
             flags = _get_creation_flags()
             # CREATE_NO_WINDOW (0x08000000) | BELOW_NORMAL_PRIORITY_CLASS (0x00004000)
             assert flags == 0x08000000 | 0x00004000

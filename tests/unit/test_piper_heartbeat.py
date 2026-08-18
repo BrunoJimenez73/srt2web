@@ -71,7 +71,7 @@ class TestPiperHeartbeat:
         # Make _send_command fail (unresponsive subprocess)
         manager._send_command = MagicMock(return_value={"status": "error", "error": "timeout"})
 
-        original_restart = manager._restart_subprocess
+        _ = manager._restart_subprocess
         restart_called = threading.Event()
 
         def mock_restart():

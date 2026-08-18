@@ -27,7 +27,7 @@ async def get_metrics(request: Request) -> Response:
             state = status.get("state", "idle")
             metrics_collector.update_pipeline_state(state)
 
-            chunks = status.get("chunks_processed", 0)
+            _ = status.get("chunks_processed", 0)  # available if needed
             metrics_collector.update_chunks_processed(0)  # reset not needed, counter tracks total
 
             failed = status.get("chunks_failed", 0)

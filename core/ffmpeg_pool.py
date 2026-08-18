@@ -83,7 +83,11 @@ class FFmpegPool:
 
         self._semaphore.release()
         logger.debug(
-            f"FFmpegPool: slot released for job={job_id} (held {elapsed:.1f}s, active={len(self._active)}/{self.max_size})"
+            "FFmpegPool: slot released for job=%s (held %.1fs, active=%d/%d)",
+            job_id,
+            elapsed,
+            len(self._active),
+            self.max_size,
         )
 
     def get_stats(self) -> dict[str, Any]:

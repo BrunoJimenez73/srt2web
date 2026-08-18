@@ -150,12 +150,14 @@ class SRTInput(InputSource):
                         subprocess.run(["taskkill", "/F", "/IM", "ffprobe.exe"], capture_output=True, timeout=2)
                         # Also try to kill by finding PID using netstat
                         with contextlib.suppress(Exception):
-                            result = subprocess.run(
-                                [
-                                    "powershell",
-                                    "-Command",
-                                    f"Get-NetTCPConnection -LocalPort {self._srt_port} -ErrorAction SilentlyContinue | ForEach-Object {{ Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }}",
-                                ],
+                            ps_cmd = (
+                                "Get-NetTCPConnection -LocalPort "
+                                f"{self._srt_port} -ErrorAction SilentlyContinue "
+                                "| ForEach-Object "
+                                "{{ Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }}"
+                            )
+                            subprocess.run(
+                                ["powershell", "-Command", ps_cmd],
                                 capture_output=True,
                                 timeout=5,
                             )
@@ -462,12 +464,12 @@ class SRTInput(InputSource):
                     )
                     # ALSO kill any ffmpeg using the SRT port
                     with contextlib.suppress(Exception):
+                        cmd = (
+                            f'for /F "tokens=5" %a in '
+                            f"('netstat -ano ^| findstr :{self._srt_port} ^| findstr LISTENING') do @echo %a"
+                        )
                         subprocess.run(
-                            [
-                                "cmd",
-                                "/C",
-                                f"for /F \"tokens=5\" %a in ('netstat -ano ^| findstr :{self._srt_port} ^| findstr LISTENING') do @echo %a",
-                            ],
+                            ["cmd", "/C", cmd],
                             capture_output=True,
                             creationflags=get_creation_flags(),
                             timeout=3,

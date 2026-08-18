@@ -65,7 +65,7 @@ def _clean_runtime_debris() -> None:
                         cleaned.append(str(path.relative_to(PROJECT_ROOT)))
                     except OSError:
                         pass
-    except OSError as e:
+    except OSError:
         # If the output dir is locked or missing, skip silently
         # (test still runs; this is best-effort cleanup).
         if os.name != "nt":

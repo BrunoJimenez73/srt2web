@@ -17,7 +17,7 @@ from core.module_base import PipelineData
 @pytest.fixture
 def srt_input():
     """Create SRTInput with mocked heavy dependencies."""
-    with patch("modules.inputs.srt_input.SRTInput._ensure_stopped") as mock_ensure:
+    with patch("modules.inputs.srt_input.SRTInput._ensure_stopped"):
         from modules.inputs.srt_input import SRTInput
 
         inp = SRTInput({})

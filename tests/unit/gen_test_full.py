@@ -193,10 +193,11 @@ class TestHealth:
         r = tmp_db.health(); assert r["healthy"]; assert r["stats"]["total_features"] == 0
     def test_detects_non_normalized_id(self, tmp_db: HarnessDB) -> None:
         from harness.db import _now; now = _now()
-        tmp_db.connect().execute("INSERT INTO features (id,name,title,status,created_at,updated_at) VALUES (?,?,?,?,?,?)",
-                                 ("F999","bad","Bad ID","pending",now,now))
+        sql = "INSERT INTO features (id,name,title,status,created_at,updated_at) VALUES (?,?,?,?,?,?)"
+        tmp_db.connect().execute(sql, ("F999", "bad", "Bad ID", "pending", now, now))
         tmp_db.connect().commit()
-        r = tmp_db.health(); assert not r["healthy"]
+        r = tmp_db.health()
+        assert not r["healthy"]
         assert any("Non-normalized" in i for i in r["issues"])
     def test_detects_multiple_in_progress(self, tmp_db: HarnessDB) -> None:
         from harness.db import _now; now = _now()
@@ -334,8 +335,8 @@ class TestSanitizeIDs:
         assert tmp_db.get_feature("115").id == "115"
     def test_sanitize_fixes_non_normalized_singleton(self, tmp_db: HarnessDB) -> None:
         from harness.db import _now; now = _now()
-        tmp_db.connect().execute("INSERT INTO features (id,name,title,status,created_at,updated_at) VALUES (?,?,?,?,?,?)",
-                                 ("F200","singleton","Singleton","pending",now,now))
+        sql = "INSERT INTO features (id,name,title,status,created_at,updated_at) VALUES (?,?,?,?,?,?)"
+        tmp_db.connect().execute(sql, ("F200", "singleton", "Singleton", "pending", now, now))
         tmp_db.connect().commit()
         tmp_db.sanitize_ids(agent="test")
         assert tmp_db.get_feature("200").id == "200"
@@ -360,7 +361,11 @@ class TestExport:
 class TestMigration:
     def test_migrate_from_json(self, tmp_db: HarnessDB, tmp_path: Path) -> None:
         j = tmp_path / "f.json"
-        j.write_text(json.dumps({"features":[{"id":"1","name":"migrated","title":"Migrated","status":"pending"},{"id":"2","name":"m2","title":"Another","status":"done"}]}), encoding="utf-8")
+        features = [
+            {"id": "1", "name": "migrated", "title": "Migrated", "status": "pending"},
+            {"id": "2", "name": "m2", "title": "Another", "status": "done"},
+        ]
+        j.write_text(json.dumps({"features": features}), encoding="utf-8")
         r = migrate(str(j), str(tmp_db.db_path))
         assert r["imported"] == 2 and r["skipped"] == 0
         assert len(tmp_db.list_features()) == 2
@@ -537,8 +542,8 @@ class TestCLICommands:
         assert "healthy" in buf.getvalue().lower()
     def test_cmd_health_unhealthy(self, tmp_db: HarnessDB) -> None:
         from harness.db import _now; now = _now()
-        tmp_db.connect().execute("INSERT INTO features (id,name,title,status,created_at,updated_at) VALUES (?,?,?,?,?,?)",
-                                 ("F1","bad","Bad","pending",now,now))
+        sql = "INSERT INTO features (id,name,title,status,created_at,updated_at) VALUES (?,?,?,?,?,?)"
+        tmp_db.connect().execute(sql, ("F1", "bad", "Bad", "pending", now, now))
         tmp_db.connect().commit()
         from harness.commands.admin import cmd_health
         buf = io.StringIO()
@@ -577,9 +582,16 @@ class TestCLICommands:
     def test_cmd_session_end(self, tmp_db: HarnessDB) -> None:
         s = tmp_db.start_session(notes="To end")
         from harness.commands.sessions import cmd_session
+        args = MagicMock(
+            db=tmp_db.db_path,
+            session_action="end",
+            session_id=s.id,
+            features="101",
+            notes="Done",
+        )
         buf = io.StringIO()
         with patch("sys.stdout", buf):
-            cmd_session(MagicMock(db=tmp_db.db_path, session_action="end", session_id=s.id, features="101", notes="Done"))
+            cmd_session(args)
         assert "ended" in buf.getvalue().lower()
 '''
 )
@@ -748,16 +760,47 @@ class TestCLIHelpers:
         assert e.field_name == "status" and e.new_value == "done"
     def test_session_from_row(self) -> None:
         row = MagicMock()
-        row.__getitem__.side_effect = lambda k: {"id":1,"date":"2026-07-01","features_worked":'["101"]',"notes":"t","created_at":"now"}[k]
-        s = Session.from_row(row); assert s.id == 1 and s.features_worked == ["101"]
+        session_data = {"id": 1, "date": "2026-07-01", "features_worked": '["101"]', "notes": "t", "created_at": "now"}
+        row.__getitem__.side_effect = lambda k: session_data[k]
+        s = Session.from_row(row)
+        assert s.id == 1 and s.features_worked == ["101"]
     def test_progress_from_row(self) -> None:
         row = MagicMock()
-        row.__getitem__.side_effect = lambda k: {"id":1,"date":"2026-07-01","title":"T","session_notes":"n","features_worked":"[]","files_changed":"[]","verification":"{}","content_md":"#","is_current":1,"created_at":"n","updated_at":"n"}[k]
-        p = Progress.from_row(row); assert p.title == "T" and p.is_current is True
+        progress_data = {
+            "id": 1,
+            "date": "2026-07-01",
+            "title": "T",
+            "session_notes": "n",
+            "features_worked": "[]",
+            "files_changed": "[]",
+            "verification": "{}",
+            "content_md": "#",
+            "is_current": 1,
+            "created_at": "n",
+            "updated_at": "n",
+        }
+        row.__getitem__.side_effect = lambda k: progress_data[k]
+        p = Progress.from_row(row)
+        assert p.title == "T" and p.is_current is True
     def test_build_parser_has_all_commands(self) -> None:
         from harness.cli import build_parser
         choices = build_parser()._subparsers._group_actions[0].choices
-        for c in {"list","show","add","update","next","stats","health","sanitize","migrate","export","audit","search","session"}:
+        commands = {
+            "list",
+            "show",
+            "add",
+            "update",
+            "next",
+            "stats",
+            "health",
+            "sanitize",
+            "migrate",
+            "export",
+            "audit",
+            "search",
+            "session",
+        }
+        for c in commands:
             assert c in choices, f"Missing: {c}"
 """
 )

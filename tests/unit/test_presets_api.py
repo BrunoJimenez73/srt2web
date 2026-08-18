@@ -15,7 +15,7 @@ def client_with_presets():
     from server.security import RateLimiter
 
     # Patch RateLimiter.is_allowed to always allow
-    original_is_allowed = RateLimiter.is_allowed
+    _ = RateLimiter.is_allowed
 
     def mock_is_allowed(self, key):
         return True, 999

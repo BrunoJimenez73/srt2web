@@ -188,7 +188,7 @@ class TestPiperCmdLock:
 
         # Simulate subprocess: each write produces one readline response.
         # Block in readline to force the race window.
-        response_ready = threading.Event()
+        _ = threading.Event()  # response_ready (unused)
         responses = {
             # Thread A
             "thread_a_started": threading.Event(),

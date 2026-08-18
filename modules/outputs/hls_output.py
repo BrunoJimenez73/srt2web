@@ -492,7 +492,10 @@ class HLSOutput(OutputSink):
         self._clear_error()
 
         self.logger.info(
-            f"HLS segment written: seg_{self._segment_index:06d}.ts (duration={actual_duration:.3f}s, process_time={elapsed:.1f}ms)"
+            "HLS segment written: seg_%06d.ts (duration=%.3fs, process_time=%.1fms)",
+            self._segment_index,
+            actual_duration,
+            elapsed,
         )
         self._segment_index += 1
 

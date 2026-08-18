@@ -166,7 +166,9 @@ class FragmentWriter:
 
         video_durations = self._read_video_durations()
         logger.debug(
-            f"[FragmentWriter] rewrite_playlist: fragments={len(self._fragments)}, video_durations={list(video_durations.keys()) if video_durations else None}"
+            "[FragmentWriter] rewrite_playlist: fragments=%d, video_durations=%s",
+            len(self._fragments),
+            list(video_durations.keys()) if video_durations else None,
         )
 
         if not self._fragments and not video_durations:

@@ -46,7 +46,7 @@ class TestTTSIntegration:
     def test_piper_tts_synthesis(self) -> None:
         """Test Piper TTS synthesizes audio from text."""
         # Create temporary directory for output
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with tempfile.TemporaryDirectory() as _tmpdir:
             # Initialize TTS engine with a simple voice for testing
             # Using a voice that should be available or will trigger model download
             tts_engine = TTSEngine(
@@ -104,7 +104,7 @@ class TestTTSIntegration:
     def test_edge_tts_synthesis(self) -> None:
         """Test Edge TTS synthesizes audio from text."""
         # Create temporary directory for output
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with tempfile.TemporaryDirectory() as _tmpdir:
             # Initialize TTS engine with Edge TTS
             tts_engine = TTSEngine(
                 {

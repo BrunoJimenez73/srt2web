@@ -190,7 +190,7 @@ class RTMPInput(InputSource):
                 stdout = self._ffmpeg_proc.stdout
                 output = stdout.read(2000) if stdout else ""
                 logger.error(f"FFmpeg exited immediately. Output: {output}")
-            except Exception as e:
+            except Exception:
                 logger.error(f"FFmpeg exited immediately with code {self._ffmpeg_proc.returncode}")
             # Continue anyway - the process might work if we give it time
 
@@ -231,7 +231,7 @@ class RTMPInput(InputSource):
                 else:
                     self._ffmpeg_proc.terminate()
                 self._ffmpeg_proc.wait(timeout=2)
-            except Exception as e:
+            except Exception:
                 with contextlib.suppress(Exception):
                     self._ffmpeg_proc.kill()
             finally:

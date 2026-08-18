@@ -108,14 +108,16 @@ async def start_pipeline(request: Request) -> dict[str, Any]:
         if not _check_port_available(srt_port):
             raise HTTPException(
                 400,
-                f"El puerto SRT {srt_port} ya está en uso. Elige otro puerto o cierra la aplicación que lo está usando.",
+                "El puerto SRT %s ya está en uso. Elige otro puerto o cierra la aplicación que lo está usando.",
+                srt_port,
             )
     elif input_type == "rtmp":
         rtmp_port = config.get("input.rtmp.listen_port", 1935)
         if not _check_port_available(rtmp_port):
             raise HTTPException(
                 400,
-                f"El puerto RTMP {rtmp_port} ya está en uso. Elige otro puerto o cierra la aplicación que lo está usando.",
+                "El puerto RTMP %s ya está en uso. Elige otro puerto o cierra la aplicación que lo está usando.",
+                rtmp_port,
             )
     logger.info(f"Starting pipeline with input type: {input_type}")
 

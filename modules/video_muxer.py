@@ -70,7 +70,13 @@ class VideoMuxer(BaseModule):
         if "encoder_mode" in config:
             self._encoder_config = EncoderConfig(config)
         logger.info(
-            f"VideoMuxer reconfigured: Audio Offset: {self._audio_offset_ms}ms, Video Preset: {self._video_preset}, GPU Preset: {self._gpu_preset}, Encoder Mode: {self._encoder_config.encoder_mode}, Subtitle Language: {self._subtitle_language_name}"
+            "VideoMuxer reconfigured: Audio Offset: %sms, Video Preset: %s,"
+            " GPU Preset: %s, Encoder Mode: %s, Subtitle Language: %s",
+            self._audio_offset_ms,
+            self._video_preset,
+            self._gpu_preset,
+            self._encoder_config.encoder_mode,
+            self._subtitle_language_name,
         )
 
     def start(self) -> None:
@@ -199,7 +205,7 @@ class VideoMuxer(BaseModule):
             return data
 
         chunk_duration = data.duration or self._hls_segment_duration
-        offset_sec = getattr(data, "cumulative_duration", self._total_duration_emitted)
+        _ = getattr(data, "cumulative_duration", self._total_duration_emitted)  # reserved for future use
         segment_name = f"seg_{self._segment_index:06d}.ts"
         segment_path = self._hls_dir / segment_name
 

@@ -38,7 +38,7 @@ class AudioValidator:
 
     def validate(self, data: PipelineData, config: dict[str, Any] | None = None) -> ValidationResult:
         cfg: dict[str, Any] = config or {}
-        min_sr = cfg.get("min_sample_rate", 8000)
+        _ = cfg.get("min_sample_rate", 8000)  # reserved for future use
         max_dur_ratio = cfg.get("max_duration_ratio", 1.5)
 
         audio_path = data.audio_chunk_path or data.dubbed_audio_path
@@ -81,7 +81,7 @@ class TranscriptValidator:
     def validate(self, data: PipelineData, config: dict[str, Any] | None = None) -> ValidationResult:
         cfg: dict[str, Any] = config or {}
         min_conf = cfg.get("min_confidence", 0.3)
-        min_segs = cfg.get("min_segments", 1)
+        _ = cfg.get("min_segments", 1)  # reserved for future use
 
         segments = data.transcript_segments or []
         text = (data.transcript or "").strip()
@@ -126,7 +126,7 @@ class TranslationValidator:
     def validate(self, data: PipelineData, config: dict[str, Any] | None = None) -> ValidationResult:
         cfg: dict[str, Any] = config or {}
         max_empty_ratio = cfg.get("max_empty_ratio", 0.9)
-        min_length_change = cfg.get("min_length_change", 0.0)
+        _ = cfg.get("min_length_change", 0.0)  # reserved for future use
 
         translated = (data.translated_text or "").strip()
         original = (data.transcript or "").strip()
@@ -165,7 +165,7 @@ class TTSValidator:
 
     def validate(self, data: PipelineData, config: dict[str, Any] | None = None) -> ValidationResult:
         cfg: dict[str, Any] = config or {}
-        max_gen_time = cfg.get("max_generation_time", 30.0)
+        _ = cfg.get("max_generation_time", 30.0)  # reserved for future use
 
         tts_path = data.dubbed_audio_path
         details: dict[str, Any] = {}

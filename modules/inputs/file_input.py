@@ -433,7 +433,10 @@ class FileInput(InputSource):
         self._last_chunk_duration = actual_duration
 
         self.logger.debug(
-            f"New chunk from file: {chunk_path} (cumulative: {chunk_cumulative:.3f}s, position: {self._current_position:.3f}s)"
+            "New chunk from file: %s (cumulative: %.3fs, position: %.3fs)",
+            chunk_path,
+            chunk_cumulative,
+            self._current_position,
         )
 
         return PipelineData(

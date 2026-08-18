@@ -33,15 +33,15 @@ jobs:
           python -m pip install -r config/requirements.txt
           python main.py &
           SERVER_PID=$!
-          # Wait for server to be ready with health check using /status endpoint
+          # Wait for server to be ready with health check using /api/status endpoint
           for i in {1..30}; do
-            if curl -sf http://localhost:9999/status > /dev/null; then
+            if curl -sf http://localhost:9999/api/status > /dev/null; then
               echo "Server is ready"
               break
             fi
             sleep 2
           done
-          if ! curl -sf http://localhost:9999/status > /dev/null; then
+          if ! curl -sf http://localhost:9999/api/status > /dev/null; then
             echo "Server failed to start"
             kill $SERVER_PID
             exit 1

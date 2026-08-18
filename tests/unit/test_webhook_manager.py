@@ -62,7 +62,7 @@ async def test_target_filtered_by_event_type() -> None:
     mgr.emit("stop", {"msg": "stopped"})
 
     # Check which targets would receive which events
-    payload = '{"event": "start", "data": {"msg": "started"}}'
+    _ = '{"event": "start", "data": {"msg": "started"}}'  # payload (unused)
     relevant_start = [t for t in mgr._targets if "start" in t.events]
     relevant_stop = [t for t in mgr._targets if "stop" in t.events]
 

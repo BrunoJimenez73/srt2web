@@ -12,16 +12,19 @@ def _collect_paths(routes: list) -> list[str]:
 
     Newer FastAPI versions wrap routers included via ``include_router`` in
     ``_IncludedRouter`` objects inside ``router.routes``; those have no
-    ``path`` attribute but expose their own nested ``routes`` list.
+    ``path`` attribute but expose the included router via ``original_router``.
     """
     paths: list[str] = []
     for route in routes:
-        if hasattr(route, "path"):
+        if hasattr(route, "path") and route.path is not None:
             paths.append(route.path)
         nested = getattr(route, "routes", None)
         if not nested:
             sub_router = getattr(route, "router", None)
             nested = getattr(sub_router, "routes", None)
+        if not nested:
+            original_router = getattr(route, "original_router", None)
+            nested = getattr(original_router, "routes", None)
         if nested:
             paths.extend(_collect_paths(nested))
     return paths

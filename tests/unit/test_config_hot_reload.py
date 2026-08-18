@@ -31,7 +31,7 @@ class TestConfigReload:
         config_path = str(tmp_path / "config.yaml")
 
         with (
-            patch("core.config_manager.atomic_replace") as mock_atomic,
+            patch("core.config_manager.atomic_replace"),
             patch("builtins.open", create=True),
             patch("yaml.safe_load") as mock_yaml,
             patch("yaml.dump"),
@@ -39,7 +39,7 @@ class TestConfigReload:
             mock_yaml.return_value = {"test": "value"}
 
             manager = ConfigManager(config_path)
-            original_config = manager._config.copy()
+            _ = manager._config.copy()
 
             manager._config = {"pipeline": {"chunk_duration_sec": 10}}
             manager.save()
@@ -87,7 +87,7 @@ class TestConfigCachePrevention:
         config_path = "config.yaml"
 
         with (
-            patch("builtins.open", create=True) as mock_open,
+            patch("builtins.open", create=True),
             patch("yaml.safe_load") as mock_yaml,
             patch("os.path.getmtime") as mock_mtime,
         ):

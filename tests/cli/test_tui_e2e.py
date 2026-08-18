@@ -143,7 +143,7 @@ def mock_deps():
 async def test_app_launches(mock_deps):
     """App composes and all main widgets are present."""
     app = SRT2WebTUI()
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         assert app.is_running
 
         # Header is visible

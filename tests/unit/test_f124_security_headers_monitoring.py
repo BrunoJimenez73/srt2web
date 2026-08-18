@@ -293,7 +293,7 @@ class TestSecurityLogging:
 
             from unittest.mock import patch
 
-            with patch("server.security.logger") as mock_logger:
+            with patch("server.security.logger"):
                 # Second request: rate limited
                 allowed, _ = limiter.is_allowed("test-client")
                 if not allowed:

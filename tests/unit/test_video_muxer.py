@@ -34,14 +34,28 @@ class TestVideoMuxer:
     def test_start(self) -> None:
         """Test module can start."""
         muxer = TestableVideoMuxer(output_dir="/tmp")
-        muxer.start()
+        with (
+            patch("modules.video_muxer.ensure_ffmpeg", return_value="/bin/ffmpeg"),
+            patch(
+                "core.ffmpeg_utils.check_gpu_support",
+                return_value={"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False},
+            ),
+        ):
+            muxer.start()
 
         assert muxer.state in (ModuleState.STARTING, ModuleState.RUNNING)
 
     def test_stop(self) -> None:
         """Test module can stop."""
         muxer = TestableVideoMuxer(output_dir="/tmp")
-        muxer.start()
+        with (
+            patch("modules.video_muxer.ensure_ffmpeg", return_value="/bin/ffmpeg"),
+            patch(
+                "core.ffmpeg_utils.check_gpu_support",
+                return_value={"nvenc": False, "qsv": False, "amf": False, "vaapi": False, "videotoolbox": False},
+            ),
+        ):
+            muxer.start()
         muxer.stop()
 
         assert muxer.state == ModuleState.IDLE

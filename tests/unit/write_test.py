@@ -98,7 +98,8 @@ L('        f = Feature.from_json_dict({"id": "F115", "name": "x", "title": "x"})
 L('        assert f.id == "115"')
 L("    def test_from_json_dict_handles_legacy_fields(self) -> None:")
 L(
-    '        raw = {"id": "99", "name": "legacy", "title": "Legacy Feature", "status": "done", "completed_at": "2026-01-01", "session": "2026-01-01", "fix": "Fixed the bug", "summary": "All done"}'
+    '        raw = {"id": "99", "name": "legacy", "title": "Legacy Feature", "status": "done",'
+    '        "completed_at": "2026-01-01", "session": "2026-01-01", "fix": "Fixed the bug", "summary": "All done"}'
 )
 L("        f = Feature.from_json_dict(raw)")
 L('        assert f.status == "done"; assert f.completed_date == "2026-01-01"')
@@ -112,7 +113,8 @@ L("    def test_from_row_parses_empty_risk(self, tmp_db: HarnessDB) -> None:")
 L("        from harness.db import _now; now = _now()")
 L("        conn = tmp_db.connect()")
 L(
-    '        conn.execute("INSERT INTO features (id, name, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)", ("99", "no_risk", "No Risk", "pending", now, now))'
+    '        conn.execute("INSERT INTO features (id, name, title, status, created_at, updated_at)'
+    '        VALUES (?, ?, ?, ?, ?, ?)", ("99", "no_risk", "No Risk", "pending", now, now))'
 )
 L("        conn.commit()")
 L('        f = tmp_db.get_feature("99")')

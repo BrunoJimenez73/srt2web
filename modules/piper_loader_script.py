@@ -10,7 +10,7 @@ import warnings
 
 def main() -> None:
     try:
-        voice_name = sys.argv[1]
+        _ = sys.argv[1]  # voice_name (not used in validation)
         model_path = sys.argv[2]
         config_path = sys.argv[3]
         device = sys.argv[4]
