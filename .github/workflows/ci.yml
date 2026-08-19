@@ -108,8 +108,7 @@ jobs:
           python -m pytest tests/integration/ -v \
             -m "integration" \
             --benchmark-only \
-            --benchmark-runs=10 \
-            --benchmark-min-rounds=5 \
+            --benchmark-min-rounds=10 \
             --benchmark-warmup=true \
             --benchmark-warmup-iterations=3 \
             --benchmark-timer=time.perf_counter \
