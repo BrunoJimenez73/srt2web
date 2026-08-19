@@ -103,17 +103,19 @@ let _hasStartedOnce = false;
 let retryCount = 0;
 
 // Subtitle watchdog: HLS.js may reset TextTrack.mode to "hidden" after a
-  // subtitle playlist reload. This flag + listeners detect and fix it.
-  let _subtitleWatchdogActive = false;
-  let _subtitleWatchdogHandler: (() => void) | null = null;
-  let _subtitleWatchdogAddTrackHandler: ((e: Event) => void) | null = null;
-  let _subtitleWatchdogInterval: ReturnType<typeof setInterval> | null = null;
-  let _subtitleWatchdogHls: HlsInstance | null = null;
-  // Interval watchdog: catches mode resets when video is paused/buffering
-  // (timeupdate fires ~4 Hz = 250ms gaps). 2000ms is sufficient and less aggressive.
-  const SUBTITLE_WATCHDOG_INTERVAL_MS = 2000;
-  const MAX_RETRY_DELAY_MS = 30000;
-  const BASE_RETRY_DELAY_MS = 2000;
+// subtitle playlist reload. This flag + listeners detect and fix it.
+let _subtitleWatchdogActive = false;
+let _subtitleWatchdogHandler: (() => void) | null = null;
+let _subtitleWatchdogAddTrackHandler: ((e: Event) => void) | null = null;
+let _subtitleWatchdogInterval: ReturnType<typeof setInterval> | null = null;
+let _subtitleWatchdogHls: HlsInstance | null = null;
+// Aggressive interval watchdog: catches mode resets even when video is paused
+// or between timeupdate events (which fire ~4 Hz = 250ms gaps). 200ms keeps
+// the gap between a mode reset and its recovery under a quarter-second, which
+// is below human perception threshold for subtitle flicker.
+const SUBTITLE_WATCHDOG_INTERVAL_MS = 200;
+const MAX_RETRY_DELAY_MS = 30000;
+const BASE_RETRY_DELAY_MS = 2000;
 
 export function initHlsPlayer(): void {
   const video = document.getElementById("video-player") as HTMLVideoElement;
@@ -239,7 +241,10 @@ export function initHlsPlayer(): void {
    * events. The interval also listens for the "addtrack" event which fires
    * when HLS.js creates new <track> elements after a playlist reload.
    */
-  function startSubtitleWatchdog(videoEl: HTMLVideoElement, hlsInstance: HlsInstance): void {
+  function startSubtitleWatchdog(
+    videoEl: HTMLVideoElement,
+    hlsInstance: HlsInstance,
+  ): void {
     logger.warn("player", "Starting subtitle watchdog", { hls: !!hlsInstance });
     if (_subtitleWatchdogActive) return;
     _subtitleWatchdogActive = true;
@@ -251,8 +256,9 @@ export function initHlsPlayer(): void {
     _subtitleWatchdogHandler = handler;
     videoEl.addEventListener("timeupdate", handler);
 
-// Interval watchdog: catches resets when video is paused/buffering
-    // (timeupdate fires ~4 Hz = 250ms gaps). 2000ms is sufficient and less aggressive.
+    // Interval watchdog: catches resets when video is paused/buffering
+    // (timeupdate fires ~4 Hz = 250ms gaps). 200ms keeps the recovery
+    // gap below human perception threshold for subtitle flicker.
     _subtitleWatchdogInterval = setInterval(() => {
       logger.debug("player", "Subtitle watchdog interval tick");
       const changed = forceSubtitleTrackMode(videoEl);
@@ -273,7 +279,12 @@ export function initHlsPlayer(): void {
           trackCount: tracks?.length,
           subtitleTrack: hls.subtitleTrack,
           subtitleDisplay: hls.subtitleDisplay,
-          tracks: tracks?.map(t => ({ id: t.id, lang: t.lang, name: t.name, type: t.type })),
+          tracks: tracks?.map((t) => ({
+            id: t.id,
+            lang: t.lang,
+            name: t.name,
+            type: t.type,
+          })),
         });
         if (tracks && tracks.length > 0) {
           const targetTrack = tracks[0]; // first available subtitle track

@@ -39,6 +39,7 @@ config/users.json
 # Environment variables (F130 — never commit real secrets)
 .env
 .env.*
+.openclaude-profile.json
 
 # Trash / temp
 PARA BORRAR/
