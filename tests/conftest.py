@@ -60,23 +60,36 @@ def _mock_tempfile():
     """
     # Also patch mkdtemp and TemporaryDirectory to use our safe directory
     original_mkdtemp = tempfile.mkdtemp
+    original_mkstemp = tempfile.mkstemp
+    original_tempdir_class = tempfile.TemporaryDirectory
 
     def safe_mkdtemp(suffix=None, prefix=None, dir=None):
         TEST_TEMP_DIR.mkdir(parents=True, exist_ok=True)
         return original_mkdtemp(suffix=suffix, prefix=prefix, dir=str(TEST_TEMP_DIR))
 
-    original_named_temp = tempfile.NamedTemporaryFile
+    def safe_mkstemp(suffix=None, prefix=None, dir=None, text=False):
+        TEST_TEMP_DIR.mkdir(parents=True, exist_ok=True)
+        return original_mkstemp(suffix=suffix, prefix=prefix, dir=str(TEST_TEMP_DIR), text=text)
 
     def safe_named_temp(*args, **kwargs):
         TEST_TEMP_DIR.mkdir(parents=True, exist_ok=True)
         kwargs.setdefault("dir", str(TEST_TEMP_DIR))
         return original_named_temp(*args, **kwargs)
 
+    original_named_temp = tempfile.NamedTemporaryFile
+
+    class SafeTemporaryDirectory(original_tempdir_class):  # type: ignore[valid-type]
+        def __init__(self, suffix=None, prefix=None, dir=None, **kwargs):  # type: ignore[no-untyped-def]
+            TEST_TEMP_DIR.mkdir(parents=True, exist_ok=True)
+            super().__init__(suffix=suffix, prefix=prefix, dir=str(TEST_TEMP_DIR), **kwargs)
+
     with (
         patch("tempfile.gettempdir", return_value=str(TEST_TEMP_DIR)),
         patch("tempfile.tempdir", str(TEST_TEMP_DIR)),
         patch("tempfile.mkdtemp", side_effect=safe_mkdtemp),
+        patch("tempfile.mkstemp", side_effect=safe_mkstemp),
         patch("tempfile.NamedTemporaryFile", side_effect=safe_named_temp),
+        patch("tempfile.TemporaryDirectory", SafeTemporaryDirectory),
     ):
         yield
 
