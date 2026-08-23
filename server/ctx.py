@@ -68,6 +68,9 @@ _PUBLIC_PREFIXES: tuple[str, ...] = (
     "/subtitles/",
     "/api/docs",
     "/icons/",
+    # F205: rail JSON para el overlay de subtítulos del player (público,
+    # mismo contenido que /subtitles/*.vtt)
+    "/api/subtitles/",
 )
 
 

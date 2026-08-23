@@ -942,3 +942,11 @@ Auditoría técnica del repo completa (tests/unit 1599P+40F, tests/cli 78P+25F, 
 - **Fix**: cabecera X-TIMESTAMP-MAP=MPEGTS:136800,LOCAL:00:00:00.000 en cada VTT (PTS interno del muxer medido constante 1.52s vía get_first_packet_pts; OJO separador coma — con ':' hls.js descarta TODAS las cues), cues media-relative, DISCONTINUITY mantenido, liveSyncDuration 25→12.
 - **Verificación live**: sampler activeCues 0/103 → frases visibles sincronizadas (4 frases/60s en posiciones correctas). 53 tests f108+subtitle_generator, mypy strict, ruff OK.
 - **Otros**: browser auto-open normalizado a localhost (localStorage por-origen); 401 init abre panel seguridad con guía; assets PWA públicos; CSRF solo sin Bearer; player-feedback WS 403 queda pendiente.
+
+### 24/08 (2ª sesión) — F205 Subtitle Rail: render de subtítulos en cliente
+
+- **Decisión de arquitectura**: abandonar el path HLS-native WebVTT para el player web tras F108/F150/F167/F168/F193(×4)/F204 — hls.js SubtitleStreamController es ingobernable en live con discontinuity-por-chunk (se atasca tras 1 fragmento, purga cues, offsets erráticos). El doblaje audio funciona porque viaja por el path maduro de media segments.
+- **Nuevo contrato**: GET /api/subtitles/recent?count=16 (público) devuelve {base, chunks:[{idx,dur,segments:[{s,e,text}]}]} desde la memoria de FragmentWriter. El player sondea cada 400ms y pinta un overlay propio usando como reloj ideo.currentTime − frag.start del fragmento que hls.js está reproduciendo (FRAG*CHANGED → parsea seg*(\d+).ts). Sincronía por construcción con el audio doblado; inmune a joins tardíos/seeks/stalls.
+- **Flag rollback**: SUBTITLE_RENDERER en constants.ts = "overlay" (default) | "native" (path TextTracks conservado intacto).
+- **Ficheros**: \_fragment_writer.py (add_fragment retiene segments + get_recent), server/routes/subtitles.py NUEVO, ctx.py prefijo público /api/subtitles/, subtitle-overlay.ts NUEVO, player.ts gating, player.astro div+CSS.
+- **Tests**: 7 pytest rail + 8 vitest overlay (265 frontend total). Verificación live completa PENDIENTE de OBS: comprobar overlay sincronizado con doblaje ≥95% en sesión de 10 min (sampler activeCues ya no aplica; observar #subtitle-overlay).

@@ -24,6 +24,7 @@ const pageTitle = "SRT2Web — Live Player";
             <span class="waiting-message">Esperando stream...</span>
             <span class="waiting-hint">Inicia OBS y el pipeline para comenzar</span>
         </div>
+        <div id="subtitle-overlay"></div>
         <div id="error-overlay" class="error-overlay" style="display: none;">
             <div class="error-content">
                 <span class="error-icon">⚠️</span>
@@ -87,6 +88,30 @@ const pageTitle = "SRT2Web — Live Player";
         height: 100%;
         background-color: #000;
         object-fit: contain;
+    }
+
+    /* F205 — overlay de subtítulos (rail JSON), estilo cue estándar */
+    #subtitle-overlay {
+        position: absolute;
+        left: 50%;
+        bottom: 9%;
+        transform: translateX(-50%);
+        max-width: 80%;
+        padding: 6px 14px;
+        background: rgba(0, 0, 0, 0.72);
+        color: #fff;
+        font-family: 'Inter', system-ui, sans-serif;
+        font-size: clamp(14px, 2.4vw, 26px);
+        line-height: 1.35;
+        text-align: center;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        border-radius: 6px;
+        pointer-events: none;
+        white-space: pre-wrap;
+        z-index: 5;
+    }
+    #subtitle-overlay:empty {
+        display: none;
     }
 
     /* Hide ALL CC buttons across all browsers and Shadow DOM implementations */

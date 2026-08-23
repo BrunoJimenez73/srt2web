@@ -321,7 +321,13 @@ class SubtitleGenerator(BaseModule):
             )
 
             if fragment_path:
-                self._fragment_writer.add_fragment(data.chunk_index, duration, chunk_start_time, fragment_path)
+                self._fragment_writer.add_fragment(
+                    data.chunk_index,
+                    duration,
+                    chunk_start_time,
+                    fragment_path,
+                    segments=segments,
+                )
                 # Only rewrite immediately if NO video playlist is configured (standalone mode).
                 # In pipeline mode, HLSOutput calls sync_playlist() AFTER stream.m3u8 is updated,
                 # which avoids a race where HLS.js loads subs.m3u8 before the corresponding

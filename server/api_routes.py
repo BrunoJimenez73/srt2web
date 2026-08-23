@@ -13,7 +13,7 @@ from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, Request
 
-from server.routes import config, modules, outputs, pipeline
+from server.routes import config, modules, outputs, pipeline, subtitles
 
 logger = logging.getLogger("srt2web.api")
 
@@ -27,6 +27,7 @@ def create_api_router() -> APIRouter:
     router.include_router(config.router)
     router.include_router(modules.router)
     router.include_router(outputs.router)
+    router.include_router(subtitles.router)
 
     from server.ctx import get_ctx as _ctx
 

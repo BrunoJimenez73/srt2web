@@ -12,7 +12,11 @@ import {
   disableSubtitles,
 } from "./player-subtitles";
 import { isHlsErrorData, isHlsLevelUpdatedData } from "../hls-guards";
-import { DEFAULT_SUBTITLE_LANG } from "../constants";
+import { DEFAULT_SUBTITLE_LANG, SUBTITLE_RENDERER } from "../constants";
+import {
+  initSubtitleOverlay,
+  type SubtitleOverlayController,
+} from "./subtitle-overlay";
 
 declare const Hls: HlsStatic | undefined;
 
@@ -133,6 +137,7 @@ export function initHlsPlayer(): void {
   const streamUrl = `${window.location.origin}/hls/master.m3u8?_=${_sessionTs}`;
   let hls: HlsInstance | null = null;
   let isConnected = false;
+  let subtitleOverlay: SubtitleOverlayController | null = null;
 
   function showError(message: string) {
     if (errorOverlay) errorOverlay.style.display = "flex";
@@ -416,7 +421,7 @@ export function initHlsPlayer(): void {
         hideError();
         retryCount = 0;
         waitForSegments(0);
-        if (hls) {
+        if (hls && SUBTITLE_RENDERER === "native") {
           activateFirstSubtitleTrack(hls, {
             video,
             preferredLang: DEFAULT_SUBTITLE_LANG,
@@ -425,7 +430,9 @@ export function initHlsPlayer(): void {
       });
 
       hls.on(HlsEvents.SUBTITLE_TRACK_LOADED, () => {
-        forceSubtitleTrackMode(video);
+        if (SUBTITLE_RENDERER === "native") {
+          forceSubtitleTrackMode(video);
+        }
       });
 
       // SUBTITLE_TRACKS_UPDATED fires when HLS.js re-parses the subtitle
@@ -434,24 +441,26 @@ export function initHlsPlayer(): void {
       // "showing" here. Without this handler, subtitles can disappear
       // when the subtitle playlist is reloaded (~every targetDuration).
       hls.on(HlsEvents.SUBTITLE_TRACKS_UPDATED, () => {
-        if (hls && hls.subtitleTrack === -1) {
-          // hls.js reset its internal subtitle selection (happens on
-          // manifest reload when the subtitle group is re-parsed). With
-          // subtitleTrack === -1 the SubtitleStreamController stops loading
-          // subs.m3u8, so no cues are delivered no matter the DOM track
-          // mode. Re-activate instead of only forcing the DOM mode.
-          logger.warn(
-            "player",
-            "Subtitle selection lost after track update - re-activating",
-          );
-          activateFirstSubtitleTrack(hls, {
-            video,
-            preferredLang: DEFAULT_SUBTITLE_LANG,
-          });
-          // NOTE: Removed aggressive toggle (subtitleTrack = -1 -> id) that caused flickering.
-          // HLS.js will reload fragments automatically when track is set via activateFirstSubtitleTrack.
-        } else {
-          forceSubtitleTrackMode(video);
+        if (SUBTITLE_RENDERER === "native") {
+          if (hls && hls.subtitleTrack === -1) {
+            // hls.js reset its internal subtitle selection (happens on
+            // manifest reload when the subtitle group is re-parsed). With
+            // subtitleTrack === -1 the SubtitleStreamController stops loading
+            // subs.m3u8, so no cues are delivered no matter the DOM track
+            // mode. Re-activate instead of only forcing the DOM mode.
+            logger.warn(
+              "player",
+              "Subtitle selection lost after track update - re-activating",
+            );
+            activateFirstSubtitleTrack(hls, {
+              video,
+              preferredLang: DEFAULT_SUBTITLE_LANG,
+            });
+            // NOTE: Removed aggressive toggle (subtitleTrack = -1 -> id) that caused flickering.
+            // HLS.js will reload fragments automatically when track is set via activateFirstSubtitleTrack.
+          } else {
+            forceSubtitleTrackMode(video);
+          }
         }
       });
 
@@ -551,11 +560,18 @@ export function initHlsPlayer(): void {
     // The watchdog runs on video timeupdate (~4 Hz) and enforces
     // TextTrack mode="showing" as a fail-safe against HLS.js mode resets.
     // Also monitors HLS.js subtitle track selection state.
-    startSubtitleWatchdog(video, hls!);
+    // F205: en modo overlay no hay TextTracks que vigilar — se usa el rail.
+    if (SUBTITLE_RENDERER === "overlay") {
+      subtitleOverlay = initSubtitleOverlay(video, hls!);
+    } else {
+      startSubtitleWatchdog(video, hls!);
+    }
   }
 
   function disconnect() {
     stopSubtitleWatchdog();
+    subtitleOverlay?.stop();
+    subtitleOverlay = null;
     stopHealthCheck();
     disconnectFeedbackWs();
     if (hls) {

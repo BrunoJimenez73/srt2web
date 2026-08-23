@@ -42,6 +42,15 @@ export const DEFAULTS = {
 /** Idioma preferido para activar la pista de subtítulos HLS nativa (F108). */
 export const DEFAULT_SUBTITLE_LANG: string = DEFAULTS.SUBTITLE_LANG;
 
+/**
+ * F205 — Renderer de subtítulos del player.
+ * "overlay": JSON rail (/api/subtitles/recent) + render propio sobre el
+ *   reloj de hls.js — estable por construcción.
+ * "native": TextTracks HLS (subs.m3u8 + X-TIMESTAMP-MAP). Legado, frágil
+ *   en live con discontinuities; conservado como rollback.
+ */
+export const SUBTITLE_RENDERER: "overlay" | "native" = "overlay";
+
 // ── Estados de módulos ────────────────────────────────────────────────────────
 export const MODULE_STATES = {
   IDLE: "idle",

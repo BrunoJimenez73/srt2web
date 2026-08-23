@@ -95,3 +95,4 @@ server/static/
 # Runtime state
 srt2web.pid
 presets.json
+.pytest-qa-temp/

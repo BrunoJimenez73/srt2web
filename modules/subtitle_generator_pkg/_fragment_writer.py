@@ -283,17 +283,56 @@ class FragmentWriter:
             return
         self._fragments = self._fragments[-self._list_size :]
 
-    def add_fragment(self, chunk_index: int, duration: float, pts_start: float, path: str) -> None:
-        """Register a new fragment in the rolling window."""
+    def add_fragment(
+        self,
+        chunk_index: int,
+        duration: float,
+        pts_start: float,
+        path: str,
+        segments: list[dict[str, Any]] | None = None,
+    ) -> None:
+        """Register a new fragment in the rolling window.
+
+        ``segments`` (list of {start,end,text}) is retained in memory to serve
+        the /api/subtitles/recent rail (F205) without re-reading VTT files.
+        """
         self._fragments.append(
             {
                 "chunk_index": chunk_index,
                 "duration": duration,
                 "pts_start": pts_start,
                 "path": path,
+                "segments": segments or [],
             }
         )
         self.trim()
+
+    def get_recent(self, count: int = 16) -> dict[str, Any]:
+        """Return the last ``count`` fragments for the subtitle rail API.
+
+        Shape: {"base": first_chunk_index_or_0, "chunks": [{idx, dur,
+        segments:[{s,e,text}]}]} — pure JSON-able data for the client-side
+        overlay renderer (F205).
+        """
+        window = self._fragments[-count:] if count > 0 else []
+        return {
+            "base": window[0]["chunk_index"] if window else 0,
+            "chunks": [
+                {
+                    "idx": f["chunk_index"],
+                    "dur": float(f.get("duration", 0.0)),
+                    "segments": [
+                        {
+                            "s": float(s.get("start", 0.0)),
+                            "e": float(s.get("end", 0.0)),
+                            "text": str(s.get("text", "")),
+                        }
+                        for s in (f.get("segments") or [])
+                    ],
+                }
+                for f in window
+            ],
+        }
 
     def get_window_info(self) -> dict[str, Any]:
         """Get current playlist window info for debugging/monitoring."""
