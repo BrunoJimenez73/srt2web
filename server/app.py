@@ -211,7 +211,7 @@ def create_app(app_context: dict[str, Any]) -> FastAPI:
     origin_regex_parts: list[str] = []
     for origin in cors_origins:
         if "*" in origin:
-            escaped = re.escape(origin).replace(r"\*", r"[^:]*")
+            escaped = re.escape(origin).replace(r"\*", r"[0-9]+")
             origin_regex_parts.append(escaped)
         else:
             allowed_origins.append(origin)

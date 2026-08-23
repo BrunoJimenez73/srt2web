@@ -236,6 +236,29 @@ class HarnessDB:
                 ),
             )
 
+    _ALLOWED_UPDATE_FIELDS: frozenset[str] = frozenset(
+        {
+            "name",
+            "title",
+            "status",
+            "area",
+            "priority",
+            "description",
+            "problems_identified",
+            "acceptance",
+            "files_to_touch",
+            "risk_assessment",
+            "completed_date",
+            "started_in_session",
+            "completed_in_session",
+            "dependencies",
+            "phase",
+            "fix",
+            "results",
+            "completion_notes",
+        }
+    )
+
     def update_feature_field(
         self,
         feature_id: int | str,
@@ -244,6 +267,8 @@ class HarnessDB:
         agent: str = "",
     ) -> bool:
         """Update a single field of a feature. Returns True if updated."""
+        if field_name not in self._ALLOWED_UPDATE_FIELDS:
+            raise ValueError(f"Field '{field_name}' not allowed for update (allowlist: {sorted(self._ALLOWED_UPDATE_FIELDS)})")
         normalized_id = self._nid(feature_id)
         feature = self.get_feature(normalized_id)
         if not feature:
