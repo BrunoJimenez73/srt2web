@@ -106,9 +106,10 @@ class HardwareMonitor:
             "gpu_available": False,
         }
 
-        # Métricas de CPU y RAM
+        # Métricas de CPU y RAM — fix: cpu_percent sin interval retorna 0 en primer call
+        # y adaptive nunca reduce workers. Usar interval 0.1 como en macOS path.
         try:
-            cpu_percent = psutil.cpu_percent()
+            cpu_percent = psutil.cpu_percent(interval=0.1)
             mem = psutil.virtual_memory()
 
             metrics["cpu_usage"] = cpu_percent

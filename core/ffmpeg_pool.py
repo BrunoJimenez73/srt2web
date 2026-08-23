@@ -67,9 +67,15 @@ class FFmpegPool:
             return False
 
         with self._lock:
-            self._active[job_id] = JobSlot(job_id=job_id)
+            if job_id in self._active:
+                logger.warning(f"FFmpegPool: duplicate job_id={job_id}, generating unique")
+                import uuid
 
-        logger.debug(f"FFmpegPool: slot acquired for job={job_id} (active={len(self._active)}/{self.max_size})")
+                job_id = f"{job_id}_{uuid.uuid4().hex[:6]}"
+            self._active[job_id] = JobSlot(job_id=job_id)
+            active = len(self._active)
+
+        logger.debug(f"FFmpegPool: slot acquired for job={job_id} (active={active}/{self.max_size})")
         return True
 
     def release(self, job_id: str) -> None:
@@ -80,13 +86,13 @@ class FFmpegPool:
                 return
             elapsed = time.time() - self._active[job_id].acquired_at
             del self._active[job_id]
-
+            active_after = len(self._active)
         self._semaphore.release()
         logger.debug(
             "FFmpegPool: slot released for job=%s (held %.1fs, active=%d/%d)",
             job_id,
             elapsed,
-            len(self._active),
+            active_after,
             self.max_size,
         )
 

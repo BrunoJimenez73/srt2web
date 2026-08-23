@@ -99,27 +99,33 @@ class ModelCache:
         """
         cache_key = f"{model_size}_{device}_{compute_type}"
 
+        # Fast path sin lock
         if cache_key in self._whisper_models:
             logger.debug(f"Using cached Whisper model: {cache_key}")
             return self._whisper_models[cache_key]
 
-        logger.info(f"Loading Whisper model: {cache_key}")
+        with self._lock:
+            # Double-checked locking — evita doble load en workers paralelos
+            if cache_key in self._whisper_models:
+                return self._whisper_models[cache_key]
 
-        from faster_whisper import WhisperModel
+            logger.info(f"Loading Whisper model: {cache_key}")
 
-        model = WhisperModel(
-            model_size,
-            device=device,
-            compute_type=compute_type,
-            cpu_threads=4,
-            download_root=str(self.whisper_cache_dir),
-            local_files_only=False,
-        )
+            from faster_whisper import WhisperModel
 
-        self._whisper_models[cache_key] = model
-        logger.info(f"Whisper model loaded: {cache_key}")
+            model = WhisperModel(
+                model_size,
+                device=device,
+                compute_type=compute_type,
+                cpu_threads=4,
+                download_root=str(self.whisper_cache_dir),
+                local_files_only=False,
+            )
 
-        return model
+            self._whisper_models[cache_key] = model
+            logger.info(f"Whisper model loaded: {cache_key}")
+
+            return model
 
     def preload_whisper(
         self,
