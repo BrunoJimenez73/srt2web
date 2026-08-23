@@ -395,7 +395,7 @@ export interface WSClientConfig {
 }
 
 const DEFAULT_WS_CONFIG: Required<WSClientConfig> = {
-  maxReconnectAttempts: 5,
+  maxReconnectAttempts: Number.POSITIVE_INFINITY,
   backoffBase: 1000,
   maxBackoff: 30000,
   jitter: 500,
@@ -440,6 +440,13 @@ export class WSClient {
       if (this.onOpenHandler) {
         this.onOpenHandler();
       }
+      // Reset backoff after 30s of stable connection — evita que
+      // flaps rapidos mantengan backoff bajo y spameen reconexiones
+      setTimeout(() => {
+        if (this.ws?.readyState === WebSocket.OPEN) {
+          this.reconnectAttempts = 0;
+        }
+      }, 30000);
     };
 
     this.ws.onmessage = (e: MessageEvent) => {
@@ -514,7 +521,6 @@ export class WSClient {
 
   close(): void {
     this._isManualClose = true;
-    this.reconnectAttempts = this.maxReconnectAttempts;
     this.ws?.close();
     this.ws = null;
   }

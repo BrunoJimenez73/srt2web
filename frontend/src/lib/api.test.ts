@@ -336,7 +336,7 @@ describe("WSClient - Basic Tests", () => {
   it("WSClient close prevents reconnect", () => {
     const client = new WSClient("ws://localhost:9999/ws/logs");
     client.close();
-    expect(client["reconnectAttempts"]).toBe(5); // Max attempts
+    expect(client["_isManualClose"]).toBe(true);
   });
 
   it("WSClient isConnected returns false when not connected", () => {
@@ -375,7 +375,7 @@ describe("WSClient - Exponential Backoff", () => {
 
   it("WSClient defaults to sensible values", () => {
     const client = new WSClient("ws://localhost:9999/ws");
-    expect(client["maxReconnectAttempts"]).toBe(5);
+    expect(client["maxReconnectAttempts"]).toBe(Number.POSITIVE_INFINITY);
     expect(client["backoffBase"]).toBe(1000);
     expect(client["maxBackoff"]).toBe(30000);
     expect(client["jitter"]).toBe(500);
