@@ -18,7 +18,10 @@ const POLL_INTERVALS = {
 
 const POST_START_DURATION_MS = 5000;
 
-let statusPollInterval: ReturnType<typeof setInterval> | null = null;
+let statusPollInterval:
+  | ReturnType<typeof setTimeout>
+  | ReturnType<typeof setInterval>
+  | null = null;
 let postStartMode = false;
 let postStartTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -49,16 +52,24 @@ function startPolling(): void {
           `Status fetch failed ${consecutiveErrors} times in a row`,
         );
       }
+    } finally {
+      // Recalcula intervalo en cada tick — corrige bug donde
+      // getPollInterval() solo se evaluaba al crear el interval y
+      // quedaba desfasado 7s tras transicion STOPPED(10s)->RUNNING(3s)
+      const nextMs = getPollInterval();
+      statusPollInterval = setTimeout(poll, nextMs) as unknown as ReturnType<
+        typeof setInterval
+      >;
     }
   };
 
   poll();
-  statusPollInterval = setInterval(poll, getPollInterval());
 }
 
 export function restartPolling(): void {
   if (statusPollInterval) {
-    clearInterval(statusPollInterval);
+    clearInterval(statusPollInterval as unknown as number);
+    clearTimeout(statusPollInterval as unknown as number);
     statusPollInterval = null;
   }
   startPolling();
@@ -83,7 +94,8 @@ export function exitPostStartMode(): void {
 
 export function stopStatusPolling(): void {
   if (statusPollInterval) {
-    clearInterval(statusPollInterval);
+    clearInterval(statusPollInterval as unknown as number);
+    clearTimeout(statusPollInterval as unknown as number);
     statusPollInterval = null;
   }
   if (postStartTimeout) {
