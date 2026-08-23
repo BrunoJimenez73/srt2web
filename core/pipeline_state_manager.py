@@ -144,15 +144,15 @@ class PipelineStateManager:
         if len(self._history) > 500:
             self._history = self._history[-250:]
 
-        # Trackear tiempos
+        # Trackear tiempos — fix uptime bug: antes comprobaba self._state == IDLE
+        # despues de haberlo seteado a target, por lo que RUNNING->ERROR
+        # nunca seteaba _stopped_at y uptime seguia creciendo.
         if target == PipelineState.RUNNING:
             self._started_at = time.time()
-        elif (
-            target in (PipelineState.IDLE, PipelineState.ERROR)
-            and self._state == PipelineState.IDLE
-            and self._started_at
-        ):
-            self._stopped_at = time.time()
+            self._stopped_at = None
+        elif target in (PipelineState.IDLE, PipelineState.ERROR) and self._started_at:
+            if self._stopped_at is None:
+                self._stopped_at = time.time()
 
         logger.info(f"Pipeline state: {old_state} -> {target.value}" + (f" ({reason})" if reason else ""))
 
