@@ -58,7 +58,7 @@ if exist "%PID_FILE%" (
 
     tasklist /FI "PID eq !SRT_PID!" 2>nul | findstr /I "python" >nul
     if !errorlevel! equ 0 (
-        echo [OK] Deteniendo servidor (PID: !SRT_PID!)
+        echo [OK] Deteniendo servidor ^(PID: !SRT_PID!^)
         taskkill /PID !SRT_PID! /F 2>nul
         if !errorlevel! equ 0 (
             echo [OK] Servidor detenido

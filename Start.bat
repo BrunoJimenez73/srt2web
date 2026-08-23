@@ -74,7 +74,7 @@ REM Wait briefly then capture PID of the process actually listening on the port
 powershell -NoProfile -Command "Start-Sleep -Milliseconds 2000; $c = Get-NetTCPConnection -LocalPort !PORT! -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1; if ($c) { $c.OwningProcess | Out-File -LiteralPath '%SCRIPT_DIR%srt2web.pid' -Encoding ascii }"
 if exist "%SCRIPT_DIR%srt2web.pid" (
     set /p SRT_PID=<"%SCRIPT_DIR%srt2web.pid"
-    echo [OK] Servidor iniciado (PID: !SRT_PID!).
+    echo [OK] Servidor iniciado ^(PID: !SRT_PID!^).
 )
 echo.
 echo ===============================================
