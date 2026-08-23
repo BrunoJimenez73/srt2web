@@ -48,7 +48,7 @@ class TestDefaultConfigSnapshot:
     def test_default_pipeline_section(self):
         """Pipeline defaults should match expected values."""
         pipeline = DEFAULT_CONFIG["pipeline"]
-        assert pipeline["chunk_duration_sec"] == 5
+        assert pipeline["chunk_duration_sec"] == 10
         assert pipeline["mode"] == "thread_parallel"
         assert pipeline["max_concurrent_chunks"] == 4
         assert pipeline["buffer_size"] == 10
@@ -63,14 +63,14 @@ class TestDefaultConfigSnapshot:
         assert input_cfg["srt"]["mode"] == "listener"
         assert input_cfg["srt"]["latency_ms"] == 200
         # SRT chunk_duration_syncs with pipeline.chunk_duration_sec via validation
-        assert input_cfg["srt"]["chunk_duration_sec"] == 5
+        assert input_cfg["srt"]["chunk_duration_sec"] == 10
 
     def test_default_output_section(self):
         """Output defaults should have web as default type."""
         output_cfg = DEFAULT_CONFIG["output"]
         assert output_cfg["type"] == "web"
-        assert output_cfg["web"]["segment_duration"] == 5
-        assert output_cfg["web"]["list_size"] == 12
+        assert output_cfg["web"]["segment_duration"] == 10
+        assert output_cfg["web"]["list_size"] == 6
         assert output_cfg["web"]["encoder_mode"] == "auto"
 
     def test_default_modules_section(self):

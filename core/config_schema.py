@@ -287,7 +287,7 @@ DEFAULT_BITRATE_LADDER: list[dict[str, Any]] = [
 class WebOutputConfig(BaseModel):
     """Configuración de salida Web (HLS)."""
 
-    segment_duration: int = Field(default=5, ge=1, le=30, description="Duración de segmento HLS en segundos")
+    segment_duration: int = Field(default=10, ge=1, le=30, description="Duración de segmento HLS en segundos")
     list_size: int = Field(
         default=12, ge=2, le=20, description="Número de segmentos en manifiesto (mínimo 2 para buffer estable)"
     )
@@ -457,7 +457,7 @@ class AdaptiveConfig(BaseModel):
 class PipelineConfig(BaseModel):
     """Configuración del pipeline."""
 
-    chunk_duration_sec: int = Field(default=5, ge=1, le=60, description="Duración de chunk en segundos")
+    chunk_duration_sec: int = Field(default=10, ge=1, le=60, description="Duración de chunk en segundos")
     mode: PipelineModeEnum = Field(
         default=PipelineModeEnum.THREAD_PARALLEL,
         description="Modo de operación del pipeline",
@@ -532,7 +532,7 @@ class SubtitleGeneratorConfig(BaseModel):
     format: SubtitleFormatEnum = Field(default=SubtitleFormatEnum.WEBVTT, description="Formato de subtítulos")
     use_translated: bool = Field(default=True, description="Usar texto traducido")
     chunk_duration: int = Field(
-        default=5,
+        default=10,
         ge=1,
         le=60,
         description="Duración de chunk de subtítulos en segundos",
@@ -569,7 +569,7 @@ class VideoMuxerConfig(BaseModel):
 
     enabled: bool = Field(default=True, description="Módulo habilitado")
     engine: Literal["hls", "webrtc"] = Field(default="hls", description="Motor de salida")
-    hls_segment_duration: int = Field(default=5, ge=1, le=30, description="Duración de segmento HLS en segundos")
+    hls_segment_duration: int = Field(default=10, ge=1, le=30, description="Duración de segmento HLS en segundos")
     hls_list_size: int = Field(default=12, ge=1, le=20, description="Número de segmentos en manifiesto")
     audio_offset_ms: int = Field(default=0, ge=-1000, le=1000, description="Offset de audio en ms")
     encoder_mode: EncoderModeEnum = Field(default=EncoderModeEnum.AUTO, description="Modo de encoder de video")

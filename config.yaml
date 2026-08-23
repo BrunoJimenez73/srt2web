@@ -14,24 +14,24 @@ input:
     mode: listener
     latency_ms: 200
     caller_address: ''
-    chunk_duration_sec: 5
+    chunk_duration_sec: 10
   rtmp:
     listen_port: 1935
     app: live
     stream_key: stream
     url: ''
     mode: listener
-    chunk_duration_sec: 5
+    chunk_duration_sec: 10
   file:
     path: ''
     loop: false
     speed: 1.0
-    chunk_duration_sec: 5
+    chunk_duration_sec: 10
 output:
   type: web
   web:
-    segment_duration: 5
-    list_size: 12
+    segment_duration: 10
+    list_size: 6
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
     bitrate_ladder:
@@ -48,8 +48,8 @@ output:
       height: 1080
       name: high
   hls:
-    segment_duration: 5
-    list_size: 12
+    segment_duration: 10
+    list_size: 6
     audio_offset_ms: 0
     encoder_mode: gpu_nvenc
     bitrate_ladder:
@@ -104,7 +104,7 @@ output:
     video_preset: fast
   outputs: []
 pipeline:
-  chunk_duration_sec: 5
+  chunk_duration_sec: 10
   mode: thread_parallel
   max_concurrent_chunks: 4
   buffer_size: 10
@@ -148,9 +148,9 @@ modules:
     enabled: true
     format: webvtt
     use_translated: true
-    chunk_duration: 5
+    chunk_duration: 10
     dual_track: false
-    hls_list_size: 12
+    hls_list_size: 6
   tts_engine:
     enabled: true
     engine: piper
@@ -164,8 +164,8 @@ modules:
   video_muxer:
     enabled: true
     engine: hls
-    hls_segment_duration: 5
-    hls_list_size: 12
+    hls_segment_duration: 10
+    hls_list_size: 6
     audio_offset_ms: 0
     encoder_mode: auto
     video_quality: medium
@@ -186,7 +186,7 @@ subtitle_sync:
   enable_drift_detection: true
   drift_history_size: 100
 pipeline_validation:
-  enabled: false
+  enabled: true
   fail_on_critical: true
   audio_extractor:
     enabled: true
