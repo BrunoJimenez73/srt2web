@@ -34,6 +34,16 @@ export function updateSecureState(): void {
 }
 
 /**
+ * Abre el panel de seguridad (usado cuando la API responde 401)
+ */
+export function openSecurityPanel(): void {
+  if (!panel || !arrow) return;
+  panel.classList.remove("hidden");
+  arrow.classList.add("open");
+  updateSecureState();
+}
+
+/**
  * Alterna la visibilidad del panel de seguridad
  */
 function togglePanel(): void {

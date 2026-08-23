@@ -934,3 +934,11 @@ Auditoría técnica del repo completa (tests/unit 1599P+40F, tests/cli 78P+25F, 
 - **Verificación**: 69/69 (test_f108 +test_subtitle_generator 52 = 46 + 4 re-sync + 2 callback HLSOutput; test_f183_f187 17 intacto); smoke test de `create_app_context` en vivo: "WIRING OK wired callback on web_1"; mypy 0 errores; ruff 0 errores.
 
 ---
+
+### 24/08 — Tema oscuro default + subtítulos: root cause join-relative timelines (F204)
+
+- **Tema**: dark por defecto (dashboard.ts ignora prefers-color-scheme).
+- **Subtítulos saltados — root cause real encontrado con instrumentación live (activeCues sampler)**: la timeline de HLS.js es **relativa al momento de join** del cliente; los cues con timestamps absolutos server-clock nunca cuadran para clientes que se unen tarde. Además, DISCONTINUITY-por-fragmento SIN mapeo hacía que hls.js estimara vttCCOffset mal.
+- **Fix**: cabecera X-TIMESTAMP-MAP=MPEGTS:136800,LOCAL:00:00:00.000 en cada VTT (PTS interno del muxer medido constante 1.52s vía get_first_packet_pts; OJO separador coma — con ':' hls.js descarta TODAS las cues), cues media-relative, DISCONTINUITY mantenido, liveSyncDuration 25→12.
+- **Verificación live**: sampler activeCues 0/103 → frases visibles sincronizadas (4 frases/60s en posiciones correctas). 53 tests f108+subtitle_generator, mypy strict, ruff OK.
+- **Otros**: browser auto-open normalizado a localhost (localStorage por-origen); 401 init abre panel seguridad con guía; assets PWA públicos; CSRF solo sin Bearer; player-feedback WS 403 queda pendiente.

@@ -252,6 +252,21 @@ describe("apiCall", () => {
     expect(headers.get("X-CSRF-Token")).toBe("test-csrf");
   });
 
+  it("skips CSRF fetch on POST when Bearer token is present", async () => {
+    setAuthToken("bearer-token");
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ status: "started" }), { status: 200 }),
+    );
+
+    await apiCall("POST", "/api/start", {});
+
+    // Solo la llamada POST — sin petición previa a /api/auth/csrf-token
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const headers = new Headers(fetchMock.mock.calls[0][1]?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer bearer-token");
+    expect(headers.get("X-CSRF-Token")).toBeNull();
+  });
+
   it("strips leading slashes from path", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({}), { status: 200 }),

@@ -55,7 +55,11 @@ def open_browser_on_startup(host: str, port: int, ssl_enabled: bool = False) -> 
         import time
 
         time.sleep(1.5)
-        url = f"http{'s' if ssl_enabled else ''}://{host}:{port}"
+        # localhost y 127.0.0.1 son ORIGENES distintos para localStorage
+        # (token del dashboard, tema, idioma). Normalizar cualquier bind
+        # loopback a localhost para que la sesion siempre viva en la misma URL.
+        display_host = "localhost" if host in ("0.0.0.0", "::", "::1", "127.0.0.1") else host
+        url = f"http{'s' if ssl_enabled else ''}://{display_host}:{port}"
         logger.info(f"Opening browser: {url}")
         webbrowser.open(url)
 

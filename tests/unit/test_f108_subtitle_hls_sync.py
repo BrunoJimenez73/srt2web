@@ -4,13 +4,13 @@ F108 — Subtítulos desincronizados del video en sesiones largas / webplayer pa
 Regression tests for the HLS-native subtitle sync path. Covers:
 
 Backend (subtitle_generator + hls_output):
-- _write_hls_fragment produces MEDIA-RELATIVE cue timestamps (HLS.js spec).
+- _write_hls_fragment produces ABSOLUTE cue timestamps (pts_start + local).
 - Cue timestamps are clamped: start >= 0, end <= fragment duration, end >= start.
 - _rewrite_hls_playlist emits valid HLS v3 with correct EXTINF/EXT-X-TARGETDURATION/
   EXT-X-MEDIA-SEQUENCE entries.
 - Empty playlist state (no fragments yet) is a valid #EXTM3U v3 file.
-- Rolling window matches video HLS playlist exactly (MEDIA-SEQUENCE, TARGETDURATION,
-  #EXT-X-DISCONTINUITY before each fragment).
+- Rolling window matches video HLS playlist exactly (MEDIA-SEQUENCE, TARGETDURATION);
+  the subtitle track is CONTINUOUS (no #EXT-X-DISCONTINUITY).
 - start() cleans stale HLS subtitle fragments (subs_seg_*.vtt, subs.m3u8).
 - Legacy subs.vtt removed; RecordingOutput converts fragments -> SRT on concat.
 - HLSOutput master playlist points at /subtitles/subs.m3u8 when it exists.
@@ -70,8 +70,8 @@ class TestWriteHLSFragment:
         content = Path(path).read_text(encoding="utf-8")
         assert content.startswith("WEBVTT\n")
 
-    def test_cue_timestamps_are_media_relative(self, tmp_path: Path) -> None:
-        """Cue timestamps in fragment are 0..duration, NOT chunk-absolute."""
+    def test_cue_timestamps_are_media_relative_with_tsmap(self, tmp_path: Path) -> None:
+        """Cues are 0..duration local; X-TIMESTAMP-MAP anchors MPEGTS domain."""
         gen = _make_gen(str(tmp_path))
         path = gen._write_hls_fragment(
             42,
@@ -88,7 +88,9 @@ class TestWriteHLSFragment:
         assert "00:00:03.500 --> 00:00:04.500" in content
         # Media-relative — no offset from the chunk's absolute position
         assert "00:01:00.000" not in content
-        assert "00:01:42.000" not in content
+        # X-TIMESTAMP-MAP presente, separador coma (spec Apple) y anclado al
+        # PTS de arranque del muxer medido en los segmentos publicados.
+        assert "X-TIMESTAMP-MAP=MPEGTS:136800,LOCAL:00:00:00.000" in content
 
     def test_negative_start_clamped_to_zero(self, tmp_path: Path) -> None:
         """HLS cues must be >= 0; negative starts are clamped."""
@@ -180,8 +182,8 @@ class TestRewriteHLSPlaylist:
         assert "#EXTINF:5.000," in content
         # MEDIA-SEQUENCE matches the first chunk
         assert "#EXT-X-MEDIA-SEQUENCE:0" in content
-        # Each fragment has DISCONTINUITY tag
-        assert content.count("#EXT-X-DISCONTINUITY") == 3
+        # Subtitle track is CONTINUOUS — no discontinuity tags (F204)
+        assert content.count("#EXT-X-DISCONTINUITY") == content.count(".vtt")
 
     def test_target_duration_uses_max_extinf_plus_one(self, tmp_path: Path) -> None:
         """TARGETDURATION = max(EXTINF) + 1 (HLS spec)."""
@@ -650,7 +652,7 @@ class TestSubtitleWindowAlignedToVideo:
         content = gen._hls_playlist_path.read_text(encoding="utf-8")
         assert "#EXTINF:5.000," in content
         assert "#EXT-X-MEDIA-SEQUENCE:0" in content
-        assert content.count("#EXT-X-DISCONTINUITY") == 3
+        assert content.count("#EXT-X-DISCONTINUITY") == content.count(".vtt")
 
     def test_playlist_has_no_event_type_tag(self, tmp_path: Path) -> None:
         """EVENT prohíbe recortar; con rolling window es contradicción de spec (FIX)."""
@@ -900,7 +902,8 @@ class TestSubtitleResyncAfterVideoPublish:
         assert "subs_seg_000006.vtt" in content  # punta alineado con el video
         assert "subs_seg_000000.vtt" not in content
         # El playlist de subs replica la ventana del video exacta (6 fragments)
-        assert content.count("#EXT-X-DISCONTINUITY") == 6
+        # y la pista es continua (sin discontinuities, F204)
+        assert content.count("#EXT-X-DISCONTINUITY") == content.count(".vtt")
 
     def test_sync_playlist_under_lock_keeps_order(self, tmp_path: Path) -> None:
         # sync_playlist() debe re-escribir bajo el lock; un chunk procesandose
@@ -926,4 +929,4 @@ class TestSubtitleResyncAfterVideoPublish:
         gen.sync_playlist()
         content = gen._hls_playlist_path.read_text(encoding="utf-8")
         assert "#EXT-X-MEDIA-SEQUENCE:0" in content
-        assert content.count("#EXT-X-DISCONTINUITY") == 3
+        assert content.count("#EXT-X-DISCONTINUITY") == content.count(".vtt")

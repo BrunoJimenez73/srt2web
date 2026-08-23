@@ -32,18 +32,12 @@ import { initLanguage } from "./i18n";
 import { currentLanguage, currentTheme } from "./store/signals";
 currentLanguage.value = initLanguage();
 
-// Initialize theme
+// Initialize theme — dark por defecto salvo preferencia guardada
 const storedTheme =
   typeof window !== "undefined" ? localStorage.getItem("srt2web_theme") : null;
 if (storedTheme === "light" || storedTheme === "dark") {
   currentTheme.value = storedTheme;
   document.documentElement.classList.toggle("dark", storedTheme === "dark");
-} else if (
-  typeof window !== "undefined" &&
-  window.matchMedia("(prefers-color-scheme: light)").matches
-) {
-  currentTheme.value = "light";
-  document.documentElement.classList.remove("dark");
 } else {
   currentTheme.value = "dark";
   document.documentElement.classList.add("dark");

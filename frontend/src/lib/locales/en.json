@@ -17,6 +17,8 @@
   "loading": "Cargando...",
   "success": "Éxito",
   "init_error": "Error de inicialización",
+  "auth_required": "🔐 Token requerido: pega tu AUTH_TOKEN en el panel de seguridad y pulsa Guardar, luego recarga",
+  "auth_required_log": "401 en la API — falta el token de autenticación. Panel de seguridad abierto: pega el token (AUTH_TOKEN del .env) y guarda",
   "url_copied": "URL copiada",
   "url_copy_error": "Error al copiar URL",
   "presets_load_error": "Error al cargar presets",

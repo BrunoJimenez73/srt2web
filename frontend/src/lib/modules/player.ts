@@ -397,7 +397,10 @@ export function initHlsPlayer(): void {
         maxBufferLength: 120,
         maxMaxBufferLength: 240,
         liveSyncMaxLatency: 30,
-        liveSyncDuration: 25,
+        // ~1 segmento tras el borde: si el player va muy por detrás,
+        // el loader de subtítulos (que ronda el edge) entrega cues de
+        // posiciones futuras y las frases se "saltan" al pasar el playhead.
+        liveSyncDuration: 12,
         liveDurationInfinity: true,
         highBufferWatchdogPeriod: 2,
         enableCEA708Captions: false,

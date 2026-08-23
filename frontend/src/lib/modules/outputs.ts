@@ -6,7 +6,7 @@
  */
 
 import { signal } from "@preact/signals-core";
-import { apiCall, type OutputStatus } from "../api";
+import { apiCall, ApiError, type OutputStatus } from "../api";
 import { showToast } from "./toast";
 import { logger } from "../utils/logger";
 
@@ -22,7 +22,13 @@ export async function fetchOutputs(): Promise<OutputStatus[]> {
     outputsSignal.value = response.outputs || [];
     return outputsSignal.value;
   } catch (e) {
-    logger.error("outputs", "Failed to fetch outputs", e);
+    // 401: el dashboard ya abre el panel de seguridad y avisa al usuario —
+    // evitar toast repetitivo en cada ciclo de polling.
+    if (e instanceof ApiError && e.status === 401) {
+      logger.warn("outputs", "outputs fetch skipped: not authenticated");
+    } else {
+      logger.error("outputs", "Failed to fetch outputs", e);
+    }
     return [];
   }
 }

@@ -640,12 +640,23 @@ describe.skip("effects - Module Metrics", () => {
 
 describe("effects - WS Status Badge", () => {
   let container: HTMLDivElement;
+  let badge: HTMLDivElement;
+  let label: HTMLSpanElement;
 
   beforeEach(async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
 
-    createMockEl("ws-status-badge", "span", container);
+    // Estructura real de layout/Header.astro
+    badge = document.createElement("div");
+    badge.id = "ws-status";
+    badge.className = "ws-status disconnected";
+    label = document.createElement("span");
+    label.className = "ws-status-label";
+    label.textContent = "WS OFF";
+    badge.appendChild(label);
+    container.appendChild(badge);
+
     createMockEl("status-dot", "span", container);
     createMockEl("status-text", "span", container);
     createMockEl("btn-start", "button", container);
@@ -686,9 +697,9 @@ describe("effects - WS Status Badge", () => {
     wsConnected.value = false;
     await new Promise((r) => setTimeout(r, 50));
 
-    const badge = document.getElementById("ws-status-badge") as HTMLSpanElement;
-    expect(badge.textContent).toBe("WS OFF");
-    expect(badge.classList.contains("active")).toBe(false);
+    expect(label.textContent).toBe("WS OFF");
+    expect(badge.classList.contains("connected")).toBe(false);
+    expect(badge.classList.contains("disconnected")).toBe(true);
   });
 
   it("WS badge shows ON when connected", async () => {
@@ -696,9 +707,9 @@ describe("effects - WS Status Badge", () => {
     wsConnected.value = true;
     await new Promise((r) => setTimeout(r, 50));
 
-    const badge = document.getElementById("ws-status-badge") as HTMLSpanElement;
-    expect(badge.textContent).toBe("WS ON");
-    expect(badge.classList.contains("active")).toBe(true);
+    expect(label.textContent).toBe("WS ON");
+    expect(badge.classList.contains("connected")).toBe(true);
+    expect(badge.classList.contains("disconnected")).toBe(false);
   });
 });
 

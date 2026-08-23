@@ -51,6 +51,12 @@ _PUBLIC_PATHS: frozenset[str] = frozenset(
         "/hls/",
         "/subtitles/",
         "/ws/logs",
+        # PWA/browser-native assets: el navegador los pide sin cabecera
+        # Authorization (manifest, favicon, service worker) — ver F204.
+        "/manifest.json",
+        "/favicon.svg",
+        "/favicon.ico",
+        "/service-worker.js",
     }
 )
 
@@ -61,6 +67,7 @@ _PUBLIC_PREFIXES: tuple[str, ...] = (
     "/hls/",
     "/subtitles/",
     "/api/docs",
+    "/icons/",
 )
 
 

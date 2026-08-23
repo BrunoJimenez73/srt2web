@@ -13,11 +13,23 @@ class FragmentWriter:
     """
     Writes HLS subtitle fragments and manages the media playlist.
 
-    Each fragment contains cues with media-relative timestamps (0 to duration).
-    The playlist uses #EXT-X-DISCONTINUITY before each fragment to match
-    the video HLS segments where FFmpeg resets PTS to ~0 per segment.
-    MEDIA-SEQUENCE and rolling window match the video HLS playlist exactly.
+    Each fragment carries cues with MEDIA-RELATIVE timestamps (0..duration)
+    plus the HLS-spec ``X-TIMESTAMP-MAP`` header anchoring local time zero to
+    the video segments' internal MPEGTS start. HLS.js parses each published
+    video segment's real PTS, so this mapping yields exact cue placement no
+    matter when the client joined the live stream (join-relative timelines!).
+
+    History: absolute server-clock cues failed because HLS.js client
+    timelines start at 0 on join; per-fragment #EXT-X-DISCONTINUITY without
+    a mapping made HLS.js estimate vttCCOffset wrongly and skip phrases.
+    The playlist itself stays CONTINUOUS (no discontinuity tags);
+    MEDIA-SEQUENCE and rolling window still mirror the video playlist.
     """
+
+    # FFmpeg's mpegts muxer starts every independently-encoded chunk at the
+    # same PTS. Measured on live output (get_first_packet_pts across many
+    # consecutive seg_*.ts): 1.52s -> 1.52 * 90000 = 136800 ticks.
+    MPEGTS_START_TICKS: int = 136_800
 
     def __init__(
         self,
@@ -107,13 +119,15 @@ class FragmentWriter:
         pts_start: float = 0.0,
     ) -> str:
         """
-        Write a per-chunk HLS subtitle fragment with MEDIA-RELATIVE timestamps.
+        Write a per-chunk HLS subtitle fragment with ABSOLUTE cue timestamps.
 
         Args:
             chunk_index: Sequential chunk index
             segments: List of segment dicts with 'start', 'end', 'text'
             duration: Fragment duration in seconds
-            pts_start: PTS timestamp from ChunkClock (cumulative_duration)
+            pts_start: Absolute stream position of this chunk (ChunkClock
+                cumulative_duration). Cue times = pts_start + local offset,
+                keeping the subtitle track continuous across fragments.
 
         Returns:
             Absolute path of written fragment, or empty string on failure.
@@ -123,18 +137,22 @@ class FragmentWriter:
 
         try:
             with open(fragment_path, "w", encoding="utf-8") as f:
-                f.write("WEBVTT\n\n")
+                f.write("WEBVTT\n")
+                # OJO separador coma (sintaxis Apple/HLS); con ':' hls.js no
+                # parsea el mapa y descarta TODAS las cues del fragmento.
+                f.write(f"X-TIMESTAMP-MAP=MPEGTS:{self.MPEGTS_START_TICKS},LOCAL:00:00:00.000\n\n")
                 cue_index = 0
                 for seg in segments:
                     rel_start = max(0.0, float(seg.get("start", 0.0)))
                     rel_end = float(seg.get("end", duration))
                     rel_end = min(max(rel_end, rel_start), duration)
+                    # MEDIA-RELATIVE timestamps; X-TIMESTAMP-MAP above ties
+                    # local zero to the video segment's MPEGTS domain.
+                    start_str = format_timestamp(rel_start, "vtt")
+                    end_str = format_timestamp(rel_end, "vtt")
                     clean_text = seg.get("text", "").replace("\n", " ").strip()
                     if not clean_text:
                         continue
-                    # MEDIA-RELATIVE timestamps (0 to duration)
-                    start_str = format_timestamp(rel_start, "vtt")
-                    end_str = format_timestamp(rel_end, "vtt")
                     cue_index += 1
                     f.write(f"{cue_index}\n")
                     f.write(f"{start_str} --> {end_str}\n")
@@ -148,8 +166,10 @@ class FragmentWriter:
     def rewrite_playlist(self) -> None:
         """
         Write the HLS subtitle media playlist (subs.m3u8) with rolling window
-        matching the video HLS playlist. Uses #EXT-X-DISCONTINUITY before each
-        fragment. MEDIA-SEQUENCE matches the first fragment's chunk_index. Atomic write.
+        matching the video HLS playlist. The track is CONTINUOUS: no
+        #EXT-X-DISCONTINUITY (cues carry absolute timestamps, see
+        write_fragment). MEDIA-SEQUENCE matches the first fragment's
+        chunk_index. Atomic write.
 
         FIX-2026-08: this playlist must *never* run ahead of the video. The
         writer consumes chunks before HLSOutput does (it sits earlier in the
@@ -247,6 +267,10 @@ class FragmentWriter:
                 for frag in frags:
                     frag_chunk_index = frag["chunk_index"]
                     f.write(f"#EXTINF:{_extinf_duration(frag):.3f},\n")
+                    # Cada chunk sale de un encode FFmpeg independiente
+                    # (PTS reiniciados) igual que el video: marcar la
+                    # discontinuidad. Con X-TIMESTAMP-MAP en cada VTT,
+                    # HLS.js fija el offset por región sin estimaciones.
                     f.write("#EXT-X-DISCONTINUITY\n")
                     f.write(f"subs_seg_{frag_chunk_index:06d}.vtt\n")
             atomic_replace(tmp_path, self._playlist_path)

@@ -129,15 +129,20 @@ function startThroughputEffect(): (() => void) | void {
 
 function startWsBadgeEffect(): (() => void) | void {
   return effect(() => {
-    const badge = el<HTMLSpanElement>("ws-status-badge");
+    // layout/Header.astro: contenedor #ws-status con clases
+    // connected/disconnected (ver .ws-status en globals.css) y label interno.
+    const badge = el<HTMLDivElement>("ws-status");
     if (!badge) return;
+    const label = badge.querySelector<HTMLSpanElement>(".ws-status-label");
 
     if (wsConnected.value) {
-      badge.textContent = t("ws_on");
-      badge.classList.add("active");
+      badge.classList.add("connected");
+      badge.classList.remove("disconnected");
+      if (label) label.textContent = t("ws_on");
     } else {
-      badge.textContent = t("ws_off");
-      badge.classList.remove("active");
+      badge.classList.remove("connected");
+      badge.classList.add("disconnected");
+      if (label) label.textContent = t("ws_off");
     }
   });
 }

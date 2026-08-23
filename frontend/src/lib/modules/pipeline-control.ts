@@ -49,10 +49,12 @@ import {
   startPipeline,
   stopPipeline,
   toggleModule,
+  ApiError,
 } from "../api";
 import { copyToClipboard } from "../utils";
 import { showToast } from "./toast";
 import { showConfirm } from "./confirm-modal";
+import { openSecurityPanel } from "./header";
 import { t } from "../i18n";
 import { connectionMode, emitterAddress } from "../store/signals";
 import {
@@ -307,7 +309,14 @@ export async function initDashboard(): Promise<void> {
 
     addLog("INFO", t("success"));
   } catch (e) {
-    addLog("ERROR", `${t("init_error")}: ${(e as Error).message}`);
+    if (e instanceof ApiError && e.status === 401) {
+      // Sin token valido: guiar al usuario en vez del generico init_error
+      addLog("WARNING", t("auth_required_log"));
+      showToast(t("auth_required"), "error", 10000);
+      openSecurityPanel();
+    } else {
+      addLog("ERROR", `${t("init_error")}: ${(e as Error).message}`);
+    }
   }
 }
 

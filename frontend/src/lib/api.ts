@@ -183,8 +183,13 @@ export async function fetchWithAuth(
 
   const method = (options.method ?? "GET").toUpperCase();
   if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
-    const csrf = await ensureCsrfToken();
-    if (csrf) headers.set("X-CSRF-Token", csrf);
+    // CsrfMiddleware exime de CSRF a peticiones con header Authorization
+    // (client programmatic). Solo pedir token en modo sin Bearer — evita
+    // 401 ruidosos contra /api/auth/csrf-token (que exige JWT multi-user).
+    if (!token) {
+      const csrf = await ensureCsrfToken();
+      if (csrf) headers.set("X-CSRF-Token", csrf);
+    }
   }
 
   const controller = new AbortController();
