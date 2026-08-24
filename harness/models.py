@@ -215,18 +215,62 @@ class Progress:
     created_at: str = ""
     updated_at: str = ""
 
-    @classmethod
-    def from_row(cls, row: Any) -> Progress:
-        return cls(
-            id=row["id"],
-            date=row["date"],
-            title=row["title"],
-            session_notes=row["session_notes"] or "",
-            features_worked=json.loads(row["features_worked"] or "[]"),
-            files_changed=json.loads(row["files_changed"] or "[]"),
-            verification=json.loads(row["verification"] or "{}"),
-            content_md=row["content_md"] or "",
-            is_current=bool(row["is_current"]),
-            created_at=row["created_at"] or "",
-            updated_at=row["updated_at"] or "",
-        )
+
+# ── Agent System Models ──────────────────────────────────────────────
+
+
+@dataclass
+class Agent:
+    """Base agent configuration."""
+
+    name: str  # tester, builder, verifier
+    role: str
+    description: str = ""
+    config: dict[str, Any] = field(default_factory=dict)
+    status: str = "idle"  # idle, working, waiting_feedback, blocked
+    current_task_id: str | None = None
+    created_at: str = ""
+    updated_at: str = ""
+
+    @property
+    def is_active(self) -> bool:
+        return self.status in ("working", "waiting_feedback")
+
+
+@dataclass
+class AgentTask:
+    """A task assigned to an agent."""
+
+    id: str  # UUID
+    feature_id: str
+    agent_name: str  # which agent should handle this
+    type: str  # test, implement, verify, feedback
+    description: str
+    input_data: dict[str, Any] = field(default_factory=dict)
+    output_data: dict[str, Any] = field(default_factory=dict)
+    status: str = "pending"  # pending, in_progress, completed, failed, feedback_received
+    iterations: int = 0
+    max_iterations: int = 5
+    created_at: str = ""
+    updated_at: str = ""
+    completed_at: str = ""
+
+    @property
+    def can_retry(self) -> bool:
+        return self.iterations < self.max_iterations and self.status in ("failed", "feedback_received")
+
+
+@dataclass
+class AgentFeedback:
+    """Feedback from verifier to builder."""
+
+    task_id: str
+    approved: bool
+    comments: str = ""
+    issues: list[str] = field(default_factory=list)
+    suggestions: list[str] = field(default_factory=list)
+    created_at: str = ""
+
+    @property
+    def needs_rework(self) -> bool:
+        return not self.approved

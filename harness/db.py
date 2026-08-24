@@ -5,13 +5,14 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+import sys
 from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from .models import AuditEntry, Feature, Progress, Session, normalize_id
+from .models import Agent, AgentFeedback, AgentTask, AuditEntry, Feature, Progress, Session, normalize_id
 
 logger = logging.getLogger("srt2web.harness.db")
 
@@ -85,6 +86,50 @@ CREATE TABLE IF NOT EXISTS progress (
 
 CREATE INDEX IF NOT EXISTS idx_progress_date ON progress(date);
 CREATE INDEX IF NOT EXISTS idx_progress_current ON progress(is_current);
+
+-- Agent System Tables
+CREATE TABLE IF NOT EXISTS agents (
+    name        TEXT PRIMARY KEY,
+    role        TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    config      TEXT DEFAULT '{}',
+    status      TEXT DEFAULT 'idle',
+    current_task_id TEXT DEFAULT '',
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS agent_tasks (
+    id              TEXT PRIMARY KEY,
+    feature_id      TEXT NOT NULL,
+    agent_name      TEXT NOT NULL,
+    type            TEXT NOT NULL,
+    description     TEXT NOT NULL,
+    input_data      TEXT DEFAULT '{}',
+    output_data     TEXT DEFAULT '{}',
+    status          TEXT DEFAULT 'pending',
+    iterations      INTEGER DEFAULT 0,
+    max_iterations  INTEGER DEFAULT 5,
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL,
+    completed_at    TEXT DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_feature ON agent_tasks(feature_id);
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_agent ON agent_tasks(agent_name);
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_status ON agent_tasks(status);
+
+CREATE TABLE IF NOT EXISTS agent_feedback (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id         TEXT NOT NULL,
+    approved        INTEGER NOT NULL,
+    comments        TEXT DEFAULT '',
+    issues          TEXT DEFAULT '[]',
+    suggestions     TEXT DEFAULT '[]',
+    created_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_feedback_task ON agent_feedback(task_id);
 """
 
 
@@ -268,7 +313,9 @@ class HarnessDB:
     ) -> bool:
         """Update a single field of a feature. Returns True if updated."""
         if field_name not in self._ALLOWED_UPDATE_FIELDS:
-            raise ValueError(f"Field '{field_name}' not allowed for update (allowlist: {sorted(self._ALLOWED_UPDATE_FIELDS)})")
+            raise ValueError(
+                f"Field '{field_name}' not allowed for update (allowlist: {sorted(self._ALLOWED_UPDATE_FIELDS)})"
+            )
         normalized_id = self._nid(feature_id)
         feature = self.get_feature(normalized_id)
         if not feature:
@@ -612,3 +659,652 @@ class HarnessDB:
             },
             "features": [f.to_dict() for f in features],
         }
+
+    # ── Agent System ────────────────────────────────────────────────────
+
+    def init_default_agents(self) -> None:
+        """Initialize the three default agents: tester, builder, verifier."""
+        agents = [
+            Agent(
+                name="tester",
+                role="tester",
+                description="Tests the program, finds bugs, suggests improvements, reports failures",
+                config={"test_commands": ["pytest tests/unit/", "npm test"], "auto_run": True},
+                status="idle",
+                created_at=_now(),
+                updated_at=_now(),
+            ),
+            Agent(
+                name="builder",
+                role="builder",
+                description="Implements improvements and fixes based on tester reports",
+                config={"auto_apply": False, "require_verification": True},
+                status="idle",
+                created_at=_now(),
+                updated_at=_now(),
+            ),
+            Agent(
+                name="verifier",
+                role="verifier",
+                description="Verifies builder implementations, approves or sends feedback for rework",
+                config={"strict_mode": True, "require_tests_pass": True},
+                status="idle",
+                created_at=_now(),
+                updated_at=_now(),
+            ),
+        ]
+        for agent in agents:
+            self.upsert_agent(agent)
+
+    def upsert_agent(self, agent: Agent) -> None:
+        """Insert or update an agent."""
+        now = _now()
+        with self.transaction() as conn:
+            conn.execute(
+                """INSERT INTO agents (name, role, description, config, status, current_task_id, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(name) DO UPDATE SET
+                    role=excluded.role, description=excluded.description,
+                    config=excluded.config, status=excluded.status,
+                    current_task_id=excluded.current_task_id, updated_at=excluded.updated_at""",
+                (
+                    agent.name,
+                    agent.role,
+                    agent.description,
+                    json.dumps(agent.config, ensure_ascii=False),
+                    agent.status,
+                    agent.current_task_id or "",
+                    agent.created_at,
+                    now,
+                ),
+            )
+
+    def get_agent(self, name: str) -> Agent | None:
+        """Get an agent by name."""
+        conn = self.connect()
+        row = conn.execute("SELECT * FROM agents WHERE name = ?", (name,)).fetchone()
+        if not row:
+            return None
+        return Agent(
+            name=row["name"],
+            role=row["role"],
+            description=row["description"] or "",
+            config=json.loads(row["config"] or "{}"),
+            status=row["status"] or "idle",
+            current_task_id=row["current_task_id"] or None,
+            created_at=row["created_at"] or "",
+            updated_at=row["updated_at"] or "",
+        )
+
+    def list_agents(self) -> list[Agent]:
+        """List all agents."""
+        conn = self.connect()
+        rows = conn.execute("SELECT * FROM agents ORDER BY name").fetchall()
+        return [
+            Agent(
+                name=row["name"],
+                role=row["role"],
+                description=row["description"] or "",
+                config=json.loads(row["config"] or "{}"),
+                status=row["status"] or "idle",
+                current_task_id=row["current_task_id"] or None,
+                created_at=row["created_at"] or "",
+                updated_at=row["updated_at"] or "",
+            )
+            for row in rows
+        ]
+
+    def update_agent_status(self, name: str, status: str, current_task_id: str | None = None) -> bool:
+        """Update an agent's status and optionally current task."""
+        now = _now()
+        with self.transaction() as conn:
+            if current_task_id is not None:
+                conn.execute(
+                    "UPDATE agents SET status = ?, current_task_id = ?, updated_at = ? WHERE name = ?",
+                    (status, current_task_id, now, name),
+                )
+            else:
+                conn.execute(
+                    "UPDATE agents SET status = ?, updated_at = ? WHERE name = ?",
+                    (status, now, name),
+                )
+        return True
+
+    def create_agent_task(
+        self,
+        feature_id: str,
+        agent_name: str,
+        task_type: str,
+        description: str,
+        input_data: dict[str, Any] | None = None,
+        max_iterations: int = 5,
+    ) -> AgentTask:
+        """Create a new task for an agent."""
+        import uuid
+
+        task = AgentTask(
+            id=str(uuid.uuid4())[:8],
+            feature_id=self._nid(feature_id),
+            agent_name=agent_name,
+            type=task_type,
+            description=description,
+            input_data=input_data or {},
+            max_iterations=max_iterations,
+            created_at=_now(),
+            updated_at=_now(),
+        )
+        with self.transaction() as conn:
+            conn.execute(
+                """INSERT INTO agent_tasks (id, feature_id, agent_name, type, description,
+                       input_data, output_data, status, iterations, max_iterations, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    task.id,
+                    task.feature_id,
+                    task.agent_name,
+                    task.type,
+                    task.description,
+                    json.dumps(task.input_data, ensure_ascii=False),
+                    json.dumps(task.output_data, ensure_ascii=False),
+                    task.status,
+                    task.iterations,
+                    task.max_iterations,
+                    task.created_at,
+                    task.updated_at,
+                ),
+            )
+        return task
+
+    def get_agent_task(self, task_id: str) -> AgentTask | None:
+        """Get a task by ID."""
+        conn = self.connect()
+        row = conn.execute("SELECT * FROM agent_tasks WHERE id = ?", (task_id,)).fetchone()
+        if not row:
+            return None
+        return AgentTask(
+            id=row["id"],
+            feature_id=row["feature_id"],
+            agent_name=row["agent_name"],
+            type=row["type"],
+            description=row["description"],
+            input_data=json.loads(row["input_data"] or "{}"),
+            output_data=json.loads(row["output_data"] or "{}"),
+            status=row["status"] or "pending",
+            iterations=row["iterations"] or 0,
+            max_iterations=row["max_iterations"] or 5,
+            created_at=row["created_at"] or "",
+            updated_at=row["updated_at"] or "",
+            completed_at=row["completed_at"] or "",
+        )
+
+    def list_agent_tasks(
+        self,
+        feature_id: str | None = None,
+        agent_name: str | None = None,
+        status: str | None = None,
+    ) -> list[AgentTask]:
+        """List tasks with optional filters."""
+        conn = self.connect()
+        query = "SELECT * FROM agent_tasks WHERE 1=1"
+        params: list[Any] = []
+        if feature_id:
+            query += " AND feature_id = ?"
+            params.append(self._nid(feature_id))
+        if agent_name:
+            query += " AND agent_name = ?"
+            params.append(agent_name)
+        if status:
+            query += " AND status = ?"
+            params.append(status)
+        query += " ORDER BY created_at DESC"
+        rows = conn.execute(query, params).fetchall()
+        return [
+            AgentTask(
+                id=row["id"],
+                feature_id=row["feature_id"],
+                agent_name=row["agent_name"],
+                type=row["type"],
+                description=row["description"],
+                input_data=json.loads(row["input_data"] or "{}"),
+                output_data=json.loads(row["output_data"] or "{}"),
+                status=row["status"] or "pending",
+                iterations=row["iterations"] or 0,
+                max_iterations=row["max_iterations"] or 5,
+                created_at=row["created_at"] or "",
+                updated_at=row["updated_at"] or "",
+                completed_at=row["completed_at"] or "",
+            )
+            for row in rows
+        ]
+
+    def update_agent_task(
+        self,
+        task_id: str,
+        status: str | None = None,
+        output_data: dict[str, Any] | None = None,
+        iterations: int | None = None,
+        input_data: dict[str, Any] | None = None,
+    ) -> bool:
+        """Update a task's status, input/output data, or iterations."""
+        now = _now()
+        updates = []
+        params: list[Any] = []
+        if status is not None:
+            updates.append("status = ?")
+            params.append(status)
+        if output_data is not None:
+            updates.append("output_data = ?")
+            params.append(json.dumps(output_data, ensure_ascii=False))
+        if input_data is not None:
+            updates.append("input_data = ?")
+            params.append(json.dumps(input_data, ensure_ascii=False))
+        if iterations is not None:
+            updates.append("iterations = ?")
+            params.append(iterations)
+        updates.append("updated_at = ?")
+        params.append(now)
+        params.append(task_id)
+
+        if not updates:
+            return False
+
+        with self.transaction() as conn:
+            conn.execute(f"UPDATE agent_tasks SET {', '.join(updates)} WHERE id = ?", params)
+        return True
+
+    def complete_agent_task(self, task_id: str, output_data: dict[str, Any] | None = None) -> bool:
+        """Mark a task as completed."""
+        now = _now()
+        with self.transaction() as conn:
+            conn.execute(
+                "UPDATE agent_tasks SET status = ?, output_data = ?, updated_at = ?, completed_at = ? WHERE id = ?",
+                ("completed", json.dumps(output_data or {}, ensure_ascii=False), now, now, task_id),
+            )
+        return True
+
+    def save_agent_feedback(
+        self,
+        task_id: str,
+        approved: bool,
+        comments: str = "",
+        issues: list[str] | None = None,
+        suggestions: list[str] | None = None,
+    ) -> AgentFeedback:
+        """Save feedback from verifier to builder."""
+        feedback = AgentFeedback(
+            task_id=task_id,
+            approved=approved,
+            comments=comments,
+            issues=issues or [],
+            suggestions=suggestions or [],
+            created_at=_now(),
+        )
+        with self.transaction() as conn:
+            conn.execute(
+                """INSERT INTO agent_feedback (task_id, approved, comments, issues, suggestions, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    feedback.task_id,
+                    1 if feedback.approved else 0,
+                    feedback.comments,
+                    json.dumps(feedback.issues, ensure_ascii=False),
+                    json.dumps(feedback.suggestions, ensure_ascii=False),
+                    feedback.created_at,
+                ),
+            )
+            # Also update task status
+            if approved:
+                conn.execute(
+                    "UPDATE agent_tasks SET status = ?, updated_at = ? WHERE id = ?",
+                    ("completed", _now(), task_id),
+                )
+            else:
+                conn.execute(
+                    "UPDATE agent_tasks SET status = ?, updated_at = ? WHERE id = ?",
+                    ("feedback_received", _now(), task_id),
+                )
+        return feedback
+
+    def get_feedback_for_task(self, task_id: str) -> list[AgentFeedback]:
+        """Get all feedback for a task."""
+        conn = self.connect()
+        rows = conn.execute(
+            "SELECT * FROM agent_feedback WHERE task_id = ? ORDER BY created_at DESC", (task_id,)
+        ).fetchall()
+        return [
+            AgentFeedback(
+                task_id=row["task_id"],
+                approved=bool(row["approved"]),
+                comments=row["comments"] or "",
+                issues=json.loads(row["issues"] or "[]"),
+                suggestions=json.loads(row["suggestions"] or "[]"),
+                created_at=row["created_at"] or "",
+            )
+            for row in rows
+        ]
+
+    def get_latest_feedback(self, task_id: str) -> AgentFeedback | None:
+        """Get the most recent feedback for a task."""
+        feedbacks = self.get_feedback_for_task(task_id)
+        return feedbacks[0] if feedbacks else None
+
+    def get_latest_agent_task(self, feature_id: str, agent_name: str) -> AgentTask | None:
+        """Get the most recent task for an agent on a feature."""
+        tasks = self.list_agent_tasks(feature_id=feature_id, agent_name=agent_name)
+        return tasks[0] if tasks else None
+
+    # ── Phase 1: TESTER ─────────────────────────────────────────────────
+
+    def run_tester_phase(self, feature_id: str, skip_frontend: bool = False) -> dict[str, Any]:
+        """Run the tester phase with REAL tests. Creates and completes a test task."""
+        feature = self.get_feature(self._nid(feature_id))
+        if not feature:
+            return {"error": f"Feature {feature_id} not found"}
+
+        self.update_agent_status("tester", "working")
+        task = self.create_agent_task(
+            feature_id=feature_id,
+            agent_name="tester",
+            task_type="test",
+            description=f"Test feature {feature_id}: {feature.title}",
+            input_data={"skip_frontend": skip_frontend},
+        )
+        try:
+            output = self._run_tester_tests(feature_id, skip_frontend=skip_frontend)
+        finally:
+            self.update_agent_status("tester", "idle")
+        self.complete_agent_task(task.id, output)
+        return {"task_id": task.id, **output}
+
+    def _run_tester_tests(self, feature_id: str, skip_frontend: bool = False) -> dict[str, Any]:
+        """Run the real test suite: pytest unit (+ frontend vitest)."""
+        from harness.runner import run_frontend_tests, run_pytest
+
+        root = self.db_path.resolve().parent
+        pytest_res = run_pytest(root)
+        result: dict[str, Any] = {
+            "backend": {k: v for k, v in pytest_res.items() if k != "cmd"},
+            "all_passed": pytest_res["all_passed"] and not pytest_res.get("errors"),
+            "errors": pytest_res.get("errors", 0),
+            "failures": list(pytest_res["failures"]),
+        }
+
+        frontend_res: dict[str, Any] | None = None
+        if not skip_frontend:
+            tester_cfg = self.get_agent("tester")
+            run_fe = bool((tester_cfg.config if tester_cfg else {}).get("frontend_tests", True))
+            if run_fe:
+                frontend_res = run_frontend_tests(root)
+                if frontend_res is None:
+                    result["frontend"] = {"skipped": True, "reason": "node_modules missing"}
+                else:
+                    result["frontend"] = {k: v for k, v in frontend_res.items() if k != "cmd"}
+                    result["all_passed"] = result["all_passed"] and frontend_res["all_passed"]
+                    result["failures"].extend(frontend_res.get("failures", []))
+
+        passed = pytest_res["passed"] + (frontend_res["passed"] if frontend_res else 0)
+        failed = pytest_res["failed"] + (frontend_res["failed"] if frontend_res else 0)
+        result["tests_run"] = pytest_res["tests_run"] + (
+            frontend_res["passed"] + frontend_res["failed"] if frontend_res else 0
+        )
+        result["passed"] = passed
+        result["failed"] = failed
+        return result
+
+    # ── Phase 2: BUILDER ────────────────────────────────────────────────
+
+    def open_builder_task(
+        self,
+        feature_id: str,
+        issues: list[str] | None = None,
+        suggestions: list[str] | None = None,
+        comments: str = "",
+    ) -> AgentTask:
+        """Create a builder task, or reopen the existing one after a rejection.
+
+        Reuse rule: the latest builder task is reused while it can retry
+        (status feedback_received and iterations < max_iterations); otherwise
+        a fresh task is created.
+        """
+        feature = self.get_feature(self._nid(feature_id))
+        title = feature.title if feature else feature_id
+        latest = self.get_latest_agent_task(self._nid(feature_id), "builder")
+
+        if latest and latest.can_retry:
+            history = list(latest.input_data.get("feedback_history", []))
+            history.append(
+                {
+                    "issues": issues or [],
+                    "suggestions": suggestions or [],
+                    "comments": comments,
+                }
+            )
+            self.update_agent_task(
+                latest.id,
+                status="pending",
+                input_data={
+                    "issues": issues or [],
+                    "suggestions": suggestions or [],
+                    "comments": comments,
+                    "feedback_history": history,
+                },
+            )
+            return self.get_agent_task(latest.id)  # type: ignore[return-value]
+
+        return self.create_agent_task(
+            feature_id=feature_id,
+            agent_name="builder",
+            task_type="implement",
+            description=f"Fix issues for feature {feature_id}: {title}",
+            input_data={
+                "issues": issues or [],
+                "suggestions": suggestions or [],
+                "comments": comments,
+                "feedback_history": [],
+            },
+        )
+
+    # ── Phase 3: VERIFIER ───────────────────────────────────────────────
+
+    def run_verify_phase(self, build_task_id: str, skip_frontend: bool = False) -> dict[str, Any]:
+        """Verify a completed builder task with REAL checks.
+
+        - Approved  → feedback(approved=true) recorded against the build task.
+        - Rejected  → feedback(issues/suggestions) saved against the build task,
+                      iterations+1; task goes to feedback_received for another
+                      rework round, or failed when max_iterations is exhausted.
+        """
+        build_task = self.get_agent_task(build_task_id)
+        if not build_task:
+            return {"error": f"Task {build_task_id} not found"}
+        if build_task.agent_name != "builder" or build_task.type != "implement":
+            return {"error": f"Task {build_task_id} is not a builder implement task"}
+        if build_task.status not in ("completed",):
+            return {
+                "error": f"Builder task must be completed before verification (current status: {build_task.status})"
+            }
+        feature_id = build_task.feature_id
+
+        self.update_agent_status("verifier", "working")
+        verify_task = self.create_agent_task(
+            feature_id=feature_id,
+            agent_name="verifier",
+            task_type="verify",
+            description=f"Verify fixes for feature {feature_id} (build task {build_task_id})",
+            input_data={"build_task_id": build_task_id},
+        )
+        try:
+            checks = self._run_verifier_checks(feature_id, skip_frontend=skip_frontend)
+        finally:
+            self.update_agent_status("verifier", "idle")
+        self.complete_agent_task(verify_task.id, checks)
+
+        approved = bool(checks.get("approved"))
+        if approved:
+            self.save_agent_feedback(build_task_id, approved=True, comments="All checks passed")
+            return {
+                "task_id": verify_task.id,
+                "build_task_id": build_task_id,
+                "approved": True,
+                "checks": checks,
+            }
+
+        issues = list(checks.get("failures", [])) or ["Verification failed"]
+        suggestions = ["Fix the failing checks listed in issues and mark the task completed again"]
+        self.save_agent_feedback(
+            build_task_id,
+            approved=False,
+            comments="Verification rejected",
+            issues=issues,
+            suggestions=suggestions,
+        )
+        # save_agent_feedback set the build task to feedback_received; now
+        # account the iteration and fail it out when the budget is exhausted.
+        new_iterations = build_task.iterations + 1
+        exhausted = new_iterations >= build_task.max_iterations
+        self.update_agent_task(
+            build_task_id,
+            status="failed" if exhausted else "feedback_received",
+            iterations=new_iterations,
+        )
+        return {
+            "task_id": verify_task.id,
+            "build_task_id": build_task_id,
+            "approved": False,
+            "iterations": new_iterations,
+            "max_iterations": build_task.max_iterations,
+            "exhausted": exhausted,
+            "issues": issues,
+            "suggestions": suggestions,
+            "checks": checks,
+        }
+
+    def _run_verifier_checks(self, feature_id: str, skip_frontend: bool = False) -> dict[str, Any]:
+        """Re-run the real suite to approve or reject the builder's work."""
+        from harness.runner import run_command as _rc
+        from harness.runner import run_frontend_tests, run_pytest
+
+        root = self.db_path.resolve().parent
+        pytest_res = run_pytest(root)
+        failures: list[str] = list(pytest_res["failures"])
+        approved = pytest_res["all_passed"]
+
+        frontend_res: dict[str, Any] | None = None
+        if not skip_frontend:
+            frontend_res = run_frontend_tests(root)
+        if frontend_res is not None and not frontend_res["all_passed"]:
+            approved = False
+            failures.extend(frontend_res.get("failures", []))
+
+        extra_cmds: list[list[str]] = [
+            [sys.executable, "-m", "ruff", "check", "harness/"],
+        ]
+        extra_results = []
+        for cmd in extra_cmds:
+            res = _rc(cmd, cwd=root)
+            extra_results.append({"cmd": cmd, "exit_code": res["exit_code"], "ok": res["exit_code"] == 0})
+            if res["exit_code"] != 0:
+                approved = False
+                failures.append(f"Command failed ({' '.join(cmd)}): see stderr_tail")
+
+        result: dict[str, Any] = {
+            "approved": approved,
+            "pytest": {k: v for k, v in pytest_res.items() if k != "cmd"},
+        }
+        if frontend_res is not None:
+            result["frontend"] = {k: v for k, v in frontend_res.items() if k != "cmd"}
+        elif not skip_frontend:
+            result["frontend"] = {"skipped": True, "reason": "node_modules missing"}
+        result["extra_commands"] = extra_results
+        result["failures"] = failures
+        return result
+
+    # ── Full cycle orchestrator ─────────────────────────────────────────
+
+    def run_agent_cycle(
+        self,
+        feature_id: str,
+        max_cycles: int = 5,
+        builder_hook: str | None = None,
+        skip_frontend: bool = False,
+    ) -> dict[str, Any]:
+        """Orchestrate tester → builder → verifier until approval.
+
+        Without ``builder_hook`` the cycle stops at ``awaiting_builder`` after
+        the first failing test round: an external builder session implements
+        the fixes and marks the task completed (``harness agent task complete``),
+        then verification runs via ``harness agent verify --task-id X``.
+
+        With ``builder_hook`` (a shell command) the cycle runs fully unattended
+        up to ``max_cycles`` rounds. The hook receives HARNESS_TASK_ID in its
+        environment and must complete the builder task itself.
+        """
+        results: dict[str, Any] = {
+            "feature_id": feature_id,
+            "cycles": [],
+            "final_status": "unknown",
+        }
+
+        for cycle in range(max_cycles):
+            cycle_result: dict[str, Any] = {"cycle": cycle + 1}
+
+            # 1. TESTER — real tests
+            test_out = self.run_tester_phase(feature_id, skip_frontend=skip_frontend)
+            if "error" in test_out:
+                results["final_status"] = "error"
+                results["error"] = test_out["error"]
+                return results
+            cycle_result["test_task_id"] = test_out["task_id"]
+            cycle_result["test_result"] = test_out
+            results["cycles"].append(cycle_result)
+
+            if test_out.get("all_passed"):
+                results["final_status"] = "all_tests_passed"
+                return results
+
+            # 2. BUILDER — open/reopen task with the failure report attached
+            build_task = self.open_builder_task(
+                feature_id,
+                issues=test_out.get("failures", []),
+                suggestions=[],
+                comments=f"Failing tests reported by tester (cycle {cycle + 1})",
+            )
+            cycle_result["build_task_id"] = build_task.id
+            self.update_agent_status("builder", "working", current_task_id=build_task.id)
+
+            if not builder_hook:
+                results["final_status"] = "awaiting_builder"
+                results["build_task_id"] = build_task.id
+                return results
+
+            # External hook does the implementation work
+            from harness.runner import run_shell_command
+
+            hook_res = run_shell_command(
+                builder_hook, cwd=self.db_path.resolve().parent, env={"HARNESS_TASK_ID": build_task.id}
+            )
+            cycle_result["hook_result"] = {k: v for k, v in hook_res.items()}
+            refreshed = self.get_agent_task(build_task.id)
+            if not refreshed or refreshed.status != "completed":
+                results["final_status"] = "awaiting_builder_manual"
+                results["build_task_id"] = build_task.id
+                return results
+            self.update_agent_status("builder", "idle")
+
+            # 3. VERIFIER — real checks, feedback loop on rejection
+            verify_out = self.run_verify_phase(build_task.id, skip_frontend=skip_frontend)
+            if "error" in verify_out:
+                results["final_status"] = "error"
+                results["error"] = verify_out["error"]
+                return results
+            cycle_result["verify_result"] = verify_out
+
+            if verify_out.get("approved"):
+                results["final_status"] = "approved"
+                return results
+
+            if cycle == max_cycles - 1:
+                results["final_status"] = "max_cycles_reached"
+                results["build_task_id"] = build_task.id
+
+        return results

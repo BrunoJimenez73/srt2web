@@ -26,6 +26,7 @@ import io
 import sys
 
 from harness.commands.admin import cmd_audit, cmd_export, cmd_health, cmd_migrate, cmd_sanitize, cmd_stats
+from harness.commands.agents import build_agent_parser
 from harness.commands.features import cmd_add, cmd_list, cmd_next, cmd_search, cmd_show, cmd_update
 from harness.commands.sessions import cmd_session
 
@@ -118,6 +119,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp_end.add_argument("--features", help="Comma-separated feature IDs worked on")
     sp_end.add_argument("--notes", help="Session notes")
     p.set_defaults(func=cmd_session)
+
+    # ── agent ──
+    build_agent_parser(sub)
 
     return parser
 
