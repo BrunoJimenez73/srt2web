@@ -135,7 +135,7 @@ modules:
     enabled: true
     model: tiny
     language: en
-    device: cpu
+    device: cuda
     beam_size: 2
     timeout_sec: 120.0
   translator:
@@ -146,7 +146,7 @@ modules:
     enabled: false
   subtitle_generator:
     enabled: true
-    format: webvtt
+    format: srt
     use_translated: true
     chunk_duration: 10
     dual_track: false
@@ -154,8 +154,8 @@ modules:
   tts_engine:
     enabled: true
     engine: piper
-    device: cpu
-    voice: es_MX-claude-high
+    device: cuda
+    voice: es_ES-davefx-medium
     speed: 1.1
   audio_mixer:
     enabled: true
@@ -167,7 +167,7 @@ modules:
     hls_segment_duration: 10
     hls_list_size: 6
     audio_offset_ms: 0
-    encoder_mode: auto
+    encoder_mode: gpu_nvenc
     video_quality: medium
     video_crf: 23
     audio_codec: aac
