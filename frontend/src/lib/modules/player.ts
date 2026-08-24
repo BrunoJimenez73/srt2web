@@ -139,6 +139,7 @@ export function initHlsPlayer(): void {
   let hls: HlsInstance | null = null;
   let isConnected = false;
   let subtitleOverlay: SubtitleOverlayController | null = null;
+  let subtitleNativeHideInterval: number | null = null;
 
   function showError(message: string) {
     if (errorOverlay) errorOverlay.style.display = "flex";
@@ -581,6 +582,18 @@ export function initHlsPlayer(): void {
     // F205: en modo overlay no hay TextTracks que vigilar — se usa el rail.
     if (SUBTITLE_RENDERER === "overlay") {
       subtitleOverlay = initSubtitleOverlay(video, hls!);
+      // Enforcer: hls.js puede volver a poner mode=showing entre eventos
+      if (subtitleNativeHideInterval !== null) {
+        clearInterval(subtitleNativeHideInterval);
+      }
+      const hideNative = (): void => {
+        if (hls) disableSubtitles(hls);
+        for (const t of Array.from(video.textTracks)) {
+          if (t.kind === "subtitles" && t.mode !== "hidden") t.mode = "hidden";
+        }
+      };
+      hideNative();
+      subtitleNativeHideInterval = window.setInterval(hideNative, 200);
     } else {
       startSubtitleWatchdog(video, hls!);
     }
@@ -588,6 +601,10 @@ export function initHlsPlayer(): void {
 
   function disconnect() {
     stopSubtitleWatchdog();
+    if (subtitleNativeHideInterval !== null) {
+      clearInterval(subtitleNativeHideInterval);
+      subtitleNativeHideInterval = null;
+    }
     subtitleOverlay?.stop();
     subtitleOverlay = null;
     stopHealthCheck();
