@@ -422,17 +422,29 @@ export function initHlsPlayer(): void {
         hideError();
         retryCount = 0;
         waitForSegments(0);
-        if (hls && SUBTITLE_RENDERER === "native") {
+        if (!hls) return;
+        if (SUBTITLE_RENDERER === "native") {
           activateFirstSubtitleTrack(hls, {
             video,
             preferredLang: DEFAULT_SUBTITLE_LANG,
           });
+        } else {
+          // Overlay mode: desactivar pista nativa para evitar duplicados
+          // (hls.js puede auto-seleccionar DEFAULT=YES del master).
+          disableSubtitles(hls);
+          for (const track of Array.from(video.textTracks)) {
+            if (track.kind === "subtitles") track.mode = "hidden";
+          }
         }
       });
 
       hls.on(HlsEvents.SUBTITLE_TRACK_LOADED, () => {
         if (SUBTITLE_RENDERER === "native") {
           forceSubtitleTrackMode(video);
+        } else {
+          for (const track of Array.from(video.textTracks)) {
+            if (track.kind === "subtitles") track.mode = "hidden";
+          }
         }
       });
 
@@ -462,6 +474,11 @@ export function initHlsPlayer(): void {
           } else {
             forceSubtitleTrackMode(video);
           }
+        } else {
+          for (const track of Array.from(video.textTracks)) {
+            if (track.kind === "subtitles") track.mode = "hidden";
+          }
+          if (hls) disableSubtitles(hls);
         }
       });
 
