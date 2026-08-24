@@ -94,7 +94,7 @@ describe("initSubtitleOverlay", () => {
     // Simulate hls.js switching to fragment seg_000001 starting at t=100
     video.currentTime = 102;
     const ctrl = mount();
-    hlsHandlers.get("FRAG_CHANGED")?.({
+    hlsHandlers.get("hlsFragChanged")?.("hlsFragChanged", {
       frag: { url: "/hls/seg_000001.ts", start: 100 },
     });
 
@@ -110,7 +110,7 @@ describe("initSubtitleOverlay", () => {
     stubFetchRail({ base: 1, chunks: [] });
     video.currentTime = 5;
     const ctrl = mount();
-    hlsHandlers.get("FRAG_CHANGED")?.({
+    hlsHandlers.get("hlsFragChanged")?.("hlsFragChanged", {
       frag: { url: "/hls/seg_000001.ts", start: 100 },
     });
     await flushPoll();
@@ -124,6 +124,6 @@ describe("initSubtitleOverlay", () => {
     const ctrl = mount();
     await flushPoll(); // no debe lanzar
     ctrl.stop();
-    expect(hlsHandlers.has("FRAG_CHANGED")).toBe(false);
+    expect(hlsHandlers.has("hlsFragChanged")).toBe(false);
   });
 });

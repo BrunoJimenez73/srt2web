@@ -111,7 +111,10 @@ export function initSubtitleOverlay(
   };
 
   const onFragChanged = (...args: unknown[]): void => {
-    const data = args[0] as FragChangedData | undefined;
+    // hls.js llama on(eventName, data) — el payload puede venir en args[1] o args[0]
+    const data =
+      (args[1] as FragChangedData | undefined) ??
+      (args[0] as FragChangedData | undefined);
     const url = data?.frag?.url ?? "";
     const idx = parseSegIndex(url);
     if (idx !== null) curIdx = idx;
@@ -126,7 +129,7 @@ export function initSubtitleOverlay(
     });
   }, POLL_INTERVAL_MS);
 
-  hls.on("FRAG_CHANGED", onFragChanged);
+  hls.on("hlsFragChanged", onFragChanged);
   video.addEventListener("timeupdate", render);
   // rAF cubre los huecos entre timeupdate (~250ms) para bordes de cue nítidos
   const rafId = requestAnimationFrame(function loop() {
@@ -140,7 +143,7 @@ export function initSubtitleOverlay(
     stop(): void {
       clearInterval(pollTimer);
       cancelAnimationFrame(rafId);
-      hls.off("FRAG_CHANGED", onFragChanged);
+      hls.off("hlsFragChanged", onFragChanged);
       video.removeEventListener("timeupdate", render);
       if (container) container.textContent = "";
     },

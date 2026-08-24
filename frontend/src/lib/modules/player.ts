@@ -86,6 +86,7 @@ const HlsEvents = {
   MANIFEST_PARSED: "hlsManifestParsed",
   ERROR: "hlsError",
   FRAG_BUFFERED: "hlsFragBuffered",
+  FRAG_CHANGED: "hlsFragChanged",
   SUBTITLE_TRACKS_UPDATED: "hlsSubtitleTracksUpdated",
   SUBTITLE_TRACK_LOADED: "hlsSubtitleTrackLoaded",
   STALLED: "hlsStalled",
