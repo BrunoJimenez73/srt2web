@@ -140,6 +140,7 @@ export function initHlsPlayer(): void {
   let isConnected = false;
   let subtitleOverlay: SubtitleOverlayController | null = null;
   let subtitleNativeHideInterval: number | null = null;
+  let subtitleAddTrackHandler: EventListener | null = null;
 
   function showError(message: string) {
     if (errorOverlay) errorOverlay.style.display = "flex";
@@ -434,7 +435,7 @@ export function initHlsPlayer(): void {
           // (hls.js puede auto-seleccionar DEFAULT=YES del master).
           disableSubtitles(hls);
           for (const track of Array.from(video.textTracks)) {
-            if (track.kind === "subtitles") track.mode = "hidden";
+            if (track.kind === "subtitles") track.mode = "disabled";
           }
         }
       });
@@ -444,7 +445,7 @@ export function initHlsPlayer(): void {
           forceSubtitleTrackMode(video);
         } else {
           for (const track of Array.from(video.textTracks)) {
-            if (track.kind === "subtitles") track.mode = "hidden";
+            if (track.kind === "subtitles") track.mode = "disabled";
           }
         }
       });
@@ -477,7 +478,7 @@ export function initHlsPlayer(): void {
           }
         } else {
           for (const track of Array.from(video.textTracks)) {
-            if (track.kind === "subtitles") track.mode = "hidden";
+            if (track.kind === "subtitles") track.mode = "disabled";
           }
           if (hls) disableSubtitles(hls);
         }
@@ -587,12 +588,33 @@ export function initHlsPlayer(): void {
         clearInterval(subtitleNativeHideInterval);
       }
       const hideNative = (): void => {
-        if (hls) disableSubtitles(hls);
+        if (hls) {
+          if (hls.subtitleTrack !== -1) hls.subtitleTrack = -1;
+          hls.subtitleDisplay = false;
+        }
         for (const t of Array.from(video.textTracks)) {
-          if (t.kind === "subtitles" && t.mode !== "hidden") t.mode = "hidden";
+          if (t.mode !== "disabled") t.mode = "disabled";
         }
       };
       hideNative();
+      // Listener inmediato para pistas creadas después (hls.js addTextTrack)
+      if (subtitleAddTrackHandler) {
+        try {
+          video.textTracks.removeEventListener(
+            "addtrack",
+            subtitleAddTrackHandler,
+          );
+        } catch {
+          // ignore
+        }
+      }
+      subtitleAddTrackHandler = (() =>
+        hideNative()) as unknown as EventListener;
+      try {
+        video.textTracks.addEventListener("addtrack", subtitleAddTrackHandler);
+      } catch {
+        // addtrack no disponible en algunos browsers — fallback al intervalo
+      }
       subtitleNativeHideInterval = window.setInterval(hideNative, 200);
     } else {
       startSubtitleWatchdog(video, hls!);
@@ -604,6 +626,17 @@ export function initHlsPlayer(): void {
     if (subtitleNativeHideInterval !== null) {
       clearInterval(subtitleNativeHideInterval);
       subtitleNativeHideInterval = null;
+    }
+    if (subtitleAddTrackHandler) {
+      try {
+        video.textTracks.removeEventListener(
+          "addtrack",
+          subtitleAddTrackHandler,
+        );
+      } catch {
+        // ignore
+      }
+      subtitleAddTrackHandler = null;
     }
     subtitleOverlay?.stop();
     subtitleOverlay = null;
