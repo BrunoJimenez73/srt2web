@@ -92,6 +92,67 @@ ruff check core/ modules/ server/ tests/     # Lint Python
 cd frontend && npm run lint                  # Lint TypeScript
 ```
 
+## 4.1. Comandos de agentes (tester / builder / verifier)
+
+Sistema de 3 agentes coordinados por el harness:
+
+- **tester**: ejecuta la suite real (pytest unit + vitest frontend) y reporta fallos.
+- **builder**: implementa mejoras/fixes (sesión externa — agente de código) sobre un task del harness.
+- **verifier**: re-ejecuta checks reales; si rechaza, devuelve feedback al builder y **reabre el task automáticamente** (iteraciones hasta `max_iterations`, luego `failed`).
+
+Flujo típico (builder externo, sin hook):
+
+```bash
+# 1. TESTER: ejecuta tests reales para una feature
+python -m harness agent test --feature F123 [--skip-frontend]
+
+#    Si falla → crea/reabre builder task con los issues adjuntos.
+# 2. BUILDER (sesión externa): consulta issues, implementa fixes
+python -m harness agent task show --task-id XXX
+python -m harness agent task update --task-id XXX --status in_progress
+python -m harness agent task complete --task-id XXX --output '{"summary": "...", "files": [...]}'
+
+# 3. VERIFIER: verifica con checks reales
+python -m harness agent verify --task-id XXX [--skip-frontend]
+#    Aprobado  → feedback approved contra el build task.
+#    Rechazado → feedback con issues + task vuelve a pending (iterations+1);
+#                repetir desde el paso 2 hasta aprobar o agotar max_iterations.
+```
+
+Ciclo automático (hook ejecuta el builder entre fases; recibe `HARNESS_TASK_ID` en su entorno):
+
+```bash
+python -m harness agent cycle --feature F123 [--max-cycles 5] [--hook "comando-builder"] [--skip-frontend]
+# Final status: all_tests_passed | approved | awaiting_builder | awaiting_builder_manual | max_cycles_reached | error
+```
+
+Gestión manual:
+
+```bash
+# Inicializar agentes por defecto
+python -m harness agent init
+
+# Listar agentes
+python -m harness agent list
+
+# Ver estado de un agente
+python -m harness agent status [tester|builder|verifier]
+
+# Gestionar tareas de agentes
+python -m harness agent task create --feature F123 --agent tester --type test --description "Test feature 123"
+python -m harness agent task list [--feature F123] [--agent tester] [--status pending]
+python -m harness agent task show --task-id XXX
+python -m harness agent task complete --task-id XXX [--output '{}']
+python -m harness agent task update --task-id XXX [--status completed] [--output '{}'] [--input '{}'] [--iterations N]
+
+# Feedback del verifier al builder
+python -m harness agent feedback give --task-id XXX --approved true/false [--comments "..."] [--issues '["issue1"]'] [--suggestions '["suggestion1"]']
+python -m harness agent feedback show --task-id XXX
+python -m harness agent feedback latest --task-id XXX
+```
+
+Estados de un builder task: `pending → in_progress → completed → (verify)`; rechazo → `feedback_received` (reabierto) o `failed` (iteraciones agotadas).
+
 ## 5. Arquitectura rápida
 
 ```
@@ -950,3 +1011,14 @@ Auditoría técnica del repo completa (tests/unit 1599P+40F, tests/cli 78P+25F, 
 - **Flag rollback**: SUBTITLE_RENDERER en constants.ts = "overlay" (default) | "native" (path TextTracks conservado intacto).
 - **Ficheros**: \_fragment_writer.py (add_fragment retiene segments + get_recent), server/routes/subtitles.py NUEVO, ctx.py prefijo público /api/subtitles/, subtitle-overlay.ts NUEVO, player.ts gating, player.astro div+CSS.
 - **Tests**: 7 pytest rail + 8 vitest overlay (265 frontend total). Verificación live completa PENDIENTE de OBS: comprobar overlay sincronizado con doblaje ≥95% en sesión de 10 min (sampler activeCues ya no aplica; observar #subtitle-overlay).
+
+### 24/08 — F206/F207: Sistema de agentes en el harness + auditoría integral (ciclo tester→builder→verifier)
+
+- **F206 DONE**: sistema tester/builder/verifier completado — `harness/runner.py` NUEVO (pytest+vitest reales con parseo), `run_tester_phase`/`open_builder_task`/`run_verify_phase`/`run_agent_cycle(--hook)` en db.py, CLI `agent test|verify|cycle`, feedback loop verifier→builder con iteraciones hasta max_iterations. 30 tests nuevos. Ver flujo en §4.1.
+- **F207 DONE** (auditoría ronda 1 + ciclo completo aprobado en 2 iteraciones):
+  - Tester encontró: 4 fallos reales + 123 setup errors ocultos.
+  - Fix builder iter 1: `test_mypy_modules` skip condicional si mypy no ejecutable; `TestSecurityCardExists` ×3 reescritos contra `layout/Header.astro` + `lib/modules/header.ts`.
+  - Verifier RECHAZÓ (el loop funciona): los 123 errors eran `--basetemp=tests/.srt2web-test-temp` con entrada NTFS corrupta del 19/08 que envenenaba el purge perezoso de tmp_path en TODAS las sesiones desde entonces.
+  - Fix builder iter 2: `pytest_configure` en conftest aísla cada run en `run-<pid>` con GC best-effort >12h (concurrentes xdist intactos); dir corrupto en cuarentena por rename.
+  - Verifier APROBÓ: suite completa verde (pytest unit + vitest + ruff).
+- **Lección**: los errores E en resúmenes pytest son tan relevantes como los FAILED — el tester ahora los captura y muestra (`-rfE` + contador `ERRORS=` en el printer).

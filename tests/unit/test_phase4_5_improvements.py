@@ -197,27 +197,28 @@ class TestLogSearchFilter:
 
 
 class TestSecurityCardExists:
-    """Test security functionality exists (moved from SecurityCard to Header)."""
+    """Test security functionality exists (Header layout component + header module)."""
 
     def test_security_in_header_exists(self) -> None:
-        """Test that security toggle exists in Header component."""
-        header_path = "frontend/src/components/Header.astro"
-        assert os.path.exists(header_path), "Header.astro not found"
+        """Test that security toggle exists in the layout Header component."""
+        header_path = "frontend/src/components/layout/Header.astro"
+        assert os.path.exists(header_path), "layout/Header.astro not found"
         with open(header_path, encoding="utf-8") as f:
             content = f.read()
-        assert "Secure" in content, "Security toggle should be in Header"
+        assert "Secure" in content, "Security toggle should be in layout/Header"
 
     def test_header_has_auth_toggle(self) -> None:
-        """Test that Header has auth token toggle button."""
-        with open("frontend/src/components/Header.astro", encoding="utf-8") as f:
+        """Test that layout Header has auth token toggle button and panel."""
+        with open("frontend/src/components/layout/Header.astro", encoding="utf-8") as f:
             content = f.read()
-        assert "btn-secure" in content or "secure" in content.lower(), "Header should have security toggle"
+        assert "btn-secure-toggle" in content or "secure" in content.lower(), "Header should have security toggle"
+        assert 'id="secure-panel"' in content, "Header should have security auth panel"
 
     def test_header_shows_security_status(self) -> None:
-        """Test that Header shows security status."""
-        with open("frontend/src/components/Header.astro", encoding="utf-8") as f:
+        """Test that security ON/OFF state is handled by the header module."""
+        with open("frontend/src/lib/modules/header.ts", encoding="utf-8") as f:
             content = f.read()
-        assert "ON" in content and "OFF" in content, "Header should show security ON/OFF status"
+        assert "Secure ON" in content and "Secure OFF" in content, "header.ts should toggle Secure ON/OFF status"
 
 
 class TestAPIAuthIntegration:

@@ -6,6 +6,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 from collections.abc import Generator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -37,6 +38,33 @@ _TEST_TEMP_ROOT = Path(
 )
 TEST_TEMP_DIR = _TEST_TEMP_ROOT / _WORKER_ID
 TEST_TEMP_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def pytest_configure(config):
+    """Isolate each pytest run in its own basetemp subdir.
+
+    ``--basetemp`` points at a shared directory, and pytest purges it
+    lazily on first tmp_path use. A single corrupted directory entry
+    (NTFS "invalid handle" / WinError 5) inside it used to poison every
+    subsequent test requesting tmp_path (123 setup errors in F207).
+    Giving each process its own ``run-<pid>`` subdir makes the purge
+    target always fresh and clean; stale siblings are removed on a
+    best-effort basis (locked/corrupt ones are simply left behind).
+    """
+    base = Path(config.option.basetemp or str(_TEST_TEMP_ROOT))
+    base.mkdir(parents=True, exist_ok=True)
+    config.option.basetemp = str(base / f"run-{os.getpid()}")
+    now = time.time()
+    for sibling in base.glob("run-*"):
+        # Age guard: never touch dirs of concurrent/recent runs (xdist
+        # workers are separate processes with their own run-<pid>).
+        try:
+            if now - sibling.stat().st_mtime < 12 * 3600:
+                continue
+        except OSError:
+            continue
+        shutil.rmtree(sibling, ignore_errors=True)
+
 
 # Auth DB files must be per-worker under pytest-xdist: by default they live in
 # the real user config dir (platformdirs), shared by every worker. Concurrent
