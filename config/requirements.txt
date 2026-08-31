@@ -23,8 +23,8 @@ pydub>=0.25.1
 psutil>=5.9.0
 platformdirs>=4.0.0
 nvidia-ml-py>=12.0.0
-python-dotenv>=1.0.0  # F112: load .env for SRT2WEB_JWT_SECRET
-PyJWT>=2.8.0  # auth: JWT access/refresh tokens (core/auth_db.py)
+python-dotenv>=1.2.3  # F112: load .env for SRT2WEB_JWT_SECRET
+PyJWT>=2.13.0  # auth: JWT access/refresh tokens (core/auth_db.py)
 
 # Pydantic v2 (required for this codebase)
 pydantic>=2.0.0
